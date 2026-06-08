@@ -165,11 +165,17 @@ async function setupTestDatabase(): Promise<{
     const dir = createInMemoryOpfsDirectoryHandle();
     const client = await DatabaseClient.create(dir);
 
-    // Seed the schema pages produced by the server and attach
-    // the table, exactly as the client does at cold-open.
+    // Seed the schema pages produced by the server, exactly as the
+    // client does at cold-open. The per-db file is attached lazily
+    // on first access; touch it through a schema-qualified action so
+    // it's attached (its pages are seeded, so no server hop) before
+    // the bare-name `rawSql` helpers below, which can't auto-attach.
     const {seedPages, viewId, tableName} = await buildSchemaSeed("Tasks");
     await client.seedPages(seedPages);
-    await client.attachExistingTables(testClientConn);
+    await client.executeAction(testClientConn, {
+        name: "getViewSchema",
+        input: {tableOrViewId: viewId},
+    });
 
     const {conn, mutate} = createTestConnection(client);
 

@@ -17,10 +17,12 @@ import type {
     DatabaseActionObject,
     DatabaseActionResult,
 } from "~/shared/databases/database_actions.js";
+import {databaseTableSchemaName} from "~/shared/databases/sql.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import type {DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 const testConn = makeDatabaseClientConnection();
 
@@ -188,6 +190,32 @@ describe("execute — mutations", () => {
 
         expect(serverCalled).toBe(true);
         expect(rows).toMatchObject([{inserted: true}]);
+    });
+
+    test("references to an unattached, uncached table fall back to the server", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+        const tableId = generateChronologicalId<DatabaseTableId>();
+
+        let serverCalled = false;
+        const conn = makeDatabaseClientConnection({
+            async executeActionServer() {
+                serverCalled = true;
+                return {
+                    result: {name: "rawSql", output: {rows: [{ok: 1}]}},
+                    readPages: new Map(),
+                };
+            },
+        });
+
+        // The per-db file isn't attached and we hold none of its pages
+        // locally, so ATTACH can't read its header — the action routes to
+        // the server (which would attach + populate it) instead of
+        // attaching locally.
+        const ref = `"${databaseTableSchemaName(tableId)}"."_alpine_table"`;
+        const rows = await execute(client, conn, `SELECT * FROM ${ref}`);
+
+        expect(serverCalled).toBe(true);
+        expect(rows).toMatchObject([{ok: 1}]);
     });
 
     test("empty store falls back to local for writes", async () => {

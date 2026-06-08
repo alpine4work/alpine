@@ -222,16 +222,13 @@ export class DatabaseActiveTabWorker {
 
                     // We're an always-online app: OPFS is just a cache,
                     // so any cold-open failure (server unreachable,
-                    // cache validation, attach) is meant to bubble up
-                    // as "couldn't connect to the database".
+                    // cache validation) is meant to bubble up as
+                    // "couldn't connect to the database".
                     await client.ensureCacheIsUpToDate(conn);
 
-                    // Attach every existing table's per-db file so its
-                    // metadata and data are reachable before any
-                    // per-table action runs. This also warms the main
-                    // registry pages (via `listTableIds`) so optimistic
-                    // mutations can resolve tables without a server hop.
-                    await client.attachExistingTables(conn);
+                    // Per-table files are attached lazily on first access
+                    // (see `DatabaseClient.executeAction`), so there's
+                    // nothing else to warm here.
 
                     return client;
                 } catch (error) {

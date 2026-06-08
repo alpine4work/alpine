@@ -15,7 +15,6 @@ import {
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
 import type {InstalledVfs, VfsFile} from "~/shared/databases/install_vfs.js";
 import {installVfs} from "~/shared/databases/install_vfs.js";
-import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {
     type SqlQuery,
     databaseTableSchemaName,
@@ -38,6 +37,7 @@ import {
 } from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
+import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -579,11 +579,9 @@ export class Database {
             // A query against a table whose per-db file isn't attached (e.g.
             // a table this client learned about mid-session but hasn't
             // attached yet) fails at statement preparation with "no such
-            // table" / "unknown database" — before any page read — so it
-            // never surfaces as a PageMissingError on its own. Recover the
-            // tableId from the error text and rethrow as PageMissingError so
-            // the client's existing server-fallback path attaches + populates
-            // the table and retries, exactly as for a missing cached page.
+            // table" / "unknown database" — before any page read. Recover the
+            // tableId from the error text and rethrow as TableNotAttachedError
+            // so the client can attach the file on demand and retry.
             //
             // Client-only: the canonical server attaches every per-db file it
             // touches, so the same error there is a genuine bug and must
@@ -592,9 +590,9 @@ export class Database {
             if (this.serverContext === null && error instanceof Error) {
                 const tableId = parseUnattachedTableMessage(error.message);
                 if (tableId !== null && !this.tables.has(tableId)) {
-                    const pageMissing = new PageMissingError(0, tableId);
-                    pageMissing.cause = error;
-                    throw pageMissing;
+                    const notAttached = new TableNotAttachedError(tableId);
+                    notAttached.cause = error;
+                    throw notAttached;
                 }
             }
             throw error;

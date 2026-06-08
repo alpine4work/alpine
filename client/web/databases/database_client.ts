@@ -1,6 +1,7 @@
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/opfs_database_storage.js";
-import {Database} from "~/shared/databases/database.js";
+import type {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
+import {Database, type DatabaseExecuteActionResult} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -25,6 +26,7 @@ import {
 import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
+import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -207,7 +209,7 @@ export class DatabaseClient {
         let output: DatabaseActionOutput<N>;
         let writtenPages: ReadonlyDatabasePageSet;
         try {
-            const executed = this.database.executeAction(actionObject);
+            const executed = await this.executeActionAttachingTables(actionObject);
             output = executed.result;
             writtenPages = executed.writtenPages;
         } catch (error) {
@@ -263,7 +265,10 @@ export class DatabaseClient {
             "executeActionWithTracking only supports read-only actions",
         );
         try {
-            return this.executeReadOnly(actionObject);
+            const {result, readPages, writtenPages} =
+                await this.executeActionAttachingTables(actionObject);
+            assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
+            return {output: result, readPages};
         } catch (error) {
             if (!(error instanceof PageMissingError)) throw error;
             await this.executeActionViaServer(
@@ -282,6 +287,55 @@ export class DatabaseClient {
         const {result, readPages, writtenPages} = this.database.executeAction(actionObject);
         assert(writtenPages.size === 0, "executeActionWithTracking does not support writes");
         return {output: result, readPages};
+    }
+
+    /**
+     * Run an action against the local database, attaching any
+     * referenced per-db file we have cached locally and
+     * retrying. A table whose pages aren't cached surfaces as
+     * {@link PageMissingError} so callers fall back to the
+     * server, which attaches and populates it.
+     *
+     * Assumes a failed attempt left no buffered writes: every
+     * action targets a single per-db file and references it
+     * before writing, so an unattached table throws before any
+     * write — making the retry safe to re-run from scratch.
+     */
+    private async executeActionAttachingTables<N extends DatabaseActionName>(
+        actionObject: DatabaseActionObject<N>,
+    ): Promise<DatabaseExecuteActionResult<N>> {
+        for (;;) {
+            try {
+                return this.database.executeAction(actionObject);
+            } catch (error) {
+                if (!(error instanceof TableNotAttachedError)) throw error;
+                if (!(await this.tryAttachCachedTable(error.tableId))) {
+                    // We hold none of this table's pages locally, so we
+                    // can't attach it (ATTACH reads the header page).
+                    // Signal a page miss so the caller routes to the
+                    // server, which attaches and populates the table.
+                    throw new PageMissingError(0, error.tableId);
+                }
+            }
+        }
+    }
+
+    /**
+     * Attach `tableId`'s per-db file from the local cache so the
+     * current action can read it without a server round-trip.
+     * Returns `false` — leaving the table unattached — when the
+     * header page (page 0) isn't cached locally, since ATTACH
+     * reads it.
+     */
+    private async tryAttachCachedTable(tableId: DatabaseTableId): Promise<boolean> {
+        if (this.database.isAttached(tableId)) return true;
+        const store = await this.openStore(tableId);
+        // Re-check: a concurrent action may have attached it while we
+        // awaited the store open.
+        if (this.database.isAttached(tableId)) return true;
+        if (store.readPage(0) === null) return false;
+        this.database.attach(tableId);
+        return true;
     }
 
     // -- Reactive actions ----------------------------------------------------
@@ -552,49 +606,48 @@ export class DatabaseClient {
     }
 
     /**
-     * Ensure `tableId`'s per-db file has a local page store
-     * and is attached to the SQLite connection. No-op if it
-     * is already attached. Pages are fetched lazily (server
-     * fallback) on first access, not here.
+     * Open `tableId`'s per-db page store, registering it on the
+     * storage if it isn't already. Deduped so concurrent callers
+     * share one async `storage.create` (which yields).
+     */
+    private readonly openingStores = new Map<DatabaseTableId, Promise<OpfsPageStore>>();
+
+    private openStore(tableId: DatabaseTableId): Promise<OpfsPageStore> {
+        const existing = this.storage.get(tableId);
+        if (existing !== undefined) return Promise.resolve(existing);
+        return getOrSetDefaultMapValue(this.openingStores, tableId, () =>
+            this.storage.create(tableId).finally(() => {
+                this.openingStores.delete(tableId);
+            }),
+        );
+    }
+
+    /**
+     * Ensure `tableId`'s per-db file has a local page store and
+     * is attached to the SQLite connection. No-op if it is
+     * already attached. Used by the server-fallback path, which
+     * supplies the table's pages, so it attaches unconditionally
+     * (unlike {@link tryAttachCachedTable}, which only attaches
+     * when the header page is already cached).
      */
     private readonly attachingTables = new Map<DatabaseTableId, Promise<void>>();
 
     private ensureTableAttached(tableId: DatabaseTableId): Promise<void> {
         if (this.database.isAttached(tableId)) return Promise.resolve();
         // Dedupe concurrent attaches of the same table:
-        // `storage.create` yields, so without this two callers
-        // could both pass the `isAttached` check and the second
+        // `openStore` yields, so without this two callers could
+        // both pass the `isAttached` check and the second
         // `attach` would throw "already attached".
         return getOrSetDefaultMapValue(this.attachingTables, tableId, () =>
             (async () => {
-                if (this.storage.get(tableId) === undefined) {
-                    await this.storage.create(tableId);
+                await this.openStore(tableId);
+                if (!this.database.isAttached(tableId)) {
+                    this.database.attach(tableId);
                 }
-                this.database.attach(tableId);
             })().finally(() => {
                 this.attachingTables.delete(tableId);
             }),
         );
-    }
-
-    /**
-     * Attach every table recorded in the main database's
-     * `_alpine_tables` registry so their per-db files are
-     * reachable. Called once at cold-open after the cache is
-     * validated, before any per-table action runs.
-     *
-     * The `listTableIds` read also warms the registry pages into
-     * the local cache, so later optimistic mutations can resolve
-     * tables without a server round-trip.
-     */
-    async attachExistingTables(conn: DatabaseClientConnection): Promise<void> {
-        const {tableIds} = await this.executeAction<"listTableIds">(conn, {
-            name: "listTableIds",
-            input: {},
-        });
-        for (const tableId of tableIds) {
-            await this.ensureTableAttached(tableId);
-        }
     }
 
     private async executeActionViaServer<N extends DatabaseActionName>(

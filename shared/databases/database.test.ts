@@ -1,9 +1,9 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 import {Database, type ReadonlyDatabaseStorage} from "~/shared/databases/database.js";
-import {PageMissingError} from "~/shared/databases/page_missing_error.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
+import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {InternalError} from "~/shared/error/error.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -428,13 +428,13 @@ describe("Database — attach", () => {
 });
 
 describe("Database — unattached per-db file detection", () => {
-    test("a query against an unattached per-db file throws PageMissingError", async () => {
+    test("a query against an unattached per-db file throws TableNotAttachedError", async () => {
         const {database} = await createDatabase();
         const tableId = generateChronologicalId<DatabaseTableId>();
 
         // The table's file was never attached, so name resolution fails with
-        // "no such table" — surfaced as PageMissingError so the client's
-        // server-fallback path attaches + populates it.
+        // "no such table" — surfaced as TableNotAttachedError so the client
+        // attaches the file on demand and retries.
         expect(() =>
             database.executeSql(
                 sql`
@@ -445,10 +445,10 @@ describe("Database — unattached per-db file detection", () => {
                 `,
                 {allowWrites: "none"},
             ),
-        ).toThrow(PageMissingError);
+        ).toThrow(TableNotAttachedError);
     });
 
-    test("the 'unknown database' DDL error shape also becomes PageMissingError", async () => {
+    test("the 'unknown database' DDL error shape also becomes TableNotAttachedError", async () => {
         const {database} = await createDatabaseWithSchema(sql`CREATE TABLE items (x INTEGER)`);
         const tableId = generateChronologicalId<DatabaseTableId>();
 
@@ -458,16 +458,16 @@ describe("Database — unattached per-db file detection", () => {
             database.executeSql(sql`CREATE INDEX ${sql.tableRef(tableId, "i")} ON items (x)`, {
                 allowWrites: "schema+data",
             }),
-        ).toThrow(PageMissingError);
+        ).toThrow(TableNotAttachedError);
     });
 
-    test("a missing inner table in an ATTACHED file throws the raw error, not PageMissingError", async () => {
+    test("a missing inner table in an ATTACHED file throws the raw error, not TableNotAttachedError", async () => {
         const {database} = await createDatabase();
         const tableId = generateChronologicalId<DatabaseTableId>();
 
         // Attaching an empty store succeeds (valid empty DB). The inner
         // _alpine_table genuinely doesn't exist, so this is a real error and
-        // must NOT be masked as a missing-page fallback.
+        // must NOT be masked as an attach-on-demand signal.
         database.attach(tableId);
 
         expect(() =>
@@ -483,7 +483,7 @@ describe("Database — unattached per-db file detection", () => {
         ).toThrow("no such table");
     });
 
-    test("the server surfaces the raw SQL error, not PageMissingError", async () => {
+    test("the server surfaces the raw SQL error, not TableNotAttachedError", async () => {
         const storage = new InMemoryStorage();
         const database = await Database.create(storage, {server: true});
         openDatabases.push(database);
