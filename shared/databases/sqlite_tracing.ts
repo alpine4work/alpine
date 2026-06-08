@@ -10,10 +10,11 @@ const now = typeof performance !== "undefined" ? () => performance.now() : () =>
  * Both execution paths are covered:
  *
  * - `db.exec()` (the write path) is timed end-to-end.
- * - `db.prepare()` statements (the read path) are timed on their
- *   first `step()` — where SQLite actually does the work — and again
- *   on the first `step()` after a `reset()`/`stepReset()` rewinds the
- *   statement. Subsequent steps that just drain rows aren't logged.
+ * - `db.prepare()` statements (the read path) are timed from their
+ *   first `step()` — where SQLite begins doing work — until the
+ *   statement is finalized or rewound via `reset()`/`stepReset()`,
+ *   which is when the line is logged. A statement reused across
+ *   several `reset()`s logs once per run.
  *
  * Patching only `db.exec()` (as a previous version did) missed every
  * `SELECT`, since those run through `prepare()`/`step()` and never
@@ -45,63 +46,57 @@ export function installTracing(db: Database): void {
         const stmt = originalPrepare(sql as string);
         const sqlText = sqlTextOf(sql);
 
-        // A prepared statement runs lazily: the first `step()` does the
-        // real work. We log that first step's duration, then stay quiet
-        // until the statement is rewound, at which point the next
-        // `step()` logs again. `armed` means "the next step should be
-        // logged".
-        let armed = true;
+        // A prepared statement runs lazily across a "run": timing
+        // starts at the first `step()` (where SQLite begins doing work)
+        // and the line is logged when the run ends — on `finalize()` or
+        // a `reset()`/`stepReset()` rewind. `startedAt` is null while no
+        // run is in progress.
+        let startedAt: number | null = null;
+        function endRun(): void {
+            if (startedAt === null) return;
+            logStatement(sqlText, now() - startedAt);
+            startedAt = null;
+        }
 
         const originalStep = stmt.step.bind(stmt);
         stmt.step = () => {
-            if (inExec || !armed) return originalStep();
-            const start = now();
-            try {
-                return originalStep();
-            } finally {
-                armed = false;
-                logStatement(sqlText, now() - start);
-            }
+            if (!inExec && startedAt === null) startedAt = now();
+            return originalStep();
         };
 
         const originalReset = stmt.reset.bind(stmt);
         stmt.reset = (alsoClearBinds?: boolean) => {
-            const result = originalReset(alsoClearBinds);
-            armed = true;
-            return result;
+            endRun();
+            return originalReset(alsoClearBinds);
         };
 
-        // `stepReset()` steps once and then rewinds. Trace the step it
-        // performs (when armed), then re-arm: it leaves the statement
-        // reset to the beginning, so the next `step()` should log too.
+        const originalFinalize = stmt.finalize.bind(stmt);
+        stmt.finalize = () => {
+            endRun();
+            return originalFinalize();
+        };
+
+        // `stepReset()` steps once and then rewinds: it both starts a
+        // run (its step) and ends it (its reset), so log around it.
         const originalStepReset = stmt.stepReset.bind(stmt);
         stmt.stepReset = () => {
-            if (inExec || !armed) {
-                const result = originalStepReset();
-                armed = true;
-                return result;
-            }
-            const start = now();
+            if (!inExec && startedAt === null) startedAt = now();
             try {
                 return originalStepReset();
             } finally {
-                armed = true;
-                logStatement(sqlText, now() - start);
+                endRun();
             }
         };
 
-        // `stepFinalize()` steps once and finalizes. Trace that step
-        // (when armed); the statement is dead afterwards so there is no
-        // run to re-arm.
+        // `stepFinalize()` steps once and finalizes — same shape as
+        // `stepReset()`: start on its step, log on its finalize.
         const originalStepFinalize = stmt.stepFinalize.bind(stmt);
         stmt.stepFinalize = () => {
-            if (inExec || !armed) return originalStepFinalize();
-            const start = now();
+            if (!inExec && startedAt === null) startedAt = now();
             try {
                 return originalStepFinalize();
             } finally {
-                armed = false;
-                logStatement(sqlText, now() - start);
+                endRun();
             }
         };
 
