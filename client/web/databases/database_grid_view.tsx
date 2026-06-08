@@ -238,6 +238,43 @@ export function DatabaseGridView({
         scrollViewRef.current?.scrollToKeyIfExists(selectedRowId, {withAnchor: false});
     }, [selectedRowId]);
 
+    // Cumulative left offset of each visible column in scroll-content
+    // pixel coords. Accounts for the `marginRight: -1` overlap between
+    // adjacent cells.
+    const columnLefts = useMemo(() => {
+        const lefts: Array<number> = [];
+        let left = 0;
+        for (const field of gridFields.fields) {
+            lefts.push(left);
+            left += field.width - 1;
+        }
+        return lefts;
+    }, [gridFields.fields]);
+
+    const renderSelectionOverlay = useEvent(() => {
+        if (visibleSelection == null || visibleSelection.isEditing) return null;
+        const rowPosition = scrollViewRef.current?.getPositionByKeyIfExists(visibleSelection.rowId);
+        if (rowPosition == null) return null;
+        const fieldIndex = gridFields.fieldIndexById.get(visibleSelection.fieldId);
+        if (fieldIndex == null) return null;
+        const field = gridFields.fields[fieldIndex];
+        const left = columnLefts[fieldIndex];
+        if (field == null || left == null) return null;
+        return (
+            <Box
+                position="absolute"
+                border="theme-40-const"
+                pointerEvents="none"
+                style={{
+                    top: rowPosition.offset,
+                    height: rowPosition.height,
+                    left,
+                    width: field.width,
+                }}
+            />
+        );
+    });
+
     const needsMore = useStore(query.needsMoreStore);
     const itemCount = rowCount + 2 + (needsMore ? 1 : 0);
 
@@ -398,6 +435,7 @@ export function DatabaseGridView({
                     scrollbarInsetTopItemIndex={0}
                     scrollbarInsetBottomItemIndex={addRowIndex}
                     contentMinWidth={gridFields.contentMinWidth}
+                    extraChildren={renderSelectionOverlay}
                 />
             </Box>
         </GlobalKeyDownEvent>
@@ -1001,8 +1039,6 @@ function DatabaseGridViewCell({
         <></>
     );
 
-    const showSelectionOverlay = isSelected && !isEditing;
-
     return (
         <Overlay
             isVisible={isEditing && EditorOverlay != null}
@@ -1013,7 +1049,6 @@ function DatabaseGridViewCell({
             overlay={editorOverlay}
         >
             <Box
-                position="relative"
                 border="transparent"
                 style={{
                     ...field.columnStyle,
@@ -1029,18 +1064,6 @@ function DatabaseGridViewCell({
                     commitValue={commitValue}
                     onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
                 />
-                {showSelectionOverlay && (
-                    <Box
-                        position="absolute"
-                        top="0"
-                        bottom="0"
-                        left="0"
-                        right="0"
-                        border="theme-40-const"
-                        pointerEvents="none"
-                        zIndex="1"
-                    />
-                )}
             </Box>
         </Overlay>
     );
