@@ -226,10 +226,6 @@ export class DatabaseActiveTabWorker {
                     // "couldn't connect to the database".
                     await client.ensureCacheIsUpToDate(conn);
 
-                    // Per-table files are attached lazily on first access
-                    // (see `DatabaseClient.executeAction`), so there's
-                    // nothing else to warm here.
-
                     return client;
                 } catch (error) {
                     // The client opened its OPFS sync-access handles
