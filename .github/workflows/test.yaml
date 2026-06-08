@@ -6,13 +6,13 @@ on:
             - main
 
 jobs:
-    # We intentionally keep this as a real job instead of a job-level `if`. The
-    # test jobs `need` it, and GitHub Actions skips downstream `needs` jobs when
-    # an upstream job is skipped. This lets us centralize `[SKIP CI]` handling so
-    # we stop before spinning up the rest of the runner fan-out.
     prepare-ci:
         name: Prepare CI
         runs-on: ubuntu-slim
+        outputs:
+            unit_test_matrix: ${{ steps.test_buckets.outputs.unit_test_matrix }}
+            integration_test_matrix: ${{ steps.test_buckets.outputs.integration_test_matrix }}
+            screenshot_test_matrix: ${{ steps.test_buckets.outputs.screenshot_test_matrix }}
         steps:
             - name: Check for “[SKIP CI]”
               if: github.ref != 'refs/heads/main'
@@ -42,21 +42,79 @@ jobs:
                     exit 0
                   fi
 
+            - name: Calculate test buckets
+              id: test_buckets
+              shell: bash
+              env:
+                  unitTestBucketCount: ${{ startsWith(github.ref_name, 'CI-ASG/') && 6 || 2 }}
+                  integrationTestBucketCount:
+                      ${{ startsWith(github.ref_name, 'CI-ASG/') && 10 || 3 }}
+                  screenshotTestBucketCount: ${{ startsWith(github.ref_name, 'CI-ASG/') && 4 || 1 }}
+              run: |
+                  set -euo pipefail
+
+                  test_bucket_matrix() {
+                      local test_type="$1"
+                      local bucket_count="$2"
+                      local bucket=1
+                      local runner_job_label
+                      local unique_runner_label
+
+                      printf '{"include":['
+                      while [ "$bucket" -le "$bucket_count" ]; do
+                          if [ "$bucket" -gt 1 ]; then
+                              printf ','
+                          fi
+
+                          if [[ "${GITHUB_REF_NAME}" == CI-ASG/* ]]; then
+                              unique_runner_label="aws-test-asg-job-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${test_type}-${bucket}"
+                              runner_job_label="$unique_runner_label"
+                          else
+                              runner_job_label="aws-test"
+                          fi
+
+                          printf '{"bucket":%s,"bucketCount":%s,"runnerJobLabel":"%s"}' \
+                              "$bucket" \
+                              "$bucket_count" \
+                              "$runner_job_label"
+                          bucket=$((bucket + 1))
+                      done
+                      printf ']}'
+                  }
+
+                  emit_test_bucket_matrix() {
+                      local output_name="$1"
+                      local test_type="$2"
+                      local bucket_count="$3"
+
+                      if ! [[ "$bucket_count" =~ ^[1-9][0-9]*$ ]]; then
+                          echo "Error: $output_name bucket count must be a positive integer" >&2
+                          exit 1
+                      fi
+
+                      echo "$output_name=$(test_bucket_matrix "$test_type" "$bucket_count")" >> "$GITHUB_OUTPUT"
+                  }
+
+                  emit_test_bucket_matrix unit_test_matrix unit "$unitTestBucketCount"
+                  emit_test_bucket_matrix integration_test_matrix integration "$integrationTestBucketCount"
+                  emit_test_bucket_matrix screenshot_test_matrix screenshot "$screenshotTestBucketCount"
+
     unit-tests:
-        name: Unit tests (${{ matrix.bucket }}/2)
+        name: Unit tests (${{ matrix.bucket }}/${{ matrix.bucketCount }})
         needs: [prepare-ci]
-        runs-on:
-            [
-                self-hosted,
-                "${{ startsWith(github.ref_name, 'CI-ASG/') && 'aws-test-asg' || 'aws-test' }}",
-            ]
+        runs-on: [self-hosted, "${{ matrix.runnerJobLabel }}"]
         strategy:
-            matrix:
-                bucket:
-                    - 1
-                    - 2
+            fail-fast: false # Allows all jobs to complete
+            matrix: ${{ fromJSON(needs.prepare-ci.outputs.unit_test_matrix) }}
         steps:
-            - name: Checkout repo
+            - if: startsWith(github.ref_name, 'CI-ASG/')
+              name: Checkout git SHA
+              uses: ./.github/actions/checkout_git_sha
+              with:
+                  github-token: ${{ github.token }}
+
+            - if: ${{ !startsWith(github.ref_name, 'CI-ASG/') }}
+              name: Checkout repo
               uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
             - name: Initialize Bazel cache
@@ -71,7 +129,7 @@ jobs:
             # multiple runners. Each target label is hashed and assigned to a bucket.
             - name: Unit tests
               run: |
-                  targets=$(admin/bazel/bucket_test_targets.sh ${{ matrix.bucket }} 2 \
+                  targets=$(admin/bazel/bucket_test_targets.sh ${{ matrix.bucket }} ${{ matrix.bucketCount }} \
                       'tests(//...) except attr(tags, "integration_test|screenshot_test|macos", tests(//...))')
                   if [ -z "$targets" ]; then
                       echo "Error: no test targets in bucket ${{ matrix.bucket }}" >&2
@@ -100,21 +158,20 @@ jobs:
                   retention-days: 7
 
     integration-tests:
-        name: Integration tests (${{ matrix.bucket }}/3)
+        name: Integration tests (${{ matrix.bucket }}/${{ matrix.bucketCount }})
         needs: [prepare-ci]
-        runs-on:
-            [
-                self-hosted,
-                "${{ startsWith(github.ref_name, 'CI-ASG/') && 'aws-test-asg' || 'aws-test' }}",
-            ]
+        runs-on: [self-hosted, "${{ matrix.runnerJobLabel }}"]
         strategy:
-            matrix:
-                bucket:
-                    - "1"
-                    - "2"
-                    - "3"
+            matrix: ${{ fromJSON(needs.prepare-ci.outputs.integration_test_matrix) }}
         steps:
-            - name: Checkout repo
+            - if: startsWith(github.ref_name, 'CI-ASG/')
+              name: Checkout git SHA
+              uses: ./.github/actions/checkout_git_sha
+              with:
+                  github-token: ${{ github.token }}
+
+            - if: ${{ !startsWith(github.ref_name, 'CI-ASG/') }}
+              name: Checkout repo
               uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
             - name: Initialize Bazel cache
@@ -129,7 +186,7 @@ jobs:
             # developers.
             - name: Integration tests
               run: |
-                  targets=$(admin/bazel/bucket_test_targets.sh ${{ matrix.bucket }} 3 \
+                  targets=$(admin/bazel/bucket_test_targets.sh ${{ matrix.bucket }} ${{ matrix.bucketCount }} \
                       'attr(tags, "integration_test", tests(//...)) except attr(tags, "macos", tests(//...))')
                   if [ -z "$targets" ]; then
                       echo "Error: no integration test targets in bucket ${{ matrix.bucket }}" >&2
@@ -160,15 +217,20 @@ jobs:
                   retention-days: 7
 
     screenshot-tests:
-        name: Screenshot tests
+        name: Screenshot tests (${{ matrix.bucket }}/${{ matrix.bucketCount }})
         needs: [prepare-ci]
-        runs-on:
-            [
-                self-hosted,
-                "${{ startsWith(github.ref_name, 'CI-ASG/') && 'aws-test-asg' || 'aws-test' }}",
-            ]
+        runs-on: [self-hosted, "${{ matrix.runnerJobLabel }}"]
+        strategy:
+            matrix: ${{ fromJSON(needs.prepare-ci.outputs.screenshot_test_matrix) }}
         steps:
-            - name: Checkout repo
+            - if: startsWith(github.ref_name, 'CI-ASG/')
+              name: Checkout git SHA
+              uses: ./.github/actions/checkout_git_sha
+              with:
+                  github-token: ${{ github.token }}
+
+            - if: ${{ !startsWith(github.ref_name, 'CI-ASG/') }}
+              name: Checkout repo
               uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
             - name: Initialize Bazel cache
@@ -176,14 +238,24 @@ jobs:
 
             # Run screenshot tests with Playwright. These tests are expensive to run and
             # are flaky. We run them after all other tests have passed and break them into
-            # deterministic buckets to run in parallel.
+            # balanced randomized buckets to run in parallel.
             - name: Screenshot tests
               run: |
+                  targets=$(admin/bazel/bucket_test_targets.sh \
+                      ${{ matrix.bucket }} \
+                      ${{ matrix.bucketCount }} \
+                      --balanced-random \
+                      'attr(tags, "screenshot_test", tests(//...)) except attr(tags, "macos", tests(//...))')
+                  if [ -z "$targets" ]; then
+                      echo "Error: no screenshot test targets in bucket ${{ matrix.bucket }}" >&2
+                      exit 1
+                  fi
+                  target_count=$(echo "$targets" | wc -l | tr -d ' ')
+                  echo "Running $target_count screenshot test targets in bucket ${{ matrix.bucket }}."
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
-                      //... \
                       --config=github-runner \
-                      --test_tag_filters=screenshot_test,-macos \
-                      --nofetch
+                      --nofetch \
+                      $targets
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
@@ -196,9 +268,53 @@ jobs:
               name: Upload Bazel test logs
               uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # 7.0.1
               with:
-                  name: bazel_screenshot_testlogs
+                  name: bazel_screenshot_${{ matrix.bucket }}_testlogs
                   path: bazel-testlogs
                   retention-days: 7
+
+    # Stable aggregate checks for branch protection. GitHub treats each matrix
+    # shard as a separate required check, which means changing the shard count
+    # forces everyone to rebase branch protection settings. These jobs wait for
+    # all shards, then fail if any shard failed so branch protection can require
+    # a single `Unit tests` / `Integration tests` check instead.
+    unit-tests-check:
+        name: Unit tests
+        if: always()
+        needs: [unit-tests]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Verify unit test shards passed
+              run: |
+                  if [ "${{ needs.unit-tests.result }}" != "success" ]; then
+                      echo "One or more unit test shards failed: ${{ needs.unit-tests.result }}" >&2
+                      exit 1
+                  fi
+
+    integration-tests-check:
+        name: Integration tests
+        if: always()
+        needs: [integration-tests]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Verify integration test shards passed
+              run: |
+                  if [ "${{ needs.integration-tests.result }}" != "success" ]; then
+                      echo "One or more integration test shards failed: ${{ needs.integration-tests.result }}" >&2
+                      exit 1
+                  fi
+
+    screenshot-tests-check:
+        name: Screenshot tests
+        if: always()
+        needs: [screenshot-tests]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Verify screenshot tests passed
+              run: |
+                  if [ "${{ needs.screenshot-tests.result }}" != "success" ]; then
+                      echo "Screenshot tests failed: ${{ needs.screenshot-tests.result }}" >&2
+                      exit 1
+                  fi
 
     schedule-deploy:
         name: Schedule deploy
@@ -210,7 +326,7 @@ jobs:
         # a message to our job queue via lambda. This will make sure our commit is eventually
         # deployed.
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        needs: [unit-tests, integration-tests, screenshot-tests]
+        needs: [unit-tests-check, integration-tests-check, screenshot-tests-check]
         steps:
             - name: Schedule deploy
               run: |
