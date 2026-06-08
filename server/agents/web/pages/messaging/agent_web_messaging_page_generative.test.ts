@@ -11,17 +11,30 @@ import {ApiContentInlineElementWithoutCommentMarkArbitrary} from "~/shared/api/m
 import {ApiContentInlineElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+
+type TestCustomBlock = {
+    readonly type: "Custom";
+    readonly text: string;
+};
+
+const TestCustomBlockArbitrary = fc.record({
+    type: fc.constant("Custom" as const),
+    text: fc.oneof(fc.constant("foo"), fc.constant("bar"), fc.constant("qux")),
+});
 
 const AgentWebMessagingPageArbitrary = fc.record(
-    createAgentWebMessagingPageArbitrary<{
-        readonly elements: ReadonlyArray<ApiContentInlineElementResponse>;
-    }>(
-        fc.record({
+    createAgentWebMessagingPageArbitrary<
+        {readonly elements: ReadonlyArray<ApiContentInlineElementResponse>},
+        TestCustomBlock
+    >({
+        preambleArbitrary: fc.record({
             elements: fc.array(ApiContentInlineElementWithoutCommentMarkArbitrary, {
                 maxLength: 4,
             }),
         }),
-    ),
+        customBlockArbitrary: TestCustomBlockArbitrary,
+    }),
 );
 
 runAgentWebPageGenerativeTests({
@@ -35,6 +48,14 @@ runAgentWebPageGenerativeTests({
                     elements: [{type: "Paragraph", elements: preamble.elements}],
                 });
             },
+            printCustomBlock: async (storage, customBlock) => ({
+                type: "root",
+                children: [
+                    {type: "html", value: "<custom>"},
+                    {type: "paragraph", children: [{type: "text", value: customBlock.text}]},
+                    {type: "html", value: "</custom>"},
+                ],
+            }),
         }),
     parse: (storage, pageLink, root) =>
         parseAgentWebMessagingPage(storage, pageLink, root, {
@@ -56,12 +77,27 @@ runAgentWebPageGenerativeTests({
 
                 return {elements: actualElements};
             },
+            parseCustomBlockByTagName: {
+                custom: async (storage, root) => {
+                    assert(root.children[0]?.type === "html");
+                    assert(root.children[0].value === "<custom>");
+
+                    assert(root.children[1]?.type === "paragraph");
+                    assert(root.children[1].children[0]?.type === "text");
+
+                    assert(root.children[2]?.type === "html");
+                    assert(root.children[2].value === "</custom>");
+
+                    return {type: "Custom", text: root.children[1].children[0].value};
+                },
+            },
         }),
     normalize: page =>
         normalizeAgentWebMessagingPage(page, {
             normalizePreamble: (normalizer, preamble) => {
                 normalizer.normalizeInlineElements(preamble.elements);
             },
+            normalizeCustomBlock: () => {},
         }),
     pageLink: fc.constant(true),
     page: AgentWebMessagingPageArbitrary,

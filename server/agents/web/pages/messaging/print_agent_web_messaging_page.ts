@@ -5,6 +5,7 @@ import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_w
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebMessagingPage,
+    AgentWebMessagingPageCustomBlockBase,
     AgentWebMessagingPageMessageBlockParent,
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageNouns,
@@ -25,16 +26,25 @@ export const agentWebMessagingPreviousPageLinkTextWithEndArrow = "Previous page 
 export const agentWebMessagingPreviousPageLinkTextWithStartArrow = "« Previous page";
 export const agentWebMessagingNextPageLinkText = "Next page »";
 
-export async function printAgentWebMessagingPage<PageLink, Preamble>(
+export async function printAgentWebMessagingPage<
+    PageLink,
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     storage: AgentWebSessionStorage,
     pageLink: PageLink,
-    page: AgentWebMessagingPage<Preamble>,
+    page: AgentWebMessagingPage<Preamble, CustomBlock>,
     {
         messageNouns,
         printPreamble,
+        printCustomBlock,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         printPreamble: (storage: AgentWebSessionStorage, preamble: Preamble) => Promise<Root>;
+        printCustomBlock: (
+            storage: AgentWebSessionStorage,
+            customBlock: CustomBlock,
+        ) => Promise<Root>;
     },
 ): Promise<Root> {
     const children: Array<RootContent> = [];
@@ -164,33 +174,56 @@ export async function printAgentWebMessagingPage<PageLink, Preamble>(
         })(),
         runAllPromises(
             page.blocks.map(async block => {
-                if (block.type !== "Message") return block;
+                switch (block.type) {
+                    case "Time": {
+                        return block;
+                    }
+                    case "Message": {
+                        // The order of calls in this function matters and needs to match the normalization
+                        // order in `normalizeAgentWebMessagingPage()`.
+                        const [authorPathname, parent, contentTree] = await runAllPromises([
+                            createAgentWebPageStoredLinkPathname(storage, block.author),
+                            block.parent
+                                ? runAllObjectPromises({
+                                      authorPathname: createAgentWebPageStoredLinkPathname(
+                                          storage,
+                                          block.parent.author,
+                                      ),
+                                      previewContentTree: printApiContentToAgentWebMarkdownTree(
+                                          storage,
+                                          block.parent.previewContent,
+                                      ),
+                                  })
+                                : null,
+                            printApiContentToAgentWebMarkdownTree(storage, block.content),
+                        ]);
 
-                // The order of calls in this function matters and needs to match the normalization
-                // order in `normalizeAgentWebMessagingPage()`.
-                const [authorPathname, parent, contentTree] = await runAllPromises([
-                    createAgentWebPageStoredLinkPathname(storage, block.author),
-                    block.parent
-                        ? runAllObjectPromises({
-                              authorPathname: createAgentWebPageStoredLinkPathname(
-                                  storage,
-                                  block.parent.author,
-                              ),
-                              previewContentTree: printApiContentToAgentWebMarkdownTree(
-                                  storage,
-                                  block.parent.previewContent,
-                              ),
-                          })
-                        : null,
-                    printApiContentToAgentWebMarkdownTree(storage, block.content),
-                ]);
+                        const printedParent = block.parent
+                            ? {...block.parent, ...assertExists(parent)}
+                            : null;
 
-                return {
-                    ...block,
-                    authorPathname,
-                    contentTree,
-                    parent: block.parent ? {...block.parent, ...assertExists(parent)} : null,
-                };
+                        return {
+                            ...block,
+                            authorPathname,
+                            contentTree,
+                            parent: printedParent,
+                        };
+                    }
+                    case "Custom": {
+                        if (!printCustomBlock) {
+                            throw new InternalError(
+                                "Can\u2019t print custom messaging page block without `printCustomBlock`",
+                            );
+                        }
+
+                        return {
+                            ...block,
+                            customTree: await printCustomBlock(storage, block),
+                        };
+                    }
+                    default:
+                        throw exhaustive(block);
+                }
             }),
         ),
     ]);
@@ -271,6 +304,12 @@ export async function printAgentWebMessagingPage<PageLink, Preamble>(
                     type: "html",
                     value: `</${messageNouns.noun}>`,
                 });
+                break;
+            }
+            case "Custom": {
+                for (const childNode of block.customTree.children) {
+                    children.push(childNode);
+                }
                 break;
             }
             default:

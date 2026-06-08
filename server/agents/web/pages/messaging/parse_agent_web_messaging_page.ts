@@ -6,6 +6,7 @@ import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
+    AgentWebMessagingPageCustomBlockBase,
     AgentWebMessagingPageMessageBlock,
     AgentWebMessagingPageMessageBlockParent,
     AgentWebMessagingPageMessageRange,
@@ -34,6 +35,8 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
@@ -42,16 +45,24 @@ import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
-export async function parseAgentWebMessagingPage<PageLink, Preamble>(
+export async function parseAgentWebMessagingPage<
+    PageLink,
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
+>(
     storage: AgentWebSessionStorage,
     pageLink: PageLink | null,
     root: Root,
     options: {
         messageNouns: AgentWebMessagingPageNouns;
         parsePreamble: (storage: AgentWebSessionStorage, root: Root) => Promise<Preamble>;
+        parseCustomBlockByTagName: Record<
+            string,
+            (storage: AgentWebSessionStorage, root: Root) => Promise<CustomBlock>
+        >;
     },
-): Promise<AgentWebMessagingPage<Preamble>> {
-    const blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock>> = [];
+): Promise<AgentWebMessagingPage<Preamble, CustomBlock>> {
+    const blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock<CustomBlock>>> = [];
 
     try {
         const result = await actuallyParseAgentWebMessagingPage(
@@ -76,24 +87,36 @@ export async function parseAgentWebMessagingPage<PageLink, Preamble>(
     }
 }
 
-async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
+async function actuallyParseAgentWebMessagingPage<
+    PageLink,
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     storage: AgentWebSessionStorage,
     pageLink: PageLink | null,
     root: Root,
     {
         messageNouns,
         parsePreamble,
+        parseCustomBlockByTagName,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         parsePreamble: (storage: AgentWebSessionStorage, root: Root) => Promise<Preamble>;
+        parseCustomBlockByTagName: Record<
+            string,
+            (storage: AgentWebSessionStorage, root: Root) => Promise<CustomBlock>
+        >;
     },
-    blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock>>,
-): Promise<Omit<AgentWebMessagingPage<Preamble>, "blocks">> {
+    blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock<CustomBlock>>>,
+): Promise<Omit<AgentWebMessagingPage<Preamble, CustomBlock>, "blocks">> {
+    const customBlockTagNames = new Set(Object.keys(parseCustomBlockByTagName));
+
     let hasFinishedPreamble = false;
     let isEndOfMessages = false;
     const preamble: Array<RootContent> = [];
 
-    let state: {
+    type MessageState = {
+        type: "Message";
         openTagPosition: Node["position"];
         hasEndedOpenTag: boolean;
         startedAttribute: "id" | "from" | "time" | "timezone" | null;
@@ -110,7 +133,16 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
             children: Array<RootContent>;
         } | null;
         children: Array<RootContent>;
-    } | null = null;
+    };
+
+    type CustomState = {
+        type: "Custom";
+        tagName: string;
+        openTagPosition: Node["position"];
+        children: Array<RootContent>;
+    };
+
+    let state: MessageState | CustomState | null = null;
 
     const parseHtml = (node: Html) => {
         let hasUnknownHtml = false;
@@ -123,15 +155,39 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                 onopentagname: (start, end) => {
                     const tagName = node.value.slice(start, end).toLowerCase();
 
+                    if (customBlockTagNames.has(tagName)) {
+                        if (state) {
+                            const alreadyOpenTagName =
+                                state.type === "Message" ? messageNouns.noun : state.tagName;
+
+                            throw new InvalidArgumentError("Invalid custom element open tag", {
+                                displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${tagName}>\` on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${alreadyOpenTagName}>\` and you can\u2019t nest \`<${tagName}>\`.`,
+                            });
+                        }
+
+                        state = {
+                            type: "Custom",
+                            tagName,
+                            openTagPosition: node.position,
+                            children: [node],
+                        };
+                        handledHtml ??= {tagName, tagType: "open"};
+                        return;
+                    }
+
                     switch (tagName) {
                         case messageNouns.noun: {
                             if (state) {
+                                const alreadyOpenTagName =
+                                    state.type === "Message" ? messageNouns.noun : state.tagName;
+
                                 throw new InvalidArgumentError("Invalid message element open tag", {
-                                    displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${messageNouns.noun}>\` on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${messageNouns.noun}>\` and you can\u2019t nest ${messageNouns.pluralNoun}.`,
+                                    displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${messageNouns.noun}>\` on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${alreadyOpenTagName}>\` and you can\u2019t nest ${messageNouns.pluralNoun}.`,
                                 });
                             }
 
                             state = {
+                                type: "Message",
                                 openTagPosition: node.position,
                                 hasEndedOpenTag: false,
                                 startedAttribute: null,
@@ -147,6 +203,11 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                             break;
                         }
                         case "blockquote": {
+                            if (state && state.type !== "Message") {
+                                hasUnknownHtml = true;
+                                break;
+                            }
+
                             // Special case error for nested `<blockquote>`s with a more specific error
                             // message.
                             if (state?.parent && !state.parent.hasCloseTag) {
@@ -183,7 +244,7 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                     }
                 },
                 onopentagend: () => {
-                    if (state) {
+                    if (state?.type === "Message") {
                         if (!state.hasEndedOpenTag) {
                             assert(!state.startedAttribute);
                             state.hasEndedOpenTag = true;
@@ -196,9 +257,36 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                 onclosetag: (start, end) => {
                     const tagName = node.value.slice(start, end).toLowerCase();
 
+                    if (customBlockTagNames.has(tagName)) {
+                        if (!state || state.type !== "Custom" || state.tagName !== tagName) {
+                            throw new InvalidArgumentError("Invalid custom element close tag", {
+                                displayMessage: errorDisplayMessage`Can\u2019t close \`</${tagName}>\` on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<${tagName}>\` open tag.`,
+                            });
+                        }
+
+                        const parseCustomBlock = assertExists(
+                            parseCustomBlockByTagName[state.tagName],
+                        );
+
+                        // If this isn't the same node that fired `onopentag` than push this close tag node
+                        // to children.
+                        if (state.children[0] !== node) state.children.push(node);
+
+                        blockPromises.push(
+                            parseCustomBlock(storage, {
+                                type: "root",
+                                children: state.children,
+                            }),
+                        );
+
+                        state = null;
+                        handledHtml ??= {tagName, tagType: "close"};
+                        return;
+                    }
+
                     switch (tagName) {
                         case messageNouns.noun: {
-                            if (!state) {
+                            if (!state || state.type !== "Message") {
                                 throw new InvalidArgumentError(
                                     "Invalid message element close tag",
                                     {
@@ -336,6 +424,11 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                             break;
                         }
                         case "blockquote": {
+                            if (state && state.type !== "Message") {
+                                hasUnknownHtml = true;
+                                break;
+                            }
+
                             if (!state?.parent || state.parent.hasCloseTag) {
                                 throw new InvalidArgumentError("Invalid parent element close tag", {
                                     displayMessage: errorDisplayMessage`Can\u2019t close \`</blockquote>\` on line ${node.position?.start.line ?? "unknown"}. There isn\u2019t a matching \`<blockquote>\` open tag.`,
@@ -361,7 +454,7 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                 },
 
                 onattribname: (start, end) => {
-                    if (state) {
+                    if (state?.type === "Message") {
                         const attributeName = node.value.slice(start, end).toLowerCase();
 
                         switch (attributeName) {
@@ -404,7 +497,7 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                     }
                 },
                 onattribdata: (start, end) => {
-                    if (state) {
+                    if (state?.type === "Message") {
                         const attributeData = node.value.slice(start, end);
 
                         if (!state.hasEndedOpenTag) {
@@ -437,7 +530,7 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                     }
                 },
                 onattribentity: codepoint => {
-                    if (state) {
+                    if (state?.type === "Message") {
                         const attributeData = String.fromCodePoint(codepoint);
 
                         if (!state.hasEndedOpenTag) {
@@ -470,7 +563,7 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
                     }
                 },
                 onattribend: () => {
-                    if (state) {
+                    if (state?.type === "Message") {
                         if (!state.hasEndedOpenTag && state.startedAttribute) {
                             state.startedAttribute = null;
                         } else if (
@@ -544,6 +637,16 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
 
     for (let nodeIndex = 0; nodeIndex < root.children.length; nodeIndex++) {
         let node = root.children[nodeIndex]!;
+
+        if (state?.type === "Custom") {
+            if (node.type === "html" && parseHtml(node)) {
+                hasFinishedPreamble = true;
+                continue;
+            }
+
+            state.children.push(node);
+            continue;
+        }
 
         if (
             nodeIndex === root.children.length - 1 &&
@@ -674,6 +777,11 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
         // to treat `state` as possibly non-null.
         state = state as any;
 
+        if (state?.type === "Custom") {
+            state.children.push(node);
+            continue;
+        }
+
         if (!state || !state.hasEndedOpenTag || state.startedAttribute) {
             throw createUnexpectedMarkdownError(messageNouns, node.position);
         }
@@ -689,9 +797,20 @@ async function actuallyParseAgentWebMessagingPage<PageLink, Preamble>(
     }
 
     if (state) {
-        throw new InvalidArgumentError("Missing message element close tag", {
-            displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${messageNouns.noun}>\` closing tag and try again.`,
-        });
+        switch (state.type) {
+            case "Message": {
+                throw new InvalidArgumentError("Missing message element close tag", {
+                    displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${messageNouns.noun}>\` closing tag and try again.`,
+                });
+            }
+            case "Custom": {
+                throw new InvalidArgumentError("Missing custom element close tag", {
+                    displayMessage: errorDisplayMessage`\`<${state.tagName}>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</${state.tagName}>\` closing tag and try again.`,
+                });
+            }
+            default:
+                throw exhaustive(state);
+        }
     }
 
     const pagination = await takeAgentWebMessagingPagePaginationFromPreamble(

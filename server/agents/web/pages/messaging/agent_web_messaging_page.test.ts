@@ -18,6 +18,7 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChatId, FileId} from "~/shared/id/types/id_types.js";
@@ -26,6 +27,11 @@ const apostrophe = String.fromCharCode(39);
 const doubleQuote = String.fromCharCode(34);
 const paginationChatId = generateId<ChatId>();
 const duplicateFileId = generateChronologicalId<FileId>();
+
+type TestCustomBlock = {
+    readonly type: "Custom";
+    readonly text: string;
+};
 
 function accountReference({
     name,
@@ -72,9 +78,10 @@ function text(
 
 runAgentWebPageTests<
     true,
-    AgentWebMessagingPage<{
-        elements: ReadonlyArray<ApiContentInlineElementResponse>;
-    }>
+    AgentWebMessagingPage<
+        {elements: ReadonlyArray<ApiContentInlineElementResponse>},
+        TestCustomBlock
+    >
 >({
     print: (storage, pageLink, page) =>
         printAgentWebMessagingPage(storage, pageLink, page, {
@@ -86,6 +93,14 @@ runAgentWebPageTests<
                     elements: [{type: "Paragraph", elements: preamble.elements}],
                 });
             },
+            printCustomBlock: async (storage, customBlock) => ({
+                type: "root",
+                children: [
+                    {type: "html", value: "<custom>"},
+                    {type: "paragraph", children: [{type: "text", value: customBlock.text}]},
+                    {type: "html", value: "</custom>"},
+                ],
+            }),
         }),
     parse: (storage, pageLink, root) =>
         parseAgentWebMessagingPage(storage, pageLink, root, {
@@ -107,12 +122,27 @@ runAgentWebPageTests<
 
                 return {elements: actualElements};
             },
+            parseCustomBlockByTagName: {
+                custom: async (storage, root) => {
+                    assert(root.children[0]?.type === "html");
+                    assert(root.children[0].value === "<custom>");
+
+                    assert(root.children[1]?.type === "paragraph");
+                    assert(root.children[1].children[0]?.type === "text");
+
+                    assert(root.children[2]?.type === "html");
+                    assert(root.children[2].value === "</custom>");
+
+                    return {type: "Custom", text: root.children[1].children[0].value};
+                },
+            },
         }),
     normalize: page =>
         normalizeAgentWebMessagingPage(page, {
             normalizePreamble: (normalizer, preamble) => {
                 normalizer.normalizeInlineElements(preamble.elements);
             },
+            normalizeCustomBlock: () => {},
         }),
     tests: [
         {
@@ -135,6 +165,49 @@ Hello there.
                     {
                         type: "Time",
                         timeContent: "May 13, 2026 3:00 PM EDT",
+                    },
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: aliceReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Hello there.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "custom block in message log",
+            pageLink: true,
+            markdown: `\
+<time>May 13, 2026 3:00 PM EDT</time>
+
+<custom>
+
+foo
+
+</custom>
+
+<message from="[Alice](/human/alice)">
+
+Hello there.
+
+</message>
+`,
+            page: {
+                preamble: {elements: []},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Time",
+                        timeContent: "May 13, 2026 3:00 PM EDT",
+                    },
+                    {
+                        type: "Custom",
+                        text: "foo",
                     },
                     {
                         type: "Message",

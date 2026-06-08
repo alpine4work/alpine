@@ -1,16 +1,29 @@
 import {Draft, produce} from "immer";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
-import {AgentWebMessagingPage} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+import {
+    AgentWebMessagingPage,
+    AgentWebMessagingPageCustomBlockBase,
+} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {ApiContentNormalizer} from "~/shared/api/markdown/normalize_api_content.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-export function normalizeAgentWebMessagingPage<Page extends AgentWebMessagingPage<any>>(
+export function normalizeAgentWebMessagingPage<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+    Page extends AgentWebMessagingPage<Preamble, CustomBlock>,
+>(
     page: Page,
     {
         normalizePreamble,
+        normalizeCustomBlock,
     }: {
         normalizePreamble: (
             normalizer: ApiContentNormalizer,
             preamble: Draft<Page["preamble"]>,
+        ) => void;
+        normalizeCustomBlock: (
+            normalizer: ApiContentNormalizer,
+            customBlock: Draft<CustomBlock>,
         ) => void;
     },
 ): Page {
@@ -27,20 +40,32 @@ export function normalizeAgentWebMessagingPage<Page extends AgentWebMessagingPag
             }
 
             for (const block of page.blocks) {
-                if (block.type !== "Message") continue;
+                switch (block.type) {
+                    case "Time": {
+                        break;
+                    }
+                    case "Message": {
+                        // The order of these normalization calls matters and needs to match the order of
+                        // `createAgentWebPageStoredLinkPathname()` calls in
+                        // `printAgentWebMessagingPage()`.
 
-                // The order of these normalization calls matters and needs to match the order of
-                // `createAgentWebPageStoredLinkPathname()` calls in
-                // `printAgentWebMessagingPage()`.
+                        normalizer.normalizeReference(block.author);
 
-                normalizer.normalizeReference(block.author);
+                        if (block.parent) {
+                            normalizer.normalizeReference(block.parent.author);
+                            normalizer.normalize(block.parent.previewContent);
+                        }
 
-                if (block.parent) {
-                    normalizer.normalizeReference(block.parent.author);
-                    normalizer.normalize(block.parent.previewContent);
+                        normalizer.normalize(block.content);
+                        break;
+                    }
+                    case "Custom": {
+                        normalizeCustomBlock(normalizer, block);
+                        break;
+                    }
+                    default:
+                        throw exhaustive(block);
                 }
-
-                normalizer.normalize(block.content);
             }
         });
     });

@@ -4,12 +4,21 @@ import {
     ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
-export type AgentWebMessagingPage<Preamble> = {
+export type AgentWebMessagingPage<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
+> = {
     readonly preamble: Preamble;
     readonly pagination: AgentWebMessagingPagePagination | null;
     readonly isEndOfMessages: boolean;
-    readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock>;
+    readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock<CustomBlock>>;
 };
+
+export type AgentWebMessagingPagePreambleType<Page extends AgentWebMessagingPage<any, any>> =
+    Page extends AgentWebMessagingPage<infer Preamble, any> ? Preamble : never;
+
+export type AgentWebMessagingPageCustomBlockType<Page extends AgentWebMessagingPage<any, any>> =
+    Page extends AgentWebMessagingPage<any, infer CustomBlock> ? CustomBlock : never;
 
 export type AgentWebMessagingPagePagination = {
     readonly pageLink: AgentWebMessagingPagePaginationPageLink;
@@ -36,9 +45,9 @@ export type AgentWebMessagingPageMessageRange = {
     readonly endMessageIndex: number;
 };
 
-export type AgentWebMessagingPageBlock =
-    | AgentWebMessagingPageTimeBlock
-    | AgentWebMessagingPageMessageBlock;
+export type AgentWebMessagingPageBlock<
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
+> = AgentWebMessagingPageTimeBlock | AgentWebMessagingPageMessageBlock | CustomBlock;
 
 export type AgentWebMessagingPageTimeBlock = {
     readonly type: "Time";
@@ -55,13 +64,20 @@ export type AgentWebMessagingPageMessageBlock = {
     readonly content: ApiContentResponse;
 };
 
+export type AgentWebMessagingPageCustomBlockBase = {
+    readonly type: "Custom";
+};
+
 export type AgentWebMessagingPageMessageBlockParent = {
     readonly citeAttribute: AgentWebMessagingPageMessageRange;
     readonly author: ApiAccountReferenceResponse;
     readonly previewContent: ApiContentResponse;
 };
 
-export type AgentWebMessagingPageWithMetadata<Preamble> = AgentWebMessagingPage<Preamble> & {
+export type AgentWebMessagingPageWithMetadata<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
+> = AgentWebMessagingPage<Preamble, CustomBlock> & {
     readonly metadata: AgentWebMessagingPageMetadata;
 };
 
