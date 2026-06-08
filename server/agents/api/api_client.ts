@@ -10,12 +10,12 @@ import {
 import {
     ApiContent,
     ApiErrorResponseBody,
-    ApiMentionResponse,
     ApiMentionReference,
+    ApiMentionReferenceResponse,
+    ApiMentionResponse,
     ApiMessageContentPayloadParent,
     ApiMessageRoomReference,
     ApiMessageStreamPartPayload,
-    ApiMentionReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";

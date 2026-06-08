@@ -4,6 +4,8 @@ import {
     ApiReferenceKey,
     printApiReferenceKey,
 } from "~/shared/api/specification/api_reference_key.js";
+import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
+import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -13,8 +15,6 @@ import {
     ApiContentInlineElementMark,
     ApiMentionReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
-import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

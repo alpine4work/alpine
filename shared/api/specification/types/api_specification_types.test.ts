@@ -1,3 +1,5 @@
+import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
+import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {
     ApiBotWebhookCreatedMessageEventParent,
     ApiContentMentionInlineElement,
@@ -12,8 +14,6 @@ import {
     ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
-import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 
 test("all `ApiReferenceResponse` are assignable to `ApiReference`", () => {
