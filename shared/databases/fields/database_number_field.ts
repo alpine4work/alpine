@@ -1,5 +1,6 @@
 import {defineDatabaseFieldProvider} from "~/shared/databases/fields/database_field_provider.js";
 import {sql} from "~/shared/databases/sql.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -96,8 +97,8 @@ function parseNumberString(input: string): Result<number | null, void> {
     const match = numberStructurePattern.exec(s);
     if (match === null || match.groups === undefined) return {ok: false, error: undefined};
 
-    const prefix = splitPrefix(match.groups.prefix);
-    const suffix = splitSuffix(match.groups.suffix);
+    const prefix = splitPrefix(assertExists(match.groups.prefix));
+    const suffix = splitSuffix(assertExists(match.groups.suffix));
     if (!prefix.ok || !suffix.ok) return {ok: false, error: undefined};
 
     // Inner parens must be balanced.
@@ -118,7 +119,7 @@ function parseNumberString(input: string): Result<number | null, void> {
     }
     if (hasAnyParens && suffix.hasPercent) return {ok: false, error: undefined};
 
-    let body = match.groups.body;
+    let body = assertExists(match.groups.body);
     if (body.includes(",") && usThousandsPattern.test(body)) {
         body = body.replace(/,/g, "");
     }
