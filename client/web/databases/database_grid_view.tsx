@@ -1004,7 +1004,11 @@ function DatabaseGridViewDataRow({
     return (
         <Box
             display="flex"
-            style={{height: `calc(${spacing[gridRowHeight]} + 1px)`}}
+            style={{
+                height: isLastRow
+                    ? spacing[gridRowHeight]
+                    : `calc(${spacing[gridRowHeight]} + 1px)`,
+            }}
             borderBottom={isLastRow ? "transparent" : "grey-5"}
         >
             {fields.map(field => {
