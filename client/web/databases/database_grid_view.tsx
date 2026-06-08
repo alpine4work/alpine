@@ -270,6 +270,7 @@ export function DatabaseGridView({
                                     <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
+                                        backgroundColor="grey-0"
                                         zIndex="30"
                                         style={{
                                             position: shouldRenderWithRelativePositioning
