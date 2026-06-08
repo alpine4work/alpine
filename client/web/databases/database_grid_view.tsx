@@ -51,6 +51,7 @@ import type {
 } from "~/shared/databases/fields/database_field_providers.js";
 import type {Spacing} from "~/shared/design/core/spacing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
@@ -430,17 +431,18 @@ function DatabaseGridViewSelectionOverlay({
     fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
     scrollViewRef: React.RefObject<VirtualizedScrollViewRef | null>;
 }) {
-    // Cumulative left offset of each visible column in scroll-content
-    // pixel coords. Accounts for the `marginRight: -1` overlap between
-    // adjacent cells.
-    const columnLefts = useMemo(() => {
+    // Cumulative left offset of each visible column. Stored as rem at the
+    // small spacing scale so the value scales with the active scale, the
+    // same way each column's CSS width does. Accounts for the
+    // `marginRight: -1` overlap between adjacent cells.
+    const columnLeftRems = useMemo(() => {
         const lefts: Array<number> = [];
         let left = 0;
         for (const field of fields) {
             lefts.push(left);
             left += field.width - 1;
         }
-        return lefts;
+        return lefts.map(px => px / remPxBySpacingScale.small);
     }, [fields]);
 
     if (selection == null || selection.isEditing) return null;
@@ -449,8 +451,8 @@ function DatabaseGridViewSelectionOverlay({
     const fieldIndex = fieldIndexById.get(selection.fieldId);
     if (fieldIndex == null) return null;
     const field = fields[fieldIndex];
-    const left = columnLefts[fieldIndex];
-    if (field == null || left == null) return null;
+    const leftRem = columnLeftRems[fieldIndex];
+    if (field == null || leftRem == null) return null;
     return (
         <Box
             position="absolute"
@@ -460,8 +462,8 @@ function DatabaseGridViewSelectionOverlay({
             style={{
                 top: rowPosition.offset,
                 height: rowPosition.height,
-                left,
-                width: field.width,
+                left: `${leftRem}rem`,
+                width: `${field.width / remPxBySpacingScale.small}rem`,
             }}
         />
     );
