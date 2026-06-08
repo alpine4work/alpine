@@ -336,15 +336,6 @@ export function DatabaseGridView({
                                 <>
                                     <div style={{height: offset}} />
                                     <Box
-                                        zIndex="10"
-                                        borderTop="grey-5"
-                                        pointerEvents="none"
-                                        style={{
-                                            position: "sticky",
-                                            bottom: spacing[gridRowHeight],
-                                        }}
-                                    />
-                                    <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
                                         backgroundColor="grey-0"
@@ -382,7 +373,6 @@ export function DatabaseGridView({
                             fields={gridFields.fields}
                             row={row}
                             rowId={rowId}
-                            isLastRow={index === rowCount}
                             selection={visibleSelection}
                             dispatch={dispatch}
                             moveSelection={moveSelection}
@@ -986,7 +976,6 @@ function DatabaseGridViewDataRow({
     fields,
     row,
     rowId,
-    isLastRow,
     selection,
     dispatch,
     moveSelection,
@@ -995,7 +984,6 @@ function DatabaseGridViewDataRow({
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     row: DatabaseQueryRow;
     rowId: DatabaseRowId;
-    isLastRow: boolean;
     selection: DatabaseGridViewSelection;
     dispatch: Dispatch<SelectionAction>;
     moveSelection: (deltaRow: number, deltaField: number) => void;
@@ -1005,7 +993,7 @@ function DatabaseGridViewDataRow({
         <Box
             display="flex"
             style={{height: `calc(${spacing[gridRowHeight]} + 1px)`}}
-            borderBottom={isLastRow ? undefined : "grey-5"}
+            borderBottom="grey-5"
         >
             {fields.map(field => {
                 const isSelected =
