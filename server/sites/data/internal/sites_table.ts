@@ -30,6 +30,7 @@ import {
 } from "~/shared/sites/site_entry_schema.js";
 import {
     SiteEntityModel,
+    SiteEntrySearchEntityModel,
     SitePreviewModel,
     SiteSideBarModel,
     SiteSideBarSectionModel,
@@ -235,7 +236,7 @@ export const SitesTable = RynamoTableSchema.new({
                         type: "Entity",
                         id: item.id,
                         spaceId: item.spaceId,
-                        initialEntityData: searchEntityData,
+                        entity: SiteEntrySearchEntityModel.new(searchEntityData),
                         orderKey: item.orderKey,
                         parentId: item.parentId,
                         version: item.updateLockVersion ?? 0,

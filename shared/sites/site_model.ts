@@ -9,11 +9,16 @@ import {
     SearchChannelEntityModelDataSchema,
     SearchChatEntityModelDataSchema,
     SearchDocumentEntityModelDataSchema,
+    SearchEntityModel,
     SearchEntityModelData,
+    SearchEntityModelId,
     SearchTaskCollectionEntityModelDataSchema,
     SearchTaskEntityModelDataSchema,
 } from "~/shared/search/search_entity_model.js";
-import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
+import {
+    SiteItemSearchEntityId,
+    SiteItemSearchEntityIdSchema,
+} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteRootContainerId,
     SiteSideBarContainerId,
@@ -122,8 +127,10 @@ export class SiteSideBarSectionModel extends Model(
     ),
 ) {}
 
-export type SiteEntrySearchEntityModelData = SchemaType<typeof SiteEntrySearchEntityModelData>;
-const SiteEntrySearchEntityModelData = Schema.union({
+export type SiteEntrySearchEntityModelData = SchemaType<
+    typeof SiteEntrySearchEntityModelDataSchema
+>;
+const SiteEntrySearchEntityModelDataSchema = Schema.union({
     Channel: SearchChannelEntityModelDataSchema,
     Chat: SearchChatEntityModelDataSchema,
     Document: SearchDocumentEntityModelDataSchema,
@@ -131,19 +138,47 @@ const SiteEntrySearchEntityModelData = Schema.union({
     TaskCollection: SearchTaskCollectionEntityModelDataSchema,
 });
 
+export interface SiteEntrySearchEntityModel extends SearchEntityModel {
+    readonly id: SearchEntityModelId & SiteItemSearchEntityId;
+
+    readonly initialData: SiteEntrySearchEntityModelData;
+
+    getSearchEntityId(): SearchEntityModelId & SiteItemSearchEntityId;
+}
+
+export const SiteEntrySearchEntityModel: {
+    schema: Schema<SiteEntrySearchEntityModel>;
+    // TypeScript treats `new` as a keyword and not a property when it doesn't have
+    // quotes when generating a `.d.ts` file.
+    "new"(initialData: SiteEntrySearchEntityModelData): SiteEntrySearchEntityModel;
+} = {
+    schema: SiteEntrySearchEntityModelDataSchema.transform<SiteEntrySearchEntityModel>({
+        // Serializing the model over the network is fine. Generally only the
+        // server serializes data over the network for the client.
+        //
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
+        serialize: entity => entity.initialData,
+        deserialize: entity => SiteEntrySearchEntityModel.new(entity),
+    }),
+
+    new(initialData: SiteEntrySearchEntityModelData): SiteEntrySearchEntityModel {
+        return new SearchEntityModel(initialData) as SiteEntrySearchEntityModel;
+    },
+};
+
 export class SiteEntityModel extends Model(
     SiteEntryEntitySchema.merge(
         Schema.object({
             version: Schema.integer,
             id: SiteItemSearchEntityIdSchema,
-            initialEntityData: SiteEntrySearchEntityModelData,
+            entity: SiteEntrySearchEntityModel.schema,
         }),
     ),
 ) {}
 
 export function isSiteEntrySearchEntityModelData(
     data: SearchEntityModelData,
-): data is SiteEntityModel["initialEntityData"] {
+): data is SiteEntrySearchEntityModelData {
     switch (data.type) {
         case "Channel":
         case "Chat":

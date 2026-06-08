@@ -87,7 +87,6 @@ import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key
 import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {updateSiteName} from "~/shared/rpc/sites_rpc_definitions.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
-import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
     SiteContainerId,
     SiteSideBarContainerId,
@@ -878,7 +877,7 @@ function SiteNavigationEntryItem({
     const {createSidebarSection, removeEntity} = useSiteMutations();
     const canManage = useCanManageSite();
     const site = useSite();
-    const entityData = useSearchEntityModel(new SearchEntityModel(item.initialEntityData));
+    const entityData = useSearchEntityModel(item.entity);
     const peekStackContext = usePeekStackContext();
     assert(entityData.type !== "Static");
 

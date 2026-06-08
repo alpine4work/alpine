@@ -3,7 +3,7 @@ import {SearchEntityViewTitle} from "~/client/web/search/core/search_entity_view
 import {SiteEntityModel} from "~/shared/sites/site_model.js";
 
 export function SiteEntrySearchEntityViewTitle({entry}: {entry: SiteEntityModel}) {
-    const entityData = useSearchEntityModel(entry.initialEntityData);
+    const entityData = useSearchEntityModel(entry.entity);
 
     return <SearchEntityViewTitle entityData={entityData} />;
 }

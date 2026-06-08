@@ -20,6 +20,7 @@ import {
 import {
     SiteEntityModel,
     SiteEntryModel,
+    SiteEntrySearchEntityModel,
     SitePreviewModelData,
     SiteSideBarModel,
     SiteSideBarSectionModel,
@@ -47,14 +48,14 @@ function entity({
         parentId,
         spaceId,
         version: 0,
-        initialEntityData: {
+        entity: SiteEntrySearchEntityModel.new({
             type: "Channel",
             title: "test entity",
             channel: {
                 id: channelId,
                 version: 0,
             },
-        },
+        }),
     });
 }
 

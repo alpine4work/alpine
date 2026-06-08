@@ -33,6 +33,7 @@ import {
     SiteItemSearchEntityIdObject,
     isSiteItemSearchEntityId,
 } from "~/shared/search/site_item_search_entity_id.js";
+import {SiteEntrySearchEntityModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const searchInjection: Partial<SearchInjection> = {
@@ -103,14 +104,16 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: expect.objectContaining({
-                            type: "Channel",
-                            title: "Test Entity",
-                            channel: {
-                                id: channel.id,
-                                version: 0,
-                            },
-                        }),
+                        entity: expect.objectContaining(
+                            SiteEntrySearchEntityModel.new({
+                                type: "Channel",
+                                title: "Test Entity",
+                                channel: {
+                                    id: channel.id,
+                                    version: 0,
+                                },
+                            }),
+                        ),
                         version: 1,
                     }),
                 ]);
@@ -171,19 +174,21 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: expect.objectContaining({
-                            type: "Chat",
-                            title: "Test Entity",
-                            chat: {
-                                id: chat.id,
-                                version: 0,
-                                media: {
-                                    type: "AccountPile",
-                                    previewAccounts: expect.any(Array<AccountModel>),
-                                    accountCount: null,
+                        entity: expect.objectContaining(
+                            SiteEntrySearchEntityModel.new({
+                                type: "Chat",
+                                title: "Test Entity",
+                                chat: {
+                                    id: chat.id,
+                                    version: 0,
+                                    media: {
+                                        type: "AccountPile",
+                                        previewAccounts: expect.any(Array<AccountModel>),
+                                        accountCount: null,
+                                    },
                                 },
-                            },
-                        }),
+                            }),
+                        ),
                         type: "Entity",
                         version: 1,
                     }),
@@ -234,18 +239,20 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: expect.objectContaining({
-                            type: "Task",
-                            title: "Test Entity",
-                            task: {
-                                id: task.id,
-                                titleSnapshot: expect.any(Uint8Array),
-                                displayStatus: {
-                                    value: "OpenActive",
-                                    version: expect.any(Array),
+                        entity: expect.objectContaining(
+                            SiteEntrySearchEntityModel.new({
+                                type: "Task",
+                                title: "Test Entity",
+                                task: {
+                                    id: task.id,
+                                    titleSnapshot: expect.any(Uint8Array),
+                                    displayStatus: {
+                                        value: "OpenActive",
+                                        version: expect.any(Array),
+                                    },
                                 },
-                            },
-                        }),
+                            }),
+                        ),
                         type: "Entity",
                         version: 1,
                     }),
@@ -298,18 +305,20 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: expect.objectContaining({
-                            type: "TaskCollection",
-                            title: "Test Entity",
-                            collection: {
-                                id: collection.id,
-                                titleVersion: expect.any(Array),
-                                color: {
-                                    value: null,
-                                    version: expect.any(Array),
+                        entity: expect.objectContaining(
+                            SiteEntrySearchEntityModel.new({
+                                type: "TaskCollection",
+                                title: "Test Entity",
+                                collection: {
+                                    id: collection.id,
+                                    titleVersion: expect.any(Array),
+                                    color: {
+                                        value: null,
+                                        version: expect.any(Array),
+                                    },
                                 },
-                            },
-                        }),
+                            }),
+                        ),
                         type: "Entity",
                         version: 1,
                     }),
@@ -363,7 +372,9 @@ describe("addEntityToSite", () => {
                     expect.objectContaining({
                         id: entityId,
                         parentId: site.initialRootContainerId,
-                        initialEntityData: expect.objectContaining({type: "Document"}),
+                        entity: SiteEntrySearchEntityModel.new(
+                            expect.objectContaining({type: "Document"}),
+                        ),
                         version: 1,
                     }),
                 ]);
