@@ -6,7 +6,7 @@ import {
 
 export type AgentWebMessagingPage<
     Preamble,
-    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
 > = {
     readonly preamble: Preamble;
     readonly pagination: AgentWebMessagingPagePagination | null;
@@ -45,9 +45,10 @@ export type AgentWebMessagingPageMessageRange = {
     readonly endMessageIndex: number;
 };
 
-export type AgentWebMessagingPageBlock<
-    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
-> = AgentWebMessagingPageTimeBlock | AgentWebMessagingPageMessageBlock | CustomBlock;
+export type AgentWebMessagingPageBlock<CustomBlock extends AgentWebMessagingPageCustomBlockBase> =
+    | AgentWebMessagingPageTimeBlock
+    | AgentWebMessagingPageMessageBlock
+    | CustomBlock;
 
 export type AgentWebMessagingPageTimeBlock = {
     readonly type: "Time";
@@ -76,7 +77,7 @@ export type AgentWebMessagingPageMessageBlockParent = {
 
 export type AgentWebMessagingPageWithMetadata<
     Preamble,
-    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
 > = AgentWebMessagingPage<Preamble, CustomBlock> & {
     readonly metadata: AgentWebMessagingPageMetadata;
 };

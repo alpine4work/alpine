@@ -4,6 +4,7 @@ import {getApiMessagesFromEnd, getApiMessagesFromStart} from "~/server/agents/ap
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {
     AgentWebMessagingPageBlock,
+    AgentWebMessagingPageCustomBlockBase,
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
@@ -39,7 +40,10 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 
 export const agentWebMessagingPageApiMessagesBatchCount = 30;
 
-export async function readAgentWebMessagingPage<Preamble>(
+export async function readAgentWebMessagingPage<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     context: AgentWebContext,
     {
         messageNouns,
@@ -55,11 +59,17 @@ export async function readAgentWebMessagingPage<Preamble>(
         roomMetadataPromise: Promise<{
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
+            startCustomBlock: {
+                time: Date;
+                block: CustomBlock;
+            } | null;
         }>;
         defaultDirection: "Start" | "End";
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebMessagingPageWithMetadata<Preamble>) => Promise<string>;
+        printPage: (
+            page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>,
+        ) => Promise<string>;
     },
 ): Promise<{
     response: string;
@@ -225,7 +235,10 @@ export function parseAgentWebMessagingPageSearchParams({
     };
 }
 
-export async function readAgentWebMessagingPageInDirection<Preamble>(
+export async function readAgentWebMessagingPageInDirection<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     context: AgentWebContext,
     {
         messageNouns,
@@ -241,11 +254,17 @@ export async function readAgentWebMessagingPageInDirection<Preamble>(
         roomMetadataPromise: Promise<{
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
+            startCustomBlock: {
+                time: Date;
+                block: CustomBlock;
+            } | null;
         }>;
         direction: "Start" | "End";
         startCursor: number | null;
         limitLength: number;
-        printPage: (page: AgentWebMessagingPageWithMetadata<Preamble>) => Promise<string>;
+        printPage: (
+            page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>,
+        ) => Promise<string>;
     },
 ): Promise<{
     response: string;
@@ -338,7 +357,10 @@ export function getReadAgentWebMessagingPageAroundMessageStartCursor(
     );
 }
 
-export async function readAgentWebMessagingPageAroundMessage<Preamble>(
+export async function readAgentWebMessagingPageAroundMessage<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     context: AgentWebContext,
     {
         messageNouns,
@@ -353,10 +375,16 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
         roomMetadataPromise: Promise<{
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
+            startCustomBlock: {
+                time: Date;
+                block: CustomBlock;
+            } | null;
         }>;
         around: AgentWebMessagingPageMessageRange;
         limitLength: number;
-        printPage: (page: AgentWebMessagingPageWithMetadata<Preamble>) => Promise<string>;
+        printPage: (
+            page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>,
+        ) => Promise<string>;
     },
 ): Promise<{
     response: string;
@@ -462,7 +490,10 @@ export async function readAgentWebMessagingPageAroundMessage<Preamble>(
     }
 }
 
-function buildAgentWebMessagingPageFromApiMessages<Preamble>(
+function buildAgentWebMessagingPageFromApiMessages<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     context: AgentWebContext,
     {
         messageNouns,
@@ -477,6 +508,10 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
         roomMetadata: {
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
+            startCustomBlock: {
+                time: Date;
+                block: CustomBlock;
+            } | null;
         };
         messages: ReadonlyArray<ApiMessageResponse>;
         isStartOfMessages: boolean;
@@ -486,13 +521,13 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
     contextTime: Date;
     contextDate: CalendarDate;
     contextFormattedTimeZone: string;
-    page: AgentWebMessagingPageWithMetadata<Preamble>;
+    page: AgentWebMessagingPageWithMetadata<Preamble, CustomBlock>;
 } {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
     const contextFormattedTimeZone = formatTimeZoneAbbreviation(context.timeZone, contextTime);
 
-    const blocks: Array<AgentWebMessagingPageBlock> = [];
+    const blocks: Array<AgentWebMessagingPageBlock<CustomBlock>> = [];
 
     let currentBlock: {
         authorId: AccountId;
@@ -507,13 +542,36 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
     const insertTimeBlockAfterMinutesSinceLastMessage = 60;
 
     for (const message of messages) {
+        // If this is the first page of messages then add the start block before anything
+        // else.
+        if (message.index === 0 && roomMetadata.startCustomBlock !== null) {
+            const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                defaultLocale,
+                context.timeZone,
+                contextDate,
+                roomMetadata.startCustomBlock.time,
+                {withLongMonth: true},
+            );
+
+            blocks.push({
+                type: "Time",
+                timeContent: `${formattedTime} ${contextFormattedTimeZone}`,
+            });
+
+            blocks.push(roomMetadata.startCustomBlock.block);
+        }
+
         const createdTime = deserializeDateString(message.createdTime);
         const formattedTimeZone = formatTimeZoneAbbreviation(message.createdTimeZone, createdTime);
 
         const differenceInMinutesSinceLastMessage: number =
-            currentBlock !== null
-                ? differenceInMinutes(createdTime, currentBlock.lastCreatedTime)
-                : 0;
+            message.index === 0 && roomMetadata.startCustomBlock !== null
+                ? // If this is the first page of messages then get the difference in messages
+                  // between this message and the start block.
+                  differenceInMinutes(createdTime, roomMetadata.startCustomBlock.time)
+                : currentBlock !== null
+                  ? differenceInMinutes(createdTime, currentBlock.lastCreatedTime)
+                  : 0;
 
         // If there are consecutive messages from the same author, we put them within the
         // same message block IF:
@@ -687,7 +745,7 @@ function buildAgentWebMessagingPageFromApiMessages<Preamble>(
         // Include timezone attribute for users whose timezone differs from the context
         // timezone
         if (
-            !firstMessage.author.botId &&
+            !firstMessage.author.bot?.id &&
             currentBlock.formattedTimeZone !== contextFormattedTimeZone
         ) {
             timeZoneAttribute = currentBlock.formattedTimeZone;

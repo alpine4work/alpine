@@ -23,7 +23,7 @@ export function normalizeAgentWebMessagingPage<
         ) => void;
         normalizeCustomBlock: (
             normalizer: ApiContentNormalizer,
-            customBlock: Draft<CustomBlock>,
+            customBlock: Draft<Extract<Page["blocks"][number], {type: "Custom"}>>,
         ) => void;
     },
 ): Page {

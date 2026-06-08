@@ -8,6 +8,7 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageMetadata,
+    AgentWebMessagingPagePaginationPageLink,
     AgentWebMessagingPageWithMetadata,
     agentWebMessagingPageCommentNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -18,25 +19,46 @@ import {
     agentWebMessagingPageApiMessagesBatchCount,
     getReadAgentWebMessagingPageAroundMessageStartCursor,
     parseAgentWebMessagingPageSearchParams,
-    readAgentWebMessagingPage,
     readAgentWebMessagingPageAroundMessage,
     readAgentWebMessagingPageInDirection,
 } from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
-    ApiPostResponse,
+    ApiAccountReferenceResponse,
+    ApiChannelReferenceResponse,
+    ApiContentResponse,
     ApiPostReferenceResponse,
+    ApiPostResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
-export type AgentWebPostPage = AgentWebMessagingPage<AgentWebPostPagePreamble> & {
+export type AgentWebPostPage = AgentWebMessagingPage<
+    AgentWebPostPagePreamble,
+    AgentWebPostPageCustomBlock
+> & {
     readonly type: "Post";
 };
 
 export type AgentWebPostPagePreamble = {};
+
+export type AgentWebPostPageCustomBlock = {
+    readonly type: "Custom";
+    readonly author: ApiAccountReferenceResponse;
+    readonly channel: ApiChannelReferenceResponse | null;
+    readonly content: ApiContentResponse;
+};
+
+export type AgentWebPostPagePost = {
+    readonly author: ApiAccountReferenceResponse;
+    readonly channel: Extract<AgentWebPageStoredLink, {type: "Channel"}> | null;
+    readonly timeContent: string;
+    readonly content: ApiContentResponse;
+};
 
 export type AgentWebPostPageWithMetadata = AgentWebPostPage & {
     readonly metadata: AgentWebPostPageMetadata;
@@ -98,23 +120,55 @@ export async function readAgentWebPostPage(
         return fullPostPromise;
     };
 
-    const loadRoomMetadata = (): Promise<{
+    const loadRoomMetadata = async (): Promise<{
         pageLink: AgentWebMessagingPagePaginationPageLink;
         preamble: AgentWebPostPagePreamble;
+        startCustomBlock: {
+            time: Date;
+            block: AgentWebPostPageCustomBlock;
+        } | null;
     }> => {
         if (fullPostPromise !== null) {
-            return fullPostPromise.then(post => {
-                const postReference: ApiPostReferenceResponse = {
-                    type: "Post",
-                    id,
-                    title: post.reference.title,
-                };
+            const post = await fullPostPromise;
 
-                return {
-                    preamble: {},
-                };
-            });
+            const postReference: ApiPostReferenceResponse = {
+                type: "Post",
+                id,
+                title: post.reference.title,
+            };
+
+            return {
+                pageLink: postReference,
+                preamble: {},
+                startCustomBlock: {
+                    time: deserializeDateString(post.createdTime),
+                    block: {
+                        type: "Custom",
+                        author: intoApiAccountReference(post.author),
+                        channel: post.channel
+                            ? {
+                                  type: "Channel",
+                                  id: post.channel.id,
+                                  title: post.channel.name,
+                              }
+                            : null,
+                        content: post.content,
+                    },
+                },
+            };
         }
+
+        const {
+            data: {reference: postReference},
+        } = await context.api.get(context.span, "/posts/{id}/reference", {
+            params: {path: {id}},
+        });
+
+        return {
+            pageLink: postReference,
+            preamble: {},
+            startCustomBlock: null,
+        };
     };
 
     switch (parsedSearchParams.type) {
@@ -123,7 +177,7 @@ export async function readAgentWebPostPage(
                 case "Start": {
                     if (
                         parsedSearchParams.startCursor === null ||
-                        parsedSearchParams.startCursor < 0
+                        parsedSearchParams.startCursor < -1
                     ) {
                         // We're at the start of the page, preload the full post because we'll want to try
                         // fitting it into the page.
@@ -132,12 +186,24 @@ export async function readAgentWebPostPage(
                     break;
                 }
                 case "End": {
-                    // NOCOMMIT: Doesn't work in all cases
+                    // Loads the full post even if we don't need it. The post may be truncated if it
+                    // doesn't fit within the limit.
+                    //
+                    // Edge case: if you use a "before" value that's larger than the number of messages
+                    // and there are less than `agentWebMessagingPageApiMessagesBatchCount` (30)
+                    // messages we won't show the post. For example, if there are 5 messages and you
+                    // use `?before=100`. We'll only load the first 5 messages and we won't show the
+                    // post because according to this math the post won't be visible on the page. This
+                    // is a bug. Ideally we wouldn't allow `?before=100` at all but for consistent
+                    // cursor based pagination across our API we treat `?before=100` as a "last 30
+                    // messages <100" constraint and not messages between 70 and 100 constraint.
+                    //
+                    // NOCOMMIT: Test this edge case
                     if (
                         parsedSearchParams.startCursor !== null &&
                         parsedSearchParams.startCursor -
                             agentWebMessagingPageApiMessagesBatchCount <
-                            0
+                            -1
                     ) {
                         // We'll be loading messages up to the first comment. Preload the full post so we
                         // can try fitting it into the page.
@@ -149,53 +215,43 @@ export async function readAgentWebPostPage(
                     throw exhaustive(parsedSearchParams.direction);
             }
 
-            return await readAgentWebMessagingPageInDirection(context, {
+            const {response, metadata} = await readAgentWebMessagingPageInDirection(context, {
                 messageNouns: agentWebMessagingPageCommentNouns,
                 room: {type: "Post", id},
-                roomMetadataPromise,
+                roomMetadataPromise: loadRoomMetadata(),
                 direction: parsedSearchParams.direction,
                 startCursor: parsedSearchParams.startCursor,
                 limitLength,
                 printPage: page => printPage(buildAgentWebPostPage(page, id)),
             });
+
+            return {response, metadata: {...metadata, type: "Post", id}};
         }
         case "Around": {
-            // NOCOMMIT: Doesn't work in all cases
+            // Loads the full post even if we don't need it. The post may be truncated if it
+            // doesn't fit within the limit.
             if (
-                getReadAgentWebMessagingPageAroundMessageStartCursor(parsedSearchParams.around) < 0
+                getReadAgentWebMessagingPageAroundMessageStartCursor(parsedSearchParams.around) < -1
             ) {
                 // We'll be loading messages up to the first comment. Preload the full post so we
                 // can try fitting it into the page.
                 void loadFullPost();
             }
 
-            return await readAgentWebMessagingPageAroundMessage(context, {
+            const {response, metadata} = await readAgentWebMessagingPageAroundMessage(context, {
                 messageNouns: agentWebMessagingPageCommentNouns,
                 room: {type: "Post", id},
-                roomMetadataPromise,
+                roomMetadataPromise: loadRoomMetadata(),
                 around: parsedSearchParams.around,
                 limitLength,
                 printPage: page => printPage(buildAgentWebPostPage(page, id)),
             });
+
+            return {response, metadata: {...metadata, type: "Post", id}};
         }
         default:
             throw exhaustive(parsedSearchParams);
     }
-
-    const result = await readAgentWebMessagingPage(context, {
-        messageNouns: agentWebMessagingPageCommentNouns,
-        room: {type: "Post", id},
-        roomMetadataPromise: getPostRoomMetadata(context, id),
-        defaultDirection: "Start",
-        searchParams,
-        limitLength,
-        printPage: page => printPage(buildAgentWebPostPage(page, id)),
-    });
-
-    return {
-        response: result.response,
-        metadata: buildAgentWebPostPageMetadata(result.metadata, id),
-    };
 }
 
 export async function readAgentWebPostMessagePage(
@@ -210,45 +266,21 @@ export async function readAgentWebPostMessagePage(
         printPage: (page: AgentWebPostPageWithMetadata) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebPostPageMetadata}> {
-    const result = await readAgentWebMessagingPageAroundMessage(context, {
-        messageNouns: agentWebMessagingPageCommentNouns,
-        room: {type: "Post", id},
-        roomMetadataPromise: getPostRoomMetadata(context, id),
-        around: {startMessageIndex: index, endMessageIndex: index + 1},
+    return await readAgentWebPostPage(context, id, {
+        searchParams: new URLSearchParams([["comment", String(index)]]),
         limitLength,
-        printPage: page => printPage(buildAgentWebPostPage(page, id)),
+        printPage,
     });
-
-    return {
-        response: result.response,
-        metadata: buildAgentWebPostPageMetadata(result.metadata, id),
-    };
-}
-
-async function getPostRoomMetadata(
-    context: AgentWebContextWithoutStorage,
-    id: PostId,
-): Promise<{
-    pageLink: Extract<AgentWebPageStoredLink, {type: "Post"}>;
-    preamble: AgentWebPostPagePreamble;
-}> {
-    const {
-        data: {
-            mention: {target},
-        },
-    } = await context.api.get(context.span, "/posts/{id}/mention", {
-        params: {path: {id}},
-    });
-
-    return {
-        pageLink: target,
-        preamble: {},
-    };
 }
 
 export function normalizeAgentWebPostPage<Page extends AgentWebPostPage>(page: Page): Page {
     return normalizeAgentWebMessagingPage(page, {
         normalizePreamble: () => {},
+        normalizeCustomBlock: (normalizer, customBlock) => {
+            if (customBlock.channel) normalizer.normalizeReference(customBlock.channel);
+            normalizer.normalizeReference(customBlock.author);
+            normalizer.normalizeBlockElements(customBlock.content.elements);
+        },
     });
 }
 
