@@ -18,6 +18,13 @@ on:
             - "admin/patches/*.patch"
             - "admin/patches/bazel/*.patch"
             - "admin/bazel/third_party/*.bazel"
+
+            # Once the checkout action changes on `main`, rebuild the image so
+            # `CI-ASG/` jobs can eventually use it before workflow checkout.
+            - ".github/actions/checkout_github_sha/action.yml"
+
+            # Changes to the runner image build or source bundle should publish
+            # a fresh image even when the Bazel dependency cache key is stable.
             - "admin/aws/internal/aws_github_runner_asg_provider.ts"
             - "admin/aws/internal/aws_github_test_runner_image_builder_components.ts"
             - ".github/workflows/build-test-runner-ami.yaml"
