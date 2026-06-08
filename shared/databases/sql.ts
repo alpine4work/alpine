@@ -225,7 +225,15 @@ function sql(
                 bind.push(...value.bind);
             } else {
                 query += "?";
-                bind.push(value && typeof value === "object" ? JSON.stringify(value) : value);
+                // Bind plain objects/arrays as JSON text. A Uint8Array
+                // (incl. JsonStringifiableUint8Array) passes through
+                // untouched so SQLite binds it as a BLOB — JSON-stringifying
+                // would corrupt it into `{"0":12,...}`.
+                bind.push(
+                    value !== null && typeof value === "object" && !(value instanceof Uint8Array)
+                        ? JSON.stringify(value)
+                        : value,
+                );
             }
         }
     }

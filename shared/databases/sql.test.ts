@@ -4,7 +4,7 @@ import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
 
 const sqlite3Promise = sqlite3InitModule();
 
@@ -120,6 +120,16 @@ describe("sql tagged template", () => {
         `;
         expect(structure(q.query)).toBe('SELECT * FROM "t" WHERE id = ?');
         expect(q.bind).toEqual([1]);
+    });
+
+    test("binds a Uint8Array as a BLOB rather than JSON text", () => {
+        const blob = new JsonStringifiableUint8Array([0, 1, 2, 255]);
+        const q = sql`
+            SELECT
+                ${blob}
+        `;
+        // The value must reach the binding untouched, not stringified.
+        expect(q.bind).toEqual([blob]);
     });
 });
 
