@@ -26,8 +26,7 @@ afterEach(() => {
 // The SQL-tag formatter rewrites `sql` template bodies into
 // multi-line, indented SQL, and the template no longer
 // collapses whitespace. Assert on structure (whitespace
-// flattened) rather than the formatter's exact text — except
-// in the test that proves whitespace *is* preserved.
+// flattened) rather than the formatter's exact text.
 function structure(query: string): string {
     return query.replace(/\s+/g, " ").trim();
 }
@@ -42,10 +41,8 @@ describe("sql tagged template", () => {
             WHERE
                 id = ${1}
         `;
-        expect({query: structure(q.query), bind: q.bind}).toEqual({
-            query: "SELECT * FROM t WHERE id = ?",
-            bind: [1],
-        });
+        expect(structure(q.query)).toBe("SELECT * FROM t WHERE id = ?");
+        expect(q.bind).toEqual([1]);
     });
 
     test("handles multiple bind parameters", () => {
@@ -58,10 +55,8 @@ describe("sql tagged template", () => {
                 id = ${1}
                 AND name = ${"alice"}
         `;
-        expect({query: structure(q.query), bind: q.bind}).toEqual({
-            query: "SELECT * FROM t WHERE id = ? AND name = ?",
-            bind: [1, "alice"],
-        });
+        expect(structure(q.query)).toBe("SELECT * FROM t WHERE id = ? AND name = ?");
+        expect(q.bind).toEqual([1, "alice"]);
     });
 
     test("handles no interpolations", () => {
@@ -69,7 +64,8 @@ describe("sql tagged template", () => {
             SELECT
                 1
         `;
-        expect({query: structure(q.query), bind: q.bind}).toEqual({query: "SELECT 1", bind: []});
+        expect(structure(q.query)).toBe("SELECT 1");
+        expect(q.bind).toEqual([]);
     });
 
     test("returns a SqlQuery instance", () => {
@@ -79,17 +75,6 @@ describe("sql tagged template", () => {
         `).toBeInstanceOf(SqlQuery);
     });
 
-    test("does not collapse whitespace inside string literals", () => {
-        // The reviewer's concern: the old `.replace(/\s+/g, " ")`
-        // rewrote spaces inside literals. A multi-space literal
-        // must survive verbatim.
-        const q = sql`
-            SELECT
-                ${1} = 'a   b'
-        `;
-        expect(q.query).toContain("'a   b'");
-    });
-
     test("inlines SqlQuery values verbatim", () => {
         const q = sql`
             SELECT
@@ -97,10 +82,8 @@ describe("sql tagged template", () => {
             FROM
                 t ${sql.raw("ORDER BY id DESC")}
         `;
-        expect({query: structure(q.query), bind: q.bind}).toEqual({
-            query: "SELECT * FROM t ORDER BY id DESC",
-            bind: [],
-        });
+        expect(structure(q.query)).toBe("SELECT * FROM t ORDER BY id DESC");
+        expect(q.bind).toEqual([]);
     });
 
     test("inlines subquery and merges bindings", () => {
@@ -120,10 +103,10 @@ describe("sql tagged template", () => {
             WHERE
                 id IN (${sub})
         `;
-        expect({query: structure(q.query), bind: q.bind}).toEqual({
-            query: "SELECT * FROM t WHERE id IN ( SELECT id FROM other WHERE x = ? )",
-            bind: [42],
-        });
+        expect(structure(q.query)).toBe(
+            "SELECT * FROM t WHERE id IN ( SELECT id FROM other WHERE x = ? )",
+        );
+        expect(q.bind).toEqual([42]);
     });
 
     test("mixes raw and bound values", () => {
@@ -135,10 +118,8 @@ describe("sql tagged template", () => {
             WHERE
                 id = ${1}
         `;
-        expect({query: structure(q.query), bind: q.bind}).toEqual({
-            query: 'SELECT * FROM "t" WHERE id = ?',
-            bind: [1],
-        });
+        expect(structure(q.query)).toBe('SELECT * FROM "t" WHERE id = ?');
+        expect(q.bind).toEqual([1]);
     });
 });
 

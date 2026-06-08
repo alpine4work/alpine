@@ -229,10 +229,6 @@ function sql(
             }
         }
     }
-    // Keep the assembled text verbatim — collapsing whitespace would
-    // rewrite it inside string literals and merge `--` line comments with
-    // the following line. SQLite ignores insignificant whitespace, and this
-    // matches the no-processing `sql.raw` path.
     return new SqlQuery(query, bind);
 }
 
