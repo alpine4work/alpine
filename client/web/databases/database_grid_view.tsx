@@ -270,6 +270,7 @@ export function DatabaseGridView({
                                     <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
+                                        zIndex="30"
                                         style={{
                                             position: shouldRenderWithRelativePositioning
                                                 ? "relative"
@@ -280,30 +281,32 @@ export function DatabaseGridView({
                                             pointerEvents: "auto",
                                         }}
                                     >
-                                        <Box position="relative" zIndex="30">
-                                            <DatabaseGridViewHeaderRow
-                                                fields={gridFields.fields}
-                                                hiddenFields={gridFields.hiddenFields}
-                                                onStartAddingField={gridFields.startAddingField}
-                                                startResizingField={gridFields.startResizingField}
-                                                resizingState={gridFields.resizingState}
-                                                onRenameField={gridFields.renameField}
-                                                onUpdateFieldVisibility={
-                                                    gridFields.updateFieldVisibility
-                                                }
-                                                onUpdateFieldConfig={gridFields.updateFieldConfig}
-                                            />
-                                        </Box>
-                                        <Box
-                                            position="absolute"
-                                            bottom="0"
-                                            left="0"
-                                            right="0"
-                                            zIndex="10"
-                                            borderTop="grey-5-translucent"
-                                            pointerEvents="none"
+                                        <DatabaseGridViewHeaderRow
+                                            fields={gridFields.fields}
+                                            hiddenFields={gridFields.hiddenFields}
+                                            onStartAddingField={gridFields.startAddingField}
+                                            startResizingField={gridFields.startResizingField}
+                                            resizingState={gridFields.resizingState}
+                                            onRenameField={gridFields.renameField}
+                                            onUpdateFieldVisibility={
+                                                gridFields.updateFieldVisibility
+                                            }
+                                            onUpdateFieldConfig={gridFields.updateFieldConfig}
                                         />
                                     </Box>
+                                    <Box
+                                        zIndex="10"
+                                        borderTop="grey-5-translucent"
+                                        pointerEvents="none"
+                                        style={{
+                                            position: shouldRenderWithRelativePositioning
+                                                ? "relative"
+                                                : "sticky",
+                                            top: shouldRenderWithRelativePositioning
+                                                ? undefined
+                                                : spacing[gridRowHeight],
+                                        }}
+                                    />
                                 </div>
                             );
                         },
@@ -321,30 +324,26 @@ export function DatabaseGridView({
                                 <>
                                     <div style={{height: offset}} />
                                     <Box
+                                        zIndex="10"
+                                        borderTop="grey-5"
+                                        pointerEvents="none"
+                                        style={{
+                                            position: "sticky",
+                                            bottom: spacing[gridRowHeight],
+                                        }}
+                                    />
+                                    <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
+                                        backgroundColor="grey-0"
+                                        zIndex="30"
                                         style={{
                                             position: "sticky",
                                             bottom: 0,
                                             pointerEvents: "auto",
                                         }}
                                     >
-                                        <Box
-                                            position="relative"
-                                            zIndex="30"
-                                            backgroundColor="grey-0"
-                                        >
-                                            <DatabaseGridViewAddRowButton onCreateRow={createRow} />
-                                        </Box>
-                                        <Box
-                                            position="absolute"
-                                            top="0"
-                                            left="0"
-                                            right="0"
-                                            zIndex="10"
-                                            borderTop="grey-5"
-                                            pointerEvents="none"
-                                        />
+                                        <DatabaseGridViewAddRowButton onCreateRow={createRow} />
                                     </Box>
                                 </>
                             );
