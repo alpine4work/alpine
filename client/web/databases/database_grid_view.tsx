@@ -270,7 +270,6 @@ export function DatabaseGridView({
                                     <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
-                                        zIndex="20"
                                         style={{
                                             position: shouldRenderWithRelativePositioning
                                                 ? "relative"
@@ -281,17 +280,28 @@ export function DatabaseGridView({
                                             pointerEvents: "auto",
                                         }}
                                     >
-                                        <DatabaseGridViewHeaderRow
-                                            fields={gridFields.fields}
-                                            hiddenFields={gridFields.hiddenFields}
-                                            onStartAddingField={gridFields.startAddingField}
-                                            startResizingField={gridFields.startResizingField}
-                                            resizingState={gridFields.resizingState}
-                                            onRenameField={gridFields.renameField}
-                                            onUpdateFieldVisibility={
-                                                gridFields.updateFieldVisibility
-                                            }
-                                            onUpdateFieldConfig={gridFields.updateFieldConfig}
+                                        <Box position="relative" zIndex="30">
+                                            <DatabaseGridViewHeaderRow
+                                                fields={gridFields.fields}
+                                                hiddenFields={gridFields.hiddenFields}
+                                                onStartAddingField={gridFields.startAddingField}
+                                                startResizingField={gridFields.startResizingField}
+                                                resizingState={gridFields.resizingState}
+                                                onRenameField={gridFields.renameField}
+                                                onUpdateFieldVisibility={
+                                                    gridFields.updateFieldVisibility
+                                                }
+                                                onUpdateFieldConfig={gridFields.updateFieldConfig}
+                                            />
+                                        </Box>
+                                        <Box
+                                            position="absolute"
+                                            bottom="0"
+                                            left="0"
+                                            right="0"
+                                            zIndex="10"
+                                            borderTop="grey-5-translucent"
+                                            pointerEvents="none"
                                         />
                                     </Box>
                                 </div>
@@ -313,14 +323,28 @@ export function DatabaseGridView({
                                     <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
-                                        backgroundColor="grey-0"
                                         style={{
                                             position: "sticky",
                                             bottom: 0,
                                             pointerEvents: "auto",
                                         }}
                                     >
-                                        <DatabaseGridViewAddRowButton onCreateRow={createRow} />
+                                        <Box
+                                            position="relative"
+                                            zIndex="30"
+                                            backgroundColor="grey-0"
+                                        >
+                                            <DatabaseGridViewAddRowButton onCreateRow={createRow} />
+                                        </Box>
+                                        <Box
+                                            position="absolute"
+                                            top="0"
+                                            left="0"
+                                            right="0"
+                                            zIndex="10"
+                                            borderTop="grey-5"
+                                            pointerEvents="none"
+                                        />
                                     </Box>
                                 </>
                             );
@@ -458,7 +482,7 @@ function DatabaseGridViewSelectionOverlay({
             position="absolute"
             border="theme-40-const"
             pointerEvents="none"
-            zIndex="10"
+            zIndex="20"
             style={{
                 top: rowPosition.offset,
                 height: rowPosition.height,
@@ -527,7 +551,7 @@ function DatabaseGridViewHeaderRow({
     onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
     return (
-        <Box display="flex" borderBottom="grey-5-translucent">
+        <Box display="flex">
             {fields.map(field => (
                 <DatabaseGridViewHeaderCell
                     key={field.id}
@@ -1100,13 +1124,7 @@ function DatabaseGridViewCell({
 
 function DatabaseGridViewAddRowButton({onCreateRow}: {onCreateRow: () => void}) {
     return (
-        <Box
-            display="flex"
-            alignItems="center"
-            borderTop="grey-5"
-            cursor="pointer"
-            onClick={onCreateRow}
-        >
+        <Box display="flex" alignItems="center" cursor="pointer" onClick={onCreateRow}>
             <Box
                 display="flex"
                 alignItems="center"
