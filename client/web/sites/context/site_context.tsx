@@ -398,6 +398,8 @@ export function SiteProvider({children}: {readonly children: ReactNode}) {
         <SiteActivationContext.Provider value={activationContextValue}>
             {activation ? (
                 <ActiveSiteDataProvider
+                    // Force remount on site change to reset the realtime subscription.
+                    key={activation.site.siteId}
                     siteId={activation.site.siteId}
                     initialQueryResult={activation.site.initialQueryResult}
                     activeEntityId={activation.activeEntityId}
@@ -687,20 +689,6 @@ export function useFavoriteSiteMenuAction(): Memo<MenuAction> | null {
 export function useSiteTree(): SiteTreeForClient {
     const {tree} = useSiteContext();
     return tree;
-}
-
-export function useSiteChrome(entityId: SiteItemSearchEntityId | null): {
-    readonly sidebar: SiteSideBarModel | null;
-    readonly topbar: SiteTopBarModel | null;
-} {
-    const {tree} = useSiteContext();
-
-    return useMemo(() => {
-        if (!entityId) {
-            return {sidebar: null, topbar: null};
-        }
-        return findSiteChrome(tree, entityId);
-    }, [tree, entityId]);
 }
 
 /**
