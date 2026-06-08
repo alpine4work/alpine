@@ -1,12 +1,10 @@
 import {App, Duration, Stack, aws_iam, aws_lambda} from "aws-cdk-lib";
 import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
-import {Cluster} from "aws-cdk-lib/aws-ecs";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {ciScheduleDeployIamArn} from "~/admin/aws/aws_known_ids.js";
 import {AwsAnalyticsMirror} from "~/admin/aws/internal/aws_analytics_mirror.js";
 import {AwsApiService} from "~/admin/aws/internal/aws_api_service.js";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
-import {AwsBazelRemoteCache} from "~/admin/aws/internal/aws_bazel_remote_cache.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
@@ -248,26 +246,12 @@ function addAwsLifecycleResources(
         subnetConfiguration: [{subnetType: SubnetType.PUBLIC, name: "Public"}],
     });
 
-    const githubRunners = new AwsGithubRunners(stack, {
+    new AwsGithubRunners(stack, {
         vpc,
         cloudflareAccountId,
         dynamo,
         sqs,
         observability,
-    });
-
-    // A shared ECS cluster for lifecycle-related services.
-    const lifecycleCluster = new Cluster(stack, "LifecycleCluster", {
-        vpc,
-        clusterName: "CyberworldsLifecycleCluster",
-    });
-
-    // Proof-of-concept centralized Bazel remote cache running `bazel-remote` on
-    // Fargate, backed by an S3 bucket.
-    new AwsBazelRemoteCache(stack, {
-        vpc,
-        cluster: lifecycleCluster,
-        runnerConnectables: githubRunners.runnerConnectables,
     });
 
     // Create our send alert lambda NOTE: If this is renamed, the url used by alerting

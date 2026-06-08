@@ -6,14 +6,7 @@ import {
     Os,
 } from "@cloudsnorkel/cdk-github-runners";
 import {Duration, Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
-import {
-    IConnectable,
-    IVpc,
-    InstanceClass,
-    InstanceSize,
-    InstanceType,
-    SubnetType,
-} from "aws-cdk-lib/aws-ec2";
+import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
@@ -27,12 +20,6 @@ import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export class AwsGithubRunners extends Construct {
-    /**
-     * Connectables for every GitHub runner provider. Exposed so a centralized cache
-     * server can scope its ingress to just the runners rather than the whole VPC.
-     */
-    public readonly runnerConnectables: Array<IConnectable>;
-
     constructor(
         parentScope: Construct,
         {
@@ -61,8 +48,8 @@ export class AwsGithubRunners extends Construct {
             // Security best practice to require HTTPS access.
             enforceSSL: true,
             minimumTLSVersion: 1.2,
-            removalPolicy: RemovalPolicy.DESTROY,
             // Don't allow public access. We only allow access through IAM policies.
+            removalPolicy: RemovalPolicy.DESTROY,
             blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
             // If this bucket is deleted from a stack, we can delete the objects within.
             // They're cache artifacts which can easily be rebuilt.
@@ -412,12 +399,5 @@ export class AwsGithubRunners extends Construct {
             setupAccess: LambdaAccess.noAccess(),
             webhookAccess: LambdaAccess.lambdaUrl(),
         });
-
-        this.runnerConnectables = [
-            testRunnerProvider,
-            testRunnerAsgProvider,
-            amiBuilderRunnerProvider,
-            deployRunnerProvider,
-        ];
     }
 }
