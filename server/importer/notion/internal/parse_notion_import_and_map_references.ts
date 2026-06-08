@@ -154,26 +154,10 @@ export async function parseNotionImportAndMapReferences(
             diskPathToUnzippedFiles,
         });
 
-        // TODO: delete this log
-        // eslint-disable-next-line no-console
-        console.log(`[mapReferences] Listed ${filePaths.length} files from disk`);
-        const diskMdFiles = filePaths.filter(f => f.endsWith(".md"));
-        const diskCsvFiles = filePaths.filter(f => f.endsWith(".csv"));
-        const diskZipFiles = filePaths.filter(f => f.endsWith(".zip"));
-        // TODO: delete this log
-        // eslint-disable-next-line no-console
-        console.log(
-            `[mapReferences] Breakdown: ${diskMdFiles.length} .md, ${diskCsvFiles.length} .csv, ${diskZipFiles.length} .zip, ${filePaths.length - diskMdFiles.length - diskCsvFiles.length - diskZipFiles.length} other`,
-        );
-
         // Build set of all paths (excluding index.html and \_all.csv files) and map notion
         // IDs to paths - no content reading needed here
         const allPaths = new Set<string>();
         const notionIdToPath = new Map<string, string>();
-
-        let parsedCount = 0;
-        let unparsedCount = 0;
-        const unparsedMdExamples: Array<string> = [];
 
         for (const path of filePaths) {
             if (isIndexHtml(path)) continue;
@@ -185,38 +169,11 @@ export async function parseNotionImportAndMapReferences(
             const fileName = path.split("/").pop()!;
             const parsed = parseNotionImportFileName(fileName);
             if (parsed) {
-                parsedCount++;
                 const notionId = parsed.notionId;
                 const existing = notionIdToPath.get(notionId);
                 if (!existing || path.endsWith(".md")) {
                     notionIdToPath.set(notionId, path);
                 }
-            } else {
-                unparsedCount++;
-                if (path.endsWith(".md") && unparsedMdExamples.length < 10) {
-                    unparsedMdExamples.push(path);
-                }
-            }
-        }
-
-        // TODO: delete this log
-        // eslint-disable-next-line no-console
-        console.log(
-            `[mapReferences] allPaths: ${allPaths.size}, notionIdToPath: ${notionIdToPath.size}`,
-        );
-        // TODO: delete this log
-        // eslint-disable-next-line no-console
-        console.log(
-            `[mapReferences] Filename parsing: ${parsedCount} matched, ${unparsedCount} did not match`,
-        );
-        if (unparsedMdExamples.length > 0) {
-            // TODO: delete this log
-            // eslint-disable-next-line no-console
-            console.log(`[mapReferences] Unparsed .md files:`);
-            for (const ex of unparsedMdExamples) {
-                // TODO: delete this log
-                // eslint-disable-next-line no-console
-                console.log(`[mapReferences]   ${ex}`);
             }
         }
 
@@ -323,23 +280,6 @@ export async function parseNotionImportAndMapReferences(
                 pathToFileId.set(path, id);
                 filesToUpload[path] = {id};
             }
-        }
-
-        // TODO: delete this log
-        // eslint-disable-next-line no-console
-        console.log(
-            `[mapReferences] Classification: ${Object.keys(documents).length} documents, ${Object.keys(filesToUpload).length} files`,
-        );
-        // TODO: delete this log
-        // eslint-disable-next-line no-console
-        console.log(`[mapReferences] teamspaceForPath: ${hierarchy.teamspaceForPath.size} entries`);
-        // TODO: delete this log
-        // eslint-disable-next-line no-console
-        console.log(`[mapReferences] teamspaceOptionById: ${teamspaceOptionById.size} entries`);
-        for (const [tsId, option] of teamspaceOptionById) {
-            // TODO: delete this log
-            // eslint-disable-next-line no-console
-            console.log(`[mapReferences]   ${tsId}: ${option.type}`);
         }
 
         // Download external images referenced in markdown files. Notion sometimes exports
