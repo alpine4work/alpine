@@ -456,12 +456,12 @@ function DatabaseGridViewSelectionOverlay({
             position="absolute"
             border="theme-40-const"
             pointerEvents="none"
-            zIndex="1"
             style={{
                 top: rowPosition.offset,
                 height: rowPosition.height,
                 left,
                 width: field.width,
+                zIndex: 1,
             }}
         />
     );
