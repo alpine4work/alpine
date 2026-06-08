@@ -160,12 +160,7 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
 }
 
 function slugify(string: string) {
-    // Replace ampersands with "and" so `D&D` becomes `d-and-d` instead of `d-d`
-    string = string.replaceAll("&", " and ");
-
-    string = string.slice(0, 50);
-
-    string = convertToUrlPathnameSlug(string);
+    string = convertToUrlPathnameSlug(string, {limitLength: 50});
 
     if (string.length === 0) {
         string = "unknown";
