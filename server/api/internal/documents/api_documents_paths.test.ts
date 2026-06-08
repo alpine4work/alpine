@@ -661,7 +661,7 @@ describe("comment threads", () => {
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: commentThread.id,
+                                                thread: {id: commentThread.id},
                                             },
                                         ],
                                     },
@@ -742,7 +742,7 @@ describe("comment threads", () => {
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: commentThread.id,
+                                                thread: {id: commentThread.id},
                                             },
                                         ],
                                     },
@@ -823,7 +823,7 @@ describe("comment threads", () => {
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: commentThread.id,
+                                                thread: {id: commentThread.id},
                                             },
                                         ],
                                     },
@@ -916,7 +916,7 @@ describe("comment threads", () => {
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: commentThread.id,
+                                                thread: {id: commentThread.id},
                                             },
                                         ],
                                     },

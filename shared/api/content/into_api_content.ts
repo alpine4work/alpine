@@ -798,7 +798,7 @@ function intoApiContentInlineElementMark(mark: Mark): ApiContentInlineElementMar
         case "comment": {
             return {
                 type: "Comment",
-                threadId: mark.attrs.commentThreadId,
+                thread: {id: mark.attrs.commentThreadId},
             };
         }
         default:

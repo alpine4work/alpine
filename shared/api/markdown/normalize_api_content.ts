@@ -633,7 +633,7 @@ export function normalizeApiContentInlineElementMarks<Mark extends ApiContentInl
 
             // You can have multiple comment marks for different threads on any given text.
             case "Comment":
-                markKey = `${mark.type}:${mark.threadId}`;
+                markKey = `${mark.type}:${mark.thread.id}`;
                 break;
 
             default:

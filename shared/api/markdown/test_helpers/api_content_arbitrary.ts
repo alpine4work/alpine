@@ -193,7 +193,9 @@ const ApiContentInlineElementHighlightMarkArbitrary: Arbitrary<ApiContentInlineE
 const ApiContentInlineElementCommentMarkArbitrary: Arbitrary<ApiContentInlineElementCommentMark> =
     fc.record({
         type: fc.constant("Comment"),
-        threadId: createIdArbitrary<DocumentCommentThreadId>(),
+        thread: fc.record({
+            id: createIdArbitrary<DocumentCommentThreadId>(),
+        }),
     });
 
 const ApiContentInlineElementMarkArbitrary = createUnionArbitrary<ApiContentInlineElementMark>({

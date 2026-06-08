@@ -42,8 +42,8 @@ export async function intoApiMessageContentPayloadParent(
             return {
                 type: "Message",
                 index: parent.index,
-                contentSnippet,
                 author,
+                contentSnippet,
             };
         }
         case "MessagesRange": {
@@ -51,15 +51,15 @@ export async function intoApiMessageContentPayloadParent(
                 type: "Message",
                 index: parent.startIndex,
                 endIndex: parent.endIndex,
-                contentSnippet,
                 author,
+                contentSnippet,
             };
         }
         case "PostRange": {
             return {
                 type: "Post",
-                contentSnippet,
                 author,
+                contentSnippet,
             };
         }
         default:

@@ -3918,7 +3918,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -3928,7 +3930,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Link", url: "https://example.com"},
                                         ],
@@ -3939,7 +3943,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -3949,7 +3955,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Italic"},
                                         ],
@@ -3960,7 +3968,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -3970,7 +3980,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Bold"},
                                         ],
@@ -3981,7 +3993,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -3991,7 +4005,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Strike"},
                                         ],
@@ -4002,7 +4018,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4012,7 +4030,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                             {type: "Highlight", color: "Red"},
                                         ],
@@ -4023,7 +4043,9 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkMixedThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkMixedThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4052,8 +4074,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4063,8 +4086,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Link", url: "https://example.com"},
                                         ],
@@ -4075,8 +4099,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4086,8 +4111,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Italic"},
                                         ],
@@ -4098,8 +4124,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4109,8 +4136,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Bold"},
                                         ],
@@ -4121,8 +4149,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4132,8 +4161,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Strike"},
                                         ],
@@ -4144,8 +4174,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4155,13 +4186,15 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentInnerThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentInnerThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4171,8 +4204,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedLessParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedLessParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4201,8 +4235,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4212,8 +4247,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Link", url: "https://example.com"},
                                         ],
@@ -4224,8 +4260,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4235,8 +4272,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Italic"},
                                         ],
@@ -4247,8 +4285,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4258,8 +4297,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Bold"},
                                         ],
@@ -4270,8 +4310,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4281,8 +4322,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {type: "Strike"},
                                         ],
@@ -4293,8 +4335,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4304,13 +4347,15 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentInnerThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentInnerThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4320,8 +4365,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId:
-                                                    printTestCommentNestedGreaterParentOuterThreadId,
+                                                thread: {
+                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4349,7 +4395,9 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkTextThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkTextThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4376,7 +4424,9 @@ This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark
                                             {type: "Highlight", color: "Green"},
                                             {
                                                 type: "Comment",
-                                                threadId: printTestCommentMarkHighlightThreadId,
+                                                thread: {
+                                                    id: printTestCommentMarkHighlightThreadId,
+                                                },
                                             },
                                         ],
                                     },
@@ -4402,15 +4452,21 @@ This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                threadId: printTestMultiCommentThreadId1,
+                                                thread: {
+                                                    id: printTestMultiCommentThreadId1,
+                                                },
                                             },
                                             {
                                                 type: "Comment",
-                                                threadId: printTestMultiCommentThreadId2,
+                                                thread: {
+                                                    id: printTestMultiCommentThreadId2,
+                                                },
                                             },
                                             {
                                                 type: "Comment",
-                                                threadId: printTestMultiCommentThreadId3,
+                                                thread: {
+                                                    id: printTestMultiCommentThreadId3,
+                                                },
                                             },
                                         ],
                                     },
@@ -4439,8 +4495,9 @@ This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-
                                                 marks: [
                                                     {
                                                         type: "Comment",
-                                                        threadId:
-                                                            printTestCommentMarkCodeBlockThreadId,
+                                                        thread: {
+                                                            id: printTestCommentMarkCodeBlockThreadId,
+                                                        },
                                                     },
                                                 ],
                                             },

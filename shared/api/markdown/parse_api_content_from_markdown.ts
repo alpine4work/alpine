@@ -1126,7 +1126,7 @@ function* parseApiContentBlockElementFromMarkdown(
                             ) {
                                 markStack.pushForHtmlTag("mark", {
                                     type: "Comment",
-                                    threadId: markTagState.dataComment,
+                                    thread: {id: markTagState.dataComment},
                                 });
                             } else {
                                 let color: ApiContentInlineElementHighlightMarkColor | null = null;
@@ -1159,7 +1159,7 @@ function* parseApiContentBlockElementFromMarkdown(
                         ) {
                             markStack.pushForHtmlTag("comment", {
                                 type: "Comment",
-                                threadId: commentTagState.id,
+                                thread: {id: commentTagState.id},
                             });
                             commentTagState = null;
                         }
@@ -2612,7 +2612,7 @@ function* parseApiContentInlineElementFromMarkdown(
                             ) {
                                 markStack.pushForHtmlTag("mark", {
                                     type: "Comment",
-                                    threadId: markTagState.dataComment,
+                                    thread: {id: markTagState.dataComment},
                                 });
                             } else {
                                 let color: ApiContentInlineElementHighlightMarkColor | null = null;
@@ -2645,7 +2645,7 @@ function* parseApiContentInlineElementFromMarkdown(
                         ) {
                             markStack.pushForHtmlTag("comment", {
                                 type: "Comment",
-                                threadId: commentTagState.id,
+                                thread: {id: commentTagState.id},
                             });
                             commentTagState = null;
                         }

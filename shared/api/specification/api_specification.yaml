@@ -2275,7 +2275,7 @@ components:
 
         ContentInlineElementCommentMark:
             type: object
-            required: [type, threadId]
+            required: [type, thread]
             additionalProperties: false
             properties:
                 type:
@@ -3260,24 +3260,24 @@ components:
 
         SearchChatMessageResult:
             type: object
-            required: [type, id, title, bodyMatch, index, author]
+            required: [type, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: ChatMessage
                 id:
                     $ref: "#/components/schemas/ChatId"
+                index:
+                    type: integer
+                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     $ref: "#/components/schemas/SearchResultBodyMatch"
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchDocumentResult:
             type: object
@@ -3299,26 +3299,26 @@ components:
 
         SearchDocumentMessageResult:
             type: object
-            required: [type, id, title, bodyMatch, threadId, index, author]
+            required: [type, id, threadId, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: DocumentMessage
                 id:
                     $ref: "#/components/schemas/DocumentId"
-                title:
-                    const: null
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
                 index:
                     type: integer
                     minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchPostResult:
             type: object
@@ -3335,31 +3335,31 @@ components:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
-                author:
-                    $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchPostMessageResult:
             type: object
-            required: [type, id, title, bodyMatch, index, author]
+            required: [type, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: PostMessage
                 id:
                     $ref: "#/components/schemas/PostId"
+                index:
+                    type: integer
+                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     $ref: "#/components/schemas/SearchResultBodyMatch"
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchTaskResult:
             type: object
@@ -3376,31 +3376,31 @@ components:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
 
         SearchTaskMessageResult:
             type: object
-            required: [type, id, title, bodyMatch, index, author]
+            required: [type, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: TaskMessage
                 id:
                     $ref: "#/components/schemas/TaskId"
+                index:
+                    type: integer
+                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     $ref: "#/components/schemas/SearchResultBodyMatch"
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                author:
+                    $ref: "#/components/schemas/Account"
 
         SearchTaskCollectionResult:
             type: object

@@ -2050,7 +2050,7 @@ export function testMessagingApiImplementation(
                                     {
                                         type: "Text",
                                         text: "world",
-                                        marks: [{type: "Comment", threadId: generateId()}],
+                                        marks: [{type: "Comment", thread: {id: generateId()}}],
                                     },
                                     {type: "Text", text: "!"},
                                 ],

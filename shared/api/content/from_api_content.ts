@@ -436,7 +436,7 @@ function fromApiContentInlineElementMark(
         case "Comment": {
             if (!schema.marks.comment) return;
 
-            return schema.marks.comment.create({commentThreadId: mark.threadId});
+            return schema.marks.comment.create({commentThreadId: mark.thread.id});
         }
         default:
             throw exhaustive(mark);

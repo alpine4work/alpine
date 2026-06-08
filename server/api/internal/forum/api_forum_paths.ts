@@ -127,13 +127,13 @@ export const apiForumPaths: Pick<
                     spaceId: post.spaceId,
                     post: {
                         id: post.id,
+                        author,
                         createdTime: serializeDateString(post.createdTime),
                         createdTimeZone: post.createdTimeZone,
                         channel: {
                             id: channelId,
                             name: post.channelName,
                         },
-                        author,
                         content: contentWithReferences,
                         reference: {
                             title: createPostSearchEntityTitle(

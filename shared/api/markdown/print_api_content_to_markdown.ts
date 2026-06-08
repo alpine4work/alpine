@@ -649,8 +649,8 @@ function printApiContentCodeBlockElementToMarkdown(
                     }
                     case "Comment": {
                         html += options.withCommentTagHtml
-                            ? `<comment id="${mark.threadId}">`
-                            : `<mark data-comment="${mark.threadId}">`;
+                            ? `<comment id="${mark.thread.id}">`
+                            : `<mark data-comment="${mark.thread.id}">`;
                         break;
                     }
                     default:
@@ -1560,8 +1560,8 @@ function* printApiContentInlineElementMarkToMarkdown(
         }
         case "Comment": {
             const openHtml = options.withCommentTagHtml
-                ? `<comment id="${mark.threadId}">`
-                : `<mark data-comment="${mark.threadId}">`;
+                ? `<comment id="${mark.thread.id}">`
+                : `<mark data-comment="${mark.thread.id}">`;
             const closeHtml = options.withCommentTagHtml ? "</comment>" : "</mark>";
 
             yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
