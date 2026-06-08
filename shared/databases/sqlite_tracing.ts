@@ -111,8 +111,11 @@ export function installTracing(db: Database): void {
 
 /** Log a single traced statement with its wall-clock duration. */
 function logStatement(sqlText: string | undefined, durationMs: number): void {
+    // Collapse the multi-line, indented SQL our tagged template
+    // produces onto a single line so each statement is one log line.
+    const oneLine = sqlText?.trim().replace(/\s+/g, " ");
     // eslint-disable-next-line no-console
-    console.log(`[sqlite] ${durationMs.toFixed(2)}ms ${sqlText ?? "(unknown)"}`);
+    console.log(`[sqlite] ${durationMs.toFixed(2)}ms ${oneLine || "(unknown)"}`);
 }
 
 /**
