@@ -269,10 +269,15 @@ export function DatabaseGridView({
                                 >
                                     <Box
                                         ref={ref}
-                                        minHeight={gridRowHeight}
-                                        backgroundColor="grey-0"
                                         zIndex="30"
                                         style={{
+                                            // 1px taller than `gridRowHeight` so the
+                                            // header item's measured size includes the
+                                            // sibling border line below — that way row 1
+                                            // starts after the border, mirroring how
+                                            // inter-row borders live inside each row's
+                                            // measured height.
+                                            minHeight: `calc(${spacing[gridRowHeight]} + 1px)`,
                                             position: shouldRenderWithRelativePositioning
                                                 ? "relative"
                                                 : "sticky",
@@ -306,6 +311,12 @@ export function DatabaseGridView({
                                             top: shouldRenderWithRelativePositioning
                                                 ? undefined
                                                 : spacing[gridRowHeight],
+                                            // Pull the border up 1px so its natural
+                                            // flow position lands inside the header's
+                                            // transparent bottom gap (avoiding a 1px
+                                            // jump when scrolling crosses the sticky
+                                            // threshold).
+                                            marginTop: -1,
                                         }}
                                     />
                                 </div>
@@ -550,7 +561,7 @@ function DatabaseGridViewHeaderRow({
     onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
     return (
-        <Box display="flex">
+        <Box display="flex" height={gridRowHeight}>
             {fields.map(field => (
                 <DatabaseGridViewHeaderCell
                     key={field.id}
