@@ -317,9 +317,7 @@ async function actuallyParseAgentWebMessagingPage<
                             }
                         }
 
-                        const parseCustomBlock = assertExists(
-                            parseCustomBlockByTagName[state.tagName],
-                        );
+                        const parseCustomBlock = assertExists(parseCustomBlockByTagName[tagName]);
 
                         blockPromises.push(
                             parseCustomBlock(
@@ -337,7 +335,11 @@ async function actuallyParseAgentWebMessagingPage<
                                     openTagPosition: state.openTagPosition,
                                     closeTagPosition: node.position,
                                 },
-                            ),
+                            ).then(block => {
+                                // Make sure the parsed block has the correct tag name.
+                                assert(block.tagName === tagName);
+                                return block;
+                            }),
                         );
 
                         state = null;

@@ -21,6 +21,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 
 export const agentWebMessagingPreviousPageLinkTextWithEndArrow = "Previous page »";
 export const agentWebMessagingPreviousPageLinkTextWithStartArrow = "« Previous page";
@@ -216,9 +217,22 @@ export async function printAgentWebMessagingPage<
                             );
                         }
 
+                        const customTree = await printCustomBlock(storage, block);
+
+                        const regExp = new RegExp(`^<${escapeRegExp(block.tagName)}(?: |>)`);
+
+                        // Make sure `block.tagName` is accurate and used to open the custom printed tree.
+                        assert(
+                            (customTree.children[0]?.type === "html" &&
+                                regExp.test(customTree.children[0].value)) ||
+                                (customTree.children[0]?.type === "paragraph" &&
+                                    customTree.children[0].children[0]?.type === "html" &&
+                                    regExp.test(customTree.children[0].children[0].value)),
+                        );
+
                         return {
                             ...block,
-                            customTree: await printCustomBlock(storage, block),
+                            customTree,
                         };
                     }
                     default:

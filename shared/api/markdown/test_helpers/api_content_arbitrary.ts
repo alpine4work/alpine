@@ -97,6 +97,12 @@ export const ApiContentTextArbitrary = fc.oneof(
     {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
 );
 
+export const ApiChannelReferenceArbitrary = fc.record({
+    type: fc.constant("Channel"),
+    id: createIdArbitrary<ChannelId>(),
+    title: ApiContentTextArbitrary,
+});
+
 export const ApiChatReferenceArbitrary = fc.record({
     type: fc.constant("Chat"),
     id: createIdArbitrary<ChatId>(),
@@ -115,11 +121,7 @@ export const ApiTaskReferenceArbitrary = fc.record({
 });
 
 const ApiPreviewReferenceArbitraries = {
-    Channel: fc.record({
-        type: fc.constant("Channel"),
-        id: createIdArbitrary<ChannelId>(),
-        title: ApiContentTextArbitrary,
-    }),
+    Channel: ApiChannelReferenceArbitrary,
     Chat: ApiChatReferenceArbitrary,
     Document: fc.record({
         type: fc.constant("Document"),

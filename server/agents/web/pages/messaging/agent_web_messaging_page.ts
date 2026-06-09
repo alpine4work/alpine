@@ -67,6 +67,8 @@ export type AgentWebMessagingPageMessageBlock = {
 
 export type AgentWebMessagingPageCustomBlockBase = {
     readonly type: "Custom";
+    readonly tagName: string;
+    readonly timeAttribute: null;
 };
 
 export type AgentWebMessagingPageMessageBlockParent = {

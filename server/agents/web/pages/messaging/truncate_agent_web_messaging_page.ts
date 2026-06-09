@@ -6,6 +6,7 @@ import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_w
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
+    AgentWebMessagingPageCustomBlockBase,
     AgentWebMessagingPageMessageRange,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
@@ -37,7 +38,10 @@ import {exhaustIterable} from "~/shared/helpers/iterable/exhaust_iterable.js";
 import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-export async function truncateAgentWebMessagingPage<Preamble>(
+export async function truncateAgentWebMessagingPage<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     storage: AgentWebSessionStorage,
     {
         messageNouns,
@@ -59,7 +63,7 @@ export async function truncateAgentWebMessagingPage<Preamble>(
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
         contextFormattedTimeZone: string;
-        page: AgentWebMessagingPage<Preamble>;
+        page: AgentWebMessagingPage<Preamble, CustomBlock>;
         response: string;
     },
 ): Promise<{
@@ -71,11 +75,18 @@ export async function truncateAgentWebMessagingPage<Preamble>(
 
     const responseTree = parseMarkdownTree(response);
 
+    const customBlockTagNames = new Set<string>();
+    for (const block of page.blocks) {
+        if (block.type === "Custom") {
+            customBlockTagNames.add(block.tagName);
+        }
+    }
+
     switch (direction) {
         case "Start": {
-            let lastMessageBlockEndOffset: number | null = null;
-            let truncateMessageBlockEndOffset: number | null = null;
-            let truncateMessageBlockCount = 0;
+            let lastMessageBlockOrCustomBlockEndOffset: number | null = null;
+            let truncateMessageBlockOrCustomBlockEndOffset: number | null = null;
+            let truncateMessageBlockOrCustomBlockCount = 0;
 
             let truncateLength = limitLengthDifference;
 
@@ -109,16 +120,21 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                 for (const childNode of reverseIterable(node.children)) {
                     if (
                         childNode.type === "html" &&
-                        hasHtmlCloseTag(childNode.value, tagName => tagName === messageNouns.noun)
+                        hasHtmlCloseTag(
+                            childNode.value,
+                            tagName =>
+                                tagName === messageNouns.noun || customBlockTagNames.has(tagName),
+                        )
                     ) {
                         const endOffset = assertExists(childNode.position?.end.offset);
 
-                        lastMessageBlockEndOffset ??= endOffset;
-                        truncateMessageBlockEndOffset = endOffset;
-                        truncateMessageBlockCount++;
+                        lastMessageBlockOrCustomBlockEndOffset ??= endOffset;
+                        truncateMessageBlockOrCustomBlockEndOffset = endOffset;
+                        truncateMessageBlockOrCustomBlockCount++;
 
                         if (
-                            lastMessageBlockEndOffset - truncateMessageBlockEndOffset >=
+                            lastMessageBlockOrCustomBlockEndOffset -
+                                truncateMessageBlockOrCustomBlockEndOffset >=
                             truncateLength
                         ) {
                             return true;
@@ -138,30 +154,36 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             traverse(responseTree);
 
             // We don't truncate the last block traverse sees.
-            truncateMessageBlockCount--;
+            truncateMessageBlockOrCustomBlockCount--;
 
             // There are no messages in this page so we don't truncate.
-            if (truncateMessageBlockEndOffset === null) return null;
+            if (truncateMessageBlockOrCustomBlockEndOffset === null) return null;
 
             // Always set when `truncateMessageEndOffset` is set.
-            assert(lastMessageBlockEndOffset !== null);
+            assert(lastMessageBlockOrCustomBlockEndOffset !== null);
 
             // No truncation occurred!
-            if (truncateMessageBlockEndOffset === lastMessageBlockEndOffset) return null;
+            if (
+                truncateMessageBlockOrCustomBlockEndOffset ===
+                lastMessageBlockOrCustomBlockEndOffset
+            )
+                return null;
 
             let truncateMessageCount = 0;
-            const truncatedBlocks: Array<AgentWebMessagingPageBlock> = [];
+            const truncatedBlocks: Array<AgentWebMessagingPageBlock<CustomBlock>> = [];
 
             for (const block of reverseIterable(page.blocks)) {
-                if (truncateMessageBlockCount > 0) {
-                    if (block.type === "Message") {
-                        truncateMessageBlockCount--;
+                if (truncateMessageBlockOrCustomBlockCount > 0) {
+                    if (block.type === "Message" || block.type === "Custom") {
+                        truncateMessageBlockOrCustomBlockCount--;
 
                         // Count the number of messages (not blocks) we truncate by dropping this block.
-                        truncateMessageCount += block.idAttribute
-                            ? block.idAttribute.endMessageIndex -
-                              block.idAttribute.startMessageIndex
-                            : 1;
+                        if (block.type === "Message") {
+                            truncateMessageCount += block.idAttribute
+                                ? block.idAttribute.endMessageIndex -
+                                  block.idAttribute.startMessageIndex
+                                : 1;
+                        }
                     }
                     continue;
                 }
@@ -174,12 +196,14 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             const truncatedMessages = messages.slice(0, messages.length - truncateMessageCount);
 
             // There should always be at least one message block left after we truncate.
+            //
+            // NOCOMMIT: Might not be the case anymore!
             assert(truncatedMessages.length > 0);
 
             // We're intentionally dropping everything after `lastMessageBlockEndOffset`. Which
             // will include the `isEndOfMessages` paragraph. If we're truncating in the `Start`
             // `direction` then we're implicitly not at the end of messages anymore.
-            let truncatedResponse = response.slice(0, truncateMessageBlockEndOffset);
+            let truncatedResponse = response.slice(0, truncateMessageBlockOrCustomBlockEndOffset);
 
             // Update the "Next page" link to reflect the new last message index after
             // truncation.
@@ -220,9 +244,9 @@ export async function truncateAgentWebMessagingPage<Preamble>(
         }
         case "End": {
             let firstTimeBlockStartOffset: number | null = null;
-            let firstMessageBlockStartOffset: number | null = null;
-            let truncateMessageBlockStartOffset: number | null = null;
-            let truncateMessageBlockCount = 0;
+            let firstMessageBlockOrCustomBlockStartOffset: number | null = null;
+            let truncateMessageBlockOrCustomBlockStartOffset: number | null = null;
+            let truncateMessageBlockOrCustomBlockCount = 0;
 
             let truncateLength = limitLengthDifference;
 
@@ -293,18 +317,21 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                         if (
                             hasHtmlOpenTag(
                                 childNode.value,
-                                tagName => tagName === messageNouns.noun,
+                                tagName =>
+                                    tagName === messageNouns.noun ||
+                                    customBlockTagNames.has(tagName),
                             )
                         ) {
                             const startOffset = assertExists(childNode.position?.start.offset);
 
-                            firstMessageBlockStartOffset ??= startOffset;
-                            truncateMessageBlockStartOffset = startOffset;
-                            truncateMessageBlockCount++;
+                            firstMessageBlockOrCustomBlockStartOffset ??= startOffset;
+                            truncateMessageBlockOrCustomBlockStartOffset = startOffset;
+                            truncateMessageBlockOrCustomBlockCount++;
 
                             if (
-                                truncateMessageBlockStartOffset -
-                                    (firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) >=
+                                truncateMessageBlockOrCustomBlockStartOffset -
+                                    (firstTimeBlockStartOffset ??
+                                        firstMessageBlockOrCustomBlockStartOffset) >=
                                 truncateLength
                             ) {
                                 return true;
@@ -325,30 +352,37 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             traverse(responseTree);
 
             // We don't truncate the last block traverse sees.
-            truncateMessageBlockCount--;
+            truncateMessageBlockOrCustomBlockCount--;
 
             // There are no messages in this page so we don't truncate.
-            if (truncateMessageBlockStartOffset === null) return null;
+            if (truncateMessageBlockOrCustomBlockStartOffset === null) return null;
 
             // Always set when `truncateMessageBlockStartOffset` is set.
-            assert(firstMessageBlockStartOffset !== null);
+            assert(firstMessageBlockOrCustomBlockStartOffset !== null);
 
             // No truncation occurred!
-            if (truncateMessageBlockStartOffset === firstMessageBlockStartOffset) return null;
+            if (
+                truncateMessageBlockOrCustomBlockStartOffset ===
+                firstMessageBlockOrCustomBlockStartOffset
+            ) {
+                return null;
+            }
 
             let truncateMessageCount = 0;
-            const truncatedBlocks: Array<AgentWebMessagingPageBlock> = [];
+            const truncatedBlocks: Array<AgentWebMessagingPageBlock<CustomBlock>> = [];
 
             for (const block of page.blocks) {
-                if (truncateMessageBlockCount > 0) {
-                    if (block.type === "Message") {
-                        truncateMessageBlockCount--;
+                if (truncateMessageBlockOrCustomBlockCount > 0) {
+                    if (block.type === "Message" || block.type === "Custom") {
+                        truncateMessageBlockOrCustomBlockCount--;
 
                         // Count the number of messages (not blocks) we truncate by dropping this block.
-                        truncateMessageCount += block.idAttribute
-                            ? block.idAttribute.endMessageIndex -
-                              block.idAttribute.startMessageIndex
-                            : 1;
+                        if (block.type === "Message") {
+                            truncateMessageCount += block.idAttribute
+                                ? block.idAttribute.endMessageIndex -
+                                  block.idAttribute.startMessageIndex
+                                : 1;
+                        }
                     }
                     continue;
                 }
@@ -359,11 +393,15 @@ export async function truncateAgentWebMessagingPage<Preamble>(
             const truncatedMessages = messages.slice(truncateMessageCount);
 
             // There should always be at least one message block left after we truncate.
+            //
+            // NOCOMMIT: Might not be the case anymore!
             assert(truncatedMessages.length > 0);
 
             let truncatedResponse =
-                response.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
-                response.slice(truncateMessageBlockStartOffset);
+                response.slice(
+                    0,
+                    firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
+                ) + response.slice(truncateMessageBlockOrCustomBlockStartOffset);
 
             // `truncatedResponse` currently doesn't include an initial `<time>` element. So
             // add one back. Either by using `timeContent` from `truncatedBlocks` or adding a
@@ -372,11 +410,11 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                 truncatedResponse =
                     truncatedResponse.slice(
                         0,
-                        firstTimeBlockStartOffset ?? firstMessageBlockStartOffset,
+                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
                     ) +
                     `<time>${escapeHtml(truncatedBlocks[0]!.timeContent)}</time>\n\n` +
                     truncatedResponse.slice(
-                        firstTimeBlockStartOffset ?? firstMessageBlockStartOffset,
+                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
                     );
             } else {
                 const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
@@ -411,11 +449,11 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                 truncatedResponse =
                     truncatedResponse.slice(
                         0,
-                        firstTimeBlockStartOffset ?? firstMessageBlockStartOffset,
+                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
                     ) +
                     `<time>${timeContentHtml}</time>\n\n` +
                     truncatedResponse.slice(
-                        firstTimeBlockStartOffset ?? firstMessageBlockStartOffset,
+                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
                     );
             }
 
@@ -427,10 +465,12 @@ export async function truncateAgentWebMessagingPage<Preamble>(
                 truncatedResponse =
                     truncatedResponse.slice(
                         0,
-                        firstTimeBlockStartOffset ?? firstMessageBlockStartOffset,
+                        firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
                     ) +
                     truncatedResponse
-                        .slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOffset)
+                        .slice(
+                            firstTimeBlockStartOffset ?? firstMessageBlockOrCustomBlockStartOffset,
+                        )
                         .replace(/ time="[^"]*"/, "");
             }
 
@@ -479,7 +519,10 @@ export async function truncateAgentWebMessagingPage<Preamble>(
     }
 }
 
-export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
+export async function truncateAgentWebMessagingPageAroundMessage<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     storage: AgentWebSessionStorage,
     {
         messageNouns,
@@ -501,7 +544,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
         contextFormattedTimeZone: string;
-        page: AgentWebMessagingPage<Preamble>;
+        page: AgentWebMessagingPage<Preamble, CustomBlock>;
         response: string;
     },
 ): Promise<{
@@ -532,15 +575,22 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
 
     const responseTree = parseMarkdownTree(response);
 
-    let lastMessageBlockEndOffset: number | null = null;
-    let truncateMessageBlockEndOffset: number | null = null;
-    let truncateMessageBlockCountFromEnd = 0;
+    const customBlockTagNames = new Set<string>();
+    for (const block of page.blocks) {
+        if (block.type === "Custom") {
+            customBlockTagNames.add(block.tagName);
+        }
+    }
+
+    let lastMessageBlockOrCustomBlockEndOffset: number | null = null;
+    let truncateMessageBlockOrCustomBlockEndOffset: number | null = null;
+    let truncateMessageBlockCountOrCustomBlockFromEnd = 0;
     let blockIndexFromEnd: number | null = null;
 
     let firstTimeBlockStartOffset: number | null = null;
-    let firstMessageBlockStartOffset: number | null = null;
-    let truncateMessageBlockStartOffset: number | null = null;
-    let truncateMessageBlockCountFromStart = 0;
+    let firstMessageBlockStartOrCustomBlockOffset: number | null = null;
+    let truncateMessageBlockOrCustomBlockStartOffset: number | null = null;
+    let truncateMessageBlockOrCustomBlockCountFromStart = 0;
     let blockIndexFromStart: number | null = null;
 
     let truncateLength = limitLengthDifference;
@@ -626,12 +676,13 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     truncateLength += "<time>".length + maxTimeContentLength + "</time>\n\n".length;
 
     const getCurrentTruncateLength = () =>
-        (truncateMessageBlockEndOffset !== null
-            ? assertExists(lastMessageBlockEndOffset) - truncateMessageBlockEndOffset
+        (truncateMessageBlockOrCustomBlockEndOffset !== null
+            ? assertExists(lastMessageBlockOrCustomBlockEndOffset) -
+              truncateMessageBlockOrCustomBlockEndOffset
             : 0) +
-        (truncateMessageBlockStartOffset !== null
-            ? truncateMessageBlockStartOffset -
-              (firstTimeBlockStartOffset ?? assertExists(firstMessageBlockStartOffset))
+        (truncateMessageBlockOrCustomBlockStartOffset !== null
+            ? truncateMessageBlockOrCustomBlockStartOffset -
+              (firstTimeBlockStartOffset ?? assertExists(firstMessageBlockStartOrCustomBlockOffset))
             : 0);
 
     function* traverseFromEnd(node: Parent): IterableIterator<void, boolean> {
@@ -640,13 +691,16 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         for (const childNode of reverseIterable(node.children)) {
             if (
                 childNode.type === "html" &&
-                hasHtmlCloseTag(childNode.value, tagName => tagName === messageNouns.noun)
+                hasHtmlCloseTag(
+                    childNode.value,
+                    tagName => tagName === messageNouns.noun || customBlockTagNames.has(tagName),
+                )
             ) {
                 const endOffset = assertExists(childNode.position?.end.offset);
 
-                lastMessageBlockEndOffset ??= endOffset;
-                truncateMessageBlockEndOffset = endOffset;
-                truncateMessageBlockCountFromEnd++;
+                lastMessageBlockOrCustomBlockEndOffset ??= endOffset;
+                truncateMessageBlockOrCustomBlockEndOffset = endOffset;
+                truncateMessageBlockCountOrCustomBlockFromEnd++;
 
                 // Have we truncated enough?
                 if (getCurrentTruncateLength() >= truncateLength) {
@@ -662,6 +716,12 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                         blockIndexFromEnd--;
 
                         const block = page.blocks[blockIndexFromEnd]!;
+
+                        if (block.type === "Custom") {
+                            found = true;
+                            break;
+                        }
+
                         if (block.type !== "Message") continue;
 
                         found = true;
@@ -716,12 +776,18 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                     firstTimeBlockStartOffset = assertExists(childNode.position?.start.offset);
                 }
 
-                if (hasHtmlOpenTag(childNode.value, tagName => tagName === messageNouns.noun)) {
+                if (
+                    hasHtmlOpenTag(
+                        childNode.value,
+                        tagName =>
+                            tagName === messageNouns.noun || customBlockTagNames.has(tagName),
+                    )
+                ) {
                     const startOffset = assertExists(childNode.position?.start.offset);
 
-                    firstMessageBlockStartOffset ??= startOffset;
-                    truncateMessageBlockStartOffset = startOffset;
-                    truncateMessageBlockCountFromStart++;
+                    firstMessageBlockStartOrCustomBlockOffset ??= startOffset;
+                    truncateMessageBlockOrCustomBlockStartOffset = startOffset;
+                    truncateMessageBlockOrCustomBlockCountFromStart++;
 
                     if (getCurrentTruncateLength() >= truncateLength) {
                         return true;
@@ -736,6 +802,12 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
                             blockIndexFromStart++;
 
                             const block = page.blocks[blockIndexFromStart]!;
+
+                            if (block.type === "Custom") {
+                                found = true;
+                                break;
+                            }
+
                             if (block.type !== "Message") continue;
 
                             found = true;
@@ -804,33 +876,39 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     );
 
     // We don't truncate the last block traverse sees.
-    truncateMessageBlockCountFromStart--;
+    truncateMessageBlockOrCustomBlockCountFromStart--;
 
     // We don't truncate the last block traverse sees.
-    truncateMessageBlockCountFromEnd--;
+    truncateMessageBlockCountOrCustomBlockFromEnd--;
 
     // TypeScript is dumb and doesn't realize these variables are assigned when we call
     // `traverseFromStart()`.
-    truncateMessageBlockStartOffset = truncateMessageBlockStartOffset as any;
+    truncateMessageBlockOrCustomBlockStartOffset =
+        truncateMessageBlockOrCustomBlockStartOffset as any;
     firstTimeBlockStartOffset = firstTimeBlockStartOffset as any;
-    firstMessageBlockStartOffset = firstMessageBlockStartOffset as any;
+    firstMessageBlockStartOrCustomBlockOffset = firstMessageBlockStartOrCustomBlockOffset as any;
 
     // TypeScript is dumb and doesn't realize these variables are assigned when we call
     // `traverseFromStart()`.
-    truncateMessageBlockEndOffset = truncateMessageBlockEndOffset as any;
-    lastMessageBlockEndOffset = lastMessageBlockEndOffset as any;
+    truncateMessageBlockOrCustomBlockEndOffset = truncateMessageBlockOrCustomBlockEndOffset as any;
+    lastMessageBlockOrCustomBlockEndOffset = lastMessageBlockOrCustomBlockEndOffset as any;
 
     // There are no messages in this page so we don't truncate.
-    if (truncateMessageBlockEndOffset === null || truncateMessageBlockStartOffset === null)
+    if (
+        truncateMessageBlockOrCustomBlockEndOffset === null ||
+        truncateMessageBlockOrCustomBlockStartOffset === null
+    )
         return null;
 
     // Always set when `truncateMessageEndOffset`/`truncateMessageBlockStartOffset` is
     // set.
-    assert(lastMessageBlockEndOffset !== null);
-    assert(firstMessageBlockStartOffset !== null);
+    assert(lastMessageBlockOrCustomBlockEndOffset !== null);
+    assert(firstMessageBlockStartOrCustomBlockOffset !== null);
 
-    const didTruncateFromEnd = truncateMessageBlockEndOffset !== lastMessageBlockEndOffset;
-    const didTruncateFromStart = truncateMessageBlockStartOffset !== firstMessageBlockStartOffset;
+    const didTruncateFromEnd =
+        truncateMessageBlockOrCustomBlockEndOffset !== lastMessageBlockOrCustomBlockEndOffset;
+    const didTruncateFromStart =
+        truncateMessageBlockOrCustomBlockStartOffset !== firstMessageBlockStartOrCustomBlockOffset;
 
     // No truncation occurred!
     if (!didTruncateFromEnd && !didTruncateFromStart) {
@@ -839,18 +917,20 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
 
     let truncateMessageCountFromStart = 0;
     let truncateMessageCountFromEnd = 0;
-    const intermediateTruncatedBlocks: Array<AgentWebMessagingPageBlock> = [];
-    const truncatedBlocks: Array<AgentWebMessagingPageBlock> = [];
+    const intermediateTruncatedBlocks: Array<AgentWebMessagingPageBlock<CustomBlock>> = [];
+    const truncatedBlocks: Array<AgentWebMessagingPageBlock<CustomBlock>> = [];
 
     for (const block of page.blocks) {
-        if (truncateMessageBlockCountFromStart > 0) {
-            if (block.type === "Message") {
-                truncateMessageBlockCountFromStart--;
+        if (truncateMessageBlockOrCustomBlockCountFromStart > 0) {
+            if (block.type === "Message" || block.type === "Custom") {
+                truncateMessageBlockOrCustomBlockCountFromStart--;
 
                 // Count the number of messages (not blocks) we truncate by dropping this block.
-                truncateMessageCountFromStart += block.idAttribute
-                    ? block.idAttribute.endMessageIndex - block.idAttribute.startMessageIndex
-                    : 1;
+                if (block.type === "Message") {
+                    truncateMessageCountFromStart += block.idAttribute
+                        ? block.idAttribute.endMessageIndex - block.idAttribute.startMessageIndex
+                        : 1;
+                }
             }
             continue;
         }
@@ -859,14 +939,16 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     }
 
     for (const block of reverseIterable(intermediateTruncatedBlocks)) {
-        if (truncateMessageBlockCountFromEnd > 0) {
-            if (block.type === "Message") {
-                truncateMessageBlockCountFromEnd--;
+        if (truncateMessageBlockCountOrCustomBlockFromEnd > 0) {
+            if (block.type === "Message" || block.type === "Custom") {
+                truncateMessageBlockCountOrCustomBlockFromEnd--;
 
                 // Count the number of messages (not blocks) we truncate by dropping this block.
-                truncateMessageCountFromEnd += block.idAttribute
-                    ? block.idAttribute.endMessageIndex - block.idAttribute.startMessageIndex
-                    : 1;
+                if (block.type === "Message") {
+                    truncateMessageCountFromEnd += block.idAttribute
+                        ? block.idAttribute.endMessageIndex - block.idAttribute.startMessageIndex
+                        : 1;
+                }
             }
             continue;
         }
@@ -882,16 +964,18 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     );
 
     // There should always be at least one message block left after we truncate.
+    //
+    // NOCOMMIT: Might not be the case anymore!
     assert(truncatedMessages.length > 0);
 
     let truncatedResponse =
-        response.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+        response.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset) +
         response.slice(
-            truncateMessageBlockStartOffset,
+            truncateMessageBlockOrCustomBlockStartOffset,
             // We're intentionally dropping everything after `lastMessageBlockEndOffset`. Which
             // will include the `isEndOfMessages` paragraph. If we're truncating in the `Start`
             // `direction` then we're implicitly not at the end of messages anymore.
-            didTruncateFromEnd ? truncateMessageBlockEndOffset : undefined,
+            didTruncateFromEnd ? truncateMessageBlockOrCustomBlockEndOffset : undefined,
         );
 
     // `truncatedResponse` currently doesn't include an initial `<time>` element. So
@@ -899,9 +983,14 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
     // new `Time` block to `truncatedBlocks` and using that.
     if (truncatedBlocks[0]!.type === "Time") {
         truncatedResponse =
-            truncatedResponse.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+            truncatedResponse.slice(
+                0,
+                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
+            ) +
             `<time>${escapeHtml(truncatedBlocks[0]!.timeContent)}</time>\n\n` +
-            truncatedResponse.slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOffset);
+            truncatedResponse.slice(
+                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
+            );
     } else {
         const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
             defaultLocale,
@@ -933,9 +1022,14 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         });
 
         truncatedResponse =
-            truncatedResponse.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+            truncatedResponse.slice(
+                0,
+                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
+            ) +
             `<time>${timeContentHtml}</time>\n\n` +
-            truncatedResponse.slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOffset);
+            truncatedResponse.slice(
+                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
+            );
     }
 
     // Remove the `time` attribute from the first message block. We add a `<time>`
@@ -944,9 +1038,12 @@ export async function truncateAgentWebMessagingPageAroundMessage<Preamble>(
         truncatedBlocks[1] = {...truncatedBlocks[1]!, timeAttribute: null};
 
         truncatedResponse =
-            truncatedResponse.slice(0, firstTimeBlockStartOffset ?? firstMessageBlockStartOffset) +
+            truncatedResponse.slice(
+                0,
+                firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset,
+            ) +
             truncatedResponse
-                .slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOffset)
+                .slice(firstTimeBlockStartOffset ?? firstMessageBlockStartOrCustomBlockOffset)
                 .replace(/ time="[^"]*"/, "");
     }
 

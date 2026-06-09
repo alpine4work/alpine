@@ -60,7 +60,9 @@ export type AgentWebPostPagePreamble = {
 
 export type AgentWebPostPageCustomBlock = {
     readonly type: "Custom";
+    readonly tagName: "post";
     readonly author: ApiAccountReferenceResponse;
+    readonly timeAttribute: null;
     readonly timeZoneAttribute: string | null;
     readonly content: ApiContentResponse;
 };
@@ -157,7 +159,9 @@ export async function readAgentWebPostPage(
                     time: postCreatedTime,
                     block: {
                         type: "Custom",
+                        tagName: "post",
                         author: intoApiAccountReference(post.author),
+                        timeAttribute: null,
                         timeZoneAttribute:
                             post.createdTimeZone !== context.timeZone
                                 ? formatTimeZoneAbbreviation(post.createdTimeZone, postCreatedTime)
@@ -467,7 +471,9 @@ export async function parseAgentWebPostPage(
 
                 return {
                     type: "Custom",
+                    tagName: "post",
                     author,
+                    timeAttribute: null,
                     timeZoneAttribute,
                     content,
                 };

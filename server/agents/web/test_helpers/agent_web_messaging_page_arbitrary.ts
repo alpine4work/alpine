@@ -62,10 +62,12 @@ const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPag
         content: ApiContentWithoutCommentMarkArbitrary,
     });
 
-const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagingPageBlock>({
-    Time: {weight: 1, arbitrary: AgentWebMessagingPageTimeBlockArbitrary},
-    Message: {weight: 10, arbitrary: AgentWebMessagingPageMessageBlockArbitrary},
-});
+const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagingPageBlock<never>>(
+    {
+        Time: {weight: 1, arbitrary: AgentWebMessagingPageTimeBlockArbitrary},
+        Message: {weight: 10, arbitrary: AgentWebMessagingPageMessageBlockArbitrary},
+    },
+);
 
 const AgentWebMessagingPagePaginationPageLinkArbitrary =
     createUnionArbitrary<AgentWebMessagingPagePaginationPageLink>({

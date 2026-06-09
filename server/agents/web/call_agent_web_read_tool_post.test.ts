@@ -4,6 +4,7 @@ import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_
 import {mockApiGetPostMessages} from "~/server/agents/api/test_helpers/mock_api_get_post_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
+import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
@@ -92,15 +93,25 @@ function mockGetPost({
     );
 }
 
-function mockGetPostPreview() {
+function mockGetPostPreview({
+    createdTime = new Date("2026-05-14T15:00:00.000Z"),
+    createdTimeZone = defaultTimeZone,
+}: {
+    createdTime?: Date;
+    createdTimeZone?: TimeZone;
+} = {}) {
     api.mockGet(
         "/posts/{id}/preview",
         {
             data: {
                 spaceId,
                 post: {
-                    reference: postReference,
+                    id: postId,
+                    author: aliceAccount,
+                    createdTime: serializeDateString(createdTime),
+                    createdTimeZone,
                     channel: {id: channelId, name: "Announcements"},
+                    reference: {title: postReference.title},
                 },
             },
         },
@@ -169,7 +180,7 @@ test("reads a post with no comments", async () => {
         postId,
         totalMessageCount: 0,
         limit: 30,
-        createMessage: index => createApiMessageMock({index}),
+        createMessage: index => createApiMessageMock({index, author: bobAccount}),
     });
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch", limit: "10kb"})).toEqual(`\
@@ -189,7 +200,7 @@ test("reads a post with a timezone attribute when the post timezone differs", as
         postId,
         totalMessageCount: 0,
         limit: 30,
-        createMessage: index => createApiMessageMock({index}),
+        createMessage: index => createApiMessageMock({index, author: bobAccount}),
     });
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch", limit: "10kb"})).toEqual(`\
@@ -598,4 +609,94 @@ Post and comments in [Announcements](/channel/announcements).
 <comment id="35" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest comment 35\n\n</comment>
 
 End of comments.`);
+});
+
+test("paginates backward before the first comment and only reads the post", async () => {
+    mockGetPost();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        from: "End",
+        cursor: 0,
+        totalMessageCount: 60,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author, content: `Test comment ${index}`}),
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/post/launch?before=0", limit: "10kb"}))
+        .toEqual(`\
+Post and comments in [Announcements](/channel/announcements).
+
+<time>May 14th at 11:00am EDT</time>
+
+<post from="[Alice](/human/alice)">\n\nPost body.\n\n</post>`);
+});
+
+test("uses scroll truncation for a post larger than the limit and hides comments", async () => {
+    mockGetPost({
+        content: {
+            elements: Array.from({length: 8}, (_, index) => ({
+                type: "Paragraph" as const,
+                elements: [
+                    {
+                        type: "Text" as const,
+                        text:
+                            `Long post paragraph ${index + 1} ` +
+                            "detail detail detail detail detail detail detail detail.",
+                    },
+                ],
+            })),
+        },
+    });
+
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        totalMessageCount: 2,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: index === 0 ? bobAccount : aliceAccount,
+                content: index === 0 ? "First comment." : "Second comment.",
+            }),
+    });
+
+    // NOCOMMIT: Where is the pagination link?
+    expect(await callAgentWebReadTool(context, {path: "/post/launch", limit: "430b"})).toEqual(`\
+Post and comments in [Announcements](/channel/announcements).
+
+<time>May 14th at 11:00am EDT</time>
+
+<post from="[Alice](/human/alice)">
+
+Long post paragraph 1 detail detail detail detail detail detail detail detail.
+
+Long post paragraph 2 detail detail detail detail detail detail detail detail.
+
+Long post paragraph 3 detail detail detail detail detail detail detail detail.
+
+(Page truncated, 595b remaining. Showing lines 1-12 of 37. Call the \`scroll\` tool with an \`offset\` of 12 to continue.)`);
+
+    expect(
+        await callAgentWebScrollTool(context, {
+            path: "/post/launch",
+            offset: 12,
+            limit: "430b",
+        }),
+    ).toEqual(`\
+Long post paragraph 4 detail detail detail detail detail detail detail detail.
+
+Long post paragraph 5 detail detail detail detail detail detail detail detail.
+
+Long post paragraph 6 detail detail detail detail detail detail detail detail.
+
+Long post paragraph 7 detail detail detail detail detail detail detail detail.
+
+Long post paragraph 8 detail detail detail detail detail detail detail detail.
+
+</post>
+
+(Page truncated, 186b remaining. Showing lines 13-24 of 37. Use \`offset\` of 24 to continue.)`);
 });

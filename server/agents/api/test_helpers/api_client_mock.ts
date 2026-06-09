@@ -89,8 +89,13 @@ export class ApiClientMock implements ApiClient {
 
     constructor() {
         afterEach(() => {
-            this.assertAllMocksUsed();
-            this.reset();
+            try {
+                this.assertAllMocksUsed();
+            } finally {
+                // Reset even if the above assert throws so we don't poison future tests with old
+                // config.
+                this.reset();
+            }
         });
     }
 
