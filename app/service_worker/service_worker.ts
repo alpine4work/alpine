@@ -151,8 +151,52 @@ self.addEventListener("fetch", (event: FetchEvent) => {
             const {clearAllWebPushSubscriptions} = getWebPushStore();
             await clearAllWebPushSubscriptions();
         };
+        // Wipes all Alpine Databases storage from OPFS on sign out.
+        //
+        // We don't journal writes to OPFS yet, so a bad write could corrupt the
+        // local store with no way to recover. As a first work-around, we clear
+        // all databases storage on sign out so a fresh sign in always starts
+        // from a clean, fully re-synced state.
+        //
+        // This is inlined rather than importing `client/web/databases` to keep
+        // the heavy SQLite deps out of the service worker bundle, matching the
+        // database coordination relay above.
+        const clearDatabasesStorage = async () => {
+            // Wait for the sign out request to finish successfully.
+            await event.handled;
+
+            // Minimal OPFS root type. We declare it locally rather than
+            // importing `client/web/databases` to keep that package (and its
+            // SQLite deps) out of the service worker bundle.
+            const root: {
+                removeEntry(name: string, options?: {recursive?: boolean}): Promise<void>;
+            } = await (navigator.storage as any).getDirectory();
+
+            // The leader tab's database worker holds exclusive OPFS locks on
+            // these files. The locks are released once the tab navigates away on
+            // sign out, but that can race with this cleanup, so retry a few times
+            // before giving up.
+            for (let attempt = 0; attempt < 10; attempt++) {
+                try {
+                    await root.removeEntry("databases", {recursive: true});
+                    return;
+                } catch (error) {
+                    // Nothing to clear — the directory was never created.
+                    if ((error as {name?: string}).name === "NotFoundError") {
+                        return;
+                    }
+                    // Locks are likely still held by the tab being torn down.
+                    // Wait, then retry.
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+        };
         event.waitUntil(
-            runAllPromises([deregisterPushSubscription(), clearWebPushSubscriptions()]),
+            runAllPromises([
+                deregisterPushSubscription(),
+                clearWebPushSubscriptions(),
+                clearDatabasesStorage(),
+            ]),
         );
     }
 });
