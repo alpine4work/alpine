@@ -53,7 +53,7 @@ const context: AgentWebContext = {
         id: botAccountId,
         title: "ChatGPT",
         shortName: "ChatGPT",
-        botId,
+        bot: {id: botId},
         pathname: "/bot/chatgpt",
     },
 };
@@ -173,8 +173,8 @@ function mockCreateDirectChat({
             chat: {
                 type: "Direct",
                 id,
-                title,
                 members: members.map(account => ({account})),
+                reference: {title},
             },
         },
     });

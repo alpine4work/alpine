@@ -42,7 +42,7 @@ const context: AgentWebContext = {
         id: generateId<AccountId>(),
         title: "ChatGPT",
         shortName: "ChatGPT",
-        botId: generateId<BotId>(),
+        bot: {id: generateId<BotId>()},
         pathname: "/bot/chatgpt",
     },
 };

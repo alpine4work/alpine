@@ -17,7 +17,7 @@ export type ApiReferenceResponse =
           readonly id: AccountId;
           readonly title: string;
           readonly shortName: string;
-          readonly botId?: BotId;
+          readonly bot?: {readonly id: BotId};
       }
     | {
           readonly type: "Channel";

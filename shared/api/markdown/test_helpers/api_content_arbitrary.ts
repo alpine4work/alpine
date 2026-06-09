@@ -144,9 +144,9 @@ export const ApiAccountReferenceArbitrary = fc.record({
     id: createIdArbitrary<AccountId>(),
     title: ApiContentTextArbitrary,
     shortName: ApiContentTextArbitrary,
-    botId: fc.oneof(
+    bot: fc.oneof(
         {weight: 10, arbitrary: fc.constant(undefined)},
-        {weight: 1, arbitrary: createIdArbitrary<BotId>()},
+        {weight: 1, arbitrary: fc.record({id: createIdArbitrary<BotId>()})},
     ),
 });
 

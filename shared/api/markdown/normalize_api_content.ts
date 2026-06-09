@@ -543,6 +543,7 @@ export class ApiContentNormalizer {
             if (hasOwnProperty(reference, "title")) delete reference.title;
             if (hasOwnProperty(reference, "shortName")) delete reference.shortName;
             if (hasOwnProperty(reference, "botId")) delete reference.botId;
+            if (hasOwnProperty(reference, "bot")) delete reference.bot;
             if (hasOwnProperty(reference, "status")) delete reference.status;
         } else {
             // Don't allow updating old response properties after the normalizer is destroyed.
@@ -564,9 +565,9 @@ export class ApiContentNormalizer {
                     (otherReference as any).shortName = actualReference.shortName;
                 else delete (otherReference as any).shortName;
 
-                if (hasOwnProperty(actualReference, "botId"))
-                    (otherReference as any).botId = actualReference.botId;
-                else delete (otherReference as any).botId;
+                if (hasOwnProperty(actualReference, "bot"))
+                    (otherReference as any).bot = actualReference.bot;
+                else delete (otherReference as any).bot;
 
                 if (hasOwnProperty(actualReference, "status"))
                     (otherReference as any).status = actualReference.status;

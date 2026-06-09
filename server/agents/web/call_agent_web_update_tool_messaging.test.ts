@@ -68,7 +68,7 @@ const context: AgentWebContext = {
         id: botAccountId,
         title: "ChatGPT",
         shortName: "ChatGPT",
-        botId,
+        bot: {id: botId},
         pathname: "/bot/chatgpt",
     },
 };

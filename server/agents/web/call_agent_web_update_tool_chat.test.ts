@@ -57,7 +57,7 @@ const context: AgentWebContext = {
         id: botAccountId,
         title: "ChatGPT",
         shortName: "ChatGPT",
-        botId,
+        bot: {id: botId},
         pathname: "/bot/chatgpt",
     },
 };
@@ -232,8 +232,8 @@ async function readDirectChat({
                 chat: {
                     type: "Direct",
                     id: directChatId,
-                    title: "Alice and Bob",
                     members: [{account: aliceAccount}, {account: bobAccount}],
+                    reference: {title: "Alice and Bob"},
                 },
             },
         },

@@ -34,7 +34,7 @@ const context: AgentWebContext = {
         id: generateId<AccountId>(),
         title: "ChatGPT",
         shortName: "ChatGPT",
-        botId: generateId<BotId>(),
+        bot: {id: generateId<BotId>()},
         pathname: "/bot/chatgpt",
     },
 };
@@ -70,8 +70,8 @@ async function mockDirectChatForTest(): Promise<{chatId: ChatId; path: string}> 
                 chat: {
                     type: "Direct",
                     id: directChatId,
-                    title: "Alice and Bob",
                     members: [{account: aliceAccount}, {account: bobAccount}],
+                    reference: {title: "Alice and Bob"},
                 },
             },
         },
@@ -97,8 +97,8 @@ test("reads a direct chat with one human message", async () => {
                 chat: {
                     type: "Direct",
                     id: directChatId,
-                    title: "Alice",
                     members: [{account: aliceAccount}, {account: bobAccount}],
+                    reference: {title: "Alice"},
                 },
             },
         },

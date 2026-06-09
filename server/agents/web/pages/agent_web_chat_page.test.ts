@@ -30,7 +30,7 @@ function accountReference({
         id: generateId<AccountId>(),
         title: name,
         shortName: name,
-        ...(botId ? {botId} : {}),
+        ...(botId ? {bot: {id: botId}} : {}),
     };
 }
 
