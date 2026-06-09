@@ -180,9 +180,19 @@ jobs:
                   fi
                   target_count=$(echo "$targets" | wc -l | tr -d ' ')
                   echo "Running $target_count test targets in bucket ${{ matrix.bucket }}."
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
+                  bazel_test_flags=""
+                  if [ "${{ needs.prepare-ci.outputs.new_ci }}" = "true" ]; then
+                      bazel_test_flags="--keep_going --test_keep_going"
+                  fi
+                  results_path="$RUNNER_TEMP/bazel-unit-results"
+                  targets_path="$RUNNER_TEMP/unit-test-targets.txt"
+                  mkdir -p "$results_path"
+                  printf '%s\n' "$targets" > "$targets_path"
+                  admin/bazel/run_ci_bazel_test_targets.sh "$results_path" "$targets_path" -- \
+                      admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
                       --config=github-runner \
                       --nofetch \
+                      $bazel_test_flags \
                       $targets
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
@@ -200,11 +210,20 @@ jobs:
                   path: bazel-testlogs
                   retention-days: 7
 
+            - if: always()
+              name: Upload Bazel test result metadata
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: bazel_unit_${{ matrix.bucket }}_results
+                  path: ${{ runner.temp }}/bazel-unit-results
+                  retention-days: 7
+
     integration-tests:
         name: Integration tests (${{ matrix.bucket }}/${{ matrix.bucketCount }})
         needs: [prepare-ci]
         runs-on: [self-hosted, "${{ matrix.runnerJobLabel }}"]
         strategy:
+            fail-fast: false # Allows all jobs to complete
             matrix: ${{ fromJSON(needs.prepare-ci.outputs.integration_test_matrix) }}
         steps:
             - if: needs.prepare-ci.outputs.new_ci == 'true'
@@ -224,9 +243,8 @@ jobs:
             # are flaky. We run them after all other tests have passed and break them into
             # deterministic buckets to run in parallel.
             #
-            # We set `--notest_keep_going`. If any integration test fails we immediately
-            # fail the build and exit to speed up test result turnaround time for
-            # developers.
+            # In `[NEW CI]`, keep running after failures so the aggregate check
+            # can report every target status and all available failure logs.
             - name: Integration tests
               run: |
                   targets=$(admin/bazel/bucket_test_targets.sh ${{ matrix.bucket }} ${{ matrix.bucketCount }} \
@@ -237,11 +255,19 @@ jobs:
                   fi
                   target_count=$(echo "$targets" | wc -l | tr -d ' ')
                   echo "Running $target_count integration test targets in bucket ${{ matrix.bucket }}."
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
+                  bazel_test_flags="--nokeep_going --notest_keep_going"
+                  if [ "${{ needs.prepare-ci.outputs.new_ci }}" = "true" ]; then
+                      bazel_test_flags="--keep_going --test_keep_going"
+                  fi
+                  results_path="$RUNNER_TEMP/bazel-integration-results"
+                  targets_path="$RUNNER_TEMP/integration-test-targets.txt"
+                  mkdir -p "$results_path"
+                  printf '%s\n' "$targets" > "$targets_path"
+                  admin/bazel/run_ci_bazel_test_targets.sh "$results_path" "$targets_path" -- \
+                      admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
                       --config=github-runner \
                       --nofetch \
-                      --nokeep_going \
-                      --notest_keep_going \
+                      $bazel_test_flags \
                       $targets
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
@@ -259,11 +285,20 @@ jobs:
                   path: bazel-testlogs
                   retention-days: 7
 
+            - if: always()
+              name: Upload Bazel test result metadata
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: bazel_integration_${{ matrix.bucket }}_results
+                  path: ${{ runner.temp }}/bazel-integration-results
+                  retention-days: 7
+
     screenshot-tests:
         name: Screenshot tests (${{ matrix.bucket }}/${{ matrix.bucketCount }})
         needs: [prepare-ci]
         runs-on: [self-hosted, "${{ matrix.runnerJobLabel }}"]
         strategy:
+            fail-fast: false # Allows all jobs to complete
             matrix: ${{ fromJSON(needs.prepare-ci.outputs.screenshot_test_matrix) }}
         steps:
             - if: needs.prepare-ci.outputs.new_ci == 'true'
@@ -295,9 +330,19 @@ jobs:
                   fi
                   target_count=$(echo "$targets" | wc -l | tr -d ' ')
                   echo "Running $target_count screenshot test targets in bucket ${{ matrix.bucket }}."
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
+                  bazel_test_flags=""
+                  if [ "${{ needs.prepare-ci.outputs.new_ci }}" = "true" ]; then
+                      bazel_test_flags="--keep_going --test_keep_going"
+                  fi
+                  results_path="$RUNNER_TEMP/bazel-screenshot-results"
+                  targets_path="$RUNNER_TEMP/screenshot-test-targets.txt"
+                  mkdir -p "$results_path"
+                  printf '%s\n' "$targets" > "$targets_path"
+                  admin/bazel/run_ci_bazel_test_targets.sh "$results_path" "$targets_path" -- \
+                      admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
                       --config=github-runner \
                       --nofetch \
+                      $bazel_test_flags \
                       $targets
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
@@ -315,49 +360,87 @@ jobs:
                   path: bazel-testlogs
                   retention-days: 7
 
+            - if: always()
+              name: Upload Bazel test result metadata
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: bazel_screenshot_${{ matrix.bucket }}_results
+                  path: ${{ runner.temp }}/bazel-screenshot-results
+                  retention-days: 7
+
     # Stable aggregate checks for branch protection. GitHub treats each matrix
     # shard as a separate required check, which means changing the shard count
-    # forces everyone to rebase branch protection settings. These jobs wait for
-    # all shards, then fail if any shard failed so branch protection can require
-    # a single `Unit tests` / `Integration tests` check instead.
+    # forces everyone to rebase branch protection settings. Successful shards
+    # leave these checks as no-ops. Failures aggregate uploaded shard artifacts,
+    # print failed test logs, and report uploaded target statuses.
     unit-tests-check:
         name: Unit tests
         if: always()
-        needs: [unit-tests]
+        needs: [prepare-ci, unit-tests]
         runs-on: ubuntu-latest
         steps:
-            - name: Verify unit test shards passed
+            - if: needs.prepare-ci.result != 'success'
+              name: Verify CI preparation passed
               run: |
-                  if [ "${{ needs.unit-tests.result }}" != "success" ]; then
-                      echo "One or more unit test shards failed: ${{ needs.unit-tests.result }}" >&2
-                      exit 1
-                  fi
+                  echo "Prepare CI failed: ${{ needs.prepare-ci.result }}" >&2
+                  exit 1
+
+            - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result != 'success'
+              name: Checkout repo
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+            - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result != 'success'
+              name: Aggregate and verify unit test results
+              uses: ./.github/actions/aggregate-test-results
+              with:
+                  test-type: unit
+                  test-result: ${{ needs.unit-tests.result }}
 
     integration-tests-check:
         name: Integration tests
         if: always()
-        needs: [integration-tests]
+        needs: [prepare-ci, integration-tests]
         runs-on: ubuntu-latest
         steps:
-            - name: Verify integration test shards passed
+            - if: needs.prepare-ci.result != 'success'
+              name: Verify CI preparation passed
               run: |
-                  if [ "${{ needs.integration-tests.result }}" != "success" ]; then
-                      echo "One or more integration test shards failed: ${{ needs.integration-tests.result }}" >&2
-                      exit 1
-                  fi
+                  echo "Prepare CI failed: ${{ needs.prepare-ci.result }}" >&2
+                  exit 1
+
+            - if: needs.prepare-ci.result == 'success' && needs.integration-tests.result != 'success'
+              name: Checkout repo
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+            - if: needs.prepare-ci.result == 'success' && needs.integration-tests.result != 'success'
+              name: Aggregate and verify integration test results
+              uses: ./.github/actions/aggregate-test-results
+              with:
+                  test-type: integration
+                  test-result: ${{ needs.integration-tests.result }}
 
     screenshot-tests-check:
         name: Screenshot tests
         if: always()
-        needs: [screenshot-tests]
+        needs: [prepare-ci, screenshot-tests]
         runs-on: ubuntu-latest
         steps:
-            - name: Verify screenshot tests passed
+            - if: needs.prepare-ci.result != 'success'
+              name: Verify CI preparation passed
               run: |
-                  if [ "${{ needs.screenshot-tests.result }}" != "success" ]; then
-                      echo "Screenshot tests failed: ${{ needs.screenshot-tests.result }}" >&2
-                      exit 1
-                  fi
+                  echo "Prepare CI failed: ${{ needs.prepare-ci.result }}" >&2
+                  exit 1
+
+            - if: needs.prepare-ci.result == 'success' && needs.screenshot-tests.result != 'success'
+              name: Checkout repo
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+            - if: needs.prepare-ci.result == 'success' && needs.screenshot-tests.result != 'success'
+              name: Aggregate and verify screenshot test results
+              uses: ./.github/actions/aggregate-test-results
+              with:
+                  test-type: screenshot
+                  test-result: ${{ needs.screenshot-tests.result }}
 
     schedule-deploy:
         name: Schedule deploy

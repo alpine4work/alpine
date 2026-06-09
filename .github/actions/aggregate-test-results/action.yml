@@ -1,0 +1,27 @@
+name: "Aggregate test results"
+description: "Prints failed Bazel test logs, reports target statuses, and fails if shards failed."
+inputs:
+    test-type:
+        description: "Test type prefix used in Bazel result artifacts."
+        required: true
+    test-result:
+        description: "GitHub Actions matrix job result used to fail this aggregate check."
+        required: true
+
+runs:
+    using: "composite"
+    steps:
+        - name: Download test artifacts
+          continue-on-error: true
+          uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+          with:
+              pattern: bazel_${{ inputs.test-type }}_*
+              path: ci-artifacts
+
+        - name: Print aggregate test results
+          shell: bash
+          run: |
+              "$GITHUB_ACTION_PATH/print_ci_bazel_test_summary.sh" \
+                  "${{ inputs.test-type }}" \
+                  ci-artifacts \
+                  "${{ inputs.test-result }}"
