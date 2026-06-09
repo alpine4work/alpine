@@ -1,8 +1,10 @@
 import {useHover} from "@react-aria/interactions";
-import {Plus} from "phosphor-react";
+import {type Icon as PhosphorIcon, Plus} from "phosphor-react";
 import {
     type Dispatch,
     type Memo,
+    type Ref,
+    forwardRef,
     startTransition,
     useEffect,
     useMemo,
@@ -28,9 +30,13 @@ import {
 } from "~/client/web/databases/use_grid_view_fields.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
+import {OverlayTriggerButton} from "~/client/web/design/overlay_trigger_button.js";
+import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
@@ -40,10 +46,12 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import type {
     DatabaseCellValue,
+    DatabaseFieldConfig,
     DatabaseFieldType,
 } from "~/shared/databases/fields/database_field_providers.js";
 import type {Spacing} from "~/shared/design/core/spacing.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
@@ -261,15 +269,21 @@ export function DatabaseGridView({
                                 >
                                     <Box
                                         ref={ref}
-                                        minHeight={gridRowHeight}
+                                        zIndex="30"
                                         style={{
+                                            // 1px taller than `gridRowHeight` so the
+                                            // header item's measured size includes the
+                                            // sibling border line below — that way row 1
+                                            // starts after the border, mirroring how
+                                            // inter-row borders live inside each row's
+                                            // measured height.
+                                            minHeight: `calc(${spacing[gridRowHeight]} + 1px)`,
                                             position: shouldRenderWithRelativePositioning
                                                 ? "relative"
                                                 : "sticky",
                                             top: shouldRenderWithRelativePositioning
                                                 ? undefined
                                                 : 0,
-                                            zIndex: 2,
                                             pointerEvents: "auto",
                                         }}
                                     >
@@ -277,14 +291,34 @@ export function DatabaseGridView({
                                             fields={gridFields.fields}
                                             hiddenFields={gridFields.hiddenFields}
                                             onStartAddingField={gridFields.startAddingField}
-                                            onStartEditingField={gridFields.startEditingField}
                                             startResizingField={gridFields.startResizingField}
                                             resizingState={gridFields.resizingState}
+                                            onRenameField={gridFields.renameField}
                                             onUpdateFieldVisibility={
                                                 gridFields.updateFieldVisibility
                                             }
+                                            onUpdateFieldConfig={gridFields.updateFieldConfig}
                                         />
                                     </Box>
+                                    <Box
+                                        zIndex="10"
+                                        borderTop="grey-5-translucent"
+                                        pointerEvents="none"
+                                        style={{
+                                            position: shouldRenderWithRelativePositioning
+                                                ? "relative"
+                                                : "sticky",
+                                            top: shouldRenderWithRelativePositioning
+                                                ? undefined
+                                                : spacing[gridRowHeight],
+                                            // Pull the border up 1px so its natural
+                                            // flow position lands inside the header's
+                                            // transparent bottom gap (avoiding a 1px
+                                            // jump when scrolling crosses the sticky
+                                            // threshold).
+                                            marginTop: -1,
+                                        }}
+                                    />
                                 </div>
                             );
                         },
@@ -302,9 +336,19 @@ export function DatabaseGridView({
                                 <>
                                     <div style={{height: offset}} />
                                     <Box
+                                        zIndex="10"
+                                        borderTop="grey-5"
+                                        pointerEvents="none"
+                                        style={{
+                                            position: "sticky",
+                                            bottom: spacing[gridRowHeight],
+                                        }}
+                                    />
+                                    <Box
                                         ref={ref}
                                         minHeight={gridRowHeight}
                                         backgroundColor="grey-0"
+                                        zIndex="30"
                                         style={{
                                             position: "sticky",
                                             bottom: 0,
@@ -339,7 +383,6 @@ export function DatabaseGridView({
                             fields={gridFields.fields}
                             row={row}
                             rowId={rowId}
-                            isFirstRow={index === 1}
                             isLastRow={index === rowCount}
                             selection={visibleSelection}
                             dispatch={dispatch}
@@ -354,10 +397,11 @@ export function DatabaseGridView({
             gridFields.fields,
             gridFields.hiddenFields,
             gridFields.startAddingField,
-            gridFields.startEditingField,
             gridFields.startResizingField,
             gridFields.resizingState,
+            gridFields.renameField,
             gridFields.updateFieldVisibility,
+            gridFields.updateFieldConfig,
             tree,
             rowCount,
             needsMore,
@@ -391,9 +435,82 @@ export function DatabaseGridView({
                     scrollbarInsetTopItemIndex={0}
                     scrollbarInsetBottomItemIndex={addRowIndex}
                     contentMinWidth={gridFields.contentMinWidth}
+                    extraChildren={
+                        <DatabaseGridViewSelectionOverlay
+                            selection={visibleSelection}
+                            fields={gridFields.fields}
+                            fieldIndexById={gridFields.fieldIndexById}
+                            rowCount={rowCount}
+                            scrollViewRef={scrollViewRef}
+                        />
+                    }
                 />
             </Box>
         </GlobalKeyDownEvent>
+    );
+}
+
+// -- Selection overlay --------------------------------------------------------
+
+/**
+ * Renders a floating border around the selected cell(s) using
+ * scroll-content coordinates so it scrolls with rows and is
+ * occluded by the sticky header.
+ */
+function DatabaseGridViewSelectionOverlay({
+    selection,
+    fields,
+    fieldIndexById,
+    rowCount,
+    scrollViewRef,
+}: {
+    selection: DatabaseGridViewSelection;
+    fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
+    fieldIndexById: ReadonlyMap<DatabaseFieldId, number>;
+    rowCount: number;
+    scrollViewRef: React.RefObject<VirtualizedScrollViewRef | null>;
+}) {
+    // Cumulative left offset of each visible column. Stored as rem at the
+    // small spacing scale so the value scales with the active scale, the
+    // same way each column's CSS width does. Accounts for the
+    // `marginRight: -1` overlap between adjacent cells.
+    const columnLeftRems = useMemo(() => {
+        const lefts: Array<number> = [];
+        let left = 0;
+        for (const field of fields) {
+            lefts.push(left);
+            left += field.width - 1;
+        }
+        return lefts.map(px => px / remPxBySpacingScale.small);
+    }, [fields]);
+
+    if (selection == null || selection.isEditing) return null;
+    const rowPosition = scrollViewRef.current?.getPositionByKeyIfExists(selection.rowId);
+    if (rowPosition == null) return null;
+    const fieldIndex = fieldIndexById.get(selection.fieldId);
+    if (fieldIndex == null) return null;
+    const field = fields[fieldIndex];
+    const leftRem = columnLeftRems[fieldIndex];
+    if (field == null || leftRem == null) return null;
+    // The last data row is shorter by 1px (it has no `borderBottom` slot
+    // since the footer renders its own sticky separator). Extend the
+    // selection by an extra pixel below so its bottom edge lands on the
+    // sticky footer border instead of stopping 1px above it.
+    const isLast = scrollViewRef.current?.getIndexByKeyIfExists(selection.rowId) === rowCount;
+    const heightExtension = isLast ? 2 : 1;
+    return (
+        <Box
+            position="absolute"
+            border="theme-40-const"
+            pointerEvents="none"
+            zIndex="20"
+            style={{
+                top: rowPosition.offset - 1,
+                height: rowPosition.height + heightExtension,
+                left: `${leftRem}rem`,
+                width: `${field.width / remPxBySpacingScale.small}rem`,
+            }}
+        />
     );
 }
 
@@ -428,15 +545,15 @@ function DatabaseGridViewHeaderRow({
     fields,
     hiddenFields,
     onStartAddingField,
-    onStartEditingField,
     startResizingField,
     resizingState,
+    onRenameField,
     onUpdateFieldVisibility,
+    onUpdateFieldConfig,
 }: {
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     hiddenFields: ReadonlyArray<DatabaseGridViewField>;
     onStartAddingField: () => void;
-    onStartEditingField: (fieldId: DatabaseFieldId) => void;
     startResizingField: (
         fieldId: DatabaseFieldId,
         event: React.PointerEvent,
@@ -446,21 +563,24 @@ function DatabaseGridViewHeaderRow({
         onCancel: () => void;
     };
     resizingState: {readonly fieldId: DatabaseFieldId} | null;
+    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
     onUpdateFieldVisibility: (
         fieldId: DatabaseFieldId,
         position: OrderKey,
         isHidden: boolean,
     ) => void;
+    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
     return (
-        <Box display="flex" borderBottom="grey-5-translucent">
+        <Box display="flex" height={gridRowHeight}>
             {fields.map(field => (
                 <DatabaseGridViewHeaderCell
                     key={field.id}
                     field={field}
-                    onStartEditingField={onStartEditingField}
                     startResizingField={startResizingField}
                     isResizingThisField={resizingState?.fieldId === field.id}
+                    onRenameField={onRenameField}
+                    onUpdateFieldConfig={onUpdateFieldConfig}
                 />
             ))}
             <Box
@@ -492,12 +612,12 @@ function DatabaseGridViewHeaderRow({
 
 function DatabaseGridViewHeaderCell({
     field,
-    onStartEditingField,
     startResizingField,
     isResizingThisField,
+    onRenameField,
+    onUpdateFieldConfig,
 }: {
     field: DatabaseGridViewFieldWithEditing;
-    onStartEditingField: (fieldId: DatabaseFieldId) => void;
     startResizingField: (
         fieldId: DatabaseFieldId,
         event: React.PointerEvent,
@@ -507,10 +627,11 @@ function DatabaseGridViewHeaderCell({
         onCancel: () => void;
     };
     isResizingThisField: boolean;
+    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
+    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const editing = field.editing;
-    const isAdding = field.columnName === "__pending__";
 
     useEffect(() => {
         if (editing != null) {
@@ -523,15 +644,10 @@ function DatabaseGridViewHeaderCell({
     }, [editing != null]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
-        <Box
-            backgroundColor="grey-0"
-            position="relative"
-            style={field.columnStyle}
-            onDoubleClick={() => onStartEditingField(field.id)}
-        >
+        <Box backgroundColor="grey-0" position="relative" style={field.columnStyle}>
             {editing ? (
                 <Overlay
-                    isVisible={isAdding}
+                    isVisible={true}
                     placement="bottom-start"
                     fallbackPlacements={["bottom-end"]}
                     preventOverflow={false}
@@ -566,20 +682,168 @@ function DatabaseGridViewHeaderCell({
                     />
                 </Overlay>
             ) : (
-                <Box
-                    color="grey-80"
-                    fontSize="75"
-                    fontStyle="truncate-semi-bold"
-                    padding="2"
-                    textAlign="left"
-                >
-                    {field.name}
-                </Box>
+                <DatabaseGridViewHeaderEditor
+                    field={field}
+                    onRenameField={onRenameField}
+                    onUpdateFieldConfig={onUpdateFieldConfig}
+                />
             )}
             <DatabaseGridViewResizeHandle
                 fieldId={field.id}
                 startResizingField={startResizingField}
                 isResizingThisField={isResizingThisField}
+            />
+        </Box>
+    );
+}
+
+// -- Field header editor (rename + config menu) ------------------------------
+
+function DatabaseGridViewHeaderEditor({
+    field,
+    onRenameField,
+    onUpdateFieldConfig,
+}: {
+    field: DatabaseGridViewFieldWithEditing;
+    onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
+    onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
+}) {
+    const provider = getDatabaseFieldComponentProvider(field.config.type);
+    const Icon = provider.Icon;
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [draftName, setDraftName] = useState(field.name);
+
+    useEffect(() => {
+        setDraftName(field.name);
+    }, [field.name]);
+
+    const commitRename = useEvent(() => {
+        const trimmed = (inputRef.current?.value ?? draftName).trim();
+        if (trimmed === "" || trimmed === field.name) return;
+        onRenameField(field.id, trimmed);
+    });
+
+    const configActions =
+        provider.getConfigMenuActions?.({
+            config: field.config,
+            onCommit: config => onUpdateFieldConfig(field.id, config),
+        }) ?? [];
+
+    const renameInput = (
+        <DatabaseGridViewHeaderRenameInput
+            inputRef={inputRef}
+            value={draftName}
+            onChange={setDraftName}
+            onEnter={commitRename}
+            onEscape={() => setDraftName(field.name)}
+            paddingBottom={configActions.length > 0 ? "1" : "1.5"}
+        />
+    );
+
+    const trigger = (
+        <Box
+            role="button"
+            tabIndex={0}
+            cursor="pointer"
+            display="flex"
+            alignItems="center"
+            color="grey-80"
+            fontSize="75"
+            fontStyle="truncate-semi-bold"
+            padding="2"
+            textAlign="left"
+            gap="1"
+            style={{userSelect: "none"}}
+        >
+            <Box color="grey-50" display="flex" alignItems="center">
+                <Icon size={14} />
+            </Box>
+            <Box fontStyle="truncate-semi-bold">{field.name}</Box>
+        </Box>
+    );
+
+    if (configActions.length === 0) {
+        return (
+            <OverlayTriggerButton
+                withoutButtonElementRequirement
+                placement="bottom-start"
+                aria-haspopup="dialog"
+                onClose={commitRename}
+                overlay={<DatabaseGridViewHeaderEditorRenameOverlay renameInput={renameInput} />}
+            >
+                {trigger}
+            </OverlayTriggerButton>
+        );
+    }
+
+    return (
+        <MenuButton
+            withoutButtonElementRequirement
+            placement="bottom-start"
+            actions={configActions}
+            onClose={commitRename}
+            extraOverlayTop={renameInput}
+        >
+            {trigger}
+        </MenuButton>
+    );
+}
+
+const DatabaseGridViewHeaderEditorRenameOverlay = forwardRef(
+    function DatabaseGridViewHeaderEditorRenameOverlay(
+        {renameInput}: {renameInput: React.ReactNode},
+        ref: Ref<HTMLDivElement>,
+    ) {
+        return (
+            <Box
+                ref={ref}
+                backgroundColor="grey-0"
+                borderRadius="1.5"
+                boxShadow="elevation-20"
+                style={{minWidth: 200}}
+            >
+                {renameInput}
+            </Box>
+        );
+    },
+);
+
+function DatabaseGridViewHeaderRenameInput({
+    inputRef,
+    value,
+    onChange,
+    onEnter,
+    onEscape,
+    paddingBottom,
+}: {
+    inputRef: Ref<HTMLInputElement>;
+    value: string;
+    onChange: (value: string) => void;
+    onEnter: () => void;
+    onEscape: () => void;
+    paddingBottom: "1" | "1.5";
+}) {
+    const internalRef = useRef<HTMLInputElement>(null);
+    const mergedRef = useMergedRefs(inputRef, internalRef);
+
+    useEffect(() => {
+        const input = internalRef.current;
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, []);
+
+    return (
+        <Box paddingX="1.5" paddingTop="1.5" paddingBottom={paddingBottom}>
+            <TextInputWithoutLabel
+                ref={mergedRef}
+                aria-label="Field name"
+                value={value}
+                maxLength={maxLabelStringLength}
+                onChange={onChange}
+                onEnter={onEnter}
+                onEscape={onEscape}
             />
         </Box>
     );
@@ -608,6 +872,7 @@ function DatabaseGridViewFieldTypePicker({
                     key={provider.type}
                     type={provider.type}
                     label={provider.label}
+                    Icon={provider.Icon}
                     onSelect={onSelect}
                 />
             ))}
@@ -618,16 +883,21 @@ function DatabaseGridViewFieldTypePicker({
 function DatabaseGridViewFieldTypePickerOption({
     type,
     label,
+    Icon,
     onSelect,
 }: {
     type: DatabaseFieldType;
     label: string;
+    Icon: PhosphorIcon;
     onSelect: (type: DatabaseFieldType) => void;
 }) {
     const {hoverProps, isHovered} = useHover({});
     return (
         <Box
             {...hoverProps}
+            display="flex"
+            alignItems="center"
+            gap="1.5"
             padding="1.5"
             borderRadius="1"
             fontSize="75"
@@ -639,6 +909,7 @@ function DatabaseGridViewFieldTypePickerOption({
                 onSelect(type);
             }}
         >
+            <Icon size={14} />
             {label}
         </Box>
     );
@@ -727,7 +998,6 @@ function DatabaseGridViewDataRow({
     fields,
     row,
     rowId,
-    isFirstRow,
     isLastRow,
     selection,
     dispatch,
@@ -738,7 +1008,6 @@ function DatabaseGridViewDataRow({
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     row: DatabaseQueryRow;
     rowId: DatabaseRowId;
-    isFirstRow: boolean;
     isLastRow: boolean;
     selection: DatabaseGridViewSelection;
     dispatch: Dispatch<SelectionAction>;
@@ -748,8 +1017,12 @@ function DatabaseGridViewDataRow({
     return (
         <Box
             display="flex"
-            style={{height: `calc(${spacing[gridRowHeight]} + 1px)`}}
-            borderBottom={isLastRow ? undefined : "grey-5"}
+            style={{
+                height: isLastRow
+                    ? spacing[gridRowHeight]
+                    : `calc(${spacing[gridRowHeight]} + 1px)`,
+            }}
+            borderBottom={isLastRow ? "transparent" : "grey-5"}
         >
             {fields.map(field => {
                 const isSelected =
@@ -766,7 +1039,6 @@ function DatabaseGridViewDataRow({
                         field={field}
                         value={row.getCellValue(field.id)}
                         rowId={rowId}
-                        isFirstRow={isFirstRow}
                         isSelected={isSelected}
                         isEditing={isEditing}
                         initialEditValue={initialEditValue}
@@ -787,7 +1059,6 @@ function DatabaseGridViewCell({
     field,
     value,
     rowId,
-    isFirstRow,
     isSelected,
     isEditing,
     initialEditValue,
@@ -799,7 +1070,6 @@ function DatabaseGridViewCell({
     field: DatabaseGridViewFieldWithEditing;
     value: unknown;
     rowId: DatabaseRowId;
-    isFirstRow: boolean;
     isSelected: boolean;
     isEditing: boolean;
     initialEditValue: string | null;
@@ -832,11 +1102,11 @@ function DatabaseGridViewCell({
         });
     });
 
-    const shouldShowBorder = isSelected && !isEditing;
-
     const editorOverlay = EditorOverlay ? (
         <EditorOverlay
-            initialValue={initialEditValue ?? String(optimisticValue ?? "")}
+            config={field.config}
+            initialValue={optimisticValue as DatabaseCellValue}
+            initialEditString={initialEditValue}
             commitValue={commitValue}
             onClose={() => dispatch({type: "blur"})}
             moveSelection={moveSelection}
@@ -856,17 +1126,17 @@ function DatabaseGridViewCell({
             overlay={editorOverlay}
         >
             <Box
-                border={shouldShowBorder ? "theme-40-const" : "transparent"}
+                border="transparent"
                 style={{
                     ...field.columnStyle,
-                    marginTop: isFirstRow ? undefined : -1,
+                    marginTop: -1,
                     marginBottom: -1,
-                    ...(shouldShowBorder ? {zIndex: 1, position: "relative" as const} : undefined),
                 }}
                 onFocus={() => dispatch({type: "select", rowId, fieldId: field.id})}
             >
                 <provider.GridViewCellContent
                     ref={cellRef}
+                    config={field.config}
                     value={optimisticValue as DatabaseCellValue}
                     commitValue={commitValue}
                     onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
@@ -880,13 +1150,7 @@ function DatabaseGridViewCell({
 
 function DatabaseGridViewAddRowButton({onCreateRow}: {onCreateRow: () => void}) {
     return (
-        <Box
-            display="flex"
-            alignItems="center"
-            borderTop="grey-5"
-            cursor="pointer"
-            onClick={onCreateRow}
-        >
+        <Box display="flex" alignItems="center" cursor="pointer" onClick={onCreateRow}>
             <Box
                 display="flex"
                 alignItems="center"

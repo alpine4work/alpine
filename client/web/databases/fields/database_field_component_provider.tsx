@@ -1,6 +1,10 @@
+import type {Icon} from "phosphor-react";
 import type {ComponentType, Ref} from "react";
+
+import type {MenuActions} from "~/client/web/design/menu.js";
 import {
     DatabaseCellValue,
+    DatabaseFieldConfig,
     DatabaseFieldProvider,
     DatabaseFieldType,
 } from "~/shared/databases/fields/database_field_providers.js";
@@ -13,6 +17,7 @@ import {
  */
 export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
+    config: DatabaseFieldConfig<Type>;
     value: DatabaseCellValue<Type>;
     commitValue: (value: DatabaseCellValue<Type>) => void;
     onCellClick: () => void;
@@ -24,11 +29,32 @@ export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
  */
 export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
+    config: DatabaseFieldConfig<Type>;
+    /** The current typed value of the cell. */
     initialValue: DatabaseCellValue<Type>;
+    /**
+     * Optional string seed when the editor was opened by
+     * typing a character or pressing delete/backspace.
+     * Takes precedence over `initialValue` for the
+     * editor's initial content. The editor decides how
+     * (or whether) to use this — e.g. a number editor
+     * may ignore non-numeric seeds.
+     */
+    initialEditString: string | null;
     commitValue: (value: DatabaseCellValue<Type>) => void;
     onClose: () => void;
     moveSelection: (deltaRow: number, deltaField: number) => void;
     onCreateRow: () => void;
+};
+
+/**
+ * Args passed by the grid view header to a field type's
+ * config menu action builder. The returned actions are
+ * appended to the field's editor menu.
+ */
+export type DatabaseFieldConfigMenuActionsArgs<Type extends DatabaseFieldType> = {
+    config: DatabaseFieldConfig<Type>;
+    onCommit: (config: DatabaseFieldConfig<Type>) => void;
 };
 
 // -- Base type ----------------------------------------------------------------
@@ -46,12 +72,16 @@ export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldTyp
 export type DatabaseFieldComponentProviderBase = {
     readonly type: DatabaseFieldType;
     readonly label: string;
+    readonly Icon: Icon;
     readonly GridViewCellContent: ComponentType<
         DatabaseGridViewCellContentProps<DatabaseFieldType>
     >;
     readonly GridViewCellEditorOverlay: ComponentType<
         DatabaseGridViewCellEditorOverlayProps<DatabaseFieldType>
     > | null;
+    readonly getConfigMenuActions:
+        | ((args: DatabaseFieldConfigMenuActionsArgs<DatabaseFieldType>) => MenuActions)
+        | null;
 };
 
 // -- Factory ------------------------------------------------------------------
@@ -65,16 +95,22 @@ export function defineDatabaseFieldComponentProvider<const Type extends Database
     provider: DatabaseFieldProvider<Type>,
     options: {
         readonly label: string;
+        readonly Icon: Icon;
         readonly GridViewCellContent: ComponentType<DatabaseGridViewCellContentProps<Type>>;
         readonly GridViewCellEditorOverlay: ComponentType<
             DatabaseGridViewCellEditorOverlayProps<Type>
         > | null;
+        readonly getConfigMenuActions:
+            | ((args: DatabaseFieldConfigMenuActionsArgs<Type>) => MenuActions)
+            | null;
     },
 ) {
     return {
         type: provider.type,
         label: options.label,
+        Icon: options.Icon,
         GridViewCellContent: options.GridViewCellContent,
         GridViewCellEditorOverlay: options.GridViewCellEditorOverlay,
+        getConfigMenuActions: options.getConfigMenuActions,
     };
 }

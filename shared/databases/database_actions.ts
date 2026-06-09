@@ -82,6 +82,15 @@ function defineDatabaseAction<Input, Output>(def: {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
+    /**
+     * When `true`, the client skips optimistic local
+     * execution and routes the action straight to the
+     * server. Use for actions whose `run()` is
+     * non-deterministic in a way that would diverge
+     * between client and server — e.g. allocating IDs
+     * via `generateChronologicalId()` — making
+     * optimistic execution unsafe.
+     */
     serverOnly?: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => any;
 }): {
@@ -230,7 +239,7 @@ function createField(
     `.selectValue(db, Schema.string.nullable());
 
     const provider = getDatabaseFieldProvider(type);
-    const fieldConfig = DatabaseFieldConfigSqlSchema.serialize({type});
+    const fieldConfig = DatabaseFieldConfigSqlSchema.serialize(provider.getDefaultConfig());
 
     sql`
         INSERT INTO
@@ -257,13 +266,14 @@ function createField(
             )
     `.exec(db);
 
-    const {sqliteType, defaultValue, generateCheckConstraint} = provider;
+    const {sqliteType, defaultValue, nullable, generateCheckConstraint} = provider;
+    const notNullClause = nullable ? sql.raw("") : sql.raw("NOT NULL");
 
     sql`
         ALTER TABLE ${sql.tableRef(tableId, tableName)}
         ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
             fieldId,
-        )} NOT NULL DEFAULT ${sql.raw(defaultValue)} ${generateCheckConstraint(columnName)}
+        )} ${notNullClause} DEFAULT ${sql.raw(defaultValue)} ${generateCheckConstraint(columnName)}
     `.exec(db);
 }
 
@@ -699,6 +709,39 @@ export const databaseActions = {
         writeLevel: "schema+data",
         run({db}, {fieldId, tableId, viewId, name, type}) {
             createField(db, {fieldId, tableId, viewId, name, type});
+            return {};
+        },
+    }),
+
+    updateFieldConfig: defineDatabaseAction({
+        input: Schema.object({
+            fieldId: Schema.id<DatabaseFieldId>(),
+            config: DatabaseFieldConfigSchema,
+        }),
+        output: Schema.object({}),
+        writeLevel: "data",
+        run({db}, {fieldId, config}) {
+            const existing = sql`
+                SELECT
+                    config
+                FROM
+                    _alpine_fields
+                WHERE
+                    id = ${fieldId}
+            `.selectOne(db, {config: Schema.string});
+            const existingConfig = DatabaseFieldConfigSqlSchema.deserialize(existing.config);
+            assert(
+                existingConfig.type === config.type,
+                `cannot change field type from ${existingConfig.type} to ${config.type}`,
+            );
+            const serialized = DatabaseFieldConfigSqlSchema.serialize(config);
+            sql`
+                UPDATE _alpine_fields
+                SET
+                    config = ${serialized}
+                WHERE
+                    id = ${fieldId}
+            `.exec(db);
             return {};
         },
     }),

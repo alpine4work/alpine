@@ -189,7 +189,9 @@ export class DatabaseClient {
      * execution and background server confirmation.
      *
      * Falls back to the server when the local store is
-     * empty or missing pages.
+     * empty or missing pages. Actions defined with
+     * `serverOnly: true` skip the local optimistic path
+     * entirely and go straight to the server.
      */
     async executeAction<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,

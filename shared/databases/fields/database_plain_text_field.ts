@@ -9,6 +9,7 @@ export const databasePlainTextFieldProvider = defineDatabaseFieldProvider({
     valueSchema: Schema.string,
     configSchema: Schema.object({type: Schema.value("plainText")}),
     sqliteType: "TEXT",
+    nullable: false,
     defaultValue: "''",
     generateCheckConstraint: columnName => sql`
         CHECK (
@@ -16,5 +17,8 @@ export const databasePlainTextFieldProvider = defineDatabaseFieldProvider({
         )
     `,
     toSqlValue: value => value,
-    fromSqlValue: sqlValue => sqlValue,
+    fromSqlValue: sqlValue => sqlValue ?? "",
+    getDefaultConfig: () => ({type: "plainText"}),
+    parseString: input => ({ok: true, value: input}),
+    formatString: value => value,
 });

@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- provider pattern */
 
+import {TextAa} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 
 import {
@@ -38,12 +39,13 @@ function DatabasePlainTextGridViewCellContent({
 function DatabasePlainTextGridViewCellEditorOverlay({
     ref,
     initialValue,
+    initialEditString,
     commitValue,
     onClose,
     moveSelection,
     onCreateRow,
 }: DatabaseGridViewCellEditorOverlayProps<"plainText">) {
-    const [editValue, setEditValue] = useState(initialValue);
+    const [editValue, setEditValue] = useState(initialEditString ?? initialValue);
     const localRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -100,7 +102,9 @@ export const databasePlainTextFieldComponentProvider = defineDatabaseFieldCompon
     databasePlainTextFieldProvider,
     {
         label: "Text",
+        Icon: TextAa,
         GridViewCellContent: DatabasePlainTextGridViewCellContent,
         GridViewCellEditorOverlay: DatabasePlainTextGridViewCellEditorOverlay,
+        getConfigMenuActions: null,
     },
 );

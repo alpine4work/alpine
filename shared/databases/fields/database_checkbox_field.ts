@@ -7,6 +7,7 @@ export const databaseCheckboxFieldProvider = defineDatabaseFieldProvider({
     valueSchema: Schema.boolean,
     configSchema: Schema.object({type: Schema.value("checkbox")}),
     sqliteType: "INTEGER",
+    nullable: false,
     defaultValue: "0",
     generateCheckConstraint: columnName => sql`
         CHECK (
@@ -14,5 +15,30 @@ export const databaseCheckboxFieldProvider = defineDatabaseFieldProvider({
         )
     `,
     toSqlValue: value => (value ? 1 : 0),
-    fromSqlValue: sqlValue => sqlValue !== 0,
+    fromSqlValue: sqlValue => sqlValue === 1,
+    getDefaultConfig: () => ({type: "checkbox"}),
+    parseString: input => {
+        const normalized = input.trim().toLowerCase();
+        return {ok: true, value: !checkboxFalseStrings.has(normalized)};
+    },
+    formatString: value => (value ? "true" : "false"),
 });
+
+/**
+ * Strings interpreted as `false` by `parseString`. Match
+ * is on a trimmed, lower-cased input. Empty (whitespace
+ * only) input is also `false`. Anything else is `true`.
+ */
+const checkboxFalseStrings: ReadonlySet<string> = new Set([
+    "",
+    "0",
+    "f",
+    "false",
+    "n",
+    "no",
+    "off",
+    "unchecked",
+    "✗",
+    "✘",
+    "☐",
+]);

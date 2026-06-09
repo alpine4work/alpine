@@ -1,5 +1,6 @@
 import {databaseCheckboxFieldComponentProvider} from "~/client/web/databases/fields/database_checkbox_field_component.js";
 import type {DatabaseFieldComponentProviderBase} from "~/client/web/databases/fields/database_field_component_provider.js";
+import {databaseNumberFieldComponentProvider} from "~/client/web/databases/fields/database_number_field_component.js";
 import {databasePlainTextFieldComponentProvider} from "~/client/web/databases/fields/database_plain_text_field_component.js";
 import type {DatabaseFieldType} from "~/shared/databases/fields/database_field_providers.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -11,6 +12,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export const databaseFieldComponentProviders = [
     databasePlainTextFieldComponentProvider,
     databaseCheckboxFieldComponentProvider,
+    databaseNumberFieldComponentProvider,
 ] as const;
 
 /**

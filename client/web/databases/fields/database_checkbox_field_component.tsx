@@ -1,3 +1,5 @@
+import {CheckSquare} from "phosphor-react";
+
 import {
     type DatabaseGridViewCellContentProps,
     defineDatabaseFieldComponentProvider,
@@ -10,6 +12,7 @@ export const databaseCheckboxFieldComponentProvider = defineDatabaseFieldCompone
     databaseCheckboxFieldProvider,
     {
         label: "Checkbox",
+        Icon: CheckSquare,
         GridViewCellContent: function DatabaseCheckboxGridViewCellContent({
             ref,
             value,
@@ -46,5 +49,6 @@ export const databaseCheckboxFieldComponentProvider = defineDatabaseFieldCompone
             );
         },
         GridViewCellEditorOverlay: null,
+        getConfigMenuActions: null,
     },
 );
