@@ -1,9 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
-import {
-    commitTaskActionTransaction,
-    createTaskNotesCreateTransactionEntry,
-} from "~/server/tasks/data/task_table.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
+import {createTaskNotesCreateTransactionEntry} from "~/server/tasks/data/create_task_notes_create_transaction_entry.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";

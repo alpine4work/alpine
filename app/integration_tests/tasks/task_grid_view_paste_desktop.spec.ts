@@ -4,8 +4,8 @@ import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboar
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";

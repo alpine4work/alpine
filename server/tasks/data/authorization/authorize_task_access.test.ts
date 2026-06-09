@@ -1,19 +1,27 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {captureAfterTestEndsCallbacks} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {
-    authorizeTaskAccess,
-    authorizeTaskAccessIfPossible,
-} from "~/server/tasks/data/task_table.js";
+import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
+import {authorizeTaskAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_access_if_possible.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
+import {getTaskCommentsFromEnd} from "~/server/tasks/data/get_task_comments_from_end.js";
+import {getTaskCommentsFromStart} from "~/server/tasks/data/get_task_comments_from_start.js";
+import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/get_task_notes_content_and_optional_initial_comments_if_exists.js";
+import {getTaskNotificationSubscribers} from "~/server/tasks/data/get_task_notification_subscribers.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
@@ -1605,3 +1613,906 @@ for (const [taskName, testCases1] of getObjectEntriesWithKeyofType(testCases)) {
         }
     }
 }
+
+describe("authorizeTaskAccess()", () => {
+    test("can authorize task with system actor and anonymous actor and impersonated account actor", async () => {
+        const space = await TestSpace.create(context);
+        const otherSpace = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        await otherSpace.addAccount(session1);
+
+        const [task1, collection1] = await runAllPromises([
+            TestTask.create(session2),
+            TestTaskCollection.create(session2),
+        ]);
+
+        await collection1.access.grantDefault(session2);
+
+        await task1.addCollection(session2, collection1);
+
+        await authorizeTaskAccess(session1.action(), task1.id, "Edit");
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok,
+        ).toEqual(true);
+
+        await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+        expect(
+            (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(true);
+
+        await expect(
+            authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit"),
+        ).rejects.toThrow(PermissionDeniedError);
+        expect(
+            (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        await expect(
+            authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit"),
+        ).rejects.toThrow(UnauthenticatedError);
+        expect(
+            (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        await authorizeTaskAccess(
+            context.impersonatedAccountAction(space.id, session1.account.id),
+            task1.id,
+            "Edit",
+        );
+        expect(
+            (
+                await authorizeTaskAccessIfPossible(
+                    context.impersonatedAccountAction(space.id, session1.account.id),
+                    task1.id,
+                    "Edit",
+                )
+            )?.ok,
+        ).toEqual(true);
+
+        await expect(
+            authorizeTaskAccess(
+                context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+                task1.id,
+                "Edit",
+            ),
+        ).rejects.toThrow(
+            "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+        );
+        expect(
+            (
+                await authorizeTaskAccessIfPossible(
+                    context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+                    task1.id,
+                    "Edit",
+                )
+            )?.ok,
+        ).toEqual(false);
+
+        await commitTaskActionTransaction(session1.action(), space.id, [
+            {
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ]);
+
+        await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+        expect(
+            (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(true);
+
+        await expect(
+            authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit"),
+        ).rejects.toThrow(PermissionDeniedError);
+        expect(
+            (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        await expect(
+            authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit"),
+        ).rejects.toThrow(UnauthenticatedError);
+        expect(
+            (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        await expect(
+            authorizeTaskAccess(
+                context.impersonatedAccountAction(space.id, session1.account.id),
+                task1.id,
+                "Edit",
+            ),
+        ).rejects.toThrow(PermissionDeniedError);
+        expect(
+            (
+                await authorizeTaskAccessIfPossible(
+                    context.impersonatedAccountAction(space.id, session1.account.id),
+                    task1.id,
+                    "Edit",
+                )
+            )?.ok,
+        ).toEqual(false);
+
+        await expect(
+            authorizeTaskAccess(
+                context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+                task1.id,
+                "Edit",
+            ),
+        ).rejects.toThrow(
+            "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+        );
+        expect(
+            (
+                await authorizeTaskAccessIfPossible(
+                    context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+                    task1.id,
+                    "Edit",
+                )
+            )?.ok,
+        ).toEqual(false);
+
+        await expect(
+            commitTaskActionTransaction(session1.action(), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: testTaskClock.now(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ]),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
+        expect(
+            (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(true);
+
+        await expect(
+            authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit"),
+        ).rejects.toThrow(PermissionDeniedError);
+        expect(
+            (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        await expect(
+            authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit"),
+        ).rejects.toThrow(UnauthenticatedError);
+        expect(
+            (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        await expect(
+            authorizeTaskAccess(
+                context.impersonatedAccountAction(space.id, session1.account.id),
+                task1.id,
+                "Edit",
+            ),
+        ).rejects.toThrow(PermissionDeniedError);
+        expect(
+            (
+                await authorizeTaskAccessIfPossible(
+                    context.impersonatedAccountAction(space.id, session1.account.id),
+                    task1.id,
+                    "Edit",
+                )
+            )?.ok,
+        ).toEqual(false);
+
+        await expect(
+            authorizeTaskAccess(
+                context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+                task1.id,
+                "Edit",
+            ),
+        ).rejects.toThrow(
+            "Impersonated account actor doesn\u2019t have access to task\u2019s space",
+        );
+        expect(
+            (
+                await authorizeTaskAccessIfPossible(
+                    context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+                    task1.id,
+                    "Edit",
+                )
+            )?.ok,
+        ).toEqual(false);
+    });
+
+    test("authorizing task access as session actor is cached", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+        const collection = await TestTaskCollection.create(session1);
+        await collection.access.grantDefault(session1);
+        await task.addCollection(session1, collection);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = session2.action();
+
+            expect(getCount()).toEqual(0);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(3);
+
+            await authorizeTaskAccess(actionContext, task.id, "Edit");
+
+            expect(getCount()).toEqual(3);
+
+            for (let i = 0; i < 5; i++) {
+                await runAllPromises([
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccess(actionContext, task.id, "Edit"),
+                    authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+                ]);
+            }
+
+            expect(getCount()).toEqual(3);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = session2.action();
+
+            expect(getCount()).toEqual(0);
+
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+            ]);
+
+            expect(getCount()).toEqual(3);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(3);
+        }
+    });
+
+    test("authorizing task access as system actor is cached", async () => {
+        const space = await TestSpace.create(context);
+        const [session1] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+        const collection = await TestTaskCollection.create(session1);
+        await collection.access.grantDefault(session1);
+        await task.addCollection(session1, collection);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = space.systemAction();
+
+            expect(getCount()).toEqual(0);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(1);
+
+            await authorizeTaskAccess(actionContext, task.id, "Edit");
+
+            expect(getCount()).toEqual(1);
+
+            for (let i = 0; i < 5; i++) {
+                await runAllPromises([
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccess(actionContext, task.id, "Edit"),
+                    authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+                ]);
+            }
+
+            expect(getCount()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = space.systemAction();
+
+            expect(getCount()).toEqual(0);
+
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+            ]);
+
+            expect(getCount()).toEqual(1);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(1);
+        }
+    });
+
+    test("authorizing task access after getting task as session actor is cached", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+        const collection = await TestTaskCollection.create(session1);
+        await collection.access.grantDefault(session1);
+        await task.addCollection(session1, collection);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = session2.action();
+
+            expect(getCount()).toEqual(0);
+
+            await getTaskNotesContentAndOptionalInitialCommentsIfExists(actionContext, {
+                taskId: task.id,
+                commentsLimit: 100,
+            });
+
+            expect(getCount()).toEqual(3);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(3);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(3);
+
+            for (let i = 0; i < 5; i++) {
+                await runAllPromises([
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+                ]);
+            }
+
+            expect(getCount()).toEqual(3);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = session2.action();
+
+            expect(getCount()).toEqual(0);
+
+            await getTaskCommentsFromStart(actionContext, {
+                taskId: task.id,
+                limit: 100,
+                afterCommentIndex: null,
+                beforeCommentIndex: null,
+            });
+
+            expect(getCount()).toEqual(4);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(4);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(4);
+
+            for (let i = 0; i < 5; i++) {
+                await runAllPromises([
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+                ]);
+            }
+
+            expect(getCount()).toEqual(4);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = session2.action();
+
+            expect(getCount()).toEqual(0);
+
+            await getTaskCommentsFromEnd(actionContext, {
+                taskId: task.id,
+                limit: 100,
+                afterCommentIndex: null,
+                beforeCommentIndex: null,
+            });
+
+            expect(getCount()).toEqual(4);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(4);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(4);
+
+            for (let i = 0; i < 5; i++) {
+                await runAllPromises([
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+                ]);
+            }
+
+            expect(getCount()).toEqual(4);
+        }
+    });
+
+    test("authorizing task access after getting task as system actor is cached", async () => {
+        const space = await TestSpace.create(context);
+        const [session1] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+        const collection = await TestTaskCollection.create(session1);
+        await collection.access.grantDefault(session1);
+        await task.addCollection(session1, collection);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = space.systemAction();
+
+            expect(getCount()).toEqual(0);
+
+            await getTaskNotificationSubscribers(actionContext, task.id);
+
+            expect(getCount()).toEqual(1);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(1);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(1);
+
+            for (let i = 0; i < 5; i++) {
+                await runAllPromises([
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+                ]);
+            }
+
+            expect(getCount()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = space.systemAction();
+
+            expect(getCount()).toEqual(0);
+
+            await getTaskCommentsFromStart(actionContext, {
+                taskId: task.id,
+                limit: 100,
+                afterCommentIndex: null,
+                beforeCommentIndex: null,
+            });
+
+            expect(getCount()).toEqual(2);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(2);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(2);
+
+            for (let i = 0; i < 5; i++) {
+                await runAllPromises([
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+                ]);
+            }
+
+            expect(getCount()).toEqual(2);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+
+        {
+            const actionContext = space.systemAction();
+
+            expect(getCount()).toEqual(0);
+
+            await getTaskCommentsFromEnd(actionContext, {
+                taskId: task.id,
+                limit: 100,
+                afterCommentIndex: null,
+                beforeCommentIndex: null,
+            });
+
+            expect(getCount()).toEqual(2);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(2);
+
+            await authorizeTaskAccess(actionContext, task.id, "View");
+
+            expect(getCount()).toEqual(2);
+
+            for (let i = 0; i < 5; i++) {
+                await runAllPromises([
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccess(actionContext, task.id, "View"),
+                    authorizeTaskAccessIfPossible(actionContext, task.id, "View"),
+                ]);
+            }
+
+            expect(getCount()).toEqual(2);
+        }
+    });
+
+    test("account has access to tasks they create and tasks they\u2019re assigned until they\u2019re removed from the space", async () => {
+        const space = await TestSpace.create(context);
+        const adminSession = await space.createSession({role: "Admin"});
+        const [session1, session2] = await space.createSessions(2);
+
+        const task1 = await TestTask.create(session1);
+
+        const task2 = await TestTask.create(session2);
+        await task2.updateAssignee(session2, session1);
+
+        await expect(
+            authorizeTaskAccess(session1.action(), task1.id, "View"),
+        ).resolves.not.toThrow();
+
+        await expect(
+            authorizeTaskAccess(session1.action(), task2.id, "View"),
+        ).resolves.not.toThrow();
+
+        await expect(
+            authorizeTaskAccess(session1.action(), task1.id, "Comment"),
+        ).resolves.not.toThrow();
+
+        await expect(
+            authorizeTaskAccess(session1.action(), task2.id, "Comment"),
+        ).resolves.not.toThrow();
+
+        await expect(
+            authorizeTaskAccess(session1.action(), task1.id, "Edit"),
+        ).resolves.not.toThrow();
+
+        await expect(
+            authorizeTaskAccess(session1.action(), task2.id, "Edit"),
+        ).resolves.not.toThrow();
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "View"))?.ok,
+        ).toEqual(true);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "View"))?.ok,
+        ).toEqual(true);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Comment"))?.ok,
+        ).toEqual(true);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Comment"))?.ok,
+        ).toEqual(true);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok,
+        ).toEqual(true);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Edit"))?.ok,
+        ).toEqual(true);
+
+        await removeSpaceAccount(adminSession.action(), {
+            spaceId: space.id,
+            accountId: session1.account.id,
+        });
+
+        await expect(authorizeTaskAccess(session1.action(), task1.id, "View")).rejects.toThrow(
+            "Account doesn\u2019t have access to space",
+        );
+
+        await expect(authorizeTaskAccess(session1.action(), task2.id, "View")).rejects.toThrow(
+            "Account doesn\u2019t have access to space",
+        );
+
+        await expect(authorizeTaskAccess(session1.action(), task1.id, "Comment")).rejects.toThrow(
+            "Account doesn\u2019t have access to space",
+        );
+
+        await expect(authorizeTaskAccess(session1.action(), task2.id, "Comment")).rejects.toThrow(
+            "Account doesn\u2019t have access to space",
+        );
+
+        await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+            "Account doesn\u2019t have access to space",
+        );
+
+        await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).rejects.toThrow(
+            "Account doesn\u2019t have access to space",
+        );
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "View"))?.ok,
+        ).toEqual(false);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "View"))?.ok,
+        ).toEqual(false);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Comment"))?.ok,
+        ).toEqual(false);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Comment"))?.ok,
+        ).toEqual(false);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok,
+        ).toEqual(false);
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Edit"))?.ok,
+        ).toEqual(false);
+    });
+
+    test("account has access to task shared via access policy", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+
+        await expect(authorizeTaskAccess(session2.action(), task.id, "View")).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        expect(
+            (await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok,
+        ).toEqual(false);
+
+        await task.access.grant(session1, session2, "View");
+
+        await expect(
+            authorizeTaskAccess(session2.action(), task.id, "View"),
+        ).resolves.not.toThrow();
+        expect(
+            (await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok,
+        ).toEqual(true);
+
+        await expect(authorizeTaskAccess(session2.action(), task.id, "Edit")).rejects.toThrow(
+            PermissionDeniedError,
+        );
+    });
+
+    test("access policy doesn\u2019t grant access after account removed from space", async () => {
+        const space = await TestSpace.create(context);
+        const adminSession = await space.createSession({role: "Admin"});
+        const [session1, session2] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+
+        await task.access.grant(session1, session2, "View");
+
+        await expect(
+            authorizeTaskAccess(session2.action(), task.id, "View"),
+        ).resolves.not.toThrow();
+
+        await removeSpaceAccount(adminSession.action(), {
+            spaceId: space.id,
+            accountId: session2.account.id,
+        });
+
+        await expect(authorizeTaskAccess(session2.action(), task.id, "View")).rejects.toThrow(
+            "Account doesn\u2019t have access to space",
+        );
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok,
+        ).toEqual(false);
+    });
+
+    test("access policy grants access even without collection access", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+        const collection = await TestTaskCollection.create(session1);
+
+        await task.addCollection(session1, collection);
+
+        await expect(authorizeTaskAccess(session2.action(), task.id, "View")).rejects.toThrow(
+            PermissionDeniedError,
+        );
+
+        await task.access.grant(session1, session2, "View");
+
+        await expect(
+            authorizeTaskAccess(session2.action(), task.id, "View"),
+        ).resolves.not.toThrow();
+
+        await task.access.revoke(session1, session2);
+
+        await expect(authorizeTaskAccess(session2.action(), task.id, "View")).rejects.toThrow(
+            PermissionDeniedError,
+        );
+    });
+
+    test("access policy revocation doesn\u2019t remove access when collection access remains", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const collection = await TestTaskCollection.create(session1);
+        await collection.access.grantDefault(session1);
+
+        const task = await TestTask.create(session1);
+        await task.addCollection(session1, collection);
+
+        await task.access.grant(session1, session2, "View");
+        await task.access.revoke(session1, session2);
+
+        await expect(
+            authorizeTaskAccess(session2.action(), task.id, "View"),
+        ).resolves.not.toThrow();
+        expect(
+            (await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok,
+        ).toEqual(true);
+    });
+
+    test("access policy grants access even after assignee is removed", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+
+        await task.updateAssignee(session1, session2);
+        await task.access.grant(session1, session2, "View");
+
+        await task.updateAssignee(session1, null);
+
+        await expect(
+            authorizeTaskAccess(session2.action(), task.id, "View"),
+        ).resolves.not.toThrow();
+        expect(
+            (await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok,
+        ).toEqual(true);
+    });
+
+    test("access policy revocation doesn\u2019t remove access when assignee access remains", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+
+        await task.updateAssignee(session1, session2);
+        await task.access.grant(session1, session2, "View");
+        await task.access.revoke(session1, session2);
+
+        await expect(
+            authorizeTaskAccess(session2.action(), task.id, "View"),
+        ).resolves.not.toThrow();
+        expect(
+            (await authorizeTaskAccessIfPossible(session2.action(), task.id, "View"))?.ok,
+        ).toEqual(true);
+    });
+
+    test("access policy grants access to child tasks via parent", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const parentTask = await TestTask.create(session1);
+        const childTask = await TestTask.create(session1, {parent: parentTask});
+
+        await parentTask.access.grant(session1, session2, "View");
+
+        await expect(
+            authorizeTaskAccess(session2.action(), childTask.id, "View"),
+        ).resolves.not.toThrow();
+        expect(
+            (await authorizeTaskAccessIfPossible(session2.action(), childTask.id, "View"))?.ok,
+        ).toEqual(true);
+    });
+
+    test("access policy revocation doesn\u2019t remove access when parent access remains", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const parentTask = await TestTask.create(session1);
+        const childTask = await TestTask.create(session1, {parent: parentTask});
+
+        await parentTask.access.grant(session1, session2, "View");
+        await childTask.access.grant(session1, session2, "View");
+        await childTask.access.revoke(session1, session2);
+
+        await expect(
+            authorizeTaskAccess(session2.action(), childTask.id, "View"),
+        ).resolves.not.toThrow();
+        expect(
+            (await authorizeTaskAccessIfPossible(session2.action(), childTask.id, "View"))?.ok,
+        ).toEqual(true);
+    });
+
+    test("revoking parent access policy removes access to child task", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const parentTask = await TestTask.create(session2);
+        const childTask = await TestTask.create(session2, {parent: parentTask});
+
+        await parentTask.access.grant(session2, session1, "View");
+
+        await expect(
+            authorizeTaskAccess(session1.action(), childTask.id, "View"),
+        ).resolves.not.toThrow();
+
+        await parentTask.access.revoke(session2, session1);
+
+        await expect(authorizeTaskAccess(session1.action(), childTask.id, "View")).rejects.toThrow(
+            PermissionDeniedError,
+        );
+
+        expect(
+            (await authorizeTaskAccessIfPossible(session1.action(), childTask.id, "View"))?.ok,
+        ).toEqual(false);
+    });
+
+    test("task creator can remove their own access", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        const task = await TestTask.create(session1);
+
+        await task.access.grant(session1, session2, "Manage");
+        await task.access.revoke(session1, session1);
+
+        await expect(authorizeTaskAccess(session1.action(), task.id, "View")).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        await expect(
+            authorizeTaskAccess(session2.action(), task.id, "View"),
+        ).resolves.not.toThrow();
+    });
+});

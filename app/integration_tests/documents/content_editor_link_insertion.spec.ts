@@ -8,7 +8,7 @@ import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_po
 import {createPost} from "~/server/forum/data/create_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";

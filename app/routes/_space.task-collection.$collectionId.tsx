@@ -26,11 +26,9 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
+import {authorizeTaskCollectionAccess} from "~/server/tasks/data/authorization/authorize_task_collection_access.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
-import {
-    authorizeTaskCollectionAccess,
-    commitTaskActionTransaction,
-} from "~/server/tasks/data/task_table.js";
 import {isThemeColor} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

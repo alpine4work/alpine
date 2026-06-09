@@ -7,7 +7,7 @@ import {
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {dangerouslyGetSiteAccessPolicyWithoutAuthorization} from "~/server/sites/data/dangerously_get_site_access_policy_without_authorization.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";

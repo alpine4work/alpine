@@ -9,7 +9,7 @@ ts_project(
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
     ],
     tests = {
         "search_entity_actions_test": {"size": "medium"},

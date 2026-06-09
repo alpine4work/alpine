@@ -3,8 +3,8 @@ import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screensho
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";

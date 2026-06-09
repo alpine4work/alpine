@@ -17,8 +17,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,

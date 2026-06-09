@@ -3,12 +3,10 @@ import {captureAfterTestEndsCallbacks} from "~/server/dynamo/test_helpers/after_
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {
-    authorizeTaskCollectionAccess,
-    authorizeTaskCollectionAccessIfPossible,
-} from "~/server/tasks/data/task_table.js";
+import {authorizeTaskCollectionAccess} from "~/server/tasks/data/authorization/authorize_task_collection_access.js";
+import {authorizeTaskCollectionAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_access_if_possible.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {NotFoundError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";

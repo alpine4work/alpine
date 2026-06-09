@@ -1,7 +1,7 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 
 const {context, services} = createTestServices();

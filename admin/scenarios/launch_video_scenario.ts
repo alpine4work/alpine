@@ -21,7 +21,7 @@ import {
     favoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_actions.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {MockAgentRecordingAction} from "~/shared/agents/mock_agent_recording.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";

@@ -29,8 +29,8 @@ import {notificationsInjection} from "~/server/notifications/data/notifications_
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
-import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/router/task_realtime_service_local_router.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {

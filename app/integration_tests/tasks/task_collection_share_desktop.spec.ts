@@ -7,9 +7,9 @@ import {
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

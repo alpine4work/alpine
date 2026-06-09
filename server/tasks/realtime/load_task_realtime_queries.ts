@@ -4,6 +4,9 @@ import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js"
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {authorizeTaskCollectionIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_index_doc_access_if_possible.js";
+import {authorizeTaskIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_index_doc_access_if_possible.js";
+import {getTaskGridViewExpansionState} from "~/server/tasks/data/get_task_grid_view_expansion_state.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
@@ -12,11 +15,6 @@ import {
     TaskRealtimeActionContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
-import {
-    authorizeTaskCollectionIndexDocAccessIfPossible,
-    authorizeTaskIndexDocAccessIfPossible,
-    getTaskGridViewExpansionState,
-} from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";

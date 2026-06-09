@@ -6,7 +6,7 @@ import {expensiveScanEveryPostCommentForMigration} from "~/server/forum/data/exp
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {scheduleIndexSearchEntityEmbeddingChunksJob} from "~/server/search/data/table/search_entity_actions.js";
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/expensive_scan_every_space_account_for_migration.js";
-import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";
+import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/migrations/expensive_scan_every_task_and_task_collection_for_migration.js";
 import {Context} from "~/shared/context/context.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

@@ -7,7 +7,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {authorizeTaskAccess} from "~/server/tasks/data/task_table.js";
+import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
 import {
     ContentDuplicationVariableValues,
     decodeContentDuplicationVariableSchemaFromUrl,

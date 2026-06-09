@@ -5,8 +5,8 @@ import {scalableDemoWideViewport} from "~/admin/marketing/2026_04_scalable_demos
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {addSearchAffinityEntityPointsForTest} from "~/server/search/data/table/search_entity_actions.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";

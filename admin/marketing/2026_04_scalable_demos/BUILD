@@ -36,7 +36,7 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/helpers/node",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//server/tokens",
         "//shared/design",
         "//shared/error",

@@ -4,12 +4,12 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {getTaskNotesContent} from "~/server/tasks/data/get_task_notes_content.js";
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,
 } from "~/server/tasks/data/task_index.js";
-import {getTaskNotesContent} from "~/server/tasks/data/task_table.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";

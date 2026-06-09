@@ -4,9 +4,9 @@ import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboar
 import {expectTaskRowViewPriority} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
-import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";

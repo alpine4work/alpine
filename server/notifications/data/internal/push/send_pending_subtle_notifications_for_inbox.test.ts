@@ -21,7 +21,7 @@ import {addSearchAffinityEntityPointsForTest} from "~/server/search/data/table/s
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";

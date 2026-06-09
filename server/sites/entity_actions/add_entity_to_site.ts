@@ -6,7 +6,7 @@ import {
 } from "~/server/context/server_action_context.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

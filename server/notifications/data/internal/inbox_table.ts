@@ -32,7 +32,8 @@ import {
 } from "~/server/rynamo/rynamo_table_schema.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
-import {getTaskCommentPayload, getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
+import {getTaskCommentPayload} from "~/server/tasks/data/get_task_comment_payload.js";
+import {getTaskOwnerIfPossible} from "~/server/tasks/data/get_task_owner_if_possible.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     MessageContent,

@@ -1,10 +1,10 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -107,7 +107,7 @@ async function testQuery(
     if (normalizedFiltersResult.type === "Impossible") return [];
     const {normalizedFilters} = normalizedFiltersResult;
 
-    return testQueryWithNormalizedFilters(space, normalizedFilters);
+    return await testQueryWithNormalizedFilters(space, normalizedFilters);
 }
 
 async function testQueryWithNormalizedFilters(

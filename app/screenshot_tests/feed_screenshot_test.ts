@@ -10,8 +10,8 @@ import {
 } from "~/server/search/data/table/search_entity_actions.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

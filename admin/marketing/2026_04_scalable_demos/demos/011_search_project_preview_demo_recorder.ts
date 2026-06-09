@@ -5,8 +5,8 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {addSearchAffinityEntityPointsForTest} from "~/server/search/data/table/search_entity_actions.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 

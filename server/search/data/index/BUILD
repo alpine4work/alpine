@@ -14,7 +14,7 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/spaces/test_helpers",
         "//shared/test_helpers",
     ],

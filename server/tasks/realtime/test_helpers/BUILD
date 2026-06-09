@@ -10,7 +10,7 @@ ts_project(
         "//server/spaces/test_helpers",
         "//server/tasks/data",
         "//server/tasks/realtime:realtime_lib",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/context",
         "//shared/helpers",
         "//shared/id",

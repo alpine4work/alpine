@@ -11,7 +11,7 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {
     AccessLevel,
     AccessPolicy,

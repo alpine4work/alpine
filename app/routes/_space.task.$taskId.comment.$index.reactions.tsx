@@ -9,7 +9,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {getTaskCommentPayload} from "~/server/tasks/data/task_table.js";
+import {getTaskCommentPayload} from "~/server/tasks/data/get_task_comment_payload.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";

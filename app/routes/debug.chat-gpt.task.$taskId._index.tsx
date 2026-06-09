@@ -5,7 +5,7 @@ import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {loadChatGptConversationItems} from "~/server/debug/chat_gpt/load_chat_gpt_conversation_items.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {authorizeTaskAccess} from "~/server/tasks/data/task_table.js";
+import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
 import {ChatGptConversationItemSchema} from "~/shared/debug/chat_gpt/chat_gpt_conversation_item.js";
 import {Schema} from "~/shared/schema/schema.js";
 

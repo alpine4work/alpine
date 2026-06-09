@@ -8,7 +8,7 @@ import {getDocumentContent} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";

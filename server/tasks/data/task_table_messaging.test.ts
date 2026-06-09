@@ -3,31 +3,29 @@ import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {
-    FileTaskAuthorizer,
-    authorizeTaskAccess,
-    backfillTaskComments,
-    completeTaskCommentStream,
-    createTaskComment,
-    deleteTaskComment,
-    deleteTaskCommentReaction,
-    getTaskComment,
-    getTaskCommentParentContent,
-    getTaskCommentPayload,
-    getTaskCommentPayloadsFromEnd,
-    getTaskCommentPayloadsFromStart,
-    getTaskCommentsFromEnd,
-    getTaskCommentsFromStart,
-    getTaskCommentsSummaryItemIfExistsForTest,
-    getTaskItemForTest,
-    pingTaskCommentStream,
-    putTaskCommentStreamPart,
-    setTaskCommentReaction,
-    updateTaskCommentContent,
-} from "~/server/tasks/data/task_table.js";
+import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
+import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
+import {backfillTaskComments} from "~/server/tasks/data/backfill_task_comments.js";
+import {completeTaskCommentStream} from "~/server/tasks/data/complete_task_comment_stream.js";
+import {createTaskComment} from "~/server/tasks/data/create_task_comment.js";
+import {deleteTaskComment} from "~/server/tasks/data/delete_task_comment.js";
+import {deleteTaskCommentReaction} from "~/server/tasks/data/delete_task_comment_reaction.js";
+import {getTaskComment} from "~/server/tasks/data/get_task_comment.js";
+import {getTaskCommentParentContent} from "~/server/tasks/data/get_task_comment_parent_content.js";
+import {getTaskCommentPayload} from "~/server/tasks/data/get_task_comment_payload.js";
+import {getTaskCommentPayloadsFromEnd} from "~/server/tasks/data/get_task_comment_payloads_from_end.js";
+import {getTaskCommentPayloadsFromStart} from "~/server/tasks/data/get_task_comment_payloads_from_start.js";
+import {getTaskCommentsFromEnd} from "~/server/tasks/data/get_task_comments_from_end.js";
+import {getTaskCommentsFromStart} from "~/server/tasks/data/get_task_comments_from_start.js";
+import {pingTaskCommentStream} from "~/server/tasks/data/ping_task_comment_stream.js";
+import {putTaskCommentStreamPart} from "~/server/tasks/data/put_task_comment_stream_part.js";
+import {setTaskCommentReaction} from "~/server/tasks/data/set_task_comment_reaction.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {getTaskCommentsSummaryItemIfExistsForTest} from "~/server/tasks/data/test_helpers/get_task_comments_summary_item_if_exists_for_test.js";
+import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {updateTaskCommentContent} from "~/server/tasks/data/update_task_comment_content.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";

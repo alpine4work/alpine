@@ -7,10 +7,10 @@ import {
     testMessagingRealtimeImplementationSearchInjection,
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {

@@ -12,7 +12,7 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/data",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
     ],
     visibility = [
         "//admin/crawl:__pkg__",

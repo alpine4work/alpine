@@ -77,8 +77,8 @@ import {
     TestUnknownActionContext,
 } from "~/server/spaces/test_helpers/test_context.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
-import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/router/task_realtime_service_local_router.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";

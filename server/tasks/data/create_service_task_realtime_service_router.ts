@@ -1,5 +1,5 @@
-import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
-import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
+import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/router/task_realtime_service_ecs_router.js";
+import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/router/task_realtime_service_local_router.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export const serviceTaskRealtimeServiceRouterOptions = {

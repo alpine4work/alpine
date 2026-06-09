@@ -1,5 +1,5 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {fromApiThemeColor} from "~/shared/api/content/from_api_theme_color.js";
 import {intoApiThemeColor} from "~/shared/api/content/into_api_theme_color.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";

@@ -13,7 +13,7 @@ import {
 } from "~/server/notifications/data/authorize_inbox_access_for_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";

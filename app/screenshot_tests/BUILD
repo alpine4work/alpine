@@ -43,7 +43,7 @@ ts_project(
         "//server/sites/test_helpers",
         "//server/spaces/create",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//server/tokens",
         "//shared/accounts",
         "//shared/avatar/protocol",

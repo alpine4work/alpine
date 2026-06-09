@@ -9,7 +9,7 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/forum/test_helpers",
         "//server/sites/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
     ],
     tests = {
         "feed_actions_test": {"size": "medium"},

@@ -2,12 +2,10 @@ import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {
-    TaskCollectionEssentialAttributesItem,
-    commitTaskActionTransaction,
-    getTaskCollectionItemForTest,
-} from "~/server/tasks/data/task_table.js";
-import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
+import {TaskCollectionEssentialAttributesItem} from "~/server/tasks/data/internal/task_table.js";
+import {getTaskCollectionItemForTest} from "~/server/tasks/data/test_helpers/get_task_collection_item_for_test.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";

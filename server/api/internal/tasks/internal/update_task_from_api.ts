@@ -1,7 +1,7 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

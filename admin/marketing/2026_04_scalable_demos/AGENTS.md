@@ -362,7 +362,7 @@ Reference implementation:
 ### Tasks
 
 ```ts
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {CalendarDate} from "@internationalized/date";
 
 const parent = await TestTask.create(accounts.cassCade, {title: "Q2 launch"});
@@ -400,7 +400,7 @@ Use `runAllPromises([...])` when creating siblings in bulk (see demo 003).
 ```ts
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 const notesSchema = TaskNotesContentProsemirrorSchema;

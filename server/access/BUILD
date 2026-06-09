@@ -11,7 +11,7 @@ ts_project(
         "//server/forum/data",
         "//server/forum/test_helpers",
         "//server/tasks/data",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
     ],
     tests = {
         "evaluate_access_policy_test": {"size": "medium"},

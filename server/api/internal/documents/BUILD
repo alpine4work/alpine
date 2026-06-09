@@ -9,7 +9,7 @@ ts_project(
         "//server/bots/test_helpers",
         "//server/chat/data",
         "//server/documents/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
     ],

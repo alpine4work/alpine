@@ -10,7 +10,7 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//server/tasks/realtime/test_helpers",
     ],
     tests = {"api_tasks_paths_test": {"size": "medium"}},

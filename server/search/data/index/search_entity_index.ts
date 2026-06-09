@@ -124,10 +124,8 @@ import {getSpaceAccountSettings} from "~/server/spaces/get_space_account_setting
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {spaceWelcomePackageSearchEntityMaxCount} from "~/server/spaces/space_welcome_package_search_entity_max_count.js";
-import {
-    getTaskCollectionSearchResultBodyTextSnippetIfPossible,
-    getTaskCollectionSearchResultIfPossible,
-} from "~/server/tasks/data/task_table.js";
+import {getTaskCollectionSearchResultBodyTextSnippetIfPossible} from "~/server/tasks/data/get_task_collection_search_result_body_text_snippet_if_possible.js";
+import {getTaskCollectionSearchResultIfPossible} from "~/server/tasks/data/get_task_collection_search_result_if_possible.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
     AccessPolicyAccountGrantWithoutGeneration,

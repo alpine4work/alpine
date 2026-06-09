@@ -8,7 +8,10 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/client-ec2",
+        "//:node_modules/@aws-sdk/client-ecs",
         "//:node_modules/murmurhash",
+        "//server/context",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

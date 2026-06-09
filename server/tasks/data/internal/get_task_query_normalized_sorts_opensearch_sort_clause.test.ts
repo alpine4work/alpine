@@ -2,13 +2,13 @@ import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import createJsonBigInt from "json-bigint";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
     convertTaskQuerySortCursorToOpensearchCursor,
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
-import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -64,7 +64,7 @@ async function testQuery(
     sorts: Array<TaskQuerySort>,
 ): Promise<Array<TaskId>> {
     const normalizedSorts = normalizeTaskQuerySorts(sorts);
-    return testQueryWithNormalizedSorts(space, normalizedSorts);
+    return await testQueryWithNormalizedSorts(space, normalizedSorts);
 }
 
 async function testQueryWithNormalizedSorts(
