@@ -32,9 +32,9 @@ const AgentWebChatPagePreambleArbitrary = createUnionArbitrary<AgentWebChatPageP
 
 const AgentWebChatPageArbitrary: Arbitrary<AgentWebChatPage> = fc.record({
     type: fc.constant("Chat"),
-    ...createAgentWebMessagingPageArbitrary<AgentWebChatPagePreamble>(
-        AgentWebChatPagePreambleArbitrary,
-    ),
+    ...createAgentWebMessagingPageArbitrary<AgentWebChatPagePreamble>({
+        preambleArbitrary: AgentWebChatPagePreambleArbitrary,
+    }),
 });
 
 runAgentWebPageGenerativeTests({

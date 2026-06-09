@@ -65,7 +65,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 
-export type AgentWebChatPage = AgentWebMessagingPage<AgentWebChatPagePreamble> & {
+export type AgentWebChatPage = AgentWebMessagingPage<AgentWebChatPagePreamble, never> & {
     readonly type: "Chat";
 };
 
@@ -89,7 +89,7 @@ export type AgentWebChatPageMetadata = AgentWebMessagingPageMetadata & {
 };
 
 function buildAgentWebChatPage(
-    page: AgentWebMessagingPageWithMetadata<AgentWebChatPagePreamble>,
+    page: AgentWebMessagingPageWithMetadata<AgentWebChatPagePreamble, never>,
     id: ChatId,
 ): AgentWebChatPageWithMetadata {
     return {
@@ -168,6 +168,7 @@ async function getChatRoomMetadata(
 ): Promise<{
     pageLink: ApiChatReferenceResponse;
     preamble: AgentWebChatPagePreamble;
+    startCustomBlock: null;
 }> {
     const {
         data: {chat},
@@ -178,13 +179,14 @@ async function getChatRoomMetadata(
     switch (chat.type) {
         case "Direct": {
             return {
-                pageLink: {type: "Chat", id, title: chat.title},
+                pageLink: {type: "Chat", id, title: chat.reference.title},
                 preamble: {
                     type: "Direct",
                     members: assertNonEmptyReadonlyArray(
                         chat.members.map(member => intoApiAccountReference(member.account)),
                     ),
                 },
+                startCustomBlock: null,
             };
         }
         case "Room": {
@@ -194,6 +196,7 @@ async function getChatRoomMetadata(
                     type: "Room",
                     name: chat.name,
                 },
+                startCustomBlock: null,
             };
         }
         default:
@@ -416,6 +419,7 @@ export function normalizeAgentWebChatPage<Page extends AgentWebChatPage>(page: P
                     throw exhaustive(preamble);
             }
         },
+        normalizeCustomBlock: () => {},
     });
 }
 
@@ -486,6 +490,10 @@ export async function printAgentWebChatPage(
                 default:
                     throw exhaustive(preamble);
             }
+        },
+        printCustomBlock: async (storage, block) => {
+            // This type checks because `block` is `never`.
+            throw exhaustive(block);
         },
     });
 }
@@ -638,6 +646,7 @@ export async function parseAgentWebChatPage(
 
             return {type: "Direct", members: assertNonEmptyReadonlyArray(members)};
         },
+        parseCustomBlockByTagName: {},
     });
 
     return {...page, type: "Chat"};

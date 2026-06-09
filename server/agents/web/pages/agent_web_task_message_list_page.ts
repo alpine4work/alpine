@@ -25,13 +25,16 @@ import {normalizeApiReference} from "~/shared/api/markdown/normalize_api_content
 import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
-export type AgentWebTaskMessageListPage =
-    AgentWebMessagingPage<AgentWebTaskMessageListPagePreamble> & {
-        readonly type: "TaskMessageList";
-    };
+export type AgentWebTaskMessageListPage = AgentWebMessagingPage<
+    AgentWebTaskMessageListPagePreamble,
+    never
+> & {
+    readonly type: "TaskMessageList";
+};
 
 export type AgentWebTaskMessageListPagePreamble = {
     readonly task: ApiTaskReferenceResponse;
@@ -47,7 +50,7 @@ export type AgentWebTaskMessageListPageMetadata = AgentWebMessagingPageMetadata 
 };
 
 function buildAgentWebTaskMessageListPage(
-    page: AgentWebMessagingPageWithMetadata<AgentWebTaskMessageListPagePreamble>,
+    page: AgentWebMessagingPageWithMetadata<AgentWebTaskMessageListPagePreamble, never>,
     id: TaskId,
 ): AgentWebTaskMessageListPageWithMetadata {
     return {
@@ -126,6 +129,7 @@ async function getTaskRoomMetadata(
 ): Promise<{
     pageLink: Extract<AgentWebPageRoutedLink, {type: "TaskMessageList"}>;
     preamble: AgentWebTaskMessageListPagePreamble;
+    startCustomBlock: null;
 }> {
     const {
         data: {reference},
@@ -139,6 +143,7 @@ async function getTaskRoomMetadata(
             task: reference,
         },
         preamble: {task: reference},
+        startCustomBlock: null,
     };
 }
 
@@ -149,6 +154,7 @@ export function normalizeAgentWebTaskMessageListPage<Page extends AgentWebTaskMe
         normalizePreamble: (normalizer, preamble) => {
             normalizer.normalizeReference(preamble.task);
         },
+        normalizeCustomBlock: () => {},
     });
 }
 
@@ -202,6 +208,10 @@ export async function printAgentWebTaskMessageListPage(
                     },
                 ],
             });
+        },
+        printCustomBlock: async (storage, block) => {
+            // This type checks because `block` is `never`.
+            throw exhaustive(block);
         },
     });
 }
@@ -259,6 +269,7 @@ export async function parseAgentWebTaskMessageListPage(
 
             return {task: secondElement.reference};
         },
+        parseCustomBlockByTagName: {},
     });
 
     return {...page, type: "TaskMessageList"};
