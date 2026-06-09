@@ -740,6 +740,28 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetPost"}
 
+    /posts/{id}/preview:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, post]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    post:
+                                        $ref: "#/components/schemas/PostPreview"
+
     /posts/{id}/reference:
         parameters:
             - name: id
@@ -2612,6 +2634,39 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
+                # TODO(#public-api): Document how this is the same as the chat's `title` when
+                # displayed as a mention.
+                reference:
+                    type: object
+                    required: [title]
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
+
+        # TODO(calebmer, #public-api): The intent here is that a `/channels/{id}/posts`
+        # endpoint would return this object insted of a `Post`. We need a
+        # `contentSnippet` on this object then you'll have a small post with a "read
+        # more" link.
+        PostPreview:
+            type: object
+            # `channel` is intentionally optional since we may allow users to create posts
+            # that aren't in a channel in the future.
+            required: [id, author, createdTime, createdTimeZone, reference]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                # For any useful rendering of a post, you need the author's name. Which is why
+                # we include more than just the `AccountId`.
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
                 # TODO(#public-api): Document how this is the same as the chat's `title` when
                 # displayed as a mention.
                 reference:

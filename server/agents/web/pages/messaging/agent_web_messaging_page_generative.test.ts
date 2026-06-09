@@ -78,17 +78,14 @@ runAgentWebPageGenerativeTests({
                 return {elements: actualElements};
             },
             parseCustomBlockByTagName: {
-                custom: async (storage, root) => {
-                    assert(root.children[0]?.type === "html");
-                    assert(root.children[0].value === "<custom>");
+                custom: async (storage, root, {openTag, closeTag}) => {
+                    assert(openTag === "<custom>");
+                    assert(closeTag === "</custom>");
 
-                    assert(root.children[1]?.type === "paragraph");
-                    assert(root.children[1].children[0]?.type === "text");
+                    assert(root.children[0]?.type === "paragraph");
+                    assert(root.children[0].children[0]?.type === "text");
 
-                    assert(root.children[2]?.type === "html");
-                    assert(root.children[2].value === "</custom>");
-
-                    return {type: "Custom", text: root.children[1].children[0].value};
+                    return {type: "Custom", text: root.children[0].children[0].value};
                 },
             },
         }),

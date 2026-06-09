@@ -801,6 +801,31 @@ paths:
                     $ref: "#/components/responses/GetPost"
                 default:
                     $ref: "#/components/responses/Error"
+    /posts/{id}/preview:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/PostId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - post
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    post:
+                                        $ref: "#/components/schemas/PostPreview"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts/{id}/reference:
         parameters:
             - name: id
@@ -2894,6 +2919,34 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
+                reference:
+                    type: object
+                    required:
+                        - title
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
+        PostPreview:
+            type: object
+            required:
+                - id
+                - author
+                - createdTime
+                - createdTimeZone
+                - reference
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
                 reference:
                     type: object
                     required:
