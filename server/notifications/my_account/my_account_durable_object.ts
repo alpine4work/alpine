@@ -124,10 +124,11 @@ class MyAccountDurableObject {
                 // `EdgeService` service.
                 if (
                     context.actor.serviceName !== "AppService" &&
-                    context.actor.serviceName !== "JobQueueService"
+                    context.actor.serviceName !== "JobQueueService" &&
+                    context.actor.serviceName !== "ApiService"
                 ) {
                     throw new PermissionDeniedError(
-                        "Only `AppService` or `JobQueueService` can broadcast realtime event transactions",
+                        "Only some services can broadcast realtime event transactions",
                     );
                 }
 
