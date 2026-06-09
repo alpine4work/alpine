@@ -42,7 +42,7 @@ export const agentWebMessagingPageApiMessagesBatchCount = 30;
 
 export async function readAgentWebMessagingPage<
     Preamble,
-    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
 >(
     context: AgentWebContext,
     {
@@ -359,7 +359,7 @@ export function getReadAgentWebMessagingPageAroundMessageStartCursor(
 
 export async function readAgentWebMessagingPageAroundMessage<
     Preamble,
-    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
 >(
     context: AgentWebContext,
     {

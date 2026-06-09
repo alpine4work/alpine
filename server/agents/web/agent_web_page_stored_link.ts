@@ -115,7 +115,7 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
 
     switch (link.type) {
         case "Account": {
-            if (link.botId) {
+            if (link.bot) {
                 return `/bot/${slugify(link.title)}${dedupe}`;
             } else {
                 return `/human/${slugify(link.title)}${dedupe}`;
