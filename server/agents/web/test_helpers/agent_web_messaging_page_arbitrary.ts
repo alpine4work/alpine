@@ -2,6 +2,7 @@ import fc, {Arbitrary} from "fast-check";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
+    AgentWebMessagingPageCustomBlockBase,
     AgentWebMessagingPageMessageBlock,
     AgentWebMessagingPagePagination,
     AgentWebMessagingPagePaginationPageLink,
@@ -99,11 +100,31 @@ const AgentWebMessagingPagePaginationArbitrary: Arbitrary<AgentWebMessagingPageP
         }),
     );
 
-export function createAgentWebMessagingPageArbitrary<Preamble>(
-    preambleArbitrary: Arbitrary<Preamble>,
-): {
-    [Key in keyof AgentWebMessagingPage<Preamble>]: Arbitrary<AgentWebMessagingPage<Preamble>[Key]>;
+export function createAgentWebMessagingPageArbitrary<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase = never,
+>({
+    preambleArbitrary,
+    customBlockArbitrary,
+}: {
+    preambleArbitrary: Arbitrary<Preamble>;
+    customBlockArbitrary?: Arbitrary<CustomBlock>;
+}): {
+    [Key in keyof AgentWebMessagingPage<Preamble, CustomBlock>]: Arbitrary<
+        AgentWebMessagingPage<Preamble, CustomBlock>[Key]
+    >;
 } {
+    let blockArbitrary = AgentWebMessagingPageBlockArbitrary as Arbitrary<
+        AgentWebMessagingPageBlock<CustomBlock>
+    >;
+
+    if (customBlockArbitrary) {
+        blockArbitrary = fc.oneof(
+            {weight: 10, arbitrary: blockArbitrary},
+            {weight: 1, arbitrary: customBlockArbitrary},
+        );
+    }
+
     return {
         preamble: preambleArbitrary,
         pagination: fc.oneof(
@@ -111,6 +132,6 @@ export function createAgentWebMessagingPageArbitrary<Preamble>(
             {weight: 1, arbitrary: AgentWebMessagingPagePaginationArbitrary},
         ),
         isEndOfMessages: fc.boolean(),
-        blocks: fc.array(AgentWebMessagingPageBlockArbitrary),
+        blocks: fc.array(blockArbitrary),
     };
 }

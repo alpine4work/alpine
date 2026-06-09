@@ -8,6 +8,11 @@ export type ApiAccountReference = ApiSpecification.components["schemas"]["Accoun
 export type ApiAccountReferenceResponse =
     ApiSpecification.components["schemas"]["AccountReference_Response"];
 
+export type ApiChannelReference = ApiSpecification.components["schemas"]["ChannelReference"];
+
+export type ApiChannelReferenceResponse =
+    ApiSpecification.components["schemas"]["ChannelReference_Response"];
+
 export type ApiChatReference = ApiSpecification.components["schemas"]["ChatReference"];
 
 export type ApiChatReferenceResponse =

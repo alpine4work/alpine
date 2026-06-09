@@ -160,7 +160,7 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
 }
 
 function slugify(string: string) {
-    string = convertToUrlPathnameSlug(string, {limitLength: 50});
+    string = convertToUrlPathnameSlug(string, "-", {limitLength: 50});
 
     if (string.length === 0) {
         string = "unknown";

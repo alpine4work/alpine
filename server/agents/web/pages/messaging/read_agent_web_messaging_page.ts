@@ -541,26 +541,24 @@ function buildAgentWebMessagingPageFromApiMessages<
     const continueBlockBeforeMinutesSinceLastMessage = 5;
     const insertTimeBlockAfterMinutesSinceLastMessage = 60;
 
+    if (isStartOfMessages && roomMetadata.startCustomBlock !== null) {
+        const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+            defaultLocale,
+            context.timeZone,
+            contextDate,
+            roomMetadata.startCustomBlock.time,
+            {withLongMonth: true},
+        );
+
+        blocks.push({
+            type: "Time",
+            timeContent: `${formattedTime} ${contextFormattedTimeZone}`,
+        });
+
+        blocks.push(roomMetadata.startCustomBlock.block);
+    }
+
     for (const message of messages) {
-        // If this is the first page of messages then add the start block before anything
-        // else.
-        if (message.index === 0 && roomMetadata.startCustomBlock !== null) {
-            const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
-                defaultLocale,
-                context.timeZone,
-                contextDate,
-                roomMetadata.startCustomBlock.time,
-                {withLongMonth: true},
-            );
-
-            blocks.push({
-                type: "Time",
-                timeContent: `${formattedTime} ${contextFormattedTimeZone}`,
-            });
-
-            blocks.push(roomMetadata.startCustomBlock.block);
-        }
-
         const createdTime = deserializeDateString(message.createdTime);
         const formattedTimeZone = formatTimeZoneAbbreviation(message.createdTimeZone, createdTime);
 
