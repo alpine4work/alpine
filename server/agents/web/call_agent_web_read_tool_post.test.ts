@@ -700,3 +700,33 @@ Long post paragraph 8 detail detail detail detail detail detail detail detail.
 
 (Page truncated, 186b remaining. Showing lines 13-24 of 37. Use \`offset\` of 24 to continue.)`);
 });
+
+test("before way after message range still able to load the post if there aren't many messages", async () => {
+    mockGetPostPreview();
+    mockGetPost();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        from: "End",
+        cursor: 100,
+        totalMessageCount: 5,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author, content: `Test comment ${index}`}),
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/post/launch?before=100", limit: "20kb"}))
+        .toEqual(`\
+Post and comments in [Announcements](/channel/announcements).
+
+<time>May 14th at 11:00am EDT</time>
+
+<post from="[Alice](/human/alice)">\n\nPost body.\n\n</post>\n
+<comment id="0" from="[Alice](/human/alice)">\n\nTest comment 0\n\n</comment>\n
+<comment id="1" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest comment 1\n\n</comment>\n
+<comment id="2" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest comment 2\n\n</comment>\n
+<comment id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest comment 3\n\n</comment>\n
+<comment id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest comment 4\n\n</comment>
+
+End of comments.`);
+});

@@ -15,11 +15,15 @@ import {assert} from "~/shared/helpers/control/assert.js";
 
 type TestCustomBlock = {
     readonly type: "Custom";
+    readonly tagName: "custom";
+    readonly timeAttribute: null;
     readonly text: string;
 };
 
 const TestCustomBlockArbitrary = fc.record({
     type: fc.constant("Custom" as const),
+    tagName: fc.constant("custom"),
+    timeAttribute: fc.constant(null),
     text: fc.oneof(fc.constant("foo"), fc.constant("bar"), fc.constant("qux")),
 });
 
@@ -85,7 +89,12 @@ runAgentWebPageGenerativeTests({
                     assert(root.children[0]?.type === "paragraph");
                     assert(root.children[0].children[0]?.type === "text");
 
-                    return {type: "Custom", text: root.children[0].children[0].value};
+                    return {
+                        type: "Custom",
+                        tagName: "custom" as const,
+                        timeAttribute: null,
+                        text: root.children[0].children[0].value,
+                    };
                 },
             },
         }),

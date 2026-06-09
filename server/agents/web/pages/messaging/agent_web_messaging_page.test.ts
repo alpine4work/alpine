@@ -33,6 +33,8 @@ const duplicateFileId = generateChronologicalId<FileId>();
 
 type TestCustomBlock = {
     readonly type: "Custom";
+    readonly tagName: "custom";
+    readonly timeAttribute: null;
     readonly text: string;
 };
 
@@ -133,7 +135,12 @@ runAgentWebPageTests<
                     assert(root.children[0]?.type === "paragraph");
                     assert(root.children[0].children[0]?.type === "text");
 
-                    return {type: "Custom", text: root.children[0].children[0].value};
+                    return {
+                        type: "Custom",
+                        tagName: "custom" as const,
+                        timeAttribute: null,
+                        text: root.children[0].children[0].value,
+                    };
                 },
             },
         }),
@@ -207,6 +214,8 @@ Hello there.
                     },
                     {
                         type: "Custom",
+                        tagName: "custom" as const,
+                        timeAttribute: null,
                         text: "foo",
                     },
                     {
@@ -1279,7 +1288,12 @@ describe("parse custom block HTML nodes", () => {
                             children: root.children.map(removePositionFromRootContent),
                         });
 
-                        return {type: "Custom", text: "custom"};
+                        return {
+                            type: "Custom",
+                            tagName: "custom" as const,
+                            timeAttribute: null,
+                            text: "custom",
+                        };
                     },
                 },
             },

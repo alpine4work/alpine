@@ -1,6 +1,6 @@
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
-import {Html, Link, Node, Root} from "mdast";
+import {Html, Link, Root} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
@@ -36,13 +36,13 @@ import {
     ApiAccountReferenceResponse,
     ApiChannelReferenceResponse,
     ApiContentResponse,
-    ApiPostResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {PostId} from "~/shared/id/types/id_types.js";
@@ -113,65 +113,55 @@ export async function readAgentWebPostPage(
         searchParams,
     });
 
-    let fullPostPromise: Promise<ApiPostResponse> | null = null;
-
-    const loadFullPost = () => {
-        fullPostPromise ??= (async () => {
-            const {
-                data: {post},
-            } = await context.api.get(context.span, "/posts/{id}", {params: {path: {id}}});
-
-            return post;
-        })();
-
-        return fullPostPromise;
-    };
-
-    const loadRoomMetadata = async (): Promise<{
+    type RoomMetadata = {
         pageLink: AgentWebMessagingPagePaginationPageLink;
         preamble: AgentWebPostPagePreamble;
         startCustomBlock: {
             time: Date;
             block: AgentWebPostPageCustomBlock;
         } | null;
-    }> => {
-        if (fullPostPromise !== null) {
-            const post = await fullPostPromise;
+    };
 
-            const postCreatedTime = deserializeDateString(post.createdTime);
+    const roomMetadataWithStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
+        const {
+            data: {post},
+        } = await context.api.get(context.span, "/posts/{id}", {params: {path: {id}}});
 
-            return {
-                pageLink: {
-                    type: "Post",
-                    id,
-                    title: post.reference.title,
-                },
-                preamble: {
-                    channel: post.channel
-                        ? {
-                              type: "Channel",
-                              id: post.channel.id,
-                              title: post.channel.name,
-                          }
-                        : null,
-                },
-                startCustomBlock: {
-                    time: postCreatedTime,
-                    block: {
-                        type: "Custom",
-                        tagName: "post",
-                        author: intoApiAccountReference(post.author),
-                        timeAttribute: null,
-                        timeZoneAttribute:
-                            post.createdTimeZone !== context.timeZone
-                                ? formatTimeZoneAbbreviation(post.createdTimeZone, postCreatedTime)
-                                : null,
-                        content: post.content,
-                    },
-                },
-            };
-        }
+        const postCreatedTime = deserializeDateString(post.createdTime);
 
+        return {
+            pageLink: {
+                type: "Post",
+                id,
+                title: post.reference.title,
+            },
+            preamble: {
+                channel: post.channel
+                    ? {
+                          type: "Channel",
+                          id: post.channel.id,
+                          title: post.channel.name,
+                      }
+                    : null,
+            },
+            startCustomBlock: {
+                time: postCreatedTime,
+                block: {
+                    type: "Custom",
+                    tagName: "post",
+                    author: intoApiAccountReference(post.author),
+                    timeAttribute: null,
+                    timeZoneAttribute:
+                        post.createdTimeZone !== context.timeZone
+                            ? formatTimeZoneAbbreviation(post.createdTimeZone, postCreatedTime)
+                            : null,
+                    content: post.content,
+                },
+            },
+        };
+    });
+
+    const roomMetadataWithoutStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
         const {
             data: {post},
         } = await context.api.get(context.span, "/posts/{id}/preview", {
@@ -195,10 +185,12 @@ export async function readAgentWebPostPage(
             },
             startCustomBlock: null,
         };
-    };
+    });
 
     switch (parsedSearchParams.type) {
         case "Direction": {
+            let roomMetadataPromise: Promise<RoomMetadata>;
+
             switch (parsedSearchParams.direction) {
                 case "Start": {
                     if (
@@ -207,7 +199,9 @@ export async function readAgentWebPostPage(
                     ) {
                         // We're at the start of the page, preload the full post because we'll want to try
                         // fitting it into the page.
-                        void loadFullPost();
+                        roomMetadataPromise = roomMetadataWithStartCustomBlock.get();
+                    } else {
+                        roomMetadataPromise = roomMetadataWithoutStartCustomBlock.get();
                     }
                     break;
                 }
@@ -233,7 +227,9 @@ export async function readAgentWebPostPage(
                     ) {
                         // We'll be loading messages up to the first comment. Preload the full post so we
                         // can try fitting it into the page.
-                        void loadFullPost();
+                        roomMetadataPromise = roomMetadataWithStartCustomBlock.get();
+                    } else {
+                        roomMetadataPromise = roomMetadataWithoutStartCustomBlock.get();
                     }
                     break;
                 }
@@ -241,19 +237,37 @@ export async function readAgentWebPostPage(
                     throw exhaustive(parsedSearchParams.direction);
             }
 
-            const {response, metadata} = await readAgentWebMessagingPageInDirection(context, {
-                messageNouns: agentWebMessagingPageCommentNouns,
-                room: {type: "Post", id},
-                roomMetadataPromise: loadRoomMetadata(),
-                direction: parsedSearchParams.direction,
-                startCursor: parsedSearchParams.startCursor,
-                limitLength,
-                printPage: page => printPage(buildAgentWebPostPage(page, id)),
-            });
+            const [, {response, metadata}] = await runAllPromises([
+                roomMetadataPromise,
+                readAgentWebMessagingPageInDirection(context, {
+                    messageNouns: agentWebMessagingPageCommentNouns,
+                    room: {type: "Post", id},
+                    getRoomMetadata: async ({isStartOfMessages}) => {
+                        const roomMetadata = await roomMetadataPromise;
+
+                        // If there is no start custom block loaded but we're at the start of the message
+                        // list, then load the full post so we can include it as a start block. Slightly
+                        // inefficient waterfall, but this case should happen rarely so we're fine with it
+                        // (`End` direction, multiple pagination requests needed, and near the top of the
+                        // message list).
+                        if (!roomMetadata.startCustomBlock && isStartOfMessages) {
+                            return await roomMetadataWithStartCustomBlock.get();
+                        }
+
+                        return roomMetadata;
+                    },
+                    direction: parsedSearchParams.direction,
+                    startCursor: parsedSearchParams.startCursor,
+                    limitLength,
+                    printPage: page => printPage(buildAgentWebPostPage(page, id)),
+                }),
+            ]);
 
             return {response, metadata: {...metadata, type: "Post", id}};
         }
         case "Around": {
+            let roomMetadataPromise: Promise<RoomMetadata>;
+
             // Loads the full post even if we don't need it. The post may be truncated if it
             // doesn't fit within the limit.
             if (
@@ -261,17 +275,35 @@ export async function readAgentWebPostPage(
             ) {
                 // We'll be loading messages up to the first comment. Preload the full post so we
                 // can try fitting it into the page.
-                void loadFullPost();
+                roomMetadataPromise = roomMetadataWithStartCustomBlock.get();
+            } else {
+                roomMetadataPromise = roomMetadataWithoutStartCustomBlock.get();
             }
 
-            const {response, metadata} = await readAgentWebMessagingPageAroundMessage(context, {
-                messageNouns: agentWebMessagingPageCommentNouns,
-                room: {type: "Post", id},
-                roomMetadataPromise: loadRoomMetadata(),
-                around: parsedSearchParams.around,
-                limitLength,
-                printPage: page => printPage(buildAgentWebPostPage(page, id)),
-            });
+            const [, {response, metadata}] = await runAllPromises([
+                roomMetadataPromise,
+                readAgentWebMessagingPageAroundMessage(context, {
+                    messageNouns: agentWebMessagingPageCommentNouns,
+                    room: {type: "Post", id},
+                    getRoomMetadata: async ({isStartOfMessages}) => {
+                        const roomMetadata = await roomMetadataPromise;
+
+                        // If there is no start custom block loaded but we're at the start of the message
+                        // list, then load the full post so we can include it as a start block. Slightly
+                        // inefficient waterfall, but this case should happen rarely so we're fine with it
+                        // (`Around` direction, multiple pagination requests needed, and near the top of
+                        // the message list).
+                        if (!roomMetadata.startCustomBlock && isStartOfMessages) {
+                            return await roomMetadataWithStartCustomBlock.get();
+                        }
+
+                        return roomMetadata;
+                    },
+                    around: parsedSearchParams.around,
+                    limitLength,
+                    printPage: page => printPage(buildAgentWebPostPage(page, id)),
+                }),
+            ]);
 
             return {response, metadata: {...metadata, type: "Post", id}};
         }

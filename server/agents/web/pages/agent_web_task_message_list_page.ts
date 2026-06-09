@@ -25,6 +25,7 @@ import {normalizeApiReference} from "~/shared/api/markdown/normalize_api_content
 import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -80,15 +81,20 @@ export async function readAgentWebTaskMessageListPage(
         printPage: (page: AgentWebTaskMessageListPageWithMetadata) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebTaskMessageListPageMetadata}> {
-    const result = await readAgentWebMessagingPage(context, {
-        messageNouns: agentWebMessagingPageCommentNouns,
-        room: {type: "Task", id},
-        roomMetadataPromise: getTaskRoomMetadata(context, id),
-        defaultDirection: "Start",
-        searchParams,
-        limitLength,
-        printPage: page => printPage(buildAgentWebTaskMessageListPage(page, id)),
-    });
+    const roomMetadataPromise = getTaskRoomMetadata(context, id);
+
+    const [, result] = await runAllPromises([
+        roomMetadataPromise,
+        readAgentWebMessagingPage(context, {
+            messageNouns: agentWebMessagingPageCommentNouns,
+            room: {type: "Task", id},
+            getRoomMetadata: () => roomMetadataPromise,
+            defaultDirection: "Start",
+            searchParams,
+            limitLength,
+            printPage: page => printPage(buildAgentWebTaskMessageListPage(page, id)),
+        }),
+    ]);
 
     return {
         response: result.response,
@@ -108,14 +114,19 @@ export async function readAgentWebTaskMessageListMessagePage(
         printPage: (page: AgentWebTaskMessageListPageWithMetadata) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebTaskMessageListPageMetadata}> {
-    const result = await readAgentWebMessagingPageAroundMessage(context, {
-        messageNouns: agentWebMessagingPageCommentNouns,
-        room: {type: "Task", id},
-        roomMetadataPromise: getTaskRoomMetadata(context, id),
-        around: {startMessageIndex: index, endMessageIndex: index + 1},
-        limitLength,
-        printPage: page => printPage(buildAgentWebTaskMessageListPage(page, id)),
-    });
+    const roomMetadataPromise = getTaskRoomMetadata(context, id);
+
+    const [, result] = await runAllPromises([
+        roomMetadataPromise,
+        readAgentWebMessagingPageAroundMessage(context, {
+            messageNouns: agentWebMessagingPageCommentNouns,
+            room: {type: "Task", id},
+            getRoomMetadata: () => roomMetadataPromise,
+            around: {startMessageIndex: index, endMessageIndex: index + 1},
+            limitLength,
+            printPage: page => printPage(buildAgentWebTaskMessageListPage(page, id)),
+        }),
+    ]);
 
     return {
         response: result.response,

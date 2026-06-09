@@ -48,7 +48,7 @@ export async function readAgentWebMessagingPage<
     {
         messageNouns,
         room,
-        roomMetadataPromise,
+        getRoomMetadata,
         defaultDirection,
         searchParams,
         limitLength,
@@ -56,7 +56,12 @@ export async function readAgentWebMessagingPage<
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomReference;
-        roomMetadataPromise: Promise<{
+        // May be called multiple times! If we need to load more messages because we
+        // haven't filled the limit yet.
+        getRoomMetadata: (options: {
+            isStartOfMessages: boolean;
+            isEndOfMessages: boolean;
+        }) => Promise<{
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
             startCustomBlock: {
@@ -75,9 +80,6 @@ export async function readAgentWebMessagingPage<
     response: string;
     metadata: AgentWebMessagingPageMetadata;
 }> {
-    // Ignore any errors thrown by this promise. Don't crash the process.
-    roomMetadataPromise.catch(() => {});
-
     const parsedSearchParams = parseAgentWebMessagingPageSearchParams({
         messageNouns,
         defaultDirection,
@@ -89,7 +91,7 @@ export async function readAgentWebMessagingPage<
             return await readAgentWebMessagingPageInDirection(context, {
                 messageNouns,
                 room,
-                roomMetadataPromise,
+                getRoomMetadata,
                 direction: parsedSearchParams.direction,
                 startCursor: parsedSearchParams.startCursor,
                 limitLength,
@@ -100,7 +102,7 @@ export async function readAgentWebMessagingPage<
             return await readAgentWebMessagingPageAroundMessage(context, {
                 messageNouns,
                 room,
-                roomMetadataPromise,
+                getRoomMetadata,
                 around: parsedSearchParams.around,
                 limitLength,
                 printPage,
@@ -243,7 +245,7 @@ export async function readAgentWebMessagingPageInDirection<
     {
         messageNouns,
         room,
-        roomMetadataPromise,
+        getRoomMetadata,
         direction,
         startCursor,
         limitLength,
@@ -251,7 +253,12 @@ export async function readAgentWebMessagingPageInDirection<
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomReference;
-        roomMetadataPromise: Promise<{
+        // May be called multiple times! If we need to load more messages because we
+        // haven't filled the limit yet.
+        getRoomMetadata: (options: {
+            isStartOfMessages: boolean;
+            isEndOfMessages: boolean;
+        }) => Promise<{
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
             startCustomBlock: {
@@ -270,9 +277,6 @@ export async function readAgentWebMessagingPageInDirection<
     response: string;
     metadata: AgentWebMessagingPageMetadata;
 }> {
-    // Ignore any errors thrown by this promise. Don't crash the process.
-    roomMetadataPromise.catch(() => {});
-
     let cursor = startCursor;
     let messages: Array<ApiMessageResponse> = [];
 
@@ -299,9 +303,25 @@ export async function readAgentWebMessagingPageInDirection<
             messages = [...currentMessages, ...messages];
         }
 
+        const isStartOfMessages =
+            direction === "End"
+                ? cursor === null
+                : startCursor === null ||
+                  // Edge case where there are 5 messages but cursor is set to something crazy like
+                  // -20.
+                  (messages.length > 0 && messages[0]!.index !== startCursor + 1);
+
+        const isEndOfMessages =
+            direction === "Start"
+                ? cursor === null
+                : startCursor === null ||
+                  // Edge case where there are 5 messages but cursor is set to something crazy
+                  // like 100.
+                  (messages.length > 0 && messages[messages.length - 1]!.index !== startCursor - 1);
+
         // Await the room metadata after we've fetched all our messages. We should have
         // been loading the room metadata in parallel.
-        const roomMetadata = await roomMetadataPromise;
+        const roomMetadata = await getRoomMetadata({isStartOfMessages, isEndOfMessages});
 
         const {contextDate, contextFormattedTimeZone, page} =
             buildAgentWebMessagingPageFromApiMessages(context, {
@@ -309,8 +329,8 @@ export async function readAgentWebMessagingPageInDirection<
                 direction,
                 roomMetadata,
                 messages,
-                isStartOfMessages: direction === "End" ? cursor === null : startCursor === null,
-                isEndOfMessages: direction === "Start" ? cursor === null : startCursor === null,
+                isStartOfMessages,
+                isEndOfMessages,
             });
 
         const response = await printPage(page);
@@ -365,14 +385,19 @@ export async function readAgentWebMessagingPageAroundMessage<
     {
         messageNouns,
         room,
-        roomMetadataPromise,
+        getRoomMetadata,
         around,
         limitLength,
         printPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         room: ApiMessageRoomReference;
-        roomMetadataPromise: Promise<{
+        // May be called multiple times! If we need to load more messages because we
+        // haven't filled the limit yet.
+        getRoomMetadata: (options: {
+            isStartOfMessages: boolean;
+            isEndOfMessages: boolean;
+        }) => Promise<{
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
             startCustomBlock: {
@@ -390,9 +415,6 @@ export async function readAgentWebMessagingPageAroundMessage<
     response: string;
     metadata: AgentWebMessagingPageMetadata;
 }> {
-    // Ignore any errors thrown by this promise. Don't crash the process.
-    roomMetadataPromise.catch(() => {});
-
     assert(around.endMessageIndex > around.startMessageIndex);
 
     assert(Number.isInteger(around.startMessageIndex));
@@ -416,9 +438,12 @@ export async function readAgentWebMessagingPageAroundMessage<
     let messages: ReadonlyArray<ApiMessageResponse> = initialMessages;
 
     while (true) {
+        const isStartOfMessages = beforeCursor === null;
+        const isEndOfMessages = afterCursor === null;
+
         // Await the room metadata after we've fetched all our messages. We should have
         // been loading the room metadata in parallel.
-        const roomMetadata = await roomMetadataPromise;
+        const roomMetadata = await getRoomMetadata({isStartOfMessages, isEndOfMessages});
 
         const {contextDate, contextFormattedTimeZone, page} =
             buildAgentWebMessagingPageFromApiMessages(context, {
@@ -426,8 +451,8 @@ export async function readAgentWebMessagingPageAroundMessage<
                 direction: "Around",
                 roomMetadata,
                 messages,
-                isStartOfMessages: beforeCursor === null,
-                isEndOfMessages: afterCursor === null,
+                isStartOfMessages,
+                isEndOfMessages,
             });
 
         const response = await printPage(page);

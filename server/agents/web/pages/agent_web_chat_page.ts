@@ -50,6 +50,7 @@ import {
     assertNonEmptyReadonlyArray,
 } from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {mapMaybePromise} from "~/shared/helpers/async/map_maybe_promise.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -119,15 +120,20 @@ export async function readAgentWebChatPage(
         printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
-    const result = await readAgentWebMessagingPage(context, {
-        messageNouns: agentWebMessagingPageMessageNouns,
-        room: {type: "Chat", id},
-        roomMetadataPromise: getChatRoomMetadata(context, id),
-        defaultDirection: "End",
-        searchParams,
-        limitLength,
-        printPage: page => printPage(buildAgentWebChatPage(page, id)),
-    });
+    const roomMetadataPromise = getChatRoomMetadata(context, id);
+
+    const [, result] = await runAllPromises([
+        roomMetadataPromise,
+        readAgentWebMessagingPage(context, {
+            messageNouns: agentWebMessagingPageMessageNouns,
+            room: {type: "Chat", id},
+            getRoomMetadata: () => roomMetadataPromise,
+            defaultDirection: "End",
+            searchParams,
+            limitLength,
+            printPage: page => printPage(buildAgentWebChatPage(page, id)),
+        }),
+    ]);
 
     return {
         response: result.response,
@@ -147,14 +153,19 @@ export async function readAgentWebChatMessagePage(
         printPage: (page: AgentWebChatPageWithMetadata) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebChatPageMetadata}> {
-    const result = await readAgentWebMessagingPageAroundMessage(context, {
-        messageNouns: agentWebMessagingPageMessageNouns,
-        room: {type: "Chat", id},
-        roomMetadataPromise: getChatRoomMetadata(context, id),
-        around: {startMessageIndex: index, endMessageIndex: index + 1},
-        limitLength,
-        printPage: page => printPage(buildAgentWebChatPage(page, id)),
-    });
+    const roomMetadataPromise = getChatRoomMetadata(context, id);
+
+    const [, result] = await runAllPromises([
+        roomMetadataPromise,
+        readAgentWebMessagingPageAroundMessage(context, {
+            messageNouns: agentWebMessagingPageMessageNouns,
+            room: {type: "Chat", id},
+            getRoomMetadata: () => roomMetadataPromise,
+            around: {startMessageIndex: index, endMessageIndex: index + 1},
+            limitLength,
+            printPage: page => printPage(buildAgentWebChatPage(page, id)),
+        }),
+    ]);
 
     return {
         response: result.response,
