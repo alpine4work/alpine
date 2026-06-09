@@ -168,6 +168,29 @@ describe("OpfsPageStore persistence", () => {
         expect(store.getFileSize()).toBe(0);
     });
 
+    test("discards the cache when a previous write was interrupted", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const store = await OpfsPageStore.create(dir);
+        store.writePageIfNewer(0, 1, makePage(0xaa));
+        store.sync();
+        // A write that never reaches sync() leaves the dirty sentinel
+        // set, standing in for a crash mid-write.
+        store.writePageIfNewer(0, 2, makePage(0xbb));
+
+        const reopened = await OpfsPageStore.create(dir);
+        expect(reopened.pageEntries()).toEqual([]);
+    });
+
+    test("a clean close preserves the cache without an explicit sync", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const store = await OpfsPageStore.create(dir);
+        store.writePageIfNewer(0, 1, makePage(0xaa));
+        store.close();
+
+        const reopened = await OpfsPageStore.create(dir);
+        expect(reopened.readPage(0)).toEqual({data: makePage(0xaa), version: 1});
+    });
+
     test("nextSlot recovers after reopen so new writes do not overwrite existing slots", async () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const store = await OpfsPageStore.create(dir);

@@ -24,6 +24,14 @@ const indexSchema = Schema.object({
 });
 
 /**
+ * Sentinel byte written to the `dirty` file while
+ * `pages.bin` has un-synced writes. Any non-empty `dirty`
+ * file means "a write was in progress"; the value itself is
+ * irrelevant, so a single byte suffices.
+ */
+const dirtyMarker = new Uint8Array([1]);
+
+/**
  * Durable per-table page cache stored in OPFS.
  *
  * Pages are persisted as dense {@link sqlitePageSize}-byte
@@ -52,13 +60,20 @@ export class OpfsPageStore {
     private readonly index = new Map<number, {slot: number; version: number}>();
     private readonly pagesHandle: OpfsSyncAccessHandle;
     private readonly indexHandle: OpfsSyncAccessHandle;
+    private readonly dirtyHandle: OpfsSyncAccessHandle;
     private nextSlot = 0;
     private maxPageIndex = -1;
     private knownDatabaseSizeInPages = 0;
+    private dirty = false;
 
-    private constructor(pagesHandle: OpfsSyncAccessHandle, indexHandle: OpfsSyncAccessHandle) {
+    private constructor(
+        pagesHandle: OpfsSyncAccessHandle,
+        indexHandle: OpfsSyncAccessHandle,
+        dirtyHandle: OpfsSyncAccessHandle,
+    ) {
         this.pagesHandle = pagesHandle;
         this.indexHandle = indexHandle;
+        this.dirtyHandle = dirtyHandle;
     }
 
     static async create(dir: OpfsDirectoryHandle): Promise<OpfsPageStore> {
@@ -76,13 +91,23 @@ export class OpfsPageStore {
             pagesHandle.close();
             throw error;
         }
-
-        const store = new OpfsPageStore(pagesHandle, indexHandle);
+        let dirtyHandle: OpfsSyncAccessHandle;
         try {
-            store.loadIndex();
+            const dirtyFile = await dir.getFileHandle("dirty", {create: true});
+            dirtyHandle = await dirtyFile.createSyncAccessHandle();
         } catch (error) {
             pagesHandle.close();
             indexHandle.close();
+            throw error;
+        }
+
+        const store = new OpfsPageStore(pagesHandle, indexHandle, dirtyHandle);
+        try {
+            store.recoverOrLoadIndex();
+        } catch (error) {
+            pagesHandle.close();
+            indexHandle.close();
+            dirtyHandle.close();
             throw error;
         }
         return store;
@@ -175,12 +200,22 @@ export class OpfsPageStore {
     sync(): void {
         this.pagesHandle.flush();
         this.flushIndex();
+        // `pages.bin` and `index.json` are now durable and mutually
+        // consistent, so it's safe to clear the dirty sentinel. This
+        // must happen *after* both flushes: if we cleared first, a
+        // crash in between would leave a "clean" marker over torn
+        // page bytes.
+        this.markClean();
     }
 
     close(): void {
-        this.flushIndex();
+        // A graceful close is a clean shutdown: flush everything and
+        // clear the dirty sentinel so the next open doesn't needlessly
+        // discard the cache.
+        this.sync();
         this.pagesHandle.close();
         this.indexHandle.close();
+        this.dirtyHandle.close();
     }
 
     /**
@@ -195,6 +230,10 @@ export class OpfsPageStore {
     }
 
     private writeSlot(pageIndex: number, version: number, data: Uint8Array): void {
+        // Record that `pages.bin` has un-synced writes *before* those
+        // bytes can become durable, so an interrupted write is always
+        // caught on the next open. See {@link markDirty}.
+        this.markDirty();
         const existing = this.index.get(pageIndex);
         const slot = existing !== undefined ? existing.slot : this.nextSlot++;
         this.pagesHandle.write(data, {at: slot * sqlitePageSize});
@@ -202,6 +241,68 @@ export class OpfsPageStore {
         if (pageIndex > this.maxPageIndex) {
             this.maxPageIndex = pageIndex;
         }
+    }
+
+    /**
+     * Light-weight corruption recovery on open.
+     *
+     * We don't journal page writes, so an interrupted write can tear
+     * a `pages.bin` slot in place — leaving the index pointing at
+     * bytes that are neither the old nor the new page. SQLite won't
+     * notice (the main DB file has no per-page checksums), so the
+     * only safe move is to detect that a write was in flight and
+     * discard the cache.
+     *
+     * The `dirty` sentinel is non-empty whenever `pages.bin` has
+     * un-synced writes (see {@link markDirty} / {@link markClean}).
+     * If it's set at open, the previous session died mid-write, so we
+     * conservatively wipe this table's cache. It's a read-through
+     * cache — the client re-fetches discarded pages from the server
+     * on demand. This is intentionally coarse: most interrupted
+     * writes don't actually corrupt anything, but wiping is always
+     * correctness-safe and a clean re-sync is cheap relative to
+     * serving silently-wrong data.
+     */
+    private recoverOrLoadIndex(): void {
+        if (this.dirtyHandle.getSize() === 0) {
+            this.loadIndex();
+            return;
+        }
+        this.pagesHandle.truncate(0);
+        this.pagesHandle.flush();
+        this.indexHandle.truncate(0);
+        this.indexHandle.flush();
+        this.dirtyHandle.truncate(0);
+        this.dirtyHandle.flush();
+        // The in-memory index is already empty and `dirty` is already
+        // `false`, so we're left in a consistent, clean state.
+    }
+
+    /**
+     * Mark the store dirty: record on disk that `pages.bin` has writes
+     * that haven't been durably synced yet. Flushed immediately so the
+     * marker is durable *before* any page bytes can be — `flush()` is
+     * the only ordering barrier OPFS gives us across files.
+     *
+     * Only flips on the clean -> dirty edge, so a stream of writes
+     * costs a single extra flush, not one per write.
+     */
+    private markDirty(): void {
+        if (this.dirty) return;
+        this.dirtyHandle.write(dirtyMarker, {at: 0});
+        this.dirtyHandle.flush();
+        this.dirty = true;
+    }
+
+    /**
+     * Mark the store clean: clear the dirty sentinel. Only call once
+     * `pages.bin` and `index.json` are durable (see {@link sync}).
+     */
+    private markClean(): void {
+        if (!this.dirty) return;
+        this.dirtyHandle.truncate(0);
+        this.dirtyHandle.flush();
+        this.dirty = false;
     }
 
     private loadIndex(): void {
