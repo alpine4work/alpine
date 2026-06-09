@@ -1,10 +1,13 @@
-import {Root} from "mdast";
+import escapeHtml from "escape-html";
+import {Tokenizer as HtmlTokenizer} from "htmlparser2";
+import {Html, Link, Node, Root} from "mdast";
 import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
-import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageMetadata,
@@ -23,6 +26,11 @@ import {
     readAgentWebMessagingPageInDirection,
 } from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
+import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
+import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
+import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
     ApiAccountReferenceResponse,
@@ -33,8 +41,11 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
+import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebPostPage = AgentWebMessagingPage<
@@ -44,19 +55,14 @@ export type AgentWebPostPage = AgentWebMessagingPage<
     readonly type: "Post";
 };
 
-export type AgentWebPostPagePreamble = {};
+export type AgentWebPostPagePreamble = {
+    readonly channel: ApiChannelReferenceResponse | null;
+};
 
 export type AgentWebPostPageCustomBlock = {
     readonly type: "Custom";
     readonly author: ApiAccountReferenceResponse;
-    readonly channel: ApiChannelReferenceResponse | null;
-    readonly content: ApiContentResponse;
-};
-
-export type AgentWebPostPagePost = {
-    readonly author: ApiAccountReferenceResponse;
-    readonly channel: Extract<AgentWebPageStoredLink, {type: "Channel"}> | null;
-    readonly timeContent: string;
+    readonly timeZoneAttribute: string | null;
     readonly content: ApiContentResponse;
 };
 
@@ -70,7 +76,7 @@ export type AgentWebPostPageMetadata = AgentWebMessagingPageMetadata & {
 };
 
 function buildAgentWebPostPage(
-    page: AgentWebMessagingPageWithMetadata<AgentWebPostPagePreamble>,
+    page: AgentWebMessagingPageWithMetadata<AgentWebPostPagePreamble, AgentWebPostPageCustomBlock>,
     id: PostId,
 ): AgentWebPostPageWithMetadata {
     return {
@@ -275,9 +281,10 @@ export async function readAgentWebPostMessagePage(
 
 export function normalizeAgentWebPostPage<Page extends AgentWebPostPage>(page: Page): Page {
     return normalizeAgentWebMessagingPage(page, {
-        normalizePreamble: () => {},
+        normalizePreamble: (normalizer, preamble) => {
+            if (preamble.channel) normalizer.normalizeReference(preamble.channel);
+        },
         normalizeCustomBlock: (normalizer, customBlock) => {
-            if (customBlock.channel) normalizer.normalizeReference(customBlock.channel);
             normalizer.normalizeReference(customBlock.author);
             normalizer.normalizeBlockElements(customBlock.content.elements);
         },
@@ -310,13 +317,55 @@ export async function printAgentWebPostPage(
 ): Promise<Root> {
     return await printAgentWebMessagingPage(storage, id, page, {
         messageNouns: agentWebMessagingPageCommentNouns,
-        printPreamble: async () => {
+        printPreamble: async (storage, preamble) => {
+            return await printApiContentToAgentWebMarkdownTree(storage, {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {type: "Text", text: "Post and comments"},
+                            ...(preamble.channel
+                                ? [
+                                      {type: "Text" as const, text: " in "},
+                                      {type: "Mention" as const, reference: preamble.channel},
+                                  ]
+                                : []),
+                            {type: "Text", text: "."},
+                        ],
+                    },
+                ],
+            });
+        },
+        printCustomBlock: async (storage, block) => {
+            const [authorPathname, contentTree] = await runAllPromises([
+                createAgentWebPageStoredLinkPathname(storage, block.author),
+                printApiContentToAgentWebMarkdownTree(storage, block.content),
+            ]);
+
+            const authorLink: Link = {
+                type: "link",
+                url: authorPathname,
+                children: [{type: "text", value: block.author.shortName}],
+            };
+            let openTag = `<post from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
+
+            if (block.timeZoneAttribute !== null) {
+                openTag += ` timezone="${escapeHtml(block.timeZoneAttribute)}"`;
+            }
+
+            openTag += ">";
+
             return {
                 type: "root",
                 children: [
                     {
-                        type: "paragraph",
-                        children: [{type: "text", value: "Comments on post."}],
+                        type: "html",
+                        value: openTag,
+                    },
+                    ...contentTree.children,
+                    {
+                        type: "html",
+                        value: "</post>",
                     },
                 ],
             };
@@ -331,31 +380,219 @@ export async function parseAgentWebPostPage(
 ): Promise<AgentWebPostPage> {
     const page = await parseAgentWebMessagingPage(storage, id, root, {
         messageNouns: agentWebMessagingPageCommentNouns,
-        parsePreamble: async (_storage, preamble): Promise<AgentWebPostPagePreamble> => {
+        parsePreamble: async (storage, preamble): Promise<AgentWebPostPagePreamble> => {
             const createError = () => {
                 return new InvalidArgumentError("Invalid post preamble", {
-                    displayMessage: errorDisplayMessage`Post comments markdown must start with \`Comments on post.\`. Try again with a proper start to post comments markdown on line 1.`,
+                    displayMessage: errorDisplayMessage`Post markdown must start with \`Post and comments in [My Channel](/channel/my-channel).\`. Try again with a proper start to post markdown on line 1.`,
                 });
             };
 
-            if (preamble.children.length !== 1) {
-                throw createError();
-            }
-
-            const child = preamble.children[0]!;
+            const preambleContent = await parseApiContentFromAgentWebMarkdownTree(
+                storage,
+                preamble,
+            );
 
             if (
-                child.type !== "paragraph" ||
-                child.children.length !== 1 ||
-                child.children[0]?.type !== "text" ||
-                child.children[0].value !== "Comments on post."
+                preambleContent.elements.length !== 1 ||
+                preambleContent.elements[0]?.type !== "Paragraph"
             ) {
                 throw createError();
             }
 
-            return {};
+            const elements = preambleContent.elements[0].elements;
+
+            if (
+                elements.length === 1 &&
+                elements[0]!.type === "Text" &&
+                (elements[0]!.text === "Post and comments" ||
+                    elements[0]!.text === "Post and comments.")
+            ) {
+                return {channel: null};
+            }
+
+            const lastElement = elements[elements.length - 1]!;
+            const hasTrailingPeriod = lastElement.type === "Text" && lastElement.text === ".";
+            const actualElements = hasTrailingPeriod ? elements.slice(0, -1) : elements;
+
+            if (actualElements.length !== 2) throw createError();
+
+            const [firstElement, secondElement] = actualElements;
+
+            if (
+                firstElement?.type !== "Text" ||
+                firstElement.text !== "Post and comments in " ||
+                secondElement?.type !== "Mention" ||
+                secondElement.reference.type !== "Channel"
+            ) {
+                throw createError();
+            }
+
+            return {channel: secondElement.reference};
+        },
+        parseCustomBlockByTagName: {
+            post: async (storage, root): Promise<AgentWebPostPageCustomBlock> => {
+                const {openTagPosition, fromAttribute, timeZoneAttribute} =
+                    parseAgentWebPostPageCustomBlockOpenTag(root);
+
+                if (typeof fromAttribute !== "string") {
+                    throw new InvalidArgumentError("Post element is missing author link", {
+                        displayMessage: errorDisplayMessage`\`<post>\` on line ${openTagPosition?.start.line ?? "unknown"} is missing the \`from\` attribute. The post must include a link to the author.`,
+                    });
+                }
+
+                const [author, content] = await runAllPromises([
+                    parseAgentWebPostPageAccountLink(storage, openTagPosition, fromAttribute),
+                    parseApiContentFromAgentWebMarkdownTree(storage, {
+                        type: "root",
+                        children: root.children.slice(1, -1),
+                    }),
+                ]);
+
+                return {
+                    type: "Custom",
+                    author,
+                    timeZoneAttribute,
+                    content,
+                };
+            },
         },
     });
 
     return {...page, type: "Post"};
+}
+
+function parseAgentWebPostPageCustomBlockOpenTag(root: Root): {
+    readonly openTagPosition: Node["position"];
+    readonly fromAttribute: string | null;
+    readonly timeZoneAttribute: string | null;
+} {
+    const firstChild = root.children[0];
+    if (!firstChild || firstChild.type !== "html") {
+        throw new InvalidArgumentError("Invalid post element open tag", {
+            displayMessage: errorDisplayMessage`Expected a \`<post>\` open tag. Try again with a valid \`<post>\` block.`,
+        });
+    }
+
+    let hasPostOpenTag = false;
+    let hasEndedPostOpenTag = false;
+    let startedAttribute: "from" | "timezone" | null = null;
+    let fromAttribute: string | null = null;
+    let timeZoneAttribute: string | null = null;
+
+    const tokenizer = new HtmlTokenizer(
+        {},
+        {
+            onopentagname: (start, end) => {
+                const tagName = firstChild.value.slice(start, end).toLowerCase();
+                if (tagName !== "post") return;
+
+                hasPostOpenTag = true;
+            },
+            onopentagend: () => {
+                if (hasPostOpenTag) {
+                    assert(!startedAttribute);
+                    hasEndedPostOpenTag = true;
+                }
+            },
+            onattribname: (start, end) => {
+                if (!hasPostOpenTag || hasEndedPostOpenTag) return;
+
+                const attributeName = firstChild.value.slice(start, end).toLowerCase();
+                if (attributeName === "from") {
+                    startedAttribute = "from";
+                    fromAttribute = "";
+                } else if (attributeName === "timezone") {
+                    startedAttribute = "timezone";
+                    timeZoneAttribute = "";
+                }
+            },
+            onattribdata: (start, end) => {
+                const attributeData = firstChild.value.slice(start, end);
+
+                switch (startedAttribute) {
+                    case "from": {
+                        fromAttribute += attributeData;
+                        break;
+                    }
+                    case "timezone": {
+                        timeZoneAttribute += attributeData;
+                        break;
+                    }
+                }
+            },
+            onattribentity: codepoint => {
+                const attributeData = String.fromCodePoint(codepoint);
+
+                switch (startedAttribute) {
+                    case "from": {
+                        fromAttribute += attributeData;
+                        break;
+                    }
+                    case "timezone": {
+                        timeZoneAttribute += attributeData;
+                        break;
+                    }
+                }
+            },
+            onattribend: () => {
+                startedAttribute = null;
+            },
+            onclosetag: () => {},
+            onselfclosingtag: () => {},
+            ontext: () => {},
+            ontextentity: () => {},
+            oncdata: () => {},
+            oncomment: () => {},
+            ondeclaration: () => {},
+            onprocessinginstruction: () => {},
+            onend: () => {},
+        },
+    );
+
+    tokenizer.write(firstChild.value);
+    tokenizer.end();
+
+    if (!hasPostOpenTag) {
+        throw new InvalidArgumentError("Invalid post element open tag", {
+            displayMessage: errorDisplayMessage`Expected a \`<post>\` open tag. Try again with a valid \`<post>\` block.`,
+        });
+    }
+
+    return {
+        openTagPosition: firstChild.position,
+        fromAttribute,
+        timeZoneAttribute,
+    };
+}
+
+async function parseAgentWebPostPageAccountLink(
+    storage: AgentWebSessionStorage,
+    position: Html["position"],
+    string: string,
+): Promise<ApiAccountReferenceResponse> {
+    const createError = () => {
+        const quotedString = quoteMarkdown([{type: "text", value: string}]);
+
+        return new InvalidArgumentError("Invalid account link", {
+            displayMessage: errorDisplayMessage`Expected a link to a human or bot on line ${position?.start.line ?? "unknown"}. For example: \u201C[John](/human/john-doe)\u201D. Instead we found ${quotedString}. Try again with a valid link to a human or bot.`,
+        });
+    };
+
+    const root = parseMarkdownTree(string);
+    if (root.children.length !== 1) throw createError();
+
+    const firstChild = root.children[0]!;
+    if (firstChild.type !== "paragraph") throw createError();
+    if (firstChild.children.length !== 1) throw createError();
+
+    const firstGrandchild = firstChild.children[0]!;
+    if (firstGrandchild.type !== "link") throw createError();
+
+    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, firstGrandchild.url);
+    if (!pageLinkResult) throw createError();
+
+    const {pageLink} = pageLinkResult;
+    if (pageLink.type !== "Account") throw createError();
+
+    return pageLink;
 }
