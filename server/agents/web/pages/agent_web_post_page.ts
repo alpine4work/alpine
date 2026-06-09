@@ -137,27 +137,32 @@ export async function readAgentWebPostPage(
         if (fullPostPromise !== null) {
             const post = await fullPostPromise;
 
-            const postReference: ApiPostReferenceResponse = {
-                type: "Post",
-                id,
-                title: post.reference.title,
-            };
+            const postCreatedTime = deserializeDateString(post.createdTime);
 
             return {
-                pageLink: postReference,
-                preamble: {},
+                pageLink: {
+                    type: "Post",
+                    id,
+                    title: post.reference.title,
+                },
+                preamble: {
+                    channel: post.channel
+                        ? {
+                              type: "Channel",
+                              id: post.channel.id,
+                              title: post.channel.name,
+                          }
+                        : null,
+                },
                 startCustomBlock: {
-                    time: deserializeDateString(post.createdTime),
+                    time: postCreatedTime,
                     block: {
                         type: "Custom",
                         author: intoApiAccountReference(post.author),
-                        channel: post.channel
-                            ? {
-                                  type: "Channel",
-                                  id: post.channel.id,
-                                  title: post.channel.name,
-                              }
-                            : null,
+                        timeZoneAttribute:
+                            post.createdTimeZone !== context.timeZone
+                                ? formatTimeZoneAbbreviation(post.createdTimeZone, postCreatedTime)
+                                : null,
                         content: post.content,
                     },
                 },
@@ -165,14 +170,26 @@ export async function readAgentWebPostPage(
         }
 
         const {
-            data: {reference: postReference},
-        } = await context.api.get(context.span, "/posts/{id}/reference", {
+            data: {post},
+        } = await context.api.get(context.span, "/posts/{id}/preview", {
             params: {path: {id}},
         });
 
         return {
-            pageLink: postReference,
-            preamble: {},
+            pageLink: {
+                type: "Post",
+                id,
+                title: post.reference.title,
+            },
+            preamble: {
+                channel: post.channel
+                    ? {
+                          type: "Channel",
+                          id: post.channel.id,
+                          title: post.channel.name,
+                      }
+                    : null,
+            },
             startCustomBlock: null,
         };
     };
