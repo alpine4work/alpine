@@ -36,7 +36,6 @@ import {
     ApiAccountReferenceResponse,
     ApiChannelReferenceResponse,
     ApiContentResponse,
-    ApiPostReferenceResponse,
     ApiPostResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -447,9 +446,13 @@ export async function parseAgentWebPostPage(
             return {channel: secondElement.reference};
         },
         parseCustomBlockByTagName: {
-            post: async (storage, root): Promise<AgentWebPostPageCustomBlock> => {
-                const {openTagPosition, fromAttribute, timeZoneAttribute} =
-                    parseAgentWebPostPageCustomBlockOpenTag(root);
+            post: async (
+                storage,
+                root,
+                {openTag, openTagPosition},
+            ): Promise<AgentWebPostPageCustomBlock> => {
+                const {fromAttribute, timeZoneAttribute} =
+                    parseAgentWebPostPageCustomBlockOpenTag(openTag);
 
                 if (typeof fromAttribute !== "string") {
                     throw new InvalidArgumentError("Post element is missing author link", {
@@ -459,10 +462,7 @@ export async function parseAgentWebPostPage(
 
                 const [author, content] = await runAllPromises([
                     parseAgentWebPostPageAccountLink(storage, openTagPosition, fromAttribute),
-                    parseApiContentFromAgentWebMarkdownTree(storage, {
-                        type: "root",
-                        children: root.children.slice(1, -1),
-                    }),
+                    parseApiContentFromAgentWebMarkdownTree(storage, root),
                 ]);
 
                 return {
@@ -478,18 +478,10 @@ export async function parseAgentWebPostPage(
     return {...page, type: "Post"};
 }
 
-function parseAgentWebPostPageCustomBlockOpenTag(root: Root): {
-    readonly openTagPosition: Node["position"];
-    readonly fromAttribute: string | null;
-    readonly timeZoneAttribute: string | null;
+function parseAgentWebPostPageCustomBlockOpenTag(openTag: string): {
+    fromAttribute: string | null;
+    timeZoneAttribute: string | null;
 } {
-    const firstChild = root.children[0];
-    if (!firstChild || firstChild.type !== "html") {
-        throw new InvalidArgumentError("Invalid post element open tag", {
-            displayMessage: errorDisplayMessage`Expected a \`<post>\` open tag. Try again with a valid \`<post>\` block.`,
-        });
-    }
-
     let hasPostOpenTag = false;
     let hasEndedPostOpenTag = false;
     let startedAttribute: "from" | "timezone" | null = null;
@@ -500,7 +492,7 @@ function parseAgentWebPostPageCustomBlockOpenTag(root: Root): {
         {},
         {
             onopentagname: (start, end) => {
-                const tagName = firstChild.value.slice(start, end).toLowerCase();
+                const tagName = openTag.slice(start, end).toLowerCase();
                 if (tagName !== "post") return;
 
                 hasPostOpenTag = true;
@@ -514,7 +506,7 @@ function parseAgentWebPostPageCustomBlockOpenTag(root: Root): {
             onattribname: (start, end) => {
                 if (!hasPostOpenTag || hasEndedPostOpenTag) return;
 
-                const attributeName = firstChild.value.slice(start, end).toLowerCase();
+                const attributeName = openTag.slice(start, end).toLowerCase();
                 if (attributeName === "from") {
                     startedAttribute = "from";
                     fromAttribute = "";
@@ -524,7 +516,7 @@ function parseAgentWebPostPageCustomBlockOpenTag(root: Root): {
                 }
             },
             onattribdata: (start, end) => {
-                const attributeData = firstChild.value.slice(start, end);
+                const attributeData = openTag.slice(start, end);
 
                 switch (startedAttribute) {
                     case "from": {
@@ -566,17 +558,12 @@ function parseAgentWebPostPageCustomBlockOpenTag(root: Root): {
         },
     );
 
-    tokenizer.write(firstChild.value);
+    tokenizer.write(openTag);
     tokenizer.end();
 
-    if (!hasPostOpenTag) {
-        throw new InvalidArgumentError("Invalid post element open tag", {
-            displayMessage: errorDisplayMessage`Expected a \`<post>\` open tag. Try again with a valid \`<post>\` block.`,
-        });
-    }
+    assert(hasPostOpenTag);
 
     return {
-        openTagPosition: firstChild.position,
         fromAttribute,
         timeZoneAttribute,
     };

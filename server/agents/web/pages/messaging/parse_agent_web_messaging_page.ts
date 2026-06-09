@@ -45,6 +45,17 @@ import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
+type ParseAgentWebMessagingPageCustomBlock<CustomBlock> = (
+    storage: AgentWebSessionStorage,
+    root: Root,
+    options: {
+        openTag: string;
+        closeTag: string;
+        openTagPosition: Node["position"];
+        closeTagPosition: Node["position"];
+    },
+) => Promise<CustomBlock>;
+
 export async function parseAgentWebMessagingPage<
     PageLink,
     Preamble,
@@ -58,7 +69,7 @@ export async function parseAgentWebMessagingPage<
         parsePreamble: (storage: AgentWebSessionStorage, root: Root) => Promise<Preamble>;
         parseCustomBlockByTagName: Record<
             string,
-            (storage: AgentWebSessionStorage, root: Root) => Promise<CustomBlock>
+            ParseAgentWebMessagingPageCustomBlock<CustomBlock>
         >;
     },
 ): Promise<AgentWebMessagingPage<Preamble, CustomBlock>> {
@@ -104,7 +115,7 @@ async function actuallyParseAgentWebMessagingPage<
         parsePreamble: (storage: AgentWebSessionStorage, root: Root) => Promise<Preamble>;
         parseCustomBlockByTagName: Record<
             string,
-            (storage: AgentWebSessionStorage, root: Root) => Promise<CustomBlock>
+            ParseAgentWebMessagingPageCustomBlock<CustomBlock>
         >;
     },
     blockPromises: Array<MaybePromise<AgentWebMessagingPageBlock<CustomBlock>>>,
@@ -138,6 +149,7 @@ async function actuallyParseAgentWebMessagingPage<
     type CustomState = {
         type: "Custom";
         tagName: string;
+        openTag: string;
         openTagPosition: Node["position"];
         children: Array<RootContent>;
     };
@@ -147,12 +159,20 @@ async function actuallyParseAgentWebMessagingPage<
     const parseHtml = (node: Html) => {
         let hasUnknownHtml = false;
         let firstHtmlTextIndex: number | null = null;
-        let handledHtml: {tagName: string; tagType: "open" | "close"} | null = null;
+        let handledHtml: {
+            tagName: string;
+            tagType: "open" | "close";
+            blockType: "Custom" | "Message";
+        } | null = null;
+        let pendingCustomOpenTag: {tagName: string; start: number} | null = null;
+        let customTagInnerStartIndex: number | null = state?.type === "Custom" ? 0 : null;
 
         const tokenizer = new HtmlTokenizer(
             {},
             {
                 onopentagname: (start, end) => {
+                    assert(pendingCustomOpenTag === null);
+
                     const tagName = node.value.slice(start, end).toLowerCase();
 
                     if (customBlockTagNames.has(tagName)) {
@@ -165,13 +185,12 @@ async function actuallyParseAgentWebMessagingPage<
                             });
                         }
 
-                        state = {
-                            type: "Custom",
+                        pendingCustomOpenTag = {
                             tagName,
-                            openTagPosition: node.position,
-                            children: [node],
+                            start: node.value.lastIndexOf("<", start),
                         };
-                        handledHtml ??= {tagName, tagType: "open"};
+                        assert(pendingCustomOpenTag.start !== -1);
+                        handledHtml ??= {tagName, tagType: "open", blockType: "Custom"};
                         return;
                     }
 
@@ -199,7 +218,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 children: [],
                             };
 
-                            handledHtml ??= {tagName, tagType: "open"};
+                            handledHtml ??= {tagName, tagType: "open", blockType: "Message"};
                             break;
                         }
                         case "blockquote": {
@@ -234,7 +253,7 @@ async function actuallyParseAgentWebMessagingPage<
                                 children: [],
                             };
 
-                            handledHtml ??= {tagName, tagType: "open"};
+                            handledHtml ??= {tagName, tagType: "open", blockType: "Message"};
                             break;
                         }
                         default: {
@@ -243,7 +262,25 @@ async function actuallyParseAgentWebMessagingPage<
                         }
                     }
                 },
-                onopentagend: () => {
+                onopentagend: end => {
+                    if (pendingCustomOpenTag) {
+                        const {tagName, start} = pendingCustomOpenTag;
+                        const openTagEndActualIndex = node.value.indexOf(">", end);
+                        assert(openTagEndActualIndex !== -1);
+                        const openTagEndIndex = openTagEndActualIndex + 1;
+
+                        state = {
+                            type: "Custom",
+                            tagName,
+                            openTag: node.value.slice(start, openTagEndIndex),
+                            openTagPosition: node.position,
+                            children: [],
+                        };
+                        customTagInnerStartIndex = openTagEndIndex;
+                        pendingCustomOpenTag = null;
+                        return;
+                    }
+
                     if (state?.type === "Message") {
                         if (!state.hasEndedOpenTag) {
                             assert(!state.startedAttribute);
@@ -264,25 +301,52 @@ async function actuallyParseAgentWebMessagingPage<
                             });
                         }
 
+                        const closeTagStartIndex = node.value.lastIndexOf("<", start);
+                        assert(closeTagStartIndex !== -1);
+                        const closeTagEndActualIndex = node.value.indexOf(">", end);
+                        assert(closeTagEndActualIndex !== -1);
+                        const closeTagEndIndex = closeTagEndActualIndex + 1;
+
+                        if (customTagInnerStartIndex !== null) {
+                            const value = node.value.slice(
+                                customTagInnerStartIndex,
+                                closeTagStartIndex,
+                            );
+                            if (value.length !== 0) {
+                                state.children.push({...node, value});
+                            }
+                        }
+
                         const parseCustomBlock = assertExists(
                             parseCustomBlockByTagName[state.tagName],
                         );
 
-                        // If this isn't the same node that fired `onopentag` than push this close tag node
-                        // to children.
-                        if (state.children[0] !== node) state.children.push(node);
-
                         blockPromises.push(
-                            parseCustomBlock(storage, {
-                                type: "root",
-                                children: state.children,
-                            }),
+                            parseCustomBlock(
+                                storage,
+                                {
+                                    type: "root",
+                                    children: state.children,
+                                },
+                                {
+                                    openTag: state.openTag,
+                                    closeTag: node.value.slice(
+                                        closeTagStartIndex,
+                                        closeTagEndIndex,
+                                    ),
+                                    openTagPosition: state.openTagPosition,
+                                    closeTagPosition: node.position,
+                                },
+                            ),
                         );
 
                         state = null;
-                        handledHtml ??= {tagName, tagType: "close"};
+                        customTagInnerStartIndex = null;
+                        handledHtml ??= {tagName, tagType: "close", blockType: "Custom"};
                         return;
                     }
+
+                    if (state?.type === "Custom") return;
 
                     switch (tagName) {
                         case messageNouns.noun: {
@@ -420,7 +484,7 @@ async function actuallyParseAgentWebMessagingPage<
                             blockPromises.push(runAllObjectPromises(block));
 
                             state = null;
-                            handledHtml ??= {tagName, tagType: "close"};
+                            handledHtml ??= {tagName, tagType: "close", blockType: "Message"};
                             break;
                         }
                         case "blockquote": {
@@ -440,7 +504,7 @@ async function actuallyParseAgentWebMessagingPage<
                             }
 
                             state.parent.hasCloseTag = true;
-                            handledHtml ??= {tagName, tagType: "close"};
+                            handledHtml ??= {tagName, tagType: "close", blockType: "Message"};
                             break;
                         }
                         default: {
@@ -450,6 +514,8 @@ async function actuallyParseAgentWebMessagingPage<
                     }
                 },
                 onselfclosingtag: () => {
+                    if (state?.type === "Custom") return;
+
                     hasUnknownHtml = true;
                 },
 
@@ -577,10 +643,14 @@ async function actuallyParseAgentWebMessagingPage<
                 },
 
                 ontext: start => {
+                    if (state?.type === "Custom") return;
+
                     hasUnknownHtml = true;
                     firstHtmlTextIndex ??= start;
                 },
                 ontextentity: start => {
+                    if (state?.type === "Custom") return;
+
                     hasUnknownHtml = true;
                     firstHtmlTextIndex ??= start;
                 },
@@ -600,11 +670,20 @@ async function actuallyParseAgentWebMessagingPage<
         // callbacks above annoyingly.
         handledHtml = handledHtml as any;
 
+        if (handledHtml?.blockType === "Custom" && state?.type === "Custom") {
+            assert(customTagInnerStartIndex !== null);
+
+            const value = node.value.slice(customTagInnerStartIndex, node.value.length);
+            if (value.length !== 0) {
+                state.children.push({...node, value});
+            }
+        }
+
         // If this tokenizer state machine handled our HTML then don't add it to state
         // children. If there was any unknown HTML then we throw an error since we won't
         // have handled that unknown HTML.
         if (handledHtml) {
-            if (hasUnknownHtml) {
+            if (handledHtml.blockType !== "Custom" && hasUnknownHtml) {
                 if (typeof firstHtmlTextIndex !== "number") {
                     throw createUnexpectedMarkdownError(messageNouns, node.position);
                 } else {
@@ -637,16 +716,6 @@ async function actuallyParseAgentWebMessagingPage<
 
     for (let nodeIndex = 0; nodeIndex < root.children.length; nodeIndex++) {
         let node = root.children[nodeIndex]!;
-
-        if (state?.type === "Custom") {
-            if (node.type === "html" && parseHtml(node)) {
-                hasFinishedPreamble = true;
-                continue;
-            }
-
-            state.children.push(node);
-            continue;
-        }
 
         if (
             nodeIndex === root.children.length - 1 &&
@@ -708,7 +777,14 @@ async function actuallyParseAgentWebMessagingPage<
                 // state. If `parseHtml()` succeeds then the partial paragraph needs to be at the
                 // end of our message content.
                 if (lastPushedIndex < index) {
-                    if (!hasFinishedPreamble) {
+                    if (state?.type === "Custom") {
+                        state.children.push({
+                            type: "paragraph",
+                            children: node.children.slice(lastPushedIndex, index),
+                        });
+
+                        childrenToPop = state.children;
+                    } else if (!hasFinishedPreamble) {
                         preamble.push({
                             type: "paragraph",
                             children: node.children.slice(lastPushedIndex, index),

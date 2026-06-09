@@ -1,3 +1,5 @@
+import {RootContent} from "mdast";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
     AgentWebMessagingPage,
     agentWebMessagingPageMessageNouns,
@@ -8,6 +10,7 @@ import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/pr
 import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementMark,
@@ -123,17 +126,14 @@ runAgentWebPageTests<
                 return {elements: actualElements};
             },
             parseCustomBlockByTagName: {
-                custom: async (storage, root) => {
-                    assert(root.children[0]?.type === "html");
-                    assert(root.children[0].value === "<custom>");
+                custom: async (storage, root, {openTag, closeTag}) => {
+                    assert(openTag === "<custom>");
+                    assert(closeTag === "</custom>");
 
-                    assert(root.children[1]?.type === "paragraph");
-                    assert(root.children[1].children[0]?.type === "text");
+                    assert(root.children[0]?.type === "paragraph");
+                    assert(root.children[0].children[0]?.type === "text");
 
-                    assert(root.children[2]?.type === "html");
-                    assert(root.children[2].value === "</custom>");
-
-                    return {type: "Custom", text: root.children[1].children[0].value};
+                    return {type: "Custom", text: root.children[0].children[0].value};
                 },
             },
         }),
@@ -1254,4 +1254,168 @@ Second render:
             },
         },
     ],
+});
+
+describe("parse custom block HTML nodes", () => {
+    async function parseCustomBlockCalls(markdown: string) {
+        const calls: Array<{
+            openTag: string;
+            closeTag: string;
+            children: Array<RootContent>;
+        }> = [];
+
+        await parseAgentWebMessagingPage(
+            {} as AgentWebSessionStorage,
+            true,
+            parseMarkdownTree(markdown),
+            {
+                messageNouns: agentWebMessagingPageMessageNouns,
+                parsePreamble: async () => ({elements: []}),
+                parseCustomBlockByTagName: {
+                    custom: async (storage, root, {openTag, closeTag}) => {
+                        calls.push({
+                            openTag,
+                            closeTag,
+                            children: root.children.map(removePositionFromRootContent),
+                        });
+
+                        return {type: "Custom", text: "custom"};
+                    },
+                },
+            },
+        );
+
+        return calls;
+    }
+
+    function removePositionFromRootContent(node: unknown) {
+        return JSON.parse(
+            JSON.stringify(node, (key, value) => (key === "position" ? undefined : value)),
+        );
+    }
+
+    test("passes remaining HTML in the same node to the custom block parser", async () => {
+        expect(
+            await parseCustomBlockCalls(
+                `<custom><table><tbody><tr><td>abc</td></tr></tbody></table></custom>`,
+            ),
+        ).toEqual([
+            {
+                openTag: "<custom>",
+                closeTag: "</custom>",
+                children: [
+                    {
+                        type: "paragraph",
+                        children: [
+                            {type: "html", value: "<table>"},
+                            {type: "html", value: "<tbody>"},
+                            {type: "html", value: "<tr>"},
+                            {type: "html", value: "<td>"},
+                            {type: "text", value: "abc"},
+                            {type: "html", value: "</td>"},
+                            {type: "html", value: "</tr>"},
+                            {type: "html", value: "</tbody>"},
+                            {type: "html", value: "</table>"},
+                        ],
+                    },
+                ],
+            },
+        ]);
+    });
+
+    test("preserves whitespace before custom block tag boundaries", async () => {
+        expect(
+            await parseCustomBlockCalls(
+                `<custom  ><table><tbody><tr><td>abc</td></tr></tbody></table></custom  >`,
+            ),
+        ).toEqual([
+            {
+                openTag: "<custom  >",
+                closeTag: "</custom  >",
+                children: [
+                    {
+                        type: "paragraph",
+                        children: [
+                            {type: "html", value: "<table>"},
+                            {type: "html", value: "<tbody>"},
+                            {type: "html", value: "<tr>"},
+                            {type: "html", value: "<td>"},
+                            {type: "text", value: "abc"},
+                            {type: "html", value: "</td>"},
+                            {type: "html", value: "</tr>"},
+                            {type: "html", value: "</tbody>"},
+                            {type: "html", value: "</table>"},
+                        ],
+                    },
+                ],
+            },
+        ]);
+    });
+
+    test("extracts a custom block from surrounding HTML nodes", async () => {
+        expect(
+            await parseCustomBlockCalls(`\
+<table>
+<custom>
+<tbody>
+
+abc
+
+</tbody>
+</custom>
+</table>
+`),
+        ).toEqual([
+            {
+                openTag: "<custom>",
+                closeTag: "</custom>",
+                children: [
+                    {type: "html", value: "\n<tbody>"},
+                    {type: "paragraph", children: [{type: "text", value: "abc"}]},
+                    {type: "html", value: "</tbody>\n"},
+                ],
+            },
+        ]);
+    });
+
+    test("preserves markdown parsed as HTML after the custom block open tag", async () => {
+        expect(
+            await parseCustomBlockCalls(`\
+<custom>
+*foo*
+
+*bar*
+
+*qux*
+</custom>
+`),
+        ).toEqual([
+            {
+                openTag: "<custom>",
+                closeTag: "</custom>",
+                children: [
+                    {type: "html", value: "\n*foo*"},
+                    {
+                        type: "paragraph",
+                        children: [
+                            {
+                                type: "emphasis",
+                                children: [{type: "text", value: "bar"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "paragraph",
+                        children: [
+                            {
+                                type: "emphasis",
+                                children: [{type: "text", value: "qux"}],
+                            },
+                            {type: "text", value: "\n"},
+                        ],
+                    },
+                ],
+            },
+        ]);
+    });
 });
