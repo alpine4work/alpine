@@ -16,10 +16,6 @@ type LegacySpaceRoute =
     | "s.$spaceId.chat.with.$accountId.tsx"
     | "s.$spaceId.create._index.tsx"
     | "s.$spaceId.create.more.tsx"
-    | "s.$spaceId.databases.$tableOrViewId.tsx"
-    | "s.$spaceId.databases._index.tsx"
-    | "s.$spaceId.databases.new.tsx"
-    | "s.$spaceId.databases.sql.tsx"
     | "s.$spaceId.dev.empty.tsx"
     | "s.$spaceId.dev.feed.tsx"
     | "s.$spaceId.documents.$documentId._index.tsx"
@@ -46,7 +42,6 @@ type LegacySpaceRoute =
     | "s.$spaceId.peek.chat.new.tsx"
     | "s.$spaceId.peek.chat.room.new.tsx"
     | "s.$spaceId.peek.chat.with.$accountId.tsx"
-    | "s.$spaceId.peek.databases.$tableOrViewId.tsx"
     | "s.$spaceId.peek.documents.$documentId._index.tsx"
     | "s.$spaceId.peek.documents.$documentId.comments.$commentThreadId._index.tsx"
     | "s.$spaceId.peek.documents.$documentId.comments.$commentThreadId.$index.reactions.tsx"
@@ -162,30 +157,6 @@ const testCases: Record<LegacySpaceRoute, NonEmptyReadonlyArray<{old: string; ne
         {
             old: "/s/c2pwxmpv3z7b3db19tsn6y1qfg/create/more",
             new: "/create/c2pwxmpv3z7b3db19tsn6y1qfg/more",
-        },
-    ],
-    "s.$spaceId.databases.$tableOrViewId.tsx": [
-        {
-            old: "/s/c2pwxmpv3z7b3db19tsn6y1qfg/databases/d93hre935d0yd7akahtrwcvv30",
-            new: "/databases/c2pwxmpv3z7b3db19tsn6y1qfg/d93hre935d0yd7akahtrwcvv30",
-        },
-    ],
-    "s.$spaceId.databases._index.tsx": [
-        {
-            old: "/s/c2pwxmpv3z7b3db19tsn6y1qfg/databases",
-            new: "/databases/c2pwxmpv3z7b3db19tsn6y1qfg",
-        },
-    ],
-    "s.$spaceId.databases.new.tsx": [
-        {
-            old: "/s/c2pwxmpv3z7b3db19tsn6y1qfg/databases/new",
-            new: "/databases/c2pwxmpv3z7b3db19tsn6y1qfg/new",
-        },
-    ],
-    "s.$spaceId.databases.sql.tsx": [
-        {
-            old: "/s/c2pwxmpv3z7b3db19tsn6y1qfg/databases/sql",
-            new: "/databases/c2pwxmpv3z7b3db19tsn6y1qfg/sql",
         },
     ],
     "s.$spaceId.dev.empty.tsx": [
@@ -350,12 +321,6 @@ const testCases: Record<LegacySpaceRoute, NonEmptyReadonlyArray<{old: string; ne
         {
             old: "/s/c2pwxmpv3z7b3db19tsn6y1qfg/peek/chat/with/a93hre935d0yd7akahtrwcvv30",
             new: "/peek/chat/with/a93hre935d0yd7akahtrwcvv30/c2pwxmpv3z7b3db19tsn6y1qfg",
-        },
-    ],
-    "s.$spaceId.peek.databases.$tableOrViewId.tsx": [
-        {
-            old: "/s/c2pwxmpv3z7b3db19tsn6y1qfg/peek/databases/d93hre935d0yd7akahtrwcvv30",
-            new: "/peek/databases/c2pwxmpv3z7b3db19tsn6y1qfg/d93hre935d0yd7akahtrwcvv30",
         },
     ],
     "s.$spaceId.peek.documents.$documentId._index.tsx": [

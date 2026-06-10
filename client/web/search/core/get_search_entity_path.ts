@@ -121,9 +121,6 @@ export function getSearchDynamicEntityPathFromEntityIdObject(
         case "ChatMessage": {
             return `/chat/${entityId.chatId}?message=${entityId.messageIndex}`;
         }
-        case "Database": {
-            return `/databases/${spaceId}/${entityId.databaseTableId}`;
-        }
         case "Task": {
             return `/task/${entityId.taskId}`;
         }
@@ -351,9 +348,6 @@ function intoSearchDynamicEntityIdObject(
         }
         case "Task": {
             return {type: "Task", taskId: entity.task.id};
-        }
-        case "Database": {
-            return {type: "Database", databaseTableId: entity.database.id};
         }
         case "TaskCollection": {
             return {type: "TaskCollection", collectionId: entity.collection.id};

@@ -163,7 +163,6 @@ function SearchEntityViewMedia({entityData}: {entityData: SearchEntityModelDataW
 
     switch (entityData.type) {
         case "Channel":
-        case "Database":
         case "Document":
         case "Site":
         case "Static": {

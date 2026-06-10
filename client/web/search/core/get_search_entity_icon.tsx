@@ -24,10 +24,6 @@ export function getSearchEntityIcon(entityData: SearchEntityModelDataWithAccount
         case "Account": {
             return <ChatBrandIcon />;
         }
-        case "Database": {
-            // TODO(databases): Add a dedicated database brand icon.
-            return <DocumentBrandIcon />;
-        }
         case "Document": {
             return <DocumentBrandIcon />;
         }

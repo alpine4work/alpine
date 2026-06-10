@@ -157,8 +157,8 @@ Important behavior:
 - Stay inside the polling loop in the same run until the current branch is green, has a concrete
   failing run to inspect, or is blocked by something explicitly allowed by this skill such as
   `[SKIP CI]` or a required logic change.
-- If GitHub is slow to populate required-check rows, treat that as `pending` and keep polling rather
-  than stopping early.
+- If GitHub is slow to populate required-check rows, treat that as `pending` and keep polling
+  rather than stopping early.
 
 Keep an ordered run log as you go. For each visited branch, record:
 
@@ -249,9 +249,9 @@ submitted immediate child branch or branches are all green.
 
 If `gh pr checks --required` does not yet show rows for a submitted branch, fall back to
 `gh run list --branch <branch> --limit 20 --json ...` and inspect the newest run for the current
-head commit. Treat `queued` or `in_progress` runs as `pending` and continue sleeping for 60 seconds
-between polls. Only leave the polling loop once the branch is green, a failing run exists to
-diagnose, or a skill-allowed blocker is confirmed.
+head commit. Treat `queued` or `in_progress` runs as `pending` and continue sleeping for 60
+seconds between polls. Only leave the polling loop once the branch is green, a failing run exists
+to diagnose, or a skill-allowed blocker is confirmed.
 
 ### Pulling failing logs
 

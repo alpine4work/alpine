@@ -555,7 +555,6 @@ function alwaysEmbedSearchEntityType(type: SearchDynamicEntityIdObject["type"]):
             return true;
 
         case "Account":
-        case "Database":
         case "Document":
         case "DocumentComment":
         case "Post":
@@ -2467,12 +2466,6 @@ function spotCheckSearchEntityAccess(
             // accounts in the space and so we don't need a spot check.
             mentionEntityId = null;
             break;
-        case "Database":
-            // TODO(databases): Database entities are not indexed yet so we never expect a hit
-            // here. They also aren't mentionable, so there's no mention entity to spot check
-            // with.
-            mentionEntityId = null;
-            break;
         case "Document":
         case "Channel":
         case "Chat":
@@ -2830,12 +2823,6 @@ async function prepareSearchEntityDataForResult(
                     firstEntityId: hitMedia.firstEntityId,
                 },
             };
-        }
-        case "Database": {
-            // TODO(databases): Database entities are not indexed yet (see
-            // `getDatabaseSearchEntity()`), so a hit here can only be a stale legacy index
-            // entry.
-            throw new InternalError("Database search entities are not indexed");
         }
         default:
             throw exhaustive(idObject);

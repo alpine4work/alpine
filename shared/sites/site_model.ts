@@ -189,7 +189,6 @@ export function isSiteEntrySearchEntityModelData(
         case "Post":
         case "Static":
         case "Site":
-        case "Database":
         case "ChatMessage":
         case "DocumentComment":
         case "PostComment":

@@ -234,8 +234,16 @@ Write your findings to the file path provided in the task prompt. Use this forma
 
 `path/to/file.ts:42`
 
-\`\`\`ts // surrounding context ////////////// // // Review comment explaining the issue //
-////////////// const problematicLine = something(); // more context \`\`\`
+\`\`\`ts
+// surrounding context
+//////////////
+//
+// Review comment explaining the issue
+//
+//////////////
+const problematicLine = something();
+// more context
+\`\`\`
 
 ## Performance Issues
 
@@ -243,8 +251,15 @@ Write your findings to the file path provided in the task prompt. Use this forma
 
 `path/to/file.ts:88`
 
-\`\`\`ts // context ////////////// // // Explanation of the performance concern // //////////////
-await sequentialCall(); \`\`\`
+\`\`\`ts
+// context
+//////////////
+//
+// Explanation of the performance concern
+//
+//////////////
+await sequentialCall();
+\`\`\`
 
 ## Code Style
 
@@ -252,8 +267,15 @@ await sequentialCall(); \`\`\`
 
 `path/to/file.ts:15`
 
-\`\`\`ts // context ////////////// // // Style issue explanation // ////////////// const
-SCREAMING_CASE = "bad"; \`\`\`
+\`\`\`ts
+// context
+//////////////
+//
+// Style issue explanation
+//
+//////////////
+const SCREAMING_CASE = "bad";
+\`\`\`
 ```
 
 IMPORTANT:

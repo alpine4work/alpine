@@ -139,8 +139,6 @@ function printEntityTypes(entityTypes: ReadonlyArray<SearchDynamicEntityIdObject
                 return "chat messages";
             case "Channel":
                 return "channels";
-            case "Database":
-                return "databases";
             case "Document":
                 return "documents";
             case "DocumentComment":
