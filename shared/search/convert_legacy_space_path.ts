@@ -127,13 +127,6 @@ function convertLegacySpacePathSegments(
             if (segments.length !== 1) return null;
             return path("create", spaceId);
         }
-        case "databases": {
-            // `/s/:spaceId/databases[/...]` -> `/databases/:spaceId[/...]`. The trailing
-            // segment is a table or view id, `new`, or `sql`.
-            if (segments.length === 1) return path("databases", spaceId);
-            if (segments.length !== 2) return null;
-            return path("databases", spaceId, segments[1]);
-        }
         case "dev": {
             if (segments.length !== 2) return null;
             return path("dev", segments[1], spaceId);
