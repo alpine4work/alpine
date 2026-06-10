@@ -126,9 +126,6 @@ Bazel lint tests are configured with the correct plugins and settings.
 Never run Prettier directly. Use `dev format` to format files, or `bazel test *_format_test` if you
 just want to check that files are formatted correctly.
 
-Never run `bazel clean` or `bazel clean --expunge`. Patch files etc. are usually treated as inputs
-and changes will be detected automatically. Otherwise, `bazel sync` can work as an alternative.
-
 ## Code style
 
 The full code style ruleset can be found in `admin/docs/code_style.md`, if needed.

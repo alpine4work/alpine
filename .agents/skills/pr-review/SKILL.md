@@ -31,31 +31,22 @@ Create the output directory at `admin/docs/agents/review/{branch-name}/`. Use `m
 ## Step 3: Fan out to review agents
 
 Dispatch all four review agents **in parallel** using the Agent tool. Each agent should be given:
-
 - The parent branch name to diff against
 - The output file path to write its findings to
 
 Launch these four agents simultaneously:
 
 1. **review-general** agent — write to `admin/docs/agents/review/{branch-name}/general.md`
-    - Prompt: "Review the diff of the current branch against `{parent-branch}`. Write your findings
-      to `admin/docs/agents/review/{branch-name}/general.md`."
+   - Prompt: "Review the diff of the current branch against `{parent-branch}`. Write your findings to `admin/docs/agents/review/{branch-name}/general.md`."
 
 2. **review-history** agent — write to `admin/docs/agents/review/{branch-name}/history.md`
-    - Prompt: "Review the history and patterns of files changed in the current branch compared to
-      `{parent-branch}`. Write your findings to
-      `admin/docs/agents/review/{branch-name}/history.md`."
+   - Prompt: "Review the history and patterns of files changed in the current branch compared to `{parent-branch}`. Write your findings to `admin/docs/agents/review/{branch-name}/history.md`."
 
 3. **review-security** agent — write to `admin/docs/agents/review/{branch-name}/security.md`
-    - Prompt: "Perform a security review of the diff between the current branch and
-      `{parent-branch}`. Write your findings to
-      `admin/docs/agents/review/{branch-name}/security.md`."
+   - Prompt: "Perform a security review of the diff between the current branch and `{parent-branch}`. Write your findings to `admin/docs/agents/review/{branch-name}/security.md`."
 
-4. **review-compatibility** agent — write to
-   `admin/docs/agents/review/{branch-name}/compatibility.md`
-    - Prompt: "Review the diff between the current branch and `{parent-branch}` for backwards
-      compatibility issues with old clients. Write your findings to
-      `admin/docs/agents/review/{branch-name}/compatibility.md`."
+4. **review-compatibility** agent — write to `admin/docs/agents/review/{branch-name}/compatibility.md`
+   - Prompt: "Review the diff between the current branch and `{parent-branch}` for backwards compatibility issues with old clients. Write your findings to `admin/docs/agents/review/{branch-name}/compatibility.md`."
 
 ## Step 4: Combine into final review
 
@@ -114,5 +105,5 @@ version.
 
 ## Step 5: Output the new path
 
-Finally, give the user the path to the final review file at
+Finally, give the user the path to the final review file at 
 `admin/docs/agents/review/{branch-name}/review.md`

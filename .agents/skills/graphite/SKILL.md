@@ -8,8 +8,8 @@ description:
 
 # Graphite (gt) Stacked PRs
 
-Use this skill for any Graphite CLI operations — navigating stacks, applying changes to specific
-PRs, submitting, syncing, and restacking.
+Use this skill for any Graphite CLI operations — navigating stacks, applying changes to specific PRs,
+submitting, syncing, and restacking.
 
 ## Terminology
 
@@ -20,19 +20,19 @@ PRs, submitting, syncing, and restacking.
 
 ## User language mapping
 
-| User says                          | Meaning                                                         |
-| ---------------------------------- | --------------------------------------------------------------- |
-| "go up" / "go up in the stack"     | `gt up` — move to the child branch                              |
-| "go down" / "go down in the stack" | `gt down` — move to the parent branch                           |
-| "go to the top"                    | `gt top` — move to the tip of the stack                         |
-| "go to the bottom"                 | `gt bottom` — move to the branch closest to trunk               |
-| "apply X to the Nth PR"            | Navigate to the Nth branch off trunk and apply the change there |
-| "submit" / "push"                  | `gt submit` or `gt submit --stack`                              |
-| "sync"                             | `gt sync`                                                       |
-| "restack"                          | `gt restack`                                                    |
-| "create a new PR on top"           | `gt create`                                                     |
-| "modify this PR"                   | `gt modify`                                                     |
-| "absorb" / "absorb changes"        | `gt absorb --force`                                             |
+| User says | Meaning |
+|-----------|---------|
+| "go up" / "go up in the stack" | `gt up` — move to the child branch |
+| "go down" / "go down in the stack" | `gt down` — move to the parent branch |
+| "go to the top" | `gt top` — move to the tip of the stack |
+| "go to the bottom" | `gt bottom` — move to the branch closest to trunk |
+| "apply X to the Nth PR" | Navigate to the Nth branch off trunk and apply the change there |
+| "submit" / "push" | `gt submit` or `gt submit --stack` |
+| "sync" | `gt sync` |
+| "restack" | `gt restack` |
+| "create a new PR on top" | `gt create` |
+| "modify this PR" | `gt modify` |
+| "absorb" / "absorb changes" | `gt absorb --force` |
 
 ## Counting PRs in a stack
 
@@ -202,6 +202,5 @@ gt <command> --no-interactive
 - Always run `gt log` first to understand the current stack before navigating.
 - After modifying a branch mid-stack, gt automatically restacks descendants.
 - If a rebase conflict occurs during restack, see the "Restacking" section above.
-- Prefer `gt modify` over raw git commands when amending a branch in a stack — it handles
-  restacking.
+- Prefer `gt modify` over raw git commands when amending a branch in a stack — it handles restacking.
 - Use `gt sync` at the start of a session to ensure branches are up to date with remote.

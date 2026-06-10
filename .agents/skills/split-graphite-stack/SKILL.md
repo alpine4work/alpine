@@ -11,8 +11,8 @@ description: |
 Use this skill when the user wants to break the current branch into a smaller Graphite stack of
 reviewable PRs.
 
-Also read `.agents/skills/graphite/SKILL.md` if you need a refresher on Graphite commands or restack
-conflict handling.
+Also read `.agents/skills/graphite/SKILL.md` if you need a refresher on Graphite commands or
+restack conflict handling.
 
 ## Goal
 
@@ -206,8 +206,8 @@ For PR 2 and onward, repeat this loop in order:
 If a split boundary maps cleanly to files, `gt split --by-file ...` can help. Prefer manual staging
 when the real boundary is semantic or hunk-based.
 
-If Graphite needs to restack and conflicts appear, resolve them and continue with the normal
-Graphite flow:
+If Graphite needs to restack and conflicts appear, resolve them and continue with the normal Graphite
+flow:
 
 ```bash
 git add -A
@@ -219,8 +219,8 @@ remaining slices into fewer PRs.
 
 ## Step 7: Reparent any pre-existing children onto the new top branch
 
-If the original branch had direct children before you started splitting, move each of those children
-so their new parent is the last branch you created in this stack.
+If the original branch had direct children before you started splitting, move each of those
+children so their new parent is the last branch you created in this stack.
 
 For each original child branch:
 
@@ -310,14 +310,14 @@ For each branch:
     ```
 
 2. Follow the `pr-description` skill:
-    - determine the branch parent with `gt parent`
-    - inspect `git diff <parent>...HEAD`
-    - inspect `git log <parent>..HEAD --oneline`
-    - optionally inspect `gt log short`
-    - if the original unsplit branch had a PR description, incorporate the relevant parts of that
-      description into this branch's new description
-    - write the description in the required `TL;DR` / `What changed?` / optional `Further reading`
-      format
+   - determine the branch parent with `gt parent`
+   - inspect `git diff <parent>...HEAD`
+   - inspect `git log <parent>..HEAD --oneline`
+   - optionally inspect `gt log short`
+   - if the original unsplit branch had a PR description, incorporate the relevant parts of that
+     description into this branch's new description
+   - write the description in the required `TL;DR` / `What changed?` / optional
+     `Further reading` format
 
 3. Show the generated description to the user.
 
