@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/string-quotes -- SQL literals */
+
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -11,8 +13,8 @@ export type SqliteMigration = string | ((db: Database) => void);
  * `main`. It is treated as public and holds **no real information**, only opaque
  * IDs:
  *
- * - `_alpine_tables(id)` — registry of every table id; drives cold-open attach of
- *   per-table databases.
+ * - `_alpine_tables(id, kind)` — registry of every table id; drives cold-open
+ *   attach of per-table databases.
  * - `_alpine_views(id, table_id)` — view→table routing index so a bare view id
  *   from a URL resolves to its owning table without attaching every table.
  *
@@ -34,6 +36,8 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
     ) STRICT, WITHOUT ROWID;
 
     CREATE INDEX _alpine_views_table_id ON _alpine_views(table_id);`,
+    `ALTER TABLE _alpine_tables
+    ADD COLUMN kind TEXT NOT NULL DEFAULT 'table' CHECK (kind IN ('table', 'join'));`,
 ];
 
 /**
@@ -47,8 +51,8 @@ export type TableSqliteMigration = (db: Database, tableId: DatabaseTableId) => v
  * holds one user table's data plus all of its real metadata, none of which is
  * allowed in the public main database:
  *
- * - `_alpine_table(id, name, table_name)` — this table's display name and SQLite
- *   identifier (singleton row).
+ * - `_alpine_table(id, name, table_name, name_field_id)` — this table's display
+ *   name, SQLite identifier, and record-name field (singleton row).
  * - `_alpine_fields` / `_alpine_views` / `_alpine_view_fields` — the table's
  *   columns and grid-view layout.
  *
@@ -118,6 +122,71 @@ export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
             WITHOUT ROWID
         `.exec(db);
     },
+    function migration2(db: Database, tableId: DatabaseTableId): void {
+        sql`
+            ALTER TABLE ${sql.tableRef(tableId, "_alpine_table")}
+            ADD COLUMN name_field_id TEXT
+        `.exec(db);
+        sql`
+            UPDATE ${sql.tableRef(tableId, "_alpine_table")}
+            SET
+                name_field_id = (
+                    SELECT
+                        MIN(id)
+                    FROM
+                        ${sql.tableRef(tableId, "_alpine_fields")}
+                )
+            WHERE
+                name_field_id IS NULL
+        `.exec(db);
+    },
+];
+
+/**
+ * Ordered migrations for a **join-table** database. Join table files are attached
+ * like user-table files, but contain relation metadata and link rows instead of a
+ * user-created data table.
+ */
+export const joinTableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
+    function migration1(db: Database, tableId: DatabaseTableId): void {
+        sql`
+            CREATE TABLE ${sql.tableRef(tableId, "_alpine_join_table")} (
+                id TEXT PRIMARY KEY,
+                source_table_id TEXT NOT NULL,
+                source_field_id TEXT NOT NULL,
+                target_table_id TEXT NOT NULL,
+                target_field_id TEXT NOT NULL,
+                CHECK (is_id (id)),
+                CHECK (is_id (source_table_id)),
+                CHECK (is_id (source_field_id)),
+                CHECK (is_id (target_table_id)),
+                CHECK (is_id (target_field_id))
+            ) STRICT,
+            WITHOUT ROWID
+        `.exec(db);
+        sql`
+            CREATE TABLE ${sql.tableRef(tableId, "_alpine_links")} (
+                source_row_id TEXT NOT NULL,
+                target_row_id TEXT NOT NULL,
+                _created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+                CHECK (is_id (source_row_id)),
+                CHECK (is_id (target_row_id)),
+                CHECK (DATETIME(_created_at) IS NOT NULL)
+            ) STRICT
+        `.exec(db);
+        sql`
+            CREATE INDEX ${sql.tableRef(
+                tableId,
+                "_alpine_links_source",
+            )} ON _alpine_links (source_row_id)
+        `.exec(db);
+        sql`
+            CREATE INDEX ${sql.tableRef(
+                tableId,
+                "_alpine_links_target",
+            )} ON _alpine_links (target_row_id)
+        `.exec(db);
+    },
 ];
 
 /**
@@ -152,20 +221,35 @@ export function runMainMigrations(db: Database): void {
  * pages it syncs.
  */
 export function runTableMigrations(db: Database, tableId: DatabaseTableId): void {
+    runSchemaMigrations(db, tableId, tableSqliteMigrations, "table");
+}
+
+/**
+ * Runs any pending {@link joinTableSqliteMigrations} against `tableId`'s
+ * `ATTACH`-ed join-table database.
+ */
+export function runJoinTableMigrations(db: Database, tableId: DatabaseTableId): void {
+    runSchemaMigrations(db, tableId, joinTableSqliteMigrations, "join table");
+}
+
+function runSchemaMigrations(
+    db: Database,
+    tableId: DatabaseTableId,
+    migrations: ReadonlyArray<TableSqliteMigration>,
+    description: string,
+): void {
     const schema = sql.identifier(databaseTableSchemaName(tableId));
     const version = sql`PRAGMA ${schema}.user_version`.selectValue(db, Schema.integer);
     assert(
-        version <= tableSqliteMigrations.length,
-        `table ${tableId} user_version (${version}) is ahead of known migrations (${tableSqliteMigrations.length})`,
+        version <= migrations.length,
+        `${description} ${tableId} user_version (${version}) is ahead of known migrations (${migrations.length})`,
     );
-    for (let i = version; i < tableSqliteMigrations.length; i++) {
-        tableSqliteMigrations[i]!(db, tableId);
+    for (let i = version; i < migrations.length; i++) {
+        migrations[i]!(db, tableId);
     }
-    if (version < tableSqliteMigrations.length) {
+    if (version < migrations.length) {
         // PRAGMA values can't be bound, so the (trusted) migration count is inlined with
         // `sql.raw`.
-        sql`
-            PRAGMA ${schema}.user_version = ${sql.raw(String(tableSqliteMigrations.length))}
-        `.exec(db);
+        sql` PRAGMA ${schema}.user_version = ${sql.raw(String(migrations.length))} `.exec(db);
     }
 }

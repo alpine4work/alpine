@@ -25,9 +25,11 @@ import {
 } from "~/client/web/databases/fields/database_field_component_providers.js";
 import {
     type DatabaseGridViewField,
+    type DatabaseGridViewFieldEditing,
     type DatabaseGridViewFieldWithEditing,
     useGridViewFields,
 } from "~/client/web/databases/use_grid_view_fields.js";
+import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
@@ -284,6 +286,7 @@ export function DatabaseGridView({
                                         }}
                                     >
                                         <DatabaseGridViewHeaderRow
+                                            tableId={tableId}
                                             fields={gridFields.fields}
                                             hiddenFields={gridFields.hiddenFields}
                                             onStartAddingField={gridFields.startAddingField}
@@ -534,6 +537,7 @@ function DatabaseGridViewLoadMoreSentinel({query}: {query: DatabaseQuery}) {
 // -- Header row ---------------------------------------------------------------
 
 function DatabaseGridViewHeaderRow({
+    tableId,
     fields,
     hiddenFields,
     onStartAddingField,
@@ -543,6 +547,7 @@ function DatabaseGridViewHeaderRow({
     onUpdateFieldVisibility,
     onUpdateFieldConfig,
 }: {
+    tableId: DatabaseTableId;
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     hiddenFields: ReadonlyArray<DatabaseGridViewField>;
     onStartAddingField: () => void;
@@ -568,6 +573,7 @@ function DatabaseGridViewHeaderRow({
             {fields.map(field => (
                 <DatabaseGridViewHeaderCell
                     key={field.id}
+                    tableId={tableId}
                     field={field}
                     startResizingField={startResizingField}
                     isResizingThisField={resizingState?.fieldId === field.id}
@@ -603,12 +609,14 @@ function DatabaseGridViewHeaderRow({
 }
 
 function DatabaseGridViewHeaderCell({
+    tableId,
     field,
     startResizingField,
     isResizingThisField,
     onRenameField,
     onUpdateFieldConfig,
 }: {
+    tableId: DatabaseTableId;
     field: DatabaseGridViewFieldWithEditing;
     startResizingField: (
         fieldId: DatabaseFieldId,
@@ -645,6 +653,8 @@ function DatabaseGridViewHeaderCell({
                     preventOverflow={false}
                     overlay={
                         <DatabaseGridViewFieldTypePicker
+                            tableId={tableId}
+                            editing={editing}
                             onSelect={type => editing.commitWithType(type)}
                         />
                     }
@@ -845,9 +855,13 @@ function DatabaseGridViewHeaderRenameInput({
 
 function DatabaseGridViewFieldTypePicker({
     ref,
+    tableId,
+    editing,
     onSelect,
 }: {
     ref?: React.Ref<HTMLElement>;
+    tableId: DatabaseTableId;
+    editing: DatabaseGridViewFieldEditing;
     onSelect: (type: DatabaseFieldType) => void;
 }) {
     return (
@@ -865,9 +879,19 @@ function DatabaseGridViewFieldTypePicker({
                     type={provider.type}
                     label={provider.label}
                     Icon={provider.Icon}
-                    onSelect={onSelect}
+                    isSelected={provider.type === editing.fieldType}
+                    onSelect={type => {
+                        if (type === "relation") {
+                            editing.updateType(type);
+                        } else {
+                            onSelect(type);
+                        }
+                    }}
                 />
             ))}
+            {editing.fieldType === "relation" ? (
+                <DatabaseGridViewRelationFieldCreationOptions tableId={tableId} editing={editing} />
+            ) : null}
         </Box>
     );
 }
@@ -876,11 +900,13 @@ function DatabaseGridViewFieldTypePickerOption({
     type,
     label,
     Icon,
+    isSelected,
     onSelect,
 }: {
     type: DatabaseFieldType;
     label: string;
     Icon: PhosphorIcon;
+    isSelected: boolean;
     onSelect: (type: DatabaseFieldType) => void;
 }) {
     const {hoverProps, isHovered} = useHover({});
@@ -895,7 +921,7 @@ function DatabaseGridViewFieldTypePickerOption({
             fontSize="75"
             color="grey-100"
             cursor="pointer"
-            backgroundColor={isHovered ? "grey-5" : undefined}
+            backgroundColor={isSelected ? "theme-10" : isHovered ? "grey-5" : undefined}
             onMouseDown={e => {
                 e.preventDefault();
                 onSelect(type);
@@ -903,6 +929,74 @@ function DatabaseGridViewFieldTypePickerOption({
         >
             <Icon size={14} />
             {label}
+        </Box>
+    );
+}
+
+function DatabaseGridViewRelationFieldCreationOptions({
+    tableId,
+    editing,
+}: {
+    tableId: DatabaseTableId;
+    editing: DatabaseGridViewFieldEditing;
+}) {
+    const tablesResult = useReactiveDatabaseAction({name: "listTables", input: {}});
+    const tables = tablesResult?.ok
+        ? tablesResult.value.tables
+        : [{id: tableId, name: "This table"}];
+
+    return (
+        <Box borderTop="grey-5" marginTop="1" paddingTop="1">
+            <Box display="flex" gap="1" padding="1">
+                {(["many", "one"] as const).map(cardinality => (
+                    <Box
+                        key={cardinality}
+                        role="button"
+                        tabIndex={0}
+                        flexGrow="1"
+                        textAlign="center"
+                        borderRadius="1"
+                        padding="1"
+                        fontSize="75"
+                        cursor="pointer"
+                        backgroundColor={
+                            editing.relationCardinality === cardinality ? "theme-10" : "grey-5"
+                        }
+                        color="grey-100"
+                        onMouseDown={event => {
+                            event.preventDefault();
+                            editing.updateRelationCardinality(cardinality);
+                        }}
+                    >
+                        {cardinality === "many" ? "Many" : "One"}
+                    </Box>
+                ))}
+            </Box>
+            <Box style={{maxHeight: 160, overflowY: "auto"}}>
+                {tables.map(table => (
+                    <Box
+                        key={table.id}
+                        role="button"
+                        tabIndex={0}
+                        display="flex"
+                        alignItems="center"
+                        padding="1.5"
+                        borderRadius="1"
+                        fontSize="75"
+                        color="grey-100"
+                        cursor="pointer"
+                        backgroundColor={
+                            table.id === editing.relationLinkedTableId ? "theme-10" : undefined
+                        }
+                        onMouseDown={event => {
+                            event.preventDefault();
+                            editing.updateRelationLinkedTableId(table.id);
+                        }}
+                    >
+                        <Box fontStyle="truncate">{table.name}</Box>
+                    </Box>
+                ))}
+            </Box>
         </Box>
     );
 }
@@ -1096,6 +1190,9 @@ function DatabaseGridViewCell({
 
     const editorOverlay = EditorOverlay ? (
         <EditorOverlay
+            tableId={tableId}
+            fieldId={field.id}
+            rowId={rowId}
             config={field.config}
             initialValue={optimisticValue as DatabaseCellValue}
             initialEditString={initialEditValue}

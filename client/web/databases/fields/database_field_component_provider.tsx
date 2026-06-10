@@ -8,6 +8,7 @@ import {
     DatabaseFieldProvider,
     DatabaseFieldType,
 } from "~/shared/databases/fields/database_field_providers.js";
+import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 // -- Grid view cell props -----------------------------------------------------
 
@@ -27,6 +28,9 @@ export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
  */
 export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
+    tableId: DatabaseTableId;
+    fieldId: DatabaseFieldId;
+    rowId: DatabaseRowId;
     config: DatabaseFieldConfig<Type>;
     /** The current typed value of the cell. */
     initialValue: DatabaseCellValue<Type>;

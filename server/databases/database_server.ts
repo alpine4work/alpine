@@ -10,8 +10,13 @@ import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
+import {
+    runJoinTableMigrations,
+    runMainMigrations,
+    runTableMigrations,
+} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -125,15 +130,28 @@ export class DatabaseServer {
 
                 // Attach + migrate each existing table's per-db file so its data and metadata are
                 // reachable.
-                const tableIds = sql`
+                const tables = sql`
                     SELECT
-                        id
+                        id,
+                        kind
                     FROM
                         _alpine_tables
-                `.selectValues(db, Schema.id<DatabaseTableId>());
-                for (const tableId of tableIds) {
-                    this.database.attachIfNeeded(tableId);
-                    runTableMigrations(db, tableId);
+                `.selectAll(db, {
+                    id: Schema.id<DatabaseTableId>(),
+                    kind: Schema.enum(["table", "join"]),
+                });
+                for (const table of tables) {
+                    this.database.attachIfNeeded(table.id);
+                    switch (table.kind) {
+                        case "table":
+                            runTableMigrations(db, table.id);
+                            break;
+                        case "join":
+                            runJoinTableMigrations(db, table.id);
+                            break;
+                        default:
+                            throw exhaustive(table.kind);
+                    }
                 }
             },
             {allowWrites: "schema+data"},

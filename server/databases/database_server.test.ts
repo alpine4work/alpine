@@ -919,7 +919,7 @@ describe("DatabaseServer — per-table storage", () => {
         expect(tables).toEqual([]);
     });
 
-    test("createTable stores an id-only main row plus its own per-db file", async () => {
+    test("createTable stores public main metadata plus its own per-db file", async () => {
         const server = await DatabaseServer.create(new InMemoryStorage());
         openServers.push(server);
         const {result} = server.executeAction<"createTable">({
@@ -928,14 +928,14 @@ describe("DatabaseServer — per-table storage", () => {
         });
         const db = server.unsafeGetDbForTests();
 
-        // Main holds only the table id — no name, no table_name.
+        // Main holds only public routing metadata — no name, no table_name.
         const tables = sql`
             SELECT
                 *
             FROM
                 _alpine_tables
         `.selectAllUnknown(db);
-        expect(tables).toEqual([{id: result.tableId}]);
+        expect(tables).toEqual([{id: result.tableId, kind: "table"}]);
 
         // The display name lives in the table's own per-db file.
         const name = sql`
@@ -967,5 +967,39 @@ describe("DatabaseServer — per-table storage", () => {
                 ${sql.tableRef(result.tableId, "_alpine_table")}
         `.selectValue(server2.unsafeGetDbForTests(), Schema.string);
         expect(name).toBe("Tasks");
+    });
+
+    test("re-attaches and serves an existing relation join table after reopening", async () => {
+        const storage = new InMemoryStorage();
+        const server1 = await DatabaseServer.create(storage);
+        const source = server1.executeAction<"createTable">({
+            name: "createTable",
+            input: {name: "Tasks"},
+        }).result;
+        const target = server1.executeAction<"createTable">({
+            name: "createTable",
+            input: {name: "Projects"},
+        }).result;
+        const relation = server1.executeAction<"createRelationField">({
+            name: "createRelationField",
+            input: {
+                tableId: source.tableId,
+                viewId: source.viewId,
+                name: "Project",
+                linkedTableId: target.tableId,
+                cardinality: "many",
+            },
+        }).result;
+        server1.close();
+
+        const server2 = await DatabaseServer.create(storage);
+        openServers.push(server2);
+        const joinTableId = sql`
+            SELECT
+                id
+            FROM
+                ${sql.tableRef(relation.joinTableId, "_alpine_join_table")}
+        `.selectValue(server2.unsafeGetDbForTests(), Schema.id<DatabaseTableId>());
+        expect(joinTableId).toBe(relation.joinTableId);
     });
 });
