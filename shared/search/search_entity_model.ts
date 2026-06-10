@@ -10,7 +10,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -97,16 +96,6 @@ export const SearchDocumentEntityModelDataSchema = SearchEntityModelBaseDataSche
     }),
 );
 
-export const SearchDatabaseEntityModelDataSchema = SearchEntityModelBaseDataSchema.merge(
-    Schema.object({
-        type: Schema.value("Database"),
-        database: Schema.object({
-            id: Schema.id<DatabaseTableId>(),
-            version: Schema.integer,
-        }),
-    }),
-);
-
 export const SearchTaskEntityModelDataSchema = SearchEntityModelBaseDataSchema.merge(
     Schema.object({
         type: Schema.value("Task"),
@@ -171,7 +160,6 @@ const SearchAffinityEntityModelDataUnionSchema = {
     ),
     Channel: SearchChannelEntityModelDataSchema,
     Chat: SearchChatEntityModelDataSchema,
-    Database: SearchDatabaseEntityModelDataSchema,
     Document: SearchDocumentEntityModelDataSchema,
     Task: SearchTaskEntityModelDataSchema,
     TaskCollection: SearchTaskCollectionEntityModelDataSchema,
@@ -368,8 +356,6 @@ export function printSearchEntityModelId(data: SearchEntityModelData): SearchEnt
             return `Channel:${data.channel.id}`;
         case "Chat":
             return `Chat:${data.chat.id}`;
-        case "Database":
-            return `Database:${data.database.id}`;
         case "Document":
             return `Document:${data.document.id}`;
         case "Post":
@@ -419,20 +405,6 @@ export function mergeSearchEntityData(
             assert(newEntity.type === oldEntity.type);
             const oldVersion = oldEntity.channel.version;
             const newVersion = newEntity.channel.version;
-
-            if (
-                oldVersion > newVersion ||
-                (oldVersion === newVersion && oldEntity.title === newEntity.title)
-            ) {
-                return oldEntity;
-            }
-
-            return newEntity;
-        }
-        case "Database": {
-            assert(newEntity.type === oldEntity.type);
-            const oldVersion = oldEntity.database.version;
-            const newVersion = newEntity.database.version;
 
             if (
                 oldVersion > newVersion ||

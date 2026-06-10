@@ -192,9 +192,6 @@ function actuallyIntoApiSearchResult({
                 author: intoApiAccount(entity.comment.author.initialData),
             };
         }
-        case "Database":
-            // Databases are not yet exposed via the external API.
-            return null;
         case "Site": {
             // TODO(#sites-api): Implement sites in API
             throw new UnimplementedError("Site search entity support is not implemented");

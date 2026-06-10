@@ -28,9 +28,6 @@ const context = createTestContext({
 // type. This object will have a TypeScript error whenever a new search entity is
 // added reminding developers to add a new test for the search entity.
 const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]: () => void} = {
-    Database: () => {
-        // TODO: Add tests for database search entity indexing.
-    },
     Account: () => {
         test("can get account search entity", async () => {
             const space = await TestSpace.create(context);

@@ -129,7 +129,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
@@ -986,15 +985,6 @@ class SearchEntityReadState {
         };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public async getDatabase(_databaseTableId: DatabaseTableId): Promise<null> {
-        // TODO(databases): Replace this stub once the database group durable object drives
-        // `IndexSearchEntity` jobs for table creates / renames. For now we return null so
-        // reindex attempts fall through to deletion and the search index stays consistent
-        // with "not indexed".
-        return null;
-    }
-
     public getSitePreviewIfExists(siteId: SiteId): Promise<SitePreviewModel | null> {
         this._recordDependencyId(`Site:${siteId}:Preview`);
 
@@ -1451,8 +1441,6 @@ async function actuallyGetSearchEntity(
     switch (idObject.type) {
         case "Account":
             return await getAccountSearchEntity(state, idObject.accountId);
-        case "Database":
-            return await getDatabaseSearchEntity(state, idObject.databaseTableId);
         case "Document":
             return await getDocumentSearchEntity(state, idObject.documentId);
         case "DocumentComment":
@@ -2797,17 +2785,6 @@ async function getTaskCollectionSearchEntity(
         openness: null,
         activeness: null,
     };
-}
-
-async function getDatabaseSearchEntity(
-    _state: SearchEntityReadState,
-    databaseTableId: DatabaseTableId,
-): Promise<SearchEntity> {
-    // TODO(databases): Wire up once the database group durable object drives
-    // `IndexSearchEntity` jobs for table creates / renames. Until then we throw so the
-    // indexer treats any legacy `Database:...` entry as missing and drops it from the
-    // search index.
-    throw new NotFoundError(quote`Database ${databaseTableId} not found`);
 }
 
 async function getTaskCommentSearchEntity(

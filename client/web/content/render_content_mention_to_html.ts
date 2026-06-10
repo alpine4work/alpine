@@ -410,7 +410,6 @@ export function renderContentMentionToHtml(
                 break;
             }
             case "Channel":
-            case "Database":
             case "Document":
             case "Site": {
                 break;
