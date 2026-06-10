@@ -307,6 +307,24 @@ query):
 - NULL handling: a row with no links produces `json_group_array` over zero rows → `[]` (good);
   `json_object('name', NULL)` keeps an explicit null (good).
 
+**Forward-compatibility with view filtering/sorting.** The correlated subquery is pure
+projection (SELECT list), so future view filters and sorts compose orthogonally:
+
+- Filters on regular columns narrow the rows the projection runs for — subquery cost scales
+  with emitted rows, not table size (better than JOIN+GROUP BY, which multiplies rows before
+  filtering and cross-products with two relation fields in one view).
+- Filters *on* a relation field ("contains X", "is empty") don't reuse the projection at all;
+  they're separate `EXISTS` predicates against `_alpine_links` in the WHERE clause, served by
+  the join-table indexes.
+- Sorts on regular columns only change keyset cursors from `_id` to `(sortValue, _id)` — a
+  pagination-layer change, indifferent to the projection.
+- Sorting *by* a relation field (e.g. by first linked name) is the one expensive case: a
+  per-row correlated scalar in ORDER BY, full scan + sort per page, and no index escape (SQLite
+  indexes are per-table; expression indexes can't reference other ATTACH-ed files). This cost
+  is identical under any non-materialized strategy. If it matters later, the fix is a
+  denormalized sort-key cache column maintained on link/name changes — layered on top of this
+  design without changing the wire format or the join-table source of truth.
+
 ### Reactivity & replication — no new work expected
 
 The page-tracking hook records reads of the join file's and linked file's pages during
