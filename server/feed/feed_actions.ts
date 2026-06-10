@@ -10,10 +10,15 @@ import {FeedTable, feedEntryBlockMaxEntryCount} from "~/server/feed/internal/fee
 import {rankFeedEntries} from "~/server/feed/internal/rank_feed_entries.js";
 import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
+import {getFileChatEntityModelIfPossible} from "~/server/files/data/get_file_chat_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
+import {getFileTaskEntityModelIfPossible} from "~/server/files/data/get_file_task_entity_model_if_possible.js";
 import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    AuthorizeSpaceAccessContext,
+    authorizeSpaceAccess,
+} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
@@ -22,10 +27,12 @@ import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
 import {
     FeedChannelEntryModel,
+    FeedChatEntryModel,
     FeedDocumentEntryModel,
     FeedEntryModel,
     FeedPostEntryModel,
     FeedTaskCollectionEntryModel,
+    FeedTaskEntryModel,
     FeedWelcomeEntryModel,
 } from "~/shared/feed/feed_entry_model.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
@@ -40,28 +47,28 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {parseSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
-import {createTaskCollectionNotFoundError} from "~/shared/tasks/task_error_messages.js";
+import {
+    createTaskCollectionNotFoundError,
+    createTaskNotFoundError,
+} from "~/shared/tasks/task_error_messages.js";
 
 /**
- * NOTE: this file is currently being split up. We do not anticipate adding more methods here.
+ * NOTE: this file is currently being split up. We do not anticipate adding more
+ * methods here.
  */
 
 type FeedCandidatesEntryItem = DynamoTableItemType<typeof FeedTable, "FeedCandidates", "Entry">;
-type FeedAccountCandidatesEntryItem = DynamoTableItemType<
-    typeof FeedTable,
-    "FeedAccountCandidates",
-    "Entry"
->;
 type FeedAttributesItem = DynamoTableItemType<typeof FeedTable, "Feed", "Attributes">;
 type FeedEntryBlockItem = DynamoTableItemType<typeof FeedTable, "Feed", "EntryBlock">;
 
 /**
- * Get the latest feed candidate entries in test files. This will throw an
- * error if you call it outside of Just unit tests.
+ * Get the latest feed candidate entries in test files. This will throw an error if
+ * you call it outside of Just unit tests.
  */
 export async function getFeedCandidateEntriesForTest(
     context: ServerSystemActionContext,
@@ -69,10 +76,10 @@ export async function getFeedCandidateEntriesForTest(
 ): Promise<Array<{index: number; entry: FeedEntry}>> {
     // Only allow this function to be called in unit tests! We don't perform any
     // authorization that the actor is allowed to see the returned candidates.
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
     context.actor.authorizeSystem();
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         mapAsyncIterableIterator(
             FeedTable.query(context, {
                 limit,
@@ -95,8 +102,8 @@ export async function getFeedCandidateEntriesForTest(
 }
 
 /**
- * Get the latest feed candidate entries in test files. This will throw an
- * error if you call it outside of Just unit tests.
+ * Get the latest feed candidate entries in test files. This will throw an error if
+ * you call it outside of Just unit tests.
  */
 export async function getFeedAccountCandidateEntriesForTest(
     context: ServerSystemActionContext,
@@ -104,10 +111,10 @@ export async function getFeedAccountCandidateEntriesForTest(
 ): Promise<Array<{index: number; entry: FeedEntry}>> {
     // Only allow this function to be called in unit tests! We don't perform any
     // authorization that the actor is allowed to see the returned candidates.
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
     context.actor.authorizeSystem();
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         mapAsyncIterableIterator(
             FeedTable.query(context, {
                 limit,
@@ -131,9 +138,9 @@ export async function getFeedAccountCandidateEntriesForTest(
 }
 
 /**
- * Processes the `AddFeedCandidateEntry` job by calling
- * `addFeedCandidateEntry()`. The only difference is this function needs to be
- * idempotent since SQS jobs may be delivered multiple times.
+ * Processes the `AddFeedCandidateEntry` job by calling `addFeedCandidateEntry()`.
+ * The only difference is this function needs to be idempotent since SQS jobs may
+ * be delivered multiple times.
  */
 export async function processAddFeedCandidateEntryJob(
     context: ServerActionContext,
@@ -142,8 +149,8 @@ export async function processAddFeedCandidateEntryJob(
     try {
         await addFeedCandidateEntry(context, spaceId, entry, {clientRequestToken: jobId});
     } catch (error) {
-        // Ignore idempotent parameter mismatch errors. That means we've already added
-        // an entry. We don't want to add the entry again. SQS job handling must be
+        // Ignore idempotent parameter mismatch errors. That means we've already added an
+        // entry. We don't want to add the entry again. SQS job handling must be
         // idempotent!
         if (isDynamoIdempotentParameterMismatchError(error)) return;
 
@@ -152,12 +159,12 @@ export async function processAddFeedCandidateEntryJob(
 }
 
 /**
- * Add a feed candidate entry for the space. When accounts view their feed we
- * read candidate entries, rank them with some algorithm, and then add entries
- * to the top of the account's personal feed.
+ * Add a feed candidate entry for the space. When accounts view their feed we read
+ * candidate entries, rank them with some algorithm, and then add entries to the
+ * top of the account's personal feed.
  */
 export async function addFeedCandidateEntry(
-    context: ServerActionContext,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     entry: FeedEntry,
     {clientRequestToken}: {clientRequestToken?: string} = {},
@@ -197,9 +204,9 @@ export async function addFeedCandidateEntry(
                           {isConditionCheckErrorRetriable: true},
                       ),
 
-                // If your condition check on the `Attributes` item passes then we're
-                // guaranteed there's no item with this `index` as a key. So we can safely
-                // use create-or-replace to save some RCUs.
+                // If your condition check on the `Attributes` item passes then we're guaranteed
+                // there's no item with this `index` as a key. So we can safely use
+                // create-or-replace to save some RCUs.
                 FeedTable.transactionCreateOrReplaceItem({
                     partitionType: "FeedCandidates",
                     sortRangeType: "Entry",
@@ -215,8 +222,8 @@ export async function addFeedCandidateEntry(
 
 /**
  * Processes the `AddFeedAccountCandidateEntry` job by calling
- * `addFeedAccountCandidateEntry()`. The only difference is this function needs
- * to be idempotent since SQS jobs may be delivered multiple times.
+ * `addFeedAccountCandidateEntry()`. The only difference is this function needs to
+ * be idempotent since SQS jobs may be delivered multiple times.
  */
 export async function processAddFeedAccountCandidateEntryJob(
     context: ServerActionContext,
@@ -237,8 +244,8 @@ export async function processAddFeedAccountCandidateEntryJob(
             clientRequestToken: jobId,
         });
     } catch (error) {
-        // Ignore idempotent parameter mismatch errors. That means we've already added
-        // an entry. We don't want to add the entry again. SQS job handling must be
+        // Ignore idempotent parameter mismatch errors. That means we've already added an
+        // entry. We don't want to add the entry again. SQS job handling must be
         // idempotent!
         if (isDynamoIdempotentParameterMismatchError(error)) return;
 
@@ -247,15 +254,15 @@ export async function processAddFeedAccountCandidateEntryJob(
 }
 
 /**
- * Add a feed candidate entry for a single account in the space. When accounts
- * view their feed we read candidate entries, rank them with some algorithm,
- * and then add entries to the top of the account's personal feed.
+ * Add a feed candidate entry for a single account in the space. When accounts view
+ * their feed we read candidate entries, rank them with some algorithm, and then
+ * add entries to the top of the account's personal feed.
  *
- * You probably want `addFeedCandidateEntry()`! This function adds a candidate
- * that may only ever be visible to a single account in the space.
+ * You probably want `addFeedCandidateEntry()`! This function adds a candidate that
+ * may only ever be visible to a single account in the space.
  */
 export async function addFeedAccountCandidateEntry(
-    context: ServerActionContext,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     accountId: AccountId,
     entry: FeedEntry,
@@ -266,8 +273,8 @@ export async function addFeedAccountCandidateEntry(
         isBotSpaceAccount(context, spaceId, accountId),
     ]);
 
-    // Bots don't have feeds. Noop if we're trying to add an account candidate
-    // entry for a bot account.
+    // Bots don't have feeds. Noop if we're trying to add an account candidate entry
+    // for a bot account.
     if (isBot) return;
 
     if (entry.type === "Welcome") {
@@ -305,9 +312,9 @@ export async function addFeedAccountCandidateEntry(
                           {isConditionCheckErrorRetriable: true},
                       ),
 
-                // If your condition check on the `Attributes` item passes then we're
-                // guaranteed there's no item with this `index` as a key. So we can safely
-                // use create-or-replace to save some RCUs.
+                // If your condition check on the `Attributes` item passes then we're guaranteed
+                // there's no item with this `index` as a key. So we can safely use
+                // create-or-replace to save some RCUs.
                 FeedTable.transactionCreateOrReplaceItem({
                     partitionType: "FeedAccountCandidates",
                     sortRangeType: "Entry",
@@ -323,12 +330,20 @@ export async function addFeedAccountCandidateEntry(
 }
 
 /**
- * Gets the feed entries at the top of the session actor's feed. First we
- * update the actor's feed before returning entries.
+ * Gets the feed entries at the top of the session actor's feed. First we update
+ * the actor's feed before returning entries.
  */
 export async function getAndUpdateFeedEntries(
     context: ServerSessionActionContext,
-    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+    {
+        spaceId,
+        limit,
+        overrideCurrentTimeForTest,
+    }: {
+        spaceId: SpaceId;
+        limit: number;
+        overrideCurrentTimeForTest?: Date;
+    },
 ): Promise<{
     startCursor: FeedEntryCursor | null;
     endCursor: FeedEntryCursor | null;
@@ -351,7 +366,7 @@ export async function getAndUpdateFeedEntries(
     const {feedItem, wasFeedCreated, newEntryBlocks} = await context.tracer.withSpan(
         "Update feed entries",
         async (context, span) =>
-            context.dynamo.retryTransaction(async context => {
+            await context.dynamo.retryTransaction(async context => {
                 const feedItem = await FeedTable.getItemIfExists(context, {
                     partitionType: "Feed",
                     sortRangeType: "Attributes",
@@ -360,7 +375,9 @@ export async function getAndUpdateFeedEntries(
                 });
 
                 const {wasCreated: wasFeedCreated, entryBlocks: newEntryBlocks} =
-                    await updateFeedEntries(context, spaceId, feedItem);
+                    await updateFeedEntries(context, spaceId, feedItem, {
+                        overrideCurrentTimeForTest,
+                    });
 
                 let entryCount = 0;
                 for (const entryBlock of newEntryBlocks) {
@@ -419,10 +436,10 @@ export async function getAndUpdateFeedEntries(
 
         if (entryPromises.length < limit) {
             for await (const entryBlock of FeedTable.query(context, {
-                // Entry blocks contain between 1 and 10 entries. So to fill our `entries`
-                // array to `limit` we need to query at least `limit - entries.length` blocks
-                // assuming each block has one item. We'll end query pagination early (via
-                // `break`) if we find enough entries to fill the array.
+                // Entry blocks contain between 1 and 10 entries. So to fill our `entries` array to
+                // `limit` we need to query at least `limit - entries.length` blocks assuming each
+                // block has one item. We'll end query pagination early (via `break`) if we find
+                // enough entries to fill the array.
                 limit:
                     limit -
                     entryPromises.length +
@@ -498,15 +515,66 @@ async function updateFeedEntries(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
     feedItem: FeedAttributesItem | null,
+    {overrideCurrentTimeForTest}: {overrideCurrentTimeForTest: Date | undefined},
 ): Promise<{wasCreated: boolean; entryBlocks: ReadonlyArray<FeedEntryBlockItem>}> {
-    // Limit the number of feed candidates we look at. This does mean if the user
-    // is joining the space for the first time or opening a space again after a
-    // long time away they may miss some feed entries. We accept this possibility.
-    // Long term this will be an algorithmic feed anyway with no guarantee that the
-    // user will see everything.
+    if (overrideCurrentTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
+    const currentTime = overrideCurrentTimeForTest ?? new Date();
+
+    // Limit the number of feed candidates we look at. This does mean if the user is
+    // joining the space for the first time or opening a space again after a long time
+    // away they may miss some feed entries. We accept this possibility. Long term this
+    // will be an algorithmic feed anyway with no guarantee that the user will see
+    // everything.
     const limit = 500;
 
-    const currentTime = new Date();
+    function getCreatorIdForEntry(
+        entry: FeedEntry & {type: "Document" | "Task" | "TaskCollection" | "Channel" | "RoomChat"},
+    ): AccountId | null {
+        switch (entry.type) {
+            case "Document":
+            case "Task":
+            case "TaskCollection":
+                return entry.creator.id ?? null;
+            case "Channel":
+            case "RoomChat":
+                return entry.creatorId ?? null;
+            default:
+                throw exhaustive(entry);
+        }
+    }
+
+    const processEntry = async (
+        item: Pick<FeedCandidatesEntryItem, "index" | "entry">,
+    ): Promise<
+        | (Pick<FeedCandidatesEntryItem, "index" | "entry"> & {isUnauthorized?: undefined})
+        | {isUnauthorized: true; index: number}
+    > => {
+        if (item.entry.type !== "Post") {
+            const excludeFromCreatorFeed =
+                // If we were instructed to exclude this entry from the creator's feed, do that
+                // filtering here.
+                item.entry.excludeFromCreatorFeed ??
+                // If you create a private document, task collection, or channel then we add a
+                // created event feed account candidate to the creator's personal feed. So don't
+                // add subsequent share events to the creator's feed since the creator's feed
+                // should already include an entry for the entity.
+                item.entry.event !== "Created";
+
+            if (
+                excludeFromCreatorFeed &&
+                getCreatorIdForEntry(item.entry) === context.actor.getAccountId()
+            ) {
+                return {isUnauthorized: true, index: item.index};
+            }
+        }
+
+        const result = await authorizeFeedEntryIfPossible(context, item.entry);
+        if (!result.ok) return {isUnauthorized: true, index: item.index};
+        return item;
+    };
 
     const [candidateEntries, accountCandidateEntries, welcomeEntry, searchAffinityEntities] =
         await runAllPromises([
@@ -526,16 +594,7 @@ async function updateFeedEntries(
                         index: (feedItem?.lastCandidateIndex ?? -1) + 1,
                     },
                 }),
-                async (
-                    item,
-                ): Promise<
-                    | (FeedCandidatesEntryItem & {isUnauthorized?: undefined})
-                    | {isUnauthorized: true; index: number}
-                > => {
-                    const result = await authorizeFeedEntryIfPossible(context, item.entry);
-                    if (!result.ok) return {isUnauthorized: true, index: item.index};
-                    return item;
-                },
+                processEntry,
             ),
             parallelMapAsyncIterableToArray(
                 FeedTable.query(context, {
@@ -554,27 +613,18 @@ async function updateFeedEntries(
                         index: (feedItem?.lastAccountCandidateIndex ?? -1) + 1,
                     },
                 }),
-                async (
-                    item,
-                ): Promise<
-                    | (FeedAccountCandidatesEntryItem & {isUnauthorized?: undefined})
-                    | {isUnauthorized: true; index: number}
-                > => {
-                    const result = await authorizeFeedEntryIfPossible(context, item.entry);
-                    if (!result.ok) return {isUnauthorized: true, index: item.index};
-                    return item;
-                },
+                processEntry,
             ),
 
-            // If we're creating the account's feed then add a welcome entry to the end of
-            // the feed.
+            // If we're creating the account's feed then add a welcome entry to the end of the
+            // feed.
             !feedItem
                 ? (async (): Promise<FeedEntry> => {
                       const items = await getSpaceAutoAddAccountsFromEmailDomains(
                           context,
                           spaceId,
-                          // Use strong consistency to make sure we include the correct information in
-                          // the welcome entry.
+                          // Use strong consistency to make sure we include the correct information in the
+                          // welcome entry.
                           {consistency: "Strong"},
                       );
 
@@ -587,11 +637,10 @@ async function updateFeedEntries(
                   })()
                 : null,
 
-            // Fetch affinity data for ranking feed entries. We use affinities to
-            // prioritize content from accounts/channels the user interacts with
-            // frequently. Use 2x the search affinity limit used by `searchByAffinity`
-            // on the client (30) and get all candidates to maximize the affinity data
-            // available for ranking.
+            // Fetch affinity data for ranking feed entries. We use affinities to prioritize
+            // content from accounts/channels the user interacts with frequently. Use 2x the
+            // search affinity limit used by `searchByAffinity` on the client (30) and get all
+            // candidates to maximize the affinity data available for ranking.
             internalGetSearchAffinityEntities(context, {
                 spaceId,
                 limit: 60,
@@ -622,35 +671,8 @@ async function updateFeedEntries(
 
     const mergedCandidateEntries: Array<FeedEntry> = [];
 
-    const getCreatorIdForEntry = (
-        entry: FeedEntry & {type: "Document" | "TaskCollection" | "Channel"},
-    ): AccountId | null => {
-        switch (entry.type) {
-            case "Document":
-                return entry.creator.id ?? null;
-            case "Channel":
-            case "TaskCollection":
-                return entry.creatorId ?? null;
-            default:
-                throw exhaustive(entry);
-        }
-    };
-
     for (const entry of candidateEntries) {
         if (entry.isUnauthorized) continue;
-
-        // If you create a private document, task collection, or channel then we add a
-        // created event feed account candidate to the creator's personal feed. So
-        // don't add subsequent share events to the creator's feed since the creator's
-        // feed should already include an entry for the entity.
-        if (
-            entry.entry.type !== "Post" && // `type` is e.g. `Document`, `TaskCollection`, or `Channel`
-            entry.entry.event !== "Created" && // `event` is e.g. `SharedWithAccessPolicyDefaultGrant`
-            getCreatorIdForEntry(entry.entry) === context.actor.getAccountId()
-        ) {
-            continue;
-        }
-
         mergedCandidateEntries.push(entry.entry);
     }
 
@@ -666,14 +688,14 @@ async function updateFeedEntries(
         searchAffinityPointsByChannelId,
     });
 
-    // Make sure we don't have more than `limit` total candidates after ranking
-    // our candidate arrays.
+    // Make sure we don't have more than `limit` total candidates after ranking our
+    // candidate arrays.
     if (rankedEntries.length > limit) {
         rankedEntries = rankedEntries.slice(0, limit);
     }
 
-    // If we're creating the account's feed then add a welcome entry to the end of
-    // the feed.
+    // If we're creating the account's feed then add a welcome entry to the end of the
+    // feed.
     if (!feedItem) {
         rankedEntries.push(assertExists(welcomeEntry));
     }
@@ -734,10 +756,10 @@ async function updateFeedEntries(
 }
 
 /**
- * Paginate through an account's feed from top to bottom without updating the
- * feed. If you're loading the top of the account's feed generally you'll want
- * `getAndUpdateFeedEntries()` to make sure you're showing the latest stuff
- * that's been happening in the space.
+ * Paginate through an account's feed from top to bottom without updating the feed.
+ * If you're loading the top of the account's feed generally you'll want
+ * `getAndUpdateFeedEntries()` to make sure you're showing the latest stuff that's
+ * been happening in the space.
  */
 export async function getFeedEntries(
     context: ServerSessionActionContext,
@@ -768,19 +790,19 @@ export async function getFeedEntries(
     try {
         for await (const entryBlock of FeedTable.query(context, {
             // Each entry block contains at least one entry (and at most 10 entries as of
-            // 2025-05-19) so to load at most `limit` entries we need to load at most
-            // `limit` entry blocks in the worst case that each entry block has one entry.
-            // If each entry block has 10 entries then we'll break out of the query once we
-            // hit `limit` entries which will cancel `query()` async iterator pagination.
+            // 2025-05-19) so to load at most `limit` entries we need to load at most `limit`
+            // entry blocks in the worst case that each entry block has one entry. If each
+            // entry block has 10 entries then we'll break out of the query once we hit `limit`
+            // entries which will cancel `query()` async iterator pagination.
             //
             // We actually need `limit + 1` entry blocks for the case where we have an
             // `afterCursor` and each entry block has only one entry. We load the block
             // `afterCursor` points to since we don't know if `afterCursor` points to the
-            // start, middle, or end of the block. If `afterCursor` points to the end of
-            // the block then we need to load 1 additional block (the `+ 1` in `limit + 1`)
-            // to meet our entry limit since we'll be skipping `afterCursor`'s block.
-            // There's a test for this case so to learn more try removing the `+ 1` and
-            // running `feed_table.test.ts` to see what breaks.
+            // start, middle, or end of the block. If `afterCursor` points to the end of the
+            // block then we need to load 1 additional block (the `+ 1` in `limit + 1`) to meet
+            // our entry limit since we'll be skipping `afterCursor`'s block. There's a test
+            // for this case so to learn more try removing the `+ 1` and running
+            // `feed_table.test.ts` to see what breaks.
             limit:
                 limit +
                 (afterCursor ? 1 : 0) +
@@ -877,8 +899,8 @@ export async function getFeedEntries(
 }
 
 /**
- * Authorize the feed entity. If not possible, return an `ok: false` result
- * instead of throwing an error.
+ * Authorize the feed entity. If not possible, return an `ok: false` result instead
+ * of throwing an error.
  */
 async function authorizeFeedEntryIfPossible(
     context: ServerSessionActionContext,
@@ -889,13 +911,24 @@ async function authorizeFeedEntryIfPossible(
             return okResult;
         }
         case "Post": {
-            return context.forumInjection.authorizeChannelAccessIfPossible(entry.channelId, "View");
+            return await context.forumInjection.authorizeChannelAccessIfPossible(
+                entry.channelId,
+                "View",
+            );
         }
         case "Document": {
-            return context.documentsInjection.authorizeDocumentAccessIfPossible(
+            return await context.documentsInjection.authorizeDocumentAccessIfPossible(
                 entry.documentId,
                 "View",
             );
+        }
+        case "Task": {
+            const result = await context.tasksInjection.authorizeTaskAccessIfPossible(
+                entry.taskId,
+                "View",
+            );
+            if (!result) throw createTaskNotFoundError(entry.taskId);
+            return result;
         }
         case "TaskCollection": {
             const result = await context.tasksInjection.authorizeTaskCollectionAccessIfPossible(
@@ -906,7 +939,13 @@ async function authorizeFeedEntryIfPossible(
             return result;
         }
         case "Channel": {
-            return context.forumInjection.authorizeChannelAccessIfPossible(entry.channelId, "View");
+            return await context.forumInjection.authorizeChannelAccessIfPossible(
+                entry.channelId,
+                "View",
+            );
+        }
+        case "RoomChat": {
+            return await context.chatInjection.authorizeChatAccessIfPossible(entry.chatId, "View");
         }
         default:
             throw exhaustive(entry);
@@ -917,7 +956,7 @@ async function authorizeFeedEntryIfPossible(
  * Create a feed entry model from the feed entry. If the session actor has lost
  * access to the feed entry then return an error.
  */
-async function createFeedEntryModelIfPossible(
+export async function createFeedEntryModelIfPossible(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
     entry: FeedEntry,
@@ -971,6 +1010,23 @@ async function createFeedEntryModelIfPossible(
                     }),
             );
         }
+        case "Task": {
+            const [sharer, result] = await runAllPromises([
+                getAccount(context, spaceId, entry.sharerId),
+                getFileTaskEntityModelIfPossible(context, spaceId, entry.taskId),
+            ]);
+
+            return mapResult(
+                result,
+                task =>
+                    new FeedTaskEntryModel({
+                        sharer,
+                        sharedTime: entry.sharedTime,
+                        event: entry.event,
+                        task,
+                    }),
+            );
+        }
         case "Channel": {
             const [sharer, result] = await runAllPromises([
                 getAccount(context, spaceId, entry.sharerId),
@@ -985,6 +1041,23 @@ async function createFeedEntryModelIfPossible(
                         sharedTime: entry.sharedTime,
                         event: entry.event,
                         channel,
+                    }),
+            );
+        }
+        case "RoomChat": {
+            const [sharer, result] = await runAllPromises([
+                getAccount(context, spaceId, entry.sharerId),
+                getFileChatEntityModelIfPossible(context, entry.chatId),
+            ]);
+
+            return mapResult(
+                result,
+                chat =>
+                    new FeedChatEntryModel({
+                        sharer,
+                        sharedTime: entry.sharedTime,
+                        event: entry.event,
+                        chat,
                     }),
             );
         }

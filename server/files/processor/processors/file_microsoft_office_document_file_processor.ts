@@ -22,8 +22,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * Lookup system installed [LibreOffice][1] executable path using common
- * installation locations. If you add a path here you should also update
- * `dev test` which also needs to check if LibreOffice is installed.
+ * installation locations. If you add a path here you should also update `dev test`
+ * which also needs to check if LibreOffice is installed.
  *
  * [1]: https://www.libreoffice.org
  */
@@ -135,10 +135,9 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                         // eslint-disable-next-line cyberworlds/string-quotes
                         'calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
 
-                    // Spreadsheets are an infinite canvas and aren't typically restricted by any
-                    // page size. So we want to crop our preview image to the top-left corner of
-                    // the sheet. Otherwise the preview image could be so large as to not be
-                    // particularly useful.
+                    // Spreadsheets are an infinite canvas and aren't typically restricted by any page
+                    // size. So we want to crop our preview image to the top-left corner of the sheet.
+                    // Otherwise the preview image could be so large as to not be particularly useful.
                     shouldCropPreviewImage = true;
                     break;
                 case "application/vnd.ms-powerpoint":
@@ -187,9 +186,9 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                             cwd: runfilesPath,
                             signal,
                             env: {
-                                // In production, the `www-data` user's `$HOME` (`/var/www`) won't be writable.
-                                // So `dconf` logs a warning telling us the cache directory can't be created.
-                                // Set `XDG_CACHE_HOME` to a writable directory so `dconf` can work.
+                                // In production, the `www-data` user's `$HOME` (`/var/www`) won't be writable. So
+                                // `dconf` logs a warning telling us the cache directory can't be created. Set
+                                // `XDG_CACHE_HOME` to a writable directory so `dconf` can work.
                                 XDG_CACHE_HOME: joinPath(parentTemporaryDirectoryPath, ".cache"),
                             },
                         },
@@ -197,8 +196,8 @@ export function createFileMicrosoftOfficeDocumentProcessor(
 
                     const processDurationMs = span.clock.now() - startTime;
 
-                    // Record just the process duration since waiting on the input stream depends
-                    // on client network performance.
+                    // Record just the process duration since waiting on the input stream depends on
+                    // client network performance.
                     span.addData({common: {processDurationMs}});
                 },
             );

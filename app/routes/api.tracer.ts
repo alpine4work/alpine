@@ -1,6 +1,7 @@
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {validateTracerEventFlatData} from "~/server/tracer/validate_tracer_event_flat_data.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {DataLossError, InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
@@ -53,7 +54,9 @@ export async function action({request, context, span}: LoaderArgs) {
             } catch (error) {
                 // A bad event should not stop us from recording other good events in the batch
                 // sent by the client.
-                errors.push(error);
+                errors.push(
+                    DataLossError.from(error, "Throwing away invalid tracer event from client"),
+                );
             }
         }
 
@@ -63,7 +66,11 @@ export async function action({request, context, span}: LoaderArgs) {
                 headers: {"content-type": "application/json"},
             });
         } else {
-            span.addException(errors[0]);
+            const error = createAggregateError(errors);
+
+            span.addException(error);
+
+            const status = isSystemError(error) ? 500 : 400;
 
             return new Response(
                 JSON.stringify({
@@ -71,10 +78,7 @@ export async function action({request, context, span}: LoaderArgs) {
                     errors: errors.map(error => ErrorSchema.serialize(error)),
                 }),
                 {
-                    status: errors.reduce<number>(
-                        (status, error) => Math.max(status, isSystemError(error) ? 500 : 400),
-                        200,
-                    ),
+                    status,
                     headers: {"content-type": "application/json"},
                 },
             );

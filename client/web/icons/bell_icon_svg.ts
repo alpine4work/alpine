@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import escapeHtml from "escape-html";
 import {Bell} from "phosphor-react";
 

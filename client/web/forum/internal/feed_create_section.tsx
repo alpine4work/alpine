@@ -1,55 +1,45 @@
-import {IconContext} from "phosphor-react";
-import {ReactNode, useRef, useState} from "react";
-import {PressEvent, usePress} from "react-aria";
+import {useRef, useState} from "react";
+import {usePress} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useInitialAppRenderId} from "~/client/web/helpers/lifecycle/initial_app_render.js";
-import {ChatBrandBigIcon} from "~/client/web/icons/brand/chat_brand_big_icon.js";
-import {DocumentBrandBigIcon} from "~/client/web/icons/brand/document_brand_big_icon.js";
-import {PostBrandBigIcon} from "~/client/web/icons/brand/post_brand_big_icon.js";
-import {TaskBrandBigIcon} from "~/client/web/icons/brand/task_brand_big_icon.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
+import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
+import {CreateWidgetPrimaryMenuBar} from "~/client/web/spaces/layout/create_widget_primary_menu_bar.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
-    feedCreateSectionButtonFontSize,
-    feedCreateSectionButtonHeight,
-    feedCreateSectionButtonNarrowRouteLayoutGap,
-    feedCreateSectionButtonPaddingY,
-    feedCreateSectionButtonSize,
-    feedCreateSectionCreateHeadingMarginBottom,
+    createWidgetPrimaryMenuBarItemBackgroundInsetY,
+    createWidgetPrimaryMenuBarItemDesktopPaddingX,
     feedCreateSectionForYouHeadingMarginBottom,
     feedCreateSectionGap,
     feedCreateSectionHeadingFontSize,
     feedCreateSectionHeadingLineHeight,
-    feedCreateSectionMarginTop,
     feedCreateSectionMinHeight,
+    feedCreateSectionSearchBarContainerPaddingX,
+    feedCreateSectionSearchBarContainerPaddingY,
     feedCreateSectionSuggestedHeadingMarginBottom,
 } from "~/client/web/styles/feed_shared_styles.js";
 import {peekMaxHeight} from "~/client/web/styles/peek_shared_styles.js";
 import {searchAffinityEntityViewMinHeightPx} from "~/client/web/styles/search_shared_styles.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
-import {colorSchemeVars} from "~/client/web/styles/styles.js";
-import {
-    addRemLengths,
-    convertRemLengthToPx,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {inputPlaceholderStyles} from "~/client/web/styles/styles.js";
+import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {
@@ -63,10 +53,10 @@ export function FeedCreateSection({
 }: {
     initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
 }) {
-    const navigate = useNavigate();
-    const initialAppRenderId = useInitialAppRenderId();
+    const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
+    const initialAppRenderId = useInitialAppRenderId();
     const {space} = useSpaceContext();
     const clientInfo = useClientInfo();
 
@@ -74,11 +64,11 @@ export function FeedCreateSection({
         initialAppRenderId ? `${initialAppRenderId}-FeedCreateSection` : generateId(),
     );
 
-    // Even though we've already loaded the affinity search from the server, we
-    // call `useLazyLoadRpc()` so that if you navigate away from the browser
-    // then navigate back the affinity list is re-fetched. Also any time you
-    // favorite/unfavorite something we revalidate the RPC cache for
-    // `searchByAffinity()` which will cause this component to re-render.
+    // Even though we've already loaded the affinity search from the server, we call
+    // `useLazyLoadRpc()` so that if you navigate away from the browser then navigate
+    // back the affinity list is re-fetched. Also any time you favorite/unfavorite
+    // something we revalidate the RPC cache for `searchByAffinity()` which will cause
+    // this component to re-render.
     const {output: affinitySearchOutput} = useLazyLoadRpc(
         searchByAffinity,
         routeLayout === "narrow" ? {spaceId: space.id} : null,
@@ -88,16 +78,16 @@ export function FeedCreateSection({
     const availableHeight =
         Math.min(clientInfo.screenHeight, convertRemLengthToPx(peekMaxHeight, spacingScale)) -
         (convertRemLengthToPx(navigationBarHeight, spacingScale) +
-            convertRemLengthToPx(feedCreateSectionMinHeight[routeLayout], spacingScale) +
+            convertRemLengthToPx(feedCreateSectionMinHeight[platform], spacingScale) +
             (NativeMobileBridge?.tabBar.height ??
                 convertRemLengthToPx(spaceLayoutWebMobileTabBarHeight, spacingScale)) +
             // This is the amount of space we want to allocate for the beginning of the "For
             // you" feed.
             convertRemLengthToPx("16", spacingScale));
 
-    // Show as many search affinity results as we can while also showing the
-    // beginning of the for you feed above the fold so the user knows the for you
-    // feed exists if they start scrolling.
+    // Show as many search affinity results as we can while also showing the beginning
+    // of the for you feed above the fold so the user knows the for you feed exists if
+    // they start scrolling.
     const visibleSearchAffinityResultCount = Math.max(
         3,
         Math.floor(availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale]),
@@ -107,106 +97,55 @@ export function FeedCreateSection({
         <Box
             style={
                 routeLayout !== "narrow"
-                    ? {height: feedCreateSectionMinHeight[routeLayout]}
-                    : {minHeight: feedCreateSectionMinHeight[routeLayout]}
+                    ? {height: feedCreateSectionMinHeight[platform]}
+                    : {minHeight: feedCreateSectionMinHeight[platform]}
             }
         >
-            <Box
-                paddingX={screenPaddingX}
-                paddingTop={feedCreateSectionMarginTop[routeLayout]}
-                paddingBottom={feedCreateSectionCreateHeadingMarginBottom}
-                fontSize={feedCreateSectionHeadingFontSize[routeLayout]}
-                fontStyle={routeLayout !== "narrow" ? "bold" : "normal"}
-                color={routeLayout !== "narrow" ? undefined : "grey-50"}
-                style={{lineHeight: feedCreateSectionHeadingLineHeight[routeLayout]}}
-            >
-                Create
-            </Box>
-            <Box paddingX={screenPaddingX}>
+            {platform === "desktop" && <FeedCreateSectionSearchBar />}
+            {platform !== "desktop" && (
                 <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    style={{
-                        // This is pretty brittle. We've carefully selected margin values that align
-                        // our create buttons with surrounding UI elements.
-                        //
-                        // - Desktop (`routeLayout === "wide"`): We want to align the left edge of the
-                        //   document icon with the section header text ("Create" and "For you").
-                        //
-                        // - Mobile (`routeLayout === "narrow"`): We want to align the text of our
-                        //   first button ("Document") with the section header text ("Create" and
-                        //   "Suggested").
-                        margin:
-                            routeLayout !== "narrow"
-                                ? `0 -${addRemLengths(
-                                      spacing["3"],
-                                      spacing["1.5"],
-                                      `${1 / remPxBySpacingScale.small}rem`,
-                                  )}`
-                                : `0 -${spacing["2.5"]}`,
-                    }}
+                    paddingX={screenPaddingX}
+                    paddingBottom={feedCreateSectionSuggestedHeadingMarginBottom}
+                    fontSize={feedCreateSectionHeadingFontSize[platform]}
+                    fontStyle="normal"
+                    color="grey-50"
+                    style={{lineHeight: feedCreateSectionHeadingLineHeight[platform]}}
                 >
-                    <FeedCreateSectionButton
-                        icon={<DocumentBrandBigIcon size={feedCreateSectionButtonSize} />}
-                        label="Document"
-                        description="Write stuff"
-                        onPress={event => {
-                            const documentId = generateId();
-
-                            navigate(`/s/${space.id}/documents/${documentId}?create&focus`, {
-                                // Don't open the new document in a peek. Instead open the new document full
-                                // screen (unless shift is held). This is the only create button with this
-                                // behavior. Ideally the create buttons get you off the home page and into
-                                // precisely where you want to be in the product. We don't do this for tasks,
-                                // posts, and messages since their designs all look better in a peek.
-                                stopPropagation: !event.shiftKey,
-                            });
-                        }}
-                    />
-                    <FeedCreateSectionDivider />
-                    <FeedCreateSectionButton
-                        icon={<TaskBrandBigIcon size={feedCreateSectionButtonSize} />}
-                        label="Task"
-                        description="Track work"
-                        onPress={() => {
-                            const taskId = generateId();
-
-                            navigate(`/s/${space.id}/tasks/${taskId}?create&focus`);
-                        }}
-                    />
-                    <FeedCreateSectionDivider />
-                    <FeedCreateSectionButton
-                        icon={<PostBrandBigIcon size={feedCreateSectionButtonSize} />}
-                        label="Post"
-                        description="Share ideas"
-                        onPress={() => {
-                            const draftId = generateChronologicalId();
-
-                            navigate(`/s/${space.id}/posts/new/${draftId}?focus=content`);
-                        }}
-                    />
-                    <FeedCreateSectionDivider />
-                    <FeedCreateSectionButton
-                        icon={<ChatBrandBigIcon size={feedCreateSectionButtonSize} />}
-                        label="Message"
-                        description="Start a chat"
-                        onPress={() => {
-                            navigate(`/s/${space.id}/chat/new?focus=picker`);
-                        }}
-                    />
+                    Create
                 </Box>
+            )}
+            <Box
+                paddingX={platform === "desktop" ? screenPaddingX : undefined}
+                marginX={
+                    platform === "desktop"
+                        ? `-${createWidgetPrimaryMenuBarItemDesktopPaddingX}`
+                        : undefined
+                }
+                marginTop={`-${createWidgetPrimaryMenuBarItemBackgroundInsetY}`}
+                marginBottom={
+                    platform !== "desktop"
+                        ? `-${createWidgetPrimaryMenuBarItemBackgroundInsetY}`
+                        : undefined
+                }
+            >
+                <CreateWidgetPrimaryMenuBar
+                    withOwnKeyboardShortcut={false}
+                    withRootNavigateToCreatedDocument={true}
+                    onCloseWithAnimation={noop}
+                    onCloseWithoutAnimation={noop}
+                    onFocusSecondaryMenuBar={noop}
+                />
             </Box>
-            {routeLayout === "narrow" && (
+            {platform === "mobile" && (
                 <>
-                    <Box height={feedCreateSectionGap[routeLayout]} />
+                    <Box height={feedCreateSectionGap[platform]} />
                     <Box
                         paddingX={screenPaddingX}
                         paddingBottom={feedCreateSectionSuggestedHeadingMarginBottom}
-                        fontSize={feedCreateSectionHeadingFontSize[routeLayout]}
+                        fontSize={feedCreateSectionHeadingFontSize[platform]}
                         fontStyle="normal"
                         color="grey-50"
-                        style={{lineHeight: feedCreateSectionHeadingLineHeight[routeLayout]}}
+                        style={{lineHeight: feedCreateSectionHeadingLineHeight[platform]}}
                     >
                         Suggested
                     </Box>
@@ -226,14 +165,14 @@ export function FeedCreateSection({
                     )}
                 </>
             )}
-            <Box height={feedCreateSectionGap[routeLayout]} />
+            <Box height={feedCreateSectionGap[platform]} />
             <Box
                 paddingX={screenPaddingX}
                 paddingBottom={feedCreateSectionForYouHeadingMarginBottom}
-                fontSize={feedCreateSectionHeadingFontSize[routeLayout]}
+                fontSize={feedCreateSectionHeadingFontSize[platform]}
                 fontStyle={routeLayout !== "narrow" ? "bold" : "normal"}
                 color={routeLayout !== "narrow" ? undefined : "grey-50"}
-                style={{lineHeight: feedCreateSectionHeadingLineHeight[routeLayout]}}
+                style={{lineHeight: feedCreateSectionHeadingLineHeight[platform]}}
             >
                 For you
             </Box>
@@ -241,120 +180,57 @@ export function FeedCreateSection({
     );
 }
 
-function FeedCreateSectionDivider() {
-    const routeLayout = useRouteLayout();
-    if (routeLayout === "narrow") return null;
+function FeedCreateSectionSearchBar() {
+    const clientInfo = useClientInfo();
+    const {space} = useSpaceContext();
 
-    return (
-        <Box
-            flexShrink="0"
-            width="0"
-            position="relative"
-            style={{height: feedCreateSectionButtonHeight[routeLayout]}}
-        >
-            <Box
-                position="absolute"
-                top="0"
-                bottom="0"
-                left="0"
-                width="border"
-                backgroundColor="grey-5"
-            />
-        </Box>
-    );
-}
+    const setSearchQueryText = useSetSearchQueryText();
 
-function FeedCreateSectionButton({
-    icon,
-    label,
-    description,
-    onPress,
-}: {
-    icon: ReactNode;
-    label: string;
-    description: string;
-    onPress: (event: PressEvent) => void;
-}) {
-    const routeLayout = useRouteLayout();
-
-    const {isPressed, pressProps} = usePress({
-        onPress,
+    const {pressProps} = usePress({
+        onPressStart: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                setSearchQueryText("");
+            }
+        },
+        onPress: event => {
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                setSearchQueryText("");
+            }
+        },
     });
 
     return (
-        <FocusRing offset="inset" insetX="1">
+        <Box
+            height={navigationBarHeight}
+            paddingX={feedCreateSectionSearchBarContainerPaddingX}
+            paddingY={feedCreateSectionSearchBarContainerPaddingY}
+        >
             <Box
                 {...pressProps}
-                tabIndex={0}
-                aria-label={label}
                 position="relative"
-                zIndex="0"
-                paddingX={routeLayout !== "narrow" ? "3" : undefined}
-                paddingY={feedCreateSectionButtonPaddingY}
-                borderRadius="1"
                 display="flex"
-                flexDirection={routeLayout === "narrow" ? "column" : "row"}
-                gap={routeLayout === "narrow" ? feedCreateSectionButtonNarrowRouteLayoutGap : "2.5"}
                 alignItems="center"
-                flexGrow="1"
-                style={{
-                    flexBasis: 0,
-                    height: feedCreateSectionButtonHeight[routeLayout],
-                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                    // have `min-width: auto` which extends with content.
-                    // https://stackoverflow.com/a/66689926/1568890
-                    minWidth: 0,
-                }}
+                height="full"
+                paddingX="4"
+                boxShadow="elevation-5-with-grey-10-border"
+                fontSize="75"
+                fontStyle="truncate"
+                borderRadius="full"
+                cursor="text"
+                style={{...inputPlaceholderStyles}}
             >
-                {isPressed && (
-                    <Box
-                        position="absolute"
-                        zIndex="-10"
-                        top="0"
-                        bottom="0"
-                        left={routeLayout !== "narrow" ? "1" : "0"}
-                        right={routeLayout !== "narrow" ? "1" : "0"}
-                        borderRadius="1"
-                        backgroundColor="grey-10"
-                    />
-                )}
-                <Box flexShrink="0">
-                    <IconContext.Provider
-                        value={{
-                            color: isPressed
-                                ? colorSchemeVars["grey-90"]
-                                : colorSchemeVars["grey-80"],
-                        }}
-                    >
-                        {icon}
-                    </IconContext.Provider>
-                </Box>
-                <Box flexGrow="1">
-                    <Box
-                        fontSize={feedCreateSectionButtonFontSize[routeLayout]}
-                        style={{
-                            whiteSpace: "nowrap",
-                            // `semi-bold` is too bold so manually set weight to something between `normal`
-                            // and `semi-bold`. As of 2025-05-23, this is the same weight
-                            // `<Button variant="neutral">` uses.
-                            fontWeight: 425,
-                        }}
-                    >
-                        {label}
-                    </Box>
-                    {routeLayout !== "narrow" && (
-                        <Box
-                            fontSize="50"
-                            color="grey-60"
-                            marginBottom="-0.5"
-                            style={{whiteSpace: "nowrap"}}
-                        >
-                            {description}
-                        </Box>
-                    )}
+                Search {space.name}
+                <Box position="absolute" right="4" color="grey-50" fontSize="50">
+                    {renderKeyboardShortcutHint(clientInfo, "mod", "p")}
                 </Box>
             </Box>
-        </FocusRing>
+        </Box>
     );
 }
 
@@ -369,6 +245,7 @@ function FeedCreateSectionMobileSearchAffinityView({
     const reporter = useReporter();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
+    const entityData = useSearchEntityModel(result.model);
 
     const hasMarkedAffinityInteractionRef = useRef(false);
 
@@ -376,17 +253,17 @@ function FeedCreateSectionMobileSearchAffinityView({
         onPress: () => {
             const path = getSearchEntityPath({
                 spaceId: space.id,
-                entityId: result.id,
+                entityData,
                 randomSeed,
                 currentTime: new Date(),
                 routeLayout: "narrow",
             });
 
             void navigate(path, {
-                // When clicking on a path from the home sidebar, fully navigate the app to
-                // that thing. Don't open it in a peek. The home page is your entrypoint into
-                // the rest of the product. You won't be doing much work on the home page so we
-                // don't need to open a peek that keeps you in context.
+                // When clicking on a path from the home sidebar, fully navigate the app to that
+                // thing. Don't open it in a peek. The home page is your entrypoint into the rest
+                // of the product. You won't be doing much work on the home page so we don't need
+                // to open a peek that keeps you in context.
                 stopPropagation: true,
             }).then(() => {
                 // If user spam clicks an item, only mark affinity interaction once.
@@ -394,18 +271,21 @@ function FeedCreateSectionMobileSearchAffinityView({
                 hasMarkedAffinityInteractionRef.current = true;
 
                 // Whenever the user selects a suggested (or favorite) result, we record a high
-                // intent affinity interaction. This is because the user opening a result from
-                // the home view sidebar is super high signal that this is an entity they care
-                // about. In this way the suggested list is a self reinforcing system. The more
-                // a user selects an entity, the higher the entity will appear in the user's
-                // next search.
+                // intent affinity interaction. This is because the user opening a result from the
+                // home view sidebar is super high signal that this is an entity they care about.
+                // In this way the suggested list is a self reinforcing system. The more a user
+                // selects an entity, the higher the entity will appear in the user's next search.
                 markSearchAffinityEntityInteraction(context, {
                     spaceId: space.id,
                     entityId: result.id,
                     interaction: {type: "HighIntentUpdate"},
+                    // The feed sidebar suggestions don't carry access-policy info. The entity's own
+                    // view-time affinity hook will fire once they land on it (with a known siteId), so
+                    // engagement still cascades to the site.
+                    siteId: null,
                 }).catch(error => {
-                    // Silently fail. This doesn't affect anything the user sees so we don't need
-                    // to report the error to the user.
+                    // Silently fail. This doesn't affect anything the user sees so we don't need to
+                    // report the error to the user.
                     reporter.logErrorWithoutDisplaying(
                         "Couldn\u2019t mark search result select affinity interaction",
                         error,

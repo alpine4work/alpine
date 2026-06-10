@@ -23,9 +23,8 @@ export async function loadAgentAccountLinkContent({
         params: {path: {id: request.spaceId, accountId: link.accountId}},
     });
 
-    return printApiContentToAgentMarkdownTreeWithFrontmatter({
+    return await printApiContentToAgentMarkdownTreeWithFrontmatter({
         transaction,
-        request,
         frontmatter: {
             type: "Account",
             name: account.name,

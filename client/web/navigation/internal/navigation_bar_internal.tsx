@@ -1,19 +1,18 @@
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
-//                                 IMPORTANT                                 //
+// IMPORTANT //
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
 //
 // We implement navigation bars in web code but we implement tab bars in native
-// code. Tab bars should respond to scroll interactions identically to
-// navigation bars. That way they clearly look like they're a part of the
-// same app.
+// code. Tab bars should respond to scroll interactions identically to navigation
+// bars. That way they clearly look like they're a part of the same app.
 //
-// Any change to this file you must thoroughly test and port to native code.
-// For iOS we implement the tab bar in `RootTabBarController.swift`.
+// Any change to this file you must thoroughly test and port to native code. For
+// iOS we implement the tab bar in `RootTabBarController.swift`.
 //
-// An implication of needing to implement identical behavior in web code and
-// native code is you have to be careful about which events contribute to
-// navigation bar behavior. We have consistent scroll events across web code
-// and native code so we can use that. Touch events are more dicey.
+// An implication of needing to implement identical behavior in web code and native
+// code is you have to be careful about which events contribute to navigation bar
+// behavior. We have consistent scroll events across web code and native code so we
+// can use that. Touch events are more dicey.
 
 import {AnimationPlaybackControls, animate} from "motion";
 import {Memo, MutableRefObject, ReactNode, Ref, useImperativeHandle, useRef, useState} from "react";
@@ -59,12 +58,11 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 /**
- * After the user has stopped scrolling then this timeout elapses, we will
- * fully show/hide the navigation bar if it's in a partially occluded state.
+ * After the user has stopped scrolling then this timeout elapses, we will fully
+ * show/hide the navigation bar if it's in a partially occluded state.
  *
- * Should be the same as `scrollbarVisibleAfterScrollDurationMs` so the
- * navigation bar and scrollbar animate to their static states at the
- * same time.
+ * Should be the same as `scrollbarVisibleAfterScrollDurationMs` so the navigation
+ * bar and scrollbar animate to their static states at the same time.
  */
 // IMPORTANT: If you change this value, you must also change
 // `navigationBarTransitionDebounceScrollTimeoutSeconds` in
@@ -72,10 +70,10 @@ import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 const navigationBarTransitionDebounceScrollTimeoutMs = 1200;
 
 /**
- * When the user is done scrolling but the navigation bar is partially visible,
- * we need to make a decision to either fully show the navigation bar or fully
- * hide the navigation bar. If more than this height of the navigation bar is
- * visible then we show it, otherwise we hide it.
+ * When the user is done scrolling but the navigation bar is partially visible, we
+ * need to make a decision to either fully show the navigation bar or fully hide
+ * the navigation bar. If more than this height of the navigation bar is visible
+ * then we show it, otherwise we hide it.
  */
 const navigationBarVisibleHeightThresholdForReveal = "6";
 const navigationBarVisibleHeightThresholdForRevealRem = parseRemLength(
@@ -87,9 +85,9 @@ const navigationBarVisibleHeightThresholdForRevealRem = parseRemLength(
     // `navigationBarVisibleHeightThresholdForReveal` in
     // `NavigationBarConstants.swift`.
     //
-    // We have an assertion below to make sure this value always equals the
-    // navigation bar's pixel height on mobile devices. After converting `Spacing`
-    // to an actual value and applying the rem pixel count.
+    // We have an assertion below to make sure this value always equals the navigation
+    // bar's pixel height on mobile devices. After converting `Spacing` to an actual
+    // value and applying the rem pixel count.
     const mobileNavigationBarVisibleHeightThresholdForReveal = 30;
 
     assert(
@@ -99,26 +97,26 @@ const navigationBarVisibleHeightThresholdForRevealRem = parseRemLength(
 }
 
 /**
- * The speed (in pixels per second) at which the navigation bar hide/show
- * animation moves. The duration of the animation depends on how many pixels we
- * need to move the navigation bar.
+ * The speed (in pixels per second) at which the navigation bar hide/show animation
+ * moves. The duration of the animation depends on how many pixels we need to move
+ * the navigation bar.
  */
 // IMPORTANT: If you change this value, you must also change
 // `navigationBarRevealOrHideAnimationDurationSeconds` in
 // `NavigationBarConstants.swift`.
 const navigationBarRevealOrHideAnimationDurationMs = 200;
 
-// Overlays sit at a zIndex of 50. If we're at the top of the screen we want to,
-// we want overlays to appear on top of the navigation bar. If we're scrolling,
-// we want the navigation bar to appear on top of the overlays.
+// Overlays sit at a zIndex of 50. If we're at the top of the screen we want to, we
+// want overlays to appear on top of the navigation bar. If we're scrolling, we
+// want the navigation bar to appear on top of the overlays.
 const navigationBarZIndexAtTop = "40";
 const navigationBarZIndexWhileScrolling = "60";
 
 // Make sure if `scrollbarVisibleAfterScrollDurationMs` changes,
 // `navigationBarTransitionDebounceScrollTimeoutMs` also changes. We don't assign
-// the scrollbar duration directly to the navigation bar duration because we
-// want to clearly document that when the navigation bar duration changes, we
-// need to update native mobile code as well.
+// the scrollbar duration directly to the navigation bar duration because we want
+// to clearly document that when the navigation bar duration changes, we need to
+// update native mobile code as well.
 assert(navigationBarTransitionDebounceScrollTimeoutMs === scrollbarVisibleAfterScrollDurationMs);
 
 type ScrollDirectionState = {
@@ -319,8 +317,8 @@ export function NavigationBar({
             // boundary offset to be unset.
             if (titleBoundaryParentElement.offsetParent !== element) return null;
 
-            // If our scroll view has safe area then don't include the safe area in the
-            // scroll offset. The scroll offset starts below our safe area.
+            // If our scroll view has safe area then don't include the safe area in the scroll
+            // offset. The scroll offset starts below our safe area.
             titleBoundaryOffset -= safeAreaInsetTopPx;
 
             return titleBoundaryOffset;
@@ -360,8 +358,8 @@ export function NavigationBar({
             lastScrollOffsetRef.current = scrollOffset;
             lastClientHeightRef.current = element.clientHeight;
             lastScrollHeightRef.current = element.scrollHeight;
-            // Initialize scroll direction to `Up` if the scroll view has initially
-            // scrolled since we've observed some janky when immediately scrolling up after
+            // Initialize scroll direction to `Up` if the scroll view has initially scrolled
+            // since we've observed some janky when immediately scrolling up after
             // initialization.
             const scrollDirection = (lastScrollDirectionRef.current =
                 withScrollAway && scrollOffset > navigationBarHeight ? "Up" : "Down");
@@ -458,29 +456,29 @@ export function NavigationBar({
             const doesNavigationBarHaveSafeAreaInsetTop = safeAreaInsetTopPx > 0;
 
             // Web code only: I've observed in mobile Safari if focus changes because the
-            // focused element was removed from the DOM a `focusout` event is not
-            // dispatched. So we manually check on scroll events if the focused element is
-            // still in the DOM.
+            // focused element was removed from the DOM a `focusout` event is not dispatched.
+            // So we manually check on scroll events if the focused element is still in the
+            // DOM.
             //
-            // We check on scroll events since the main reason a focused element would
-            // unmount is a `<VirtualizedScrollView>` scrolls the element out of the
-            // virtualization window.
+            // We check on scroll events since the main reason a focused element would unmount
+            // is a `<VirtualizedScrollView>` scrolls the element out of the virtualization
+            // window.
             navigationBarContent.reconcileFocusedTextInputIfMobile();
 
-            // Clamp scroll offset so it's not affected by overscroll at the top of the
-            // scroll view. Overscroll at the bottom of the scroll view is desired! We want
-            // the top bar (which should be collapsed) to continue with the scroll window
-            // when at the bottom of the view.
+            // Clamp scroll offset so it's not affected by overscroll at the top of the scroll
+            // view. Overscroll at the bottom of the scroll view is desired! We want the top
+            // bar (which should be collapsed) to continue with the scroll window when at the
+            // bottom of the view.
             //
             // This also creates a neat effect where when the overscroll bounces back the
-            // navigation bar is revealed. If the user is at the end of the scroll view
-            // they probably need the navigation bar to navigate out.
+            // navigation bar is revealed. If the user is at the end of the scroll view they
+            // probably need the navigation bar to navigate out.
             const scrollOffset = Math.max(0, element.scrollTop);
 
-            // Sometimes native code sends us a scroll event twice for the same scroll
-            // offset. Since scroll offsets may not be integers (e.g. 574.3333) this may be
-            // the fractional part changing but when rounded there's no change. Whatever
-            // the reason, ignore scroll events that repeat a scroll offset.
+            // Sometimes native code sends us a scroll event twice for the same scroll offset.
+            // Since scroll offsets may not be integers (e.g. 574.3333) this may be the
+            // fractional part changing but when rounded there's no change. Whatever the
+            // reason, ignore scroll events that repeat a scroll offset.
             if (scrollOffset === lastScrollOffsetRef.current) return;
 
             const {scrollHeight, clientHeight, scrollTop} = element;
@@ -508,8 +506,8 @@ export function NavigationBar({
             const lastScrollHeight = lastScrollHeightRef.current;
             lastScrollHeightRef.current = scrollHeight;
 
-            // Since we duplicate the cover onto the nav bar, make sure it scrolls
-            // the same distance as the scroll view.
+            // Since we duplicate the cover onto the nav bar, make sure it scrolls the same
+            // distance as the scroll view.
             if (navigationBarContentCoverRef.current) {
                 navigationBarContentCoverRef.current.style.transform = `translateY(${-scrollTop}px)`;
             }
@@ -517,28 +515,28 @@ export function NavigationBar({
             navigationBarContainerElement.style.zIndex =
                 scrollOffset > 0 ? navigationBarZIndexWhileScrolling : navigationBarZIndexAtTop;
 
-            // - Edge case 1: If our scroll content resized and scrolled down at the same
-            //   time (and scrolled the same amount we resized) then we don't want our
-            //   navigation bar's scroll offset to change.
+            // - Edge case 1: If our scroll content resized and scrolled down at the same time
+            //   (and scrolled the same amount we resized) then we don't want our navigation
+            //   bar's scroll offset to change.
             //
-            //   This happens when the typing indicator appears then disappears. Try going
-            //   to a chat then typing in another tab to show the typing indicator, wait
-            //   for it to disappear, then type again. Do this a couple times. When the
-            //   typing indicator appears the view scrolls down to show it. We don't want
-            //   that scroll down to hide our tab bar.
+            //     This happens when the typing indicator appears then disappears. Try going to
+            //     a chat then typing in another tab to show the typing indicator, wait for it
+            //     to disappear, then type again. Do this a couple times. When the typing
+            //     indicator appears the view scrolls down to show it. We don't want that
+            //     scroll down to hide our tab bar.
             //
-            // - Edge case 2: If our scroll view resized and scrolled at the same time
-            //   (and scrolled the same amount we resized) then we don't want our
-            //   navigation bar's scroll offset to change.
+            // - Edge case 2: If our scroll view resized and scrolled at the same time (and
+            //   scrolled the same amount we resized) then we don't want our navigation bar's
+            //   scroll offset to change.
             //
-            //   This happens when you're typing in the message input and there's a
-            //   navigation bar. When the message input grows we want the navigation bar to
-            //   stay as it is instead of jumping around.
+            //     This happens when you're typing in the message input and there's a
+            //     navigation bar. When the message input grows we want the navigation bar to
+            //     stay as it is instead of jumping around.
             //
-            // Ideally this logic would run only after a resize and before the resize
-            // paints to the screen, but web code doesn't have a good way to listen for
-            // scroll view content resize. (Whereas in iOS native code we can use KVO to
-            // listen to `contentSize` on `UIScrollView`.)
+            // Ideally this logic would run only after a resize and before the resize paints to
+            // the screen, but web code doesn't have a good way to listen for scroll view
+            // content resize. (Whereas in iOS native code we can use KVO to listen to
+            // `contentSize` on `UIScrollView`.)
             if (
                 // Edge case 1
                 (scrollHeight > lastScrollHeight &&
@@ -682,9 +680,9 @@ export function NavigationBar({
             // `withoutDisappearingTitle` is set).
             //
             // Additionally, if we have some safe area at the top of our screen then the
-            // navigation bar content moves into the safe area. We need to decrease the
-            // content opacity to zero so it doesn't conflict with operation system content
-            // in the safe area.
+            // navigation bar content moves into the safe area. We need to decrease the content
+            // opacity to zero so it doesn't conflict with operation system content in the safe
+            // area.
             {
                 const lastIsNavigationBarTitleVisible = lastIsNavigationBarTitleVisibleRef.current;
 
@@ -700,9 +698,9 @@ export function NavigationBar({
 
                 lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
 
-                // If our navigation bar includes some safe area inset then as we scroll up we
-                // want to decrease the opacity of content in the navigation bar so it doesn't
-                // conflict with operating system content in the safe area.
+                // If our navigation bar includes some safe area inset then as we scroll up we want
+                // to decrease the opacity of content in the navigation bar so it doesn't conflict
+                // with operating system content in the safe area.
                 if (
                     doesNavigationBarHaveSafeAreaInsetTop &&
                     navigationBarScrollOffset !== lastNavigationBarScrollOffset
@@ -711,21 +709,22 @@ export function NavigationBar({
                         navigationBarScrollOffset / navigationBarHeight;
 
                     // NOTE(calebmer): I'm seeing some issues in mobile Safari when using
-                    // `scrollTo({behavior: "smooth"})` which is an animation driven by iOS's UI
-                    // thread and not the web thread. This causes some jankiness as JavaScript is
-                    // behind native so opacity may not be updated in a timely manner.
+                    // `scrollTo({behavior: "smooth"})` which is an animation driven by iOS's UI thread
+                    // and not the web thread. This causes some jankiness as JavaScript is behind
+                    // native so opacity may not be updated in a timely manner.
                     //
-                    // I'd love to move this opacity update to [CSS scroll-driven animations][1]
-                    // when they're available in WebKit.
+                    // I'd love to move this opacity update to [CSS scroll-driven animations][1] when
+                    // they're available in WebKit.
                     //
-                    // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_scroll-driven_animations
+                    // [1]:
+                    //     https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_scroll-driven_animations
                     navigationBarContentElement.style.opacity = `${
                         1 - Math.min(1, navigationBarScrollPercentage * 2)
                     }`;
                 }
 
-                // Handle the transition from a visible navigation bar title to a hidden
-                // navigation bar title.
+                // Handle the transition from a visible navigation bar title to a hidden navigation
+                // bar title.
                 if (lastIsNavigationBarTitleVisible !== isNavigationBarTitleVisible) {
                     if (!isNavigationBarTitleVisible) {
                         navigationBarTitleElement.style.opacity = "0";
@@ -770,8 +769,7 @@ export function NavigationBar({
             scrollDebounceTimeout?.clear();
             scrollDebounceTimeout = null;
 
-            // We only need a timeout to run our reveal/hide animation if the navigation
-            // bar:
+            // We only need a timeout to run our reveal/hide animation if the navigation bar:
             //
             // - Isn't completely scrolled in or completely scrolled out; OR
             // - Is completely scrolled to the bottom (native mobile app only)
@@ -781,8 +779,8 @@ export function NavigationBar({
                     (NativeMobileBridge && scrollOffset >= scrollHeight - clientHeight))
             ) {
                 scrollDebounceTimeout = createTimeout(() => {
-                    // Precaution: Make sure native runs its timeout at the same time as we run ours
-                    // so our animations are synced.
+                    // Precaution: Make sure native runs its timeout at the same time as we run ours so
+                    // our animations are synced.
                     NativeMobileBridge?.navigationBar.runScrollDebounceTimeout();
 
                     const remPx = getRemPxWithoutListening();
@@ -800,9 +798,9 @@ export function NavigationBar({
                     //
                     // We always show the navigation bar at the bottom since we assume the user has
                     // completed reading the page and they're ready to take action. The only scroll
-                    // action they could make is to scroll up which would reveal the tab bar. This
-                    // also means, in our native mobile app, we're not showing extra safe area at
-                    // the bottom of the page.
+                    // action they could make is to scroll up which would reveal the tab bar. This also
+                    // means, in our native mobile app, we're not showing extra safe area at the bottom
+                    // of the page.
                     let nextNavigationBarTopOffset: number;
                     if (
                         navigationBarHeight - navigationBarScrollOffset >=
@@ -826,15 +824,15 @@ export function NavigationBar({
 
                     const lastNavigationBarTopOffset =
                         scrollOffset >= scrollHeight - clientHeight
-                            ? // If we're at the bottom of the screen, the last navigation bar top offset may
-                              // be many pixels above us (where the last scroll direction change happened).
-                              // This happens when you perfectly scroll to the end of the scroll view and
-                              // don't overscroll (hard to do with a finger gesture on iOS).
+                            ? // If we're at the bottom of the screen, the last navigation bar top offset may be
+                              // many pixels above us (where the last scroll direction change happened). This
+                              // happens when you perfectly scroll to the end of the scroll view and don't
+                              // overscroll (hard to do with a finger gesture on iOS).
                               //
-                              // We saw an issue here on iOS when `<DocumentContentEditor>` calls
-                              // `scrollTo()` when the keyboard opens scrolling to the bottom of the view.
-                              // The navigation bar animation appeared a little glitchy because it was
-                              // animating from a much higher position in the scroll view.
+                              // We saw an issue here on iOS when `<DocumentContentEditor>` calls `scrollTo()`
+                              // when the keyboard opens scrolling to the bottom of the view. The navigation bar
+                              // animation appeared a little glitchy because it was animating from a much higher
+                              // position in the scroll view.
                               Math.max(
                                   lastNavigationBarTopOffsetRef.current,
                                   scrollHeight - clientHeight - navigationBarHeight,
@@ -845,8 +843,7 @@ export function NavigationBar({
                     lastIsNavigationBarTitleVisibleRef.current = nextIsNavigationBarTitleVisible;
 
                     // We'll animate the navigation bar title's opacity with `motion` in our effect
-                    // after the state update but update these non-animatable properties
-                    // immediately.
+                    // after the state update but update these non-animatable properties immediately.
                     if (nextIsNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
                         navigationBarTitleElement!.style.pointerEvents =
                             nextIsNavigationBarTitleVisible ? "auto" : "none";
@@ -878,8 +875,8 @@ export function NavigationBar({
             const scrollDirection = nextScrollOffset > scrollOffset ? "Down" : "Up";
 
             // If the `scrollTo()` is going to scroll in a different direction than what we
-            // currently have for `scrollDirection`, then update our state so that our
-            // sticky positioning CSS is ready for the scroll.
+            // currently have for `scrollDirection`, then update our state so that our sticky
+            // positioning CSS is ready for the scroll.
             if (scrollDirection !== lastScrollDirectionRef.current) {
                 lastScrollDirectionRef.current = scrollDirection;
 
@@ -997,14 +994,14 @@ export function NavigationBar({
             style={{
                 position: "absolute",
                 inset: 0,
-                // The children of this element may be bigger than our container but we don't
-                // want our children to grow the container. We can't use `overflow: hidden`
-                // since that creates a new scroll context and breaks the `position: sticky`
-                // inside this element. `contain: paint` is another way to hide content outside
-                // the bounds of this element without introducing a new scroll context.
+                // The children of this element may be bigger than our container but we don't want
+                // our children to grow the container. We can't use `overflow: hidden` since that
+                // creates a new scroll context and breaks the `position: sticky` inside this
+                // element. `contain: paint` is another way to hide content outside the bounds of
+                // this element without introducing a new scroll context.
                 contain: "paint",
-                // Don't let the cover consume pointer events. Only the navigation bar should
-                // get pointer events.
+                // Don't let the cover consume pointer events. Only the navigation bar should get
+                // pointer events.
                 pointerEvents: "none",
                 // Start with the highest z-index so our navigation bar is above all scroll
                 // content. The z-index is updated on scroll in `onScroll`.
@@ -1018,14 +1015,14 @@ export function NavigationBar({
                     left: 0,
                     right: 0,
                     // Extend the space our `position: sticky` element can scroll in. This way in
-                    // Safari for iOS or MacOS, if the user overscrolls at the bottom of the
-                    // element, the sticky element will travel with the overscroll. Instead of being
-                    // locked to the bottom of the scroll content.
+                    // Safari for iOS or MacOS, if the user overscrolls at the bottom of the element,
+                    // the sticky element will travel with the overscroll. Instead of being locked to
+                    // the bottom of the scroll content.
                     //
                     // To test, go to our native mobile iOS app (on a device which has some
-                    // `--safe-area-inset-top`) then scroll to the bottom and overscroll. You'll
-                    // notice the header should still cover the top safe area inset as you
-                    // overscroll. If you remove this it won't.
+                    // `--safe-area-inset-top`) then scroll to the bottom and overscroll. You'll notice
+                    // the header should still cover the top safe area inset as you overscroll. If you
+                    // remove this it won't.
                     bottom: "-100vh",
                 }}
             >
@@ -1057,8 +1054,8 @@ export function NavigationBar({
                     <Box position="relative" zIndex="0" paddingTop="safe-area-inset">
                         <Box
                             ref={navigationBarBackgroundRef}
-                            // Start with `display: none`. `onScroll` will change it to `display: block`
-                            // when we scroll.
+                            // Start with `display: none`. `onScroll` will change it to `display: block` when
+                            // we scroll.
                             display="none"
                             position="absolute"
                             zIndex="-10"
@@ -1080,10 +1077,10 @@ export function NavigationBar({
                             <Box
                                 position="absolute"
                                 height="border"
-                                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
-                                // than if we used `grey-5` directly. This is because the border operates more
-                                // like a shadow. When rendered over some other content (e.g. an image) the
-                                // image's colors show through the border but a little darker.
+                                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer than if we
+                                // used `grey-5` directly. This is because the border operates more like a shadow.
+                                // When rendered over some other content (e.g. an image) the image's colors show
+                                // through the border but a little darker.
                                 backgroundColor="grey-5-translucent"
                                 style={{
                                     bottom: -1,

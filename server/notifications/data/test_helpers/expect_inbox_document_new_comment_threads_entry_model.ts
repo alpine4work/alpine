@@ -45,6 +45,7 @@ export function expectInboxDocumentNewCommentThreadsEntryModel({
         ).size,
         commentThreadIds: new Set(commentThreads.map(commentThread => commentThread.id)),
         firstCommentThread: {
+            id: firstCommentThread.commentThread.id,
             author: expect.objectContaining({
                 id: firstCommentThread.commentThread.firstComment.author.id,
             }),

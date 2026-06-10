@@ -1,4 +1,5 @@
 import {shouldRenderPostAsArchivedInInboxChannelPostsEntry} from "~/client/web/inbox/should_render_post_as_archived_in_inbox_channel_posts_entry.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
@@ -17,11 +18,12 @@ const channel = new ChannelPreviewModel({
     version: 0,
     createdTime: new Date(),
     name: "Test Channel",
-    accessPolicy: {
+    accessPolicy: new AccessPolicyModel({
+        type: "Local",
         accountGrantById: emptyMap,
         defaultGrant: {level: "Manage", generation: 0},
         urlGrant: null,
-    },
+    }),
 });
 
 test("returns true when inbox entry is archived (ChannelPosts)", () => {
@@ -40,6 +42,7 @@ test("returns true when inbox entry is archived (ChannelPosts)", () => {
             author: createTestAccountModel(),
             createdTime: new Date(),
             contentTextSnippet: "Test post",
+            id: postId,
         },
         otherPostAuthor: null,
     });
@@ -87,6 +90,7 @@ test("returns false when PostComments entry is not archived and postId matches",
             createdTime: new Date(),
             contentTextSnippet: "Test comment",
             isStickyMention: false,
+            index: 0,
         },
         otherCommentAuthor: null,
     });
@@ -114,6 +118,7 @@ test("returns true when PostComments entry is not archived and postId does not m
             createdTime: new Date(),
             contentTextSnippet: "Test comment",
             isStickyMention: false,
+            index: 0,
         },
         otherCommentAuthor: null,
     });
@@ -141,6 +146,7 @@ test("returns false when ChannelPosts entry is not archived and postId is in pos
             author: createTestAccountModel(),
             createdTime: new Date(),
             contentTextSnippet: "Test post",
+            id: postId3,
         },
         otherPostAuthor: createTestAccountModel(),
     });
@@ -164,6 +170,7 @@ test("returns true when ChannelPosts entry is not archived and postId is not in 
         postAuthorCount: 2,
         postIds: new Set([postId1, postId2, postId3]),
         latestPost: {
+            id: postId3,
             author: createTestAccountModel(),
             createdTime: new Date(),
             contentTextSnippet: "Test post",
@@ -191,6 +198,7 @@ test("returns true when ChannelPosts entry with single postId is not archived an
         postAuthorCount: 1,
         postIds: new Set([postId]),
         latestPost: {
+            id: postId,
             author: createTestAccountModel(),
             createdTime: new Date(),
             contentTextSnippet: "Test post",

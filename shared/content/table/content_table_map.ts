@@ -1,42 +1,40 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove
- * features we don't use and customize the user experience. You can find the
- * original file in the `prosemirror-tables` package at:
+ * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove features
+ * we don't use and customize the user experience. You can find the original file
+ * in the `prosemirror-tables` package at:
  * https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/tablemap.ts
  *
  * The MIT License
  *
  * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-// Because working with row and column-spanning cells is not quite
-// trivial, this code builds up a descriptive structure for a given
-// table node. The structures are cached with the (persistent) table
-// nodes as key, so that they only have to be recomputed when the
-// content of the table changes.
+// Because working with row and column-spanning cells is not quite trivial, this
+// code builds up a descriptive structure for a given table node. The structures
+// are cached with the (persistent) table nodes as key, so that they only have to
+// be recomputed when the content of the table changes.
 //
-// This does mean that they have to store table-relative, not
-// document-relative positions. So code that uses them will typically
-// compute the start position of the table and offset positions passed
-// to or gotten from this structure by that amount.
+// This does mean that they have to store table-relative, not document-relative
+// positions. So code that uses them will typically compute the start position of
+// the table and offset positions passed to or gotten from this structure by that
+// amount.
 
 import {Node} from "prosemirror-model";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -50,8 +48,8 @@ type ContentTableMapProblem = {
 let readFromCache: (key: Node) => ContentTableMap | undefined;
 let addToCache: (key: Node, value: ContentTableMap) => ContentTableMap;
 
-// Prefer using a weak map to cache table maps. Fall back on a
-// fixed-size cache if that's not supported.
+// Prefer using a weak map to cache table maps. Fall back on a fixed-size cache if
+// that's not supported.
 if (typeof WeakMap != "undefined") {
     // eslint-disable-next-line
     let cache = new WeakMap<Node, ContentTableMap>();
@@ -83,10 +81,10 @@ export interface ContentTableMapRect {
 }
 
 /**
- * A table map describes the structure of a given table. To avoid
- * recomputing them all the time, they are cached per table node. To
- * be able to do that, positions saved in the map are relative to the
- * start of the table, rather than the start of the document.
+ * A table map describes the structure of a given table. To avoid recomputing them
+ * all the time, they are cached per table node. To be able to do that, positions
+ * saved in the map are relative to the start of the table, rather than the start
+ * of the document.
  */
 export class ContentTableMap {
     constructor(
@@ -106,14 +104,14 @@ export class ContentTableMap {
         public readonly height: number,
 
         /**
-         * A width * height array with the start position of
-         * the cell covering that part of the table in each slot
+         * A width \* height array with the start position of the cell covering that part
+         * of the table in each slot
          */
         public readonly map: ReadonlyArray<number>,
 
         /**
-         * An optional array of problems (cell overlap or non-rectangular
-         * shape) for the table, used by the table normalizer.
+         * An optional array of problems (cell overlap or non-rectangular shape) for the
+         * table, used by the table normalizer.
          */
         public readonly problems: ReadonlyArray<ContentTableMapProblem> | null,
 
@@ -128,12 +126,12 @@ export class ContentTableMap {
          * `node.attrs.columnWidths` but we make sure to always have the same number of
          * columns as the `width` property in this object.
          *
-         * - If there are more items in `node.attrs.columnWidths` than there are
-         *   columns then we truncate the array to the actual table column count.
+         * - If there are more items in `node.attrs.columnWidths` than there are columns
+         *   then we truncate the array to the actual table column count.
          *
-         * - If there are fewer items in `node.attrs.columnWidths` than there are
-         *   columns then we add 1 (the default column width) to the end of the array
-         *   until we reach the actual table column count.
+         * - If there are fewer items in `node.attrs.columnWidths` than there are columns
+         *   then we add 1 (the default column width) to the end of the array until we
+         *   reach the actual table column count.
          */
         public readonly columnWidths: ReadonlyArray<number>,
 
@@ -186,8 +184,8 @@ export class ContentTableMap {
         throw new RangeError(`No table row with offset ${pos} found`);
     }
 
-    // Find the next cell in the given direction, starting from the cell
-    // at `pos`, if any.
+    // Find the next cell in the given direction, starting from the cell at `pos`, if
+    // any.
     nextCell(pos: number, axis: "horiz" | "vert", dir: number): null | number {
         const {left, right, top, bottom} = this.findCell(pos);
         if (axis == "horiz") {
@@ -211,8 +209,8 @@ export class ContentTableMap {
         };
     }
 
-    // Return the position of all cells that have the top left corner in
-    // the given rectangle.
+    // Return the position of all cells that have the top left corner in the given
+    // rectangle.
     cellsInRect(rect: ContentTableMapRect): Array<number> {
         const result: Array<number> = [];
         const seen: Record<number, boolean> = {};
@@ -236,11 +234,11 @@ export class ContentTableMap {
         return result;
     }
 
-    // Return the position at which the cell at the given row and column
-    // starts, or would start, if a cell started there.
+    // Return the position at which the cell at the given row and column starts, or
+    // would start, if a cell started there.
     /**
-     * Returns the position of the cell at the given row and column.
-     * @param row - The row index of the cell  (<= height - 1)
+     * Returns the position of the cell at the given row and column. @param row - The
+     * row index of the cell (<= height - 1)
      */
     positionAt(row: number, col: number): number {
         for (let i = 0, rowStart = 0; ; i++) {
@@ -263,8 +261,9 @@ export class ContentTableMap {
 }
 
 // This findWidth function calculates the width (number of columns) of a table.
-// However, there's a bug in its implementation.This findWidth function
-// calculates the width (number of columns) of a table. However, there's a bug in its implementation.
+// However, there's a bug in its implementation.This findWidth function calculates
+// the width (number of columns) of a table. However, there's a bug in its
+// implementation.
 function findWidth(table: Node): number {
     let width = 0;
     for (let row = 0; row < table.childCount; row++) {
@@ -285,11 +284,11 @@ function computeMap(table: Node): ContentTableMap {
     for (let i = 0, e = width * height; i < e; i++) map[i] = 0;
 
     // TODO(calebmer): I think we can delete the problem code here entirely.
-    // `fixTable()` used to look at the problems array (in `prosemirror-tables`)
-    // but now seems to directly find missing cell issues itself. Additionally when
+    // `fixTable()` used to look at the problems array (in `prosemirror-tables`) but
+    // now seems to directly find missing cell issues itself. Additionally when
     // `prosemirror-tables` had `colspan` and `rowspan` there were more problems to
-    // detect. I'm not sure if the problems array is doing anything for us here at
-    // this point.
+    // detect. I'm not sure if the problems array is doing anything for us here at this
+    // point.
     let problems: Array<ContentTableMapProblem> | null = null;
 
     for (let row = 0, pos = 0; row < height; row++) {

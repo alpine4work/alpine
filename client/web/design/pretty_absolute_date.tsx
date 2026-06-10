@@ -9,8 +9,8 @@ import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_fo
 /**
  * Render a date in a human readable form.
  *
- * Renders in an absolute style like "Jan 15, 2023". As opposed to rendering in
- * a relative style like "5 days ago".
+ * Renders in an absolute style like "Jan 15, 2023". As opposed to rendering in a
+ * relative style like "5 days ago".
  */
 export function PrettyAbsoluteDate({
     date,

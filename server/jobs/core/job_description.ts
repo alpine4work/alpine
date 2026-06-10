@@ -5,7 +5,7 @@ import {
     IndexSearchEntityJobDescriptionSchema,
 } from "~/server/search/core/index_search_entity_job_description.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
-import {ApiBotWebhookEvent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
@@ -16,7 +16,6 @@ import {
     BotWebhookEventId,
     BrowserId,
     FileId,
-    NotionImportId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {
@@ -26,16 +25,16 @@ import {
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * An object representing a background job. Jobs allow you to perform work
- * without blocking the critical path. For example, you can:
+ * An object representing a background job. Jobs allow you to perform work without
+ * blocking the critical path. For example, you can:
  *
  * - Index search entities
  * - Send push notifications
  * - Perform some billing charge
  *
  * Jobs go to a single [AWS SQS][1] queue and are handled by a single service
- * (`JobQueueService`). Why do we use a single service? It simplifies things.
- * We have one job framework and you don't need to think about the underlying
+ * (`JobQueueService`). Why do we use a single service? It simplifies things. We
+ * have one job framework and you don't need to think about the underlying
  * implementation.
  *
  * Job ordering is not guaranteed and jobs are processed with at-least once
@@ -48,16 +47,16 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * Right now, all jobs are processed with the same priority. Eventually, we may
  * build a way to schedule lower priority work in the job framework.
  *
- * Ideally, all jobs should start processing in <10s. In rare occasions (like
- * load spike scenarios) it may take longer to process a job. Don't put work
- * on the job queue if it's important that work happens immediately. Instead
- * you can use `context.process.waitUntil()` to immediately start running some
- * function. However, if a delay is ok and you want to guarantee the work
- * eventually happens (it must survive process restarts) put it on the job
- * queue.
+ * Ideally, all jobs should start processing in <10s. In rare occasions (like load
+ * spike scenarios) it may take longer to process a job. Don't put work on the job
+ * queue if it's important that work happens immediately. Instead you can use
+ * `context.process.waitUntil()` to immediately start running some function.
+ * However, if a delay is ok and you want to guarantee the work eventually happens
+ * (it must survive process restarts) put it on the job queue.
  *
  * [1]: https://aws.amazon.com/sqs
- * [2]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-fifo-queues.html
+ * [2]:
+ *     https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-fifo-queues.html
  */
 export type JobDescription = SchemaType<typeof JobDescriptionSchema>;
 
@@ -75,8 +74,8 @@ export function getJobDescriptionSpaceId(job: JobDescription): SpaceId {
 }
 
 /**
- * A job that can only be processed in test environments. To process this job
- * we wait with the `TestCheckpoint` helper.
+ * A job that can only be processed in test environments. To process this job we
+ * wait with the `TestCheckpoint` helper.
  */
 export type TestJobDescription = SchemaType<typeof TestJobDescriptionSchema>;
 
@@ -87,7 +86,8 @@ const TestJobDescriptionSchema = Schema.object({
     shouldThrow: Schema.boolean.optional(),
 });
 
-// TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue
+// TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+// original job queue
 const ProcessFileJobDescriptionSchema = Schema.object({
     type: Schema.value("ProcessFile"),
     spaceId: Schema.id<SpaceId>(),
@@ -185,6 +185,23 @@ export type SendWebPushNotificationJobDescription = SchemaType<
     typeof SendWebPushNotificationJobDescriptionSchema
 >;
 
+const SendNotificationToSlackIntegrationJobDescriptionSchema = Schema.object({
+    type: Schema.value("SendNotificationToSlackIntegration"),
+    spaceId: Schema.id<SpaceId>(),
+    accountId: Schema.id<AccountId>(),
+    workspaceId: Schema.string,
+    entryPath: Schema.string,
+    notificationContent: Schema.object({
+        title: Schema.string,
+        body: Schema.string,
+        plainText: Schema.string,
+    }),
+});
+
+export type SendNotificationToSlackIntegrationJobDescription = SchemaType<
+    typeof SendNotificationToSlackIntegrationJobDescriptionSchema
+>;
+
 const SendPendingSubtleNotificationsForInboxJobDescriptionSchema = Schema.object({
     type: Schema.value("SendPendingSubtleNotificationsForInbox"),
     accountId: Schema.id<AccountId>(),
@@ -194,26 +211,6 @@ const SendPendingSubtleNotificationsForInboxJobDescriptionSchema = Schema.object
 
 export type SendPendingSubtleNotificationsForInboxJobDescription = SchemaType<
     typeof SendPendingSubtleNotificationsForInboxJobDescriptionSchema
->;
-
-const ValidateNotionImportAndExtractMetadataJobDescriptionSchema = Schema.object({
-    type: Schema.value("ValidateNotionImportAndExtractMetadata"),
-    spaceId: Schema.id<SpaceId>(),
-    notionImportId: Schema.id<NotionImportId>(),
-});
-
-export type ValidateNotionImportAndExtractMetadataJobDescription = SchemaType<
-    typeof ValidateNotionImportAndExtractMetadataJobDescriptionSchema
->;
-
-const StartNotionImportJobDescriptionSchema = Schema.object({
-    type: Schema.value("StartNotionImport"),
-    spaceId: Schema.id<SpaceId>(),
-    notionImportId: Schema.id<NotionImportId>(),
-});
-
-export type StartNotionImportJobDescription = SchemaType<
-    typeof StartNotionImportJobDescriptionSchema
 >;
 
 export const JobDescriptionSchema = Schema.union({
@@ -233,7 +230,5 @@ export const JobDescriptionSchema = Schema.union({
     SendWebPushNotification: SendWebPushNotificationJobDescriptionSchema,
     SendPendingSubtleNotificationsForInbox:
         SendPendingSubtleNotificationsForInboxJobDescriptionSchema,
-    ValidateNotionImportAndExtractMetadata:
-        ValidateNotionImportAndExtractMetadataJobDescriptionSchema,
-    StartNotionImport: StartNotionImportJobDescriptionSchema,
+    SendNotificationToSlackIntegration: SendNotificationToSlackIntegrationJobDescriptionSchema,
 });

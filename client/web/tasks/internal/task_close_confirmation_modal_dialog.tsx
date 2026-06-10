@@ -21,19 +21,23 @@ export function TaskCloseConfirmationModalDialog({
 
     const taskEntryStore = taskId !== null ? store.getTaskEntryStore(taskId) : null;
     const taskEntry = useStore(taskEntryStore);
-    const childTaskCount = taskEntry?.task?.getOpenChildTaskCount() ?? 0;
+    const task = taskEntry?.task ?? null;
+    const layout = task?.getLayout() ?? null;
+    const noun = layout === "Project" ? "project" : "task";
+    const childNoun = layout === "Project" ? "open task" : "open subtask";
+    const childTaskCount = task?.getOpenChildTaskCount() ?? 0;
 
     const childTaskCountPrettyNumber = useMemo(
-        () => printPrettyNumber(locale, childTaskCount, "open subtask"),
-        [childTaskCount, locale],
+        () => printPrettyNumber(locale, childTaskCount, childNoun),
+        [childNoun, childTaskCount, locale],
     );
 
     return (
         <ModalDialog
-            title="Mark task as closed?"
-            description={`This task has ${childTaskCountPrettyNumber} that will stay open if this task is closed.`}
+            title={`Mark ${noun} as closed?`}
+            description={`This ${noun} has ${childTaskCountPrettyNumber} that will stay open if this ${noun} is closed.`}
             primaryButtonLabel="Mark closed"
-            primaryButtonPressErrorTitle="Couldn&#x2019;t mark task as closed"
+            primaryButtonPressErrorTitle={`Couldn\u2019t mark ${noun} as closed`}
             onPrimaryButtonPress={() => {
                 onConfirm?.();
             }}

@@ -31,7 +31,7 @@ export class SesEmailContextModule extends EmailContextModuleBase {
         emailType: NonTransactionalEmailType;
         baseUrl: string;
     }): Promise<URL> {
-        return this._tokenAgent.privateSide.dangerouslySignUrl(
+        return await this._tokenAgent.privateSide.dangerouslySignUrl(
             "AppService",
             this._serializeUnsubscribeUrl({accountId, spaceId, emailType, baseUrl}),
             // Unsubscribe URLs are valid for 30 days
@@ -89,8 +89,8 @@ export class SesEmailContextModule extends EmailContextModuleBase {
                 if (error.name === "ServiceUnavailable" || error.$retryable) {
                     throw UnavailableError.from(error, "SES SendEmail failed");
                 }
-                // These errors are not recoverable and indicate an invalid input payload or an
-                // AWS account or configuration issue
+                // These errors are not recoverable and indicate an invalid input payload or an AWS
+                // account or configuration issue
                 throw InternalError.from(error, "SES SendEmail failed");
             }
         });

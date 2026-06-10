@@ -5,9 +5,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 
 /**
- * Creates a model automatically from the `@xenova/transformers` library.
- * Basically the same as `AutoModel.from_pretrained()` but instead of
- * downloading files on-the-fly, we read files downloaded by Bazel from disk.
+ * Creates a model automatically from the `@xenova/transformers` library. Basically
+ * the same as `AutoModel.from_pretrained()` but instead of downloading files
+ * on-the-fly, we read files downloaded by Bazel from disk.
  */
 export async function createTransformersModel(basePath: string) {
     const [{BertModel, PretrainedConfig}, {ONNX, executionProviders}]: [
@@ -17,8 +17,8 @@ export async function createTransformersModel(basePath: string) {
         // We dynamically import these models at runtime to avoid bundling
         // `@xenova/transformers`'s native libraries in an `aws_lambda()`.
         //
-        // We do the funky `string + cast(string)` syntax so the import path can't
-        // be statically analyzed by esbuild.
+        // We do the funky `string + cast(string)` syntax so the import path can't be
+        // statically analyzed by esbuild.
         import(/* @vite-ignore */ "@xenova/" + cast("transformers")),
         import(/* @vite-ignore */ "@xenova/" + cast("transformers/src/backends/onnx.js")),
     ]);
@@ -30,8 +30,8 @@ export async function createTransformersModel(basePath: string) {
 
     const config = JSON.parse(configContents);
 
-    // Used by `AutoModel` to figure out the right model class.
-    // The models we use currently all use `bert` so we hardcode it.
+    // Used by `AutoModel` to figure out the right model class. The models we use
+    // currently all use `bert` so we hardcode it.
     // https://github.com/xenova/transformers.js/blob/83dfa4718ec99c4566ec89954a0b0544a5a25d78/src/models.js#L4095
     assert(config.model_type === "bert");
 

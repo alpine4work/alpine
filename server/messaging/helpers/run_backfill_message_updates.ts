@@ -63,45 +63,46 @@ export async function runBackfillMessageUpdates<Message extends MessageModel>(
     },
 ): Promise<MessageUpdatesBackfillResult<Message>> {
     // `checkpoint` may be for an eventually consistent read. Eventually consistent
-    // reads may contain stale data. So here we backfill events that happened a
-    // short window before our `checkpoint` in case the read returned stale data.
+    // reads may contain stale data. So here we backfill events that happened a short
+    // window before our `checkpoint` in case the read returned stale data.
     //
-    // [DynamoDB says][1] reads are usually consistent "within one second or less".
-    // So three minutes should be a sufficient window for backfilling realtime
-    // events before the checkpoint.
+    // [DynamoDB says][1] reads are usually consistent "within one second or less". So
+    // three minutes should be a sufficient window for backfilling realtime events
+    // before the checkpoint.
     //
     // This also defends against clock skew. In case the server that generated the
     // checkpoint has a clock a couple seconds ahead of the rest of our fleet.
     //
-    // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
+    // [1]:
+    //     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
     checkpoint = subMinutes(checkpoint, messagingBackfillSafetyWindowMinutes);
 
-    // We have deleted events before this time to reduce our storage needs. That
-    // means we can't backfill reads that occurred before this time.
+    // We have deleted events before this time to reduce our storage needs. That means
+    // we can't backfill reads that occurred before this time.
     //
     // Use `Date.now()` so tests can mock the `Date.now()` function.
     const expiredEventsTime = subDays(new Date(Date.now()), messagingEventExpirationDays);
 
-    // If our read happened before the expiration time, we may be missing some
-    // events that happened between the read and now. The client should fully
-    // reload their query in response.
+    // If our read happened before the expiration time, we may be missing some events
+    // that happened between the read and now. The client should fully reload their
+    // query in response.
     if (isDatePossiblyLessThanWithUncertaintyWindow(checkpoint, expiredEventsTime))
         return {type: "Unavailable"};
 
-    // We backfill realtime updates to `newCheckpoint` so it should be before the
-    // data is read from the database to avoid missing realtime updates.
+    // We backfill realtime updates to `newCheckpoint` so it should be before the data
+    // is read from the database to avoid missing realtime updates.
     const newCheckpoint = generateServerSynchronizationCheckpoint();
 
-    // We send only one event per item key in our backfill. The client does not
-    // need to see the update history for an item. Only the latest value...
+    // We send only one event per item key in our backfill. The client does not need to
+    // see the update history for an item. Only the latest value...
     const versionByMessageIndex = new Map<number, number>();
 
     for await (const event of queryMessageUpdates(context, {
         startSortKey: {
             sortRangeType: "MessageUpdates",
             eventTime: DynamoKeyAttributeSchema.date.maxValue,
-            // Setting these to 0 means `startSortKey` is effectively exclusive for this
-            // query instead of inclusive but that's fine given if time has advanced to
+            // Setting these to 0 means `startSortKey` is effectively exclusive for this query
+            // instead of inclusive but that's fine given if time has advanced to
             // `date.maxValue` we'll have much bigger issues.
             messageIndex: 0,
             version: 0,
@@ -126,30 +127,29 @@ export async function runBackfillMessageUpdates<Message extends MessageModel>(
         mapIterable(versionByMessageIndex, async ([messageIndex, version]) => {
             let hasAlreadyAttempted = false;
 
-            return retryWithExponentialBackoff(async retry => {
+            return await retryWithExponentialBackoff(async retry => {
                 const isInitialAttempt = !hasAlreadyAttempted;
                 hasAlreadyAttempted = true;
 
-                // On the first attempt, try reading with eventual consistency since it's
-                // cheaper. If we observe eventual consistency lag (item version is behind
-                // event version from strong consistency query) then we'll retry with strong
-                // consistency.
+                // On the first attempt, try reading with eventual consistency since it's cheaper.
+                // If we observe eventual consistency lag (item version is behind event version
+                // from strong consistency query) then we'll retry with strong consistency.
                 const options: {consistency: DynamoReadConsistency} = isInitialAttempt
                     ? {consistency: "Eventual"}
                     : {consistency: "Strong"};
 
                 const message = await getMessageIfExists(context, messageIndex, options);
 
-                // If the item doesn't exist, then there may be some eventual consistency lag.
-                // The next read will use strong consistency.
+                // If the item doesn't exist, then there may be some eventual consistency lag. The
+                // next read will use strong consistency.
                 if (message === null) throw retry();
 
-                // If our item's version is less than the version expected by our realtime
-                // event we're likely seeing an eventual consistency lag. Try reading again.
-                // The next read will use strong consistency.
+                // If our item's version is less than the version expected by our realtime event
+                // we're likely seeing an eventual consistency lag. Try reading again. The next
+                // read will use strong consistency.
                 if (message.version < version) throw retry();
 
-                return createMessageModelFromItem(context, message);
+                return await createMessageModelFromItem(context, message);
             });
         }),
     );

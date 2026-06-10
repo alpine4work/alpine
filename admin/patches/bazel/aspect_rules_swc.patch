@@ -113,10 +113,10 @@ index 1d6f910..032dc2a 100644
          args.add("--config-file", ctx.file.swcrc)
 diff --git a/swc/private/swc_wrapper.sh b/swc/private/swc_wrapper.sh
 new file mode 100755
-index 0000000..d2e77a2
+index 0000000..83077f2
 --- /dev/null
 +++ b/swc/private/swc_wrapper.sh
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,114 @@
 +#!/bin/bash
 +
 +# HACK(calebmer): In SWC v1.3.36 symlink handling for our Bazel usecase with
@@ -185,6 +185,13 @@ index 0000000..d2e77a2
 +fi
 +
 +if [[ -z "$config_file" ]]; then
++    # If there are plugins, `rules_swc` runs SWC once with `--config-json` and a
++    # `/dev/null` input. We don't need to update the config file in this case (there
++    # is no config file).
++    # https://github.com/cyberworlds/rules_swc/blob/65c3bc36a221157c6001a63ffc06579625004b34/swc/private/swc.bzl#L328-L355
++    if [[ "$source_file" == "/dev/null" ]]; then
++        exec "$SWC_BINARY" "${args[@]}"
++    fi
 +    echo "Error: No config file found" >&2
 +    exit 1
 +fi

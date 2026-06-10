@@ -41,9 +41,8 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
         }),
     );
 
-    // `/` opens a mention search/selector interface at the start of an empty
-    // paragraph (for users coming from Slack or Notion where `/` is the slash
-    // command trigger)
+    // `/` opens a mention search/selector interface at the start of an empty paragraph
+    // (for users coming from Slack or Notion where `/` is the slash command trigger)
     rules.push(
         new InputRule(/^\/$/u, state => {
             const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
@@ -99,8 +98,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
             // 1. Delete the matched text.
             const transaction = state.tr.delete(start, end);
 
-            // 2. Try to find a valid way to wrap the cursor with our list item
-            //    node type.
+            // 2. Try to find a valid way to wrap the cursor with our list item node type.
             const $start = transaction.doc.resolve(start);
             const range = $start.blockRange();
             if (!range) return null;
@@ -108,12 +106,11 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
             const wrapping = findWrapping(
                 range,
                 nodeType,
-                // We intentionally only use `getAttrs()` here when wrapping. If you're
-                // changing the `listItem` node type then we use default attrs.
+                // We intentionally only use `getAttrs()` here when wrapping. If you're changing
+                // the `listItem` node type then we use default attrs.
                 //
-                // In practice, this means `orderedListItem` sets `orderStart` if you're
-                // creating a new list item but not when converting an existing list item to
-                // an ordered list.
+                // In practice, this means `orderedListItem` sets `orderStart` if you're creating a
+                // new list item but not when converting an existing list item to an ordered list.
                 getAttrs(match),
             );
 
@@ -123,8 +120,8 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
                 return transaction;
             }
 
-            // 4. If we are already in a list item then we convert the type of the
-            //    list item while preserving the indentation level.
+            // 4. If we are already in a list item then we convert the type of the list item
+            //    while preserving the indentation level.
             const listItemNode = $start.node(-1);
             if (!listItemNode || !listItemNode.type.groups.includes("listItem")) {
                 return null;
@@ -136,7 +133,9 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
         });
     }
 
-    // ``` creates a code block
+    // ```creates a code block
+    //
+    // ```
     rules.push(codeBlockInputRule(/^```$/, schema.nodes.codeBlock));
 
     function codeBlockInputRule(regExp: RegExp, nodeType: NodeType) {
@@ -174,14 +173,14 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
                 const isEndOfParent = $end.parentOffset === $end.parent.content.size;
 
-                // If you type `---|test` (where `|` is your cursor) then we don't want to
-                // insert a divider.
+                // If you type `---|test` (where `|` is your cursor) then we don't want to insert a
+                // divider.
                 if (!isEndOfParent) {
                     return null;
                 }
 
-                // Make sure we can insert a divider at this location. We can't insert a
-                // divider in a list item or quote block for instance.
+                // Make sure we can insert a divider at this location. We can't insert a divider in
+                // a list item or quote block for instance.
                 if (
                     !$start
                         .node(-1)
@@ -195,8 +194,8 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
                 }
 
                 const transaction = state.tr.replaceWith(
-                    // Start will always be the first text position in the block. So by
-                    // subtracting one we get the first block position.
+                    // Start will always be the first text position in the block. So by subtracting one
+                    // we get the first block position.
                     start - 1,
                     // Replacing to `end + 1` will replace the entire block.
                     end + 1,
@@ -206,9 +205,8 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
                 const isEndOfDoc = state.doc.content.size - 1 === end;
 
-                // If we are inserting a divider at the end of the document then we want
-                // to insert a paragraph after the divider so the user may continue
-                // typing.
+                // If we are inserting a divider at the end of the document then we want to insert
+                // a paragraph after the divider so the user may continue typing.
                 if (isEndOfDoc) {
                     transaction.insert(start, schema.node("paragraph"));
                 }
@@ -220,12 +218,12 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
     // Markdown-style bracket rules
     //
-    // We use `*` for bold instead of `**` which is the typical Markdown syntax.
-    // This will probably drive developers insane since it isn't Markdown spec
-    // compliant. I know it drove me insane when I first saw it in Slack. However,
-    // the set of power users is larger than the set of power users that care
-    // about Markdown compatibility. A single asterisk is much more convenient
-    // without any legacy attachment to Markdown.
+    // We use `*` for bold instead of `**` which is the typical Markdown syntax. This
+    // will probably drive developers insane since it isn't Markdown spec compliant. I
+    // know it drove me insane when I first saw it in Slack. However, the set of power
+    // users is larger than the set of power users that care about Markdown
+    // compatibility. A single asterisk is much more convenient without any legacy
+    // attachment to Markdown.
     rules.push(markdownBracketInputRule("*", schema.marks.bold));
     rules.push(markdownBracketInputRule("_", schema.marks.italic));
     rules.push(markdownBracketInputRule("~", schema.marks.strike));
@@ -237,8 +235,8 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
         const regExp = new RegExp(
             [
-                // We must either be at the beginning of the line, be after a space,
-                // or be after an opening bracket.
+                // We must either be at the beginning of the line, be after a space, or be after an
+                // opening bracket.
                 "(^|\\s|\\p{Ps})",
                 // The opening bracket.
                 escapedChar,
@@ -251,10 +249,10 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
                 `[^${char}\\s]`,
                 // Or...
                 "|",
-                // Match two or more characters. The characters next to the brackets
-                // must not be spaces. All characters within the brackets must not be
-                // the bracket character itself.
-                `[^${char}\\s][^${char}]*[^${char}\\s]`,
+                // Match two or more characters. The characters next to the brackets must not be
+                // spaces. All characters within the brackets must not be the bracket character
+                // itself. Use non-greedy matching to prefer the first valid closing bracket.
+                `[^${char}\\s][^${char}]*?[^${char}\\s]`,
                 // Close group...
                 ")",
                 // The closing bracket.
@@ -266,7 +264,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
             "u",
         );
 
-        return new InputRule(regExp, (state, match, start) => {
+        return new InputRule(regExp, (state, match, start, end) => {
             const {$from} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
             const fullMatch = match[0];
             const offset = match[1]!.length;
@@ -280,26 +278,33 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
             const transaction = state.tr;
 
             if (markType.name === "code") {
-                const replacements = normalizeContentEditorCodeText(
-                    fullMatch.slice(offset + 1, fullMatch.length - endOffset - 1),
-                );
+                const content = fullMatch.slice(offset + 1, fullMatch.length - endOffset - 1);
+                const replacements = normalizeContentEditorCodeText(content);
 
-                for (const replacement of replacements.reverse()) {
-                    transaction.replaceWith(
-                        start + offset + 1 + replacement.from,
-                        start + offset + 1 + replacement.to,
-                        state.schema.text(replacement.text),
-                    );
+                if (replacements.length > 0) {
+                    for (let i = replacements.length - 1; i >= 0; i--) {
+                        const replacement = replacements[i]!;
+                        transaction.replaceWith(
+                            start + offset + 1 + replacement.from,
+                            start + offset + 1 + replacement.to,
+                            state.schema.text(replacement.text),
+                        );
+                    }
+
+                    transaction.delete(start + offset, start + offset + 1);
+
+                    const markStart = start + offset;
+                    const markEnd = transaction.mapping.map(end - endOffset);
+                    transaction.addMark(markStart, markEnd, markType.create());
+                    return transaction;
                 }
             }
 
             transaction.delete(start + offset, start + offset + 1);
 
-            transaction.addMark(
-                start + offset,
-                transaction.mapping.map(start + fullMatch.length - endOffset),
-                markType.create(),
-            );
+            const markStart = start + offset;
+            const markEnd = transaction.mapping.map(end - endOffset);
+            transaction.addMark(markStart, markEnd, markType.create());
 
             return transaction;
         });

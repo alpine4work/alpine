@@ -1,11 +1,11 @@
 import {ArrowLeft, ArrowRight, Gear, House, MagnifyingGlass, SignOut, Star} from "phosphor-react";
-import {ReactNode} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
-import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
+import {useAccountModel} from "~/client/web/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
@@ -17,12 +17,11 @@ import {
 import {usePreloadSearchByAffinity} from "~/client/web/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
-import {SpaceLayoutSideBarSearchHint} from "~/client/web/spaces/layout/internal/space_layout_side_bar_search_hint.js";
+import {SpaceLayoutSideBarSearchEducationHint} from "~/client/web/spaces/layout/internal/space_layout_side_bar_search_education_hint.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_space_button.js";
-import {useSpaceSideBarSpacing} from "~/client/web/spaces/route_metadata.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceLayoutStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {createLifetimeAccessCheckoutSessionUrl} from "~/shared/rpc/accounts_rpc_definitions.js";
@@ -38,119 +37,73 @@ export function SpaceLayoutSideBar({
 }: {
     space: SpaceModel;
     currentAccount: AccountModel;
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    initialInbox: RynamoItem<InboxModel>;
     isSearchModalOpen: boolean;
     onSearchPress: () => void;
 }) {
     const rootNavigate = useRootNavigate();
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
-    // Preload affinitive search entities so they're ready when the search modal
-    // opens. We expect search to be the primary way users navigate around the
-    // product so the search modal should open immediately.
+    // Preload affinitive search entities so they're ready when the search modal opens.
+    // We expect search to be the primary way users navigate around the product so the
+    // search modal should open immediately.
     usePreloadSearchByAffinity();
-
-    const spaceSideBarSpacing = useSpaceSideBarSpacing();
 
     return (
         <Box
             zIndex="80"
             position="relative"
             flexShrink="0"
-            style={{
-                // Routes that take up the full screen width always allocate space for the
-                // space layout sidebar instead of using dynamic space that attempts to
-                // visually center content.
-                width: {
-                    Always: spaceLayoutStyles.sideBarWidth,
-                    Never: 0,
-                    Sometimes: spaceLayoutStyles.sideBarSpace,
-                }[spaceSideBarSpacing],
-            }}
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            paddingY="3"
+            style={{width: spaceLayoutStyles.sideBarWidth}}
         >
-            <Box
-                position="absolute"
-                top="0"
-                bottom="0"
-                left="0"
-                display="flex"
-                flexDirection="column"
-                alignItems="center"
-                style={{width: spaceLayoutStyles.sideBarWidth}}
-            >
-                <Box
-                    paddingTop="3"
-                    display="flex"
-                    flexDirection="column"
-                    alignItems="center"
-                    gap="3"
-                >
-                    <SpaceLayoutSideBarSpaceButton />
-                    <Box display="flex" flexDirection="column" alignItems="center" gap="2">
-                        <IconButton
-                            size="lg"
-                            description="Home"
-                            tooltipPlacement="right"
-                            pressErrorTitle="Couldn&#x2019;t open home"
-                            onPress={async () => {
-                                await rootNavigate(`/s/${space.id}`);
-                            }}
-                        >
-                            <House />
-                        </IconButton>
-                        <SpaceLayoutSideBarSearchHint isSearchModalOpen={isSearchModalOpen}>
-                            {isHintVisible => (
-                                <IconButton
-                                    size="lg"
-                                    description="Search"
-                                    tooltipPlacement="right"
-                                    keyboardShortcutHint={isAppleDevice ? "⌘+P" : "Ctrl+P"}
-                                    isHovered={isHintVisible}
-                                    onPress={onSearchPress}
-                                >
-                                    <MagnifyingGlass />
-                                </IconButton>
-                            )}
-                        </SpaceLayoutSideBarSearchHint>
-                        <SpaceLayoutSideBarInboxButton initialInbox={initialInbox} />
-                        <SpaceLayoutSideBarCreateButton />
-                    </Box>
-                </Box>
-                <Box flexGrow="1" />
-                <Box
-                    paddingBottom="3"
-                    display="flex"
-                    flexDirection="column"
-                    alignItems="center"
-                    gap="3"
-                >
-                    <SpaceLayoutSideBarAccountButton currentAccount={currentAccount} />
-                    <SpaceLayoutSideBarNavigationButtons />
+            <Box display="flex" flexDirection="column" alignItems="center" gap="3">
+                <SpaceLayoutSideBarSpaceButton />
+                <Box display="flex" flexDirection="column" alignItems="center" gap="1">
+                    <IconButton
+                        variant="quieter"
+                        size="space-layout-side-bar"
+                        description="Home"
+                        tooltipPlacement="right"
+                        pressErrorTitle="Couldn&#x2019;t open home"
+                        onPress={async () => {
+                            await rootNavigate(`/home/${space.id}`);
+                        }}
+                    >
+                        <House />
+                    </IconButton>
+                    <SpaceLayoutSideBarSearchEducationHint isSearchModalOpen={isSearchModalOpen}>
+                        {isHintVisible => (
+                            <IconButton
+                                variant="quieter"
+                                size="space-layout-side-bar"
+                                description="Search"
+                                tooltipPlacement="right"
+                                keyboardShortcutHint={renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "p",
+                                )}
+                                isHovered={isHintVisible}
+                                onPress={onSearchPress}
+                            >
+                                <MagnifyingGlass />
+                            </IconButton>
+                        )}
+                    </SpaceLayoutSideBarSearchEducationHint>
+                    <SpaceLayoutSideBarInboxButton initialInbox={initialInbox} />
+                    <SpaceLayoutSideBarCreateButton />
                 </Box>
             </Box>
+            <Box flexGrow="1" />
+            <Box display="flex" flexDirection="column" alignItems="center" gap="2">
+                <SpaceLayoutSideBarNavigationButtons />
+                <SpaceLayoutSideBarAccountButton currentAccount={currentAccount} />
+            </Box>
         </Box>
-    );
-}
-
-export function SpaceLayoutSideBarContentBlockWidthContextProvider({
-    isDisabled,
-    children,
-}: {
-    isDisabled: boolean;
-    children: ReactNode;
-}) {
-    const spaceSideBarSpacing = useSpaceSideBarSpacing();
-
-    return (
-        <ContentBlockWidthContextProvider
-            isDisabled={isDisabled}
-            keepAssumedPadding={true}
-            // TODO(calebmer): Should handle a `Sometimes` value for `spaceSideBarSpacing`.
-            // Adding some padding left when the screen is small.
-            paddingLeft={spaceSideBarSpacing === "Always" ? spaceLayoutStyles.sideBarWidth : 0}
-        >
-            {children}
-        </ContentBlockWidthContextProvider>
     );
 }
 
@@ -162,10 +115,10 @@ function SpaceLayoutSideBarNavigationButtons() {
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                // NOTE(calebmer): Overriding Cmd+[ or Cmd+] does nothing in Chrome since
-                // browser level forward/backward shortcut can't be overridden. However,
-                // Chrome's behavior is exactly what we want! This implementation is here for
-                // other browsers or an eventual desktop app.
+                // NOTE(calebmer): Overriding Cmd+[ or Cmd+] does nothing in Chrome since browser
+                // level forward/backward shortcut can't be overridden. However, Chrome's behavior
+                // is exactly what we want! This implementation is here for other browsers or an
+                // eventual desktop app.
                 if (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey) {
                     if (event.key === "[") {
                         event.preventDefault();
@@ -185,9 +138,10 @@ function SpaceLayoutSideBarNavigationButtons() {
         >
             <Box flexShrink="0" display="flex" justifyContent="flex-start" alignItems="center">
                 <IconButton
+                    variant="quietest"
                     size="xs"
                     description="Go back"
-                    keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+[" : "Ctrl+["}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "[")}
                     tooltipPlacement="top"
                     isDisabled={!navigationState.hasPreviousLocation}
                     pressErrorTitle="Couldn&#x2019;t go back"
@@ -196,9 +150,10 @@ function SpaceLayoutSideBarNavigationButtons() {
                     <ArrowLeft />
                 </IconButton>
                 <IconButton
+                    variant="quietest"
                     size="xs"
                     description="Go forwards"
-                    keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+]" : "Ctrl+]"}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "]")}
                     tooltipPlacement="top"
                     isDisabled={!navigationState.hasNextLocation}
                     pressErrorTitle="Couldn&#x2019;t go forwards"
@@ -215,6 +170,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
     const rootNavigate = useRootNavigate();
     const context = useAppContext();
     const {space} = useSpaceContextAndRequireSpaceAccess();
+    const currentAccountData = useAccountModel(currentAccount);
 
     return (
         <MenuButton
@@ -225,17 +181,17 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                         icon: <Gear />,
                         label: "Settings",
                         pressErrorTitle: "Couldn\u2019t open settings",
-                        onPress: () => rootNavigate(`/s/${space.id}/settings/profile`),
+                        onPress: () => rootNavigate(`/settings/${space.id}/profile`),
                     },
-                    ...(currentAccount.initialData.plan !== "LifetimeAccess"
+                    ...(currentAccountData.plan !== "LifetimeAccess"
                         ? [
                               {
                                   icon: ({isPressed}: {isPressed: boolean}) => (
                                       <Star
                                           weight="fill"
                                           className={sprinkles({
-                                              // Re-use the search favorite icon colors for the
-                                              // lifetime access purchase icon since they fit well.
+                                              // Re-use the search favorite icon colors for the lifetime access purchase icon
+                                              // since they fit well.
                                               fill: isPressed
                                                   ? searchFavoriteEntityIconPressedColor
                                                   : searchFavoriteEntityIconColor,
@@ -283,8 +239,8 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                 size="lg"
                 variant="image"
                 description="Account"
-                // The notification bell does not have a tooltip. It opens up an inbox preview
-                // on hover. It's weird if the buttons around it have tooltips.
+                // The notification bell does not have a tooltip. It opens up an inbox preview on
+                // hover. It's weird if the buttons around it have tooltips.
                 withoutTooltip={true}
             >
                 <AccountAvatar account={currentAccount} size="8" />

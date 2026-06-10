@@ -1,9 +1,7 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import escapeHtml from "escape-html";
 
-// TODO(calebmer, #phosphor-v2): The `<Waveform>` icon is in Phosphor
-// v2. Upgrading to v2 looks difficult so for now, inlining the SVG.
+// TODO(calebmer, #phosphor-v2): The `<Waveform>` icon is in Phosphor v2. Upgrading
+// to v2 looks difficult so for now, inlining the SVG.
 export const waveformIconSvg = ({className = ""}: {className?: string} = {}) =>
     `<svg xmlns="http://www.w3.org/2000/svg" class="${escapeHtml(
         className,

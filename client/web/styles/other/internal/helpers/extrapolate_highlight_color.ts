@@ -7,13 +7,12 @@ import {lerp} from "~/shared/helpers/number/lerp.js";
  * produces `highlightColor`.
  *
  * An example use-case is the document highlight style. We want our highlight
- * styles to present as a color on our color scale. However, when they render
- * over some other color we want the two to mix so the highlight color needs
- * to be somewhat translucent.
+ * styles to present as a color on our color scale. However, when they render over
+ * some other color we want the two to mix so the highlight color needs to be
+ * somewhat translucent.
  *
- * It's not always possible to extrapolate a highlight color! This function
- * throws if we can't create a color in the RGB color space with the
- * desired effect.
+ * It's not always possible to extrapolate a highlight color! This function throws
+ * if we can't create a color in the RGB color space with the desired effect.
  */
 export function extrapolateHighlightColor(
     backgroundColor: string,
@@ -41,8 +40,8 @@ export function extrapolateHighlightColor(
 
 /**
  * Same as `extrapolateHighlightColor()` but without bounds checking and using
- * `RawColor` directly. Sometimes you want an intermediate color which doesn't
- * fit in bounds of RGB.
+ * `RawColor` directly. Sometimes you want an intermediate color which doesn't fit
+ * in bounds of RGB.
  */
 export function extrapolateHighlightRawColorWithoutBounds(
     backgroundColor: RawColor,

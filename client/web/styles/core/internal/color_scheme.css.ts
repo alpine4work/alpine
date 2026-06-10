@@ -20,8 +20,8 @@ export const darkColorSchemeSelector = ":root[data-color=dark]";
 /**
  * The color scheme which identifies whether we are in light mode.
  *
- * We define this as a `:not()` dark color scheme selector since in the rest of
- * our code we only really check the dark constant.
+ * We define this as a `:not()` dark color scheme selector since in the rest of our
+ * code we only really check the dark constant.
  */
 export const lightColorSchemeSelector = ":root:not([data-color=dark])";
 
@@ -73,14 +73,14 @@ const invertedSelectionColors = Object.fromEntries(
     }),
 ) as {readonly [C in ThemeColor | "grey" as `${C}-selection`]: `#${string}`};
 
-// Copied from `@vanilla-extract/private` since TypeScript needs an annotation
-// for exported variables to generate a declaration and we don't want to import
-// from a private package.
+// Copied from `@vanilla-extract/private` since TypeScript needs an annotation for
+// exported variables to generate a declaration and we don't want to import from a
+// private package.
 export type CssVarFunction = `var(--${string})` | `var(--${string}, ${string | number})`;
 
 /**
- * Colors that switch dynamically between light and dark mode depending on
- * the context.
+ * Colors that switch dynamically between light and dark mode depending on the
+ * context.
  */
 const baseColorSchemeVars: {
     [K in keyof typeof colorsWithShade]: CssVarFunction;
@@ -126,8 +126,7 @@ export const invertLightSelectionColorsClassName = style({});
 export const invertDarkSelectionColorsClassName = style({});
 
 /**
- * Constant colors don't change based on whether we are in light mode or dark
- * mode.
+ * Constant colors don't change based on whether we are in light mode or dark mode.
  *
  * They have a longer name than our variable colors since generally you should
  * prefer the variable colors.
@@ -198,8 +197,8 @@ function createTheme(color: ThemeColor) {
 const themeColorSchemeVars: {[K in keyof ReturnType<typeof createTheme>]: CssVarFunction} =
     createGlobalTheme(":root", createTheme(defaultThemeColor));
 
-// Create CSS rules for each theme color so we can switch themes dynamically
-// based on the data-theme attribute
+// Create CSS rules for each theme color so we can switch themes dynamically based
+// on the data-theme attribute
 for (const themeColor of themeColors) {
     globalStyle(`:root[data-theme="${themeColor}"]`, {
         vars: assignVars(themeColorSchemeVars, createTheme(themeColor)),
@@ -211,6 +210,8 @@ const grey5TranslucentColor = getColorForShiftingGreyColor(0.1, "5", "0");
 const grey10TranslucentColor = getColorForShiftingGreyColor(0.1, "10", "0");
 const grey30TranslucentColor = getColorForShiftingGreyColor(0.1, "30", "0");
 const grey40TranslucentColor = getColorForShiftingGreyColor(0.1, "40", "0");
+const grey50TranslucentColor = getColorForShiftingGreyColor(0.1, "50", "0");
+const grey60TranslucentColor = getColorForShiftingGreyColor(0.1, "60", "0");
 
 /**
  * Special shades of grey that do not follow the inverted grey color spectrum.
@@ -257,39 +258,53 @@ const specialGreyColorVars: {
     "grey-70-opacity-80": CssVarFunction;
 
     /**
-     * When rendered over `grey-0` produces the color `grey-1`. Useful when you
-     * want the color `grey-1` on a white background but over some colorful
-     * content you want the color to show through.
+     * When rendered over `grey-0` produces the color `grey-1`. Useful when you want
+     * the color `grey-1` on a white background but over some colorful content you want
+     * the color to show through.
      */
     "grey-1-translucent": CssVarFunction;
 
     /**
-     * When rendered over `grey-0` produces the color `grey-5`. Useful when you
-     * want the color `grey-5` on a white background but over some colorful
-     * content you want the color to show through.
+     * When rendered over `grey-0` produces the color `grey-5`. Useful when you want
+     * the color `grey-5` on a white background but over some colorful content you want
+     * the color to show through.
      */
     "grey-5-translucent": CssVarFunction;
 
     /**
-     * When rendered over `grey-0` produces the color `grey-10`. Useful when you
-     * want the color `grey-10` on a white background but over some colorful
-     * content you want the color to show through.
+     * When rendered over `grey-0` produces the color `grey-10`. Useful when you want
+     * the color `grey-10` on a white background but over some colorful content you
+     * want the color to show through.
      */
     "grey-10-translucent": CssVarFunction;
 
     /**
-     * When rendered over `grey-0` produces the color `grey-30`. Useful when you
-     * want the color `grey-30` on a white background but over some colorful
-     * content you want the color to show through.
+     * When rendered over `grey-0` produces the color `grey-30`. Useful when you want
+     * the color `grey-30` on a white background but over some colorful content you
+     * want the color to show through.
      */
     "grey-30-translucent": CssVarFunction;
 
     /**
-     * When rendered over `grey-0` produces the color `grey-40`. Useful when you
-     * want the color `grey-40` on a white background but over some colorful
-     * content you want the color to show through.
+     * When rendered over `grey-0` produces the color `grey-40`. Useful when you want
+     * the color `grey-40` on a white background but over some colorful content you
+     * want the color to show through.
      */
     "grey-40-translucent": CssVarFunction;
+
+    /**
+     * When rendered over `grey-0` produces the color `grey-50`. Useful when you want
+     * the color `grey-50` on a white background but over some colorful content you
+     * want the color to show through.
+     */
+    "grey-50-translucent": CssVarFunction;
+
+    /**
+     * When rendered over `grey-0` produces the color `grey-60`. Useful when you want
+     * the color `grey-60` on a white background but over some colorful content you
+     * want the color to show through.
+     */
+    "grey-60-translucent": CssVarFunction;
 } = createGlobalTheme(":root", {
     "grey-5-dark-10": colors["grey-5"],
     "grey-0-opacity-20": `${colors["grey-0"]}${opacityHex(0.2)}`,
@@ -304,6 +319,8 @@ const specialGreyColorVars: {
     "grey-10-translucent": grey10TranslucentColor.light,
     "grey-30-translucent": grey30TranslucentColor.light,
     "grey-40-translucent": grey40TranslucentColor.light,
+    "grey-50-translucent": grey50TranslucentColor.light,
+    "grey-60-translucent": grey60TranslucentColor.light,
 });
 
 globalStyle(darkColorSchemeSelector, {
@@ -321,6 +338,8 @@ globalStyle(darkColorSchemeSelector, {
         "grey-10-translucent": grey10TranslucentColor.dark,
         "grey-30-translucent": grey30TranslucentColor.dark,
         "grey-40-translucent": grey40TranslucentColor.dark,
+        "grey-50-translucent": grey50TranslucentColor.dark,
+        "grey-60-translucent": grey60TranslucentColor.dark,
     }),
 });
 
@@ -335,9 +354,9 @@ function opacityHex(opacity: number) {
 export type ColorSchemeVar = keyof typeof colorSchemeVars;
 
 export const colorSchemeVars = {
-    // Spread `colors` first. `baseColorSchemeVars` will override most of our
-    // colors but any non-shade colors (e.g. `grey-70-elevated-1`) will be included
-    // as a constant here.
+    // Spread `colors` first. `baseColorSchemeVars` will override most of our colors
+    // but any non-shade colors (e.g. `grey-70-elevated-1`) will be included as a
+    // constant here.
     ...colors,
     ...baseColorSchemeVars,
     ...constantColors,
@@ -347,17 +366,17 @@ export const colorSchemeVars = {
 };
 
 /**
- * Theme color to be used for accent elements which are typically white text
- * with the accent color as the background. These elements are relatively rare
- * and used to draw the user's eye.
+ * Theme color to be used for accent elements which are typically white text with
+ * the accent color as the background. These elements are relatively rare and used
+ * to draw the user's eye.
  *
  * Generally, we want all uses of our theme color to have an accessible color
  * contrast but we also want to be true to the typical brand usage for a given
- * accent color. If the user cares about accessibility and has inaccessible
- * brand colors (e.g. white text on red buttons is famously inaccessible) then
- * they should pick a different accessible theme color for their organization.
- * We could also offer a high contrast mode for users that absolutely need
- * accessible color combinations.
+ * accent color. If the user cares about accessibility and has inaccessible brand
+ * colors (e.g. white text on red buttons is famously inaccessible) then they
+ * should pick a different accessible theme color for their organization. We could
+ * also offer a high contrast mode for users that absolutely need accessible color
+ * combinations.
  *
  * Known inaccessible color combinations for white text on:
  *

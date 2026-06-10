@@ -23,8 +23,7 @@ export function splitGraphemes(string: string): Array<string> {
 }
 
 /**
- * Count Unicode graphemes. Provides a nicer interface to
- * [`grapheme-splitter`][1].
+ * Count Unicode graphemes. Provides a nicer interface to [`grapheme-splitter`][1].
  *
  * [1]: https://www.npmjs.com/package/grapheme-splitter
  */

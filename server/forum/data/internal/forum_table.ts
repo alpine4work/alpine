@@ -23,8 +23,8 @@ export const ForumTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 /**
-                 * Accounts who are subscribed to get notifications in their inbox whenever a
-                 * post is created in this channel.
+                 * Accounts who are subscribed to get notifications in their inbox whenever a post
+                 * is created in this channel.
                  */
                 {
                     name: "Subscription",
@@ -75,33 +75,32 @@ export const ForumTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * Whenever a message is updated we add a `MessageUpdates` item. So when
-                 * clients need to backfill realtime events they missed while disconnected from
-                 * a WebSocket server they can query this sort range to catch up.
+                 * Whenever a message is updated we add a `MessageUpdates` item. So when clients
+                 * need to backfill realtime events they missed while disconnected from a WebSocket
+                 * server they can query this sort range to catch up.
                  *
                  * The event includes the `messageIndex` and the new `version` of the message.
                  * During backfill we load the new version of the item.
                  *
                  * This sort range has a similar design to the `Events` sort range in
-                 * `DynamoGeneralRealtimeTableSchema`.
+                 * `RynamoTableSchema`.
                  *
                  * IMPORTANT: This does not include realtime events for streaming messages!
                  * Streaming messages are updated with a different realtime system that's more
                  * efficient for the streaming use case.
                  *
                  * Named `MessageUpdates` instead of `CommentUpdates` so we can have shared
-                 * utilities for querying this sort range that work across all messaging
-                 * surfaces.
+                 * utilities for querying this sort range that work across all messaging surfaces.
                  */
                 {
                     name: "MessageUpdates",
                     sortKeyAttributes: {
-                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we
-                        // could. Through a query that starts at the client's last `messageIndex` and
-                        // ends at the checkpoint's `eventTime`.
+                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we could.
+                        // Through a query that starts at the client's last `messageIndex` and ends at the
+                        // checkpoint's `eventTime`.
                         eventTime: DynamoKeyAttributeSchema.date.reverse(),
-                        // All the data is in the key so we can safely use create-or-replace to add
-                        // items to the table without worrying we're overriding some other data.
+                        // All the data is in the key so we can safely use create-or-replace to add items
+                        // to the table without worrying we're overriding some other data.
                         messageIndex: DynamoKeyAttributeSchema.integer,
                         version: DynamoKeyAttributeSchema.integer,
                     },
@@ -109,10 +108,10 @@ export const ForumTable = DynamoTableSchema.new({
                     attributes: Schema.object({}),
                 },
 
-                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime
-                // events to a new sort range: `MessageUpdates`. Leaving this around until all
-                // old `CommentChangeLog` items expire. At which point we can remove this from
-                // the DynamoDB schema.
+                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime events
+                // to a new sort range: `MessageUpdates`. Leaving this around until all old
+                // `CommentChangeLog` items expire. At which point we can remove this from the
+                // DynamoDB schema.
                 {
                     name: "CommentChangeLog",
                     sortKeyAttributes: {
@@ -135,12 +134,12 @@ export const ForumTable = DynamoTableSchema.new({
             sortRanges: [
                 /**
                  * When the user creates a post we create a `PostDraft` item for them on the
-                 * backend. That way the content in their post is saved across reloads and
-                 * across devices. We also can attach files to post drafts.
+                 * backend. That way the content in their post is saved across reloads and across
+                 * devices. We also can attach files to post drafts.
                  *
-                 * As of 2024-10-30 we're introducing `PostDraft`s only to have a backend
-                 * entity to attach files to. In the future we should show drafts in the UI and
-                 * let the user resume writing a post from a draft.
+                 * As of 2024-10-30 we're introducing `PostDraft`s only to have a backend entity to
+                 * attach files to. In the future we should show drafts in the UI and let the user
+                 * resume writing a post from a draft.
                  */
                 {
                     name: "PostDraft",

@@ -6,9 +6,9 @@ import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Renders emails, but creates a trace on send instead of sending the email. Throws an error
- * if this context module is used in production to send an email.
- * Useful for staging and local development.
+ * Renders emails, but creates a trace on send instead of sending the email. Throws
+ * an error if this context module is used in production to send an email. Useful
+ * for staging and local development.
  */
 export class TraceOnlyEmailContextModule extends EmailContextModuleBase {
     protected async _send(
@@ -18,7 +18,7 @@ export class TraceOnlyEmailContextModule extends EmailContextModuleBase {
     ): Promise<void> {
         if (process.env.NODE_ENV === "production")
             throw new DataLossError("Can\u2019t use `TraceOnlyEmailContextModule` in production.");
-        return this._context.tracer.withSpan("Console SendEmail", async (context, span) => {
+        return await this._context.tracer.withSpan("Console SendEmail", async (context, span) => {
             span.addData({
                 email: {
                     template: email.templateName,

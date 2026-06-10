@@ -24,9 +24,9 @@ export function useOverlayPortalElement() {
 }
 
 /**
- * Get the overlay portal element at the root of our app. We may have nested
- * portal overlay elements in, for instance, scroll views so overlays move with
- * the scroll view and can't escape.
+ * Get the overlay portal element at the root of our app. We may have nested portal
+ * overlay elements in, for instance, scroll views so overlays move with the scroll
+ * view and can't escape.
  *
  * This allows you to portal into the root overlay element.
  */
@@ -44,9 +44,9 @@ export function useOverlayRootPortalElement() {
 }
 
 /**
- * Get the _blocking_ overlay portal element at the root of our app. We may
- * have nested portal overlay elements in, for instance, scroll views so
- * overlays move with the scroll view and can't escape.
+ * Get the _blocking_ overlay portal element at the root of our app. We may have
+ * nested portal overlay elements in, for instance, scroll views so overlays move
+ * with the scroll view and can't escape.
  */
 export function useOverlayBlockingPortalElement() {
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
@@ -65,13 +65,13 @@ export function useOverlayBlockingPortalElement() {
 
 /**
  * If you have an `<Overlay>` element with a ref on the `overlay` prop then you
- * will not be able to access the ref until the overlay portal is ready. You
- * may use this hook for detecting this edge case.
+ * will not be able to access the ref until the overlay portal is ready. You may
+ * use this hook for detecting this edge case.
  *
  * If your overlay's initial render is the same as the nearest
- * `<OverlayScopeContextProvider>`'s initial render and your overlay is
- * initially visible then this will start as `true` then return `false`.
- * Otherwise this always returns `false`.
+ * `<OverlayScopeContextProvider>`'s initial render and your overlay is initially
+ * visible then this will start as `true` then return `false`. Otherwise this
+ * always returns `false`.
  */
 export function useIsWaitingForOverlayPortalElement(isVisible: boolean): boolean {
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
@@ -89,8 +89,8 @@ export function useIsWaitingForOverlayPortalElement(isVisible: boolean): boolean
 }
 
 /**
- * Update the positions of all overlays that are direct descendants of the
- * provided element.
+ * Update the positions of all overlays that are direct descendants of the provided
+ * element.
  */
 export function forceUpdateAllChildOverlayPositions(element: Element) {
     for (const popper of overlayVisiblePoppers) {

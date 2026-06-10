@@ -533,8 +533,8 @@ describe("extractContentDuplicationSchema", () => {
     });
 
     test("variable name with plain text then space then styled text extracts correct name", () => {
-        // {{Hello (plain) + world}} (bold) - space at node boundary is trimmed
-        // so variable name is "Helloworld"
+        // {{Hello (plain) + world}} (bold) - space at node boundary is trimmed so variable
+        // name is "Helloworld"
         const doc = createTestDocument([
             {
                 type: "paragraph",
@@ -554,8 +554,8 @@ describe("extractContentDuplicationSchema", () => {
     });
 
     test("variable name with plain text then space then styled text (excluding bracket) extracts correct name", () => {
-        // {{Hello (plain) + world}} (bold) - space at node boundary is trimmed
-        // so variable name is "Helloworld"
+        // {{Hello (plain) + world}} (bold) - space at node boundary is trimmed so variable
+        // name is "Helloworld"
         const doc = createTestDocument([
             {
                 type: "paragraph",
@@ -836,6 +836,42 @@ describe("applyContentDuplicationValues", () => {
         expect(codeLine.textContent).toBe("run npm install");
     });
 
+    test("replaces variable in code block when value includes code mark", () => {
+        const doc = createTestDocument([
+            {
+                type: "codeBlock",
+                attrs: {language: "json"},
+                content: [
+                    {
+                        type: "codeBlockLine",
+                        content: [
+                            {
+                                type: "text",
+                                text: "        \u201CS\u201D: \u201C{{createdTime}}\u201D",
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]);
+
+        const values: ContentDuplicationVariableValues = new Map([
+            [
+                "createdTime",
+                {type: "Text", text: "2026-03-18T17:44:32.805Z", marks: [{type: "code"}]},
+            ],
+        ]);
+
+        const result = applyContentDuplicationVariableValues(doc, values);
+
+        const codeBlock = result.child(1);
+        const codeLine = codeBlock.child(0);
+        expect(codeLine.textContent).toBe(
+            "        \u201CS\u201D: \u201C2026-03-18T17:44:32.805Z\u201D",
+        );
+        expect(codeLine.marks).toHaveLength(0);
+    });
+
     test("preserves document structure when replacing", () => {
         const doc = createTestDocument([
             {
@@ -884,8 +920,8 @@ describe("applyContentDuplicationValues", () => {
     });
 
     test("replaces variable with mixed styles inside name", () => {
-        // {{Hello (plain) + world}} (bold) - apply does NOT trim text nodes,
-        // so variable name is "Hello world" (with space)
+        // {{Hello (plain) + world}} (bold) - apply does NOT trim text nodes, so variable
+        // name is "Hello world" (with space)
         const doc = createTestDocument([
             {
                 type: "paragraph",
@@ -906,8 +942,8 @@ describe("applyContentDuplicationValues", () => {
     });
 
     test("replaces variable with mixed styles inside name not including bracket", () => {
-        // {{Hello (plain) + world}} (bold) - apply does NOT trim text nodes,
-        // so variable name is "Hello world" (with space)
+        // {{Hello (plain) + world}} (bold) - apply does NOT trim text nodes, so variable
+        // name is "Hello world" (with space)
         const doc = createTestDocument([
             {
                 type: "paragraph",

@@ -21,8 +21,8 @@ export type GithubContextModuleAuth = (
 ) => Promise<OctokitResponse<any>>;
 
 /**
- * Context module for accessing the GitHub API. Authorizes and traces any
- * requests to the GitHub API.
+ * Context module for accessing the GitHub API. Authorizes and traces any requests
+ * to the GitHub API.
  */
 export abstract class GithubContextModuleBase extends ContextModuleBase<{
     tracer: TracerContextModule;

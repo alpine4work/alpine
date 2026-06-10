@@ -6,9 +6,9 @@ const pendingState: PromiseState<never> = {status: "pending"};
 const nullState: PromiseState<null> = {status: "fulfilled", value: null};
 
 /**
- * Use the value of a promise in a React component. If the promise fails we
- * throw an error to the nearest error boundary. If the promise succeeds then
- * we return the value.
+ * Use the value of a promise in a React component. If the promise fails we throw
+ * an error to the nearest error boundary. If the promise succeeds then we return
+ * the value.
  *
  * Has special support for `PromiseImmediate`. If your promise is immediately
  * resolved then we don't need to render a pending state.

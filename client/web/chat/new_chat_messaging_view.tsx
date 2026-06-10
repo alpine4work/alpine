@@ -1,5 +1,6 @@
-import {Ref, forwardRef, useCallback, useMemo, useRef} from "react";
+import {Memo, Ref, forwardRef, useCallback, useEffect, useMemo, useRef} from "react";
 import {getSafeCurrentlyViewedEntityIfPossibleForClient} from "~/client/web/bots/get_safe_current_viewed_entity_if_possible_for_client.js";
+import {ChatDirectOneOnOneInvitePendingOverlayController} from "~/client/web/chat/internal/chat_direct_one_on_one_invite_pending_overlay_controller.js";
 import {chatMessagingViewHeaderItem} from "~/client/web/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -12,9 +13,11 @@ import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
+    getChatWithStrongReadConsistency,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -25,6 +28,7 @@ function NewChatMessagingView(
     {
         initialCheckpoint,
         selectedChat,
+        onUpdateSelectedChat,
     }: {
         initialCheckpoint: ServerSynchronizationCheckpoint;
         selectedChat: {
@@ -32,15 +36,16 @@ function NewChatMessagingView(
             initialMessages: ReadonlyArray<ChatMessageModel>;
             initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
         } | null;
+        onUpdateSelectedChat: Memo<(chat: ChatModel) => void>;
     },
     ref: Ref<MessagingViewRef<ChatId>>,
 ) {
     const context = useAppContext();
     const spaceContext = useSpaceContext();
-    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId(spaceContext.space.id);
+    let currentlyViewingSearchEntityId = useCurrentlyViewingSearchEntityId();
 
-    // We only send the currently viewed entity for 1:1 chats with a bot.
-    // We do some validation here and on the server.
+    // We only send the currently viewed entity for 1:1 chats with a bot. We do some
+    // validation here and on the server.
     currentlyViewingSearchEntityId = getSafeCurrentlyViewedEntityIfPossibleForClient(
         spaceContext,
         selectedChat?.chat,
@@ -53,9 +58,40 @@ function NewChatMessagingView(
         selectedChat ? `/api/durable-objects/chat/${selectedChat.chat.id}` : null,
     );
 
-    // This ref is used to preserve the message input state across React key
-    // changes. `<MessageInput>` will write state changes to the ref and initialize
-    // its state from the ref on remount.
+    const selectedChatId = selectedChat?.chat.id;
+    const lastBackfilledChatIdRef = useRef<ChatId | null>(null);
+
+    useEffect(() => {
+        if (!isConnected || !selectedChatId) {
+            // Clear so on reconnection we'll backfill the chat again.
+            lastBackfilledChatIdRef.current = null;
+            return;
+        }
+
+        // Backfill the chat once realtime is connected. When we've connected to realtime
+        // we'll get all events from the time `isConnected` is true on but we'll have
+        // missed any events from when we weren't connected to the WebSocket.
+        if (lastBackfilledChatIdRef.current !== selectedChatId) {
+            lastBackfilledChatIdRef.current = selectedChatId;
+
+            getChatWithStrongReadConsistency(context, {chatId: selectedChatId}).then(
+                ({chat}) => onUpdateSelectedChat(chat),
+                error => {
+                    context.tracer.getRoot().logException("Failed to backfill chat", error);
+                },
+            );
+        }
+
+        return subscribeToEvents(event => {
+            if (event.type === "UpdateChat") {
+                onUpdateSelectedChat(event.chat);
+            }
+        });
+    }, [context, isConnected, onUpdateSelectedChat, selectedChatId, subscribeToEvents]);
+
+    // This ref is used to preserve the message input state across React key changes.
+    // `<MessageInput>` will write state changes to the ref and initialize its state
+    // from the ref on remount.
     const inputRestoreStateRef = useRef(null);
 
     const fileAttachmentTarget = useMemo((): FileAttachmentTarget | null => {
@@ -87,8 +123,8 @@ function NewChatMessagingView(
             randomSeedForShimmer={selectedChat?.chat.id ?? "unknown"}
             isMessageCreationDisabled={!selectedChat}
             fileAttachmentTarget={fileAttachmentTarget}
-            // Since `selectedChat` may change we want to attach files right before the
-            // message is created instead of when files are added to the message input.
+            // Since `selectedChat` may change we want to attach files right before the message
+            // is created instead of when files are added to the message input.
             withAttachFileBeforeCreateMessage={true}
             getMessagesFromStart={useEvent(input => {
                 if (!selectedChat) {
@@ -121,7 +157,7 @@ function NewChatMessagingView(
                     // May be called when we don't have a selected chat.
                     if (!selectedChat) return {};
 
-                    return procedures.startTypingInMessageInput(input);
+                    return await procedures.startTypingInMessageInput(input);
                 },
                 [procedures, selectedChat],
             )}
@@ -130,31 +166,42 @@ function NewChatMessagingView(
                     // May be called when we don't have a selected chat.
                     if (!selectedChat) return {};
 
-                    return procedures.stopTypingInMessageInput(input);
+                    return await procedures.stopTypingInMessageInput(input);
                 },
                 [procedures, selectedChat],
             )}
             isConnected={isConnected}
-            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
-            // fixing for now. Only errs when Bazel runs TypeScript which is strange.
+            // There's a strange TypeScript error here that only shows up when Bazel runs
+            // TypeScript where it thinks the type of `subscribeToEvents` should include
+            // `{ [x: number]: never; }`. Not fixing for now, may be a TypeScript bug that
+            // disappears on upgrade.
             // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
             // @ts-ignore
-            subscribeToEvents={subscribeToEvents}
+            subscribeToEvents={useCallback(
+                (subscriber: (event: MessagingRealtimeEvent<ChatMessageModel>) => void) => {
+                    return subscribeToEvents(event => {
+                        if (event.type !== "UpdateChat") {
+                            subscriber(event);
+                        }
+                    });
+                },
+                [subscribeToEvents],
+            )}
             subscribeToPongs={subscribeToPongs}
             getMessageUrl={useCallback(
                 messageIndex => {
                     // This should never throw through (mostly) coincidence. The only messages you
-                    // should see when we don't know the chat are optimistic messages. You can not
-                    // copy the link of an optimistic message because we don't know the index. We
-                    // get the index when we connect to realtime when we discover the chat ID.
-                    // Therefore to have a message index we need a chat.
+                    // should see when we don't know the chat are optimistic messages. You can not copy
+                    // the link of an optimistic message because we don't know the index. We get the
+                    // index when we connect to realtime when we discover the chat ID. Therefore to
+                    // have a message index we need a chat.
                     if (!selectedChat) {
                         throw new InternalError(
                             "Should not be able to copy link of chat message when we don\u2019t know the chat",
                         );
                     }
                     return new URL(
-                        `/s/${selectedChat.chat.spaceId}/chat/${selectedChat.chat.id}?message=${messageIndex}`,
+                        `/chat/${selectedChat.chat.id}?message=${messageIndex}`,
                         window.location.href,
                     );
                 },
@@ -162,6 +209,11 @@ function NewChatMessagingView(
             )}
             inputRestoreStateRef={inputRestoreStateRef}
             dangerousCurrentlyViewingSearchEntityId={currentlyViewingSearchEntityId}
+            extraChildren={
+                selectedChat && (
+                    <ChatDirectOneOnOneInvitePendingOverlayController chat={selectedChat.chat} />
+                )
+            }
         />
     );
 }

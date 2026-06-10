@@ -5,7 +5,7 @@ load("//admin/bazel:production_transition.bzl", "production_transition")
 ts_project(
     name = "send_alert",
     test_deps = [
-        "//server/api/markdown",
+        "//shared/api/markdown",
     ],
     visibility = [
         "//admin/aws:__subpackages__",
@@ -13,7 +13,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/aws-lambda",
         "//server/lambda",
-        "//shared/api",
+        "//shared/api/specification",
         "//shared/error",
         "//shared/id",
     ],

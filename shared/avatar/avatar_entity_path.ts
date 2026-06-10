@@ -117,9 +117,9 @@ export function printAvatarEntityObjectIntoTracerRoute(
 const avatarVariants = ["original", "small", "profile"] as const;
 
 /**
- * Original - The original photo uploaded by the user (up to 4MB)
- * Small - the 72x72 avif image used for Avatars
- * Profile - the 512x512 avif image used for Profile images
+ * Original - The original photo uploaded by the user (up to 4MB) Small - the 72x72
+ * avif image used for Avatars Profile - the 512x512 avif image used for Profile
+ * images
  */
 export type AvatarVariant = (typeof avatarVariants)[number];
 

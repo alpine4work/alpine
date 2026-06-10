@@ -51,10 +51,10 @@ export class OpensearchContextModule
     implements ForkableContextModuleBase, OpensearchContextModuleInterface
 {
     /**
-     * The OpenSearch client. Even though this client is public, you can't do
-     * anything with it without an `OpensearchIndex` object which is private to
-     * whatever package chooses to define it. That way we limit what you can do
-     * with an OpenSearch client.
+     * The OpenSearch client. Even though this client is public, you can't do anything
+     * with it without an `OpensearchIndex` object which is private to whatever package
+     * chooses to define it. That way we limit what you can do with an OpenSearch
+     * client.
      */
     private readonly _client!: OpensearchClientInterface;
 
@@ -122,9 +122,9 @@ export class OpensearchContextModule
     }
 
     /**
-     * Creates the OpenSearch index if it doesn't exist. This function is
-     * idempotent. You may call it multiple times and it will produce the same
-     * response. Only attempts to create the index once per process.
+     * Creates the OpenSearch index if it doesn't exist. This function is idempotent.
+     * You may call it multiple times and it will produce the same response. Only
+     * attempts to create the index once per process.
      *
      * If we're in a test that's disabled OpenSearch this is a noop.
      *
@@ -145,10 +145,11 @@ export class OpensearchContextModule
     /**
      * Gets a document by the provided ID using the [get document API][1].
      *
-     * We do not automatically batch calls to this function. To load multiple
-     * documents with one API call see `multiGetDocsIfExist()`.
+     * We do not automatically batch calls to this function. To load multiple documents
+     * with one API call see `multiGetDocsIfExist()`.
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
     public getDocIfExists<Index extends OpensearchIndex<any, any, any, any, any>>(
         index: Index,
@@ -169,10 +170,11 @@ export class OpensearchContextModule
     }
 
     /**
-     * Gets a document by the provided ID using the [get document API][1] but
-     * without `_source` and with `stored_fields`.
+     * Gets a document by the provided ID using the [get document API][1] but without
+     * `_source` and with `stored_fields`.
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/get-documents/
      */
     public getDocWithoutSourceIfExists<
         Index extends OpensearchIndex<any, any, any, any, any>,
@@ -205,8 +207,8 @@ export class OpensearchContextModule
     }
 
     /**
-     * Gets multiple documents in one network request using the [multi-get
-     * documents API][1].
+     * Gets multiple documents in one network request using the [multi-get documents
+     * API][1].
      *
      * Documents are returned in the order `DocId`s were provided in.
      *
@@ -223,8 +225,8 @@ export class OpensearchContextModule
     }
 
     /**
-     * Gets multiple documents in one network request using the [multi-get
-     * documents API][1].
+     * Gets multiple documents in one network request using the [multi-get documents
+     * API][1].
      *
      * This method is slightly more efficient than `multiGetDocsIfExist()` since
      * `multiGetDocsIfExist()` calls this method and turns the map into an array.
@@ -237,7 +239,7 @@ export class OpensearchContextModule
     >(
         commands: ReadonlyArray<OpensearchMultiGetDocCommandBase<Index, Output>>,
     ): Promise<Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>> {
-        return this._client.multiGetDocByIdByIndexIfExist(
+        return await this._client.multiGetDocByIdByIndexIfExist(
             this._context.tracer.getTracer(),
             commands,
         );
@@ -246,12 +248,14 @@ export class OpensearchContextModule
     /**
      * Indexes a single document using the [index document API][1].
      *
-     * You must provide the document's version. This call will fail if the version
-     * does not match what's in OpenSearch. This implements [optimistic concurrency
+     * You must provide the document's version. This call will fail if the version does
+     * not match what's in OpenSearch. This implements [optimistic concurrency
      * control][2].
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/index-document/
-     * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/document-apis/index-document/
+     * [2]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
     public indexDocIfVersion<Index extends OpensearchIndex<any, any, any, any, any>>(
         index: Index,
@@ -272,15 +276,16 @@ export class OpensearchContextModule
     }
 
     /**
-     * Lets you add, update, or delete multiple documents in a single request using
-     * the [bulk API][1].
+     * Lets you add, update, or delete multiple documents in a single request using the
+     * [bulk API][1].
      *
      * We have a special `IndexIfVersion` that will only index the document if it's
-     * version matches what's in the source. This implements [optimistic
-     * concurrency control][2].
+     * version matches what's in the source. This implements [optimistic concurrency
+     * control][2].
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
-     * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+     * [2]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
     public bulk<const Commands extends ReadonlyArray<OpensearchBulkCommandBase<any>>>(
         commands: Commands,
@@ -290,8 +295,7 @@ export class OpensearchContextModule
     }
 
     /**
-     * Lets you execute a search against an OpenSearch index with the [search
-     * API][1].
+     * Lets you execute a search against an OpenSearch index with the [search API][1].
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
@@ -337,12 +341,11 @@ export class OpensearchContextModule
     }
 
     /**
-     * Lets you execute a search against an OpenSearch index with the [search
-     * API][1] without returning the OpenSearch docs, just there IDs.
+     * Lets you execute a search against an OpenSearch index with the [search API][1]
+     * without returning the OpenSearch docs, just there IDs.
      *
-     * This can be much more efficient than a regular `search()` since looking up
-     * docs in OpenSearch can be an expensive step once query results are
-     * determined.
+     * This can be much more efficient than a regular `search()` since looking up docs
+     * in OpenSearch can be an expensive step once query results are determined.
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
@@ -399,7 +402,8 @@ export class OpensearchContextModule
     /**
      * Manually refresh an OpenSearch index using the [refresh API][1].
      *
-     * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
+     * [1]:
+     *     https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html
      */
     public refresh<Index extends OpensearchIndex<any, any, any, any, any>>(
         index: Index,
@@ -410,7 +414,8 @@ export class OpensearchContextModule
     /**
      * Analyze some text using the [analysis API][1].
      *
-     * [1]: https://opensearch.org/docs/latest/api-reference/analyze-apis/#apply-a-built-in-analyzer
+     * [1]:
+     *     https://opensearch.org/docs/latest/api-reference/analyze-apis/#apply-a-built-in-analyzer
      */
     public analyze<Index extends OpensearchIndex<any, any, any, any, any>>(
         index: Index,

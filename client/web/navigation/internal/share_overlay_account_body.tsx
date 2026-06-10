@@ -40,7 +40,7 @@ export function ShareOverlayAccountBody({
     const context = useAppContext();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const buttonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
@@ -48,8 +48,16 @@ export function ShareOverlayAccountBody({
         willNotifyPeople: boolean;
         messageState: ContentEditorState<MessageContentWithReferences>;
     }>(() => ({
-        willNotifyPeople: true,
-        messageState: ContentEditorState.create(emptyMessageContentWithReferences),
+        // Notify by default if we have some selected accounts that's not the current
+        // account. The current account can add themselves via a share dialog if the
+        // effective access policy grants them more access then the immediate access
+        // policy.
+        willNotifyPeople:
+            selectedAccounts.length !== 1 || selectedAccounts[0]!.id !== currentAccount?.id,
+        messageState: ContentEditorState.create({
+            spaceId: space.id,
+            content: emptyMessageContentWithReferences,
+        }),
     }));
 
     if (!willNotifyPeople && willAlwaysNotifyPeople) {
@@ -63,8 +71,8 @@ export function ShareOverlayAccountBody({
 
     const messageMaxHeightPx =
         contentStyles.paragraphLineHeightPx[spacingScale] *
-            // Less max height on mobile since there's less vertical screen space and we
-            // don't let the outer view scroll. Only the inner view.
+            // Less max height on mobile since there's less vertical screen space and we don't
+            // let the outer view scroll. Only the inner view.
             (platform === "mobile" ? 7 : 10) +
         messageInputEditorPaddingYPx[platform][spacingScale] * 2;
 
@@ -77,6 +85,7 @@ export function ShareOverlayAccountBody({
                         display="flex"
                         justifyContent="space-between"
                         alignItems="center"
+                        gap="3"
                         height="7"
                     >
                         <Checkbox
@@ -86,9 +95,10 @@ export function ShareOverlayAccountBody({
                                 setState(state => ({
                                     willNotifyPeople,
                                     // Keep the content but reset the selection when `willNotifyPeople` changes.
-                                    messageState: ContentEditorState.create(
-                                        state.messageState.getContent(),
-                                    ),
+                                    messageState: ContentEditorState.create({
+                                        spaceId: space.id,
+                                        content: state.messageState.getContent(),
+                                    }),
                                 }));
                             }}
                         >
@@ -149,14 +159,16 @@ export function ShareOverlayAccountBody({
                                             : null,
                                     );
 
-                                    // Increase affinity points for all accounts this actor granted access to with
-                                    // a high intent update since the user clearly wants to show something to the
-                                    // granted accounts.
+                                    // Increase affinity points for all accounts this actor granted access to with a
+                                    // high intent update since the user clearly wants to show something to the granted
+                                    // accounts.
                                     for (const account of selectedAccounts) {
                                         void markSearchAffinityEntityInteraction(context, {
                                             spaceId: space.id,
                                             entityId: `Account:${account.id}`,
                                             interaction: {type: "HighIntentUpdate"},
+                                            // Accounts cannot live in a site.
+                                            siteId: null,
                                         });
                                     }
                                 }}
@@ -186,8 +198,8 @@ export function ShareOverlayAccountBody({
                             zIndex="10"
                             borderRadius="1.5"
                             style={{
-                                // Use `box-shadow` instead of `border` so drawing the border doesn't take
-                                // space in the layout.
+                                // Use `box-shadow` instead of `border` so drawing the border doesn't take space in
+                                // the layout.
                                 boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                             }}
                         />
@@ -230,6 +242,9 @@ export function ShareOverlayAccountBody({
                                     }}
                                     // Always in editing mode. User won't be reading while in the modal.
                                     withoutMobileDualModality={true}
+                                    // Given the message input has its own scroll area, don't use the navigation bar as
+                                    // our scroll margin top when scrolling some content into view.
+                                    withoutNavigationBarScrollMarginTop={true}
                                 />
                             </Box>
                         </Box>
@@ -259,14 +274,16 @@ export function ShareOverlayAccountBody({
                                         : null,
                                 );
 
-                                // Increase affinity points for all accounts this actor granted access to with
-                                // a high intent update since the user clearly wants to show something to the
-                                // granted accounts.
+                                // Increase affinity points for all accounts this actor granted access to with a
+                                // high intent update since the user clearly wants to show something to the granted
+                                // accounts.
                                 for (const account of selectedAccounts) {
                                     void markSearchAffinityEntityInteraction(context, {
                                         spaceId: space.id,
                                         entityId: `Account:${account.id}`,
                                         interaction: {type: "HighIntentUpdate"},
+                                        // Accounts cannot live in a site.
+                                        siteId: null,
                                     });
                                 }
                             }}

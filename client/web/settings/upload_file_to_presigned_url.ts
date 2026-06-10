@@ -1,8 +1,7 @@
 import {AbortedError, UnknownError} from "~/shared/error/error.js";
 
 /**
- * Uploads a file to a presigned S3 URL using XMLHttpRequest for
- * progress tracking.
+ * Uploads a file to a presigned S3 URL using XMLHttpRequest for progress tracking.
  */
 export function uploadFileToPresignedUrl({
     file,

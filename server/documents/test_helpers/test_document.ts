@@ -1,8 +1,6 @@
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {DocAttrStep, ReplaceStep, Step} from "prosemirror-transform";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
-import {fromApiContentBlockElements} from "~/server/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     DocumentContentCacheForUpdate,
     FileDocumentAuthorizer,
@@ -19,6 +17,8 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {fromApiContentBlockElements} from "~/shared/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -28,8 +28,12 @@ import {
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, SiteId} from "~/shared/id/types/id_types.js";
+import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const schema = DocumentContentProsemirrorSchema;
 
@@ -45,9 +49,9 @@ export class TestDocument {
     public readonly createdTime: Date;
     public readonly initialAccessPolicy: AccessPolicy;
 
-    // NOTE(calebmer): A cool capability would be to allow testers to create
-    // multiple `TestDocumentClient`s that have their own state so you can make
-    // concurrent, version conflicting, updates.
+    // NOTE(calebmer): A cool capability would be to allow testers to create multiple
+    // `TestDocumentClient`s that have their own state so you can make concurrent,
+    // version conflicting, updates.
     private readonly _state: MutexValue<{
         lastVersion: number;
         lastUpdatePos: number;
@@ -78,6 +82,7 @@ export class TestDocument {
             id?: DocumentId;
             hasPresentShortcut?: boolean;
             cover?: DocumentContentCover;
+            sitePosition?: {siteId: SiteId; parentId: SiteContainerId; orderKey: OrderKey};
         } & (
             | {
                   title?: string;
@@ -86,7 +91,7 @@ export class TestDocument {
                   content?: undefined;
               }
             | {
-                  content: Node;
+                  content: Node | ReadonlyArray<Node>;
                   title?: undefined;
                   body?: undefined;
               }
@@ -94,7 +99,18 @@ export class TestDocument {
     ): Promise<TestDocument> {
         let content: Node;
         if (options.content) {
-            if (
+            const defaultAccessPolicy: AccessPolicy = {
+                type: "Local",
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: null,
+                urlGrant: null,
+            };
+
+            if (isReadonlyArray(options.content)) {
+                content = assertDocumentContent(
+                    schema.node("doc", {accessPolicy: defaultAccessPolicy}, options.content),
+                );
+            } else if (
                 !isDeepEqual(
                     options.content.attrs.accessPolicy,
                     dangerousLegacyDefaultDocumentAccessPolicy,
@@ -109,16 +125,7 @@ export class TestDocument {
                 content = assertDocumentContent(
                     schema.node(
                         "doc",
-                        {
-                            ...options.content.attrs,
-                            accessPolicy: {
-                                accountGrantById: new Map([
-                                    [session.account.id, {level: "Manage", generation: 0}],
-                                ]),
-                                defaultGrant: null,
-                                urlGrant: null,
-                            },
-                        },
+                        {...options.content.attrs, accessPolicy: defaultAccessPolicy},
                         options.content.content,
                     ),
                 );
@@ -127,6 +134,7 @@ export class TestDocument {
             let accessPolicy: AccessPolicy;
             if (options.access === "Public") {
                 accessPolicy = {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -135,6 +143,7 @@ export class TestDocument {
                 };
             } else if (options.access === "Private" || options.access === undefined) {
                 accessPolicy = {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -156,7 +165,7 @@ export class TestDocument {
                     [
                         schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
                         ...(options.body
-                            ? parseDocumentTestContent(session.space.id, options.body)
+                            ? parseDocumentTestContent(options.body)
                             : [schema.node("paragraph", {}, [])]),
                     ],
                 ),
@@ -167,6 +176,7 @@ export class TestDocument {
             spaceId: session.space.id,
             id: options.id,
             content: assertDocumentContent(content),
+            sitePosition: options.sitePosition,
         });
 
         return new TestDocument(
@@ -186,9 +196,23 @@ export class TestDocument {
         return getDocumentWithOptionalComments(this.space.systemAction(), this.id);
     }
 
+    public async getContent() {
+        const {content} = await getDocumentContent(this.space.systemAction(), this.id);
+        return content;
+    }
+
+    public async updateContentPreview() {
+        const {updateContentPreview} = await getDocumentContent(this.space.systemAction(), this.id);
+        await updateContentPreview(this.space.systemAction());
+    }
+
     public async getString() {
         const {content} = await getDocumentContent(this.space.systemAction(), this.id);
         return content.toString();
+    }
+
+    public async getVersion() {
+        return await this._state.withLock(async stateRef => stateRef.current.lastVersion);
     }
 
     public readonly access = new TestAccessPolicy({
@@ -197,16 +221,21 @@ export class TestDocument {
             return document.accessPolicy;
         },
         set: async (session, accessPolicy) => {
-            await this.update(session, [new DocAttrStep("accessPolicy", accessPolicy)], {
+            // Site policies pass position in the intentional update, but the doc attr stores
+            // the bare site policy (no position) — strip it for the DocAttrStep.
+            const docAttrAccessPolicy =
+                accessPolicy.type === "Site"
+                    ? omitObject(accessPolicy, ["position"])
+                    : accessPolicy;
+            await this.update(session, [new DocAttrStep("accessPolicy", docAttrAccessPolicy)], {
                 intentionallyUpdateAccessPolicy: {accessPolicy, notification: null},
             });
         },
     });
 
     /**
-     * Type new text into the document starting from the last updated position in
-     * this `TestDocument`'s state. Moves the update position to after the
-     * new text.
+     * Type new text into the document starting from the last updated position in this
+     * `TestDocument`'s state. Moves the update position to after the new text.
      */
     public async type(
         session: TestSpaceSession,
@@ -221,7 +250,7 @@ export class TestDocument {
     ): Promise<
         Awaited<ReturnType<typeof updateDocumentContent>> & {range: {from: number; to: number}}
     > {
-        return this._state.withLock(async stateRef => {
+        return await this._state.withLock(async stateRef => {
             const {lastUpdatePos} = stateRef.current;
 
             if (typeof text === "string") {
@@ -273,12 +302,12 @@ export class TestDocument {
     /**
      * Update the document content with some steps at the current version.
      *
-     * Does not use the current update cursor in this test document class's
-     * state and does not update the cursor.
+     * Does not use the current update cursor in this test document class's state and
+     * does not update the cursor.
      */
     public async update(
         session: TestSpaceSession,
-        steps: ReadonlyArray<Step>,
+        steps: MaybeThunk<ReadonlyArray<Step>, [lastUpdatePos: number]>,
         {
             versionOverride,
             ...options
@@ -287,12 +316,12 @@ export class TestDocument {
             "id" | "version" | "steps" | "clientId"
         > & {versionOverride?: number} = {},
     ) {
-        return this._state.withLock(async stateRef => {
+        return await this._state.withLock(async stateRef => {
             const result = await updateDocumentContent(session.action(), {
                 ...options,
                 id: this.id,
                 version: versionOverride ?? stateRef.current.lastVersion,
-                steps,
+                steps: typeof steps === "function" ? steps(stateRef.current.lastUpdatePos) : steps,
                 clientId: generateId(),
             });
 
@@ -303,13 +332,12 @@ export class TestDocument {
     }
 
     /**
-     * Attach a file to the document. Will attach the file as a block immediately
-     * below the current typing position.
+     * Attach a file to the document. Will attach the file as a block immediately below
+     * the current typing position.
      */
     public async attachFile(session: TestSpaceSession, file: TestFile) {
         await attachFileAsUploader(
             session.action(),
-            this.space.id,
             file.id,
             FileDocumentAuthorizer.bind({type: "Document", documentId: this.id}),
         );
@@ -347,13 +375,14 @@ export class TestDocument {
         session: TestSpaceSession,
         range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
         content: string | Node = TestDocumentCommentThread.createDefaultMessageContent(),
+        options?: {id?: DocumentCommentThreadId; overrideCreatedTime?: Date},
     ) {
-        return TestDocumentCommentThread._create(this, session, range, content);
+        return TestDocumentCommentThread._create(this, session, range, content, options);
     }
 }
 
-function parseDocumentTestContent(spaceId: SpaceId, content: string) {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+function parseDocumentTestContent(content: string) {
+    const apiContent = parseApiContentFromMarkdown(content);
 
     return Array.from(
         fromApiContentBlockElements(DocumentContentProsemirrorSchema, apiContent.elements),

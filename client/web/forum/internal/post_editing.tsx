@@ -16,7 +16,7 @@ import {
     reverseLinkedList,
 } from "~/shared/helpers/immutable/linked_list.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type PostEditingState =
     | {
@@ -46,6 +46,7 @@ export type PostEditingState =
 export type PostEditingAction =
     | {
           readonly type: "StartEditing";
+          readonly spaceId: SpaceId;
           readonly postId: PostId;
           readonly contentVersion: number;
           readonly content: PostContentWithReferences;
@@ -83,7 +84,9 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
                 isEditing: true,
                 postId: action.postId,
                 contentVersion: action.contentVersion,
-                contentEditorState: ContentEditorState.create(action.content, {
+                contentEditorState: ContentEditorState.create({
+                    spaceId: action.spaceId,
+                    content: action.content,
                     // Put the selection at the start of the post so the cursor is visible when we
                     // enter edit mode and we don't have to scroll.
                     selection: "start",
@@ -167,15 +170,15 @@ export type PostEditing = {
 };
 
 /**
- * Use state for managing post editing. Post editing state is hoisted to
- * the post virtualized list level because:
+ * Use state for managing post editing. Post editing state is hoisted to the post
+ * virtualized list level because:
  *
  * - We only want to allow editing one post at a time.
  * - We don't want to lose editing state if the post is unmounted by the
  *   virtualized list.
  *
- * This post editing state code was forked from `useMessageEditing()`. If you
- * make a change here, you might want to make a change there as well.
+ * This post editing state code was forked from `useMessageEditing()`. If you make
+ * a change here, you might want to make a change there as well.
  */
 export function usePostEditing({
     onUpdatePostContent: onUpdatePostContentFromProps,
@@ -225,9 +228,9 @@ export function usePostEditing({
             }
         }
 
-        // If the content hasn't actually changed, skip the update. This way we
-        // don't mark the post as edited if the user enters edit mode, makes
-        // changes, and then reverts back to the original content.
+        // If the content hasn't actually changed, skip the update. This way we don't mark
+        // the post as edited if the user enters edit mode, makes changes, and then reverts
+        // back to the original content.
         const finalDoc = trimTransaction !== null ? trimTransaction.doc : doc;
         if (finalDoc.eq(state.initialContent)) {
             savePromiseResolver?.resolve();

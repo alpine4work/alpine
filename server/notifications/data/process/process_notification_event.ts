@@ -18,9 +18,8 @@ export const notificationEventBeforeProcessingTestCheckpoint = new TestCheckpoin
 export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
 
 /**
- * Processes a notification generating event by fanning out to subscriber
- * inboxes and notification destinations (like email or mobile push
- * notifications).
+ * Processes a notification generating event by fanning out to subscriber inboxes
+ * and notification destinations (like email or mobile push notifications).
  *
  * This function is idempotent.
  */

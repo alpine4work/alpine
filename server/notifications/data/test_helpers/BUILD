@@ -16,7 +16,7 @@ ts_project(
         "//server/notifications/data",
         "//server/spaces",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/accounts",
         "//shared/dynamo",
         "//shared/helpers",

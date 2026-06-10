@@ -20,8 +20,8 @@ import {
     printAgentLinkPath,
     printApiPathForAgentLink,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
-import {ApiPath} from "~/shared/api/parse_api_path.js";
-import {ApiTaskStatus} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiPath} from "~/shared/api/specification/parse_api_path.js";
+import {ApiTaskStatus} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -38,12 +38,12 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-// Stores a map of AgentLinkPath -> AgentLinkReference. We use this to
-// uniquely identify linked Alpine Content in agent conversations.
+// Stores a map of AgentLinkPath -> AgentLinkReference. We use this to uniquely
+// identify linked Alpine Content in agent conversations.
 //
 // So for a Document titled "My Document" the path would be `/document/my-document`
-// or `/document/my-document-1` if there are multiple documents with the same title.
-// The link would look like `[My Document](/document/my-document)` or
+// or `/document/my-document-1` if there are multiple documents with the same
+// title. The link would look like `[My Document](/document/my-document)` or
 // `[My Document](/document/my-document-1)`.
 const AgentLinkCollection = new DurableObjectStorageCollection<string, AgentLink>("a3");
 
@@ -62,8 +62,10 @@ export type CreateAgentLinkOptions =
       }
     | {
           type: "Chat";
-          chatId: ChatId;
-          name: string;
+          chat: {
+              id: ChatId;
+              name: string;
+          };
       }
     | {
           type: "ChatMessage";
@@ -136,24 +138,24 @@ export async function createAgentLink(
         case "Account": {
             const account = options.account;
 
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "Account",
                 accountId: account.id,
                 name: account.shortName ?? account.name,
             });
         }
         case "Chat": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "ChatMessages",
-                chatId: options.chatId,
-                label: options.name,
+                chatId: options.chat.id,
+                label: options.chat.name,
                 rootMessage: null,
                 ...getMessagesListPageInfo(0),
                 tokenLimitForPage: agentMessageFirstPageTokenLimit,
             });
         }
         case "ChatMessage": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "ChatMessages",
                 chatId: options.chatId,
                 ...getMessagesListPageInfo(options.messageIndex),
@@ -163,14 +165,14 @@ export async function createAgentLink(
             });
         }
         case "Channel": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "Channel",
                 channelId: options.channel.id,
                 name: options.channel.name,
             });
         }
         case "Document": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "DocumentPage",
                 documentId: options.document.id,
                 title: options.document.title,
@@ -178,7 +180,7 @@ export async function createAgentLink(
             });
         }
         case "DocumentComment": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "DocumentCommentThreadComments",
                 documentId: options.documentId,
                 commentThreadId: options.commentThreadId,
@@ -189,7 +191,7 @@ export async function createAgentLink(
             });
         }
         case "Post": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "PostComments",
                 postId: options.post.id,
                 ...getMessagesListPageInfo(0),
@@ -199,7 +201,7 @@ export async function createAgentLink(
             });
         }
         case "PostComment": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "PostComments",
                 postId: options.postId,
                 ...getMessagesListPageInfo(options.commentIndex),
@@ -209,7 +211,7 @@ export async function createAgentLink(
             });
         }
         case "Task": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "Task",
                 taskId: options.task.id,
                 title: options.task.title,
@@ -217,7 +219,7 @@ export async function createAgentLink(
             });
         }
         case "TaskComment": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "TaskComments",
                 taskId: options.taskId,
                 ...getMessagesListPageInfo(options.commentIndex),
@@ -227,7 +229,7 @@ export async function createAgentLink(
             });
         }
         case "TaskCollection": {
-            return actuallyPutAgentLink(storage, {
+            return await actuallyPutAgentLink(storage, {
                 type: "TaskCollection",
                 collectionId: options.taskCollection.id,
                 name: options.taskCollection.name,
@@ -282,12 +284,12 @@ export async function putAgentNextMessagesPageLink<
             from: "Start",
             cursor: nextPageStartCursor,
         },
-        // Descendents of the original page should pass down the original dedupe number
-        // to their descendents. In other words, it should have the same value for all
-        // members in the chain of pages. Since `rootMessage` is always
-        // null for the first page, we will set the first child's `rootMessage`
-        // to the `dedupeNumber` of the parent (or 1 if the parent was not deduplicated).
-        // See #dedupe-message-labels for more information.
+        // Descendents of the original page should pass down the original dedupe number to
+        // their descendents. In other words, it should have the same value for all members
+        // in the chain of pages. Since `rootMessage` is always null for the first page, we
+        // will set the first child's `rootMessage` to the `dedupeNumber` of the parent (or
+        // 1 if the parent was not deduplicated). See #dedupe-message-labels for more
+        // information.
         rootMessage: currentPageLink.rootMessage ?? {
             dedupeNumber: currentPageLink.dedupeNumber ?? 1,
         },
@@ -309,22 +311,23 @@ export async function putAgentPreviousMessagesPageLink<
         ...currentPageLink,
         dedupeNumber: undefined,
         pageNumber: currentPageLink.isMessageRoomPage
-            ? // When initializing messages for a conversation, we start at the end of the conversation
-              // and load "backwards". The first page is the last page of the conversation. This the only
-              // time that we will show a "previous page" link for "page" pagination - all other times
-              // we are paginating forward from the first page.
+            ? // When initializing messages for a conversation, we start at the end of the
+              // conversation and load "backwards". The first page is the last page of the
+              // conversation. This the only time that we will show a "previous page" link for
+              // "page" pagination - all other times we are paginating forward from the first
+              // page.
               currentPageLink.pageNumber + 1
             : currentPageLink.pageNumber - 1,
         pageInfo: {
             from: "End",
             cursor: previousPageEndCursor,
         },
-        // Descendents of the original page should pass down the original dedupe number
-        // to their descendents. In other words, it should have the same value for all
-        // members in the chain of pages. Since `rootMessage` is always
-        // null for the first page, we will set the first child's `rootMessage`
-        // to the `dedupeNumber` of the parent (or 1 if the parent was not deduplicated).
-        // See #dedupe-message-labels for more information.
+        // Descendents of the original page should pass down the original dedupe number to
+        // their descendents. In other words, it should have the same value for all members
+        // in the chain of pages. Since `rootMessage` is always null for the first page, we
+        // will set the first child's `rootMessage` to the `dedupeNumber` of the parent (or
+        // 1 if the parent was not deduplicated). See #dedupe-message-labels for more
+        // information.
         rootMessage: currentPageLink.rootMessage ?? {
             dedupeNumber: currentPageLink.dedupeNumber ?? 1,
         },
@@ -363,23 +366,21 @@ export async function getAgentLink<Link extends AgentLink>(
 let putAgentContentLinkReferenceMutex: Mutex | null = null;
 
 // NOTE(ifitzsimmons, #ai): This function is considered dangerous because it should
-// not be used directly.
-// Specifically, there are certain "hierarchical" entities like task comments that
-// rely on the parent entity (Task) already existing in the collection. This is
-// because we construct the link to the task comment like
+// not be used directly. Specifically, there are certain "hierarchical" entities
+// like task comments that rely on the parent entity (Task) already existing in the
+// collection. This is because we construct the link to the task comment like
 // `/tasks/normalized-task-title?messsage=${commentIndex}`. So we need the task's
-// title in order to appropriately construct the link to the comment. Further,
-// two tasks can have the same title. In that case, we need to make sure that the
+// title in order to appropriately construct the link to the comment. Further, two
+// tasks can have the same title. In that case, we need to make sure that the
 // comment on the second task gets the deduplicated task label:
 // `/tasks/normalized-task-title-1?messsage=${commentIndex}`.
 //
-// Here's a more detailed explanation of the deduplication strategy and why
-// it makes sense to encapsulate link reference creation in this function.
+// Here's a more detailed explanation of the deduplication strategy and why it
+// makes sense to encapsulate link reference creation in this function.
 //
-// Imagine the agent is asked to read 2 separate threads from 2 separate
-// documents, both documents are titled "My Document". If we simply pass
-// in the target path and document title as the label, both original link
-// paths would be
+// Imagine the agent is asked to read 2 separate threads from 2 separate documents,
+// both documents are titled "My Document". If we simply pass in the target path
+// and document title as the label, both original link paths would be
 //
 // - Doc 1: `/document/my-document/thread`
 // - Doc 2: `/document/my-document/thread`
@@ -390,15 +391,15 @@ let putAgentContentLinkReferenceMutex: Mutex | null = null;
 // - Doc 1: `document/my-document/thread`
 // - Doc 2: `document/my-document/thread-1`
 //
-// This will appear to be two separate threads on the same document. The
-// correct deduplication strategy would be to use the following links
+// This will appear to be two separate threads on the same document. The correct
+// deduplication strategy would be to use the following links
 //
 // - Doc 1: `/document/my-document/thread`
 // - Doc 2: `/document/my-document-2/thread`
 //
-// In order to achieve this, we should generate the original link path for
-// each link reference up front. So for example, if we receive a link to a
-// document thread, we should
+// In order to achieve this, we should generate the original link path for each
+// link reference up front. So for example, if we receive a link to a document
+// thread, we should
 //
 // 1. Generate an original link for the document and pass it to the link reference
 //    class. This would look something like `/document/my-document`.
@@ -406,17 +407,18 @@ let putAgentContentLinkReferenceMutex: Mutex | null = null;
 //    original link plus any deduplication suffix. So it might return
 //    `/document/my-document-1`
 // 3. We should then generate the original link path for the thread. In this case,
-//    we should use the final label from the link collection key (`my-document-1`) and
-//    append `thread`. This would look something like `/document/my-document-1/thread`.
+//    we should use the final label from the link collection key (`my-document-1`)
+//    and append `thread`. This would look something like
+//    `/document/my-document-1/thread`.
 async function actuallyPutAgentLink<Link extends AgentLink>(
     storage: DurableObjectStorageInterface,
     originalLink: Link,
 ): Promise<Link> {
     assertValidAgentLink(originalLink);
 
-    // Use a process-wide mutex to avoid concurrent calls writing different
-    // mentions to the same label. This will be the only process ever writing to
-    // storage so a process-wide mutex is safe.
+    // Use a process-wide mutex to avoid concurrent calls writing different mentions to
+    // the same label. This will be the only process ever writing to storage so a
+    // process-wide mutex is safe.
     const run = (transaction: DurableObjectTransactionInterface) => {
         putAgentContentLinkReferenceMutex ??= new Mutex();
 
@@ -452,8 +454,8 @@ async function actuallyPutAgentLink<Link extends AgentLink>(
                 // but the API path for every chat message page is the same:
                 // `/chats/${chatId}/messages`.
                 //
-                // We believe that this is okay, because we don't currently have any use cases
-                // for looking up a specific page and expecting to get a link back.
+                // We believe that this is okay, because we don't currently have any use cases for
+                // looking up a specific page and expecting to get a link back.
                 printApiPathForAgentLink(link),
                 path,
             );
@@ -462,18 +464,18 @@ async function actuallyPutAgentLink<Link extends AgentLink>(
         });
     };
 
-    // Make sure we're running in a transaction in addition to the process-wide
-    // mutex to really make sure we're not writing to the same label concurrently.
+    // Make sure we're running in a transaction in addition to the process-wide mutex
+    // to really make sure we're not writing to the same label concurrently.
     if ("rollback" in storage) {
-        return run(storage);
+        return await run(storage);
     } else {
-        return storage.transaction(run);
+        return await storage.transaction(run);
     }
 }
 
 /**
- * Normalizes a link label to be used in agent conversations.
- * Creates a URL-friendly slug format suitable for link identifiers.
+ * Normalizes a link label to be used in agent conversations. Creates a
+ * URL-friendly slug format suitable for link identifiers.
  *
  * My document -> my-document
  */
@@ -507,8 +509,8 @@ export function normalizeMarkdownLinkLabelForPath(
 }
 
 /**
- * Find an existing link by its target API path.
- * Uses the reverse index for fast O(1) lookup.
+ * Find an existing link by its target API path. Uses the reverse index for fast
+ * O(1) lookup.
  */
 export async function findAgentLinkForApiPath(
     storage: DurableObjectStorageInterface,
@@ -523,8 +525,8 @@ export async function findAgentLinkForApiPath(
 }
 
 /**
- * Find an existing link by its target API path.
- * Uses the reverse index for fast O(1) lookup.
+ * Find an existing link by its target API path. Uses the reverse index for fast
+ * O(1) lookup.
  */
 export async function findAgentLinkForApiPathIfExists(
     storage: DurableObjectStorageInterface,
@@ -533,17 +535,17 @@ export async function findAgentLinkForApiPathIfExists(
     const path = await AgentLinkPathByApiPathCollection.get(storage, targetPath);
     if (!path) return undefined;
 
-    return getAgentLink<AgentLink>(storage, path);
+    return await getAgentLink<AgentLink>(storage, path);
 }
 
 function assertValidAgentLink(link: AgentLink): void {
     switch (link.type) {
         case "DocumentPage": {
-            // NOTE(ifitzsimmons): We should never createa link for the first page of
-            // a document. We load the first page when the document is read. If we
-            // ever change document loading such that we can load from the middle, we'd
-            // need to change this. In the meantime, we never expect to receive a local
-            // document page link with `pageNumber <= 1`.
+            // NOTE(ifitzsimmons): We should never createa link for the first page of a
+            // document. We load the first page when the document is read. If we ever change
+            // document loading such that we can load from the middle, we'd need to change
+            // this. In the meantime, we never expect to receive a local document page link
+            // with `pageNumber <= 1`.
             if (!link.localDocumentPage || link.localDocumentPage.pageNumber > 1) return;
             throw new InvalidArgumentError("Document page number cannot be less than 2");
         }

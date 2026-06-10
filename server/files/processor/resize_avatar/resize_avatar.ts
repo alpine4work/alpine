@@ -20,6 +20,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Resize an avatar from any image type using Sharp.
+ *
  * - Extracts first frame for animated inputs
  * - Center-crops to square, resizes to `size`
  * - Encodes to AVIF
@@ -57,11 +58,12 @@ export async function resizeAvatar(
             targetBytes: maxContentLength,
             span,
             // NOTE(ifitzsimmons, 2025-08-25): Effort 6 is a lot faster but less efficient at
-            // compressing the image. Compression is really important for the avatar photo since
-            // it needs to fit within 3kb (see #avatar-items). For larger photos, effort 9 takes
-            // a lot longer. For instance a 512x512 photo has ~50x the pixels to decode and takes,
-            // on average, about 25x longer than the 72x72 image. Compression efficiency is not
-            // so important for the larger image version that we'll use on an eventual profile page.
+            // compressing the image. Compression is really important for the avatar photo
+            // since it needs to fit within 3kb (see #avatar-items). For larger photos, effort
+            // 9 takes a lot longer. For instance a 512x512 photo has ~50x the pixels to decode
+            // and takes, on average, about 25x longer than the 72x72 image. Compression
+            // efficiency is not so important for the larger image version that we'll use on an
+            // eventual profile page.
             effort: size > defaultAvatarSize ? 6 : 9,
         });
 
@@ -116,18 +118,20 @@ export async function resizeAvatar(
 
 /**
  * Encodes a square AVIF avatar with Sharp.
+ *
  * - Always extracts frame 0 (works for animated stills: GIF/WebP/HEIC/AVIF)
  * - Center-crops and resizes to a square `size` x `size`
- * - Iteratively reduces quality until the file size is less than or equal to `targetBytes`
+ * - Iteratively reduces quality until the file size is less than or equal to
+ *   `targetBytes`
  * - Returns chosen quality, and the data.
  */
 async function resizeAvatarAttempt({
     inputBytes,
     size,
     targetBytes,
-    // NOTE(ifitzsimmons, 2025-08-13): I found that quality above 80 is almost never below 3kb
-    // https://sharp.pixelplumbing.com/api-output/#avif
-    // 1 - 100 where 100 is highest quality. Default is normally 50 for avif
+    // NOTE(ifitzsimmons, 2025-08-13): I found that quality above 80 is almost never
+    // below 3kb https://sharp.pixelplumbing.com/api-output/#avif 1 - 100 where 100 is
+    // highest quality. Default is normally 50 for avif
     qualityRange = [20, 80],
     // 0 - 9 effort range where 0 is fastest and 9 is slowest and most efficient
     effort,
@@ -148,16 +152,16 @@ async function resizeAvatarAttempt({
     })
         .rotate() // auto-orient using EXIF Orientation from metadata
         .resize(size, size, {
-            // https://sharp.pixelplumbing.com/api-resize/#resize
-            // from doc - "focus on the region with the highest Shannon entropy"
+            // https://sharp.pixelplumbing.com/api-resize/#resize from doc - "focus on the
+            // region with the highest Shannon entropy"
             //
-            // NOTE(ifitzsimmons, 2025-08-18): I tested with many different photo types (wide shots,
-            // family photos, full body shots, head shots, etc) and "entropy" seemed to do a much
-            // better job of capturing the expected content than "attention". The pitfall of
-            // this approach is that really "busy" backgrounds might be selected over faces/logos.
-            // However, given the nature of the types of images people will use for their avatars,
-            // I think that this is okay. If we need to change this, can just change position to
-            // "top" or "centre"
+            // NOTE(ifitzsimmons, 2025-08-18): I tested with many different photo types (wide
+            // shots, family photos, full body shots, head shots, etc) and "entropy" seemed to
+            // do a much better job of capturing the expected content than "attention". The
+            // pitfall of this approach is that really "busy" backgrounds might be selected
+            // over faces/logos. However, given the nature of the types of images people will
+            // use for their avatars, I think that this is okay. If we need to change this, can
+            // just change position to "top" or "centre"
             position: sharp.strategy.entropy,
             // crop the image -- don't distort
             fit: sharp.fit.cover,
@@ -166,13 +170,13 @@ async function resizeAvatarAttempt({
     const [lowestQuality, highestQuality] = qualityRange;
     const qualityStep = 10;
 
-    // While testing on my local machine, I found that we can get a 2MB image down to about
-    // 2.5 Kb at effort 9, quality 80 in about 200ms. That feels pretty fast for file upload.
-    // If we want this to be faster, setting the highestEffort to 7 dropped the time to ~100ms.
-    // I will say that the image quality did seem to degrade a bit at effort 7, so I do think a few
-    // hundred extra milliseconds is worth it.
-    // this process took 400ms for a 4MB, HEIF image
-    // encoded a 800kb gif in 143ms
+    // While testing on my local machine, I found that we can get a 2MB image down to
+    // about 2.5 Kb at effort 9, quality 80 in about 200ms. That feels pretty fast for
+    // file upload. If we want this to be faster, setting the highestEffort to 7
+    // dropped the time to ~100ms. I will say that the image quality did seem to
+    // degrade a bit at effort 7, so I do think a few hundred extra milliseconds is
+    // worth it. this process took 400ms for a 4MB, HEIF image encoded a 800kb gif in
+    // 143ms
     for (let quality = highestQuality; quality >= lowestQuality; quality -= qualityStep) {
         try {
             const result = await span.withSpan("sharp resize avatar", async span => {

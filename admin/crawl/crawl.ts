@@ -16,8 +16,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // `OPENSEARCH_VISIBILITY`. This will collect all constructed DynamoDB table
 // schemas and OpenSearch indexes.
 //
-// We also make sure no module exports a `DynamoTableSchema` or
-// `OpensearchIndex` as those objects must be private to the module.
+// We also make sure no module exports a `DynamoTableSchema` or `OpensearchIndex`
+// as those objects must be private to the module.
 const crawlPromise = new Lazy(async () => {
     const runfilesRepoPath = joinPath(runfilesPath, "cyberworlds");
     const paths = await glob([
@@ -35,23 +35,18 @@ const crawlPromise = new Lazy(async () => {
             getConstructedDynamoTableSchemaCount,
             recordConstructedDynamoTableSchemas,
         },
-        {DynamoGeneralRealtimeTableSchema},
+        {RynamoTableSchema},
         {OpensearchIndex, getConstructedOpensearchIndexCount, recordConstructedOpensearchIndexes},
     ]: [
         typeof import("~/server/dynamo/core/dynamo_table_schema.js"),
-        typeof import("~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js"),
+        typeof import("~/server/rynamo/rynamo_table_schema.js"),
         typeof import("~/server/opensearch/opensearch_index.js"),
     ] = await runAllPromises([
         // Even though we have a dependencies on `//server/dynamo/core` and
-        // `//server/opensearch`, import these files from `runfilesPath` so all
-        // references are the same as when we import all the modules below.
+        // `//server/opensearch`, import these files from `runfilesPath` so all references
+        // are the same as when we import all the modules below.
         import(joinPath(runfilesRepoPath, "server/dynamo/core/dynamo_table_schema.js")),
-        import(
-            joinPath(
-                runfilesRepoPath,
-                "server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js",
-            )
-        ),
+        import(joinPath(runfilesRepoPath, "server/rynamo/rynamo_table_schema.js")),
         import(joinPath(runfilesRepoPath, "server/opensearch/opensearch_index.js")),
     ]);
 
@@ -80,8 +75,8 @@ const crawlPromise = new Lazy(async () => {
                     }
 
                     // Verify that a module object does not export a `DynamoTableSchema` or
-                    // `OpensearchIndex`. We expect `DynamoTableSchema`s to be private to the
-                    // module where it was defined.
+                    // `OpensearchIndex`. We expect `DynamoTableSchema`s to be private to the module
+                    // where it was defined.
                     for (const [moduleExportName, moduleExportValue] of Object.entries(module)) {
                         if (moduleExportValue instanceof DynamoTableSchema) {
                             throw new InternalError(
@@ -92,12 +87,12 @@ const crawlPromise = new Lazy(async () => {
                             );
                         }
 
-                        if (moduleExportValue instanceof DynamoGeneralRealtimeTableSchema) {
+                        if (moduleExportValue instanceof RynamoTableSchema) {
                             throw new InternalError(
                                 quote`Module ${relative(
                                     runfilesRepoPath,
                                     path,
-                                )} exports a \`DynamoGeneralRealtimeTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the package where it was defined`,
+                                )} exports a \`RynamoTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the package where it was defined`,
                             );
                         }
 
@@ -137,9 +132,9 @@ const crawlPromise = new Lazy(async () => {
 });
 
 /**
- * Get all the `DynamoTableSchema`s in our codebase. Calling this function
- * imports all files in `server` that depend on `server/dynamo/core` to make
- * sure we find all schemas.
+ * Get all the `DynamoTableSchema`s in our codebase. Calling this function imports
+ * all files in `server` that depend on `server/dynamo/core` to make sure we find
+ * all schemas.
  */
 export async function crawlDynamoTableSchemas() {
     const {dynamoTableSchemas} = await crawlPromise.get();
@@ -160,8 +155,8 @@ export async function crawlDynamoTableSchemaIndexNames() {
 
 /**
  * Get all the `OpensearchIndex`s in our codebase. Calling this function will
- * import all the files in our `server` directory that use `server/opensearch`
- * to make sure we find all indexes.
+ * import all the files in our `server` directory that use `server/opensearch` to
+ * make sure we find all indexes.
  */
 export async function crawlOpensearchIndexes() {
     const {opensearchIndexes} = await crawlPromise.get();

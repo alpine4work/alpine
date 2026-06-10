@@ -28,7 +28,7 @@ import {
     TokenPayload,
 } from "~/server/tokens/token_payload.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
-import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -38,6 +38,7 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {isFileContentType} from "~/shared/files/file_content_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -47,6 +48,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
@@ -60,14 +62,14 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 const addAjvFormats =
     typeof _addAjvFormats === "function" ? _addAjvFormats : _addAjvFormats.default;
 
-// NOTE(calebmer, #public-api): The intent is to someday expose `ApiService` as
-// our public API. For now it's only used by our AI agent bots. As we work on
+// NOTE(calebmer, #public-api): The intent is to someday expose `ApiService` as our
+// public API. For now it's only used by our AI agent bots. As we work on
 // `ApiService` we'll leave comments with #public-api for anything we want to
 // revisit when preparing for public launch of the API.
 
 const apiSpecificationPath = joinPath(
     runfilesPath,
-    "cyberworlds/shared/api/api_specification_final.yaml",
+    "cyberworlds/shared/api/specification/api_specification_final.yaml",
 );
 
 export async function createApiServiceServer(
@@ -155,62 +157,67 @@ export async function createApiServiceRequestListener(
                 const url = new URL(request.url);
 
                 // TODO(calebmer, #public-api): `traceServerResponse()` looks for the
-                // `cyberworlds-tracer-propagation-context` to continue a request trace.
-                // Ideally we wouldn't respect this header from public API calls (only from
-                // internal API calls) since it would allow public API users to mess with our
-                // traces (though maybe it's not an issue since what's the use case for that?).
-                return traceServerResponse(tracer, request, url, route, async (span, request) => {
-                    let isHtmlRequest = false;
+                // `cyberworlds-tracer-propagation-context` to continue a request trace. Ideally we
+                // wouldn't respect this header from public API calls (only from internal API
+                // calls) since it would allow public API users to mess with our traces (though
+                // maybe it's not an issue since what's the use case for that?).
+                return await traceServerResponse(
+                    tracer,
+                    request,
+                    url,
+                    route,
+                    async (span, request) => {
+                        let isHtmlRequest = false;
 
-                    if (request.headers.has("accept")) {
-                        const negotiator = new Negotiator(req);
-                        const negotiatedMediaType = negotiator.mediaType([
-                            "application/json",
-                            "text/html",
-                        ]);
+                        if (request.headers.has("accept")) {
+                            const negotiator = new Negotiator(req);
+                            const negotiatedMediaType = negotiator.mediaType([
+                                "application/json",
+                                "text/html",
+                            ]);
 
-                        isHtmlRequest = negotiatedMediaType === "text/html";
-                    }
+                            isHtmlRequest = negotiatedMediaType === "text/html";
+                        }
 
-                    // If the request doesn't have an `Authorization` header but does have a
-                    // `Cookie` header and this is a browser requesting HTTP then create a new
-                    // `Request` object where the cookie named `authorization` is used as the
-                    // `Authorization` header.
-                    if (isHtmlRequest && !request.headers.has("authorization")) {
-                        const cookieHeader = request.headers.get("cookie");
-                        if (cookieHeader) {
-                            const authorizationCookie =
-                                parseCookieHeader(cookieHeader)["authorization"];
+                        // If the request doesn't have an `Authorization` header but does have a `Cookie`
+                        // header and this is a browser requesting HTTP then create a new `Request` object
+                        // where the cookie named `authorization` is used as the `Authorization` header.
+                        if (isHtmlRequest && !request.headers.has("authorization")) {
+                            const cookieHeader = request.headers.get("cookie");
+                            if (cookieHeader) {
+                                const authorizationCookie =
+                                    parseCookieHeader(cookieHeader)["authorization"];
 
-                            if (authorizationCookie) {
-                                const headers = new Headers(request.headers);
-                                headers.delete("cookie");
-                                headers.set("authorization", authorizationCookie);
+                                if (authorizationCookie) {
+                                    const headers = new Headers(request.headers);
+                                    headers.delete("cookie");
+                                    headers.set("authorization", authorizationCookie);
 
-                                request = new Request(request.url, {
-                                    method: request.method,
-                                    headers,
-                                    body: request.body,
-                                    signal: request.signal,
-                                });
+                                    request = new Request(request.url, {
+                                        method: request.method,
+                                        headers,
+                                        body: request.body,
+                                        signal: request.signal,
+                                    });
+                                }
                             }
                         }
-                    }
 
-                    const response = await action(span, request, url, pathParameters);
+                        const response = await action(span, request, url, pathParameters);
 
-                    if (isHtmlRequest) {
-                        return renderApiBrowser({
-                            request,
-                            response,
-                            resourceServiceUrl,
-                            url,
-                            route,
-                        });
-                    }
+                        if (isHtmlRequest) {
+                            return await renderApiBrowser({
+                                request,
+                                response,
+                                resourceServiceUrl,
+                                url,
+                                route,
+                            });
+                        }
 
-                    return response;
-                });
+                        return response;
+                    },
+                );
             });
         };
     }
@@ -238,7 +245,7 @@ export async function createApiServiceRequestListener(
             standardizedRequestListener(tracer, req, res, async request => {
                 const url = new URL(request.url);
 
-                return traceServerResponse(tracer, request, url, redirectPath, async () => {
+                return await traceServerResponse(tracer, request, url, redirectPath, async () => {
                     return new Response(null, {
                         status: 301,
                         headers: {location: `${edgeServiceUrl}${redirectPath}`},
@@ -251,7 +258,7 @@ export async function createApiServiceRequestListener(
     router.on("GET", "/healthcheck", (req, res) => {
         standardizedRequestListener(tracer, req, res, async request => {
             const url = new URL(request.url);
-            return traceServerResponse(
+            return await traceServerResponse(
                 tracer,
                 request,
                 url,
@@ -268,7 +275,7 @@ export async function createApiServiceRequestListener(
     router.on("GET", "/specification.yaml", (req, res) => {
         standardizedRequestListener(tracer, req, res, async request => {
             const url = new URL(request.url);
-            return traceServerResponse(
+            return await traceServerResponse(
                 tracer,
                 request,
                 url,
@@ -290,11 +297,10 @@ export async function createApiServiceRequestListener(
     const ajvSharedSchemaName = "shared.yaml";
 
     ajv.addSchema(
-        // Ajv supports `discriminator.propertyName` but not `discriminator.mapping`.
-        // So remove `discriminator.mapping` from our schema. Ajv uses
-        // `discriminator.propertyName` purely as an optimization and expects
-        // discriminator schemas to have constant property names at
-        // `discriminator.propertyName`.
+        // Ajv supports `discriminator.propertyName` but not `discriminator.mapping`. So
+        // remove `discriminator.mapping` from our schema. Ajv uses
+        // `discriminator.propertyName` purely as an optimization and expects discriminator
+        // schemas to have constant property names at `discriminator.propertyName`.
         //
         // `api_specification.test.ts` makes sure our usage of `discriminator` is
         // consistent and compatible with Ajv.
@@ -325,9 +331,9 @@ export async function createApiServiceRequestListener(
         if (isReadonlyArray(value)) {
             return value.map(updateRefsForAjv);
         } else if (isObject(value)) {
-            // In order to reference component schemas in the OpenAPI specification, we
-            // can't reference relative paths and instead need to reference an absolute
-            // path created for AJV.
+            // In order to reference component schemas in the OpenAPI specification, we can't
+            // reference relative paths and instead need to reference an absolute path created
+            // for AJV.
             if (typeof value.$ref === "string" && value.$ref.startsWith("#")) {
                 return {$ref: ajvSharedSchemaName + value.$ref};
             }
@@ -345,9 +351,9 @@ export async function createApiServiceRequestListener(
         if (openApiPath === "/specification.yaml") continue;
 
         // Convert path parameters from the OpenAPI format (`/hello/{name}`) to the
-        // `find-my-way` format (`/hello/:name`). Right now we only support path
-        // parameters that are an entire path segment. Paths like `/report.{format}`
-        // aren't currently accepted.
+        // `find-my-way` format (`/hello/:name`). Right now we only support path parameters
+        // that are an entire path segment. Paths like `/report.{format}` aren't currently
+        // accepted.
         const findMyWayPath = openApiPath
             .split("/")
             .map(pathSegment => {
@@ -491,15 +497,35 @@ export async function createApiServiceRequestListener(
               )
             : null;
 
-        // In development and test environments, we validate that the API response
-        // matches what's in our OpenAPI schema. In production for performance we
-        // don't validate and assume our code is correct.
+        // In development and test environments, we validate that the API response matches
+        // what's in our OpenAPI schema. In production for performance we don't validate
+        // and assume our code is correct.
         const debugValidateResponseJsonContentByStatus =
             process.env.NODE_ENV !== "production" && openApiOperation?.responses
                 ? mapObjectValues(openApiOperation.responses, response => {
                       response = resolveReference(response);
-                      assert(response.content?.["application/json"]?.schema);
-                      return compileWithAjv(response.content?.["application/json"]?.schema);
+                      const jsonSchema = response.content?.["application/json"]?.schema;
+
+                      if (!jsonSchema) {
+                          // Verify non-JSON responses have a known content type or no content at all (like a
+                          // redirect).
+                          const contentTypes = response.content
+                              ? Object.keys(response.content)
+                              : [];
+
+                          assert(
+                              contentTypes.length === 0 ||
+                                  contentTypes.every(
+                                      contentType =>
+                                          contentType !== "application/json" &&
+                                          isFileContentType(contentType),
+                                  ),
+                          );
+
+                          return null;
+                      }
+
+                      return compileWithAjv(jsonSchema);
                   })
                 : null;
 
@@ -558,16 +584,16 @@ export async function createApiServiceRequestListener(
 
                 const [apiKeyAttributes, accessTokenPayloadResult] = await runAllPromises([
                     // Check if the caller provided a valid API key. If this function returns a
-                    // non-null object then the caller has successfully authenticated and we'll
-                    // execute their request.
+                    // non-null object then the caller has successfully authenticated and we'll execute
+                    // their request.
                     getApiKeyAttributesIfExists(context, apiKey, {
                         consistency: "Eventual",
                     }).then(apiKeyAttributes => {
                         if (apiKeyAttributes) return apiKeyAttributes;
 
-                        // If we couldn't find the API key with eventual consistency, try again with
-                        // strong consistency. In case the API key was just created and there's some
-                        // DynamoDB eventual consistency lag.
+                        // If we couldn't find the API key with eventual consistency, try again with strong
+                        // consistency. In case the API key was just created and there's some DynamoDB
+                        // eventual consistency lag.
                         return getApiKeyAttributesIfExists(context, apiKey, {
                             consistency: "Strong",
                         });
@@ -586,8 +612,8 @@ export async function createApiServiceRequestListener(
 
                             let message: string;
 
-                            // Include extra details for well known errors. This is mostly so tests can
-                            // confirm they're exercising the right error case.
+                            // Include extra details for well known errors. This is mostly so tests can confirm
+                            // they're exercising the right error case.
                             switch (error.message) {
                                 case "signature verification failed":
                                     message =
@@ -617,9 +643,9 @@ export async function createApiServiceRequestListener(
                             };
                         }
 
-                        // Only bot actors are allowed to make API requests. So our access token should
-                        // be from `JobQueueService` (which calls our webhooks) and should be for a bot
-                        // actor. Otherwise we don't accept the token.
+                        // Only bot actors are allowed to make API requests. So our access token should be
+                        // from `JobQueueService` (which calls our webhooks) and should be for a bot actor.
+                        // Otherwise we don't accept the token.
                         if (accessTokenPayload.type !== "Bot") {
                             return {
                                 ok: false,
@@ -681,8 +707,8 @@ export async function createApiServiceRequestListener(
 
                 const [isMemberOfSpace, botId] = await runAllPromises([
                     // `isAccountMemberOfSpaceWithoutAuthorization()` and
-                    // `getSpaceAccountBotIdIfExistsWithoutAuthorization()` use the same caches so
-                    // we should only need to make one database request to answer both.
+                    // `getSpaceAccountBotIdIfExistsWithoutAuthorization()` use the same caches so we
+                    // should only need to make one database request to answer both.
                     isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId),
                     getSpaceAccountBotIdIfExistsWithoutAuthorization(context, spaceId, accountId),
                 ]);
@@ -706,12 +732,12 @@ export async function createApiServiceRequestListener(
 
                 const contextWithActor = context.clone({
                     // We expect all reads from the API service to use strong consistency. We don't
-                    // want to expose the technical complexity of strong vs eventual consistency to
-                    // our API end users. So we always use strong consistency.
+                    // want to expose the technical complexity of strong vs eventual consistency to our
+                    // API end users. So we always use strong consistency.
                     dynamo: context.dynamo.expectStrongReadConsistencyReturningModule(),
 
-                    // We've validated the caller's API key and access token. Let them make a
-                    // request with a bot actor!
+                    // We've validated the caller's API key and access token. Let them make a request
+                    // with a bot actor!
                     actor: BotActorContextModule.dangerouslyNew(
                         "ApiService",
                         spaceId,
@@ -863,7 +889,7 @@ export async function createApiServiceRequestListener(
                  *                                 Execution                                  *
                 \* ========================================================================== */
 
-                const {content} = await executeOperation(contextWithActor, {
+                const operationResult = await executeOperation(contextWithActor, {
                     pathParameters,
                     queryParameters,
                     url,
@@ -871,6 +897,12 @@ export async function createApiServiceRequestListener(
                     requestBody,
                     span,
                 });
+
+                if (hasOwnProperty(operationResult, "response")) {
+                    return operationResult.response;
+                }
+
+                const {content} = operationResult;
 
                 const status = 200;
 

@@ -1,10 +1,10 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
-import {Memo, useContext, useMemo, useRef, useState} from "react";
+import {Memo, useMemo, useRef, useState} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {useContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {FileModelRegistryData} from "~/client/web/content/file_registry.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {registerClipboardSerializer} from "~/client/web/content/handle_copy_event_if_not_text_input_element.js";
@@ -21,10 +21,7 @@ import {
     renderContentFilePreview,
 } from "~/client/web/content/internal/content_file_preview.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
-import {
-    ContentFileLayout,
-    computeContentFileRowLikeLayout,
-} from "~/client/web/content/state/content_file_layout_computations.js";
+import {computeContentFileRowLikeLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
@@ -37,8 +34,10 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -82,7 +81,8 @@ export function MessageViewFiles({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
-    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const siteRegistry = useSiteRegistry();
+    const fileEntityRenderers = useContentFileEntityRenderers();
     const currentDate = useCurrentDate();
     const blockWidth = useContentBlockWidth();
 
@@ -104,13 +104,13 @@ export function MessageViewFiles({
             return computeStore(get => {
                 let suppressHydrationWarning = false;
 
-                const maxFileCount = 3;
+                const maxFileCount = fileRowMaxFileCount;
 
                 const html = new HtmlFragmentGenerator();
                 const fileRows: Array<{
                     files: Array<MessageContentPayloadModelFile>;
-                    fileDatas: Array<FileModelRegistryData | FileEntityId>;
-                    fileLayouts: Array<ContentFileLayout>;
+                    fileDatas: Array<FileModelRegistryData | FileEntityId | null>;
+                    fileLayouts: ReadonlyArray<ContentFileLayout>;
                 }> = [];
                 let nextFileRow: Array<MessageContentPayloadModelFile> = [];
 
@@ -130,6 +130,7 @@ export function MessageViewFiles({
 
                 function pushNextFileRow(files: Array<MessageContentPayloadModelFile>) {
                     const fileDatas = files.map(file => {
+                        if (file.type === "Null") return null;
                         if (file.type === "FileEntity") return file.fileEntityId;
                         return get(fileRegistry.getFileStore(file));
                     });
@@ -139,9 +140,6 @@ export function MessageViewFiles({
                         blockWidth,
                         platform,
                         spacingScale,
-                        // Smaller max height than we have for content file row nodes so tall images
-                        // don't take up too much of the screen.
-                        maxHeight: "20rem",
                     });
 
                     fileRows.push({files, fileDatas, fileLayouts});
@@ -167,16 +165,19 @@ export function MessageViewFiles({
                             `grid-template-columns: ${fileLayouts
                                 .map(({widthFr}) => `${widthFr}fr`)
                                 .join(" ")}`,
-                            // Left align message files instead of center aligning message files. This
-                            // matches the more conversational format of messages as opposed to the
-                            // carefully edited prose format of documents.
+                            // Left align message files instead of center aligning message files. This matches
+                            // the more conversational format of messages as opposed to the carefully edited
+                            // prose format of documents.
+                            //
+                            // NOTE(calebmer, 2026-03-12): I don't think this matters anymore now that we
+                            // layout file rows with the requirement that we always fills the block width.
                             "justify-content: start",
                         ].join("; "),
                     );
 
                     for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
                         const file = files[fileIndex]!;
-                        const fileData = fileDatas[fileIndex]!;
+                        const fileData = fileDatas[fileIndex];
                         const fileLayout = fileLayouts[fileIndex]!;
 
                         let fileHtml: HtmlElementGenerator;
@@ -196,6 +197,7 @@ export function MessageViewFiles({
                                 accountRegistry,
                                 searchEntityRegistry,
                                 fileRegistry,
+                                siteRegistry,
                                 currentAccount,
                                 blockWidth,
                                 transformScale: 1,
@@ -209,18 +211,22 @@ export function MessageViewFiles({
                                 },
                             });
                         } else {
+                            assert(file.type !== "FileEntity");
+
                             fileHtml = renderContentFilePreview({
                                 spaceId: space.id,
-                                node: nodeByFileId.getOrSetDefault(fileData.id),
-                                file: fileData,
+                                node: nodeByFileId.getOrSetDefault(
+                                    file.type === "Null" ? file.fileId : file.file.id,
+                                ),
+                                file: fileData ?? undefined,
                                 layout: fileLayout,
                                 blockWidth,
                                 transformScale: 1,
                                 platform,
                                 spacingScale,
                                 isInitialAppRender,
-                                // Disable video and audio file interactivity. When pressed we should always
-                                // open the post in a peek.
+                                // Disable video and audio file interactivity. When pressed we should always open
+                                // the post in a peek.
                                 withoutInteractivity: true,
                             });
                         }
@@ -252,6 +258,7 @@ export function MessageViewFiles({
             platform,
             routeLayout,
             searchEntityRegistry,
+            siteRegistry,
             space.id,
             spacingScale,
         ]),
@@ -270,8 +277,8 @@ export function MessageViewFiles({
         if (previousHtmlGenerator === htmlGenerator) return;
 
         if (!previousHtmlGenerator) {
-            // This case happens during a hot reload. We need to remove the children
-            // currently in the DOM.
+            // This case happens during a hot reload. We need to remove the children currently
+            // in the DOM.
             while (containerElement.hasChildNodes()) {
                 containerElement.firstChild!.remove();
             }
@@ -293,7 +300,7 @@ export function MessageViewFiles({
 
             for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
                 const file = files[fileIndex]!;
-                const fileData = fileDatas[fileIndex]!;
+                const fileData = fileDatas[fileIndex];
 
                 const fileElement = assertExists(
                     containerElement.childNodes[fileRowIndex]?.childNodes[fileIndex],
@@ -317,7 +324,7 @@ export function MessageViewFiles({
                     cleanups.push(
                         addContentFilePreviewBehavior(() => context, fileElement, {
                             spaceId: space.id,
-                            file: fileData,
+                            file: fileData ?? undefined,
                             attachmentTarget,
                             rootNavigate,
                             getReporter: () => reporter,
@@ -355,11 +362,11 @@ export function MessageViewFiles({
             const clipboardFileRows: Array<Node> = [];
 
             for (let fileRowIndex = 0; fileRowIndex < fileRows.length; fileRowIndex++) {
-                const {files, fileDatas} = fileRows[fileRowIndex]!;
+                const {files} = fileRows[fileRowIndex]!;
                 const clipboardFileRow: Array<Node> = [];
 
                 for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
-                    const file = fileDatas[fileIndex]!;
+                    const file = files[fileIndex]!;
 
                     const fileElement = assertExists(
                         containerElement.childNodes[fileRowIndex]?.childNodes[fileIndex],
@@ -374,7 +381,11 @@ export function MessageViewFiles({
                         clipboardFileRow.push(
                             clipboardSchema.node("file", {
                                 fileId: cast<FileId | FileEntityId>(
-                                    typeof file === "string" ? file : file.id,
+                                    file.type === "Null"
+                                        ? file.fileId
+                                        : file.type === "FileEntity"
+                                          ? file.fileEntityId
+                                          : file.file.id,
                                 ),
                             }),
                         );
@@ -400,7 +411,9 @@ export function MessageViewFiles({
                 for (let fileIndex = 0; fileIndex < fileRow.files.length; fileIndex++) {
                     const file = fileRow.files[fileIndex]!;
 
-                    if (file.type === "FileEntity") {
+                    if (file.type === "Null") {
+                        // noop
+                    } else if (file.type === "FileEntity") {
                         fileEntityById.set(file.fileEntityId, file.fileEntityResult);
                     } else {
                         fileById.set(file.file.id, file);
@@ -415,8 +428,11 @@ export function MessageViewFiles({
             };
 
             const state = ContentEditorState.create({
-                doc: clipboardSchema.node("doc", {}, clipboardFileRows),
-                references: contentReferences,
+                spaceId: space.id,
+                content: {
+                    doc: clipboardSchema.node("doc", {}, clipboardFileRows),
+                    references: contentReferences,
+                },
             })._getInternalState();
             const {schema} = state.doc.type;
 
@@ -443,8 +459,8 @@ export function MessageViewFiles({
             let html: globalThis.Node = dom;
 
             // If the clipboard content was wrapped in a `<div>` with no identifying
-            // characteristics then let's unwrap the wrapper `<div>` so it won't be
-            // included in the copied output.
+            // characteristics then let's unwrap the wrapper `<div>` so it won't be included in
+            // the copied output.
             if (
                 html instanceof Element &&
                 html.tagName === "DIV" &&

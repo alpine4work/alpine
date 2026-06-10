@@ -1,10 +1,9 @@
 /**
- * Minimal OPFS type declarations covering only the
- * subset of the File System Access API that we use.
+ * Minimal OPFS type declarations covering only the subset of the File System
+ * Access API that we use.
  *
- * TypeScript's DOM lib doesn't include these yet, so
- * we declare our own interfaces with an `Opfs` prefix
- * to avoid collisions if they're ever added.
+ * TypeScript's DOM lib doesn't include these yet, so we declare our own interfaces
+ * with an `Opfs` prefix to avoid collisions if they're ever added.
  */
 
 export interface OpfsDirectoryHandle {
@@ -18,9 +17,8 @@ export interface OpfsFileHandle {
 }
 
 /**
- * Synchronous access handle for OPFS files. Only
- * available in dedicated workers via
- * `FileSystemFileHandle.createSyncAccessHandle()`.
+ * Synchronous access handle for OPFS files. Only available in dedicated workers
+ * via `FileSystemFileHandle.createSyncAccessHandle()`.
  */
 export interface OpfsSyncAccessHandle {
     read(buffer: Uint8Array, options?: {at?: number}): number;

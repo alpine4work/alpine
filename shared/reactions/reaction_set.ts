@@ -9,21 +9,21 @@ import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 export type ReactionSet = InstanceType<typeof ReactionSet>;
 
 /**
- * A set of reactions made against some entity. We store all the reactions for
- * an entity directly in the entity! We store the reactions in an efficient
- * binary format of 16-bit integer representing the `ReactionIcon` followed by
- * the `AccountId` in binary.
+ * A set of reactions made against some entity. We store all the reactions for an
+ * entity directly in the entity! We store the reactions in an efficient binary
+ * format of 16-bit integer representing the `ReactionIcon` followed by the
+ * `AccountId` in binary.
  *
  * Reaction order is maintained, so reactions are in chronological order. First
  * reaction in the set is the first reaction to be added to the entity.
  *
- * Each entry is 18 bytes (16 for the `AccountId` and 2 for the
- * `ReactionIconId`). So 1000 reactions take up 18kb. So storing all reactions
- * for an entity can start to get costly. Given the number of users in a space
- * will only reach 1000+ for enterprise companies this may not be a problem. If
- * this becomes a problem we could store a sample of reactions in this set
- * (enough to render a reaction party) and the total count of reactions. Then
- * store all other reactions in separate DynamoDB items.
+ * Each entry is 18 bytes (16 for the `AccountId` and 2 for the `ReactionIconId`).
+ * So 1000 reactions take up 18kb. So storing all reactions for an entity can start
+ * to get costly. Given the number of users in a space will only reach 1000+ for
+ * enterprise companies this may not be a problem. If this becomes a problem we
+ * could store a sample of reactions in this set (enough to render a reaction
+ * party) and the total count of reactions. Then store all other reactions in
+ * separate DynamoDB items.
  */
 export const ReactionSet = createSchemaLazyTransformClass<
     Uint8Array,
@@ -37,8 +37,8 @@ export const ReactionSet = createSchemaLazyTransformClass<
 
         for (const [accountId, reactionIcon] of map) {
             // We put the reaction icon ID first so in the future if we need to evolve this
-            // format we can put a sentinel u32 in the front of our bytes that doesn't
-            // conflict with our reaction icon IDs.
+            // format we can put a sentinel u32 in the front of our bytes that doesn't conflict
+            // with our reaction icon IDs.
             view.setUint16(
                 byteOffset,
                 reactionIcon !== "GenericLike" ? getValueByReaction(reactionIds, reactionIcon) : 0,

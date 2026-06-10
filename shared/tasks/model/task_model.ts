@@ -1,3 +1,4 @@
+import {AccessPolicy, AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {
     ContentDuplicationVariableValues,
     applyContentDuplicationVariableValuesToText,
@@ -23,6 +24,7 @@ import {
     TaskParentTaskIdRegister,
     TaskTaskActionUnion,
 } from "~/shared/tasks/actions/task_task_action.js";
+import {createDefaultTaskAccessPolicy} from "~/shared/tasks/create_default_task_access_policy.js";
 import {applyTaskActionToTaskModelData} from "~/shared/tasks/model/apply_task_action_to_task_model_data.js";
 import {applyTaskUpdateAccountNameToTaskModelData} from "~/shared/tasks/model/apply_task_update_account_name_to_task_model_data.js";
 import {mergeTaskModelData} from "~/shared/tasks/model/merge_task_model_data.js";
@@ -33,8 +35,10 @@ import {
     TaskAssigneeStatusRegister,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayout, TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
 import {TaskPosition, TaskPositionRegister} from "~/shared/tasks/task_position.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
@@ -51,8 +55,8 @@ import {
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
 
-// TypeScript errors here when new TaskTaskActions are added. If you add a
-// new task action type you should make sure to update `getCloneActions()`.
+// TypeScript errors here when new TaskTaskActions are added. If you add a new task
+// action type you should make sure to update `getDuplicateActions()`.
 assertEqualTypes<
     keyof typeof TaskTaskActionUnion,
     | "Create"
@@ -71,6 +75,8 @@ assertEqualTypes<
     | "UpdateTitle"
     | "UpdateDueDate"
     | "UpdatePriority"
+    | "UpdateLayout"
+    | "UpdateAccessPolicy"
     | "UpdateNotepadPagePosition"
     | "UpdateAssigneeActivePosition"
 >();
@@ -79,7 +85,11 @@ const TaskModelDataSchema = Schema.object({
     id: Schema.id<TaskId>(),
     spaceId: Schema.id<SpaceId>(),
 
-    creator: TaskSortableAccountSchema,
+    creator: TaskSortableAccountSchema.merge(
+        Schema.object({
+            from: TaskCreatorFromSchema.nullable().default(null),
+        }),
+    ),
     createdTime: TaskFilterableTime.schema,
     deletedTime: HybridLogicalTimeSchema.nullable(),
     undeletedTime: HybridLogicalTimeSchema.nullable(),
@@ -89,14 +99,15 @@ const TaskModelDataSchema = Schema.object({
         position: TaskPositionRegister.schema,
     }),
 
-    // See the documentation on `TaskUpdateChildrenCountsAction` for what these
-    // fields are. They are CRDTs that allow us to figure out the task's
-    // `childTaskCount` and `childClosedTaskCount`.
+    // See the documentation on `TaskUpdateChildrenCountsAction` for what these fields
+    // are. They are CRDTs that allow us to figure out the task's `childTaskCount` and
+    // `childClosedTaskCount`.
     addedChildTaskCount: Schema.integer,
     removedChildTaskCount: Schema.integer,
     addedClosedChildTaskCount: Schema.integer,
     removedClosedChildTaskCount: Schema.integer,
 
+    accessPolicy: AccessPolicyRegister.schema.nullable().default(null),
     collections: TaskCollectionSet.schema,
     positionByCollectionId: TaskPositionByCollectionIdMap.schema,
 
@@ -108,6 +119,7 @@ const TaskModelDataSchema = Schema.object({
     title: TaskTitleModel.schema,
     dueDate: TaskDueDateRegister.schema,
     priority: TaskPriorityRegister.schema,
+    layout: TaskLayoutRegister.schema.nullable().default(null),
 });
 
 // An inactive assignee status object we can return to maintain referential
@@ -115,20 +127,20 @@ const TaskModelDataSchema = Schema.object({
 const taskInactiveAssigneeStatus: TaskAssigneeStatus = {type: "Inactive"};
 
 /**
- * A task model object is the representation of a task shared between the
- * client and server. Servers construct this object in `TaskRealtimeService`
- * from a `TaskIndexDoc` removing any sensitive data.
+ * A task model object is the representation of a task shared between the client
+ * and server. Servers construct this object in `TaskRealtimeService` from a
+ * `TaskIndexDoc` removing any sensitive data.
  *
  * This class has many convenience methods that allow you to see the current
- * "logical" value of some property even if the underlying register is
- * something different. For example `assigneeStatus` is always inactive when
- * there is no assignee but the `assigneeStatus` register may have a different
- * value if updates were applied out of order. You still have access to the
- * task's raw underlying data in the `rawData` property.
+ * "logical" value of some property even if the underlying register is something
+ * different. For example `assigneeStatus` is always inactive when there is no
+ * assignee but the `assigneeStatus` register may have a different value if updates
+ * were applied out of order. You still have access to the task's raw underlying
+ * data in the `rawData` property.
  */
-// Doesn't use the `Model` class since `rawData` contains many "raw" properties
-// we want to provide clean accessors for. Like `getAssigneeStatus()` returning
-// null when the task is closed.
+// Doesn't use the `Model` class since `rawData` contains many "raw" properties we
+// want to provide clean accessors for. Like `getAssigneeStatus()` returning null
+// when the task is closed.
 export class TaskModel {
     public static readonly schema = TaskModelDataSchema.transform<TaskModel>({
         serialize: task => task.rawData,
@@ -144,8 +156,8 @@ export class TaskModel {
 
         // In Jest eagerly call `getParent()` which caches some data so
         // `expect().toEqual()` never shows uncached data as the reason why two objects
-        // don't match. Seeing the cached data can also help determine the difference
-        // in a diff.
+        // don't match. Seeing the cached data can also help determine the difference in a
+        // diff.
         if (import.meta.jest) {
             this.getParent();
         }
@@ -161,7 +173,10 @@ export class TaskModel {
         return new TaskModel({
             spaceId,
             id: taskId,
-            creator: getActionReferencedSortableAccount(action.creatorId),
+            creator: {
+                ...getActionReferencedSortableAccount(action.creator.accountId),
+                from: action.creator.from,
+            },
             createdTime: new TaskFilterableTime({
                 absoluteTime: actionTime,
                 setterTimeZone: action.creatorTimeZone,
@@ -181,6 +196,7 @@ export class TaskModel {
             removedClosedChildTaskCount: 0,
             collections: TaskCollectionSet.empty,
             positionByCollectionId: TaskPositionByCollectionIdMap.empty,
+            accessPolicy: null,
             status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
             assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
             assigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
@@ -188,14 +204,15 @@ export class TaskModel {
             title: emptyTaskTitleModel.get(),
             dueDate: new TaskDueDateRegister(null, actionTime),
             priority: new TaskPriorityRegister(null, actionTime),
+            layout: null,
         });
     }
 
     /**
-     * Apply an action to this task. Tasks are [CRDTs][1] which means their actions
-     * are commutative and idempotent. In practical language: you can apply
-     * actions many times and in any order. Our task backend takes advantage of
-     * this and doesn't bother enforcing a canonical task order.
+     * Apply an action to this task. Tasks are [CRDTs][1] which means their actions are
+     * commutative and idempotent. In practical language: you can apply actions many
+     * times and in any order. Our task backend takes advantage of this and doesn't
+     * bother enforcing a canonical task order.
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
@@ -214,8 +231,7 @@ export class TaskModel {
             getActionReferencedSortableAccount,
         );
 
-        // Optimization: Maintain referential integrity if the task's data didn't
-        // change.
+        // Optimization: Maintain referential integrity if the task's data didn't change.
         if (rawData === this.rawData) return this;
 
         return new TaskModel(rawData);
@@ -223,17 +239,16 @@ export class TaskModel {
 
     /**
      * Apply an `UpdateAccountName` action to this task. Tasks are [CRDTs][1] which
-     * means their actions are commutative and idempotent. In practical language:
-     * you can apply actions many times and in any order. Our task backend takes
-     * advantage of this and doesn't bother enforcing a canonical task order.
+     * means their actions are commutative and idempotent. In practical language: you
+     * can apply actions many times and in any order. Our task backend takes advantage
+     * of this and doesn't bother enforcing a canonical task order.
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
     public applyUpdateAccountNameAction(action: TaskUpdateAccountNameAction) {
         const rawData = applyTaskUpdateAccountNameToTaskModelData(this.rawData, action);
 
-        // Optimization: Maintain referential integrity if the task's data didn't
-        // change.
+        // Optimization: Maintain referential integrity if the task's data didn't change.
         if (rawData === this.rawData) return this;
 
         return new TaskModel(rawData);
@@ -242,12 +257,16 @@ export class TaskModel {
     /**
      * Get the actions required to duplicate this task.
      *
-     * @param creatorId - The actor who is performing the action.
-     * @param actionTime - The time the action was performed.
-     * @param creatorTimeZone - The time zone of the actor.
-     * @param parentTaskId - The ID of the parent task, defaulted to the cloned task's parent.
-     * @param titleSuffix - A suffix to append to the cloned task's title.
-     * @param variableValues - Values for template variable substitution in the title.
+     * This function doesn't duplicate the task's access policy. The new task will have
+     * a default access policy where just the creator has access. Duplicated tasks are
+     * private to the duplicator until the duplicator shares them.
+     *
+     * @param creatorId - The actor who is performing the action. @param actionTime -
+     * The time the action was performed. @param creatorTimeZone - The time zone of the
+     * actor. @param parentTaskId - The ID of the parent task, defaulted to the cloned
+     * task's parent. @param titleSuffix - A suffix to append to the cloned task's
+     * title. @param variableValues - Values for template variable substitution in the
+     * title.
      */
     public getDuplicateActions({
         creatorId,
@@ -283,7 +302,7 @@ export class TaskModel {
             taskId: taskId,
             taskAction: {
                 type: "Create",
-                creatorId: creatorId,
+                creator: {accountId: creatorId, from: null},
                 creatorTimeZone: creatorTimeZone,
             },
         });
@@ -396,8 +415,7 @@ export class TaskModel {
             });
         }
 
-        // Assignee Position
-        // Only the assignee can update the task position
+        // Assignee Position Only the assignee can update the task position
         const assigneePosition = this.getAssigneePosition();
         if (assignee && assigneePosition && creatorId === assignee.assignee.accountId) {
             actions.push({
@@ -458,6 +476,20 @@ export class TaskModel {
             });
         }
 
+        // Layout
+        const layout = this.getLayout();
+        if (layout !== null) {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout,
+                },
+            });
+        }
+
         return {
             taskId,
             actions,
@@ -474,16 +506,15 @@ export class TaskModel {
     public merge(otherTask: TaskModel): TaskModel {
         const rawData = mergeTaskModelData(this.rawData, otherTask.rawData);
 
-        // Optimization: Maintain referential integrity if the task's data didn't
-        // change.
+        // Optimization: Maintain referential integrity if the task's data didn't change.
         if (rawData === this.rawData) return this;
 
         return new TaskModel(rawData);
     }
 
     /**
-     * Make sure the hybrid logical clock's time is beyond any time observed by
-     * this task.
+     * Make sure the hybrid logical clock's time is beyond any time observed by this
+     * task.
      */
     public tick(clock: {tick(time: HybridLogicalTime): void}) {
         return tickTaskModelData(this.rawData, clock);
@@ -509,8 +540,8 @@ export class TaskModel {
         );
     }
 
-    // We lazily initialize the parent object so it has the same reference as long
-    // as the `TaskModel` is unchanged.
+    // We lazily initialize the parent object so it has the same reference as long as
+    // the `TaskModel` is unchanged.
     private _parent:
         | {
               readonly taskId: TaskId;
@@ -543,6 +574,13 @@ export class TaskModel {
 
     public getOpenChildTaskCount() {
         return this.getChildTaskCount() - this.getClosedChildTaskCount();
+    }
+
+    public getAccessPolicy(): AccessPolicy {
+        return (
+            this.rawData.accessPolicy?.value ??
+            createDefaultTaskAccessPolicy(this.rawData.creator.accountId)
+        );
     }
 
     public getCollections() {
@@ -593,6 +631,10 @@ export class TaskModel {
     public getPriority() {
         return this.rawData.priority.value;
     }
+
+    public getLayout(): TaskLayout | null {
+        return this.rawData.layout?.value ?? null;
+    }
 }
 
 function tickTaskModelData(task: TaskModelData, clock: {tick(time: HybridLogicalTime): void}) {
@@ -601,6 +643,7 @@ function tickTaskModelData(task: TaskModelData, clock: {tick(time: HybridLogical
     if (task.undeletedTime !== null) clock.tick(task.undeletedTime);
     clock.tick(task.parent.taskId.version);
     clock.tick(task.parent.position.version);
+    if (task.accessPolicy) clock.tick(task.accessPolicy.version);
     task.collections.tick(clock);
     task.positionByCollectionId.tick(clock);
     clock.tick(task.status.version);
@@ -609,4 +652,5 @@ function tickTaskModelData(task: TaskModelData, clock: {tick(time: HybridLogical
     clock.tick(task.assigneePosition.version);
     clock.tick(task.dueDate.version);
     clock.tick(task.priority.version);
+    if (task.layout) clock.tick(task.layout.version);
 }

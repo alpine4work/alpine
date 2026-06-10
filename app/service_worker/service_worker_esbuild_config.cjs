@@ -1,8 +1,7 @@
 "use strict";
 
-// Extract the compilation mode from the `BAZEL_BINDIR` environment variable.
-// This is a little hacky.
-// https://bazel.build/docs/user-manual#compilation-mode
+// Extract the compilation mode from the `BAZEL_BINDIR` environment variable. This
+// is a little hacky. https://bazel.build/docs/user-manual#compilation-mode
 //
 // IMPORTANT: If you update the code here, you should also update the code in
 // `styles_esbuild_config.cjs` and `aws_lambda_esbuild_config.cjs`.
@@ -25,11 +24,13 @@ module.exports = {
     color: true,
     platform: "browser",
     target: "es2022",
-    // NOTE(rmtobin, 12/12/2025): Service workers support `esm` format in Chrome and Safari, but
-    // support in Firefox is still experimental[1]. In the future, we should consider using `esm`
-    // format once module type service workers are more widely supported.
+    // NOTE(rmtobin, 12/12/2025): Service workers support `esm` format in Chrome and
+    // Safari, but support in Firefox is still experimental[1]. In the future, we
+    // should consider using `esm` format once module type service workers are more
+    // widely supported.
     //
-    // [1]: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register#module
+    // [1]:
+    //     https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register#module
     format: "iife",
     mainFields: ["browser", "module", "main"],
     minify: compilationMode === "opt" ? true : false,

@@ -1,4 +1,5 @@
-import {createChatForTest, getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
+import {createChatForTest} from "~/server/chat/data/create_chat_for_test.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
 import {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
@@ -10,6 +11,7 @@ import {
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
@@ -106,7 +108,11 @@ testMessagingRealtimeImplementation<ChatId>(context, {
         return {
             getConnection: () => connection.connection.getConnectionForTest(),
             procedures: connection.procedures,
-            takeEvents: () => connection.takeEvents(),
+            takeEvents: () =>
+                filterMapArray(connection.takeEvents(), event => {
+                    if (event.type === "UpdateChat") return;
+                    return event;
+                }),
         };
     },
     createMessageModel({roomKey: chatId, index, version, createdTime, author, payload}) {

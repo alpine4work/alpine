@@ -1,4 +1,4 @@
-import {authorizeDocumentAccess} from "~/server/documents/data/documents_actions.js";
+import {authorizeDocumentAccessIfPossible} from "~/server/documents/data/documents_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
@@ -14,6 +14,7 @@ import {
     dangerousLegacyDefaultDocumentAccessPolicy,
 } from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
@@ -34,15 +35,15 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
     createdTime: Schema.date,
 
     /**
-     * When all instances of a comment thread's mark are removed from a document
-     * we save a content snippet to the comment thread object so we know what the
-     * comment thread was about even after it has been deleted.
+     * When all instances of a comment thread's mark are removed from a document we
+     * save a content snippet to the comment thread object so we know what the comment
+     * thread was about even after it has been deleted.
      *
-     * Saving a content snippet is best effort. While very unlikely there may be a
-     * case where you have an archived comment thread with no content snippet. You
-     * may also have a referenced comment thread with a content snippet. In that
-     * case, use a snippet from the current document instead of the snippet saved
-     * in the comment thread object.
+     * Saving a content snippet is best effort. While very unlikely there may be a case
+     * where you have an archived comment thread with no content snippet. You may also
+     * have a referenced comment thread with a content snippet. In that case, use a
+     * snippet from the current document instead of the snippet saved in the comment
+     * thread object.
      */
     fallbackContentSnippet: Schema.object({
         version: Schema.integer,
@@ -52,8 +53,8 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
         .default(null),
 
     /**
-     * Information regarding the comment thread. Nested in an object so we can
-     * update it at once.
+     * Information regarding the comment thread. Nested in an object so we can update
+     * it at once.
      */
     commentsSummary: Schema.object({
         /**
@@ -63,8 +64,8 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
 
         /**
          * All the accounts which have commented in this thread and the number of comments
-         * they have made. The map is ordered by when the account first commented on
-         * the document comment thread.
+         * they have made. The map is ordered by when the account first commented on the
+         * document comment thread.
          *
          * This map can grow unbounded. When a user deletes a comment it leaves a
          * gravestone so comment counts should never be decremented.
@@ -75,14 +76,13 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
          * All the accounts which have been mentioned at some point in this document
          * comment thread.
          *
-         * Accounts that exist in the map with a mention count of zero have a
-         * special meaning:
+         * Accounts that exist in the map with a mention count of zero have a special
+         * meaning:
          *
          * - If an account exists in the map they were mentioned at some point
-         * - If an account exists in the map with a mention count of zero then they
-         *   were mentioned at some point but all mentions have been removed by updates
-         * - If an account does not exist in the map they were never mentioned in
-         *   the post
+         * - If an account exists in the map with a mention count of zero then they were
+         *   mentioned at some point but all mentions have been removed by updates
+         * - If an account does not exist in the map they were never mentioned in the post
          */
         mentionCountByAccountId: Schema.map(Schema.id<AccountId>(), Schema.integer.min(0)).default(
             new Map(),
@@ -91,21 +91,21 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
 
     /**
      * Whether this comment thread is in a resolved or unresolved state. Comment
-     * threads all start in an unresolved state. Comment resolution state is
-     * controlled by the user and is a convenient way to dismiss a comment from a
-     * document once the comment's contents have been addressed.
+     * threads all start in an unresolved state. Comment resolution state is controlled
+     * by the user and is a convenient way to dismiss a comment from a document once
+     * the comment's contents have been addressed.
      *
-     * Resolved comment threads include the ranges of text that had this comment's
-     * mark when the thread was unresolved. This way if the user wants to unresolve
-     * a comment we can place the marks back in the document where they originally
-     * were. We may need to rebase the ranges in case content shifted around.
+     * Resolved comment threads include the ranges of text that had this comment's mark
+     * when the thread was unresolved. This way if the user wants to unresolve a
+     * comment we can place the marks back in the document where they originally were.
+     * We may need to rebase the ranges in case content shifted around.
      *
      * Comment thread resolved/unresolved state is not to be confused with comment
      * referenced/archived state. Referenced means there's a comment mark in the
      * document referencing this comment thread. Archived means there is no comment
      * mark referencing this comment thread. An unresolved comment may either be
-     * referenced or archived. Same with a resolved comment. Though usually
-     * resolved comments are archived and unresolved comments are referenced.
+     * referenced or archived. Same with a resolved comment. Though usually resolved
+     * comments are archived and unresolved comments are referenced.
      */
     resolutionState: Schema.union({
         Unresolved: Schema.object({
@@ -128,8 +128,8 @@ const DocumentIndexSearchEntityJobSchema = Schema.object({
     // NOTE(calebmer, 2025-01-31): Prior to this date we didn't have a generation
     // number for this object.
     generation: Schema.integer.min(0).default(0),
-    // NOTE(calebmer, 2025-01-31): We used to always use 60 as the job's
-    // `delaySeconds` prior to this date.
+    // NOTE(calebmer, 2025-01-31): We used to always use 60 as the job's `delaySeconds`
+    // prior to this date.
     delaySeconds: Schema.integer.default(60),
     updatedTraits: Schema.union({
         Any: Schema.object({type: Schema.value("Any")}),
@@ -192,15 +192,15 @@ export const DocumentsTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 /**
-                 * A preview of the beginning of the document's content. This previewed content
-                 * may be stale. It's updated during by the `IndexSearchEntity` job. This
-                 * preview is used when you just want to show the beginning of the document
-                 * and, for performance reasons, you don't want to load the whole thing. For
-                 * example, in document `file` content previews.
+                 * A preview of the beginning of the document's content. This previewed content may
+                 * be stale. It's updated during by the `IndexSearchEntity` job. This preview is
+                 * used when you just want to show the beginning of the document and, for
+                 * performance reasons, you don't want to load the whole thing. For example, in
+                 * document `file` content previews.
                  *
                  * This exists in a sort range above `Attributes` so you can load
-                 * `ContentPreview` + `Attributes` in one query but you don't load
-                 * `ContentPreview` when reading `Attributes` and the rest of the document.
+                 * `ContentPreview` + `Attributes` in one query but you don't load `ContentPreview`
+                 * when reading `Attributes` and the rest of the document.
                  */
                 {
                     name: "ContentPreview",
@@ -238,8 +238,7 @@ export const DocumentsTable = DynamoTableSchema.new({
                         creator: Schema.object({
                             // The ID of the account that created this document
                             id: Schema.id<AccountId>().nullable().default(null),
-                            // If this document was created by something else, on behalf of the
-                            // account ID.
+                            // If this document was created by something else, on behalf of the account ID.
                             from: DocumentCreatorFromSchema.wrapOriginalPropertyInUnionVariant(
                                 "Bot",
                                 "accountId",
@@ -263,8 +262,8 @@ export const DocumentsTable = DynamoTableSchema.new({
                         /**
                          * The title of the document extracted from the latest content.
                          *
-                         * We want the document title to be easily accessible so you don't need to load
-                         * the snapshot and apply any new steps to get the title.
+                         * We want the document title to be easily accessible so you don't need to load the
+                         * snapshot and apply any new steps to get the title.
                          */
                         titleWithoutFallback: Schema.string,
 
@@ -282,14 +281,13 @@ export const DocumentsTable = DynamoTableSchema.new({
 
                         /**
                          * Information about the last time we sent an `IndexSearchEntity` job for this
-                         * document. Since a document may be updated many times in quick succession we
-                         * want to throttle how often we reindex the document to capture many changes
-                         * at once.
+                         * document. Since a document may be updated many times in quick succession we want
+                         * to throttle how often we reindex the document to capture many changes at once.
                          */
                         lastIndexSearchEntityJob: DocumentIndexSearchEntityJobSchema.default({
                             // NOTE(calebmer): Documents created/updated before this date did not have this
-                            // property. This default should cause us to always schedule new indexing jobs
-                            // when updating those documents.
+                            // property. This default should cause us to always schedule new indexing jobs when
+                            // updating those documents.
                             sendTime: new Date("2023-12-07T16:35:04.622Z"),
                             generation: 0,
                             delaySeconds: 60,
@@ -299,33 +297,33 @@ export const DocumentsTable = DynamoTableSchema.new({
                         /**
                          * Keep track of the number of steps contributed by various `AccountId`s after
                          * `version` 0. Excluding steps contributed by `creatorId`. You can compute
-                         * `creatorId`'s `stepCount` by adding all step counts in this map then
-                         * subtracting that from `version`.
+                         * `creatorId`'s `stepCount` by adding all step counts in this map then subtracting
+                         * that from `version`.
                          *
-                         * This is a simple way to determine who's contributed to the document and by
-                         * what amount. However, this is only a valid measure of the amount each
-                         * account has contributed assuming the relative added content size of each
-                         * step is the same. It's possible an account pastes a lot of content and
-                         * that's only counted as one step. Approaches of measuring contribution that
-                         * take pastes into effect would be less efficient and more prone to error.
+                         * This is a simple way to determine who's contributed to the document and by what
+                         * amount. However, this is only a valid measure of the amount each account has
+                         * contributed assuming the relative added content size of each step is the same.
+                         * It's possible an account pastes a lot of content and that's only counted as one
+                         * step. Approaches of measuring contribution that take pastes into effect would be
+                         * less efficient and more prone to error.
                          *
-                         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits
-                         * in UTF-8. That means for one 4kb DynamoDB read unit we can fit 250 `Id`s in
-                         * binary but only 153 `Id`s in UTF-8.
+                         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits in
+                         * UTF-8. That means for one 4kb DynamoDB read unit we can fit 250 `Id`s in binary
+                         * but only 153 `Id`s in UTF-8.
                          *
-                         * This map was not around prior to 2024-01-01. So documents created before
-                         * then (and until this deploys) will not have an accurate step count map. All
-                         * steps will be counted towards the `creatorId`.
+                         * This map was not around prior to 2024-01-01. So documents created before then
+                         * (and until this deploys) will not have an accurate step count map. All steps
+                         * will be counted towards the `creatorId`.
                          */
                         stepCountByAccountId: DocumentStepCountByAccountId.schema.default(
                             new DocumentStepCountByAccountId(new Map()),
                         ),
 
                         /**
-                         * Have we added a feed candidate entry for the document? We add an entry when
-                         * the document is shared with some `defaultGrant`. But if you revoke the
-                         * `defaultGrant` then add it again we don't want to add another feed
-                         * candidate entry.
+                         * Have we added a feed candidate entry for the document? We add an entry when the
+                         * document is shared with some `defaultGrant`. But if you revoke the
+                         * `defaultGrant` then add it again we don't want to add another feed candidate
+                         * entry.
                          */
                         hasAddedFeedCandidateEntry: Schema.boolean.default(false),
                     }),
@@ -334,12 +332,12 @@ export const DocumentsTable = DynamoTableSchema.new({
                 /**
                  * Step transactions applied to the document after our latest snapshot.
                  *
-                 * Every character the user types creates a step so we save them to the
-                 * database in transactions.
+                 * Every character the user types creates a step so we save them to the database in
+                 * transactions.
                  *
-                 * As a user is actively typing in the document we don't save the full snapshot
-                 * to the database as that would be expensive. Instead we schedule a new
-                 * snapshot to be taken later.
+                 * As a user is actively typing in the document we don't save the full snapshot to
+                 * the database as that would be expensive. Instead we schedule a new snapshot to
+                 * be taken later.
                  *
                  * When we update our snapshot, steps in this sort range will be moved to
                  * `StepTransactionsBeforeSnapshot` asynchronously. Since this happens
@@ -373,8 +371,8 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * The inverse of the steps applied to the document in this transaction.
                          *
                          * We need to store inverted steps to be able to restore older versions of the
-                         * document. For instance, when you delete content the inverted step will
-                         * contain the content that was deleted.
+                         * document. For instance, when you delete content the inverted step will contain
+                         * the content that was deleted.
                          *
                          * This array is in reverse order of `steps`.
                          */
@@ -384,10 +382,24 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * A `ContentEditorClientId` identifying the client who applied this step.
                          *
                          * We generate a new client id every time the content editor is rendered. This
-                         * means a user may have many client ids. They can be editing from two browser
-                         * tabs at once or even two editors on-screen at the same time.
+                         * means a user may have many client ids. They can be editing from two browser tabs
+                         * at once or even two editors on-screen at the same time.
                          */
                         clientId: Schema.id<ContentEditorClientId>(),
+
+                        /**
+                         * The account that applied this step transaction.
+                         *
+                         * Nullable because step transactions created before this field was added won't
+                         * have an `accountId`.
+                         */
+                        accountId: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
+                         * If this step transaction was applied by a bot, the bot's account ID. The
+                         * `accountId` field will be the account the bot acted on behalf of.
+                         */
+                        fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
 
@@ -399,8 +411,8 @@ export const DocumentsTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /**
-                         * The version we took the snapshot at. Will be less than or equal to the
-                         * document version.
+                         * The version we took the snapshot at. Will be less than or equal to the document
+                         * version.
                          */
                         version: Schema.integer,
 
@@ -412,20 +424,19 @@ export const DocumentsTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * An item representing a document comment thread. The comments in the thread
-                 * live in the `DocumentCommentThread` partition. We put this item in the
-                 * `Document` partition so that you can query comment threads together with the
-                 * document. Then when you open a comment thread you can query the thread's
-                 * partition.
+                 * An item representing a document comment thread. The comments in the thread live
+                 * in the `DocumentCommentThread` partition. We put this item in the `Document`
+                 * partition so that you can query comment threads together with the document. Then
+                 * when you open a comment thread you can query the thread's partition.
                  *
                  * This sort range is an approximation of all the comment threads currently
                  * referenced in the document's content. The `ArchivedCommentThread` range
-                 * represents comment threads that used to be in the document's content but
-                 * were removed. Perhaps the user resolved the comment thread or deleted the
-                 * content which contained it. Comment threads are moved between these two
-                 * sort ranges with eventual consistency. (Currently during document snapshot
-                 * updates.) So you are not guaranteed that an archived comment thread is
-                 * unreferenced or that a referenced comment thread is actually unreferenced.
+                 * represents comment threads that used to be in the document's content but were
+                 * removed. Perhaps the user resolved the comment thread or deleted the content
+                 * which contained it. Comment threads are moved between these two sort ranges with
+                 * eventual consistency. (Currently during document snapshot updates.) So you are
+                 * not guaranteed that an archived comment thread is unreferenced or that a
+                 * referenced comment thread is actually unreferenced.
                  */
                 {
                     name: "ReferencedCommentThread",
@@ -436,8 +447,8 @@ export const DocumentsTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * See the documentation for `ReferencedCommentThread` to understand this
-                 * sort range.
+                 * See the documentation for `ReferencedCommentThread` to understand this sort
+                 * range.
                  */
                 {
                     name: "ArchivedCommentThread",
@@ -450,8 +461,8 @@ export const DocumentsTable = DynamoTableSchema.new({
                 /**
                  * Step transactions applied to the document before our latest snapshot.
                  *
-                 * We keep around old steps for historical purposes. We will read these steps
-                 * when showing the document history.
+                 * We keep around old steps for historical purposes. We will read these steps when
+                 * showing the document history.
                  */
                 // TODO(calebmer): Maybe we should create a new table with an infrequent access
                 // mode for step transactions before the snapshot. Since they're only used when
@@ -479,8 +490,8 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * The inverse of the steps applied to the document in this transaction.
                          *
                          * We need to store inverted steps to be able to restore older versions of the
-                         * document. For instance, when you delete content the inverted step will
-                         * contain the content that was deleted.
+                         * document. For instance, when you delete content the inverted step will contain
+                         * the content that was deleted.
                          *
                          * This array is in reverse order of `steps`.
                          */
@@ -490,10 +501,24 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * A `ContentEditorClientId` identifying the client who applied this step.
                          *
                          * We generate a new client id every time the content editor is rendered. This
-                         * means a user may have many client ids. They can be editing from two browser
-                         * tabs at once or even two editors on-screen at the same time.
+                         * means a user may have many client ids. They can be editing from two browser tabs
+                         * at once or even two editors on-screen at the same time.
                          */
                         clientId: Schema.id<ContentEditorClientId>(),
+
+                        /**
+                         * The account that applied this step transaction.
+                         *
+                         * Nullable because step transactions created before this field was added won't
+                         * have an `accountId`.
+                         */
+                        accountId: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
+                         * If this step transaction was applied by a bot, the bot's account ID. The
+                         * `accountId` field will be the account the bot acted on behalf of.
+                         */
+                        fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
             ],
@@ -504,11 +529,11 @@ export const DocumentsTable = DynamoTableSchema.new({
          * commented range with a ProseMirror mark and store the comments back in our
          * DynamoDB table here.
          *
-         * What would normally be an `Attributes` item in this partition instead lives
-         * in the `Document` partition as `ReferencedCommentThread` and
+         * What would normally be an `Attributes` item in this partition instead lives in
+         * the `Document` partition as `ReferencedCommentThread` and
          * `ArchivedCommentThread`. This way we can query all the information regarding
-         * comment threads when loading a document at once. Then when you open a
-         * comment thread you load comments from this partition.
+         * comment threads when loading a document at once. Then when you open a comment
+         * thread you load comments from this partition.
          */
         {
             name: "DocumentCommentThread",
@@ -549,33 +574,32 @@ export const DocumentsTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * Whenever a message is updated we add a `MessageUpdates` item. So when
-                 * clients need to backfill realtime events they missed while disconnected from
-                 * a WebSocket server they can query this sort range to catch up.
+                 * Whenever a message is updated we add a `MessageUpdates` item. So when clients
+                 * need to backfill realtime events they missed while disconnected from a WebSocket
+                 * server they can query this sort range to catch up.
                  *
                  * The event includes the `messageIndex` and the new `version` of the message.
                  * During backfill we load the new version of the item.
                  *
                  * This sort range has a similar design to the `Events` sort range in
-                 * `DynamoGeneralRealtimeTableSchema`.
+                 * `RynamoTableSchema`.
                  *
                  * IMPORTANT: This does not include realtime events for streaming messages!
                  * Streaming messages are updated with a different realtime system that's more
                  * efficient for the streaming use case.
                  *
                  * Named `MessageUpdates` instead of `CommentUpdates` so we can have shared
-                 * utilities for querying this sort range that work across all messaging
-                 * surfaces.
+                 * utilities for querying this sort range that work across all messaging surfaces.
                  */
                 {
                     name: "MessageUpdates",
                     sortKeyAttributes: {
-                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we
-                        // could. Through a query that starts at the client's last `messageIndex` and
-                        // ends at the checkpoint's `eventTime`.
+                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we could.
+                        // Through a query that starts at the client's last `messageIndex` and ends at the
+                        // checkpoint's `eventTime`.
                         eventTime: DynamoKeyAttributeSchema.date.reverse(),
-                        // All the data is in the key so we can safely use create-or-replace to add
-                        // items to the table without worrying we're overriding some other data.
+                        // All the data is in the key so we can safely use create-or-replace to add items
+                        // to the table without worrying we're overriding some other data.
                         messageIndex: DynamoKeyAttributeSchema.integer,
                         version: DynamoKeyAttributeSchema.integer,
                     },
@@ -583,10 +607,10 @@ export const DocumentsTable = DynamoTableSchema.new({
                     attributes: Schema.object({}),
                 },
 
-                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime
-                // events to a new sort range: `MessageUpdates`. Leaving this around until all
-                // old `CommentChangeLog` items expire. At which point we can remove this from
-                // the DynamoDB schema.
+                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime events
+                // to a new sort range: `MessageUpdates`. Leaving this around until all old
+                // `CommentChangeLog` items expire. At which point we can remove this from the
+                // DynamoDB schema.
                 {
                     name: "CommentChangeLog",
                     sortKeyAttributes: {
@@ -607,8 +631,16 @@ export const DocumentsTable = DynamoTableSchema.new({
 const FileDocumentAuthorizer = FileAuthorizer.new(
     DocumentsTable,
     "Document",
-    (context, target, spaceId, expectedAccessLevel) =>
-        authorizeDocumentAccess(context, target.documentId, expectedAccessLevel),
+    async (context, target, expectedAccessLevel, options) =>
+        mapResult(
+            await authorizeDocumentAccessIfPossible(
+                context,
+                target.documentId,
+                expectedAccessLevel,
+                options,
+            ),
+            () => {},
+        ),
 );
 
 export {FileDocumentAuthorizer as InternalFileDocumentAuthorizer};

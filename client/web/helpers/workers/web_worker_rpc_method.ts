@@ -6,8 +6,8 @@ import {
 } from "~/shared/schema/schema.js";
 
 /**
- * A set of RPC method definitions for a web worker. Keys are method
- * names, values carry the input and output schemas.
+ * A set of RPC method definitions for a web worker. Keys are method names, values
+ * carry the input and output schemas.
  */
 export type WebWorkerRpcMethodDefinitions = {
     readonly [name: string]: {
@@ -17,9 +17,9 @@ export type WebWorkerRpcMethodDefinitions = {
 };
 
 /**
- * Define a set of RPC methods for a web worker. Each key is a method
- * name; each value has `input` and `output` schema configs that get
- * compiled into {@link ObjectSchema} instances.
+ * Define a set of RPC methods for a web worker. Each key is a method name; each
+ * value has `input` and `output` schema configs that get compiled into {@link
+ * ObjectSchema} instances.
  *
  * ```ts
  * const methods = defineWebWorkerRpcMethods({

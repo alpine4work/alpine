@@ -1,9 +1,9 @@
 import {Queue} from "~/shared/helpers/array/queue.js";
 
 /**
- * Splits an iterable in two. The iterable array is for all items where
- * `predicate` returns true. The second iterable is for all items where
- * `predicate` returns false.
+ * Splits an iterable in two. The iterable array is for all items where `predicate`
+ * returns true. The second iterable is for all items where `predicate` returns
+ * false.
  *
  * Named after Lodash's [`partition` function][1].
  *

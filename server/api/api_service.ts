@@ -15,6 +15,7 @@ import {
     ForumInjectionContextModule,
     NotificationsInjectionContextModule,
     SearchInjectionContextModule,
+    SitesInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
@@ -49,6 +50,7 @@ import {
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     createServiceTaskRealtimeServiceRouter,
@@ -130,12 +132,11 @@ export async function run({
                   ),
               );
 
-    // Sometimes we want to upgrade a session actor to a system actor. This gives
-    // the action escalated the system permission level which is dangerous! The
-    // system permission level has broad access to a space. We should tightly
-    // control what code is allowed to call this function, only allowed context
-    // modules get access and those context modules are expected to treat this as a
-    // private variable.
+    // Sometimes we want to upgrade a session actor to a system actor. This gives the
+    // action escalated the system permission level which is dangerous! The system
+    // permission level has broad access to a space. We should tightly control what
+    // code is allowed to call this function, only allowed context modules get access
+    // and those context modules are expected to treat this as a private variable.
     //
     // It's important we use new caches + batchers here. We don't want to load some
     // data at a higher permission level then let the session context see it. So we
@@ -194,6 +195,7 @@ export async function run({
         forumInjection: new ForumInjectionContextModule(forumInjection),
         notificationsInjection: new NotificationsInjectionContextModule(notificationsInjection),
         searchInjection: new SearchInjectionContextModule(searchInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
         languageModel: new LanguageModelContextModule(languageModel),

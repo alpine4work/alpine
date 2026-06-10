@@ -20,21 +20,18 @@ type PageWatch = {
 };
 
 /**
- * Manages cursor-based paginated queries for a database
- * view. Each page becomes an independent reactive
- * subscription backed by `getViewRowsPage`. Uses
- * `VirtualizedTree` (pages as nodes, rows as items) for
- * efficient indexed access from `VirtualizedScrollView`.
+ * Manages cursor-based paginated queries for a database view. Each page becomes an
+ * independent reactive subscription backed by `getViewRowsPage`. Uses
+ * `VirtualizedTree` (pages as nodes, rows as items) for efficient indexed access
+ * from `VirtualizedScrollView`.
  *
- * Pages are automatically rebalanced when they grow past
- * 1.5x the target size (split) or shrink below 0.5x
- * (merge with a neighbor). Rebalancing is deferred to an
- * idle callback so it doesn't block reactive updates.
+ * Pages are automatically rebalanced when they grow past 1.5x the target size
+ * (split) or shrink below 0.5x (merge with a neighbor). Rebalancing is deferred to
+ * an idle callback so it doesn't block reactive updates.
  *
- * Create synchronously via the constructor (safe during
- * render), then call `listen()` in an effect to start
- * reactive subscriptions and `dispose()` to tear them
- * down.
+ * Create synchronously via the constructor (safe during render), then call
+ * `listen()` in an effect to start reactive subscriptions and `dispose()` to tear
+ * them down.
  */
 export class DatabaseQuery {
     private readonly tableOrViewId: string;
@@ -74,8 +71,8 @@ export class DatabaseQuery {
         this._initialEndCursor = options.initialPage?.endCursor ?? null;
         this.isLoadingMoreStore = new ValueStore(false);
 
-        // Derived: true when the last node has a bounded
-        // endCursor, meaning more pages can be loaded.
+        // Derived: true when the last node has a bounded endCursor, meaning more pages can
+        // be loaded.
         this.needsMoreStore = computeStore(get => {
             const tree = get(this.treeStore);
             const lastNode = tree.getLastNodeIfExists();
@@ -101,9 +98,8 @@ export class DatabaseQuery {
     }
 
     /**
-     * Start reactive subscriptions. Call from an effect
-     * after the connection is available. Seeds OPFS pages
-     * from SSR data and begins watching the initial page.
+     * Start reactive subscriptions. Call from an effect after the connection is
+     * available. Seeds OPFS pages from SSR data and begins watching the initial page.
      */
     listen(options: {conn: DatabaseWorkerConnection; readPages?: DatabasePages}): void {
         this.conn = options.conn;
@@ -113,10 +109,9 @@ export class DatabaseQuery {
             void this.conn.call("writeInitialPages", {pages: options.readPages});
         }
 
-        // If we have initial data, start watching the first
-        // page reactively. Reuse the constructor's pageId
-        // so the watch's onUpdate updates the existing tree
-        // node in-place.
+        // If we have initial data, start watching the first page reactively. Reuse the
+        // constructor's pageId so the watch's onUpdate updates the existing tree node
+        // in-place.
         if (this.treeStore.getSnapshot().getNodeCount() > 0) {
             const reusePageId = this._initialPageId;
             this._initialPageId = null;
@@ -125,9 +120,8 @@ export class DatabaseQuery {
     }
 
     /**
-     * Start the initial page load when no `initialPage`
-     * was provided. Discovers the cursor then watches
-     * the page.
+     * Start the initial page load when no `initialPage` was provided. Discovers the
+     * cursor then watches the page.
      */
     async loadInitialPage(): Promise<void> {
         if (this._disposed || this.conn == null || this._watches.size > 0) return;
@@ -143,8 +137,8 @@ export class DatabaseQuery {
     }
 
     /**
-     * Load the next page. Enqueued behind any in-flight
-     * rebalance so cursors are stable when we read them.
+     * Load the next page. Enqueued behind any in-flight rebalance so cursors are
+     * stable when we read them.
      */
     async loadMore(): Promise<void> {
         await this._queue.enqueue(async () => {
@@ -172,9 +166,8 @@ export class DatabaseQuery {
     }
 
     /**
-     * Tear down all reactive subscriptions. The tree
-     * store retains its last value. Can be followed by
-     * another `listen()` call with a new connection.
+     * Tear down all reactive subscriptions. The tree store retains its last value. Can
+     * be followed by another `listen()` call with a new connection.
      */
     dispose(): void {
         this._disposed = true;
@@ -191,10 +184,9 @@ export class DatabaseQuery {
     // -- Watch management ----------------------------------------------------
 
     /**
-     * Create a reactive watch for a page range. Fires
-     * the initial tree update synchronously after the
-     * watch resolves, using cursor-based ordering to
-     * insert at the correct position.
+     * Create a reactive watch for a page range. Fires the initial tree update
+     * synchronously after the watch resolves, using cursor-based ordering to insert at
+     * the correct position.
      */
     private async startWatch(
         afterCursor: DatabaseRowId | null,
@@ -306,8 +298,7 @@ export class DatabaseQuery {
                     mergeRowCount += node.rowCount;
                     continue;
                 }
-                // Run is big enough — flush before
-                // processing the current node.
+                // Run is big enough — flush before processing the current node.
                 await flushMerge();
                 if (this._disposed) return;
             }
@@ -341,8 +332,8 @@ export class DatabaseQuery {
     }
 
     /**
-     * Dev-only invariant check: consecutive pages must
-     * have contiguous cursor ranges with no gaps.
+     * Dev-only invariant check: consecutive pages must have contiguous cursor ranges
+     * with no gaps.
      */
     private assertCursorContinuity(): void {
         let prevEndCursor: DatabaseRowId | null | undefined;
@@ -369,11 +360,10 @@ export class DatabaseQuery {
 }
 
 /**
- * Insert a page into the tree at the position determined
- * by its `afterCursor`. Pages are ordered by cursor range
- * — a page with `afterCursor = null` comes first, and
- * otherwise pages sort by `afterCursor` lexicographically
- * (which matches chronological ID time ordering).
+ * Insert a page into the tree at the position determined by its `afterCursor`.
+ * Pages are ordered by cursor range — a page with `afterCursor = null` comes
+ * first, and otherwise pages sort by `afterCursor` lexicographically (which
+ * matches chronological ID time ordering).
  */
 function insertPageInOrder(
     tree: VirtualizedTree<number, DatabaseQueryPage, DatabaseQueryRow>,
@@ -392,8 +382,8 @@ function insertPageInOrder(
 }
 
 /**
- * Returns true if page `a` should appear at or before page
- * `b` in the cursor ordering.
+ * Returns true if page `a` should appear at or before page `b` in the cursor
+ * ordering.
  */
 function pageComesBeforeOrEqual(a: DatabaseQueryPage, b: DatabaseQueryPage): boolean {
     if (a.afterCursor == null && b.afterCursor == null) return true;
@@ -411,8 +401,7 @@ function newEmptyTree(): VirtualizedTree<number, DatabaseQueryPage, DatabaseQuer
 }
 
 function defaultScheduleRebalance(cb: () => void): void {
-    // Use setTimeout as a portable fallback. In
-    // production this could use the React scheduler's
-    // unstable_scheduleCallback with IdlePriority.
+    // Use setTimeout as a portable fallback. In production this could use the React
+    // scheduler's unstable_scheduleCallback with IdlePriority.
     setTimeout(cb, 0);
 }

@@ -1,8 +1,8 @@
+import {putMockAgentRecording} from "~/admin/environment/demo_space/put_mock_agent_recording.js";
 import {
     createMockAgentKingKongRecording,
     mockAgentKingKongRecordingDocumentTitles,
 } from "~/admin/scenarios/internal/mock_agent_king_kong_recording.js";
-import {putMockAgentRecording} from "~/admin/scenarios/internal/put_mock_agent_recording.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
@@ -36,7 +36,7 @@ export async function createMockAgentPlaygroundScenario(context: TestContext) {
     const channel = await TestChannel.create(session, {name: "Playground"});
     const post = await channel.createPost(session, "King Kong");
 
-    await putMockAgentRecording(botAccount, `/posts/${post.id}`, recording);
+    await putMockAgentRecording("chat-gpt", botAccount, `/posts/${post.id}`, recording);
 
     return {
         log: cast<JsonObjectValue>({

@@ -3,8 +3,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
 /**
- * Email domains we don't consider work email domains. For work domains, we
- * create a space for all email address with that domain.
+ * Email domains we don't consider work email domains. For work domains, we create
+ * a space for all email address with that domain.
  */
 export const genericEmailAddressDomains = new Lazy(() => {
     const set = new Set<string>();
@@ -22,6 +22,15 @@ export const genericEmailAddressDomains = new Lazy(() => {
     // generic domain. Don't want everyone using `@hey.com` to be added to the same
     // workspace!
     addDomain("hey.com");
+
+    // `@test.cyberworlds.dev` is a generic domain used for testing. For test company
+    // email address domains we use something like
+    // `@${generateId}.test.cyberworlds.dev` or `@test1.cyberworlds.dev`.
+    //
+    // Also nice since helpers like `generateEmailAddressForTest()` and
+    // `generateEmailAddressForDevConsole()` won't automatically generate emails that
+    // are added to the same space.
+    addDomain("test.cyberworlds.dev");
 
     freeEmailDomains.forEach(addDomain);
 

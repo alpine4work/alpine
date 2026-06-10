@@ -1,6 +1,6 @@
 // In `shared/schema/helpers` since we don't have a better place for this type
-// that's shared across `//admin/dev` and `//app:app_wrapper`. Should we create
-// a `shared/dev` package?
+// that's shared across `//admin/dev` and `//app:app_wrapper`. Should we create a
+// `shared/dev` package?
 
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 

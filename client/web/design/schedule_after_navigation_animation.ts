@@ -39,18 +39,18 @@ export function trackNavigationAnimationFinish() {
 }
 
 /**
- * Schedule a callback to be run after any ongoing navigation animation
- * completes. For instance, we wait for navigation animations to complete
- * before initially focusing elements.
+ * Schedule a callback to be run after any ongoing navigation animation completes.
+ * For instance, we wait for navigation animations to complete before initially
+ * focusing elements.
  *
- * In our native mobile app we'll wait for the native driven push/pop
- * navigation animations. Web code can also record navigation animations with
- * `trackNavigationAnimationStart()`. For instance, the peek open animation
- * counts as a navigation animation.
+ * In our native mobile app we'll wait for the native driven push/pop navigation
+ * animations. Web code can also record navigation animations with
+ * `trackNavigationAnimationStart()`. For instance, the peek open animation counts
+ * as a navigation animation.
  */
 export function scheduleAfterNavigationAnimation(callback: () => void): () => void {
-    // In our native mobile app, we need to ask our native mobile wrapper if
-    // there's an ongoing native navigation animation.
+    // In our native mobile app, we need to ask our native mobile wrapper if there's an
+    // ongoing native navigation animation.
     if (NativeMobileBridge && !isNativeMobileNavigationAnimationCallbackScheduled) {
         isNativeMobileNavigationAnimationCallbackScheduled = true;
         trackNavigationAnimationStart();
@@ -69,16 +69,16 @@ export function scheduleAfterNavigationAnimation(callback: () => void): () => vo
     // 1. If there are no navigation animations and we need to immediately call
     //    `callback()` we'd like to call `callback()` asynchronously.
     //
-    // 2. If we're in a React layout effect, the layout effect of a parent
-    //    component may call `trackNavigationAnimationStart()`. We want to let
-    //    React call all of its layout effect handlers before checking to see if
-    //    there's a navigation animation.
+    // 2. If we're in a React layout effect, the layout effect of a parent component
+    //    may call `trackNavigationAnimationStart()`. We want to let React call all of
+    //    its layout effect handlers before checking to see if there's a navigation
+    //    animation.
     //
-    //    This happens for `<PeekStack>`. If we're auto-focusing something in a
-    //    peek in a layout effect then the child layout effect runs before the
-    //    parent layout effect which calls `trackNavigationAnimationStart()`. You
-    //    can test this by creating a new channel from the create menu. The channel
-    //    name should focus after the peek animation completes.
+    //     This happens for `<PeekStack>`. If we're auto-focusing something in a peek
+    //     in a layout effect then the child layout effect runs before the parent
+    //     layout effect which calls `trackNavigationAnimationStart()`. You can test
+    //     this by creating a new channel from the create menu. The channel name should
+    //     focus after the peek animation completes.
     scheduleMicrotask(() => {
         if (isCancelled) return;
 

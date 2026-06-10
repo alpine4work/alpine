@@ -15,7 +15,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type ChannelPreviewAttributesItem = {
     readonly spaceId: SpaceId;
@@ -28,18 +28,40 @@ export type ChannelPreviewAttributesItem = {
 );
 
 assertAssignableTypes<ChannelAttributesItem, ChannelPreviewAttributesItem>();
-assertAssignableTypes<ChannelModel, ChannelPreviewAttributesItem>();
+
+// NOTE(ifitzsimmons, 2026-03-06): When we parse the channel attributes item into
+// the model, we turn the access policy into a `AccessPolicyModel`. A channel's
+// access policy can either be its own "Local" policy or its inherited policy from
+// the site. In DynamoDB, we normalize the site policy by storing only the site ID.
+// However, we need the site's access policy to evaluate channel permissions on the
+// server and we need to send the site's access policy to the client.
+assertAssignableTypes<
+    Omit<ChannelModel, "accessPolicy">,
+    Omit<ChannelPreviewAttributesItem, "accessPolicy">
+>();
 
 export const ChannelPreviewItemAuthorizationCache = new DynamoContextCache<
     ChannelId,
     ChannelPreviewAttributesItem | null
 >({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
-export function getChannelPreviewItemForAuthorizationIfExists(
+export function convertChannelModelToChannelPreviewAttributesItem(
+    channel: ChannelModel,
+): ChannelPreviewAttributesItem {
+    return {
+        ...channel,
+        // NOTE(ifitzsimmons, 2026-03-06): If this is a site access policy, we cache it on
+        // load. Turning it back to a vanilla `AccessPolicy` means that we'll fetch the
+        // site access policy from the cache later on when evaluating access.
+        accessPolicy: channel.accessPolicy.intoAccessPolicy(),
+    };
+}
+
+export async function getChannelPreviewItemForAuthorizationIfExists(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
@@ -48,22 +70,41 @@ export function getChannelPreviewItemForAuthorizationIfExists(
         dynamo: DynamoContextModule;
     }>,
     channelId: ChannelId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+    {
+        consistency = "Eventual",
+        onSiteId,
+    }: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void} = {},
 ): Promise<ChannelPreviewAttributesItem | null> {
-    return ChannelPreviewItemAuthorizationCache.get(context, consistency, channelId, consistency =>
-        ForumRealtimeTable.getPartialItemIfExists(
-            context,
-            {
-                partitionType: "Channel",
-                sortRangeType: "Attributes",
-                channelId,
-            },
-            {
-                consistency,
-                attributes: ["spaceId", "createdTime", "name", "accessPolicy", "updateLockVersion"],
-            },
-        ),
+    const channelItem = await ChannelPreviewItemAuthorizationCache.get(
+        context,
+        consistency,
+        channelId,
+        async consistency =>
+            await ForumRealtimeTable.getPartialItemIfExists(
+                context,
+                {
+                    partitionType: "Channel",
+                    sortRangeType: "Attributes",
+                    channelId,
+                },
+                {
+                    consistency,
+                    attributes: [
+                        "spaceId",
+                        "createdTime",
+                        "name",
+                        "accessPolicy",
+                        "updateLockVersion",
+                    ],
+                },
+            ),
     );
+
+    if (channelItem?.accessPolicy.type === "Site") {
+        onSiteId?.(channelItem.accessPolicy.siteId);
+    }
+
+    return channelItem;
 }
 
 export async function getChannelPreviewItemForAuthorization(

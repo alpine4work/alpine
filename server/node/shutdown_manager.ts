@@ -131,8 +131,8 @@ export class ShutdownManager implements ShutdownManagerBase {
             console.error(reason.error);
         }
 
-        // It's helpful to see service lifecycle events in production logs. All logging
-        // in response to user actions should go to Honeycomb.
+        // It's helpful to see service lifecycle events in production logs. All logging in
+        // response to user actions should go to Honeycomb.
         if (process.env.NODE_ENV === "production") {
             // eslint-disable-next-line no-console
             console.log(`Shutdown started (pid: ${process.pid})`);
@@ -143,8 +143,8 @@ export class ShutdownManager implements ShutdownManagerBase {
         );
 
         const shutdownPromise = ingressTrafficShutdownPromise
-            // If an ingress traffic shutdown listener failed, we still want to run our
-            // other shutdown listeners.
+            // If an ingress traffic shutdown listener failed, we still want to run our other
+            // shutdown listeners.
             .catch(error => {
                 if (!hasAddedExceptionToSpan) {
                     hasAddedExceptionToSpan = true;
@@ -167,8 +167,8 @@ export class ShutdownManager implements ShutdownManagerBase {
             .then(async () => {
                 const errors: Array<unknown> = [];
 
-                // Wait for all promises to resolve. If there's an error, don't throw it until
-                // all promises have resolved.
+                // Wait for all promises to resolve. If there's an error, don't throw it until all
+                // promises have resolved.
                 const wait = async () => {
                     while (this._waitUntilPromises.size > 0) {
                         try {
@@ -198,20 +198,18 @@ export class ShutdownManager implements ShutdownManagerBase {
                 // `finishSpan()` call.
                 await this._flushTracer();
 
-                // After we finish the span, we need to wait for all `waitUntil()` promises
-                // AGAIN since we need to send shutdown spans to our telemetry provider
-                // (Honeycomb) and our code to do this passes the telemetry request promise
-                // to `waitUntil()`.
+                // After we finish the span, we need to wait for all `waitUntil()` promises AGAIN
+                // since we need to send shutdown spans to our telemetry provider (Honeycomb) and
+                // our code to do this passes the telemetry request promise to `waitUntil()`.
                 await wait();
 
                 if (hasError) throw error;
             });
 
-        // Create a cancellable timeout that rejects after 5 minutes if shutdown
-        // hangs. We use `createTimeout` instead of `wait()` because `wait()`
-        // creates a timer that cannot be cancelled. If we used `wait()`, the
-        // timer would keep running even after shutdown completes, preventing
-        // Node.js from exiting.
+        // Create a cancellable timeout that rejects after 5 minutes if shutdown hangs. We
+        // use `createTimeout` instead of `wait()` because `wait()` creates a timer that
+        // cannot be cancelled. If we used `wait()`, the timer would keep running even
+        // after shutdown completes, preventing Node.js from exiting.
         const shutdownTimeoutPromise = createPromiseResolver();
         const timeout = createTimeout(() => {
             shutdownTimeoutPromise.reject(
@@ -233,8 +231,8 @@ export class ShutdownManager implements ShutdownManagerBase {
 
         await fullShutdownPromise.then(
             () => {
-                // It's helpful to see service lifecycle events in production logs. All logging
-                // in response to user actions should go to Honeycomb.
+                // It's helpful to see service lifecycle events in production logs. All logging in
+                // response to user actions should go to Honeycomb.
                 if (process.env.NODE_ENV === "production") {
                     // eslint-disable-next-line no-console
                     console.log(`Shutdown finished (pid: ${process.pid})`);
@@ -246,8 +244,8 @@ export class ShutdownManager implements ShutdownManagerBase {
                 }
             },
             error => {
-                // It's helpful to see service lifecycle events in production logs. All logging
-                // in response to user actions should go to Honeycomb.
+                // It's helpful to see service lifecycle events in production logs. All logging in
+                // response to user actions should go to Honeycomb.
                 if (process.env.NODE_ENV === "production") {
                     // eslint-disable-next-line no-console
                     console.log(`Shutdown finished (pid: ${process.pid})`);
@@ -269,15 +267,14 @@ export class ShutdownManager implements ShutdownManagerBase {
     }
 
     /**
-     * Register a function that will be called when the process is shutting down.
-     * These callbacks are for shutting down sources of ingress traffic like HTTP
-     * servers. For an HTTP server you want to register a listener that closes the
-     * server from accepting new connections, finish processing existing
-     * connections, and return when done.
+     * Register a function that will be called when the process is shutting down. These
+     * callbacks are for shutting down sources of ingress traffic like HTTP servers.
+     * For an HTTP server you want to register a listener that closes the server from
+     * accepting new connections, finish processing existing connections, and return
+     * when done.
      *
      * Ingress traffic shutdown listeners will run before all our other shutdown
-     * listeners. Since resources may still be used until ingress traffic shuts
-     * down.
+     * listeners. Since resources may still be used until ingress traffic shuts down.
      */
     public registerListenerForIngressTraffic(
         name: string,
@@ -296,13 +293,13 @@ export class ShutdownManager implements ShutdownManagerBase {
     }
 
     /**
-     * Register a function that will be called when the process is shutting down.
-     * This lets you keep the process alive while you finish processing requests or
-     * perform any other cleanup.
+     * Register a function that will be called when the process is shutting down. This
+     * lets you keep the process alive while you finish processing requests or perform
+     * any other cleanup.
      *
      * These shutdown listeners run after listeners registered with
-     * `registerListenerForIngressTraffic()`. That way we don't close
-     * resources being actively used by traffic.
+     * `registerListenerForIngressTraffic()`. That way we don't close resources being
+     * actively used by traffic.
      */
     public registerListener(
         name: string,
@@ -323,13 +320,14 @@ export class ShutdownManager implements ShutdownManagerBase {
     /**
      * Register a promise which our process can't shutdown before it finishes
      * resolving. These promises are the final thing our shutdown manager resolves
-     * before completing a shutdown. That way shutdown listeners can register more
-     * wait until promises.
+     * before completing a shutdown. That way shutdown listeners can register more wait
+     * until promises.
      *
-     * This API was inspired by Cloudflare Worker's
-     * [`executionContext.waitUntil()`][1] method.
+     * This API was inspired by Cloudflare Worker's [`executionContext.waitUntil()`][1]
+     * method.
      *
-     * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
+     * [1]:
+     *     https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
      */
     public registerWaitUntilPromise(promise: Promise<unknown>) {
         const waitUntilPromise = promise.then(

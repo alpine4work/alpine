@@ -3,10 +3,10 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 
 /**
- * Takes an [error returned by DynamoDB][1] and gives it one of our error
- * codes.
+ * Takes an [error returned by DynamoDB][1] and gives it one of our error codes.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html
  */
 export function classifyDynamoError(error: {
     __type?: string;
@@ -39,12 +39,12 @@ export function classifyDynamoError(error: {
         error.__type === "ResourceInUseException" ||
         error.__type === "TableNotFoundException" ||
         error.__type === "IndexNotFoundException" ||
-        // Requests to DynamoDB should all be valid. An invalid request is the
-        // developer's fault, not the user's fault.
+        // Requests to DynamoDB should all be valid. An invalid request is the developer's
+        // fault, not the user's fault.
         error.__type === "ValidationException"
     ) {
-        // Our code should only references resources that exist. It's not a client
-        // error if we don't.
+        // Our code should only references resources that exist. It's not a client error if
+        // we don't.
         errorCode = ErrorCode.Internal;
     }
 

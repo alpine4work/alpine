@@ -1,20 +1,20 @@
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/get_account_time_zone_if_exists.js";
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
 import {AccountId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export interface CreateNotionImportTeamspaceRootDocumentOptions {
@@ -23,8 +23,7 @@ export interface CreateNotionImportTeamspaceRootDocumentOptions {
     workspaceName: string;
     teamspaceName: string;
     isPublic: boolean;
-    // This is the document ID of the teamspace itself
-    // This will be replaced by sites.
+    // This is the document ID of the teamspace itself This will be replaced by sites.
     // TODO(#sites-notion-import)
     teamspaceRootDocumentId: DocumentId;
     teamspaceDocuments: {
@@ -40,14 +39,15 @@ export interface CreateNotionImportTeamspaceRootDocumentOptions {
 
 /**
  * Create a teamspace root document that contains:
+ *
  * - A note about the import with mention of the account who started it
  * - Links to all first-layer documents in the teamspace
  *
- * @see README.md "Teamspace Root Documents" section for the structure and
- *     purpose of these synthetic documents.
+ * @see README.md "Teamspace Root Documents" section for the structure and purpose
+ * of these synthetic documents.
  */
 export async function createNotionImportTeamspaceRootDocument(
-    context: ServerSystemActionContext,
+    context: ImporterServiceSystemActionContext,
     options: CreateNotionImportTeamspaceRootDocumentOptions,
 ): Promise<void> {
     const {
@@ -143,14 +143,17 @@ export async function createNotionImportTeamspaceRootDocument(
 
     // Create access policy
     const accessPolicy: AccessPolicy = {
+        // TODO(ifitzsimmons, #notion-import-site-integration): This might be a site access
+        // policy depending on the import options.
+        type: "Local",
         accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
         defaultGrant: isPublic ? {level: "Edit"} : null,
         urlGrant: null,
     };
 
-    // Build the document content with title.
-    // If there's no teamspace name or it matches the workspace name (implicit teamspace),
-    // just use the workspace name to avoid duplication like "Export | Export".
+    // Build the document content with title. If there's no teamspace name or it
+    // matches the workspace name (implicit teamspace), just use the workspace name to
+    // avoid duplication like "Export | Export".
     const titleText =
         teamspaceName && teamspaceName !== workspaceName
             ? `${workspaceName} | ${teamspaceName}`
@@ -166,32 +169,41 @@ export async function createNotionImportTeamspaceRootDocument(
     );
 
     // Create the document using the pre-generated ID
-    const {createdTime} = await createDocument(context, {
-        id: teamspaceRootDocumentId,
-        spaceId,
-        creatorId,
-        content: documentContent,
-        createFeedEntry: false,
-        from: {type: "Importer", source: {type: "Notion"}},
-    });
+    const {createdTime} = await impersonateAccountAsSystemContext(context, creatorId, context =>
+        createDocument(context, {
+            id: teamspaceRootDocumentId,
+            spaceId,
+            creatorId,
+            content: documentContent,
+            createFeedEntry: false,
+            from: {type: "Importer", source: {type: "Notion"}},
+        }),
+    );
 
     // Send feed entry for teamspace document (feed filters by access)
-    const entry: FeedEntry = {
-        type: "Document",
-        documentId: teamspaceRootDocumentId,
-        sharedTime: createdTime,
-        sharerId: creatorId,
-        creator: {
-            id: creatorId,
-            from: {type: "Importer", source: {type: "Notion"}},
-        },
-        event: "Created",
-    };
-
-    context.jobs.send({
-        type: "AddFeedCandidateEntry",
-        jobId: generateId(),
-        spaceId,
-        entry,
-    });
+    if (isPublic) {
+        await addFeedCandidateEntry(context, spaceId, {
+            type: "Document",
+            documentId: teamspaceRootDocumentId,
+            sharedTime: createdTime,
+            sharerId: creatorId,
+            creator: {
+                id: creatorId,
+                from: {type: "Importer", source: {type: "Notion"}},
+            },
+            event: "Created",
+        });
+    } else {
+        await addFeedAccountCandidateEntry(context, spaceId, creatorId, {
+            type: "Document",
+            documentId: teamspaceRootDocumentId,
+            sharedTime: createdTime,
+            sharerId: creatorId,
+            creator: {
+                id: creatorId,
+                from: {type: "Importer", source: {type: "Notion"}},
+            },
+            event: "Created",
+        });
+    }
 }

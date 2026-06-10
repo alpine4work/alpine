@@ -59,10 +59,10 @@ export function useIsFocusRingVisible({
 
                 if (!isFocused) return false;
 
-                // Only show the focus ring when we are in a keyboard interaction modality.
-                // (Unless otherwise specified.) We cache whether focus is visible instead of
-                // relying on a prop since if the interaction modality changes from keyboard
-                // to mouse we'd like to keep the ring.
+                // Only show the focus ring when we are in a keyboard interaction modality. (Unless
+                // otherwise specified.) We cache whether focus is visible instead of relying on a
+                // prop since if the interaction modality changes from keyboard to mouse we'd like
+                // to keep the ring.
                 return isVisibleFromAnyFocus || getInteractionModality() !== "pointer";
             };
 
@@ -85,11 +85,11 @@ export function useIsFocusRingVisible({
                         : document.activeElement;
 
                 // If focus is moving within our target element then ignore `focusout` events.
-                // We'll get a `focusin` event right after we can handle. This fixes an issue
-                // where the parent renders a focus ring when navigating from one element
-                // within it to another (both of which have `<FocusRing>`s of their own). We
-                // should be able to detect the one correct active element and only render a
-                // single focus ring but we end up with two.
+                // We'll get a `focusin` event right after we can handle. This fixes an issue where
+                // the parent renders a focus ring when navigating from one element within it to
+                // another (both of which have `<FocusRing>`s of their own). We should be able to
+                // detect the one correct active element and only render a single focus ring but we
+                // end up with two.
                 //
                 // Video reproducing the issue:
                 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7q5swjv2f8f5bcfpx2kz4cj1ag
@@ -101,22 +101,21 @@ export function useIsFocusRingVisible({
                         targetElement.contains(focusedElement) &&
                         // Don't consider ourselves focused if a child element has the focus ring.
                         //
-                        // This way the focus ring moves properly in inputs like our chat account
-                        // picker work when tabbing between the text input and selected accounts.
+                        // This way the focus ring moves properly in inputs like our chat account picker
+                        // work when tabbing between the text input and selected accounts.
                         (!currentActiveElement || currentActiveElement === targetElement));
 
-                // Only update our active state if focus is moving in or out of the target
-                // element. Not if focus is moving within sub-elements of the target element.
+                // Only update our active state if focus is moving in or out of the target element.
+                // Not if focus is moving within sub-elements of the target element.
                 //
-                // This way if we have an input (like a date input) comprised of multiple
-                // focusable segments, clicking in then keyboard navigating doesn't show the
-                // focus ring.
+                // This way if we have an input (like a date input) comprised of multiple focusable
+                // segments, clicking in then keyboard navigating doesn't show the focus ring.
                 if (isFocused !== nextIsFocused) {
                     isFocused = nextIsFocused;
 
-                    // Immediately re-render the focus ring. That way if we have any state changing
-                    // the visuals of an element in `onFocus` or `onBlur` we don't have a tear with
-                    // the focus ring in a weird state.
+                    // Immediately re-render the focus ring. That way if we have any state changing the
+                    // visuals of an element in `onFocus` or `onBlur` we don't have a tear with the
+                    // focus ring in a weird state.
                     flushSyncIfNotRendering(() => {
                         if (isActive(focusedElement)) {
                             currentActiveElement = targetElement;
@@ -131,23 +130,20 @@ export function useIsFocusRingVisible({
 
             // Update our focus state on initial mount.
             //
-            // This is necessary for elements that are keyboard focused on mount. For
-            // example, try editing a comment with the keyboard. It should get a
-            // focus ring.
+            // This is necessary for elements that are keyboard focused on mount. For example,
+            // try editing a comment with the keyboard. It should get a focus ring.
             //
-            // However, we don't want to update the focus state on prop change. For
-            // example, try clicking into an account picker (focus is not visible, no ring)
-            // then using arrow keys to select an account (account should get ring) then
-            // hitting enter to select the account (focus returned to text input which
-            // should not have ring, it stayed focused and maintained its inactive focus
-            // ring state).
+            // However, we don't want to update the focus state on prop change. For example,
+            // try clicking into an account picker (focus is not visible, no ring) then using
+            // arrow keys to select an account (account should get ring) then hitting enter to
+            // select the account (focus returned to text input which should not have ring, it
+            // stayed focused and maintained its inactive focus ring state).
             if (hasInitiallyMountedForTargetElementRef.current !== targetElement) {
                 hasInitiallyMountedForTargetElementRef.current = targetElement;
                 update();
             }
 
-            // Use `focusin`/`focusout` instead of `focus`/`blur` because the
-            // former bubbles.
+            // Use `focusin`/`focusout` instead of `focus`/`blur` because the former bubbles.
             targetElement.addEventListener("focusin", update);
             targetElement.addEventListener("focusout", update);
             return () => {
@@ -186,8 +182,7 @@ export function useIsChildFocusRingVisible(): [
             update();
         }
 
-        // Use `focusin`/`focusout` instead of `focus`/`blur` because the
-        // former bubbles.
+        // Use `focusin`/`focusout` instead of `focus`/`blur` because the former bubbles.
         targetElement.addEventListener("focusin", update);
         targetElement.addEventListener("focusout", update);
         return () => {

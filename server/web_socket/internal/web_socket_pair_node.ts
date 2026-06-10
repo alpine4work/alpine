@@ -1,40 +1,40 @@
 /**
  * NOTE(calebmer, 2023-08-16): Originally, all our WebSocket servers were in
- * Cloudflare Durable Objects. With the introduction of `TaskRealtimeService`
- * we now have a Node.js WebSocket server. We want to use the same WebSocket
+ * Cloudflare Durable Objects. With the introduction of `TaskRealtimeService` we
+ * now have a Node.js WebSocket server. We want to use the same WebSocket
  * abstraction across both Cloudflare and Node.js since it's accumulated many
  * useful features. (`WebSocketServer` and `WebSocketClient` support automatic
  * reconnection, pings to make sure socket is alive, procedure request/response
  * lifecycle, and appropriate action context handling.)
  *
- * We like the Cloudflare Durable Object WebSocket server API so we want to
- * bring it to Node.js. This file is a fork of [Miniflare's WebSocket
- * JavaScript implementation][1] we can use to support APIs like
- * `WebSocketPair` and `WebSocket.accept()` in Node.js.
+ * We like the Cloudflare Durable Object WebSocket server API so we want to bring
+ * it to Node.js. This file is a fork of [Miniflare's WebSocket JavaScript
+ * implementation][1] we can use to support APIs like `WebSocketPair` and
+ * `WebSocket.accept()` in Node.js.
  *
- * [1]: https://github.com/cloudflare/miniflare/blob/7e4d906e19cc69cd3446512bfeb7f8aee3a2bda7/packages/web-sockets/src/websocket.ts
+ * [1]:
+ *     https://github.com/cloudflare/miniflare/blob/7e4d906e19cc69cd3446512bfeb7f8aee3a2bda7/packages/web-sockets/src/websocket.ts
  *
  * MIT License
  *
  * Copyright (c) 2021 MrBBot
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to
- * deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- * sell copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 import {once} from "events";
@@ -42,8 +42,8 @@ import StandardWebSocket from "ws";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-// This should only run in Node.js. In Cloudflare Workers we should use the
-// global `WebSocket` and `WebSocketPair` constructors.
+// This should only run in Node.js. In Cloudflare Workers we should use the global
+// `WebSocket` and `WebSocketPair` constructors.
 assert(process.versions.node);
 
 // { a: A, b: B, ... } => A | B | ...
@@ -84,9 +84,9 @@ export class ErrorEvent extends Event {
     }
 }
 
-// Maps web sockets to the other side of their connections, we don't want to
-// expose this to the user, but this cannot be a private field as we need to
-// construct both sockets before setting the circular references
+// Maps web sockets to the other side of their connections, we don't want to expose
+// this to the user, but this cannot be a private field as we need to construct
+// both sockets before setting the circular references
 const kPair = Symbol("kPair");
 
 const kAccepted = Symbol("kAccepted");
@@ -118,8 +118,8 @@ export type WebSocketEventMap = {
 type TypedEventListener<E extends Event> = ((e: E) => void) | {handleEvent(e: E): void};
 
 export class WebSocket extends EventTarget {
-    // The Workers runtime prefixes these constants with `READY_STATE_`, unlike
-    // those in the spec: https://websockets.spec.whatwg.org/#interface-definition
+    // The Workers runtime prefixes these constants with `READY_STATE_`, unlike those
+    // in the spec: https://websockets.spec.whatwg.org/#interface-definition
     static readonly READY_STATE_CONNECTING = 0;
     static readonly READY_STATE_OPEN = 1;
     static readonly READY_STATE_CLOSING = 2;
@@ -136,12 +136,12 @@ export class WebSocket extends EventTarget {
     [kClosedOutgoing] = false;
     [kClosedIncoming] = false;
 
-    // NOTE(calebmer): Typed event signatures from `TypedEventTarget`. We don't
-    // extend from the original `InputGatedEventTarget` since we shouldn't have
-    // input gates in Node.js.
+    // NOTE(calebmer): Typed event signatures from `TypedEventTarget`. We don't extend
+    // from the original `InputGatedEventTarget` since we shouldn't have input gates in
+    // Node.js.
     //
-    // We also removed the `kWrapListener` implementation on this class which adds
-    // a request limit we don't want in Node.js.
+    // We also removed the `kWrapListener` implementation on this class which adds a
+    // request limit we don't want in Node.js.
     //
     // https://github.com/cloudflare/miniflare/blob/7e4d906e19cc69cd3446512bfeb7f8aee3a2bda7/packages/shared/src/event.ts#L38-L64
     declare readonly addEventListener: <Type extends keyof WebSocketEventMap>(
@@ -161,16 +161,16 @@ export class WebSocket extends EventTarget {
     constructor(url: string | URL | typeof kConstructOnly, protocols?: string | Array<string>) {
         super();
 
-        // Could refactor this to `!this.#userConstructed`, but then `url` wouldn't
-        // be narrowed correctly
+        // Could refactor this to `!this.#userConstructed`, but then `url` wouldn't be
+        // narrowed correctly
         if (url === kConstructOnly) {
             this.#userConstructed = false;
             return;
         }
         this.#userConstructed = true;
 
-        // Validate `url`. `ws` will perform its own validation, but we want to
-        // return the same error messages as the actual Workers runtime here.
+        // Validate `url`. `ws` will perform its own validation, but we want to return the
+        // same error messages as the actual Workers runtime here.
         try {
             if (!(url instanceof URL)) url = new URL(url);
         } catch {
@@ -201,8 +201,8 @@ export class WebSocket extends EventTarget {
                 this.dispatchEvent(new Event("open"));
             },
             error => {
-                // `[kError]()` will call `#queuingDispatchToPair()` which will only
-                // dispatch the event to this instance if it's accepted.
+                // `[kError]()` will call `#queuingDispatchToPair()` which will only dispatch the
+                // event to this instance if it's accepted.
                 this.#accept();
                 pair[kError](error);
             },
@@ -241,11 +241,10 @@ export class WebSocket extends EventTarget {
     }
 
     #accept(): void {
-        // Split from accept() so we can call this in the `new WebSocket()`
-        // constructor once the connection is open. Note, in the Workers runtime,
-        // attempting to `send()` before the connection is open confusingly throws a
-        // "You must call accept() on this WebSocket before sending messages."
-        // `TypeError`.
+        // Split from accept() so we can call this in the `new WebSocket()` constructor
+        // once the connection is open. Note, in the Workers runtime, attempting to
+        // `send()` before the connection is open confusingly throws a "You must call
+        // accept() on this WebSocket before sending messages." `TypeError`.
 
         if (this[kCoupled]) {
             throw new TypeError(
@@ -310,28 +309,19 @@ export class WebSocket extends EventTarget {
 
     /** @internal */
     [kClose](code?: number, reason?: string): void {
-        // Split from close() so we can queue closes before accept() is called, and
-        // skip close code checks when forwarding close events from the client.
+        // Split from close() so we can queue closes before accept() is called, and skip
+        // close code checks when forwarding close events from the client.
         if (this[kClosedOutgoing]) throw new TypeError("WebSocket already closed");
 
-        // Send close event to pair, it should then eventually call `close()` on
-        // itself which will dispatch a close event to us, completing the closing
-        // handshake:
-        //               Network
-        //  Browser/Server  |   ws                            WebSocketPair
-        //     -------      | -------                         -------------
-        //     |     |  ... | |     | <--- 2) CloseEvent <--- | inc < out | <--- 1) close()
-        //     |     |      | |     |                         |     |     |
-        //     |     |  ... | |     | --->    3) close() ---> | out > inc | ---> 4) CloseEvent
-        //     -------      | -------                         -------------
-        //                  |
-        //                  |
-        //     -------      | -------                         -------------
-        //     |     |  ... | |     | --->    1) close() ---> | out > inc | ---> 2) CloseEvent
-        //     |     |      | |     |                         |     |     |
-        //     |     |  ... | |     | <--- 4) CloseEvent <--- | inc < out | <--- 3) close()
-        //     -------      | -------                         -------------
-        //                  |
+        // Send close event to pair, it should then eventually call `close()` on itself
+        // which will dispatch a close event to us, completing the closing handshake:
+        // Network Browser/Server | ws WebSocketPair ------- | ------- ------------- | |
+        // ... | | | <--- 2) CloseEvent <--- | inc < out | <--- 1) close() | | | | | | | |
+        // | | ... | | | ---> 3) close() ---> | out > inc | ---> 4) CloseEvent ------- |
+        // ------- ------------- | | ------- | ------- ------------- | | ... | | | ---> 1)
+        // close() ---> | out > inc | ---> 2) CloseEvent | | | | | | | | | | ... | | |
+        // <--- 4) CloseEvent <--- | inc < out | <--- 3) close() ------- | -------
+        // ------------- |
 
         this[kClosedOutgoing] = true;
         this[kPair][kClosedIncoming] = true;
@@ -378,17 +368,17 @@ export async function coupleWebSocket(ws: StandardWebSocket, pair: WebSocket): P
         // Silently discard messages received after close:
         // https://www.rfc-editor.org/rfc/rfc6455#section-1.4
         if (!pair[kClosedOutgoing]) {
-            // Note `[kSend]` skips accept check and will queue messages if other pair
-            // hasn't `accept`ed yet. Also convert binary messages to `ArrayBuffer`s.
+            // Note `[kSend]` skips accept check and will queue messages if other pair hasn't
+            // `accept`ed yet. Also convert binary messages to `ArrayBuffer`s.
             pair[kSend](isBinary ? viewToBuffer(message) : message.toString());
         }
     });
     ws.on("close", (code: number, reason: Uint8Array<ArrayBuffer>) => {
         // Silently discard closes received after close
         if (!pair[kClosedOutgoing]) {
-            // Note `[kClose]` skips accept check and will queue messages if other
-            // pair hasn't `accept`ed yet. It also skips code/reason validation,
-            // allowing reserved codes (e.g. 1005 for "No Status Received").
+            // Note `[kClose]` skips accept check and will queue messages if other pair hasn't
+            // `accept`ed yet. It also skips code/reason validation, allowing reserved codes
+            // (e.g. 1005 for "No Status Received").
             pair[kClose](code, reason.toString());
         }
     });
@@ -411,9 +401,9 @@ export async function coupleWebSocket(ws: StandardWebSocket, pair: WebSocket): P
     });
 
     if (ws.readyState === StandardWebSocket.CONNECTING) {
-        // Wait for client to be open before accepting worker pair (which would
-        // release buffered messages). Note this will throw if an "error" event is
-        // dispatched (https://github.com/cloudflare/miniflare/issues/229).
+        // Wait for client to be open before accepting worker pair (which would release
+        // buffered messages). Note this will throw if an "error" event is dispatched
+        // (https://github.com/cloudflare/miniflare/issues/229).
         await once(ws, "open");
     } else if (ws.readyState >= StandardWebSocket.CLOSING) {
         throw new TypeError("Incoming WebSocket connection already closed.");

@@ -1,5 +1,5 @@
-// IMPORTANT: We are only importing `@aws-sdk` for types. Use
-// the `aws4fetch` module for executing any AWS commands.
+// IMPORTANT: We are only importing `@aws-sdk` for types. Use the `aws4fetch`
+// module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import jsonStableStringify from "json-stable-stringify";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
@@ -40,8 +40,8 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 /**
  * Our client interface to DynamoDB.
  *
- * Wraps the low-level `DynamoClientInternal` class with some extra
- * functionality like action batching.
+ * Wraps the low-level `DynamoClientInternal` class with some extra functionality
+ * like action batching.
  */
 export class DynamoClient {
     private readonly _client: DynamoClientInternal;
@@ -53,7 +53,8 @@ export class DynamoClient {
      * code tries to do eventual and strong reads simultaneously, we don't want the
      * strong reads to increase the latency of eventual reads.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
     private readonly _getItemBatcherByConsistency: {
         [Key in DynamoReadConsistency]: DynamoClientGetItemBatcher;
@@ -62,8 +63,10 @@ export class DynamoClient {
     /**
      * Batcher for the [`PutItem`][1] and [`DeleteItem`][2] commands.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      */
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
@@ -103,14 +106,16 @@ export class DynamoClient {
     /**
      * Get a single item from DynamoDB. Corresponds to the [`GetItem`][1] command.
      *
-     * For `getItemIfExists()` calls made in a short window of time, we will batch
-     * them together into a [`BatchGetItem`][2] command.
+     * For `getItemIfExists()` calls made in a short window of time, we will batch them
+     * together into a [`BatchGetItem`][2] command.
      *
-     * If a `projectionExpression` is provided then we will not batch and send a
-     * plain `GetItem` command at this time.
+     * If a `projectionExpression` is provided then we will not batch and send a plain
+     * `GetItem` command at this time.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public async getItemIfExists(
         context: Context<{batch?: BatchContextModule; tracer: TracerContextModule}>,
@@ -134,7 +139,7 @@ export class DynamoClient {
     ): Promise<SchemaSerializedObjectValue | null> {
         if (context.batch) {
             const batcher = this._getItemBatcherByConsistency[consistency];
-            return batcher.getItem(
+            return await batcher.getItem(
                 context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,
@@ -169,16 +174,16 @@ export class DynamoClient {
     /**
      * Put a single item into DynamoDB. Corresponds to the [`PutItem`][1] command.
      *
-     * Our DynamoDB class doesn't know which attributes in an item correspond to
-     * the key, so we need the caller to give us the `key` object for the item
-     * separately.
+     * Our DynamoDB class doesn't know which attributes in an item correspond to the
+     * key, so we need the caller to give us the `key` object for the item separately.
      *
-     * For `putItem()` calls made in a short window of time that don't have
-     * conditions, we will batch them together into a [`BatchWriteItem`][2]
-     * command.
+     * For `putItem()` calls made in a short window of time that don't have conditions,
+     * we will batch them together into a [`BatchWriteItem`][2] command.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async putItem(
         context: Context<{batch?: BatchContextModule; tracer: TracerContextModule}>,
@@ -212,7 +217,7 @@ export class DynamoClient {
 
         // Writes without a condition may be batched.
         if (context.batch && conditionExpression === undefined)
-            return this._writeItemBatcher.putItem(
+            return await this._writeItemBatcher.putItem(
                 context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,
@@ -251,10 +256,12 @@ export class DynamoClient {
             if (
                 isObject(errorCause) &&
                 (errorCause.__type === "ConditionalCheckFailedException" ||
-                    // If a PutItem request for an item conflicts with an ongoing TransactWriteItems request
-                    // that includes the same item, the request fails with a TransactionConflictException [1].
+                    // If a PutItem request for an item conflicts with an ongoing TransactWriteItems
+                    // request that includes the same item, the request fails with a
+                    // TransactionConflictException [1].
                     //
-                    // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-conflict-handling
+                    // [1]:
+                    //     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-conflict-handling
                     errorCause.__type === "TransactionConflictException")
             ) {
                 retryConditionCheckError?.(error);
@@ -269,11 +276,12 @@ export class DynamoClient {
      * command.
      *
      * For `deleteItem()` calls made in a short window of time that don't have
-     * conditions, we will batch them together into a [`BatchWriteItem`][2]
-     * command.
+     * conditions, we will batch them together into a [`BatchWriteItem`][2] command.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async deleteItem(
         context: Context<{batch?: BatchContextModule; tracer: TracerContextModule}>,
@@ -297,7 +305,7 @@ export class DynamoClient {
     ): Promise<void> {
         // Writes without a condition may be batched.
         if (context.batch && conditionExpression === undefined)
-            return this._writeItemBatcher.deleteItem(
+            return await this._writeItemBatcher.deleteItem(
                 context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,
@@ -337,10 +345,12 @@ export class DynamoClient {
             if (
                 isObject(errorCause) &&
                 (errorCause.__type === "ConditionalCheckFailedException" ||
-                    // If a DeleteItem request for an item conflicts with an ongoing TransactWriteItems request
-                    // that includes the same item, the request fails with a TransactionConflictException [1].
+                    // If a DeleteItem request for an item conflicts with an ongoing TransactWriteItems
+                    // request that includes the same item, the request fails with a
+                    // TransactionConflictException [1].
                     //
-                    // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-conflict-handling
+                    // [1]:
+                    //     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-conflict-handling
                     errorCause.__type === "TransactionConflictException")
             ) {
                 retryConditionCheckError?.(error);
@@ -351,11 +361,12 @@ export class DynamoClient {
     }
 
     /**
-     * Perform up to 25 actions atomically with [`TransactWriteItems`][1]. Either
-     * all actions in the transaction succeed or if one action fails then none of
-     * the actions in the transaction will be applied.
+     * Perform up to 25 actions atomically with [`TransactWriteItems`][1]. Either all
+     * actions in the transaction succeed or if one action fails then none of the
+     * actions in the transaction will be applied.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public async executeTransaction(
         context: DynamoContext,
@@ -468,11 +479,11 @@ export class DynamoClient {
     }
 
     /**
-     * Create an `PutItem` entry for [`TransactWriteItems`][1]. Will not be
-     * executed until you call `executeTransaction()` with other transaction
-     * entries.
+     * Create an `PutItem` entry for [`TransactWriteItems`][1]. Will not be executed
+     * until you call `executeTransaction()` with other transaction entries.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public static transactionPutItem({
         tableName,
@@ -530,11 +541,11 @@ export class DynamoClient {
     }
 
     /**
-     * Create a `DeleteItem` entry for [`TransactWriteItems`][1]. Will not be
-     * executed until you call `executeTransaction()` with other transaction
-     * entries.
+     * Create a `DeleteItem` entry for [`TransactWriteItems`][1]. Will not be executed
+     * until you call `executeTransaction()` with other transaction entries.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public static transactionDeleteItem({
         tableName,
@@ -591,10 +602,10 @@ export class DynamoClient {
 
     /**
      * Create a `ConditionCheck` entry for [`TransactWriteItems`][1]. Will not be
-     * executed until you call `executeTransaction()` with other transaction
-     * entries.
+     * executed until you call `executeTransaction()` with other transaction entries.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public static transactionConditionCheck({
         tableName,
@@ -656,11 +667,13 @@ export class DynamoClient {
      * Read more about DynamoDB transactions [here][2].
      *
      * You probably want to wrap this function in a call to
-     * `context.dynamo.retryTransaction()`. If there is a transaction in-progress
-     * then this method will throw.
+     * `context.dynamo.retryTransaction()`. If there is a transaction in-progress then
+     * this method will throw.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html
      */
     public async executeGetItemsTransaction(
         tracer: TracerBase,
@@ -717,16 +730,18 @@ export class DynamoClient {
     }
 
     /**
-     * Performs a [`Query`][1] operation against DynamoDB. A query lets us read
-     * items from the table between two sort keys in a partition.
+     * Performs a [`Query`][1] operation against DynamoDB. A query lets us read items
+     * from the table between two sort keys in a partition.
      *
-     * DynamoDB only returns 1 MB of data at a time and you're expected to
-     * [paginate to fetch the rest of the data][2]. This function abstracts that
-     * away. By returning a JavaScript async iterator, the consumer may break the
-     * iterator at any time and it will stop pagination.
+     * DynamoDB only returns 1 MB of data at a time and you're expected to [paginate to
+     * fetch the rest of the data][2]. This function abstracts that away. By returning
+     * a JavaScript async iterator, the consumer may break the iterator at any time and
+     * it will stop pagination.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
      */
     async *query(
         tracer: TracerBase,
@@ -771,9 +786,9 @@ export class DynamoClient {
         if (sortKey?.startValue !== undefined && sortKey.endValue !== undefined) {
             keyConditionExpressionEntries.push(`${sortKey.name} between :skv1 and :skv2`);
 
-            // DynamoDB throws an error when you have two conditions on the same attribute
-            // but that means you have to use `between` for when both start and end is set?
-            // This feels like a silly limitation in DynamoDB.
+            // DynamoDB throws an error when you have two conditions on the same attribute but
+            // that means you have to use `between` for when both start and end is set? This
+            // feels like a silly limitation in DynamoDB.
             if (sortKey.isStartExclusive || sortKey.isEndExclusive)
                 throw new InternalError(
                     "Dynamo doesn\u2019t support exclusive sort keys in query when you have both a start and end sort key",
@@ -810,8 +825,8 @@ export class DynamoClient {
             : undefined;
 
         do {
-            // If we have a limit of 100 and we scanned 40 rows in our previous queries,
-            // then our new limit is 60 since we don't want to exceed our total limit.
+            // If we have a limit of 100 and we scanned 40 rows in our previous queries, then
+            // our new limit is 60 since we don't want to exceed our total limit.
             const remainingLimit = limit !== undefined ? limit - totalScannedCount : undefined;
 
             const output = await this._client.Query(
@@ -820,8 +835,8 @@ export class DynamoClient {
                     TableName: tableName,
                     IndexName: indexName,
                     ConsistentRead: consistency === "Strong",
-                    // If a `pageLimit` was configured then as we paginate, each page will be sized
-                    // as `pageLimit` so we don't read a full 1 MB per page.
+                    // If a `pageLimit` was configured then as we paginate, each page will be sized as
+                    // `pageLimit` so we don't read a full 1 MB per page.
                     Limit:
                         pageLimit !== undefined
                             ? remainingLimit !== undefined
@@ -843,8 +858,8 @@ export class DynamoClient {
                 yield fromDynamoAttributeValueObject(item);
             }
 
-            // If we have exceeded the limit then don't query again. Even if there is
-            // a `lastEvaluatedKey`.
+            // If we have exceeded the limit then don't query again. Even if there is a
+            // `lastEvaluatedKey`.
             if (limit !== undefined && totalScannedCount >= limit) break;
         } while (lastEvaluatedKey !== undefined);
     }
@@ -854,13 +869,15 @@ export class DynamoClient {
      * every item in the table. Since tables can get quite large this method can be
      * quite expensive to execute!
      *
-     * DynamoDB only returns 1 MB of data at a time and you're expected to
-     * [paginate to fetch the rest of the data][2]. This function abstracts that
-     * away. By returning a JavaScript async iterator, the consumer may break the
-     * iterator at any time and it will stop pagination.
+     * DynamoDB only returns 1 MB of data at a time and you're expected to [paginate to
+     * fetch the rest of the data][2]. This function abstracts that away. By returning
+     * a JavaScript async iterator, the consumer may break the iterator at any time and
+     * it will stop pagination.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html
      */
     async *expensiveScan(
         tracer: TracerBase,
@@ -891,8 +908,8 @@ export class DynamoClient {
             const output = await this._client.Scan(tracer, {
                 TableName: tableName,
                 ConsistentRead: consistency === "Strong",
-                // If we have a limit of 100 and we scanned 40 rows in our previous queries,
-                // then our new limit is 60 since we don't want to exceed our initial limit.
+                // If we have a limit of 100 and we scanned 40 rows in our previous queries, then
+                // our new limit is 60 since we don't want to exceed our initial limit.
                 Limit: limit !== undefined ? limit - totalScannedCount : undefined,
                 ExclusiveStartKey: lastEvaluatedKey,
                 Segment: segment,
@@ -920,8 +937,8 @@ export class DynamoClient {
                 yield fromDynamoAttributeValueObject(item);
             }
 
-            // If we have exceeded the limit then don't query again. Even if there is
-            // a `lastEvaluatedKey`.
+            // If we have exceeded the limit then don't query again. Even if there is a
+            // `lastEvaluatedKey`.
             if (limit !== undefined && totalScannedCount >= limit) break;
         } while (lastEvaluatedKey !== undefined);
     }
@@ -1013,8 +1030,8 @@ abstract class DynamoClientItemBatcherBase<
             tableBatch.keyBatches,
             jsonStableStringify(key),
             () => {
-                // Every time this function is called, it means we are adding a new key to the
-                // map. So increment the number of items this batch is fetching here.
+                // Every time this function is called, it means we are adding a new key to the map.
+                // So increment the number of items this batch is fetching here.
                 batch.itemCount++;
 
                 return {
@@ -1040,8 +1057,8 @@ abstract class DynamoClientItemBatcherBase<
     ) {
         const tracer = context.tracer.getTracer();
 
-        // This batch execution is performed in a microtask, so if an error is thrown
-        // it's thrown into the void. Add a try/catch so that errors reject the promise
+        // This batch execution is performed in a microtask, so if an error is thrown it's
+        // thrown into the void. Add a try/catch so that errors reject the promise
         // resolvers in our batch.
         try {
             const batches = this._reorganizeBatch(fullBatch).flatMap(batch =>
@@ -1067,17 +1084,17 @@ abstract class DynamoClientItemBatcherBase<
         batch: DynamoClientBatch<TableInput, ItemInput2, ItemOutput>,
         attemptNumber: number,
     ) {
-        // This function is async but called from a synchronous function. So if an
-        // error is thrown it's thrown in the void. Add a try/catch so that errors
-        // reject the promise resolvers in our batch.
+        // This function is async but called from a synchronous function. So if an error is
+        // thrown it's thrown in the void. Add a try/catch so that errors reject the
+        // promise resolvers in our batch.
         try {
             assert(batch.itemCount <= 100);
 
             const {unprocessedBatch} = await this._sendBatchCommand(tracer, batch);
 
             if (unprocessedBatch.itemCount > 0) {
-                // The DynamoDB docs strongly recommend us to retry unprocessed key requests
-                // with exponential backoff:
+                // The DynamoDB docs strongly recommend us to retry unprocessed key requests with
+                // exponential backoff:
                 // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
                 const delayMs = 50 * 2 ** (attemptNumber - 1);
 
@@ -1111,9 +1128,9 @@ abstract class DynamoClientItemBatcherBase<
     /**
      * Send a batch command to DynamoDB for the provided batch.
      *
-     * This function is expected to construct a new batch with any unprocessed
-     * items. If all items were processed then the function may return an
-     * `unprocessedBatch` with `itemCount` of 0.
+     * This function is expected to construct a new batch with any unprocessed items.
+     * If all items were processed then the function may return an `unprocessedBatch`
+     * with `itemCount` of 0.
      */
     protected abstract _sendBatchCommand(
         tracer: TracerBase,
@@ -1122,10 +1139,11 @@ abstract class DynamoClientItemBatcherBase<
 }
 
 /**
- * DynamoDB's [`BatchGetItem`][1] command can get a maximum of 100 items. So if
- * we have a batch larger then that, split it into multiple smaller batches.
+ * DynamoDB's [`BatchGetItem`][1] command can get a maximum of 100 items. So if we
+ * have a batch larger then that, split it into multiple smaller batches.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
  */
 function splitDynamoClientBatch<TableInput, ItemInput, ItemOutput>(
     fullBatch: DynamoClientBatch<TableInput, ItemInput, ItemOutput>,
@@ -1147,8 +1165,8 @@ function splitDynamoClientBatch<TableInput, ItemInput, ItemOutput>(
         batches.push(currentBatch);
 
         for (const [tableName, fullTableBatch] of fullBatch.tableBatches) {
-            // If all the remaining keys for this table can fit into the current batch,
-            // then move them wholesale into the current batch.
+            // If all the remaining keys for this table can fit into the current batch, then
+            // move them wholesale into the current batch.
             if (currentBatch.itemCount + fullTableBatch.keyBatches.size <= maxBatchItemCount) {
                 fullBatch.tableBatches.delete(tableName);
                 fullBatch.itemCount -= fullTableBatch.keyBatches.size;
@@ -1157,8 +1175,8 @@ function splitDynamoClientBatch<TableInput, ItemInput, ItemOutput>(
                 currentBatch.tableBatches.set(tableName, fullTableBatch);
                 currentBatch.itemCount += fullTableBatch.keyBatches.size;
             }
-            // Otherwise, add individual keys to the current batch until we hit the max
-            // batch item count.
+            // Otherwise, add individual keys to the current batch until we hit the max batch
+            // item count.
             else {
                 const currentTableBatch = getOrSetDefaultMapValue(
                     currentBatch.tableBatches,
@@ -1182,8 +1200,8 @@ function splitDynamoClientBatch<TableInput, ItemInput, ItemOutput>(
                     if (currentBatch.itemCount >= maxBatchItemCount) break;
                 }
 
-                // If we are in this code path, then we should be moving only some of the keys
-                // in the full batch. Not all of them.
+                // If we are in this code path, then we should be moving only some of the keys in
+                // the full batch. Not all of them.
                 assert(fullTableBatch.keyBatches.size > 0);
             }
 
@@ -1204,17 +1222,18 @@ type DynamoClientGetItemBatchItemInput = {
 };
 
 /**
- * Responsible for batching multiple `getItem()` calls into one
- * [`BatchGetItem`][1] command for DynamoDB.
+ * Responsible for batching multiple `getItem()` calls into one [`BatchGetItem`][1]
+ * command for DynamoDB.
  *
  * Implemented as a class so we can have a separate batcher for each read
  * consistency mode.
  *
- * We want each `BatchGetItem` command to have the same read consistency since
- * the slowest individual item latency will be the latency for the entire
- * batch. And strong read consistency may increase latency.
+ * We want each `BatchGetItem` command to have the same read consistency since the
+ * slowest individual item latency will be the latency for the entire batch. And
+ * strong read consistency may increase latency.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
  */
 class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
     DynamoClientGetItemBatchItemInput,
@@ -1222,9 +1241,9 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
     null,
     SchemaSerializedObjectValue | null
 > {
-    // Reading DynamoDB items doesn't depend on the actor. Authorization happens
-    // before we start issuing raw DynamoDB actions. It's safe to share batched IO
-    // across actor changes.
+    // Reading DynamoDB items doesn't depend on the actor. Authorization happens before
+    // we start issuing raw DynamoDB actions. It's safe to share batched IO across
+    // actor changes.
     public override readonly whenActorChanges = "DangerouslyShare";
 
     private readonly _client: DynamoClientInternal;
@@ -1273,8 +1292,8 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         >,
     ) {
         // If we are only reading exactly one item in our batch then we will send a
-        // `GetItem` command instead of a `BatchGetItem` command. That way our traces
-        // are a little easier to read.
+        // `GetItem` command instead of a `BatchGetItem` command. That way our traces are a
+        // little easier to read.
         if (batch.tableBatches.size === 1) {
             const [tableName, tableBatch] = [...batch.tableBatches.entries()][0]!;
             if (tableBatch.keyBatches.size === 1) {
@@ -1325,7 +1344,8 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                         // > To help parse the response by item, include the primary key values for the
                         // > items in your request in the `ProjectionExpression` parameter.
                         //
-                        // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+                        // [1]:
+                        //     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
                         if (tableBatch.input.projectionExpression) {
                             const projectionAttributeExpressions =
                                 tableBatch.input.projectionExpression
@@ -1403,8 +1423,8 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                 batch.itemCount -= 1;
             }
 
-            // If all items for this table were present in the response then we can cleanup
-            // our table batch.
+            // If all items for this table were present in the response then we can cleanup our
+            // table batch.
             if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
         }
 
@@ -1418,8 +1438,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
             expectsStrongReadConsistency: batch.expectsStrongReadConsistency,
         };
 
-        // If we have any unprocessed keys move them into a new unprocessed batch
-        // object.
+        // If we have any unprocessed keys move them into a new unprocessed batch object.
         if (output.UnprocessedKeys) {
             for (const [tableName, {Keys: unprocessedKeys}] of Object.entries(
                 output.UnprocessedKeys,
@@ -1459,15 +1478,15 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                         unprocessedBatch.itemCount += 1;
                     }
 
-                    // If all items for this table were present in the response then we can cleanup
-                    // our table batch.
+                    // If all items for this table were present in the response then we can cleanup our
+                    // table batch.
                     if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
                 }
             }
         }
 
-        // For keys that were not returned in either `Responses` or `UnprocessedKeys`,
-        // that means they do not have an item in DynamoDB and should resolve to null.
+        // For keys that were not returned in either `Responses` or `UnprocessedKeys`, that
+        // means they do not have an item in DynamoDB and should resolve to null.
         for (const {keyBatches} of batch.tableBatches.values()) {
             for (const {promiseResolvers} of keyBatches.values()) {
                 for (const {promiseResolver} of promiseResolvers) {
@@ -1481,9 +1500,8 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
 }
 
 /**
- * Take a batch with inputs at the item level and move those inputs to the
- * table level since that's the format expected by DynamoDB's `BatchGetItem`
- * command.
+ * Take a batch with inputs at the item level and move those inputs to the table
+ * level since that's the format expected by DynamoDB's `BatchGetItem` command.
  */
 function reorganizeDynamoClientGetItemBatch(
     batch: DynamoClientBatch<
@@ -1505,8 +1523,8 @@ function reorganizeDynamoClientGetItemBatch(
         >
     >();
 
-    // We start with a batch where each item has an input. We want to move inputs
-    // to the table level and keep all items with the same input in the same batch.
+    // We start with a batch where each item has an input. We want to move inputs to
+    // the table level and keep all items with the same input in the same batch.
     for (const [tableName, tableBatch] of batch.tableBatches) {
         const newTableBatches = getOrSetDefaultMapValue(
             newTableBatchesByTableName,
@@ -1545,8 +1563,8 @@ function reorganizeDynamoClientGetItemBatch(
                     break;
                 }
 
-                // If we did not add our key's promise resolver to an existing batch then
-                // create a new batch.
+                // If we did not add our key's promise resolver to an existing batch then create a
+                // new batch.
                 if (!wasAdded) {
                     newTableBatches.push({
                         input,
@@ -1604,10 +1622,11 @@ type DynamoClientWriteItemBatchAction =
     | {action: "Delete"};
 
 /**
- * Responsible for batching multiple `putItem()` and `deleteItem()` calls into
- * one [`BatchWriteItem`][1] command for DynamoDB.
+ * Responsible for batching multiple `putItem()` and `deleteItem()` calls into one
+ * [`BatchWriteItem`][1] command for DynamoDB.
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
  */
 class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     null,
@@ -1615,9 +1634,9 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     DynamoClientWriteItemBatchAction,
     void
 > {
-    // Writing DynamoDB items doesn't depend on the actor. Authorization happens
-    // before we start issuing raw DynamoDB actions. It's safe to share batched IO
-    // across actor changes.
+    // Writing DynamoDB items doesn't depend on the actor. Authorization happens before
+    // we start issuing raw DynamoDB actions. It's safe to share batched IO across
+    // actor changes.
     public override readonly whenActorChanges = "DangerouslyShare";
 
     private readonly _client: DynamoClientInternal;
@@ -1671,8 +1690,8 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         batch: DynamoClientBatch<null, DynamoClientWriteItemBatchAction, void>,
     ) {
         // If we are only writing exactly one item in our batch then we will send a
-        // `PutItem` or `DeleteItem` command instead of a `BatchWriteItem` command.
-        // That way our traces are a little easier to read.
+        // `PutItem` or `DeleteItem` command instead of a `BatchWriteItem` command. That
+        // way our traces are a little easier to read.
         if (batch.tableBatches.size === 1) {
             const [tableName, tableBatch] = [...batch.tableBatches.entries()][0]!;
             if (tableBatch.keyBatches.size === 1) {
@@ -1775,8 +1794,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
             expectsStrongReadConsistency: batch.expectsStrongReadConsistency,
         };
 
-        // If we have any unprocessed keys move them into a new unprocessed batch
-        // object.
+        // If we have any unprocessed keys move them into a new unprocessed batch object.
         if (output.UnprocessedItems) {
             for (const [tableName, unprocessedItems] of Object.entries(output.UnprocessedItems)) {
                 const tableBatch = batch.tableBatches.get(tableName);
@@ -1830,8 +1848,8 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                     unprocessedBatch.itemCount += 1;
                 }
 
-                // If all items for this table were present in the response then we can cleanup
-                // our table batch.
+                // If all items for this table were present in the response then we can cleanup our
+                // table batch.
                 if (tableBatch.keyBatches.size === 0) batch.tableBatches.delete(tableName);
             }
         }

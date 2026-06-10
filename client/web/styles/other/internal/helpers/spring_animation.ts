@@ -1,22 +1,22 @@
 import {keyframes} from "@vanilla-extract/css";
 
 /**
- * Creates an animation that uses spring physics run by CSS animations. Running
- * a spring animation with CSS animations is more efficient than approaches
- * like [`react-spring`][1] which run animations in JavaScript and so are
- * limited by JavaScript main thread performance.
+ * Creates an animation that uses spring physics run by CSS animations. Running a
+ * spring animation with CSS animations is more efficient than approaches like
+ * [`react-spring`][1] which run animations in JavaScript and so are limited by
+ * JavaScript main thread performance.
  *
- * Our code is derived from [this blog post][2]. To pick `stiffness` and
- * `damping` values we recommend starting with [`react-spring`
- * configurations][3].
+ * Our code is derived from [this blog post][2]. To pick `stiffness` and `damping`
+ * values we recommend starting with [`react-spring` configurations][3].
  *
  * [1]: https://www.npmjs.com/package/react-spring
- * [2]: https://www.kirillvasiltsov.com/writing/how-to-create-a-spring-animation-with-web-animation-api/
- * [3]: https://github.com/pmndrs/react-spring/blob/07b229cf03507de1c66e2ffd1e7d8c617fcb3f61/packages/core/src/constants.ts#L1-L9
+ * [2]:
+ *     https://www.kirillvasiltsov.com/writing/how-to-create-a-spring-animation-with-web-animation-api/
+ * [3]:
+ *     https://github.com/pmndrs/react-spring/blob/07b229cf03507de1c66e2ffd1e7d8c617fcb3f61/packages/core/src/constants.ts#L1-L9
  */
-// TODO(calebmer): We could use `motion` now instead of writing our own spring
-// CSS generator!
-// https://motion.dev/docs/css
+// TODO(calebmer): We could use `motion` now instead of writing our own spring CSS
+// generator! https://motion.dev/docs/css
 export function createSpringAnimation({
     startX = 0,
     startY = 0,

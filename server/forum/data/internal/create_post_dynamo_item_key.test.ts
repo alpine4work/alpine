@@ -3,8 +3,8 @@ import {createPostDynamoItemKey} from "~/shared/forum/create_post_dynamo_item_ke
 import {generateId} from "~/shared/id/id.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
-// This test lives in `server/forum/data` instead of `shared/forum` because we
-// need to reference server code in the test.
+// This test lives in `server/forum/data` instead of `shared/forum` because we need
+// to reference server code in the test.
 test("client can produce the same item key as the server", () => {
     const postId = generateId<PostId>();
 

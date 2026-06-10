@@ -28,20 +28,20 @@ export function SpaceRouteErrorBoundary() {
     const location = useLocation();
     const {currentAccount} = useSpaceContext();
 
-    // Is this the initial location for a tab? If so we don't want to render the
-    // back button since there's nothing to go back to.
+    // Is this the initial location for a tab? If so we don't want to render the back
+    // button since there's nothing to go back to.
     //
-    // The `getWebMobileTabFromPathname()` returns a tab if the pathname is a root
-    // tab location and null otherwise. Even though the function was not made for
-    // this purpose it still gets the job done.
+    // The `getWebMobileTabFromPathname()` returns a tab if the pathname is a root tab
+    // location and null otherwise. Even though the function was not made for this
+    // purpose it still gets the job done.
     const isTabRootLocation = useMemo(
         () => !!(platform === "mobile" ? getWebMobileTabFromLocation(location) : null),
         [platform, location],
     );
 
-    // It appears that Remix does not `useMemo()` its error object. So stabilize
-    // the object reference here. Our error rendering components use referential
-    // identity to determine whether we need to log the error.
+    // It appears that Remix does not `useMemo()` its error object. So stabilize the
+    // object reference here. Our error rendering components use referential identity
+    // to determine whether we need to log the error.
     const error = useStableValue(ErrorSchema, useRouteError());
 
     return (
@@ -54,10 +54,10 @@ export function SpaceRouteErrorBoundary() {
                     alignItems="center"
                 >
                     {!isTabRootLocation &&
-                        // Don't show the back button if the actor doesn't have space access. If the
-                        // actor doesn't have space access they're probably looking at a shared URL in
-                        // their web browser. So they're not in an application context. A back button
-                        // doesn't make sense in a non-application context.
+                        // Don't show the back button if the actor doesn't have space access. If the actor
+                        // doesn't have space access they're probably looking at a shared URL in their web
+                        // browser. So they're not in an application context. A back button doesn't make
+                        // sense in a non-application context.
                         (currentAccount || isNativeMobile) && (
                             <IconButton
                                 size="base"

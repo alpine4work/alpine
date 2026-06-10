@@ -61,9 +61,9 @@ export function NotificationDigestEmailTemplate({
     for (const entry of parsedEntries) {
         if (
             entry.loudNotificationCount > 0 &&
-            !loudNotificationAccountByIds.has(entry.firstAccount.id)
+            !loudNotificationAccountByIds.has(entry.featuredAccount.id)
         ) {
-            loudNotificationAccountByIds.set(entry.firstAccount.id, entry.firstAccount);
+            loudNotificationAccountByIds.set(entry.featuredAccount.id, entry.featuredAccount);
         }
     }
 
@@ -151,7 +151,7 @@ export function NotificationDigestEmailTemplate({
                             }}
                         >
                             <Column width={92} data-skip-in-text="true">
-                                {entry.secondAccount ? (
+                                {entry.otherAccount ? (
                                     <TwoAccountAvatar
                                         entry={entry}
                                         resourceServiceUrl={resourceServiceUrl}
@@ -184,7 +184,7 @@ export function NotificationDigestEmailTemplate({
                                                 paddingTop: emailSpacing["0.5"],
                                             }}
                                         >
-                                            {entry.summary.map((item, index) => {
+                                            {entry.title.map((item, index) => {
                                                 if (typeof item === "string") {
                                                     return <Fragment key={index}> {item}</Fragment>;
                                                 } else {
@@ -260,9 +260,9 @@ export function NotificationDigestEmailTemplate({
     );
 }
 
-// This uses a background image to support css-based light/dark mode.
-// An `Img` version is included but hidden as some email clients won't render background images via
-// CSS `url` if no `img` tags are present in the document.
+// This uses a background image to support css-based light/dark mode. An `Img`
+// version is included but hidden as some email clients won't render background
+// images via CSS `url` if no `img` tags are present in the document.
 function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
     switch (brandIconType) {
         case "Post":
@@ -272,7 +272,8 @@ function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
                     style={{
                         // eslint-disable-next-line cyberworlds/string-quotes
                         backgroundImage: `url('${resourceServiceUrl}/icons/post_brand_icon_light.png')`,
-                        // Force new stacking context to force this element and its background to be placed on top.
+                        // Force new stacking context to force this element and its background to be placed
+                        // on top.
                         opacity: 0.999,
                         width: "20px",
                         height: "20px",
@@ -289,7 +290,8 @@ function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
                     style={{
                         // eslint-disable-next-line cyberworlds/string-quotes
                         backgroundImage: `url('${resourceServiceUrl}/icons/chat_brand_icon_light.png')`,
-                        // Force new stacking context to force this element and its background to be placed on top.
+                        // Force new stacking context to force this element and its background to be placed
+                        // on top.
                         opacity: 0.999,
                         width: "20px",
                         height: "20px",
@@ -306,7 +308,8 @@ function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
                     style={{
                         // eslint-disable-next-line cyberworlds/string-quotes
                         backgroundImage: `url('${resourceServiceUrl}/icons/document_brand_icon_light.png')`,
-                        // Force new stacking context to force this element and its background to be placed on top.
+                        // Force new stacking context to force this element and its background to be placed
+                        // on top.
                         opacity: 0.999,
                         width: "20px",
                         height: "20px",
@@ -323,7 +326,8 @@ function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
                     style={{
                         // eslint-disable-next-line cyberworlds/string-quotes
                         backgroundImage: `url('${resourceServiceUrl}/icons/task_brand_icon_light.png')`,
-                        // Force new stacking context to force this element and its background to be placed on top.
+                        // Force new stacking context to force this element and its background to be placed
+                        // on top.
                         opacity: 0.999,
                         width: "20px",
                         height: "20px",
@@ -361,7 +365,8 @@ function LoudNotificationCount({count}: {count: number}) {
                 <div
                     className="match-background-border"
                     style={{
-                        // Force new stacking context and forces this element and its background to be placed on top.
+                        // Force new stacking context and forces this element and its background to be
+                        // placed on top.
                         opacity: 0.999,
                         height: "1.25em",
                         width: count > 99 ? "1.9em" : "1.25em",
@@ -406,7 +411,7 @@ function OneAccountAvatar({
                             marginTop: "5px",
                         }}
                     >
-                        <EmailAccountAvatar accountData={entry.firstAccount} size="10" />
+                        <EmailAccountAvatar accountData={entry.featuredAccount} size="10" />
                     </div>
                 </Column>
             </Row>
@@ -422,7 +427,8 @@ function OneAccountAvatar({
                     <div
                         className="match-background"
                         style={{
-                            // Force new stacking context to force this element and its background to be placed on top.
+                            // Force new stacking context to force this element and its background to be placed
+                            // on top.
                             opacity: 0.999,
                             backgroundColor: colors["grey-0"],
                             borderRadius: borderRadius["full"],
@@ -458,7 +464,7 @@ function TwoAccountAvatar({
                             marginLeft: "10px",
                         }}
                     >
-                        <EmailAccountAvatar accountData={entry.secondAccount!} size="9" />
+                        <EmailAccountAvatar accountData={entry.otherAccount!} size="9" />
                     </div>
                 </Column>
                 <Column style={{verticalAlign: "top"}}>
@@ -473,7 +479,8 @@ function TwoAccountAvatar({
                         <div
                             className="match-background"
                             style={{
-                                // Force new stacking context to force this element and its background to be placed on top.
+                                // Force new stacking context to force this element and its background to be placed
+                                // on top.
                                 opacity: 0.999,
                                 backgroundColor: colors["grey-0"],
                                 borderRadius: borderRadius["full"],
@@ -498,7 +505,8 @@ function TwoAccountAvatar({
                         <div
                             className="match-background"
                             style={{
-                                // Force new stacking context to force this element and its background to be placed on top.
+                                // Force new stacking context to force this element and its background to be placed
+                                // on top.
                                 opacity: 0.999,
                                 backgroundColor: colors["grey-0"],
                                 borderRadius: "50%",
@@ -507,7 +515,7 @@ function TwoAccountAvatar({
                                 width: "45px",
                             }}
                         >
-                            <EmailAccountAvatar accountData={entry.firstAccount} size="9" />
+                            <EmailAccountAvatar accountData={entry.featuredAccount} size="9" />
                         </div>
                     </div>
                 </Column>
@@ -517,9 +525,10 @@ function TwoAccountAvatar({
 }
 
 /**
- * Formats a date to a relative localized date string with the time. If a date occurs today or
- * yesterday compared to the current time, the date portion is replaced with "Today" or "Yesterday"
- * respectively. Otherwise, the date is formatted like "Friday, Sept 27 at 1:00pm".
+ * Formats a date to a relative localized date string with the time. If a date
+ * occurs today or yesterday compared to the current time, the date portion is
+ * replaced with "Today" or "Yesterday" respectively. Otherwise, the date is
+ * formatted like "Friday, Sept 27 at 1:00pm".
  */
 function formatPrettyRelativeLocalDateWithTime(
     time: Date,

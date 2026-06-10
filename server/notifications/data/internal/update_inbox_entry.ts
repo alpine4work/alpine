@@ -1,12 +1,8 @@
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/get_account_time_zone_if_exists.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {
-    DynamoGeneralRealtimeTableDeletedItem,
-    DynamoGeneralRealtimeTableSchema,
-    DynamoGeneralRealtimeTransactionEntry,
-} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {computeDigestNotificationsNextScheduledDateTimeIfEligible} from "~/server/notifications/data/digest/compute_digest_notifications_next_scheduled_date_time_if_eligible.js";
 import {getInitialInboxItem} from "~/server/notifications/data/internal/get_initial_inbox_item.js";
 import {
@@ -19,16 +15,18 @@ import {
     InboxEntryItemKey,
     InboxTable,
 } from "~/server/notifications/data/internal/inbox_table.js";
+import {RynamoTableDeletedItem, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
@@ -40,6 +38,8 @@ export const updateInboxEntryBeforeExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();
 export const updateInboxEntryAfterExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();
+export const updateInboxEntryAfterGetAttributesItemTestCheckpoint = new TestCheckpoint<AccountId>();
+export const updateInboxEntryBeforeGetEntryItemTestCheckpoint = new TestCheckpoint<AccountId>();
 
 export type UpdateInboxEntryResult = {
     readonly newInboxEntryItem: InboxEntryItem | "Delete";
@@ -65,22 +65,22 @@ type InboxEntryMaybeDeletedItem =
     | {
           readonly isDeleted: true;
           readonly item: null;
-          readonly deletedItem: DynamoGeneralRealtimeTableDeletedItem;
+          readonly deletedItem: RynamoTableDeletedItem;
       };
 
 /**
- * Helper function for updating an inbox entry and the main inbox attributes
- * item along with it. Makes sure to keep everything consistent. For example,
- * updating the inbox total loud notification count when the entry loud
- * notification count updates.
+ * Helper function for updating an inbox entry and the main inbox attributes item
+ * along with it. Makes sure to keep everything consistent. For example, updating
+ * the inbox total loud notification count when the entry loud notification count
+ * updates.
  *
  * `actorAccountId` is the account whose actions are causing this inbox update.
- * It's often different from `itemKey.accountId` which is the account of the
- * inbox we're updating. Let's say Alice sends Bob a message. When the
- * `actorAccountId` in this case is "Alice" and if we're updating Bob's inbox
- * then `itemKey.accountId` will be "Bob". If Alice is archiving an entry in
- * their own inbox then Alice is both the `actorAccountId` and
- * `itemKey.accountId` since Alice is taking an action on their own inbox.
+ * It's often different from `itemKey.accountId` which is the account of the inbox
+ * we're updating. Let's say Alice sends Bob a message. When the `actorAccountId`
+ * in this case is "Alice" and if we're updating Bob's inbox then
+ * `itemKey.accountId` will be "Bob". If Alice is archiving an entry in their own
+ * inbox then Alice is both the `actorAccountId` and `itemKey.accountId` since
+ * Alice is taking an action on their own inbox.
  */
 export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     context: ServerActionContext,
@@ -91,7 +91,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         options: {
             isInitialAttempt: boolean;
             addAdditionalTransactionEntry: (
-                entry: DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry,
+                entry: DynamoTransactionEntry | RynamoTransactionEntry,
             ) => void;
             updateOtherInboxEntry: <OtherItemKey extends InboxEntryItemKey>(
                 otherItemKey: OtherItemKey,
@@ -113,58 +113,80 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     } = {},
 ): Promise<UpdateInboxEntryResult | null> {
     await runAllPromises([
-        // Make sure we're either a system actor or we're a session actor with access
-        // to this account and this space.
+        // Make sure we're either a system actor or we're a session actor with access to
+        // this account and this space.
         authorizeSpaceAccess(context, itemKey.spaceId),
         authorizeOwnSpaceAccountAccess(context, itemKey.accountId),
         authorizeOwnSpaceAccountAccess(context, actorAccountId),
 
-        // Bots don't have an inbox. Don't allow updating inbox entries for a bot
-        // account. This should be free (no database reads) since we load and cache the
-        // account earlier while processing the event.
+        // Bots don't have an inbox. Don't allow updating inbox entries for a bot account.
+        // This should be free (no database reads) since we load and cache the account
+        // earlier while processing the event.
         authorizeNotBotSpaceAccount(context, itemKey.spaceId, itemKey.accountId),
     ]);
 
     let hasAttempted = false;
 
-    const result = await context.dynamo.retryTransaction(async context => {
+    const result = await context.dynamo.retryTransaction(async (context, retry) => {
         const isInitialAttempt = !hasAttempted;
         hasAttempted = true;
 
+        const getOldInboxItemPromise = async () => {
+            if (isInitialAttempt && initialInboxItemIfExists !== undefined)
+                return initialInboxItemIfExists;
+
+            return await InboxTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
+                spaceId: itemKey.spaceId,
+                accountId: itemKey.accountId,
+            });
+        };
+
+        const getOldInboxEntryItemPromise =
+            async (): Promise<InboxEntryMaybeDeletedItem | null> => {
+                const item = await InboxTable.getItemIfExists(context, itemKey);
+                if (item) return {isDeleted: false, item};
+
+                // If this inbox entry is deletable, then check if there's a gravestone for the
+                // inbox entry.
+                if (!InboxTable.isDeleteItemEnabled(itemKey)) return null;
+
+                // Most of the time if we can't find the inbox entry it's because it never existed.
+                // Wait until we retry to see if the item was deleted.
+                if (isInitialAttempt) return null;
+
+                const deletedItem = await InboxTable.getDeletedItemIfExists(context, itemKey);
+                if (!deletedItem) return null;
+
+                return {isDeleted: true, item: null, deletedItem};
+            };
+
         const [oldInboxItem, oldInboxEntryItem, accountTimeZone] = await runAllPromises([
-            isInitialAttempt && initialInboxItemIfExists !== undefined
-                ? initialInboxItemIfExists
-                : InboxTable.getItemIfExists(context, {
-                      partitionType: "Account",
-                      sortRangeType: "InboxAttributes",
-                      spaceId: itemKey.spaceId,
-                      accountId: itemKey.accountId,
+            // Allow tests to delay when the old inbox attributes item is loaded to simulate
+            // eventually consistent reads.
+            !import.meta.jest
+                ? getOldInboxItemPromise()
+                : getOldInboxItemPromise().then(async item => {
+                      await updateInboxEntryAfterGetAttributesItemTestCheckpoint.waitForTest(
+                          actorAccountId,
+                      );
+                      return item;
                   }),
 
-            InboxTable.getItemIfExists(context, itemKey).then<InboxEntryMaybeDeletedItem | null>(
-                async item => {
-                    if (item) return {isDeleted: false, item};
-
-                    // If this inbox entry is deletable, then check if there's a gravestone for the
-                    // inbox entry.
-                    if (!InboxTable.isDeleteItemEnabled(itemKey)) return null;
-
-                    // Most of the time if we can't find the inbox entry it's because it never
-                    // existed. Wait until we retry to see if the item was deleted.
-                    if (isInitialAttempt) return null;
-
-                    const deletedItem = await InboxTable.getDeletedItemIfExists(context, itemKey);
-                    if (!deletedItem) return null;
-
-                    return {isDeleted: true, item: null, deletedItem};
-                },
-            ),
+            // Allow tests to delay when the old inbox entry item is loaded to simulate
+            // eventually consistent reads.
+            !import.meta.jest
+                ? getOldInboxEntryItemPromise()
+                : updateInboxEntryBeforeGetEntryItemTestCheckpoint
+                      .waitForTest(actorAccountId)
+                      .then(getOldInboxEntryItemPromise),
 
             getAccountTimeZoneIfExists(context, itemKey.accountId),
         ]);
 
-        // Make sure we use a time that's always monotonically increasing compared to
-        // the previous `lastEntryUpdatedTime`.
+        // Make sure we use a time that's always monotonically increasing compared to the
+        // previous `lastEntryUpdatedTime`.
         const currentTime = oldInboxItem?.lastEntryUpdatedTime
             ? new Date(Math.max(Date.now(), oldInboxItem.lastEntryUpdatedTime.getTime() + 1))
             : new Date();
@@ -173,9 +195,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             oldInboxItem ??
             DynamoItem.create(getInitialInboxItem(itemKey.spaceId, itemKey.accountId));
 
-        const transactionEntries: Array<
-            DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry
-        > = [];
+        const transactionEntries: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
 
         const pushTransactionEntries = (
             oldInboxEntryItem: InboxEntryMaybeDeletedItem | null,
@@ -210,9 +230,9 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     ),
                 );
             }
-            // Optimization: Don't write to the database (and so update `updateVersionLock`)
-            // if the item didn't actually update.
-            else if (!isDeepEqual(oldInboxEntryItem?.item, newInboxEntryItem)) {
+            // Optimization: Don't write to the database (and so update `updateVersionLock`) if
+            // the item didn't actually update.
+            else if (!isDeepEqualForUnknownValues(oldInboxEntryItem?.item, newInboxEntryItem)) {
                 newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
 
                 transactionEntries.push(
@@ -260,13 +280,30 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         const loudNotificationCountDifference =
             newInboxItem.loudNotificationCount - (oldInboxItem?.loudNotificationCount ?? 0);
 
-        // In practice we update the inbox item every time we update an inbox
-        // entry since we're updating the `lastEntryUpdatedTime` property on the inbox
-        // item.
+        // In practice we update the inbox item every time we update an inbox entry since
+        // we're updating the `lastEntryUpdatedTime` property on the inbox item.
         //
-        // Optimization: Don't write to the database (and so update `updateVersionLock`)
-        // if the item didn't actually update.
-        if (!isDeepEqual(oldInboxItem, newInboxItem)) {
+        // Optimization: Don't write to the database (and so update `updateVersionLock`) if
+        // the item didn't actually update.
+        if (!isDeepEqualForUnknownValues(oldInboxItem, newInboxItem)) {
+            // Race condition: we may read a stale `oldInboxItem` (say with
+            // `loudNotificationCount` of 0 when the real value is 1) and a current
+            // `oldInboxEntryItem` (with a `loudNotificationCount` of 1). In this case we'll
+            // generate a negative `loudNotificationCount`.
+            //
+            // If this transaction makes it to the database it'll fail with a condition check
+            // error because the stale `oldInboxItem` has the wrong `updateLockVersion`.
+            // However, this transaction doesn't make it to the database because the
+            // `loudNotificationCount` schema is `Schema.integer.min(0)` so we're unable to
+            // serialize the item and throw a non-retriable error.
+            //
+            // So before we attempt to serialize the item, check if `loudNotificationCount` is
+            // negative and if so then manually retry our DynamoDB transaction loop so we can
+            // read an up-to-date `oldInboxItem`.
+            if (newInboxItem.loudNotificationCount < 0) {
+                throw retry(new InternalError("Inbox `loudNotificationCount` is less than zero"));
+            }
+
             transactionEntries.push(InboxTable.transactionDirectlyUpdateItem(newInboxItem));
         }
 
@@ -275,21 +312,21 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         if (transactionEntries.length === 0) {
             if (!oldInboxEntryItem?.item) return null;
 
-            // Even though we don't actually write a new inbox item, we still want to
-            // return an update result. If we return null we won't send push notifications
-            // for this event!
+            // Even though we don't actually write a new inbox item, we still want to return an
+            // update result. If we return null we won't send push notifications for this
+            // event!
             //
             // It's important to still send push notifications in this case. If there's a
-            // sticky mention (`latestMessage.isStickyMention` is set) the inbox entry
-            // won't update (it continues to show the sticky mention) but we still want to
-            // send push notifications for any messages sent after the sticky mention.
+            // sticky mention (`latestMessage.isStickyMention` is set) the inbox entry won't
+            // update (it continues to show the sticky mention) but we still want to send push
+            // notifications for any messages sent after the sticky mention.
             return {
                 newInboxEntryItem: oldInboxEntryItem.item,
                 loudNotificationCountDifference,
             };
         }
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, transactionEntries, {
+        await RynamoTableSchema.executeTransaction(context, transactionEntries, {
             clientRequestToken,
         });
 
@@ -370,18 +407,18 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 : oldInboxItem.lastZeroEntryCountTime,
     });
 
-    // Only schedule a digest notification if this inbox change is because of
-    // someone's actions updating another person's inbox.
+    // Only schedule a digest notification if this inbox change is because of someone's
+    // actions updating another person's inbox.
     //
-    // For example, if Alice (`actorAccountId`) sends Bob (`itemKey.accountId`
-    // since we're updating Bob's inbox) a message we want to schedule a
-    // notification digest for Bob. However, if Alice (`actorAccountId`) archives
-    // one of her own inbox entries (so `itemKey.accountId` is Alice as well) then
-    // don't schedule a notification digest.
+    // For example, if Alice (`actorAccountId`) sends Bob (`itemKey.accountId` since
+    // we're updating Bob's inbox) a message we want to schedule a notification digest
+    // for Bob. However, if Alice (`actorAccountId`) archives one of her own inbox
+    // entries (so `itemKey.accountId` is Alice as well) then don't schedule a
+    // notification digest.
     //
-    // If a user is acting on their own inbox then they've seen the current state
-    // of their inbox and don't need to be notified about changes (since they made
-    // the changes!).
+    // If a user is acting on their own inbox then they've seen the current state of
+    // their inbox and don't need to be notified about changes (since they made the
+    // changes!).
     if (actorAccountId !== itemKey.accountId) {
         newInboxItem = newInboxItem.update({
             digestNotificationsNextScheduledDateTime:
@@ -418,23 +455,22 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         ? newInboxEntryItemPartial1.isArchived[1]
         : undefined;
 
-    // If there was no inbox entry and the new inbox entry would be archived (maybe
-    // a user is sending a message to a chat they created) then don't create a
-    // new entry.
+    // If there was no inbox entry and the new inbox entry would be archived (maybe a
+    // user is sending a message to a chat they created) then don't create a new entry.
     if (
         !oldInboxEntryItem &&
         newInboxEntryItemPartial2.isArchived &&
-        // If `alwaysCreate` is set to true then we create an archived inbox entry even
-        // if no previous entry existed.
+        // If `alwaysCreate` is set to true then we create an archived inbox entry even if
+        // no previous entry existed.
         !newInboxEntryItemIsArchivedOptions?.alwaysCreate
     ) {
         return "Noop";
     }
 
-    // We don't update archived inbox entries. An archived inbox entry stays the
-    // same from the moment it's archived onward. Some `update()` functions may
-    // make a change (e.g. `processNotificationCreateChatMessageEvent()` always
-    // updates `latestMessage`) but we ignore it.
+    // We don't update archived inbox entries. An archived inbox entry stays the same
+    // from the moment it's archived onward. Some `update()` functions may make a
+    // change (e.g. `processNotificationCreateChatMessageEvent()` always updates
+    // `latestMessage`) but we ignore it.
     if (oldInboxEntryItem?.isArchived && newInboxEntryItemPartial2.isArchived) {
         return "Noop";
     }
@@ -449,11 +485,11 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         (!newInboxEntryItemPartial2.isArchived && oldInboxEntryItem.isArchived) ||
         loudNotificationCountDifference > 0;
 
-    // Has the actor unarchived their own entry? This happens if the user chooses
-    // "Move to new" in the UI which calls the `unarchiveInboxEntry()` RPC. If the
-    // user is personally unarchiving an entry then we want to move it to the
-    // absolute top of their inbox (instead of trying to intelligently place it
-    // near the top in the inbox's quantum state).
+    // Has the actor unarchived their own entry? This happens if the user chooses "Move
+    // to new" in the UI which calls the `unarchiveInboxEntry()` RPC. If the user is
+    // personally unarchiving an entry then we want to move it to the absolute top of
+    // their inbox (instead of trying to intelligently place it near the top in the
+    // inbox's quantum state).
     const hasActorUnarchivedOwnEntry =
         actorAccountId === itemKey.accountId &&
         oldInboxEntryItem &&
@@ -470,8 +506,8 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         // - The inbox's current generation plus an increment if this is a loud
         //   notification since loud notifications should appear on top
         //
-        // If our entry moves to a higher generation (usually due to a loud
-        // notification) then it should stay at that generation.
+        // If our entry moves to a higher generation (usually due to a loud notification)
+        // then it should stay at that generation.
         newInboxEntryItemGeneration = Math.max(
             ...(oldInboxEntryItem ? [oldInboxEntryItem.generation] : []),
             inboxGeneration +
@@ -486,8 +522,8 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
             ? currentTime
             : getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2);
     }
-    // When we archive an item it goes back to our inbox generation. That way if
-    // it's unarchived it doesn't go back into the loud notification generation.
+    // When we archive an item it goes back to our inbox generation. That way if it's
+    // unarchived it doesn't go back into the loud notification generation.
     else if (newInboxEntryItemPartial2.isArchived && !oldInboxEntryItem.isArchived) {
         newInboxEntryItemGeneration = inboxGeneration;
         newInboxEntryItemEnteredTime = currentTime;

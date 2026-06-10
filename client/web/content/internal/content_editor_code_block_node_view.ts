@@ -18,14 +18,14 @@ import {assert} from "~/shared/helpers/control/assert.js";
 // For example, here we have added a toolbar with a language picker and copy
 // button.
 //
-// It is like a hook that allows us to render the code block in the content
-// editor in a way that we want.
+// It is like a hook that allows us to render the code block in the content editor
+// in a way that we want.
 //
 // This functional will be called every time the code block is rendered in the
 // content editor.
 //
-// IMPORTANT: Any change you make to this function also likely must be made to
-// the `codeBlock` node renderer in `renderContentInHtml()`.
+// IMPORTANT: Any change you make to this function also likely must be made to the
+// `codeBlock` node renderer in `renderContentInHtml()`.
 export function createContentEditorCodeBlockNodeViewConstructor({
     getReporter,
     getAccessLevel,
@@ -49,8 +49,8 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
         const language = contentCodeBlockLanguageById[languageId];
 
-        // This DOM structure is defined in content_schema.ts. See codeBlock's
-        // toDOM function.
+        // This DOM structure is defined in content_schema.ts. See codeBlock's toDOM
+        // function.
         const {dom: wrapperElement, contentDOM: contentElement} = DOMSerializer.renderSpec(
             document,
             node.type.spec.toDOM!(node),
@@ -65,8 +65,8 @@ export function createContentEditorCodeBlockNodeViewConstructor({
 
         const destroyCallbacks: Array<() => void> = [];
 
-        // here we're creating the toolbar that contains the language picker and copy button
-        // it's inserted right before the `contentDOM` element or `CODE` element
+        // here we're creating the toolbar that contains the language picker and copy
+        // button it's inserted right before the `contentDOM` element or `CODE` element
         const toolbarElement = document.createElement("div");
         element.insertBefore(toolbarElement, contentElement);
         toolbarElement.contentEditable = "false";
@@ -94,8 +94,8 @@ export function createContentEditorCodeBlockNodeViewConstructor({
 
             languagePickerTextElement.appendChild(document.createTextNode(language.name));
 
-            // We don't need to cleanup event listeners on DOM nodes created for this
-            // node view.
+            // We don't need to cleanup event listeners on DOM nodes created for this node
+            // view.
             addUnfocusableButtonBehaviorToElement(languagePickerElement, {
                 isDisabled: () => !hasAccessLevel(getAccessLevel(), "Edit"),
                 defaultClassName: sprinkles({
@@ -120,8 +120,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         }
 
         {
-            // copy button:
-            // we just add it to the toolbar and then we'll add unfocusable button
+            // copy button: we just add it to the toolbar and then we'll add unfocusable button
             // behavior to it.
             const copyButtonElement = document.createElement("div");
             toolbarFlexElement.appendChild(copyButtonElement);
@@ -132,8 +131,8 @@ export function createContentEditorCodeBlockNodeViewConstructor({
 
             let isCodeBlockCopyButtonHovered = false;
 
-            // We don't need to cleanup event listeners on DOM nodes created for this
-            // node view.
+            // We don't need to cleanup event listeners on DOM nodes created for this node
+            // view.
             addUnfocusableButtonBehaviorToElement(copyButtonElement, {
                 defaultClassName: sprinkles({
                     color: "grey-60",
@@ -199,10 +198,9 @@ export function createContentEditorCodeBlockNodeViewConstructor({
                 }
             },
             ignoreMutation: mutation => {
-                // Ignore any attribute mutation for elements in the toolbar. It's expected
-                // that we'll modify `class` when hovered/pressed and it's expected that
-                // `<Tooltip>` on `copyButtonElement` will change `aria-owns` and other
-                // properties.
+                // Ignore any attribute mutation for elements in the toolbar. It's expected that
+                // we'll modify `class` when hovered/pressed and it's expected that `<Tooltip>` on
+                // `copyButtonElement` will change `aria-owns` and other properties.
                 return mutation.type === "attributes" && toolbarElement.contains(mutation.target);
             },
         };

@@ -43,8 +43,8 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
         contentLength: testFileContent.length,
     });
 
-    // If we're not using `TestEmptyCloudflareR2Client` then actually upload a file
-    // to Cloudflare R2 matching the file in DynamoDB.
+    // If we're not using `TestEmptyCloudflareR2Client` then actually upload a file to
+    // Cloudflare R2 matching the file in DynamoDB.
     if (!context.r2.isEmptyForTest()) {
         await context.r2.PutObject({
             Bucket: filesBucketName,
@@ -60,7 +60,7 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
         withoutProcessJobForTest: true,
     });
 
-    const fileUploader = await getFileUploaderAsUploader(context, spaceId, fileId);
+    const fileUploader = await getFileUploaderAsUploader(context, fileId);
 
     await fileUploader.finishProcessingImagePreviewSize(context, {
         width: 1000,
@@ -104,8 +104,15 @@ export class TestFile {
         return new TestFile(session.context, session.space, fileId, null);
     }
 
+    public static async get(space: TestSpace, fileId: FileId): Promise<TestFile> {
+        // Confirm the file exists. The system actor can see any file.
+        await getFileAsUploader(space.systemAction(), fileId);
+
+        return new TestFile(space.context, space, fileId, null);
+    }
+
     public get(): Promise<FileModel> {
-        return getFileAsUploader(this.space.systemAction(), this.space.id, this.id);
+        return getFileAsUploader(this.space.systemAction(), this.id);
     }
 
     public async from(session: TestSession, fileAuthorizer: FileAuthorizer): Promise<TestFile> {
@@ -113,16 +120,16 @@ export class TestFile {
         // `FileAuthorizer`, and that the session has access to the `FileAuthorizer`'s
         // target. If these conditions are true we can create a `TestFile` from the
         // `FileAuthorizer` target.
-        await getFileFromAttachment(session.action(), this.space.id, this.id, fileAuthorizer);
+        await getFileFromAttachment(session.action(), this.id, fileAuthorizer);
 
         return new TestFile(this.context, this.space, this.id, fileAuthorizer);
     }
 
     public async attach(session: TestSession, fileAuthorizer: FileAuthorizer) {
         if (this._fromAuthorizer === null) {
-            await attachFileAsUploader(session.action(), this.space.id, this.id, fileAuthorizer);
+            await attachFileAsUploader(session.action(), this.id, fileAuthorizer);
         } else {
-            await attachFileFromAttachment(session.action(), this.space.id, this.id, {
+            await attachFileFromAttachment(session.action(), this.id, {
                 from: this._fromAuthorizer,
                 to: fileAuthorizer,
             });

@@ -111,23 +111,21 @@ export type WebSocketClientProcedures<
 };
 
 /**
- * A helper for communicating over WebSockets. See `WebSocketServer` for the
- * server side of this helper.
+ * A helper for communicating over WebSockets. See `WebSocketServer` for the server
+ * side of this helper.
  *
  * Features:
  *
- * - Automatically attempts to reconnect the WebSocket when it closes
- *   unexpectedly.
+ * - Automatically attempts to reconnect the WebSocket when it closes unexpectedly.
  * - Automatically disconnects the WebSocket when the user hides the page.
  * - Type safe messages using our schema framework.
- * - Automatic heart beating so the server knows our WebSocket is still alive
- *   and we know our server is still alive.
- * - Resolves URL by replacing the `http://` protocol with `ws://` or
- *   automatically adding the domain name if you use an absolute path like
- *   `/hello/world`.
+ * - Automatic heart beating so the server knows our WebSocket is still alive and
+ *   we know our server is still alive.
+ * - Resolves URL by replacing the `http://` protocol with `ws://` or automatically
+ *   adding the domain name if you use an absolute path like `/hello/world`.
  *
- * Manages underlying `WebSocketClientConnection` classes. This class may have
- * many underlying connections over the course of its life.
+ * Manages underlying `WebSocketClientConnection` classes. This class may have many
+ * underlying connections over the course of its life.
  */
 export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
     private readonly _getContext: () => AppContext;
@@ -217,12 +215,11 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
     /**
      * Connect to the WebSocket.
      *
-     * If we fail to connect to the WebSocket or the WebSocket closes
-     * unexpectedly then we will try to reconnect. You can observe this by
-     * subscribing to state.
+     * If we fail to connect to the WebSocket or the WebSocket closes unexpectedly then
+     * we will try to reconnect. You can observe this by subscribing to state.
      *
-     * Will throw an error if the WebSocket is not disconnected. Which you can
-     * check with `isDisconnected` in state.
+     * Will throw an error if the WebSocket is not disconnected. Which you can check
+     * with `isDisconnected` in state.
      */
     public connect(): void {
         let pendingProcedures: Array<{
@@ -265,8 +262,8 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
 
                     // Once the WebSocket connection has been open for some duration we consider it
                     // healthy and reset reconnection attempts. If the WebSocket continually closes
-                    // before we consider it healthy then we treat that as an error. Otherwise we
-                    // get into infinite loops of opening and closing WebSockets.
+                    // before we consider it healthy then we treat that as an error. Otherwise we get
+                    // into infinite loops of opening and closing WebSockets.
                     openHealthyTimeout = createTimeout(() => {
                         reconnectAttempts = 0;
                     }, openHealthyDurationMs);
@@ -287,16 +284,16 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                     }
                 },
                 () => {
-                    // Ignore errors when waiting for the client to open. Any relevant errors will
-                    // be reported by `client.waitForSoftClose()` with a better description.
+                    // Ignore errors when waiting for the client to open. Any relevant errors will be
+                    // reported by `client.waitForSoftClose()` with a better description.
                 },
             );
 
             let wasSoftClosed = false;
 
-            // We wait for soft close instead of full close since if the server soft closes
-            // our connection (say during a graceful server shutdown) we want to
-            // immediately reconnect to a live server.
+            // We wait for soft close instead of full close since if the server soft closes our
+            // connection (say during a graceful server shutdown) we want to immediately
+            // reconnect to a live server.
             connection.waitForSoftClose().then(
                 () => {
                     wasSoftClosed = true;
@@ -306,8 +303,8 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                     openHealthyTimeout?.clear();
                     openHealthyTimeout = null;
 
-                    // We should only call `close()` after setting `isCancelled` in our
-                    // `disconnect` function.
+                    // We should only call `close()` after setting `isCancelled` in our `disconnect`
+                    // function.
                     reconnect(
                         new InternalError(
                             "Unexpected call to WebSocket connection `close()` method",
@@ -327,8 +324,8 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             // Ignore any errors from our close promise. If we close with an error than
             // `waitForSoftClose()` will see that error and attempt to reconnect.
             //
-            // If we soft closed but then close later receives an error, that's unexpected
-            // and we should log it.
+            // If we soft closed but then close later receives an error, that's unexpected and
+            // we should log it.
             connection.waitForClose().catch(error => {
                 if (wasSoftClosed) {
                     this._getContext()
@@ -423,8 +420,8 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             }
         };
 
-        // Actually connect (by calling `connect()`) after defining all the
-        // functions we need.
+        // Actually connect (by calling `connect()`) after defining all the functions we
+        // need.
         {
             const previousState = this._state.getSnapshot();
             assert(previousState.type === "Disconnected", "WebSocket is already connected");
@@ -451,14 +448,14 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
      * Will throw an error if the WebSocket is already disconnected. Which you can
      * check with `isDisconnected` in state.
      *
-     * Returns a promise that resolves when the underlying WebSocket actually
-     * closes. If we have some previously executed procedures we are waiting on
-     * acknowledgments for then the underlying WebSocket won't actually close until
-     * we get those acknowledgements.
+     * Returns a promise that resolves when the underlying WebSocket actually closes.
+     * If we have some previously executed procedures we are waiting on acknowledgments
+     * for then the underlying WebSocket won't actually close until we get those
+     * acknowledgements.
      *
-     * This WebSocket client will synchronously accept no new messages after
-     * calling this function. Calling `connect()` will create a new connection even
-     * if the original underlying connection hasn't fully closed yet.
+     * This WebSocket client will synchronously accept no new messages after calling
+     * this function. Calling `connect()` will create a new connection even if the
+     * original underlying connection hasn't fully closed yet.
      */
     public disconnect(): Promise<void> {
         const state = this._state.getSnapshot();
@@ -491,8 +488,8 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
     /**
      * Execute a procedure through the socket.
      *
-     * If the WebSocket is not connected then we will queue the message to send
-     * when it eventually connects.
+     * If the WebSocket is not connected then we will queue the message to send when it
+     * eventually connects.
      */
     private _executeProcedure<
         Name extends keyof WebSocketProtocolProceduresType<Protocol> & string,

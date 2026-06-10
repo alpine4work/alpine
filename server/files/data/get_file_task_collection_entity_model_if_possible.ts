@@ -14,6 +14,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {FileTaskCollectionEntityModel} from "~/shared/tasks/file_task_collection_entity_model.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
@@ -44,9 +45,9 @@ export async function getFileTaskCollectionEntityModelIfPossible(
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
 ): Promise<Result<FileTaskCollectionEntityModel, ErrorBase>> {
-    // Since `context.tasks.loadQuery()` isn't always implemented in all unit tests
-    // we allow you to set a flag in Jest unit tests to return a mock collection
-    // entity model.
+    // Since `context.tasks.loadQuery()` isn't always implemented in all unit tests we
+    // allow you to set a flag in Jest unit tests to return a mock collection entity
+    // model.
     if (import.meta.jest && withMockFileCollectionEntityModelForTest) {
         return {
             ok: true,
@@ -57,17 +58,23 @@ export async function getFileTaskCollectionEntityModelIfPossible(
                     id: collectionId,
                     spaceId,
                     createdTime: zeroHybridLogicalTime,
-                    creatorId: null,
+                    creator: null,
                     deletedTime: null,
                     undeletedTime: null,
                     name: new LabelStringRegister("Mock collection", zeroHybridLogicalTime),
                     color: new TaskCollectionColorRegister(null, zeroHybridLogicalTime),
                     accessPolicy: new AccessPolicyRegister(
-                        {accountGrantById: emptyMap, defaultGrant: null, urlGrant: null},
+                        {
+                            type: "Local",
+                            accountGrantById: emptyMap,
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
                         zeroHybridLogicalTime,
                     ),
                 }),
                 previewTasks: emptyArray,
+                site: null,
             },
         };
     }
@@ -109,8 +116,8 @@ export async function getFileTaskCollectionEntityModelIfPossible(
                 // Normally, we prefer that functions explicitly return authorization errors
                 // instead of us using a try/catch which might pick up an unrelated permission
                 // error. However, in this case the `loadQueries()` function in
-                // `TaskRealtimeService` is complex enough that we're not going to bother
-                // updating its code to return explicit authorization errors for now.
+                // `TaskRealtimeService` is complex enough that we're not going to bother updating
+                // its code to return explicit authorization errors for now.
                 if (
                     (error instanceof PermissionDeniedError || error instanceof NotFoundError) &&
                     error.displayMessage
@@ -157,8 +164,8 @@ export async function getFileTaskCollectionEntityModelIfPossible(
         }),
     );
 
-    // If we don't have access to the collection then `loadQueries()` should throw
-    // a `PermissionDeniedError`.
+    // If we don't have access to the collection then `loadQueries()` should throw a
+    // `PermissionDeniedError`.
     assert(backfillCollection.type !== "Unauthorized");
 
     let maxTime = zeroHybridLogicalTime;
@@ -171,8 +178,8 @@ export async function getFileTaskCollectionEntityModelIfPossible(
         },
     };
 
-    // TODO(calebmer): We keep rendering deleted task collections! We should show
-    // an error message instead.
+    // TODO(calebmer): We keep rendering deleted task collections! We should show an
+    // error message instead.
     const collection = backfillCollection.collection;
     collection.tick(clock);
 
@@ -181,18 +188,33 @@ export async function getFileTaskCollectionEntityModelIfPossible(
         return task;
     });
 
+    // Derive the collection's own site (if any) from its access policy. As with the
+    // task loader, `loadQueries` returns the matching `SitePreviewModel` in
+    // `referencedSites`, so reuse it instead of refetching when available.
+    const collectionAccessPolicy = collection.getAccessPolicy();
+    let site: SitePreviewModel | null = null;
+    if (collectionAccessPolicy?.type === "Site") {
+        const referencedSite = result.value.updateEvent.referencedSites.find(
+            referencedSiteResult =>
+                referencedSiteResult.ok &&
+                referencedSiteResult.value.id === collectionAccessPolicy.siteId,
+        );
+        assert(referencedSite?.ok);
+        site = assertExists(referencedSite.value);
+    }
+
     return {
         ok: true,
         value: {
             type: "TaskCollection",
-            // We use the max `HybridLogicalTime` across all the CRDTs we're
-            // returning as the version. While this isn't perfect (when merging two file
-            // entities one may have a newer collection name and the other may have a newer
-            // collection color) we consider it good enough. Most of the time we'll be
-            // reading the latest data.
+            // We use the max `HybridLogicalTime` across all the CRDTs we're returning as the
+            // version. While this isn't perfect (when merging two file entities one may have a
+            // newer collection name and the other may have a newer collection color) we
+            // consider it good enough. Most of the time we'll be reading the latest data.
             versions: maxTime,
             collection,
             previewTasks: tasks,
+            site,
         },
     };
 }

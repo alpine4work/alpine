@@ -2,9 +2,9 @@ import type {DatabaseDurableObjectStorage} from "~/server/databases/database_dur
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
- * Truncate a single table to `size` bytes through
- * {@link DatabaseDurableObjectStorage.writePages} with no
- * page writes. Returns the batch's write version.
+ * Truncate a single table to `size` bytes through {@link
+ * DatabaseDurableObjectStorage.writePages} with no page writes. Returns the
+ * batch's write version.
  */
 export function truncateFor(
     doStorage: DatabaseDurableObjectStorage,

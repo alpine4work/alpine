@@ -4,18 +4,11 @@ import {agentMessageFirstPageTokenLimit} from "~/server/agents/internal/agent_li
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {listAgentLinksForTest} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {printApiContentToAgentMarkdown} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {
-    DocumentCommentThreadId,
-    DocumentId,
-    PostId,
-    SpaceId,
-    TaskId,
-} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, PostId, TaskId} from "~/shared/id/types/id_types.js";
 
-const spaceId = generateId<SpaceId>();
 const documentId = generateId<DocumentId>();
 const otherDocumentId = generateId<DocumentId>();
 const postId = generateId<PostId>();
@@ -32,7 +25,7 @@ async function testPrintAgentContentToMarkdown(
     expectedMarkdown: string,
     expectedContentLinkReferences: ReadonlyMap<string, AgentLink> = emptyMap,
 ) {
-    const actualMarkdown = await printApiContentToAgentMarkdown(storage, content, {spaceId});
+    const actualMarkdown = await printApiContentToAgentMarkdown(storage, content);
 
     expect(actualMarkdown).toEqual(expectedMarkdown);
 
@@ -364,7 +357,7 @@ test("link with mention-like URL becomes HTML anchor tag with replaced href", as
                             marks: [
                                 {
                                     type: "Link",
-                                    url: `https://alpine.inc/s/${spaceId}/documents/${documentId}?mention`,
+                                    url: `https://alpine.inc/doc/${documentId}?mention`,
                                 },
                             ],
                         },
@@ -400,7 +393,7 @@ test("code block with links gets href attributes replaced", async () => {
                                     marks: [
                                         {
                                             type: "Link",
-                                            url: `https://alpine.inc/s/${spaceId}/d/123?mention=true`,
+                                            url: `https://alpine.inc/d/123?mention=true`,
                                         },
                                     ],
                                 },
@@ -522,55 +515,47 @@ test("identical mentions with same label and target path reuse the same referenc
 
 test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", async () => {
     const actualMarkdown1 = await storage.transaction(transaction =>
-        printApiContentToAgentMarkdown(
-            transaction,
-            {
-                elements: [
-                    {
-                        type: "Paragraph",
-                        elements: [
-                            {type: "Text", text: "See "},
-                            {
-                                type: "Mention",
-                                target: {
-                                    type: "Document",
-                                    id: documentId,
-                                },
-                                title: "My Document",
+        printApiContentToAgentMarkdown(transaction, {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "See "},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Document",
+                                id: documentId,
                             },
-                            {type: "Text", text: "."},
-                        ],
-                    },
-                ],
-            },
-            {spaceId},
-        ),
+                            title: "My Document",
+                        },
+                        {type: "Text", text: "."},
+                    ],
+                },
+            ],
+        }),
     );
 
     const actualMarkdown2 = await storage.transaction(transaction =>
-        printApiContentToAgentMarkdown(
-            transaction,
-            {
-                elements: [
-                    {
-                        type: "Paragraph",
-                        elements: [
-                            {type: "Text", text: "Also see "},
-                            {
-                                type: "Mention",
-                                target: {
-                                    type: "Document",
-                                    id: otherDocumentId,
-                                },
-                                title: "My Document",
+        printApiContentToAgentMarkdown(transaction, {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Also see "},
+                        {
+                            type: "Mention",
+                            target: {
+                                type: "Document",
+                                id: otherDocumentId,
                             },
-                            {type: "Text", text: "."},
-                        ],
-                    },
-                ],
-            },
-            {spaceId},
-        ),
+                            title: "My Document",
+                        },
+                        {type: "Text", text: "."},
+                    ],
+                },
+            ],
+        }),
     );
 
     expect(actualMarkdown1).toEqual(`See [My Document](/document/my-document).\n`);
@@ -602,9 +587,9 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
 });
 
 test("mentions with same link Ids increment dedupe numbers up to 5", async () => {
-    // NOTE(ifitzsimmons) The name of this test is a little confusing.
-    // **There is no hard limit of 5**. This test simply verifies that
-    // our dedupe logic works up until at least the number 5
+    // NOTE(ifitzsimmons) The name of this test is a little confusing. **There is no
+    // hard limit of 5**. This test simply verifies that our dedupe logic works up
+    // until at least the number 5
     const secondDocumentId = generateId<DocumentId>();
     const thirdDocumentId = generateId<DocumentId>();
     const fourthDocumentId = generateId<DocumentId>();
@@ -936,42 +921,41 @@ describe("comment mark conversion", () => {
     });
 
     test("merges adjacent comment tags and handles comment nesting", async () => {
-        // ordering of the thread Ids matters. We generate comment marks in the order of the thread Ids.
-        // So if thread 1 ID = "A" and thread 2 ID = "B", and thread 2 is nested inside thread 1, we
-        // get something like:
+        // ordering of the thread Ids matters. We generate comment marks in the order of
+        // the thread Ids. So if thread 1 ID = "A" and thread 2 ID = "B", and thread 2 is
+        // nested inside thread 1, we get something like:
+        //
         // ```html
+        // <mark data-comment="A"> hello </mark>
         // <mark data-comment="A">
-        //   hello
-        // </mark>
-        // <mark data-comment="A">
-        //   <mark data-comment="B">
-        //     world
-        //   </mark>
+        //     <mark data-comment="B"> world </mark>
         // </mark>
         // ```
-        // Merging adjacent comment tags only works if the next opening comment tag is the same as the
-        // previous closing comment tag. So the above example gives us the desired out, but if
-        // thread 1 Id was greater than thread 2 Id (e.g. thread 1 ID = "B" and thread 2 ID = "A"), we would get:
+        //
+        // Merging adjacent comment tags only works if the next opening comment tag is the
+        // same as the previous closing comment tag. So the above example gives us the
+        // desired out, but if thread 1 Id was greater than thread 2 Id (e.g. thread 1 ID =
+        // "B" and thread 2 ID = "A"), we would get:
+        //
         // ```html
-        // <mark data-comment="B">
-        //   hello
-        // </mark>
+        // <mark data-comment="B"> hello </mark>
         // <mark data-comment="A">
-        //   <mark data-comment="B">
-        //     world
-        //   </mark>
+        //     <mark data-comment="B"> world </mark>
         // </mark>
         // ```
-        // This would not be merged correctly because thread 1 is nested inside of thread 2.
+        //
+        // This would not be merged correctly because thread 1 is nested inside of
+        // thread 2.
 
         const thread1 = threadId1 < threadId2 ? threadId1 : threadId2;
         const thread2 = threadId1 < threadId2 ? threadId2 : threadId1;
         // Example
+        //
         // ```
         // <comment1 start>Next, something outrageous happened. The Eagles sought to defend their title
         // (and honor) in the 2025-2026 season. <comment2 start>They promoted a water boy to captain to
         // the head of their army.</comment2 end></comment1>
-        //```
+        // ```
         await testPrintAgentContentToMarkdown(
             {
                 elements: [

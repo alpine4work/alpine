@@ -1,19 +1,19 @@
 // This file is a fork of `useSearchState()`. We decided to fork the
 // `useSearchState()` file instead of creating a shared abstraction under the
-// guidance of our style guide which says: "No abstraction is better than the
-// wrong abstraction".
+// guidance of our style guide which says: "No abstraction is better than the wrong
+// abstraction".
 //
-// IMPORTANT: If you make an update to this file, you also may want to make
-// that update in `useSearchState()`.
+// IMPORTANT: If you make an update to this file, you also may want to make that
+// update in `useSearchState()`.
 //
 // It's hard to find the reusable abstraction between `useSearchState()` and
 // `useSearchMentionState()`. While they look broadly similar they have subtly
 // different behaviors which are hard to express. For example,
 // `useSearchState()`: 1) searches `SearchStaticEntityId`s and 2) calls
 // `searchBySemantics()` and asynchronously merges those results in. Whereas
-// `useSearchMentionState()` calls `searchByAffinity()` like `useSearchState()`
-// but unlike `useSearchState()` it filters out non-mentionable entities and
-// merges favorites back into the result list.
+// `useSearchMentionState()` calls `searchByAffinity()` like `useSearchState()` but
+// unlike `useSearchState()` it filters out non-mentionable entities and merges
+// favorites back into the result list.
 
 import {Memo, useCallback, useEffect, useMemo, useReducer} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
@@ -110,8 +110,8 @@ function reduceSearchMentionState(
             let newExecutionStack: SearchMentionStateExecutionStack;
             let newWordTypingTimeoutTime: number | null;
 
-            // If the user deletes their query, we can immediately push a new execution
-            // which should resolve synchronously.
+            // If the user deletes their query, we can immediately push a new execution which
+            // should resolve synchronously.
             if (newTrimmedQueryText.length === 0) {
                 newExecutionStack = state.executionStack.push(
                     createSearchMentionStateExecution({
@@ -121,19 +121,19 @@ function reduceSearchMentionState(
                 );
                 newWordTypingTimeoutTime = null;
             }
-            // If the user has started typing a new word at the end of the query then send
-            // a search with the OLD text not including the start of their new word. We'll
-            // send a query with their new word once they're done typing.
+            // If the user has started typing a new word at the end of the query then send a
+            // search with the OLD text not including the start of their new word. We'll send a
+            // query with their new word once they're done typing.
             //
-            // This way we send intermediate searches to our server with completed words.
-            // It makes the product feel responsive to see results as you type. But since
-            // our search backend doesn't support prefix searches we can only search on
-            // complete words.
+            // This way we send intermediate searches to our server with completed words. It
+            // makes the product feel responsive to see results as you type. But since our
+            // search backend doesn't support prefix searches we can only search on complete
+            // words.
             else if (
                 isTypingNewLastWord &&
-                // If we already have the data we'd search with an intermediate search request
-                // then don't send a new request. This happens if you've typed a word, stopped,
-                // the search has loaded, then type a new word.
+                // If we already have the data we'd search with an intermediate search request then
+                // don't send a new request. This happens if you've typed a word, stopped, the
+                // search has loaded, then type a new word.
                 oldTrimmedQueryText !== state.executionStack.latestExecution.queryText
             ) {
                 newExecutionStack = state.executionStack.push(
@@ -144,8 +144,8 @@ function reduceSearchMentionState(
                 );
                 newWordTypingTimeoutTime = action.time.getTime() + action.wordTypingDebounceMs;
             }
-            // For other edits, wait for a debounce timeout so we know the user is done
-            // typing before sending a request to the server.
+            // For other edits, wait for a debounce timeout so we know the user is done typing
+            // before sending a request to the server.
             else {
                 newExecutionStack = state.executionStack;
                 newWordTypingTimeoutTime = action.time.getTime() + action.wordTypingDebounceMs;
@@ -245,8 +245,8 @@ export function useSearchMentionState({
     const queryOutput = useStore(state.executionStack);
 
     const output = useMemo((): SearchMentionStateExecutionOutput => {
-        // If we have an empty query returning no results from our search execution
-        // stack then show search entities the account has some affinity for.
+        // If we have an empty query returning no results from our search execution stack
+        // then show search entities the account has some affinity for.
         if (
             queryOutput.queryText.length === 0 &&
             !queryOutput.isError &&
@@ -318,9 +318,9 @@ export function useSearchMentionState({
                 readonly model: SearchEntityModel;
             }> | null = null;
 
-            // If some search results match affinitive search entities we loaded then we
-            // want to boost the search entities the user has an affinity for since it's
-            // more likely the user cares about those entities.
+            // If some search results match affinitive search entities we loaded then we want
+            // to boost the search entities the user has an affinity for since it's more likely
+            // the user cares about those entities.
             for (let i = 0; i < queryOutput.results.length; i++) {
                 const result = queryOutput.results[i]!;
 
@@ -330,8 +330,7 @@ export function useSearchMentionState({
                     continue;
                 }
 
-                // Initialize the `newResults` array since we'll need to reorder search
-                // results.
+                // Initialize the `newResults` array since we'll need to reorder search results.
                 newResults ??= queryOutput.results.slice(0, i);
 
                 const additionalScore = slope * affinityResult.score + intercept;
@@ -375,13 +374,13 @@ export function useSearchMentionState({
 }
 
 /**
- * An execution is the store result from an `executeSearch()` but we only
- * actually send network requests once the `execute()` function is called.
- * That way you can store an execution in state but perform the network request
- * side effects in a `useEffect()`.
+ * An execution is the store result from an `executeSearch()` but we only actually
+ * send network requests once the `execute()` function is called. That way you can
+ * store an execution in state but perform the network request side effects in a
+ * `useEffect()`.
  *
- * The `execute()` function is idempotent. You can call it multiple times and
- * it only sends network requests once.
+ * The `execute()` function is idempotent. You can call it multiple times and it
+ * only sends network requests once.
  */
 type SearchMentionStateExecution = Store<SearchMentionStateExecutionOutput> & {
     readonly queryText: string;
@@ -515,18 +514,17 @@ function createSearchMentionStateExecution({
 }
 
 /**
- * The execution stack is a history of search executions in the current
- * search session. We maintain a history so that as a user types a new search
- * query we can show them results from a previous query before switching to
- * new results.
+ * The execution stack is a history of search executions in the current search
+ * session. We maintain a history so that as a user types a new search query we can
+ * show them results from a previous query before switching to new results.
  *
- * Examples: if a user searches "documents by caleb" and we search "documents"
- * then "documents by" then "documents by caleb" we want to show the results
- * from "documents" then "documents by" in that order while we wait for the
- * final results for "documents by caleb".
+ * Examples: if a user searches "documents by caleb" and we search "documents" then
+ * "documents by" then "documents by caleb" we want to show the results from
+ * "documents" then "documents by" in that order while we wait for the final
+ * results for "documents by caleb".
  *
- * The store returns the result of the latest execution in the stack with
- * search results. The `push()` function immutably creates a new stack.
+ * The store returns the result of the latest execution in the stack with search
+ * results. The `push()` function immutably creates a new stack.
  */
 type SearchMentionStateExecutionStack = Store<SearchMentionStateExecutionOutput> & {
     readonly latestExecution: SearchMentionStateExecution;
@@ -561,8 +559,8 @@ function createSearchMentionStateExecutionStack(
                 if (isLastExecution) {
                     return result;
                 } else {
-                    // If this is not our last execution, then we're loading a newer execution. So
-                    // make sure to return a pending result.
+                    // If this is not our last execution, then we're loading a newer execution. So make
+                    // sure to return a pending result.
                     return !result.isPending ? {...result, isPending: true} : result;
                 }
             }

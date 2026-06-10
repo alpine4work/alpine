@@ -1,9 +1,8 @@
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 
 /**
- * Randomize the order of items in an array using `StableRandom`.
- * Performs a [Fisher-Yates Shuffle][1]. A great visualization of the algorithm
- * is [here][2].
+ * Randomize the order of items in an array using `StableRandom`. Performs a
+ * [Fisher-Yates Shuffle][1]. A great visualization of the algorithm is [here][2].
  *
  * [1]: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
  * [2]: https://bost.ocks.org/mike/shuffle/

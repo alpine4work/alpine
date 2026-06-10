@@ -41,10 +41,9 @@ type ConnectOptions = {
 };
 
 /**
- * Creates a database-group connection synchronously. The
- * returned `connection` queues all calls until
- * `connect()` is called, making it safe for SSR where
- * the actual worker connection only happens client-side.
+ * Creates a database-group connection synchronously. The returned `connection`
+ * queues all calls until `connect()` is called, making it safe for SSR where the
+ * actual worker connection only happens client-side.
  */
 export function createDatabaseGroupConnection(): {
     connection: DatabaseWorkerConnection;
@@ -100,8 +99,8 @@ export function createDatabaseGroupConnection(): {
     };
 
     async function connect(options: ConnectOptions): Promise<void> {
-        // Reset so the connection can be re-used after a close/reconnect
-        // cycle (e.g. React strict-mode effect cleanup then re-run).
+        // Reset so the connection can be re-used after a close/reconnect cycle (e.g. React
+        // strict-mode effect cleanup then re-run).
         closed = false;
         real = null;
 
@@ -118,11 +117,10 @@ export function createDatabaseGroupConnection(): {
 }
 
 /**
- * Connect to the shared client-side SQLite database group.
- * Handles multi-tab coordination transparently: one
- * tab becomes the leader (runs SQLite in a dedicated
- * worker), others proxy queries via MessagePort through
- * the ServiceWorker.
+ * Connect to the shared client-side SQLite database group. Handles multi-tab
+ * coordination transparently: one tab becomes the leader (runs SQLite in a
+ * dedicated worker), others proxy queries via MessagePort through the
+ * ServiceWorker.
  */
 async function connectToDatabaseGroup(options: ConnectOptions): Promise<DatabaseWorkerConnection> {
     const manager = new DatabaseActiveTabManager({

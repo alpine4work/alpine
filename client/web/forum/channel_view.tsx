@@ -1,11 +1,12 @@
-import {Link as LinkIcon, Lock} from "phosphor-react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {Link as LinkIcon} from "phosphor-react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
-import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/web/dynamo/use_dynamo_general_realtime_index_query.js";
-import {useDynamoGeneralRealtimeQuery} from "~/client/web/dynamo/use_dynamo_general_realtime_query.js";
+import {useRynamoIndexQueryBase} from "~/client/web/dynamo/use_rynamo_index_query.js";
+import {useRynamoQuery} from "~/client/web/dynamo/use_rynamo_query.js";
 import {ChannelMobileEditor} from "~/client/web/forum/channel_mobile_editor.js";
 import {channelAccessLevelText} from "~/client/web/forum/internal/channel_access_level_text.js";
 import {ChannelViewAside} from "~/client/web/forum/internal/channel_view_aside.js";
@@ -15,12 +16,14 @@ import {optimisticCreatePostEventEmitter} from "~/client/web/forum/internal/opti
 import {
     PostListHeader,
     PostQueryList,
-    PostQueryListDynamoGeneralRealtimeIndexQuery,
+    PostQueryListRynamoIndexQuery,
 } from "~/client/web/forum/post_list.js";
 import {PostListView} from "~/client/web/forum/post_list_view.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
+import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -29,6 +32,9 @@ import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewAsidePostFileMaxCount,
@@ -43,10 +49,8 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
+import {RynamoIndexQueryResult, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
@@ -54,6 +58,7 @@ import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {
     addAccountGrantsToChannelAccessPolicy,
@@ -74,8 +79,8 @@ export function ChannelView({
     initialIsSubscribed,
     initialIsFavorite,
 }: {
-    initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
-    initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
+    initialChannelResult: RynamoQueryResult<ChannelOrMetadataModel>;
+    initialPostsResult: RynamoIndexQueryResult<PostModel>;
     initialIsSubscribed: boolean;
     initialIsFavorite: boolean;
 }) {
@@ -85,23 +90,28 @@ export function ChannelView({
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
     const searchEntityRegistry = useSearchEntityRegistry();
+    const siteRegistry = useSiteRegistry();
+    const siteContext = useSiteContextIfExists();
 
     assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
 
     const channelId = initialChannelResult.items[0].model.id;
 
+    const shouldConnectToChannelRealtime = currentAccount !== null;
+
     const {isConnected, subscribeToEvents, subscribeToPongs, toggleShouldConnect} = useWebSocket(
         "ChannelRealtimeService",
         ChannelRealtimeProtocol,
-        `/api/durable-objects/channels/${channelId}`,
+        shouldConnectToChannelRealtime ? `/api/durable-objects/channels/${channelId}` : null,
     );
 
-    const {query: channelAndMetadataQuery, handleEvent: handleEventForChannel} =
-        useDynamoGeneralRealtimeQuery(initialChannelResult, {
+    const {query: channelAndMetadataQuery, handleEvent: handleEventForChannel} = useRynamoQuery(
+        initialChannelResult,
+        {
             isConnected,
             subscribeToPongs,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber => subscribeToEvents(event => subscriber(event.events)),
                 [subscribeToEvents],
             ),
             backfillQuery: useCallback(
@@ -121,15 +131,23 @@ export function ChannelView({
                 });
                 return channelResult;
             }, [channelId, context]),
-        });
+        },
+    );
 
     const channelItem = channelAndMetadataQuery.getFirstItemIfExists();
     assert(channelItem?.model instanceof ChannelModel);
     const channel = channelItem.model;
 
+    const accessPolicy = useStore(
+        useMemo(
+            () => createAccessPolicyStore(channel.accessPolicy, siteRegistry),
+            [channel.accessPolicy, siteRegistry],
+        ),
+    );
+
     const accessLevel = useMemo(
-        () => getAccountAccessLevelAssumingSpaceAccess(channel.accessPolicy, currentAccount?.id),
-        [channel.accessPolicy, currentAccount?.id],
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
     );
 
     if (accessLevel === null) {
@@ -138,27 +156,29 @@ export function ChannelView({
         });
     }
 
-    // Update `SearchEntityRegistry` with the latest channel name. Now as the
-    // name changes in realtime, any `SearchEntityModel`s rendered elsewhere in
-    // the product will also update.
+    // Update `SearchEntityRegistry` with the latest channel name. Now as the name
+    // changes in realtime, any `SearchEntityModel`s rendered elsewhere in the product
+    // will also update.
     useMemo(() => {
         return searchEntityRegistry.getEntityStore(
             new SearchEntityModel({
-                id: `Channel:${channelId}`,
+                type: "Channel",
+                channel: {
+                    id: channel.id,
+                    version: channel.version,
+                },
                 title: channel.name,
-                titleVersion: {type: "Integer", version: channelItem.version},
-                media: null,
             }),
         );
-    }, [channel.name, channelId, channelItem.version, searchEntityRegistry]);
+    }, [channel.name, channel.id, channel.version, searchEntityRegistry]);
 
     const [posts, setPosts, setPostsOptimistically] = useStateWithOptimisticUpdates(() =>
         PostQueryList.new(initialPostsResult),
     );
 
-    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
-    // post in a new route. `<PostListView>` will throw if you pass in `posts` with
-    // expanded comments on mobile. So make sure to close them all.
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the post
+    // in a new route. `<PostListView>` will throw if you pass in `posts` with expanded
+    // comments on mobile. So make sure to close them all.
     if (platform === "mobile" && posts.hasOpenPostComments()) {
         setPosts(posts => posts.closeAllPostComments());
     }
@@ -168,15 +188,12 @@ export function ChannelView({
         toggleShouldConnect,
     }));
 
-    useDynamoGeneralRealtimeIndexQueryBase(
+    useRynamoIndexQueryBase(
         {
             query: posts.query,
             onUpdateQuery: useCallback(
-                (
-                    update: (
-                        query: PostQueryListDynamoGeneralRealtimeIndexQuery,
-                    ) => PostQueryListDynamoGeneralRealtimeIndexQuery,
-                ) => setPosts(posts => posts.updateQuery(update)),
+                (update: (query: PostQueryListRynamoIndexQuery) => PostQueryListRynamoIndexQuery) =>
+                    setPosts(posts => posts.updateQuery(update)),
                 [setPosts],
             ),
         },
@@ -184,7 +201,7 @@ export function ChannelView({
             isConnected,
             subscribeToPongs,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber => subscribeToEvents(event => subscriber(event.events)),
                 [subscribeToEvents],
             ),
             backfillQuery: useCallback(
@@ -214,16 +231,13 @@ export function ChannelView({
         },
     );
 
-    // When a post is created, we should get it from our channel WebSocket
-    // connection. But in case our WebSocket connection is slow, `<NewPostView>`
-    // emits an event after a post has been successfully created and we handle
-    // that event here.
+    // When a post is created, we should get it from our channel WebSocket connection.
+    // But in case our WebSocket connection is slow, `<NewPostView>` emits an event
+    // after a post has been successfully created and we handle that event here.
     useEffect(() => {
         return optimisticCreatePostEventEmitter.subscribe(event => {
             if (event.channelId !== channel.id) return;
-            setPosts(posts =>
-                posts.updateQuery(query => query.handleEventTransaction(event.eventTransaction)),
-            );
+            setPosts(posts => posts.updateQuery(query => query.handleEvents(event.events)));
         });
     }, [channel.id, setPosts]);
 
@@ -244,30 +258,26 @@ export function ChannelView({
     );
 
     const handleCopyLink = async () => {
-        const url = new URL(`/s/${channel.spaceId}/channels/${channel.id}`, window.location.href);
+        const url = new URL(`/channel/${channel.id}`, window.location.href);
         await writeTextToClipboard(url.toString());
     };
+
+    const lastPointerDownTimeRef = useRef<number | null>(null);
 
     const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
         title: (
-            <Box display="flex" alignItems="center" gap="1.5">
-                {platform !== "mobile" &&
-                    !channel.accessPolicy.defaultGrant &&
-                    !channel.accessPolicy.urlGrant && (
-                        // We add a lock icon to private channels because unlike other entities we don't
-                        // show the share switch in the navigation bar. Since knowing whether a channel
-                        // is public or private is important context, we include a lock to make sure you
-                        // know the channel is private before posting.
-                        //
-                        // We don't show the lock on mobile since none of our entities have logic to
-                        // show their share state on mobile without opening the more menu.
-                        <Lock
-                            className={sprinkles({flexShrink: "0"})}
-                            size={spacing["4"]}
-                            weight="fill"
-                        />
-                    )}
+            <Box display="flex" alignItems="center" gap={platform === "mobile" ? "1.5" : "2"}>
+                {!accessPolicy.defaultGrant && !accessPolicy.urlGrant && (
+                    // We add a lock icon to private channels because unlike other entities we don't
+                    // show the share switch in the navigation bar. Since knowing whether a channel is
+                    // public or private is important context, we include a lock to make sure you know
+                    // the channel is private before posting.
+                    <LockBoldFillIcon
+                        className={sprinkles({flexShrink: "0"})}
+                        size={spacing[platform === "mobile" ? "3" : "4"]}
+                    />
+                )}
                 {isEditingNameInline ? (
                     <ChannelViewNameEditor
                         initialName={channel.name}
@@ -280,20 +290,32 @@ export function ChannelView({
 
                             setIsEditingNameInline(false);
 
-                            // Immediately apply a realtime event transaction to update our channel in case
-                            // our realtime WebSocket connection is slow.
-                            handleEventForChannel(event.eventTransaction);
+                            // Immediately apply a realtime event transaction to update our channel in case our
+                            // realtime WebSocket connection is slow.
+                            handleEventForChannel(event.events);
                         }}
                     />
                 ) : (
                     <Box
-                        onDoubleClick={event => {
-                            if (!hasAccessLevel(accessLevel, "Manage")) return;
+                        onPointerDown={event => {
+                            const currentTime = Date.now();
+                            const lastPointerDownTime = lastPointerDownTimeRef.current;
+                            lastPointerDownTimeRef.current = currentTime;
 
-                            // Disable selection from double click.
-                            event.preventDefault();
+                            if (lastPointerDownTime === null) return;
 
-                            if (platform !== "mobile") {
+                            if (currentTime - lastPointerDownTime > doubleClickDelayMs) return;
+
+                            if (hasAccessLevel(accessLevel, "Manage") && platform !== "mobile") {
+                                // Disable selection from double click.
+                                //
+                                // We implement double click with `onPointerDown` instead of `onDoubleClick`
+                                // because `onDoubleClick` fires one pointer up but the browser performs text
+                                // selection on double click pointer down. So there's a small visual glitch where
+                                // you can see the browser selection after double click before pointer up when you
+                                // use `onDoubleClick`,
+                                event.preventDefault();
+
                                 setIsEditingNameInline(true);
                             }
                         }}
@@ -307,45 +329,57 @@ export function ChannelView({
             routeLayout !== "narrow"
                 ? addRemLengths(contentStyles.contentMaxWidth, postListViewAsideMaxWidth)
                 : contentStyles.contentMaxWidth,
-        // Create a bit of space to the left so we don't cut off the channel name
-        // editor border.
+        // Create a bit of space to the left so we don't cut off the channel name editor
+        // border.
         desktopTitleLeftSlop: "1",
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
-        desktopAdditionalActions: (
+        // Don't render the subscribe button if the account doesn't have space access.
+        desktopAdditionalActions: currentAccount ? (
             <ChannelViewSubscribeButton
                 channelId={channelId}
                 initialIsSubscribed={initialIsSubscribed}
             />
-        ),
-        // Always put the share UI in the more menu. You should add users to a channel
-        // by clicking the invite button in `<ChannelViewContributorsSection>`. Since
-        // in a public channel it doesn't make sense to invite people from the share
-        // overlay. Having both the share menu visible and the invite button in
-        // `<ChannelViewContributorsSection>` may make it unclear what to use for
-        // adding people to a channel.
+        ) : undefined,
+        // Always put the share UI in the more menu. You should add users to a channel by
+        // clicking the invite button in `<ChannelViewContributorsSection>`. Since in a
+        // public channel it doesn't make sense to invite people from the share overlay.
+        // Having both the share menu visible and the invite button in
+        // `<ChannelViewContributorsSection>` may make it unclear what to use for adding
+        // people to a channel.
         withWideRouteLayoutShareMenuItem: true,
-        shareButton: {
-            entityNoun: "channel",
-            entityId: `Channel:${channelId}`,
-            // Channels don't currently support URL grants. So hide the URL grant input.
-            withoutUrlGrantIfNull: true,
-            accessPolicy: channel.accessPolicy,
-            onAccessPolicyChange: async (notification, accessPolicy) => {
-                const event = await updateChannelAccessPolicy(context, {
-                    channelId,
-                    accessPolicy,
-                    notification,
-                });
+        // Don't render the share button if the account doesn't have space access. They
+        // won't be allowed to see the names of accounts in the share dialog.
+        shareButton: currentAccount
+            ? {
+                  entityNoun: "channel",
+                  entityId: `Channel:${channelId}`,
+                  accessPolicy,
+                  onAccessPolicyChange: async (notification, accessPolicy) => {
+                      if (accessPolicy.type === "Site") {
+                          await applySiteAccessPolicyChange({
+                              context,
+                              accessPolicy,
+                              handleEventForSite: assertExists(siteContext).handleEventForSite,
+                          });
+                          return;
+                      }
 
-                handleEventForChannel(event.eventTransaction);
-            },
-            onCopyLink: handleCopyLink,
-            accessLevelText: channelAccessLevelText,
-        },
-        // Move the menu further away from the subscribe button. It's quite large and
-        // the default offset renders our menu too close to the subscribe button in my
-        // design opinion.
+                      const event = await updateChannelAccessPolicy(context, {
+                          channelId,
+                          accessPolicy,
+                          notification,
+                      });
+
+                      handleEventForChannel(event.events);
+                  },
+                  onCopyLink: handleCopyLink,
+                  accessLevelText: channelAccessLevelText,
+              }
+            : undefined,
+        // Move the menu further away from the subscribe button. It's quite large and the
+        // default offset renders our menu too close to the subscribe button in my design
+        // opinion.
         menuOffset: platform !== "mobile" ? "2.5" : undefined,
         menuActions: [
             [
@@ -394,15 +428,13 @@ export function ChannelView({
                           {
                               label: "See all files",
                               pressErrorTitle: "Couldn\u2019t open files",
-                              onPress: () =>
-                                  navigate(
-                                      `/s/${space.id}/channels/${channelId}/files?from=channel`,
-                                  ),
+                              onPress: () => navigate(`/channel/${channelId}/files?from=channel`),
                           },
                       ],
                   ]
                 : emptyArray),
         ],
+        defaultPreviousRoute: `/home/${space.id}`,
     });
 
     const channelHeader = useMemo(
@@ -421,9 +453,9 @@ export function ChannelView({
 
                 setIsEditingDescriptionInline(false);
 
-                // Immediately apply a realtime event transaction to update our channel in case
-                // our realtime WebSocket connection is slow.
-                handleEventForChannel(event.eventTransaction);
+                // Immediately apply a realtime event transaction to update our channel in case our
+                // realtime WebSocket connection is slow.
+                handleEventForChannel(event.events);
             },
             onAddAccountGrantsToAccessPolicy: async ({accountGrantById, notification}) => {
                 const event = await addAccountGrantsToChannelAccessPolicy(context, {
@@ -432,7 +464,7 @@ export function ChannelView({
                     notification,
                 });
 
-                handleEventForChannel(event.eventTransaction);
+                handleEventForChannel(event.events);
             },
         }),
         [
@@ -454,9 +486,16 @@ export function ChannelView({
             flexDirection="column"
             overflow="hidden"
             height="full"
+            // TODO(#sites): `width="full"` here makes the People/About right-rail section
+            // placement correct when the channel is rendered inside site chrome, but throws
+            // off the channel content layout when the channel is standalone. Pick a single
+            // layout pattern that works in both — likely moving the width constraint up to
+            // whichever wrapper owns the chrome.
+            width={accessPolicy.type === "Site" ? "full" : undefined}
         >
             <PostListView
                 header={channelHeader}
+                footer={useMemo(() => ({type: "MarginBottom"}), [])}
                 posts={posts}
                 onTogglePostComments={useCallback(
                     postId => setPosts(posts => posts.togglePostComments(postId)),
@@ -484,26 +523,20 @@ export function ChannelView({
 
                     setPosts(posts => posts.updateQuery(query => query.loadMore(postsResult)));
                 }}
-                shouldBeConnectedToChannelRealtime={true}
-                onPostRealtimeEventTransaction={useCallback(
-                    eventTransaction => {
-                        setPosts(posts =>
-                            posts.updateQuery(query =>
-                                query.handleEventTransaction(eventTransaction),
-                            ),
-                        );
+                shouldBeConnectedToChannelRealtime={shouldConnectToChannelRealtime}
+                onPostRealtimeEvents={useCallback(
+                    events => {
+                        setPosts(posts => posts.updateQuery(query => query.handleEvents(events)));
                     },
                     [setPosts],
                 )}
-                onOptimisticPostRealtimeEventTransaction={useCallback(
+                onOptimisticPostRealtimeEvents={useCallback(
                     (promise, postId, update) => {
                         setPostsOptimistically(promise, (posts, promiseValue) => {
-                            // Once `promise` resolves, use the event transaction from `promise` to update
-                            // the posts instead of our optimistic updater.
+                            // Once `promise` resolves, use the event transaction from `promise` to update the
+                            // posts instead of our optimistic updater.
                             if (promiseValue) {
-                                return posts.updateQuery(query =>
-                                    query.handleEventTransaction(promiseValue),
-                                );
+                                return posts.updateQuery(query => query.handleEvents(promiseValue));
                             }
 
                             const oldPostItem = posts.getPostRealtimeItemIfExists(postId);
@@ -513,14 +546,14 @@ export function ChannelView({
                             const newPostItem = {
                                 ...oldPostItem,
                                 // Always pretend like our optimistic update is one version higher than what's
-                                // currently in state. Once `promise` resolves then we'll update the item with
-                                // the real version.
+                                // currently in state. Once `promise` resolves then we'll update the item with the
+                                // real version.
                                 version: oldPostItem.version + 1,
                                 model: newPost,
                             };
 
                             return posts.updateQuery(query =>
-                                query.handleEventTransaction([
+                                query.handleEvents([
                                     {type: "PutItem", item: newPostItem, indexes: new Map()},
                                 ]),
                             );
@@ -555,18 +588,15 @@ export function ChannelView({
                             initialName={channel.name}
                             initialDescription={channel.description}
                             onSave={async ({name, description}) => {
-                                const {eventTransaction} = await updateChannelNameAndDescription(
-                                    context,
-                                    {
-                                        channelId,
-                                        name,
-                                        description,
-                                    },
-                                );
+                                const {events} = await updateChannelNameAndDescription(context, {
+                                    channelId,
+                                    name,
+                                    description,
+                                });
 
-                                // Immediately apply a realtime event transaction to update our channel in case
-                                // our realtime WebSocket connection is slow.
-                                handleEventForChannel(eventTransaction);
+                                // Immediately apply a realtime event transaction to update our channel in case our
+                                // realtime WebSocket connection is slow.
+                                handleEventForChannel(events);
                             }}
                             onCloseWithAnimation={() => onCloseWithAnimation()}
                         />

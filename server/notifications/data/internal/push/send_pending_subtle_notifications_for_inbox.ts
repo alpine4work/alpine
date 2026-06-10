@@ -1,12 +1,12 @@
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModuleBase} from "~/server/context/web_push_context_module.js";
 import {getInboxEntryItemKey} from "~/server/notifications/data/internal/get_inbox_entry_item_key.js";
 import {InboxEntriesIndex, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {clearPendingSubtleNotificationsForInbox} from "~/server/notifications/data/internal/push/clear_pending_subtle_notifications_for_inbox.js";
+import {getAllPushNotificationTargetsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_all_push_notification_targets_without_authorization.js";
 import {PendingSubtleNotificationStub} from "~/server/notifications/data/internal/push/pending_subtle_notification_stub.js";
-import {sendWebPushNotificationToAllSubscriptions} from "~/server/notifications/data/internal/push/send_web_push_notification_to_all_subscriptions.js";
-import {getAccountWebPushSubscriptionsForSpace} from "~/server/notifications/data/push/get_web_push_subscriptions_for_space.js";
 import {getAccountSearchAffinityEntitiesInRange} from "~/server/search/data/table/get_search_entity_affinity_points.js";
 import {
     getAccountWithoutAvatar,
@@ -21,37 +21,36 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_process_async_iterable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {InboxEntryModel, getInboxEntryKeyPath} from "~/shared/notifications/inbox_model.js";
+import {printInboxEntryDisplayContentTitleAsText} from "~/shared/notifications/print_inbox_entry_display_content_title_as_text.js";
 import {AccountModelDataWithoutAvatar} from "~/shared/spaces/account_model.js";
 
 /**
- * Send a single quiet push notification with the combined content of all pending quiet notifications
- * that have been queued for a given inbox. Uses affinity scores of the accounts associated with
- * the original quiet notifications to determine the content of the notification.
+ * Send a single subtle push notification with the combined content of all pending
+ * subtle notifications that have been queued for a given inbox. Uses affinity
+ * scores of the accounts associated with the original subtle notifications to
+ * determine the content of the notification.
  */
 export async function sendPendingSubtleNotificationsForInbox(
-    context: Context<ServerSystemActionContextModules & {webPush: WebPushContextModuleBase}>,
+    context: Context<
+        ServerSystemActionContextModules & {
+            webPush: WebPushContextModuleBase;
+            slack: SlackContextModuleBase;
+        }
+    >,
     {
         accountId,
         spaceId,
         sendTime = new Date(),
     }: {accountId: AccountId; spaceId: SpaceId; sendTime?: Date},
 ) {
-    // If you're no longer a member of the space, you should not be notified about any events
-    // that have happened in that space.
+    // If you're no longer a member of the space, you should not be notified about any
+    // events that have happened in that space.
     if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
         await clearPendingSubtleNotificationsForInbox(context, {accountId, spaceId});
-        return;
-    }
-
-    const webPushSubscriptions = await getAccountWebPushSubscriptionsForSpace(
-        context,
-        accountId,
-        spaceId,
-    );
-    if (webPushSubscriptions.length === 0) {
         return;
     }
 
@@ -83,8 +82,8 @@ export async function sendPendingSubtleNotificationsForInbox(
         pendingSubtleNotifications,
     });
 
-    // If we don't have any content to send, clear out the pending quiet notifications and return
-    // without sending a notification.
+    // If we don't have any content to send, clear out the pending quiet notifications
+    // and return without sending a notification.
     if (!content) {
         await clearPendingSubtleNotificationsForInbox(context, {
             accountId: currentAccount.id,
@@ -93,32 +92,59 @@ export async function sendPendingSubtleNotificationsForInbox(
         return;
     }
 
-    await runAllPromises([
-        sendWebPushNotificationToAllSubscriptions(context, {
-            spaceId: spaceId,
-            accountId,
-            subscriptions: webPushSubscriptions,
-            notificationContent: {
-                title: content.title,
-                body: content.body,
-                // `silent` refers to whether this notification will make a noise on delivery.
-                // This is different from native 'silent' push notifications where the notification
-                // is used for updates and not displayed - `silent` web push notifications are always
-                // displayed.
-                silent: true,
-                data: {
-                    url: `${context.constants.edgeServiceUrl}/s/${spaceId}/inbox`,
-                },
-                // This ensures if we send this notification multiple times, the push service will
-                // replace the previous notification with the new one.
-                tag: `quiet-notification-${spaceId}-${accountId}-${sendTime.getTime()}`,
-            },
-            options: {
-                urgency: "normal",
-            },
-        }),
-        clearPendingSubtleNotificationsForInbox(context, {accountId, spaceId}),
-    ]);
+    const webPushNotificationContent = {
+        title: content.title,
+        body: content.body,
+        // `silent` refers to whether this notification will make a noise on delivery. This
+        // is different from native 'silent' push notifications where the notification is
+        // used for updates and not displayed - `silent` web push notifications are always
+        // displayed.
+        silent: true,
+        data: {
+            url: `${context.constants.edgeServiceUrl}/inbox/${spaceId}`,
+        },
+        // This ensures if we send this notification multiple times, the push service will
+        // replace the previous notification with the new one.
+        tag: `subtle-notification-${spaceId}-${accountId}-${sendTime.getTime()}`,
+    };
+
+    const pushNotificationTargets = getAllPushNotificationTargetsWithoutAuthorization(context, {
+        accountId,
+        spaceId,
+    });
+
+    await parallelProcessAsyncIterable(pushNotificationTargets, async target => {
+        switch (target.type) {
+            case "SlackIntegration":
+                return await context.jobs.sendAndWait({
+                    type: "SendNotificationToSlackIntegration",
+                    spaceId,
+                    accountId,
+                    workspaceId: target.workspaceId,
+                    notificationContent: {
+                        title: content.title,
+                        body: content.body,
+                        plainText: content.title,
+                    },
+                    entryPath: `/inbox/${spaceId}`,
+                });
+            case "WebPushSubscription":
+                return await context.jobs.sendAndWait({
+                    type: "SendWebPushNotification",
+                    spaceId,
+                    accountId,
+                    browserId: target.browserId,
+                    notificationContent: webPushNotificationContent,
+                    options: {
+                        urgency: "normal",
+                    },
+                });
+            case "AppleDevice":
+                return await Promise.resolve();
+        }
+    });
+
+    await clearPendingSubtleNotificationsForInbox(context, {accountId, spaceId});
 }
 
 export async function getPendingSubtleNotificationSummaryContent({
@@ -185,8 +211,8 @@ export async function getPendingSubtleNotificationSummaryContent({
         },
     )}`;
 
-    // Get the most recent inbox entry for the author with the highest affinity to display in the
-    // body of the notification.
+    // Get the most recent inbox entry for the author with the highest affinity to
+    // display in the body of the notification.
     if (sortedAuthorAffinities[0] && potentialTopAccounts[0]) {
         const topAuthor = sortedAuthorAffinities[0];
         const associatedNotifications = Array.from(
@@ -223,7 +249,8 @@ export async function getPendingSubtleNotificationSummaryContent({
                 : authorsListString;
     }
 
-    // If we don't have an inbox entry for the top affinity author, get the most recent inbox entry.
+    // If we don't have an inbox entry for the top affinity author, get the most recent
+    // inbox entry.
     if (!inboxEntry) {
         const inboxEntryItems = await InboxEntriesIndex.realtimeQuery(context, {
             partitionKey: {
@@ -245,23 +272,28 @@ export async function getPendingSubtleNotificationSummaryContent({
         return null;
     }
 
-    const title = `${printPrettySmallNumberSummary(pendingSubtleNotifications.size, "update")} ${authorsListString}`;
+    // Multiple pending subtle notifications can collapse into a single inbox entry
+    // (e.g. several chat messages in the same chat), so count distinct inbox entries
+    // based on the key path
+    const distinctInboxEntryCount = new Set(
+        pendingSubtleNotifications
+            .values()
+            .map(notification =>
+                getInboxEntryKeyPath(spaceId, notification.inboxEntryKey, "narrow"),
+            ),
+    ).size;
+
+    const title = `${printPrettySmallNumberSummary(distinctInboxEntryCount, "update")} ${authorsListString}`;
 
     const inboxEntryDisplay = getInboxEntryDisplayContent({
         entry: inboxEntry,
         locale: defaultLocale,
         currentAccount: currentAccount,
     });
-    const body = inboxEntryDisplay.summary
-        .map(item => {
-            if (typeof item === "string") {
-                return item;
-            } else {
-                return getAccountShortNameWithoutFullNameTooltip(item.initialData);
-            }
-        })
-        .join("");
-
+    const body = printInboxEntryDisplayContentTitleAsText(
+        inboxEntryDisplay.title,
+        account => account.initialData,
+    );
     return {
         title,
         body,

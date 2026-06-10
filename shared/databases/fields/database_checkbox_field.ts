@@ -25,9 +25,9 @@ export const databaseCheckboxFieldProvider = defineDatabaseFieldProvider({
 });
 
 /**
- * Strings interpreted as `false` by `parseString`. Match
- * is on a trimmed, lower-cased input. Empty (whitespace
- * only) input is also `false`. Anything else is `true`.
+ * Strings interpreted as `false` by `parseString`. Match is on a trimmed,
+ * lower-cased input. Empty (whitespace only) input is also `false`. Anything else
+ * is `true`.
  */
 const checkboxFalseStrings: ReadonlySet<string> = new Set([
     "",

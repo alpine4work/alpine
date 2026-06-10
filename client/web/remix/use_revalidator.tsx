@@ -5,8 +5,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 
 /**
- * Same as `useRevalidator()` from `react-router` but the `revalidate()`
- * function returns a promise that resolves when the revalidation is complete.
+ * Same as `useRevalidator()` from `react-router` but the `revalidate()` function
+ * returns a promise that resolves when the revalidation is complete.
  */
 export function useRevalidator() {
     const {state, revalidate: originalRevalidate} = useOriginalRevalidator();

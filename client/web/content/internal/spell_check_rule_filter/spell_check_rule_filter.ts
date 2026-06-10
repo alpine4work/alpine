@@ -13,8 +13,8 @@ export type SpellCheckRuleFilterLint = {
 export type SpellCheckRuleFilter = (lint: SpellCheckRuleFilterLint) => boolean;
 
 // Harper doesn't support custom lint rules out of the box, so we have to manually
-// filter our lints after running the linter. Someday we should consider contributing
-// this feature back to Harper.
+// filter our lints after running the linter. Someday we should consider
+// contributing this feature back to Harper.
 export const spellCheckRuleFilter: SpellCheckRuleFilter = lint => {
     return [
         spellCheckRuleFilterCustomDictionary,

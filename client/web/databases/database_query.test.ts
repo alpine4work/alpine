@@ -27,18 +27,19 @@ import {ValueStore} from "~/shared/store/value_store.js";
 
 // ---------------------------------------------------------------------------
 // Test connection adapter
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 /**
- * `DatabaseClientConnection` with a never-resolving
- * server so optimistic pages persist during tests.
+ * `DatabaseClientConnection` with a never-resolving server so optimistic pages
+ * persist during tests.
  */
 const testClientConn = makeDatabaseClientConnection();
 
 /**
- * Creates a {@link DatabaseWorkerConnection} backed by
- * a real {@link DatabaseClient}. Also exposes a
- * `mutate(sql)` shorthand for triggering reactive
+ * Creates a {@link DatabaseWorkerConnection} backed by a real {@link
+ * DatabaseClient}. Also exposes a `mutate(sql)` shorthand for triggering reactive
  * invalidation via `executeAction("rawSql", ...)`.
  */
 function createTestConnection(client: DatabaseClient): {
@@ -116,19 +117,20 @@ function createTestConnection(client: DatabaseClient): {
 
 // ---------------------------------------------------------------------------
 // Test helpers
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 function flush(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 50));
 }
 
 /**
- * Builds the pages for a fresh database group with one table
- * by running the migrations + the server-only `createTable`
- * action against a throwaway in-memory {@link Database} (the
- * stand-in for the canonical server, which is the only place
- * `createTable` runs). Returns the resulting pages so a test
- * client can seed them — mirroring production cold-open.
+ * Builds the pages for a fresh database group with one table by running the
+ * migrations + the server-only `createTable` action against a throwaway in-memory
+ * {@link Database} (the stand-in for the canonical server, which is the only place
+ * `createTable` runs). Returns the resulting pages so a test client can seed them
+ * — mirroring production cold-open.
  */
 async function buildSchemaSeed(
     name: string,
@@ -165,11 +167,10 @@ async function setupTestDatabase(): Promise<{
     const dir = createInMemoryOpfsDirectoryHandle();
     const client = await DatabaseClient.create(dir);
 
-    // Seed the schema pages produced by the server, exactly as the
-    // client does at cold-open. The per-db file is attached lazily
-    // on first access; touch it through a schema-qualified action so
-    // it's attached (its pages are seeded, so no server hop) before
-    // the bare-name `rawSql` helpers below, which can't auto-attach.
+    // Seed the schema pages produced by the server, exactly as the client does at
+    // cold-open. The per-db file is attached lazily on first access; touch it through
+    // a schema-qualified action so it's attached (its pages are seeded, so no server
+    // hop) before the bare-name `rawSql` helpers below, which can't auto-attach.
     const {seedPages, viewId, tableName} = await buildSchemaSeed("Tasks");
     await client.seedPages(seedPages);
     await client.executeAction(testClientConn, {
@@ -207,7 +208,9 @@ function getTreeItems(query: DatabaseQuery): ReadonlyArray<DatabaseQueryRow> {
 
 // ---------------------------------------------------------------------------
 // Tests
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 describe("DatabaseQuery constructor", () => {
     test("with initialPage populates tree and sets needsMore", () => {
@@ -406,8 +409,8 @@ describe("DatabaseQuery reactive updates", () => {
         await flush();
 
         expect(getTreeItemCount(query)).toBe(0);
-        // Node stays with 0 items — the watch keeps the
-        // cursor range covered for future inserts.
+        // Node stays with 0 items — the watch keeps the cursor range covered for future
+        // inserts.
         expect(query.treeStore.getSnapshot().getNodeCount()).toBe(1);
 
         query.dispose();
@@ -433,8 +436,8 @@ describe("DatabaseQuery reactive updates", () => {
 
         expect(getTreeItemCount(query)).toBe(0);
 
-        // Insert new rows — watch is still alive so they
-        // appear via the existing subscription.
+        // Insert new rows — watch is still alive so they appear via the existing
+        // subscription.
         await insertRowsWithIds(mutate, tableName, [400, 500]);
         await flush();
 
@@ -462,15 +465,13 @@ describe("DatabaseQuery reactive updates", () => {
         expect(getTreeNodeCount(query)).toBe(2);
         expect(getTreeItemCount(query)).toBe(20);
 
-        // Delete all 10 rows in page 1 (times 100..1000).
-        // Page 1 is bounded — its cursor range should stay
-        // covered so rebalance can merge it with page 2.
+        // Delete all 10 rows in page 1 (times 100..1000). Page 1 is bounded — its cursor
+        // range should stay covered so rebalance can merge it with page 2.
         const page1Times = Array.from({length: 10}, (_, i) => (i + 1) * 100);
         await deleteRowsWithIds(mutate, tableName, page1Times);
         await flushWithRebalance();
 
-        // Rebalance merges the empty page with page 2
-        // into a single page.
+        // Rebalance merges the empty page with page 2 into a single page.
         expect(getTreeNodeCount(query)).toBe(1);
         expect(getTreeItemCount(query)).toBe(10);
 
@@ -505,9 +506,8 @@ describe("DatabaseQuery reactive updates", () => {
         await deleteRowsWithIds(mutate, tableName, page1Times);
         await flush();
 
-        // Insert new rows within page 1's cursor range.
-        // These should appear because the watch still
-        // covers that range.
+        // Insert new rows within page 1's cursor range. These should appear because the
+        // watch still covers that range.
         await insertRowsWithIds(mutate, tableName, [150, 250]);
         await flush();
 
@@ -554,7 +554,9 @@ describe("DatabaseQuery dispose", () => {
 
 // ---------------------------------------------------------------------------
 // Rebalance helpers
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 const zeroBytes = new Uint8Array(10);
 
@@ -583,9 +585,8 @@ async function deleteRowsWithIds(
 }
 
 /**
- * Flush long enough for reactive updates, rebalance
- * scheduling (setTimeout 0), and the rebalance's own
- * async watch creation to all complete.
+ * Flush long enough for reactive updates, rebalance scheduling (setTimeout 0), and
+ * the rebalance's own async watch creation to all complete.
  */
 async function flushWithRebalance(): Promise<void> {
     await flush();
@@ -599,7 +600,9 @@ function getTreeNodeCount(query: DatabaseQuery): number {
 
 // ---------------------------------------------------------------------------
 // Rebalance tests
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 describe("DatabaseQuery rebalance — split", () => {
     // target=10, split>=15, merge<=5
@@ -622,8 +625,7 @@ describe("DatabaseQuery rebalance — split", () => {
         // endCursor is set (10 rows = limit) → needsMore
         expect(query.needsMoreStore.getSnapshot()).toBe(true);
 
-        // Insert 5 rows within the page's cursor range
-        // (times < 1000 so _id < endCursor)
+        // Insert 5 rows within the page's cursor range (times < 1000 so \_id < endCursor)
         const extraTimes = [150, 250, 350, 450, 550];
         await insertRowsWithIds(mutate, tableName, extraTimes);
         await flushWithRebalance();
@@ -665,8 +667,7 @@ describe("DatabaseQuery rebalance — split", () => {
         expect(getTreeNodeCount(query)).toBe(2);
         expect(getTreeItemCount(query)).toBe(15);
 
-        // The last page should still be open-ended →
-        // needsMore stays false.
+        // The last page should still be open-ended → needsMore stays false.
         expect(query.needsMoreStore.getSnapshot()).toBe(false);
 
         query.dispose();
@@ -693,11 +694,8 @@ describe("DatabaseQuery rebalance — merge", () => {
         expect(getTreeNodeCount(query)).toBe(2);
         expect(getTreeItemCount(query)).toBe(20);
 
-        // Delete 7 from each page → 3 + 3 = 6 total
-        // Page 1: IDs with times 100-1000, delete times
-        // 100-700
-        // Page 2: IDs with times 1100-2000, delete times
-        // 1100-1700
+        // Delete 7 from each page → 3 + 3 = 6 total Page 1: IDs with times 100-1000,
+        // delete times 100-700 Page 2: IDs with times 1100-2000, delete times 1100-1700
         const deleteTimes = [
             100, 200, 300, 400, 500, 600, 700, 1100, 1200, 1300, 1400, 1500, 1600, 1700,
         ];
@@ -757,8 +755,8 @@ describe("DatabaseQuery rebalance — merge forward", () => {
 
         expect(getTreeNodeCount(query)).toBe(2);
 
-        // Delete 7 from page 1 → 3 + 10.
-        // Page 1 is small, consumes page 2 → 13 total → 1 page.
+        // Delete 7 from page 1 → 3 + 10. Page 1 is small, consumes page 2 → 13 total → 1
+        // page.
         await deleteRowsWithIds(mutate, tableName, [100, 200, 300, 400, 500, 600, 700]);
         await flushWithRebalance();
 
@@ -796,8 +794,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
         await insertRowsWithIds(mutate, tableName, moreTimes);
         await flush();
 
-        // Dispose immediately — rebalance timer may be
-        // pending or in-flight.
+        // Dispose immediately — rebalance timer may be pending or in-flight.
         query.dispose();
 
         // No crash, tree retains its last value
@@ -824,13 +821,11 @@ describe("DatabaseQuery rebalance — edge cases", () => {
         // Don't wait for rebalance — try loadMore immediately
         await flush();
 
-        // loadMore should be blocked (no-op) and should
-        // not throw.
+        // loadMore should be blocked (no-op) and should not throw.
         await query.loadMore();
         await flushWithRebalance();
 
-        // After rebalance completes, data is still
-        // consistent.
+        // After rebalance completes, data is still consistent.
         expect(getTreeItemCount(query)).toBe(14);
 
         query.dispose();
@@ -857,8 +852,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
         expect(getTreeNodeCount(query)).toBe(2);
         expect(getTreeItemCount(query)).toBe(15);
 
-        // Insert one more row within the first page's
-        // range
+        // Insert one more row within the first page's range
         await insertRowsWithIds(mutate, tableName, [120]);
         await flush();
 

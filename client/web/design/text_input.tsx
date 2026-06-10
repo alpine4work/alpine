@@ -1,4 +1,11 @@
-import {Ref, forwardRef, useId, useRef} from "react";
+import {
+    ReactElement,
+    KeyboardEvent as ReactKeyboardEvent,
+    Ref,
+    forwardRef,
+    useId,
+    useRef,
+} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
@@ -20,36 +27,40 @@ export type TextInputProps = {
     /**
      * The current value of the text input.
      *
-     * You may use `<ControlledTextInput/>` if you want a input component that
-     * manages its own value.
+     * You may use `<ControlledTextInput/>` if you want a input component that manages
+     * its own value.
      */
     value: string;
 
     /**
      * Fired when the value changes.
      *
-     * You may use `<ControlledTextInput/>` if you want a input component that
-     * manages its own value.
+     * You may use `<ControlledTextInput/>` if you want a input component that manages
+     * its own value.
      */
     onChange: (value: string) => void;
 
     /**
-     * If the enter key is pressed while focused on this text input this
-     * event fires.
+     * If the enter key is pressed while focused on this text input this event fires.
      */
     onEnter?: () => void;
 
     /**
-     * If the enter key is pressed with command (on MacOS) or control (on windows)
-     * this event fires.
+     * If the enter key is pressed with command (on MacOS) or control (on windows) this
+     * event fires.
      */
     onModEnter?: () => void;
 
     /**
-     * If the escape key is pressed while focused on this text input this
-     * event fires.
+     * If the escape key is pressed while focused on this text input this event fires.
      */
     onEscape?: () => void;
+
+    /**
+     * Called when a key is pressed while the input is focused. Fires after the
+     * built-in Enter/Escape handlers.
+     */
+    onKeyDown?: (event: ReactKeyboardEvent<HTMLInputElement>) => void;
 
     /**
      * Placeholder text for when the value is empty.
@@ -63,37 +74,39 @@ export type TextInputProps = {
     isDisabled?: boolean;
 
     /**
-     * Is this input read-only? A read-only input is focusable but not editable.
-     * Unlike a disabled input which is neither focused nor editable.
+     * Is this input read-only? A read-only input is focusable but not editable. Unlike
+     * a disabled input which is neither focused nor editable.
      */
     isReadOnly?: boolean;
 
     /**
-     * Hint to the browser for what type of virtual keyboard to use when editing
-     * this input. See the [HTML `inputmode` attribute docs][1] for valid values.
+     * Hint to the browser for what type of virtual keyboard to use when editing this
+     * input. See the [HTML `inputmode` attribute docs][1] for valid values.
      *
      * Depending on what value you set, the input type might change.
      *
-     * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode
+     * [1]:
+     *     https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode
      */
     inputMode?: "tel" | "url" | "email" | "numeric" | "decimal" | "password" | "text";
 
     /**
-     * Hint to the browser what it should allow users to auto-complete. See the
-     * [HTML `autocomplete` attribute docs][1] for valid values.
+     * Hint to the browser what it should allow users to auto-complete. See the [HTML
+     * `autocomplete` attribute docs][1] for valid values.
      *
-     * If you set to `email` then instead of `type="text"` we will set
-     * `type="email"` on the input.
+     * If you set to `email` then instead of `type="text"` we will set `type="email"`
+     * on the input.
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete
      */
     autoComplete?: string;
 
     /**
-     * Hint to the browser whether auto-capitalization should be allowed. See the
-     * [HTML `autocaptialize` attribute docs][1].
+     * Hint to the browser whether auto-capitalization should be allowed. See the [HTML
+     * `autocaptialize` attribute docs][1].
      *
-     * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/autocapitalize
+     * [1]:
+     *     https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/autocapitalize
      */
     autoCapitalize?: "sentences" | "words" | "none";
 
@@ -125,7 +138,18 @@ export type TextInputProps = {
     /**
      * Override the right padding of the text input.
      */
-    paddingRight?: Spacing;
+    paddingRight?: Spacing | number;
+
+    /**
+     * Remove the border and background from the input so it can be embedded inside
+     * another container.
+     */
+    withoutBorder?: boolean;
+
+    /**
+     * An optional icon rendered to the left of the input.
+     */
+    icon?: ReactElement;
 
     /**
      * Are we forcing the focus ring to be visible? See the `isVisible` prop on
@@ -137,6 +161,11 @@ export type TextInputProps = {
      * The maximum number of characters allowed in the input.
      */
     maxLength?: number;
+
+    /**
+     * What describes this text input for accessibility purposes?
+     */
+    "aria-describedby"?: string;
 };
 
 /**
@@ -156,8 +185,8 @@ export const textInputClassName = sprinkles({
  * Simple, single-line, text input with a label.
  */
 // TODO(calebmer): This is a very standard web design text input. Consider the
-// design more closely. Should the label be on the side? Should we have some
-// kind of dimensionality in the input?
+// design more closely. Should the label be on the side? Should we have some kind
+// of dimensionality in the input?
 export const TextInput = forwardRef(function TextInput(
     props: TextInputProps,
     ref: Ref<HTMLInputElement>,
@@ -193,11 +222,13 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         id,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledby,
+        "aria-describedby": ariaDescribedby,
         value,
         onChange,
         onEnter,
         onModEnter,
         onEscape,
+        onKeyDown,
         placeholder,
         isDisabled,
         isReadOnly,
@@ -210,11 +241,13 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         isFontItalic = false,
         hasFontStrikeDecoration = false,
         paddingRight,
+        withoutBorder = false,
+        icon,
         isFocusRingVisible = false,
         maxLength,
     }: Omit<TextInputProps, "label"> &
-        // You must provide one of these props for accessibility! Or use `<TextInput>`
-        // that comes with an accessible label.
+        // You must provide one of these props for accessibility! Or use `<TextInput>` that
+        // comes with an accessible label.
         (| {id: string; "aria-label"?: undefined; "aria-labelledby"?: undefined}
             | {"aria-label": string; id?: undefined; "aria-labelledby"?: undefined}
             | {"aria-labelledby": string; id?: undefined; "aria-label"?: undefined}
@@ -238,9 +271,9 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         const inputElement = assertExists(inputRef.current);
 
         if (isMobileWebKit) {
-            // NOTE(calebmer): This is a fix for what I consider to be a Safari bug.
-            // There's much written on the topic in `content_editor.tsx` where we have the
-            // same assignment to `caretColor`. Read there for more information.
+            // NOTE(calebmer): This is a fix for what I consider to be a Safari bug. There's
+            // much written on the topic in `content_editor.tsx` where we have the same
+            // assignment to `caretColor`. Read there for more information.
             inputElement.style.caretColor = NativeMobileBridge ? "initial" : "-apple-system-blue";
         }
     }, []);
@@ -252,96 +285,140 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         "code-extra-bold": true,
     }[fontStyle];
 
-    return (
+    const inputElement = (
+        <input
+            ref={useMergedRefs(ref, inputRef)}
+            className={sprinkles({
+                ...(!withoutBorder
+                    ? {
+                          boxShadow: "elevation-5-with-grey-10-border",
+                          backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
+                      }
+                    : {backgroundColor: "transparent"}),
+                borderRadius: "1",
+                display: "block",
+                width: "full",
+                height: icon ? undefined : ({"75": "7", "100": "9"} as const)[fontSize],
+                paddingX: icon ? undefined : ({"75": "2", "100": "2.5"} as const)[fontSize],
+                paddingRight: typeof paddingRight !== "number" ? paddingRight : undefined,
+                fontSize,
+                fontStyle,
+                color: isDisabled || isReadOnly ? "grey-70" : "grey-100",
+            })}
+            style={{
+                ...(icon ? {flex: 1} : undefined),
+                paddingRight: typeof paddingRight === "number" ? paddingRight : undefined,
+
+                fontStyle: isFontItalic ? "italic" : undefined,
+                // Italics in our code font is controlled by a variable font setting instead of
+                // `font-style: italic`.
+                // eslint-disable-next-line cyberworlds/string-quotes
+                fontVariationSettings: isCodeFontStyle && isFontItalic ? '"ital" 1' : undefined,
+                // Allow contextual alternate glyphs in regular text content.
+                // eslint-disable-next-line cyberworlds/string-quotes
+                fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
+                // Was a strike requested for the font? Only render a strike if the value isn't
+                // empty. Otherwise the strike renders on the placeholder which looks funny.
+                ...(hasFontStrikeDecoration && value.length > 0
+                    ? {textDecorationLine: "line-through", textDecorationThickness: 1}
+                    : undefined),
+            }}
+            id={id}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledby}
+            aria-describedby={ariaDescribedby}
+            type={inputType}
+            value={value}
+            onChange={event => onChange(event.currentTarget.value)}
+            placeholder={placeholder}
+            disabled={isDisabled}
+            readOnly={isReadOnly}
+            autoComplete={autoComplete}
+            autoCapitalize={autoCapitalize}
+            // If this is a password input and we've set `autoComplete` to `off`, then also
+            // tell 1Password to ignore this field.
+            // https://developer.1password.com/docs/web/compatible-website-design/#ignore-offers-to-save-or-fill-specific-fields
+            data-1p-ignore={
+                (inputType === "email" || inputType === "password") && autoComplete === "off"
+                    ? ""
+                    : undefined
+            }
+            name={formName}
+            enterKeyHint={onEnter ? "done" : undefined}
+            maxLength={maxLength}
+            onKeyDown={event => {
+                if (
+                    onModEnter &&
+                    event.key === "Enter" &&
+                    !event.altKey &&
+                    !event.shiftKey &&
+                    // Cmd+Enter on MacOS platforms should trigger the callback Ctrl+Enter on non-MacOS
+                    // platforms should trigger the callback
+                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onModEnter();
+                    return;
+                }
+
+                if (
+                    onEnter &&
+                    event.key === "Enter" &&
+                    !event.altKey &&
+                    !event.shiftKey &&
+                    // Ctrl+Enter on non-MacOS platforms should trigger the callback
+                    (!isAppleDevice || !event.ctrlKey) &&
+                    // Cmd+Enter on MacOS platforms should trigger the callback
+                    (isAppleDevice || !event.metaKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onEnter();
+                    return;
+                }
+
+                if (onEscape && event.key === "Escape" && !isModifiedKeyboardEvent(event)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onEscape();
+                    return;
+                }
+
+                onKeyDown?.(event);
+            }}
+        />
+    );
+
+    const focusRingElement = (
         <FocusRing offset="border" isVisible={isFocusRingVisible}>
-            <input
-                ref={useMergedRefs(ref, inputRef)}
-                className={sprinkles({
-                    boxShadow: "elevation-5-with-grey-10-border",
-                    borderRadius: "1",
-                    display: "block",
-                    width: "full",
-                    height: ({"75": "7", "100": "9"} as const)[fontSize],
-                    paddingX: ({"75": "2", "100": "2.5"} as const)[fontSize],
-                    paddingRight,
-                    fontSize,
-                    fontStyle,
-                    backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
-                    color: isDisabled || isReadOnly ? "grey-70" : "grey-100",
-                })}
-                style={{
-                    fontStyle: isFontItalic ? "italic" : undefined,
-                    // Italics in our code font is controlled by a variable font setting instead of
-                    // `font-style: italic`.
-                    // eslint-disable-next-line cyberworlds/string-quotes
-                    fontVariationSettings: isCodeFontStyle && isFontItalic ? '"ital" 1' : undefined,
-                    // Allow contextual alternate glyphs in regular text content.
-                    // eslint-disable-next-line cyberworlds/string-quotes
-                    fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
-                    // Was a strike requested for the font? Only render a strike if the value isn't
-                    // empty. Otherwise the strike renders on the placeholder which looks funny.
-                    ...(hasFontStrikeDecoration && value.length > 0
-                        ? {textDecorationLine: "line-through", textDecorationThickness: 1}
-                        : undefined),
-                }}
-                id={id}
-                aria-label={ariaLabel}
-                aria-labelledby={ariaLabelledby}
-                type={inputType}
-                value={value}
-                onChange={event => onChange(event.currentTarget.value)}
-                placeholder={placeholder}
-                disabled={isDisabled}
-                readOnly={isReadOnly}
-                autoComplete={autoComplete}
-                autoCapitalize={autoCapitalize}
-                // If this is a password input and we've set `autoComplete` to `off`, then also
-                // tell 1Password to ignore this field.
-                // https://developer.1password.com/docs/web/compatible-website-design/#ignore-offers-to-save-or-fill-specific-fields
-                data-1p-ignore={inputType === "password" && autoComplete === "off" ? "" : undefined}
-                name={formName}
-                enterKeyHint={onEnter ? "done" : undefined}
-                maxLength={maxLength}
-                onKeyDown={event => {
-                    if (
-                        onModEnter &&
-                        event.key === "Enter" &&
-                        !event.altKey &&
-                        !event.shiftKey &&
-                        // Cmd+Enter on MacOS platforms should trigger the callback
-                        // Ctrl+Enter on non-MacOS platforms should trigger the callback
-                        (isAppleDevice ? event.metaKey : event.ctrlKey)
-                    ) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onModEnter();
-                        return;
-                    }
-
-                    if (
-                        onEnter &&
-                        event.key === "Enter" &&
-                        !event.altKey &&
-                        !event.shiftKey &&
-                        // Ctrl+Enter on non-MacOS platforms should trigger the callback
-                        (!isAppleDevice || !event.ctrlKey) &&
-                        // Cmd+Enter on MacOS platforms should trigger the callback
-                        (isAppleDevice || !event.metaKey)
-                    ) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onEnter();
-                        return;
-                    }
-
-                    if (onEscape && event.key === "Escape" && !isModifiedKeyboardEvent(event)) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onEscape();
-                        return;
-                    }
-                }}
-            />
+            {inputElement}
         </FocusRing>
     );
+
+    if (icon) {
+        return (
+            <Box
+                display="flex"
+                alignItems="center"
+                gap="2"
+                height={({"75": "7", "100": "9"} as const)[fontSize]}
+                paddingX={({"75": "2", "100": "2.5"} as const)[fontSize]}
+                borderRadius="1"
+                className={sprinkles({
+                    ...(!withoutBorder
+                        ? {
+                              boxShadow: "elevation-5-with-grey-10-border",
+                              backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
+                          }
+                        : {backgroundColor: "transparent"}),
+                })}
+            >
+                {icon}
+                {focusRingElement}
+            </Box>
+        );
+    }
+
+    return focusRingElement;
 });

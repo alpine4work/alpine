@@ -1,16 +1,14 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
-    FileChatAuthorizer,
     authorizeChatAccess,
     authorizeChatAccessIfPossible,
+} from "~/server/chat/data/authorize_chat_access.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {
     backfillChatMessages,
     completeChatMessageStream,
-    createChatForTest,
     deleteChatMessage,
     deleteChatMessageReaction,
-    getChat,
-    getChatAccountIds,
-    getChatAccountIdsForBotScope,
     getChatMessage,
     getChatMessageParentContent,
     getChatMessagePayload,
@@ -18,18 +16,23 @@ import {
     getChatMessagePayloadsFromStart,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
-    getOptimisticChatId,
-    getOrCreateChatForAccounts,
-    getSharedChatsForTest,
     pingChatMessageStream,
     processSendShareNotificationJob,
     putChatMessageStreamPart,
     sendChatMessage,
-    sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     setChatMessageReaction,
     updateChatMessageContent,
-} from "~/server/chat/data/chat_actions.js";
-import {chatInjection} from "~/server/chat/data/chat_injection.js";
+} from "~/server/chat/data/chat_messaging.js";
+import {createChatForTest} from "~/server/chat/data/create_chat_for_test.js";
+import {FileChatAuthorizer} from "~/server/chat/data/file_chat_authorizer.js";
+import {getChat} from "~/server/chat/data/get_chat.js";
+import {getChatAccessPolicyForBotScope} from "~/server/chat/data/get_chat_access_policy_for_bot_scope.js";
+import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_for_accounts.js";
+import {getOrCreateChatBeforeCreateChatTestCheckpoint} from "~/server/chat/data/internal/actually_get_or_create_chat_for_accounts.js";
+import {ChatTable} from "~/server/chat/data/internal/chat_table.js";
+import {getOptimisticChatId} from "~/server/chat/data/internal/get_optimistic_chat_id.js";
+import {getSharedChats} from "~/server/chat/data/internal/get_shared_chats.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
@@ -37,8 +40,11 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     MessageContent,
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
@@ -164,8 +170,8 @@ function sortSharedChats(
 
 // NOTE(calebmer): Initially `chat_table.ts` provided this function so we wrote
 // tests against that but the function was decomposed into
-// `getOrCreateChatForAccounts()` and `sendChatMessage()`. To avoid rewriting
-// tests the function is reconstructed here.
+// `getOrCreateChatForAccounts()` and `sendChatMessage()`. To avoid rewriting tests
+// the function is reconstructed here.
 async function sendChatMessageToAccounts(
     context: ServerSessionActionContext,
     {
@@ -442,7 +448,7 @@ test("can not get messages in a chat you don\u2019t have access to", async () =>
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
@@ -467,7 +473,7 @@ test("can not get messages in a chat you don\u2019t have access to", async () =>
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
@@ -489,7 +495,7 @@ test("can not get messages in a chat you don\u2019t have access to", async () =>
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
 test("can reply to message by sending to account", async () => {
@@ -1003,7 +1009,7 @@ test("anyone the message was sent to can read the message", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await expect(
         getChatMessagesFromStart(context.action(scenario.sessionX3), {
@@ -1012,7 +1018,7 @@ test("anyone the message was sent to can read the message", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
 test("can reply to a message sent to multiple accounts", async () => {
@@ -1112,7 +1118,7 @@ test("can reply to a message sent to multiple accounts", async () => {
 test("race condition where two accounts try to create the same chat at the same time", async () => {
     const scenario = await createScenario();
 
-    const pausePromise = sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.pauseForTest(
+    const pausePromise = getOrCreateChatBeforeCreateChatTestCheckpoint.pauseForTest(
         scenario.sessionA1.account.id,
     );
 
@@ -1633,7 +1639,7 @@ test("can not get messages in a chat you don\u2019t have access to (when a chat 
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await createChatForTest(context.action(scenario.sessionB1), {
         id: getOptimisticChatId(scenario.spaceA.id, [
@@ -1667,7 +1673,7 @@ test("can not get messages in a chat you don\u2019t have access to (when a chat 
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await createChatForTest(context.action(scenario.sessionB1), {
         id: getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
@@ -1695,7 +1701,7 @@ test("can not get messages in a chat you don\u2019t have access to (when a chat 
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
 test("can reply to message by sending to account (when a chat already has the optimistic id)", async () => {
@@ -2212,7 +2218,7 @@ test("anyone the message was sent to can read the message (when a chat already h
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 
     await expect(
         getChatMessagesFromStart(context.action(scenario.sessionX3), {
@@ -2221,7 +2227,7 @@ test("anyone the message was sent to can read the message (when a chat already h
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn\u2019t have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn\u2019t have `View` access level"));
 });
 
 test("can reply to a message sent to multiple accounts (when a chat already has the optimistic id)", async () => {
@@ -2341,7 +2347,7 @@ test("race condition where two accounts try to create the same chat at the same 
         otherAccountIds: [],
     });
 
-    const pausePromise = sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.pauseForTest(
+    const pausePromise = getOrCreateChatBeforeCreateChatTestCheckpoint.pauseForTest(
         scenario.sessionA1.account.id,
     );
 
@@ -3056,8 +3062,9 @@ test("can get chats shared between an account and other accounts", async () => {
     const scenario = await createScenario();
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [],
         }),
     ).toEqual(sortSharedChats([]));
@@ -3163,8 +3170,9 @@ test("can get chats shared between an account and other accounts", async () => {
     });
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [],
         }),
     ).toEqual(
@@ -3184,8 +3192,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [scenario.sessionA2.account.id],
         }),
     ).toEqual(
@@ -3199,8 +3208,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA2), {
+        await getSharedChats(context.action(scenario.sessionA2), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA2.account.id,
             otherAccountIds: [scenario.sessionA1.account.id],
         }),
     ).toEqual(
@@ -3214,8 +3224,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [scenario.sessionA3.account.id],
         }),
     ).toEqual(
@@ -3228,8 +3239,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionA3.account.id],
         }),
     ).toEqual(
@@ -3241,8 +3253,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionA1), {
+        await getSharedChats(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionA1.account.id,
             otherAccountIds: [
                 scenario.sessionA2.account.id,
                 scenario.sessionA3.account.id,
@@ -3257,8 +3270,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [],
         }),
     ).toEqual(
@@ -3272,8 +3286,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [],
         }),
     ).toEqual(
@@ -3284,8 +3299,9 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceA.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [scenario.sessionX2.account.id],
         }),
     ).toEqual(
@@ -3296,15 +3312,17 @@ test("can get chats shared between an account and other accounts", async () => {
     );
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [scenario.sessionX2.account.id],
         }),
     ).toEqual(sortSharedChats([{id: message13.chatId, accountCount: 3}]));
 
     expect(
-        await getSharedChatsForTest(context.action(scenario.sessionX1), {
+        await getSharedChats(context.action(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
+            actorAccountId: scenario.sessionX1.account.id,
             otherAccountIds: [scenario.sessionA1.account.id],
         }),
     ).toEqual(sortSharedChats([]));
@@ -3327,19 +3345,19 @@ test("authorizing chat access as session actor is cached", async () => {
 
         expect(getCount()).toEqual(0);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccessIfPossible(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
             ]);
         }
 
@@ -3354,14 +3372,14 @@ test("authorizing chat access as session actor is cached", async () => {
         expect(getCount()).toEqual(0);
 
         await runAllPromises([
-            authorizeChatAccess(actionContext, chatId),
-            authorizeChatAccess(actionContext, chatId),
-            authorizeChatAccessIfPossible(actionContext, chatId),
+            authorizeChatAccess(actionContext, chatId, "Edit"),
+            authorizeChatAccess(actionContext, chatId, "Edit"),
+            authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
         ]);
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(2);
     }
@@ -3384,19 +3402,19 @@ test("authorizing chat access as system actor is cached", async () => {
 
         expect(getCount()).toEqual(0);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(1);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccessIfPossible(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
             ]);
         }
 
@@ -3411,14 +3429,14 @@ test("authorizing chat access as system actor is cached", async () => {
         expect(getCount()).toEqual(0);
 
         await runAllPromises([
-            authorizeChatAccess(actionContext, chatId),
-            authorizeChatAccess(actionContext, chatId),
-            authorizeChatAccessIfPossible(actionContext, chatId),
+            authorizeChatAccess(actionContext, chatId, "Edit"),
+            authorizeChatAccess(actionContext, chatId, "Edit"),
+            authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
         ]);
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(1);
     }
@@ -3445,19 +3463,19 @@ test("authorizing chat access after getting chat as session actor is cached", as
 
         expect(getCount()).toEqual(5);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(5);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(5);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccessIfPossible(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
             ]);
         }
 
@@ -3471,23 +3489,23 @@ test("authorizing chat access after getting chat as session actor is cached", as
 
         expect(getCount()).toEqual(0);
 
-        await getChatAccountIds(actionContext, chatId);
+        await getChatDefinition(actionContext, chatId);
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccessIfPossible(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
             ]);
         }
 
@@ -3510,19 +3528,19 @@ test("authorizing chat access after getting chat as session actor is cached", as
 
         expect(getCount()).toEqual(3);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(3);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccessIfPossible(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
             ]);
         }
 
@@ -3545,19 +3563,19 @@ test("authorizing chat access after getting chat as session actor is cached", as
 
         expect(getCount()).toEqual(3);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(3);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccessIfPossible(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
             ]);
         }
 
@@ -3586,19 +3604,19 @@ test("authorizing chat access after getting chat as system actor is cached", asy
 
         expect(getCount()).toEqual(4);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(4);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(4);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccessIfPossible(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
             ]);
         }
 
@@ -3612,23 +3630,23 @@ test("authorizing chat access after getting chat as system actor is cached", asy
 
         expect(getCount()).toEqual(0);
 
-        await getChatAccountIds(actionContext, chatId);
+        await getChatDefinition(actionContext, chatId);
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChatAccess(actionContext, chatId);
+        await authorizeChatAccess(actionContext, chatId, "Edit");
 
         expect(getCount()).toEqual(1);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccessIfPossible(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccess(actionContext, chatId, "Edit"),
+                authorizeChatAccessIfPossible(actionContext, chatId, "Edit"),
             ]);
         }
 
@@ -4249,7 +4267,7 @@ test("bot can\u2019t send messages in a chat if it\u2019s not a member even if i
             fileIds: [],
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow("Account doesn\u2019t have access to chat");
+    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
 });
 
 test("bot can send messages in a chat if it\u2019s a member", async () => {
@@ -4272,7 +4290,7 @@ test("bot can send messages in a chat if it\u2019s a member", async () => {
     });
 });
 
-describe("`getChatAccountIdsForBotScope()`", () => {
+describe("`getChatAccessPolicyForBotScope()`", () => {
     test("can get access policy for scoped chat", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
@@ -4281,12 +4299,22 @@ describe("`getChatAccountIdsForBotScope()`", () => {
 
         const chat = await TestChat.get(session2, session3);
 
+        const accessPolicy = await getChatAccessPolicyForBotScope(
+            botAccount.action({type: "Chat", chatId: chat.id}),
+            chat.id,
+        );
+
+        expect(accessPolicy.defaultGrant).toBeNull();
+        expect(accessPolicy.urlGrant).toBeNull();
+        const expectedAccountGrants: Array<[string, {level: "Manage"}]> = [
+            [session2.account.id, {level: "Manage"}],
+            [session3.account.id, {level: "Manage"}],
+        ];
         expect(
-            await getChatAccountIdsForBotScope(
-                botAccount.action({type: "Chat", chatId: chat.id}),
-                chat.id,
+            Array.from(accessPolicy.accountGrantById.entries()).sort(([a], [b]) =>
+                defaultCompareStrings(a, b),
             ),
-        ).toEqual([session2.account.id, session3.account.id].sort(defaultCompareStrings));
+        ).toEqual(expectedAccountGrants.sort(([a], [b]) => defaultCompareStrings(a, b)));
     });
 
     test("can\u2019t get access policy for scoped chat other than the one scoped", async () => {
@@ -4299,7 +4327,7 @@ describe("`getChatAccountIdsForBotScope()`", () => {
         const otherChat = await TestChat.get(session1, session3);
 
         await expect(
-            getChatAccountIdsForBotScope(
+            getChatAccessPolicyForBotScope(
                 botAccount.action({type: "Chat", chatId: chat.id}),
                 otherChat.id,
             ),
@@ -4315,7 +4343,7 @@ describe("`getChatAccountIdsForBotScope()`", () => {
         const chat = await TestChat.get(session2, session3);
 
         await expect(
-            getChatAccountIdsForBotScope(botAccount.action({type: "Space"}), chat.id),
+            getChatAccessPolicyForBotScope(botAccount.action({type: "Space"}), chat.id),
         ).rejects.toThrow("Can only get `AccountId`s for the scoped chat");
     });
 
@@ -4328,7 +4356,7 @@ describe("`getChatAccountIdsForBotScope()`", () => {
         const chat = await TestChat.get(session2, session3);
 
         await expect(
-            getChatAccountIdsForBotScope(
+            getChatAccessPolicyForBotScope(
                 botAccount.action({type: "Account", accountId: session2.account.id}),
                 chat.id,
             ),
@@ -4345,7 +4373,7 @@ describe("`getChatAccountIdsForBotScope()`", () => {
         const chat = await TestChat.get(session2, session3);
 
         await expect(
-            getChatAccountIdsForBotScope(
+            getChatAccessPolicyForBotScope(
                 otherBotAccount.action({type: "Chat", chatId: chat.id}),
                 chat.id,
             ),
@@ -4360,7 +4388,7 @@ describe("`getChatAccountIdsForBotScope()`", () => {
         const chatId = generateId<ChatId>();
 
         await expect(
-            getChatAccountIdsForBotScope(botAccount.action({type: "Chat", chatId}), chatId),
+            getChatAccessPolicyForBotScope(botAccount.action({type: "Chat", chatId}), chatId),
         ).rejects.toThrow("Chat not found");
     });
 });
@@ -4548,4 +4576,60 @@ testMessagingImplementation<ChatId>(context, {
             newMessageLimit,
         });
     },
+});
+
+test("message summary tracks authors and mentions", async () => {
+    const space = await TestSpace.create(context);
+    const [sessionA, sessionB] = await space.createSessions(2);
+
+    const chat = await TestChat.get(sessionA, sessionB);
+
+    const {index} = await sendChatMessage(sessionA.action(), {
+        chatId: chat.id,
+        parent: null,
+        content: assertMessageContent(
+            MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Hello "),
+                    MessageContentProsemirrorSchema.nodes.mention.create({
+                        mention: {
+                            type: "Account",
+                            accountId: sessionB.account.id,
+                            isShort: false,
+                        } satisfies ContentMention,
+                    }),
+                ]),
+            ]),
+        ),
+        fileIds: [],
+        createdTimeZone: defaultTimeZone,
+    });
+
+    const initialAttributes = await ChatTable.getItem(context, {
+        partitionType: "Chat",
+        sortRangeType: "Attributes",
+        chatId: chat.id,
+    });
+
+    expect(initialAttributes.messagesSummary.messageCountByAuthorId.get(sessionA.account.id)).toBe(
+        1,
+    );
+    expect(initialAttributes.messagesSummary.mentionCountByAccountId.get(sessionB.account.id)).toBe(
+        1,
+    );
+
+    await deleteChatMessage(sessionA.action(), {chatId: chat.id, messageIndex: index});
+
+    const afterDeleteAttributes = await ChatTable.getItem(context, {
+        partitionType: "Chat",
+        sortRangeType: "Attributes",
+        chatId: chat.id,
+    });
+
+    expect(
+        afterDeleteAttributes.messagesSummary.messageCountByAuthorId.get(sessionA.account.id),
+    ).toBe(1);
+    expect(
+        afterDeleteAttributes.messagesSummary.mentionCountByAccountId.get(sessionB.account.id),
+    ).toBe(0);
 });

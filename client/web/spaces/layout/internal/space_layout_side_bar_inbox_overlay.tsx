@@ -13,7 +13,7 @@ import {
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/web/dynamo/dynamo_general_realtime_index_query.js";
+import {RynamoIndexQuery} from "~/client/web/dynamo/rynamo_index_query.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {
     useArchiveInboxEntry,
@@ -35,15 +35,13 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {
     InboxEntryModel,
     getEncodedInboxEntryPath,
@@ -61,10 +59,8 @@ export function SpaceLayoutSideBarInboxOverlay({
     onArchivePress,
     onClose,
 }: {
-    filter: "New" | "Archive";
-    initialEntriesResultPromise: PromiseImmediate<
-        DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>
-    >;
+    filter: InboxEntryStatus;
+    initialEntriesResultPromise: PromiseImmediate<RynamoIndexQueryResult<InboxEntryModel>>;
     onNewPress: () => MaybePromise<void>;
     onArchivePress: () => MaybePromise<void>;
     onClose: Memo<() => void>;
@@ -127,7 +123,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
     entriesRef,
     onClose,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     withoutAnimation: boolean;
     entriesRef: RefObject<SpaceLayoutTopBarInboxOverlayEntriesRef | null>;
     onClose: () => void;
@@ -138,11 +134,10 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
     const [withAnimation, setWithAnimation] = useState(false);
 
     // Keep re-applying the animation CSS class so the user notices the inbox arrow
-    // bounce encouraging them to open the fullscreen inbox. We believe the
-    // fullscreen inbox is a better UX when managing many notifications. If the
-    // user is spending a lot of time in the overlay when they have many
-    // notifications, we hope the animation will subtly prompt them into opening
-    // the fullscreen inbox.
+    // bounce encouraging them to open the fullscreen inbox. We believe the fullscreen
+    // inbox is a better UX when managing many notifications. If the user is spending a
+    // lot of time in the overlay when they have many notifications, we hope the
+    // animation will subtly prompt them into opening the fullscreen inbox.
     useEffect(() => {
         if (withoutAnimation) {
             setWithAnimation(false);
@@ -173,8 +168,8 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
             height="6"
             paddingX="1.5"
             fontSize="100"
-            // The inbox will show a loading shimmer when it opens. We don't need to
-            // also show a loading indicator here.
+            // The inbox will show a loading shimmer when it opens. We don't need to also show
+            // a loading indicator here.
             withoutLoadingIndicator
             iconGap="0.5"
             iconPlacement="end"
@@ -197,18 +192,18 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
             onPress={async () => {
                 const searchParams = new URLSearchParams();
 
-                if (filter === "Archive") {
-                    searchParams.set("tab", "old");
+                if (filter === "Done") {
+                    searchParams.set("tab", "done");
                 }
 
-                // Optimization: Since we know the first inbox entry we can include it in the
-                // URL so our backend can load data it in parallel.
+                // Optimization: Since we know the first inbox entry we can include it in the URL
+                // so our backend can load data it in parallel.
                 const firstItem = entriesRef.current?.getFirstItemIfExists();
                 if (firstItem) {
                     searchParams.set("selected", getEncodedInboxEntryPath(firstItem.model, "wide"));
                 }
                 await rootNavigate(
-                    `/s/${space.id}/inbox${
+                    `/inbox/${space.id}${
                         searchParams.size > 0 ? `?${searchParams.toString()}` : ""
                     }`,
                 ).then(onClose);
@@ -222,7 +217,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
 }
 
 type SpaceLayoutTopBarInboxOverlayEntriesRef = {
-    getFirstItemIfExists(): DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    getFirstItemIfExists(): RynamoItem<InboxEntryModel> | null;
 };
 
 const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
@@ -232,8 +227,8 @@ const SpaceLayoutTopBarInboxOverlayEntries = forwardRef(
             initialEntriesResult,
             onClose,
         }: {
-            filter: "New" | "Archive";
-            initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+            filter: InboxEntryStatus;
+            initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
             onClose: Memo<() => void>;
         },
         ref: Ref<SpaceLayoutTopBarInboxOverlayEntriesRef>,
@@ -273,8 +268,8 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     tryLoadingMore,
     onClose,
 }: {
-    filter: "New" | "Archive";
-    query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    query: RynamoIndexQuery<InboxEntryModel>;
     tryLoadingMore: (
         viewHeight: number,
         renderedRange: {startIndex: number; endIndex: number} | null,
@@ -284,11 +279,11 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const spacingScale = useSpacingScale();
 
-    // Whenever our query data changes, try loading more entries. In case our
-    // rendered range stayed the same but we now see the loading indicator.
+    // Whenever our query data changes, try loading more entries. In case our rendered
+    // range stayed the same but we now see the loading indicator.
     //
-    // This effect should also fire when `tryLoadingMore()` completes in case it
-    // didn't fully load the query.
+    // This effect should also fire when `tryLoadingMore()` completes in case it didn't
+    // fully load the query.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         query;
@@ -360,18 +355,17 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
                 [filter, itemCount, onClose, query],
             )}
             extraChildrenOutsideContentElement={({contentHeight}) => (
-                // Our items all have a bottom border. This is good when there's less content
-                // than room to scroll since it creates a clear shape for the last item in the
-                // list.
+                // Our items all have a bottom border. This is good when there's less content than
+                // room to scroll since it creates a clear shape for the last item in the list.
                 //
                 // However, if there are enough items to scroll then when the user has fully
-                // scrolled we want the last item to *not* have a border bottom since the
-                // bottom of the screen creates that boundary. We don't need to render an extra
-                // line in the margins.
+                // scrolled we want the last item to _not_ have a border bottom since the bottom of
+                // the screen creates that boundary. We don't need to render an extra line in the
+                // margins.
                 //
-                // This div covers the bottom border of the last item but only when there's
-                // enough content to scroll. Otherwise the bottom border needs to be visible to
-                // visually contain the last item. To debug this it's helpful to switch the
+                // This div covers the bottom border of the last item but only when there's enough
+                // content to scroll. Otherwise the bottom border needs to be visible to visually
+                // contain the last item. To debug this it's helpful to switch the
                 // `backgroundColor` to `red-30` or something similar.
                 <Box
                     position="absolute"
@@ -401,8 +395,8 @@ function SpaceLayoutTopBarInboxOverlayEntry({
     isLastItem,
     onClose,
 }: {
-    filter: "New" | "Archive";
-    entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    entry: RynamoItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;
     onClose: () => void;

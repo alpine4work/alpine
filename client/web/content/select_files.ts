@@ -10,10 +10,10 @@ import {
  * user has selected some files.
  *
  * Currently the promise never resolves if the user opens the file selector and
- * then closes it without making a selection. The way this works is we have to
- * add an invisible element as a child of `containerElement`. So our invisible
- * element will be cleaned up at the same time as `containerElement` if the
- * user didn't make a file selection.
+ * then closes it without making a selection. The way this works is we have to add
+ * an invisible element as a child of `containerElement`. So our invisible element
+ * will be cleaned up at the same time as `containerElement` if the user didn't
+ * make a file selection.
  */
 export function selectFiles(
     containerElement: Element,
@@ -51,12 +51,12 @@ export function selectFiles(
 
             // Make sure to return the interaction modality to whatever it was when
             // `selectFiles()` was called. The interaction modality may change to `virtual`
-            // since we call `temporaryInputElement.click()` which will render
-            // `<FocusRing>`s which we don't want.
+            // since we call `temporaryInputElement.click()` which will render `<FocusRing>`s
+            // which we don't want.
             setInteractionModality(originalInteractionModality);
 
-            // Give the caller an opportunity to return focus back to some element before
-            // we remove the currently focused element from the DOM.
+            // Give the caller an opportunity to return focus back to some element before we
+            // remove the currently focused element from the DOM.
             onReturnFocus?.();
 
             temporaryInputElement.remove();
@@ -79,24 +79,23 @@ export function selectFiles(
         };
 
         // If we focus on anything other than `temporaryInputElement` then resolve this
-        // promise with an empty array since it probably means our file selection
-        // dialog closed. We can't listen for `blur`/`focusout` events because:
+        // promise with an empty array since it probably means our file selection dialog
+        // closed. We can't listen for `blur`/`focusout` events because:
         //
-        // 1. The `blur` event doesn't fire if the focused element is removed from the
-        //    DOM in Safari (I think I remember this being the case?).
+        // 1. The `blur` event doesn't fire if the focused element is removed from the DOM
+        //    in Safari (I think I remember this being the case?).
         //
-        // 2. It looks like in Chrome the `blur` event is fired immediately after the
-        //    file selection dialog opens. Probably because focus is leaving the window
-        //    and entering the selection dialog.
+        // 2. It looks like in Chrome the `blur` event is fired immediately after the file
+        //    selection dialog opens. Probably because focus is leaving the window and
+        //    entering the selection dialog.
         document.addEventListener("focusin", handleDocumentFocusIn);
 
         containerElement.appendChild(temporaryInputElement);
 
-        // This focus call is important. It makes sure that the `focusout` event is
-        // fired with this element as its `event.relatedTarget`. This way
-        // if we're in a post inline content editor, `useConfirmSaveAfterLosingFocus()`
-        // will see that this element is a child of our content editor and won't cancel
-        // post editing.
+        // This focus call is important. It makes sure that the `focusout` event is fired
+        // with this element as its `event.relatedTarget`. This way if we're in a post
+        // inline content editor, `useConfirmSaveAfterLosingFocus()` will see that this
+        // element is a child of our content editor and won't cancel post editing.
         temporaryInputElement.focus();
 
         temporaryInputElement.click();

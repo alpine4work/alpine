@@ -129,8 +129,8 @@ function DocumentPresentationController(
             const editor = assertExists(editorRef.current);
             const editorContainerElement = assertExists(editorContainerRef.current);
 
-            // Freeze content when the presentation opens. The presentation won't
-            // update in realtime to avoid confusion while presenting.
+            // Freeze content when the presentation opens. The presentation won't update in
+            // realtime to avoid confusion while presenting.
             const content = editorState.getContent();
 
             const slides = getDocumentPresentationSlides(content.doc);
@@ -162,8 +162,8 @@ function DocumentPresentationController(
             }
 
             // Render the presentation view synchronously. Since Chrome only allows
-            // `requestFullscreen()` to work in response to a direct user interaction (in
-            // our case, the user clicking on a menu item).
+            // `requestFullscreen()` to work in response to a direct user interaction (in our
+            // case, the user clicking on a menu item).
             //
             // We need to render presentation mode synchronously so that Chrome correctly
             // associates our `requestFullscreen()` call with the user's click interaction.
@@ -434,8 +434,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                         isInert={true}
                         withUserSelectNone={true}
                         content={content}
-                        // Our example content doesn't have files. Any attachment target will
-                        // be fine.
+                        // Our example content doesn't have files. Any attachment target will be fine.
                         fileAttachmentTarget={fileAttachmentTarget}
                     />
                 </Box>
@@ -498,7 +497,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                     fontSize="75"
                     style={{lineHeight: 1.5}}
                 >
-                    Effortlessly turn your document into a slide deck. Each divider in your document
+                    Effortlessly turn your document into a slideshow. Each divider in your document
                     creates a new slide. To add a divider either type &#x201C;---&#x201D; in an
                     empty line or right click and choose insert &gt; divider.
                 </Box>

@@ -1,5 +1,5 @@
 diff --git a/dist/data.js b/dist/data.js
-index dc045a001f79e42dd659baf76d89d627945c2b74..6751a132f7b6b06b177e0ac8e7c3292ca8d67264 100644
+index dc045a001f79e42dd659baf76d89d627945c2b74..d933fdc1781df8d70555f09fb2204464ee7dec56 100644
 --- a/dist/data.js
 +++ b/dist/data.js
 @@ -25,19 +25,36 @@ var responses = require('./responses.js');
@@ -40,7 +40,7 @@ index dc045a001f79e42dd659baf76d89d627945c2b74..6751a132f7b6b06b177e0ac8e7c3292c
      // Only provided when single fetch is enabled, and made available via
      // `defineAction` types, not `ActionFunctionArgs`
      ...(singleFetch ? {
-@@ -53,20 +70,38 @@ async function callRouteAction({
+@@ -53,25 +70,42 @@ async function callRouteAction({
      return result;
    }
    return responses.isResponse(result) ? result : responses.json(result);
@@ -55,7 +55,8 @@ index dc045a001f79e42dd659baf76d89d627945c2b74..6751a132f7b6b06b177e0ac8e7c3292c
    routeId,
 +  routes,
    singleFetch,
-   response
+-  response
++  matches,
  }) {
 +  // NOTE(calebmer): Add spans around Remix loader functions at the framework
 +  // level. This lets us see when a loader has an error. It also lets us see
@@ -73,14 +74,23 @@ index dc045a001f79e42dd659baf76d89d627945c2b74..6751a132f7b6b06b177e0ac8e7c3292c
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
      params,
+-    // Only provided when single fetch is enabled, and made available via
+-    // `defineLoader` types, not `LoaderFunctionArgs`
+-    ...(singleFetch ? {
+-      response
+-    } : null)
 +    span,
 +    // NOTE(calebmer): Pass the server routes array to our code. That way we
 +    // can use it to match routes for a peek within a loader.
 +    serverRoutes: routes,
-     // Only provided when single fetch is enabled, and made available via
-     // `defineLoader` types, not `LoaderFunctionArgs`
-     ...(singleFetch ? {
-@@ -88,6 +123,7 @@ async function callRouteLoader({
++    // NOTE(calebmer): Pass a `matches` array which returns all Remix matches
++    // for this URL and a promise that resolves when the loader for the match
++    // finishes.
++    matches,
+   });
+   if (result === undefined) {
+     throw new Error(`You defined a loader for route "${routeId}" but didn't return ` + `anything from your \`loader\` function. Please return a value or \`null\`.`);
+@@ -88,6 +122,7 @@ async function callRouteLoader({
      return result;
    }
    return responses.isResponse(result) ? result : responses.json(result);
@@ -170,7 +180,7 @@ index ef24a1437e799febe77caaedc758d1c0251a3193..611183348c535a6c637efd87d2d3b719
        serialized[key] = val;
      }
 diff --git a/dist/esm/data.js b/dist/esm/data.js
-index 119f6423a96eb7bfbd662b199e1ef11354028080..921d7482344bbc8817a3d90a829722ee06ab2442 100644
+index 119f6423a96eb7bfbd662b199e1ef11354028080..5b746f4d1689176e327f288abc48a77fb6742901 100644
 --- a/dist/esm/data.js
 +++ b/dist/esm/data.js
 @@ -21,19 +21,36 @@ import { isResponse, json, isDeferredData, isRedirectStatusCode, redirect } from
@@ -211,7 +221,7 @@ index 119f6423a96eb7bfbd662b199e1ef11354028080..921d7482344bbc8817a3d90a829722ee
      // Only provided when single fetch is enabled, and made available via
      // `defineAction` types, not `ActionFunctionArgs`
      ...(singleFetch ? {
-@@ -49,20 +66,38 @@ async function callRouteAction({
+@@ -49,25 +66,42 @@ async function callRouteAction({
      return result;
    }
    return isResponse(result) ? result : json(result);
@@ -226,7 +236,8 @@ index 119f6423a96eb7bfbd662b199e1ef11354028080..921d7482344bbc8817a3d90a829722ee
    routeId,
 +  routes,
    singleFetch,
-   response
+-  response
++  matches,
  }) {
 +  // NOTE(calebmer): Add spans around Remix loader functions at the framework
 +  // level. This lets us see when a loader has an error. It also lets us see
@@ -244,14 +255,23 @@ index 119f6423a96eb7bfbd662b199e1ef11354028080..921d7482344bbc8817a3d90a829722ee
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
      params,
+-    // Only provided when single fetch is enabled, and made available via
+-    // `defineLoader` types, not `LoaderFunctionArgs`
+-    ...(singleFetch ? {
+-      response
+-    } : null)
 +    span,
 +    // NOTE(calebmer): Pass the server routes array to our code. That way we
 +    // can use it to match routes for a peek within a loader.
 +    serverRoutes: routes,
-     // Only provided when single fetch is enabled, and made available via
-     // `defineLoader` types, not `LoaderFunctionArgs`
-     ...(singleFetch ? {
-@@ -84,6 +119,7 @@ async function callRouteLoader({
++    // NOTE(calebmer): Pass a `matches` array which returns all Remix matches
++    // for this URL and a promise that resolves when the loader for the match
++    // finishes.
++    matches,
+   });
+   if (result === undefined) {
+     throw new Error(`You defined a loader for route "${routeId}" but didn't return ` + `anything from your \`loader\` function. Please return a value or \`null\`.`);
+@@ -84,6 +118,7 @@ async function callRouteLoader({
      return result;
    }
    return isResponse(result) ? result : json(result);
@@ -356,7 +376,7 @@ index 23e8415f0941f9c79da66fed39ae312c305f1577..0303cf3829d53526d838381a87a6a1f2
 +export { callRouteLoader } from './data.js';
 +export { serializeErrors } from './errors.js';
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
-index cd2f4c3ccdd624cd47d44b802319a1c967719897..e04eb32a18d3e9adcbb274af635a3c6ff6697419 100644
+index cd2f4c3ccdd624cd47d44b802319a1c967719897..990c7c4479c20d5259036d3c0d0de70d3c90410a 100644
 --- a/dist/esm/routes.js
 +++ b/dist/esm/routes.js
 @@ -37,7 +37,7 @@ function createRoutes(manifest, parentId = "", routesByParentId = groupRoutesByP
@@ -368,22 +388,30 @@ index cd2f4c3ccdd624cd47d44b802319a1c967719897..e04eb32a18d3e9adcbb274af635a3c6f
    return (routesByParentId[parentId] || []).map(route => {
      let commonRoute = {
        // Always include root due to default boundaries
-@@ -53,6 +53,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
+@@ -53,8 +53,9 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
          loadContext: args.context,
          loader: route.module.loader,
          routeId: route.id,
+-        singleFetch: future.unstable_singleFetch === true,
+-        response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
 +        routes,
-         singleFetch: future.unstable_singleFetch === true,
-         response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
++        singleFetch: false,
++        matches: dataStrategyCtx.matches,
        }) : undefined,
-@@ -62,6 +63,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
+       action: route.module.action ? (args, dataStrategyCtx) => callRouteAction({
+         request: args.request,
+@@ -62,8 +63,9 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
          loadContext: args.context,
          action: route.module.action,
          routeId: route.id,
+-        singleFetch: future.unstable_singleFetch === true,
+-        response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
 +        routes,
-         singleFetch: future.unstable_singleFetch === true,
-         response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
++        singleFetch: false,
++        matches: dataStrategyCtx.matches,
        }) : undefined,
+       handle: route.module.handle
+     };
 @@ -72,7 +74,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
        ...commonRoute
      } : {
@@ -394,7 +422,7 @@ index cd2f4c3ccdd624cd47d44b802319a1c967719897..e04eb32a18d3e9adcbb274af635a3c6f
      };
    });
 diff --git a/dist/esm/server.js b/dist/esm/server.js
-index 9c9460d22233eb9345e08c821239866ac88b86cb..0271e1c9298329ccb47960b40dcaa8caca42a066 100644
+index 9c9460d22233eb9345e08c821239866ac88b86cb..2c4735ac771cf7d5dfff812e660b5364e88fbf41 100644
 --- a/dist/esm/server.js
 +++ b/dist/esm/server.js
 @@ -25,7 +25,7 @@ import { resourceRouteJsonWarning } from './deprecations.js';
@@ -429,7 +457,7 @@ index 9c9460d22233eb9345e08c821239866ac88b86cb..0271e1c9298329ccb47960b40dcaa8ca
      let params = matches && matches.length > 0 ? matches[0].params : {};
      let handleError = error => {
        if (mode === ServerMode.Development) {
-@@ -145,7 +148,28 @@ const createRequestHandler = (build, mode) => {
+@@ -145,13 +148,35 @@ const createRequestHandler = (build, mode) => {
        });
      }
      return response;
@@ -458,6 +486,161 @@ index 9c9460d22233eb9345e08c821239866ac88b86cb..0271e1c9298329ccb47960b40dcaa8ca
  };
  async function handleDataRequest(serverMode, build, staticHandler, routeId, request, loadContext, handleError) {
    try {
+     let response = await staticHandler.queryRoute(request, {
+       routeId,
+-      requestContext: loadContext
++      requestContext: loadContext,
++      unstable_dataStrategy: customDataStrategy,
+     });
+     if (isRedirectResponse(response)) {
+       return createRemixRedirectResponse(response, build.basename);
+@@ -214,11 +239,10 @@ async function handleSingleFetchRequest(serverMode, build, staticHandler, reques
+ }
+ async function handleDocumentRequest(serverMode, build, staticHandler, request, loadContext, handleError, criticalCss) {
+   let context;
+-  let responseStubs = getResponseStubs();
+   try {
+     context = await staticHandler.query(request, {
+       requestContext: loadContext,
+-      unstable_dataStrategy: build.future.unstable_singleFetch ? getSingleFetchDataStrategy(responseStubs) : undefined
++      unstable_dataStrategy: customDataStrategy,
+     });
+   } catch (error) {
+     handleError(error);
+@@ -232,15 +256,7 @@ async function handleDocumentRequest(serverMode, build, staticHandler, request,
+   let statusCode;
+   let headers;
+   if (build.future.unstable_singleFetch) {
+-    let merged = mergeResponseStubs(context, responseStubs);
+-    statusCode = merged.statusCode;
+-    headers = merged.headers;
+-    if (isRedirectStatusCode(statusCode) && headers.has("Location")) {
+-      return new Response(null, {
+-        status: statusCode,
+-        headers
+-      });
+-    }
++    throw new Error("`unstable_singleFetch` is disabled in `cyberworlds`");
+   } else {
+     statusCode = context.statusCode;
+     headers = getDocumentHeaders(build, context);
+@@ -348,42 +364,93 @@ async function handleDocumentRequest(serverMode, build, staticHandler, request,
+     }
+   }
+ }
++
++// NOTE(calebmer): The `_space` layout route needs to know when other Remix
++// matches resolve/reject to know if it's done waiting for a `SpaceId` to be
++// discovered. `@remix-run/router` provides an `unstable_dataStrategy` hook we
++// can use to provide loaders a `matches` array we can use to inspect the
++// state of other loaders.
++function customDataStrategy(opts) {  
++  const matches = [];
++  const matchPromiseResolvers = [];
++
++  for (const match of opts.matches) {
++    const promise = new Promise((resolve, reject) => {
++      matchPromiseResolvers.push({resolve, reject});
++    });
++    
++    matches.push({
++      params: match.params,
++      pathname: match.pathname,
++      pathnameBase: match.pathnameBase,
++      route: match.route,
++      promise,
++    });
++  }
++
++  return betterPromiseAll(opts.matches.map((match, index) => {
++    const promise = match.resolve(async handler => {
++      try {
++        const value = await handler({matches});
++        return { type: "data", result: value };
++      } catch (error) {
++        return { type: "error", result: error };
++      }
++    });
++
++    const matchPromiseResolver = matchPromiseResolvers[index];
++    promise.then(matchPromiseResolver.resolve, matchPromiseResolver.reject);
++
++    return promise;
++  }));
++}
++
++// NOTE(calebmer): Better `Promise.all()` implementation that waits for all
++// promises to finish even if one of the promises rejected. This is a simpler
++// version of our `runAllPromises()` helper that doesn't aggregate errors.
++// 
++// We need to wait for all promises to resolve when running an HTTP request
++// because otherwise we'll call `context.destroy()` prematurely while other
++// promises are waiting to complete!
++// 
++// Adding this since I'm observing "Context was already destroyed" errors in
++// production and my hypothesis is it's because an `await Promise.all()` in
++// Remix is causing us to exit prematurely ([task with screenshots of example
++// trace][1]).
++//
++// Replacing all `Promise.all()` calls in this package with this function.
++//
++// [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/811cn4d4nj0g5gst552a32wk90
++async function betterPromiseAll(promises) {
++  const values = [];
++
++  const results = await Promise.allSettled(promises);
++
++  for (const result of results) {
++    if (result.status === "rejected") {
++      throw result.reason;
++    }
++    values.push(result.value);
++  }
++
++  return values;
++}
++
+ async function handleResourceRequest(serverMode, build, staticHandler, routeId, request, loadContext, handleError) {
+   try {
+-    let responseStubs = build.future.unstable_singleFetch ? getResponseStubs() : {};
+     // Note we keep the routeId here to align with the Remix handling of
+     // resource routes which doesn't take ?index into account and just takes
+     // the leaf match
+     let response = await staticHandler.queryRoute(request, {
+       routeId,
+       requestContext: loadContext,
+-      ...(build.future.unstable_singleFetch ? {
+-        unstable_dataStrategy: getSingleFetchResourceRouteDataStrategy({
+-          responseStubs
+-        })
+-      } : null)
++      unstable_dataStrategy: customDataStrategy,
+     });
+     if (typeof response === "object") {
+       invariant(!(UNSAFE_DEFERRED_SYMBOL in response), `You cannot return a \`defer()\` response from a Resource Route.  Did you ` + `forget to export a default UI component from the "${routeId}" route?`);
+     }
+     if (build.future.unstable_singleFetch) {
+-      let stub = responseStubs[routeId];
+-      if (isResponse(response)) {
+-        // If a response was returned, we use it's status and we merge our
+-        // response stub headers onto it
+-        let ops = stub[ResponseStubOperationsSymbol];
+-        for (let [op, ...args] of ops) {
+-          // @ts-expect-error
+-          response.headers[op](...args);
+-        }
+-      } else {
+-        console.warn(resourceRouteJsonWarning(request.method === "GET" ? "loader" : "action", routeId));
+-        // Otherwise we create a json Response using the stub
+-        response = json$1(response, {
+-          status: stub.status,
+-          headers: stub.headers
+-        });
+-      }
++      throw new Error("`unstable_singleFetch` is disabled in `cyberworlds`");
+     }
+ 
+     // callRouteLoader/callRouteAction always return responses (w/o single fetch).
 diff --git a/dist/esm/single-fetch.js b/dist/esm/single-fetch.js
 index 0b9b6c7eaec829519c3ed6b1232936ce45aabfd4..05f070c89c24f880c537932186f73f5f2c1479b4 100644
 --- a/dist/esm/single-fetch.js
@@ -574,7 +757,7 @@ index 5f6ee8a272b8b5a3a9b6a67f4c4f348c334ada50..5cc82a22885681de0e3745c1df1126c2
 +exports.callRouteLoader = data.callRouteLoader;
 +exports.serializeErrors = errors.serializeErrors;
 diff --git a/dist/routes.js b/dist/routes.js
-index eb216c8bbc76b42ccf439e2e6820bfb601c30af9..79145cfecfe316168349fd78ae969a9cf28d82a5 100644
+index eb216c8bbc76b42ccf439e2e6820bfb601c30af9..a67e276cffabc9ab7b0716e2896a58a50034ff13 100644
 --- a/dist/routes.js
 +++ b/dist/routes.js
 @@ -41,7 +41,7 @@ function createRoutes(manifest, parentId = "", routesByParentId = groupRoutesByP
@@ -586,22 +769,30 @@ index eb216c8bbc76b42ccf439e2e6820bfb601c30af9..79145cfecfe316168349fd78ae969a9c
    return (routesByParentId[parentId] || []).map(route => {
      let commonRoute = {
        // Always include root due to default boundaries
-@@ -57,6 +57,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
+@@ -57,8 +57,9 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
          loadContext: args.context,
          loader: route.module.loader,
          routeId: route.id,
+-        singleFetch: future.unstable_singleFetch === true,
+-        response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
 +        routes,
-         singleFetch: future.unstable_singleFetch === true,
-         response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
++        singleFetch: false,
++        matches: dataStrategyCtx.matches,
        }) : undefined,
-@@ -66,6 +67,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
+       action: route.module.action ? (args, dataStrategyCtx) => data.callRouteAction({
+         request: args.request,
+@@ -66,8 +67,9 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
          loadContext: args.context,
          action: route.module.action,
          routeId: route.id,
+-        singleFetch: future.unstable_singleFetch === true,
+-        response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
 +        routes,
-         singleFetch: future.unstable_singleFetch === true,
-         response: dataStrategyCtx === null || dataStrategyCtx === void 0 ? void 0 : dataStrategyCtx.response
++        singleFetch: false,
++        matches: dataStrategyCtx.matches,
        }) : undefined,
+       handle: route.module.handle
+     };
 @@ -76,7 +78,7 @@ function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesBy
        ...commonRoute
      } : {
@@ -630,7 +821,7 @@ index f553eef46e608b6fa0aeb899dc49e81990098328..7cc6f9ebd7eed6bf2f96cc89796c67de
  export type CreateRequestHandlerFunction = (build: ServerBuild | (() => ServerBuild | Promise<ServerBuild>), mode?: string) => RequestHandler;
  export declare const createRequestHandler: CreateRequestHandlerFunction;
 diff --git a/dist/server.js b/dist/server.js
-index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..84b18175f84b2e9c54e6fc0575e1d79619a6a555 100644
+index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..2a42e3d7701234d5541755380fbc67b37e22b5ca 100644
 --- a/dist/server.js
 +++ b/dist/server.js
 @@ -29,7 +29,7 @@ var deprecations = require('./deprecations.js');
@@ -665,7 +856,7 @@ index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..84b18175f84b2e9c54e6fc0575e1d796
      let params = matches && matches.length > 0 ? matches[0].params : {};
      let handleError = error => {
        if (mode$1 === mode.ServerMode.Development) {
-@@ -149,7 +152,28 @@ const createRequestHandler = (build, mode$1) => {
+@@ -149,13 +152,35 @@ const createRequestHandler = (build, mode$1) => {
        });
      }
      return response;
@@ -695,6 +886,161 @@ index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..84b18175f84b2e9c54e6fc0575e1d796
  };
  async function handleDataRequest(serverMode, build, staticHandler, routeId, request, loadContext, handleError) {
    try {
+     let response = await staticHandler.queryRoute(request, {
+       routeId,
+-      requestContext: loadContext
++      requestContext: loadContext,
++      unstable_dataStrategy: customDataStrategy,
+     });
+     if (responses.isRedirectResponse(response)) {
+       return createRemixRedirectResponse(response, build.basename);
+@@ -218,11 +243,10 @@ async function handleSingleFetchRequest(serverMode, build, staticHandler, reques
+ }
+ async function handleDocumentRequest(serverMode, build, staticHandler, request, loadContext, handleError, criticalCss) {
+   let context;
+-  let responseStubs = singleFetch.getResponseStubs();
+   try {
+     context = await staticHandler.query(request, {
+       requestContext: loadContext,
+-      unstable_dataStrategy: build.future.unstable_singleFetch ? singleFetch.getSingleFetchDataStrategy(responseStubs) : undefined
++      unstable_dataStrategy: customDataStrategy,
+     });
+   } catch (error) {
+     handleError(error);
+@@ -236,15 +260,7 @@ async function handleDocumentRequest(serverMode, build, staticHandler, request,
+   let statusCode;
+   let headers$1;
+   if (build.future.unstable_singleFetch) {
+-    let merged = singleFetch.mergeResponseStubs(context, responseStubs);
+-    statusCode = merged.statusCode;
+-    headers$1 = merged.headers;
+-    if (responses.isRedirectStatusCode(statusCode) && headers$1.has("Location")) {
+-      return new Response(null, {
+-        status: statusCode,
+-        headers: headers$1
+-      });
+-    }
++    throw new Error("`unstable_singleFetch` is disabled in `cyberworlds`");
+   } else {
+     statusCode = context.statusCode;
+     headers$1 = headers.getDocumentHeaders(build, context);
+@@ -352,42 +368,93 @@ async function handleDocumentRequest(serverMode, build, staticHandler, request,
+     }
+   }
+ }
++
++// NOTE(calebmer): The `_space` layout route needs to know when other Remix
++// matches resolve/reject to know if it's done waiting for a `SpaceId` to be
++// discovered. `@remix-run/router` provides an `unstable_dataStrategy` hook we
++// can use to provide loaders a `matches` array we can use to inspect the
++// state of other loaders.
++function customDataStrategy(opts) {  
++  const matches = [];
++  const matchPromiseResolvers = [];
++
++  for (const match of opts.matches) {
++    const promise = new Promise((resolve, reject) => {
++      matchPromiseResolvers.push({resolve, reject});
++    });
++    
++    matches.push({
++      params: match.params,
++      pathname: match.pathname,
++      pathnameBase: match.pathnameBase,
++      route: match.route,
++      promise,
++    });
++  }
++
++  return betterPromiseAll(opts.matches.map((match, index) => {
++    const promise = match.resolve(async handler => {
++      try {
++        const value = await handler({matches});
++        return { type: "data", result: value };
++      } catch (error) {
++        return { type: "error", result: error };
++      }
++    });
++
++    const matchPromiseResolver = matchPromiseResolvers[index];
++    promise.then(matchPromiseResolver.resolve, matchPromiseResolver.reject);
++
++    return promise;
++  }));
++}
++
++// NOTE(calebmer): Better `Promise.all()` implementation that waits for all
++// promises to finish even if one of the promises rejected. This is a simpler
++// version of our `runAllPromises()` helper that doesn't aggregate errors.
++// 
++// We need to wait for all promises to resolve when running an HTTP request
++// because otherwise we'll call `context.destroy()` prematurely while other
++// promises are waiting to complete!
++// 
++// Adding this since I'm observing "Context was already destroyed" errors in
++// production and my hypothesis is it's because an `await Promise.all()` in
++// Remix is causing us to exit prematurely ([task with screenshots of example
++// trace][1]).
++//
++// Replacing all `Promise.all()` calls in this package with this function.
++//
++// [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/811cn4d4nj0g5gst552a32wk90
++async function betterPromiseAll(promises) {
++  const values = [];
++
++  const results = await Promise.allSettled(promises);
++
++  for (const result of results) {
++    if (result.status === "rejected") {
++      throw result.reason;
++    }
++    values.push(result.value);
++  }
++
++  return values;
++}
++
+ async function handleResourceRequest(serverMode, build, staticHandler, routeId, request, loadContext, handleError) {
+   try {
+-    let responseStubs = build.future.unstable_singleFetch ? singleFetch.getResponseStubs() : {};
+     // Note we keep the routeId here to align with the Remix handling of
+     // resource routes which doesn't take ?index into account and just takes
+     // the leaf match
+     let response = await staticHandler.queryRoute(request, {
+       routeId,
+       requestContext: loadContext,
+-      ...(build.future.unstable_singleFetch ? {
+-        unstable_dataStrategy: singleFetch.getSingleFetchResourceRouteDataStrategy({
+-          responseStubs
+-        })
+-      } : null)
++      unstable_dataStrategy: customDataStrategy,
+     });
+     if (typeof response === "object") {
+       invariant["default"](!(router.UNSAFE_DEFERRED_SYMBOL in response), `You cannot return a \`defer()\` response from a Resource Route.  Did you ` + `forget to export a default UI component from the "${routeId}" route?`);
+     }
+     if (build.future.unstable_singleFetch) {
+-      let stub = responseStubs[routeId];
+-      if (responses.isResponse(response)) {
+-        // If a response was returned, we use it's status and we merge our
+-        // response stub headers onto it
+-        let ops = stub[singleFetch.ResponseStubOperationsSymbol];
+-        for (let [op, ...args] of ops) {
+-          // @ts-expect-error
+-          response.headers[op](...args);
+-        }
+-      } else {
+-        console.warn(deprecations.resourceRouteJsonWarning(request.method === "GET" ? "loader" : "action", routeId));
+-        // Otherwise we create a json Response using the stub
+-        response = responses.json(response, {
+-          status: stub.status,
+-          headers: stub.headers
+-        });
+-      }
++      throw new Error("`unstable_singleFetch` is disabled in `cyberworlds`");
+     }
+ 
+     // callRouteLoader/callRouteAction always return responses (w/o single fetch).
 diff --git a/dist/single-fetch.js b/dist/single-fetch.js
 index cbe5900073d1b4cb5874a6ae9f1134575946a700..9afc04b3497e1b12f9c7bbe4272c9436e157f19a 100644
 --- a/dist/single-fetch.js

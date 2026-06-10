@@ -33,8 +33,7 @@ export class CloudflareR2ContextModule
     }
 
     /**
-     * S3 [`GetObject`][1] action. See [Cloudflare R2 S3 API compatibility
-     * notes][2].
+     * S3 [`GetObject`][1] action. See [Cloudflare R2 S3 API compatibility notes][2].
      *
      * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
      * [2]: https://developers.cloudflare.com/r2/api/s3/api/
@@ -47,8 +46,7 @@ export class CloudflareR2ContextModule
     }
 
     /**
-     * S3 [`HeadObject`][1] action. See [Cloudflare R2 S3 API compatibility
-     * notes][2].
+     * S3 [`HeadObject`][1] action. See [Cloudflare R2 S3 API compatibility notes][2].
      *
      * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
      * [2]: https://developers.cloudflare.com/r2/api/s3/api/
@@ -58,8 +56,7 @@ export class CloudflareR2ContextModule
     }
 
     /**
-     * S3 [`PutObject`][1] action. See [Cloudflare R2 S3 API compatibility
-     * notes][2].
+     * S3 [`PutObject`][1] action. See [Cloudflare R2 S3 API compatibility notes][2].
      *
      * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
      * [2]: https://developers.cloudflare.com/r2/api/s3/api/
@@ -83,10 +80,11 @@ export class CloudflareR2ContextModule
     }
 
     /**
-     * Get a [pre-signed URL][1] for the S3 [`GetObject`][2] action that'll expire
-     * at the provided expiration time.
+     * Get a [pre-signed URL][1] for the S3 [`GetObject`][2] action that'll expire at
+     * the provided expiration time.
      *
-     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
+     * [1]:
+     *     https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
      * [2]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
      */
     public getGetObjectSignedUrl(expirationTime: Date, input: GetObjectCommandInput) {

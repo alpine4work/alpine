@@ -1,4 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
+import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
@@ -158,7 +159,7 @@ describe("getCloneActions", () => {
             creatorTimeZone: timeZone,
         });
         const createAction = findAction<TaskCreateAction>(actions, "Create");
-        expect(createAction.taskAction.creatorId).toBe(accountId);
+        expect(createAction.taskAction.creator.accountId).toBe(accountId);
 
         const basicActionTypes = actions.map(
             action => "taskAction" in action && action.taskAction.type,
@@ -191,6 +192,49 @@ describe("getCloneActions", () => {
             "UpdateParentTaskId",
         );
         expect(parentAction?.taskAction.parentTaskId).toBe(parentId);
+    });
+
+    test("doesn\u2019t copy access policy", () => {
+        const otherManagerId = generateId<AccountId>();
+        const editorId = generateId<AccountId>();
+        const accessPolicy: AccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                [accountId, {level: "Manage", generation: 0}],
+                [otherManagerId, {level: "Manage", generation: 2}],
+                [editorId, {level: "Edit"}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 3},
+            urlGrant: {level: "View"},
+        };
+
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy,
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const newCreatorId = generateId<AccountId>();
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: newCreatorId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+
+        expect(
+            actions.some(
+                action =>
+                    action.type === "UpdateTask" && action.taskAction.type === "UpdateAccessPolicy",
+            ),
+        ).toBe(false);
     });
 
     test("copies title", () => {
@@ -352,5 +396,30 @@ describe("getCloneActions", () => {
         });
         const priorityAction = findAction<TaskUpdatePriorityAction>(actions, "UpdatePriority");
         expect(priorityAction?.taskAction.priority).toBe("High");
+    });
+
+    test("copies layout when not default", () => {
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout: "Project",
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const layoutAction = findAction(actions, "UpdateLayout");
+        expect(layoutAction?.taskAction.type).toBe("UpdateLayout");
+        assert(layoutAction?.taskAction.type === "UpdateLayout");
+        expect(layoutAction.taskAction.layout).toBe("Project");
     });
 });

@@ -6,8 +6,8 @@ import {
 
 /**
  * A test helper for determining how often a given operation happens over the
- * course of a test. Useful for testing performance optimizations where you
- * want to make sure we're not calling some expensive piece of code.
+ * course of a test. Useful for testing performance optimizations where you want to
+ * make sure we're not calling some expensive piece of code.
  */
 export class TestCounter<Key extends StringifiableValueForDeepEqualCheck | void> {
     private _count = 0;
@@ -38,8 +38,8 @@ export class TestCounter<Key extends StringifiableValueForDeepEqualCheck | void>
     }
 
     /**
-     * Increment the count for the provided key. Will only increment
-     * the count if we are recording with `recordForTest()`.
+     * Increment the count for the provided key. Will only increment the count if we
+     * are recording with `recordForTest()`.
      */
     public incrementForTest(key: Key, n: number = 1): void {
         if (!import.meta.jest) return;
@@ -51,17 +51,17 @@ export class TestCounter<Key extends StringifiableValueForDeepEqualCheck | void>
         const keyString = key !== undefined ? stringifyForDeepEqualCheck(key) : "undefined";
         const count = this._countByKey.get(keyString);
 
-        // If there is no count, we aren't recording the count for this request. Don't
-        // set a count in our map since that may cause memory issues.
+        // If there is no count, we aren't recording the count for this request. Don't set
+        // a count in our map since that may cause memory issues.
         if (count === undefined) return;
 
         this._countByKey.set(keyString, count + n);
     }
 
     /**
-     * Starts recording a count for the provided key. Any changes to
-     * the count before this call won't be represented. Call the returned
-     * `getCount` function for the current count.
+     * Starts recording a count for the provided key. Any changes to the count before
+     * this call won't be represented. Call the returned `getCount` function for the
+     * current count.
      *
      * Will throw outside of a test environment.
      */
@@ -87,8 +87,8 @@ export class TestCounter<Key extends StringifiableValueForDeepEqualCheck | void>
     }
 
     /**
-     * Starts recording a count across all keys. Call the returned `getCount` function for
-     * the current count.
+     * Starts recording a count across all keys. Call the returned `getCount` function
+     * for the current count.
      *
      * Will throw outside of a test environment.
      */

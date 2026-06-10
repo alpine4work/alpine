@@ -1388,8 +1388,7 @@ test("applying task title update to task title produces optimized form", () => {
         ds: {clients: new Map()},
     });
 
-    // Yjs's `mergeUpdatesV2()` function does not produce an update in
-    // optimized form.
+    // Yjs's `mergeUpdatesV2()` function does not produce an update in optimized form.
     expect(
         Y.decodeUpdateV2(
             Y.mergeUpdatesV2([title0.getRaw(), update1.raw, update2.raw, update3.raw]),
@@ -1452,8 +1451,7 @@ test("applying task title update to task title produces optimized form", () => {
         ds: {clients: new Map()},
     });
 
-    // Yjs's `mergeUpdatesV2()` function does not produce an update in
-    // optimized form.
+    // Yjs's `mergeUpdatesV2()` function does not produce an update in optimized form.
     expect(Y.decodeUpdateV2(Y.mergeUpdatesV2([update2.raw, update3.raw]))).toEqual({
         structs: [
             {
@@ -1800,8 +1798,8 @@ test("reproduce bugged merge error when merging item with GCed content with item
 
     const title = new TaskTitleModel(new TaskTitleModel(rawTitle).getDocForTest());
 
-    // `title` will be garbage collected since `item.keep = true` was not set on
-    // any items while constructing the `TaskTitleModel`.
+    // `title` will be garbage collected since `item.keep = true` was not set on any
+    // items while constructing the `TaskTitleModel`.
     expect(Y.decodeUpdateV2(title.getRaw())).toEqual(Y.decodeUpdateV2(update));
 
     expect(title.getText()).toEqual("task 2");
@@ -1817,8 +1815,8 @@ test("reproduce bugged merge error when merging item with GCed content with item
         .newTitle.clear({clientIdForTest: 3476544294})
         .newTitle.replace(0, 0, "task 2", {clientIdForTest: 3476544294}).newTitle;
 
-    // `title` should not be garbage collected since `item.keep = true` is set on
-    // all updates made with `replace()`.
+    // `title` should not be garbage collected since `item.keep = true` is set on all
+    // updates made with `replace()`.
     expect(Y.decodeUpdateV2(titleFromEmpty.getRaw())).toEqual(Y.decodeUpdateV2(rawTitle));
 
     expect(titleFromEmpty.getText()).toEqual("task 2");
@@ -1827,8 +1825,8 @@ test("reproduce bugged merge error when merging item with GCed content with item
 });
 
 // NOTE(calebmer, 2025-03-05): The following tests are written by AI with
-// modifications by me to make sure they pass. Hence all the comments. The
-// region comment allows you to collapse these tests in VS Code.
+// modifications by me to make sure they pass. Hence all the comments. The region
+// comment allows you to collapse these tests in VS Code.
 //
 // #region 2025-03-05 AI tests
 
@@ -2321,8 +2319,8 @@ test("properly handles empty documents", () => {
 test("handles multi-user simultaneous cursor position deletions", () => {
     const title = TaskTitleModel.fromText("abcdefghijklm");
 
-    // Three users concurrently delete content at different cursor positions
-    // First user removes "cde"
+    // Three users concurrently delete content at different cursor positions First user
+    // removes "cde"
     const update1 = title.replace(2, 5, "", {clientIdForTest: 1});
 
     // Second user removes "hij"
@@ -2361,7 +2359,8 @@ test("handles multi-user insertions at the same position", () => {
     const title123 = title.apply(update1).apply(update2).apply(update3);
     const title321 = title.apply(update3).apply(update2).apply(update1);
 
-    // Results should be consistent (though order of characters may depend on Yjs conflict resolution)
+    // Results should be consistent (though order of characters may depend on Yjs
+    // conflict resolution)
     expect(title123.getText()).toEqual(title321.getText());
 });
 
@@ -2381,8 +2380,8 @@ test("handles overlapping replacements correctly", () => {
     // Results should be consistent (though exact resolution depends on Yjs)
     expect(title12.getText()).toEqual(title21.getText());
 
-    // Verify the result is deterministic (specific resolution depends on Yjs algorithm)
-    // The outcome will depend on how Yjs resolves the conflict
+    // Verify the result is deterministic (specific resolution depends on Yjs
+    // algorithm) The outcome will depend on how Yjs resolves the conflict
     const finalText = title12.getText();
 
     // Check that applying the same updates to a fresh document gives the same result
@@ -2395,6 +2394,7 @@ test("handles complex concurrent editing with interleaved inserts and deletes", 
     const title = TaskTitleModel.fromText("abcdefg");
 
     // Series of concurrent edits:
+    //
     // 1. Insert "X" between a and b
     const update1 = title.replace(1, 1, "X", {clientIdForTest: 1});
 
@@ -2448,8 +2448,7 @@ test("handles concurrent conflicting undos and redos", () => {
     let title1 = emptyTaskTitleModel.get();
     let title2 = emptyTaskTitleModel.get();
 
-    // Both users start with same document
-    // User 1 adds text
+    // Both users start with same document User 1 adds text
     const update1 = title1.replace(0, 0, "Hello", {clientIdForTest: 1});
     title1 = update1.newTitle;
 
@@ -2526,8 +2525,8 @@ test("preserves document integrity with concurrent undos of non-sequential updat
 test("maintains internal structure integrity with multi-user complex operations", () => {
     const title = TaskTitleModel.fromText("Baseline text", {clientIdForTest: 1});
 
-    // Series of edits by different users with overwrites
-    // User 1 replaces "Base" with "Initial"
+    // Series of edits by different users with overwrites User 1 replaces "Base" with
+    // "Initial"
     const update1 = title.replace(0, 4, "Initial", {clientIdForTest: 1});
 
     // User 2 replaces "text" with "document"
@@ -2549,8 +2548,8 @@ test("maintains internal structure integrity with multi-user complex operations"
     // Even with such divergent paths, the documents should eventually converge
     expect(title1234.getText()).toEqual(title3412.getText());
 
-    // Verify the result remains stable with additional operations
-    // Add another edit operation on the merged document
+    // Verify the result remains stable with additional operations Add another edit
+    // operation on the merged document
     const titleFinal = title1234.replace(
         title1234.getText().length,
         title1234.getText().length,
@@ -2573,8 +2572,8 @@ test("maintains internal structure integrity with multi-user complex operations"
 test("handles extreme cascading position shifts from interleaved updates", () => {
     const title = TaskTitleModel.fromText("0123456789", {clientIdForTest: 1});
 
-    // Create a series of non-sequential position updates that cascade
-    // Each edit shifts positions for subsequent edits
+    // Create a series of non-sequential position updates that cascade Each edit shifts
+    // positions for subsequent edits
 
     // These updates are designed to create complex dependencies
     const updates = [
@@ -2619,13 +2618,14 @@ test("handles extreme cascading position shifts from interleaved updates", () =>
 test("handles rapid insert/delete pairs at the same position", () => {
     const title = TaskTitleModel.fromText("ABCDEFG", {clientIdForTest: 1});
 
-    // Create a series of rapid insert/delete pairs at the same position
-    // by different users
+    // Create a series of rapid insert/delete pairs at the same position by different
+    // users
 
     // User 2 inserts X at position 3
     const insert1 = title.replace(3, 3, "X", {clientIdForTest: 2});
 
-    // User 3 deletes the character at position 3 (which may or may not be X depending on order)
+    // User 3 deletes the character at position 3 (which may or may not be X depending
+    // on order)
     const delete1 = title.replace(3, 4, "", {clientIdForTest: 3});
 
     // User 4 inserts Y at position 3
@@ -2744,8 +2744,8 @@ test("maintains data integrity when same update is applied multiple times", () =
 test("gracefully handles empty operations in sequence", () => {
     const title = TaskTitleModel.fromText("Sample text", {clientIdForTest: 1});
 
-    // Create a sequence of operations where some operations are no-ops
-    // (they don't actually change anything)
+    // Create a sequence of operations where some operations are no-ops (they don't
+    // actually change anything)
 
     // First replace "Sample" with itself - this should be a no-op internally
     const update1 = title.replace(0, 6, "Sample", {clientIdForTest: 2});
@@ -2856,8 +2856,12 @@ test("deletes content spanning across multiple nodes", () => {
     const initialNodeCount = getXmlTextNodeCount(title);
 
     // Delete content that spans across the first and second nodes
+    //
+    // ```
     // "First segment Second segment Third segment"
     //        |____________|
+    // ```
+    //
     // Deleting from position 6 to 20 ("segment Second")
     const updatedTitle = title.replace(6, 20, "", {clientIdForTest: 4}).newTitle;
 
@@ -2891,8 +2895,8 @@ test("deletes partial content from each node", () => {
     const title = createMultiNodeTitle();
     // "First segment Second segment Third segment"
 
-    // Delete every "segment" substring from the title
-    // This requires deleting from parts of each node
+    // Delete every "segment" substring from the title This requires deleting from
+    // parts of each node
     let updatedTitle = title;
 
     // Delete "segment" from first node
@@ -2937,8 +2941,12 @@ test("inserts content spanning positions in multiple nodes", () => {
     const title = createMultiNodeTitle();
 
     // Replace content that spans across nodes with new text
+    //
+    // ```
     // "First segment Second segment Third segment"
     //        |____________________|
+    // ```
+    //
     // Replace "segment Second segment" with "REPLACEMENT"
     const updatedTitle = title.replace(6, 28, "REPLACEMENT", {clientIdForTest: 4}).newTitle;
 
@@ -2953,8 +2961,11 @@ test("deletes from start of one node to middle of another node", () => {
     const title = createMultiNodeTitle();
 
     // Delete from start of second node to middle of third node
+    //
+    // ```
     // "First segment Second segment Third segment"
     //                |__________________|
+    // ```
     const updatedTitle = title.replace(14, 35, "", {clientIdForTest: 4}).newTitle;
 
     // Verify the text content
@@ -3207,7 +3218,8 @@ test("deletes across node boundaries with position updates", () => {
 test("handles complex insert/delete sequence on multiple nodes", () => {
     const title = createMultiNodeTitle();
 
-    // A sequence of edits that repeatedly insert and delete content across node boundaries
+    // A sequence of edits that repeatedly insert and delete content across node
+    // boundaries
     let updatedTitle = title;
 
     // Insert at start
@@ -3266,7 +3278,8 @@ test("deletes empty nodes and ensures correct insertion points", () => {
 test("interleaves delete and insert operations across node boundaries", () => {
     const title = createMultiNodeTitle();
 
-    // Create operations that alternate between delete and insert across node boundaries
+    // Create operations that alternate between delete and insert across node
+    // boundaries
     let updatedTitle = title;
 
     // Delete first segment's "segment"
@@ -3339,8 +3352,8 @@ test("deletes alternating characters across node boundaries", () => {
 
     let updatedTitle = title;
 
-    // Delete every other character across the entire string
-    // This will cross node boundaries in a complex pattern
+    // Delete every other character across the entire string This will cross node
+    // boundaries in a complex pattern
     for (let i = text.length; i - 1 >= 0; i -= 2) {
         updatedTitle = updatedTitle.replace(i - 1, i, "", {clientIdForTest: i}).newTitle;
     }

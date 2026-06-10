@@ -3,7 +3,7 @@ import {
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskCollectionModelData} from "~/shared/tasks/model/task_collection_model.js";
 
 export function mergeTaskCollectionModelData(
@@ -16,8 +16,8 @@ export function mergeTaskCollectionModelData(
     if (collection1.spaceId !== collection2.spaceId)
         throw new InternalError("Incompatible task `spaceId` when merging");
 
-    if (collection1.creatorId !== collection2.creatorId)
-        throw new InternalError("Incompatible task `creatorId` when merging");
+    if (!isDeepEqualForUnknownValues(collection1.creator, collection2.creator))
+        throw new InternalError("Incompatible task `creator` when merging");
 
     if (compareHybridLogicalTimes(collection1.createdTime, collection2.createdTime) !== 0)
         throw new InternalError("Incompatible task `createdTime` when merging");
@@ -26,7 +26,7 @@ export function mergeTaskCollectionModelData(
         id: collection1.id,
         spaceId: collection1.spaceId,
 
-        creatorId: collection1.creatorId,
+        creator: collection1.creator,
         createdTime: collection1.createdTime,
         deletedTime:
             collection1.deletedTime !== null && collection2.deletedTime !== null
@@ -42,10 +42,10 @@ export function mergeTaskCollectionModelData(
         accessPolicy: collection1.accessPolicy.merge(collection2.accessPolicy),
     };
 
-    // Optimization: If nothing changed between `collection1` and the merged
-    // collection then return `collection1` so the new collection is referentially
-    // equal to the old one.
-    if (isDeepEqual(collection1, newCollection)) return collection1;
+    // Optimization: If nothing changed between `collection1` and the merged collection
+    // then return `collection1` so the new collection is referentially equal to the
+    // old one.
+    if (isDeepEqualForUnknownValues(collection1, newCollection)) return collection1;
 
     return newCollection;
 }

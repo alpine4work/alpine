@@ -1,20 +1,20 @@
 /**
- * Create a new array where the provided separator is interleaved between
- * every item. Similar to `Array.join()` but you can join without a string.
+ * Create a new array where the provided separator is interleaved between every
+ * item. Similar to `Array.join()` but you can join without a string.
  *
- * If a function is provided for the separator, you can create a new item for
- * each separator position.
+ * If a function is provided for the separator, you can create a new item for each
+ * separator position.
  *
  * Example:
  *
  * ```ts
- * interleaveArray(["a", "b", "c"], "; ")
+ * interleaveArray(["a", "b", "c"], "; ");
  * ```
  *
  * Returns:
  *
  * ```ts
- * ["a", "; ", "b", "; ", "c"]
+ * ["a", "; ", "b", "; ", "c"];
  * ```
  */
 export function interleaveArray<Item, NewItem>(

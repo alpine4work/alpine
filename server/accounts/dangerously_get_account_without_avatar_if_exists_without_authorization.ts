@@ -7,11 +7,11 @@ import {Context} from "~/shared/context/context.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get an account without authorizing whether the current context has
- * access or not.
+ * Get an account without authorizing whether the current context has access or
+ * not.
  *
- * You should not call this function! It does not authorize that you are
- * allowed to access the account and does not cache accounts. Instead use
+ * You should not call this function! It does not authorize that you are allowed to
+ * access the account and does not cache accounts. Instead use
  * `getAccountIfExists()` in `server/spaces/spaces_table.ts`.
  */
 export async function dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization(

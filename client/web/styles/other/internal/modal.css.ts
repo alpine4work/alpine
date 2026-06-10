@@ -34,10 +34,9 @@ const modalContentFadeInKeyframes = keyframes({
 });
 
 // We follow an animation principle of: respond to direct user interaction
-// immediately, respond to indirect user interaction with animation. We
-// consider a modal to be a result of an indirect interaction. The user's
-// cursor is likely not near the center of the screen where the modal
-// buttons are.
+// immediately, respond to indirect user interaction with animation. We consider a
+// modal to be a result of an indirect interaction. The user's cursor is likely not
+// near the center of the screen where the modal buttons are.
 //
 // Because the modal takes over the entire screen and is spatially disconnected
 // from the element which spawned it, we use a slightly longer animation.

@@ -5,6 +5,7 @@ import {EdgeServiceContextModule} from "~/server/context/edge_service_context_mo
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModuleBase} from "~/server/context/web_push_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
@@ -24,6 +25,7 @@ type AppServiceExtraContextModules = {
     r2: CloudflareR2ContextModule;
     billing: BillingContextModuleBase;
     importer: ImporterContextModuleBase;
+    slack: SlackContextModuleBase;
     logoDev: LogoDevContextModuleBase;
 };
 

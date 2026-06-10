@@ -6,12 +6,13 @@ import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 /**
  * Opts out of web push for a space without authorization.
  *
- * Will create a new web push subscription item if one does not exist with a null subscription and
- * endpoint. This means that if a user subscribes to web push later with the same browser but a
- * different space, they will remain opted out of notifications for previously opted out spaces.
+ * Will create a new web push subscription item if one does not exist with a null
+ * subscription and endpoint. This means that if a user subscribes to web push
+ * later with the same browser but a different space, they will remain opted out of
+ * notifications for previously opted out spaces.
  *
- * Performs no authorization, you should use `optOutOfWebPushForSpace()` or ensure you check
- * authorization before calling this function.
+ * Performs no authorization, you should use `optOutOfWebPushForSpace()` or ensure
+ * you check authorization before calling this function.
  */
 export async function optOutOfWebPushForSpaceWithoutAuthorization(
     context: ServerActionContext,

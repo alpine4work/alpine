@@ -28,8 +28,8 @@ export class ContentEditorDomParser extends DOMParser {
     constructor(schema: Schema, rules: ReadonlyArray<ParseRule>) {
         super(schema, rules);
 
-        // Never normalize lists. We actually want to do the opposite of `DOMParser`
-        // list normalization. We want `<li>`s to NOT contain nested lists.
+        // Never normalize lists. We actually want to do the opposite of `DOMParser` list
+        // normalization. We want `<li>`s to NOT contain nested lists.
         this.normalizeLists = false;
     }
 
@@ -45,10 +45,10 @@ export class ContentEditorDomParser extends DOMParser {
 }
 
 /**
- * Does the opposite of the built-in DOM parser [list normalization][1]. If we
- * find a list nested inside an `<li>`, remove it from the `<li>` and put it
- * directly in the parent `<ul>`/`<ol>`. While this is not semantic list HTML,
- * it matches our content schema for lists (which has no `<ul>`/`<ol>` nesting).
+ * Does the opposite of the built-in DOM parser [list normalization][1]. If we find
+ * a list nested inside an `<li>`, remove it from the `<li>` and put it directly in
+ * the parent `<ul>`/`<ol>`. While this is not semantic list HTML, it matches our
+ * content schema for lists (which has no `<ul>`/`<ol>` nesting).
  *
  * So:
  *
@@ -76,7 +76,8 @@ export class ContentEditorDomParser extends DOMParser {
  * </ul>
  * ```
  *
- * [1]: https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/from_dom.ts#L774-L789
+ * [1]:
+ *     https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/from_dom.ts#L774-L789
  */
 function normalizeLists(rootNode: globalThis.Node) {
     if (!(rootNode instanceof HTMLElement)) return;

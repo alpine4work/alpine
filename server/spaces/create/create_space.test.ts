@@ -100,10 +100,10 @@ describe("createSpaceForAccountAsAdmin()", () => {
         });
 
         test("assigns affinity points to Welcome channel for user", async () => {
-            // Testing search in this package would be a bit of work, instead
-            // lets just verify that the function to add affinity points is called
-            // NOTE: this function only creates the transaction entries, it doesn't actually
-            // execute them, so we aren't _truly_ testing search integration here.
+            // Testing search in this package would be a bit of work, instead lets just verify
+            // that the function to add affinity points is called NOTE: this function only
+            // creates the transaction entries, it doesn't actually execute them, so we aren't
+            // _truly_ testing search integration here.
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession({hasInternalAccess: true});
 

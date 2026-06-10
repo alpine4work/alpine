@@ -7,32 +7,27 @@ import type {
 
 /**
  * Two-tier status for tracked pages:
- * - `"confirmed"` — the client has acknowledged
- *   receiving this page.
- * - `"pending"` — the server sent this page but
- *   the client hasn't acknowledged it yet.
+ *
+ * - `"confirmed"` — the client has acknowledged receiving this page.
+ * - `"pending"` — the server sent this page but the client hasn't acknowledged it
+ *   yet.
  */
 type PageStatus = "confirmed" | "pending";
 
 /**
- * Tracks which SQLite pages each browser already
- * has cached in OPFS, with two confidence tiers:
- * **confirmed** (client acknowledged) and **pending**
- * (sent but not yet acknowledged). Pages are
- * partitioned by {@link DatabaseTableId} since a
- * client may have many independent table databases
- * attached.
+ * Tracks which SQLite pages each browser already has cached in OPFS, with two
+ * confidence tiers: **confirmed** (client acknowledged) and **pending** (sent but
+ * not yet acknowledged). Pages are partitioned by {@link DatabaseTableId} since a
+ * client may have many independent table databases attached.
  *
- * - `filterReadPages` skips only confirmed pages,
- *   so pending pages are re-sent if needed.
- * - Future per-client realtime filtering should
- *   include both confirmed and pending pages
- *   (anything the client might have).
+ * - `filterReadPages` skips only confirmed pages, so pending pages are re-sent if
+ *   needed.
+ * - Future per-client realtime filtering should include both confirmed and pending
+ *   pages (anything the client might have).
  *
- * Entries are reference-counted by WebSocket
- * connections: when the last connection for a browser
- * closes, the entry is deleted (assuming the browser
- * tab closed and OPFS may be stale on next visit).
+ * Entries are reference-counted by WebSocket connections: when the last connection
+ * for a browser closes, the entry is deleted (assuming the browser tab closed and
+ * OPFS may be stale on next visit).
  */
 export class BrowserPageTracker {
     private readonly _browsers = new Map<
@@ -62,14 +57,12 @@ export class BrowserPageTracker {
     }
 
     /**
-     * Full replacement of the browser's known page set
-     * across every table. All provided pages are marked
-     * as confirmed. Clears any previously pending or
-     * confirmed pages, including for tables not present
-     * in `pagesByTable`.
+     * Full replacement of the browser's known page set across every table. All
+     * provided pages are marked as confirmed. Clears any previously pending or
+     * confirmed pages, including for tables not present in `pagesByTable`.
      *
-     * Called after `ensureCacheIsUpToDate` determines
-     * which pages the client already has valid copies of.
+     * Called after `ensureCacheIsUpToDate` determines which pages the client already
+     * has valid copies of.
      */
     setPages(
         browserId: BrowserId,
@@ -89,19 +82,15 @@ export class BrowserPageTracker {
     }
 
     /**
-     * Mark pages as confirmed. Called when the client
-     * acknowledges receiving pages. A pending page is
-     * promoted to confirmed.
+     * Mark pages as confirmed. Called when the client acknowledges receiving pages. A
+     * pending page is promoted to confirmed.
      *
-     * Both the table ids and page indexes come from
-     * untrusted client input, so an acknowledgement can
-     * only confirm pages the server has *already sent* this
-     * browser — i.e. pages already present (pending or
-     * confirmed) under a table the tracker knows (seeded by
-     * {@link setPages} / {@link addPendingPages}). Unknown
-     * tables and never-sent page indexes are ignored: a
-     * client can't acknowledge pages it was never sent, and
-     * must not be able to grow the per-browser page map with
+     * Both the table ids and page indexes come from untrusted client input, so an
+     * acknowledgement can only confirm pages the server has _already sent_ this
+     * browser — i.e. pages already present (pending or confirmed) under a table the
+     * tracker knows (seeded by {@link setPages} / {@link addPendingPages}). Unknown
+     * tables and never-sent page indexes are ignored: a client can't acknowledge pages
+     * it was never sent, and must not be able to grow the per-browser page map with
      * fabricated table ids or out-of-range indexes.
      */
     addPages(
@@ -122,9 +111,8 @@ export class BrowserPageTracker {
     }
 
     /**
-     * Mark pages as pending (sent to client but not yet
-     * acknowledged). Pages already marked confirmed are
-     * not downgraded.
+     * Mark pages as pending (sent to client but not yet acknowledged). Pages already
+     * marked confirmed are not downgraded.
      */
     addPendingPages(
         browserId: BrowserId,
@@ -147,10 +135,9 @@ export class BrowserPageTracker {
     }
 
     /**
-     * Returns true if the browser might have this page
-     * (either confirmed or pending). Used to decide
-     * whether to include a page in changedPages events.
-     * Returns false for unknown browsers.
+     * Returns true if the browser might have this page (either confirmed or pending).
+     * Used to decide whether to include a page in changedPages events. Returns false
+     * for unknown browsers.
      */
     clientMightHavePage(
         browserId: BrowserId,
@@ -163,11 +150,9 @@ export class BrowserPageTracker {
     }
 
     /**
-     * Return a new map containing only the pages the
-     * browser does NOT have confirmed, partitioned by
-     * table. Pending pages are included (re-sent) since
-     * the client may not have processed them yet. Tables
-     * with no surviving pages are omitted.
+     * Return a new map containing only the pages the browser does NOT have confirmed,
+     * partitioned by table. Pending pages are included (re-sent) since the client may
+     * not have processed them yet. Tables with no surviving pages are omitted.
      */
     filterReadPages(
         browserId: BrowserId,

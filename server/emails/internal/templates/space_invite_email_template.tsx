@@ -79,7 +79,7 @@ export function SpaceInviteEmailTemplate({
                 >
                     Alpine
                 </Link>
-                . Alpine is a shared space for collaborating with your team.
+                . Alpine is a shared space where your team can work together.
             </EmailText>
             <div
                 style={{

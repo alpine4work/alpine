@@ -25,8 +25,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateId} from "~/shared/id/id.js";
 
-// ProseMirror calls this function when `state.tr.scrollIntoView()`
-// transactions. Instead of logging a warning, do nothing.
+// ProseMirror calls this function when `state.tr.scrollIntoView()` transactions.
+// Instead of logging a warning, do nothing.
 window.scrollBy = () => {};
 
 const schema = PostContentProsemirrorSchema;
@@ -48,8 +48,11 @@ const TestContentEditor = forwardRef(function TestContentEditor(
 ) {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: initialContent,
-            references: emptyContentReferences,
+            spaceId: null,
+            content: {
+                doc: initialContent,
+                references: emptyContentReferences,
+            },
         }),
     );
 

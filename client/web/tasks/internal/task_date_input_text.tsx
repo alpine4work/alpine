@@ -63,8 +63,8 @@ export function TaskDateInputText({
     paddingX: "0" | "1" | "1.5";
     color: "grey-100" | "grey-60";
     focusRingOffset: "0" | undefined;
-    // By default the focus ring is around the full area of the input but if you
-    // want it just around the text (excluding margins) you may set this to true.
+    // By default the focus ring is around the full area of the input but if you want
+    // it just around the text (excluding margins) you may set this to true.
     focusRingAroundText: boolean;
     focusRingInsetY: Spacing | undefined;
     isTabbable: boolean;
@@ -82,18 +82,17 @@ export function TaskDateInputText({
         value: date,
         // The types are wrong. These hooks actually support `CalendarDate | null`.
         onChange: onDateChange as (value: DateValue) => void,
-        // By default, `@react-aria/datepicker` sets up press listeners on our date
-        // field that will focus the last element. This is nice when the right side of
-        // your date input is empty space. However, we choose to implement focus on
-        // press manually ourselves. The `@react-aria/datepicker` behavior gets in the
-        // way so disable it.
+        // By default, `@react-aria/datepicker` sets up press listeners on our date field
+        // that will focus the last element. This is nice when the right side of your date
+        // input is empty space. However, we choose to implement focus on press manually
+        // ourselves. The `@react-aria/datepicker` behavior gets in the way so disable it.
         disablePressNavigation: true,
     };
 
     const state = useDateFieldState(datePickerProps);
 
-    // If we are no longer editing the date input and have a `null` date
-    // then don't leave a partial date in our state.
+    // If we are no longer editing the date input and have a `null` date then don't
+    // leave a partial date in our state.
     if (!isEditing && !date) {
         for (const segment of state.segments) {
             if (segment.isEditable && !segment.isPlaceholder) {
@@ -163,8 +162,7 @@ export function TaskDateInputText({
                 focusRingVisibilityRef,
             )}
             className={sprinkles({
-                // Inline flex so the clickable range doesn't extend beyond the
-                // input's contents.
+                // Inline flex so the clickable range doesn't extend beyond the input's contents.
                 display: display === "inline" ? "inline-flex" : "flex",
                 height: "full",
                 alignItems: "center",
@@ -231,15 +229,14 @@ export function TaskDateInputText({
                                 flexGrow,
                                 width: "0",
                                 height: "full",
-                                // We add padding to segments around the literal and give the literal a width
-                                // of 0. So focus on pointer down should be managed by the text input segments.
+                                // We add padding to segments around the literal and give the literal a width of 0.
+                                // So focus on pointer down should be managed by the text input segments.
                                 pointerEvents: "none",
                             })}
                         >
                             <div
                                 // The only prop provided to literal segments is `aria-hidden={true}`. As an
-                                // optimization we avoid rendering a text segment component for literal
-                                // segments.
+                                // optimization we avoid rendering a text segment component for literal segments.
                                 // https://github.com/adobe/react-spectrum/blob/88550234c383f2a07a27aa2ca9a0a47a9f49e9aa/packages/%40react-aria/datepicker/src/useDateSegment.ts#L353-L361
                                 aria-hidden={true}
                                 style={
@@ -347,8 +344,8 @@ export function TaskDateInputText({
         </div>
     );
 
-    // Only wrap in an `<Overlay>` if the focus ring is around our text. Otherwise
-    // we can skip rendering the component to improve performance.
+    // Only wrap in an `<Overlay>` if the focus ring is around our text. Otherwise we
+    // can skip rendering the component to improve performance.
     if (!focusRingAroundText) {
         node = (
             <Overlay
@@ -383,12 +380,12 @@ export function TaskDateInputText({
                         (event.target as HTMLElement).blur();
                         break;
                     }
-                    // When I (@calebmer) worked at Airtable Cmd+; was the shortcut for setting a
-                    // date input to today. Copying this pattern here. Looks like that comes from
-                    // Google Sheets where Cmd+; sets the cell to the current date.
+                    // When I (@calebmer) worked at Airtable Cmd+; was the shortcut for setting a date
+                    // input to today. Copying this pattern here. Looks like that comes from Google
+                    // Sheets where Cmd+; sets the cell to the current date.
                     //
-                    // TODO(calebmer): When we have date chips in `<ContentEditor>`, I'd love for
-                    // Cmd+; to insert today's date.
+                    // TODO(calebmer): When we have date chips in `<ContentEditor>`, I'd love for Cmd+;
+                    // to insert today's date.
                     case ";": {
                         if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                             event.preventDefault();

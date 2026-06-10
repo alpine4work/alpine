@@ -40,8 +40,8 @@ export async function getTaskWithoutDependenciesForRealtime(
     },
 ): Promise<TaskRealtimeGetTaskWithoutDependenciesOutput> {
     // If a strong read consistency was requested then expect strong consistency in
-    // `DynamoContextModule` as a precaution to help make sure all reads are
-    // strongly consistent.
+    // `DynamoContextModule` as a precaution to help make sure all reads are strongly
+    // consistent.
     if (consistency !== "Eventual") {
         originalContext = originalContext.dynamo.expectStrongReadConsistency();
     }
@@ -55,7 +55,7 @@ export async function getTaskWithoutDependenciesForRealtime(
     );
     if (!result?.ok) return {ok: true, taskResult: result};
 
-    return dangerouslyEscalateToSystemContext(originalContext, spaceId, async context => {
+    return await dangerouslyEscalateToSystemContext(originalContext, spaceId, async context => {
         const task = await server.getTask(context, spaceId, taskId);
 
         const prepareContext = {

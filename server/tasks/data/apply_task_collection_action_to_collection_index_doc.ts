@@ -10,9 +10,9 @@ import {TaskCollectionAction} from "~/shared/tasks/actions/task_collection_actio
 
 /**
  * Applies a `TaskCollectionAction` to a `TaskCollectionIndexDoc`.
- * `TaskCollectionAction`s are commutative and idempotent. This means they can
- * be applied in any order or multiple times and we'll converge to the same
- * result every time.
+ * `TaskCollectionAction`s are commutative and idempotent. This means they can be
+ * applied in any order or multiple times and we'll converge to the same result
+ * every time.
  */
 export function applyTaskCollectionActionToCollectionIndexDoc<
     Collection extends TaskCollectionIndexDocBase,

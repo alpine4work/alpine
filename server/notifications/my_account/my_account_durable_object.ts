@@ -18,12 +18,12 @@ import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {
-    MyAccountBroadcastInboxRealtimeEventTransactionSchema,
+    MyAccountBroadcastInboxRealtimeEventsSchema,
     MyAccountProtocol,
 } from "~/shared/notifications/my_account_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-type MyAccountDurableObjectRoute = "Main" | "BroadcastInboxRealtimeEventTransaction" | "NotFound";
+type MyAccountDurableObjectRoute = "Main" | "BroadcastInboxRealtimeEvents" | "NotFound";
 
 class MyAccountDurableObject {
     public static readonly serviceName = "MyAccountService";
@@ -95,10 +95,7 @@ class MyAccountDurableObject {
         if (url.pathname === "/") return ["/", "Main"];
 
         if (url.pathname === "/broadcast-inbox-realtime-event-transaction") {
-            return [
-                "/broadcast-inbox-realtime-event-transaction",
-                "BroadcastInboxRealtimeEventTransaction",
-            ];
+            return ["/broadcast-inbox-realtime-event-transaction", "BroadcastInboxRealtimeEvents"];
         }
 
         return ["/*", "NotFound"];
@@ -116,32 +113,35 @@ class MyAccountDurableObject {
 
         switch (route) {
             case "Main": {
-                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+                return await this._webSocketServer.upgrade(
+                    context.actor.authorizeSession(),
+                    request,
+                );
             }
-            case "BroadcastInboxRealtimeEventTransaction": {
+            case "BroadcastInboxRealtimeEvents": {
                 // Make sure a user can't POST from their browser to broadcast a realtime event
                 // transaction. A POST request from a browser would be from the `AppClient` or
                 // `EdgeService` service.
                 if (
                     context.actor.serviceName !== "AppService" &&
-                    context.actor.serviceName !== "JobQueueService"
+                    context.actor.serviceName !== "JobQueueService" &&
+                    context.actor.serviceName !== "ApiService"
                 ) {
                     throw new PermissionDeniedError(
-                        "Only `AppService` or `JobQueueService` can broadcast realtime event transactions",
+                        "Only some services can broadcast realtime event transactions",
                     );
                 }
 
                 await this._authorizer.authorizeMyAccountAccess(context, this._accountId);
 
-                const {eventTransaction} =
-                    MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(
-                        await request.json(),
-                    );
+                const {events} = MyAccountBroadcastInboxRealtimeEventsSchema.deserialize(
+                    await request.json(),
+                );
 
                 // Forward the event transaction to all our connected clients...
                 this._webSocketServer.sendEventToAll(context, {
-                    type: "InboxRealtimeEventTransaction",
-                    eventTransaction,
+                    type: "InboxRealtimeEvents",
+                    events,
                 });
 
                 return new Response();

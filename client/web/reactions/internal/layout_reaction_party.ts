@@ -56,8 +56,8 @@ export function layoutReactionParty(
                 if (reactionEntries.length >= maxReactionEntryCount) break;
                 reactionEntries.push(pendingReactionEntry);
 
-                // Remove the pending reaction and decrement `j` so the loop tries again with
-                // the new item at index `j`.
+                // Remove the pending reaction and decrement `j` so the loop tries again with the
+                // new item at index `j`.
                 pendingReactionEntries.splice(j, 1);
                 j--;
             }
@@ -80,8 +80,8 @@ export function layoutReactionParty(
     tryPushPendingReactionEntries();
 
     // Finally, if there are still pending reactions and we're not at our max entry
-    // count, add the pending reactions in the last position where they're not
-    // adjacent to the same character. If that fails then we add them to the end.
+    // count, add the pending reactions in the last position where they're not adjacent
+    // to the same character. If that fails then we add them to the end.
     while (reactionEntries.length < maxReactionEntryCount && pendingReactionEntries.length > 0) {
         const pendingReactionEntry = pendingReactionEntries.shift()!;
         const {character} = pendingReactionEntry.reaction;

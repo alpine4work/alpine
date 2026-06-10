@@ -1,7 +1,7 @@
 /**
- * A [queue][1] is a collection of values that are maintained in sequence and
- * can be modified by the addition of values at one of the queue and removal of
- * values at the other end of the queue.
+ * A [queue][1] is a collection of values that are maintained in sequence and can
+ * be modified by the addition of values at one of the queue and removal of values
+ * at the other end of the queue.
  *
  * You can implement a queue in JavaScript simply using an array's `push()` and
  * `shift()` methods. However, this implementation is inefficient since while

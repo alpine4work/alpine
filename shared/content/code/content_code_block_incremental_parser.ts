@@ -34,8 +34,8 @@ export type ContentCodeBlockIncrementalParserResult = {
     readonly tree: Tree;
 
     /**
-     * Fragments of parsed syntax trees for this code block. Used in an
-     * incremental parse.
+     * Fragments of parsed syntax trees for this code block. Used in an incremental
+     * parse.
      */
     readonly treeFragments: ReadonlyArray<TreeFragment>;
 
@@ -44,16 +44,16 @@ export type ContentCodeBlockIncrementalParserResult = {
      * `actuallySymmetricDiffIterable()` where having the set of lines already
      * available allows us to perform O(1) `set.has(value)` operations.
      *
-     * Let `this` be an instance of our incremental parser. For every `index`
-     * in `this._nodeArray`, `this._results[index].lineNodeSet` has every `Node`
-     * in `this._nodeArray[index].content.content` and nothing more.
+     * Let `this` be an instance of our incremental parser. For every `index` in
+     * `this._nodeArray`, `this._results[index].lineNodeSet` has every `Node` in
+     * `this._nodeArray[index].content.content` and nothing more.
      */
     readonly lineNodeSet: ReadonlySet<Node>;
 
     /**
-     * The syntax highlighting result for each `codeBlockLine` node in this code
-     * block. When a code block changes, we diff the code block's lines to see
-     * which lines changed and only re-highlight those lines that changed.
+     * The syntax highlighting result for each `codeBlockLine` node in this code block.
+     * When a code block changes, we diff the code block's lines to see which lines
+     * changed and only re-highlight those lines that changed.
      *
      * Let `this` be an instance of our incremental parser. For every `index1` in
      * `this._nodeArray` and every `index2` in
@@ -61,8 +61,8 @@ export type ContentCodeBlockIncrementalParserResult = {
      * `this._results[index1].highlightByLine[index2]` correspond to the
      * `codeBlockLine` node at `this._nodeArray[index1].content.content[index2]`.
      *
-     * Every `codeBlockLine` node has highlights and there are no more highlights
-     * then there are `codeBlockLine` nodes.
+     * Every `codeBlockLine` node has highlights and there are no more highlights then
+     * there are `codeBlockLine` nodes.
      */
     readonly highlightsByLine: ReadonlyArray<
         ReadonlyArray<{
@@ -82,17 +82,16 @@ export function setMockedHighlightTreeForTest(mockedHighlightTree: typeof highli
 
 /**
  * Manages code block syntax highlighting for `<ContentEditor>`. Uses the
- * [Lezer][1] parser system for syntax highlighting. Manages all code blocks in
- * a doc instead of managing only one at a time.
+ * [Lezer][1] parser system for syntax highlighting. Manages all code blocks in a
+ * doc instead of managing only one at a time.
  *
- * Whenever a code block changes, instead of re-parsing the entire code block
- * (as a naive implementation of this class might) we perform an incremental
- * parse that reuses the previous parse tree. Powered by Lezer's incremental
- * parsing implementation. We both:
+ * Whenever a code block changes, instead of re-parsing the entire code block (as a
+ * naive implementation of this class might) we perform an incremental parse that
+ * reuses the previous parse tree. Powered by Lezer's incremental parsing
+ * implementation. We both:
  *
  * - Only re-parse code blocks which changed
- * - Only re-parse (and re-highlight) the specific code block lines which
- *   changed
+ * - Only re-parse (and re-highlight) the specific code block lines which changed
  *
  * [1]: https://lezer.codemirror.net
  */
@@ -118,19 +117,19 @@ export class ContentCodeBlockIncrementalParser {
 
     /**
      * The set of `codeBlock` nodes in the doc we're highlighting. Every node in
-     * `this._nodeArray` is present in this set and every item in this set is
-     * present in `this._nodeArray`.
+     * `this._nodeArray` is present in this set and every item in this set is present
+     * in `this._nodeArray`.
      *
      * This set is purely used as an optimization to perform O(1)
      * `this._nodeSet.has(node)` operations. Specifically
-     * `actuallySymmetricDiffIterable()` is what needs O(1)
-     * `this._nodeSet.has(node)` operations to maintain good performance.
+     * `actuallySymmetricDiffIterable()` is what needs O(1) `this._nodeSet.has(node)`
+     * operations to maintain good performance.
      */
     private readonly _nodeSet: ReadonlySet<Node>;
 
     /**
-     * The offset in the doc of each `codeBlock` node in `this._nodeArray`. For
-     * every index in `this._nodeArray` we have a node offset in this array.
+     * The offset in the doc of each `codeBlock` node in `this._nodeArray`. For every
+     * index in `this._nodeArray` we have a node offset in this array.
      *
      * For every `index` in `this._nodeArray` the following should be true:
      * `this._nodeArray[index] === doc.resolve(this._nodeOffsets[index]).nodeAfter`.
@@ -138,16 +137,16 @@ export class ContentCodeBlockIncrementalParser {
     private readonly _nodeOffsets: ReadonlyArray<number>;
 
     /**
-     * The parsing result of each `codeBlock` in `this._nodeArray`. For every index
-     * in `this._nodeArray` we have a result in this array. If a `codeBlock` node
-     * couldn't be parsed the corresponding index in this array will be `null`.
+     * The parsing result of each `codeBlock` in `this._nodeArray`. For every index in
+     * `this._nodeArray` we have a result in this array. If a `codeBlock` node couldn't
+     * be parsed the corresponding index in this array will be `null`.
      */
     private readonly _results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>;
 
     /**
      * The final `DecorationSet` that's provided to ProseMirror's `EditorView`
-     * containing inline decorations that actually perform the highlighting of code
-     * in a code block.
+     * containing inline decorations that actually perform the highlighting of code in
+     * a code block.
      */
     public readonly decorations: DecorationSet;
 
@@ -177,9 +176,9 @@ export class ContentCodeBlockIncrementalParser {
     ): ContentCodeBlockIncrementalParser {
         const [nodeArray, nodeSet, nodeOffsets] = getContentCodeBlockNodes(doc);
 
-        // Check to see if we have initial decorations from the server. If so we use
-        // them until the document updates and load the language parsers in the
-        // background so we don't have a flash of code blocks that aren't highlighted.
+        // Check to see if we have initial decorations from the server. If so we use them
+        // until the document updates and load the language parsers in the background so we
+        // don't have a flash of code blocks that aren't highlighted.
         const initialDecorations =
             ContentCodeBlockIncrementalParser._initialDecorationsByNode?.get(doc);
         if (initialDecorations) {
@@ -187,8 +186,8 @@ export class ContentCodeBlockIncrementalParser {
                 const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
                 const language = contentCodeBlockLanguageById[languageId];
 
-                // Preload code block languages while we're using initial code block
-                // decorations so we're ready for a re-render.
+                // Preload code block languages while we're using initial code block decorations so
+                // we're ready for a re-render.
                 language.getParser();
             }
 
@@ -251,8 +250,8 @@ export class ContentCodeBlockIncrementalParser {
     }
 
     /**
-     * Perform an incremental update to our parsed code blocks with a new content
-     * doc. This function will only re-parse code block nodes that changed.
+     * Perform an incremental update to our parsed code blocks with a new content doc.
+     * This function will only re-parse code block nodes that changed.
      *
      * We do this by:
      *
@@ -261,15 +260,15 @@ export class ContentCodeBlockIncrementalParser {
      *    changed
      *
      * We diff `codeBlock` nodes and `codeBlockLine` nodes with
-     * `actuallySymmetricDiffIterable()` which returns all additions/deletions to
-     * items in an array that don't change relative order. You can think of
+     * `actuallySymmetricDiffIterable()` which returns all additions/deletions to items
+     * in an array that don't change relative order. You can think of
      * `actuallySymmetricDiffIterable()` as implementing a similar algorithm to
      * `git diff`.
      *
      * Then once we have our changes we use [Lezer's incremental parsing
      * capabilities][1] to only re-parse the parts of a code block that changed.
-     * Similarly, we only call Lezer's `highlightTree()` function on the lines
-     * within the code block that changed.
+     * Similarly, we only call Lezer's `highlightTree()` function on the lines within
+     * the code block that changed.
      *
      * [1]: https://discuss.codemirror.net/t/an-example-of-an-incremental-parse/5356/2
      */
@@ -280,13 +279,13 @@ export class ContentCodeBlockIncrementalParser {
     ): ContentCodeBlockIncrementalParser {
         const [newNodeArray, newNodeSet, newNodeOffsets] = getContentCodeBlockNodes(doc);
 
-        // If this `doc` has some initial decorations we used and the doc is the same
-        // as what we previously parsed, then don't update the parser.
+        // If this `doc` has some initial decorations we used and the doc is the same as
+        // what we previously parsed, then don't update the parser.
         //
-        // Normally, we need to update the parser even if `this._doc === doc` because
-        // we need to check and see if a previously unloaded language parser is now
-        // loaded. However, when we have initial decorations from the server we
-        // don't need to load parsers until the user updates the document.
+        // Normally, we need to update the parser even if `this._doc === doc` because we
+        // need to check and see if a previously unloaded language parser is now loaded.
+        // However, when we have initial decorations from the server we don't need to load
+        // parsers until the user updates the document.
         const initialDecorations =
             ContentCodeBlockIncrementalParser._initialDecorationsByNode?.get(doc);
         if (
@@ -359,9 +358,9 @@ export class ContentCodeBlockIncrementalParser {
                     const oldResult = this._results[oldIndex]!;
                     oldIndex++;
 
-                    // An update appears as a deleted change followed by an added change. So record
-                    // the results of deleted entries and we'll reuse them for the next code block
-                    // to be added.
+                    // An update appears as a deleted change followed by an added change. So record the
+                    // results of deleted entries and we'll reuse them for the next code block to be
+                    // added.
                     candidateOldEntries ??= [];
                     candidateOldEntries.push({
                         node: change.value,
@@ -403,12 +402,12 @@ export class ContentCodeBlockIncrementalParser {
                             createInitialContentCodeBlockIncrementalParserResult(newNode, parser),
                         );
                     }
-                    // Here is where we actually perform our incremental parsing! At this point we
-                    // have a parse tree and highlights for an old code block in the same position.
-                    // We reuse the parse tree and highlights as much as we can.
+                    // Here is where we actually perform our incremental parsing! At this point we have
+                    // a parse tree and highlights for an old code block in the same position. We reuse
+                    // the parse tree and highlights as much as we can.
                     //
-                    // We diff to see which lines of code changed then re-parse and re-highlight
-                    // only those changed lines.
+                    // We diff to see which lines of code changed then re-parse and re-highlight only
+                    // those changed lines.
                     else {
                         const {
                             parser,
@@ -443,10 +442,10 @@ export class ContentCodeBlockIncrementalParser {
 
                         let oldLineIndex = 0;
 
-                        // `length` corresponds to the current position in the input string. It's
-                        // different from the ProseMirror position `pos` in that for `pos` each line
-                        // adds 2 (the start + end of the node) whereas for `length` each line adds 1
-                        // (a `\n` character).
+                        // `length` corresponds to the current position in the input string. It's different
+                        // from the ProseMirror position `pos` in that for `pos` each line adds 2 (the
+                        // start + end of the node) whereas for `length` each line adds 1 (a `\n`
+                        // character).
                         let newLength = 0;
                         let newPos = 0;
                         let seenLineChange = false;
@@ -464,9 +463,9 @@ export class ContentCodeBlockIncrementalParser {
                                     newLength += lineChange.value.content.size + 1;
                                     newPos += lineChange.value.nodeSize;
 
-                                    // Reuse highlights from a line before any changed lines. All lines after a
-                                    // changed line must be highlighted. Since code from one line might effect how
-                                    // code is highlighted in all following lines.
+                                    // Reuse highlights from a line before any changed lines. All lines after a changed
+                                    // line must be highlighted. Since code from one line might effect how code is
+                                    // highlighted in all following lines.
                                     if (!seenLineChange) {
                                         newHighlightsByLine.push(oldHighlights);
                                     } else {
@@ -620,10 +619,10 @@ function createInitialContentCodeBlockIncrementalParserResult(
     const lineNodeSet = new Set<Node>();
     const highlightsByLine: Array<Array<{from: number; to: number; classes: string}>> = [];
 
-    // `length` corresponds to the current position in the input string. It's
-    // different from the ProseMirror position `pos` in that for `pos` each line
-    // adds 2 (the start + end of the node) whereas for `length` each line adds 1
-    // (a `\n` character).
+    // `length` corresponds to the current position in the input string. It's different
+    // from the ProseMirror position `pos` in that for `pos` each line adds 2 (the
+    // start + end of the node) whereas for `length` each line adds 1 (a `\n`
+    // character).
     let length = 0;
     let pos = 0;
 
@@ -718,24 +717,23 @@ function getContentCodeBlockNodeChangedRanges(
 }
 
 /**
- * Create a `DecorationSet` for results from
- * `ContentCodeBlockIncrementalParser`.
+ * Create a `DecorationSet` for results from `ContentCodeBlockIncrementalParser`.
  *
- * This should build the same set as
- * `DecorationSet.create(doc, allDecorations)`. We write our own function since
- * we'll have many decorations and we can more efficiently build a decoration
- * tree than [ProseMirror's `buildTree()` function][1] called by
- * `DecorationSet.create()`. The build tree function performs multiple O(n)
- * loops over each child node in a document which we're scared of since n can
- * be quite large given we have a decoration for each syntax highlight.
+ * This should build the same set as `DecorationSet.create(doc, allDecorations)`.
+ * We write our own function since we'll have many decorations and we can more
+ * efficiently build a decoration tree than [ProseMirror's `buildTree()`
+ * function][1] called by `DecorationSet.create()`. The build tree function
+ * performs multiple O(n) loops over each child node in a document which we're
+ * scared of since n can be quite large given we have a decoration for each syntax
+ * highlight.
  *
- * We closely mimic the implementation of [ProseMirror's `buildTree()`
- * function][1] here since our result should be indistinguishable. In unit
- * tests, we call `assertIsDecorationSetEqualForTest()` to make sure we produce
- * a `DecorationSet` object that's the same as what `DecorationSet.create()`
- * would produce.
+ * We closely mimic the implementation of [ProseMirror's `buildTree()` function][1]
+ * here since our result should be indistinguishable. In unit tests, we call
+ * `assertIsDecorationSetEqualForTest()` to make sure we produce a `DecorationSet`
+ * object that's the same as what `DecorationSet.create()` would produce.
  *
- * [1]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
+ * [1]:
+ *     https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
  */
 function createContentCodeBlockIncrementalParserDecorationSet(
     nodes: ReadonlyArray<Node>,

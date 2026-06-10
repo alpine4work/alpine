@@ -8,9 +8,10 @@ import {Spacing} from "~/shared/design/core/spacing.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
-    // NOTE(ifitzsimmons): We render two avatars and then rely on CSS to hide the appropriate
-    // avatar according to the color theme ("light" or "dark"). For example, if a user is using
-    // dark mode, the "light" InternalSpaceAvatar will be hidden.
+    // NOTE(ifitzsimmons): We render two avatars and then rely on CSS to hide the
+    // appropriate avatar according to the color theme ("light" or "dark"). For
+    // example, if a user is using dark mode, the "light" InternalSpaceAvatar will be
+    // hidden.
     return (
         <>
             {/* Light theme avatar */}
@@ -73,15 +74,15 @@ function getContentForThemeAndBackgroundColors(
             avatarContentBackgroundColor: "grey-0-const",
         };
     } else if (theme === "light" && !lightThemeAvatarContent && darkThemeAvatarContent) {
-        // If user is using light theme and there's no light theme avatar content, but there
-        // IS a dark theme avatar, use the dark theme avatar on a dark background.
+        // If user is using light theme and there's no light theme avatar content, but
+        // there IS a dark theme avatar, use the dark theme avatar on a dark background.
         return {
             avatarContent: darkThemeAvatarContent,
             avatarContentBackgroundColor: "grey-100-const",
         };
     } else {
-        // If there is an avatar for the theme, or if there are no avatars for either theme,
-        // use the avatar for the theme (which can be null)
+        // If there is an avatar for the theme, or if there are no avatars for either
+        // theme, use the avatar for the theme (which can be null)
         return {
             avatarContent: theme === "dark" ? darkThemeAvatarContent : lightThemeAvatarContent,
             avatarContentBackgroundColor: undefined,

@@ -4,8 +4,8 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * No-op billing context module for development environments.
- * This module is used when no environment variables are set for Stripe.
+ * No-op billing context module for development environments. This module is used
+ * when no environment variables are set for Stripe.
  */
 export class BillingNoopDevelopmentContextModule extends BillingContextModuleBase {
     constructor() {

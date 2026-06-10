@@ -23,7 +23,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -73,15 +73,18 @@ export const reduceTaskNotesContentEditorState = createCollaborativeContentEdito
 });
 
 export function getInitialTaskNotesContentEditorState({
+    spaceId,
     taskId,
     initialNotesVersion,
     initialNotesContent,
 }: {
+    spaceId: SpaceId;
     taskId: TaskId;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
 }): TaskNotesContentEditorState {
     return getInitialCollaborativeContentEditorState({
+        spaceId,
         initialVersion: initialNotesVersion,
         initialContent: initialNotesContent,
         reduceReferences: reduceContentReferences,
@@ -90,9 +93,9 @@ export function getInitialTaskNotesContentEditorState({
 }
 
 /**
- * Object representing our connection to the task notes collaboration service
- * for our `<TaskDetailNotesField>` component. When connected we will backfill
- * the notes loaded from the server and listen to all future realtime changes.
+ * Object representing our connection to the task notes collaboration service for
+ * our `<TaskDetailNotesField>` component. When connected we will backfill the
+ * notes loaded from the server and listen to all future realtime changes.
  *
  * This class was forked from `DocumentContentEditorWebSocketClient`. We should
  * keep the two classes roughly in sync.
@@ -202,8 +205,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                 maybeSendUpdatesToServer();
             }
 
-            // Whenever we successfully connect to the WebSocket, send a backfill request
-            // so we can get any steps we missed while disconnected from the WebSocket.
+            // Whenever we successfully connect to the WebSocket, send a backfill request so we
+            // can get any steps we missed while disconnected from the WebSocket.
             if (connectionState === null && clientState.isConnected) {
                 const ourConnectionState = {isBackfilling: true};
                 connectionState = ourConnectionState;
@@ -214,9 +217,9 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                     })
                     .then(
                         output => {
-                            // If while waiting on our backfill we disconnected then don't update
-                            // our state. We use an object to make sure if we connect/reconnect quickly we
-                            // still ignore the backfill result.
+                            // If while waiting on our backfill we disconnected then don't update our state. We
+                            // use an object to make sure if we connect/reconnect quickly we still ignore the
+                            // backfill result.
                             if (connectionState !== ourConnectionState) return;
 
                             if (output.result.type === "Available") {
@@ -255,6 +258,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                                     extra: {
                                         type: "Reset",
                                         state: getInitialCollaborativeContentEditorState({
+                                            spaceId: state.spaceId,
                                             initialVersion: output.result.newVersion,
                                             initialContent: output.result.content,
                                             reduceReferences: reduceContentReferences,
@@ -268,9 +272,9 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                             maybeSendUpdatesToServer();
                         },
                         error => {
-                            // If while waiting on our backfill we disconnected then don't update
-                            // our state. We use an object to make sure if we connect/reconnect quickly we
-                            // still ignore the backfill result.
+                            // If while waiting on our backfill we disconnected then don't update our state. We
+                            // use an object to make sure if we connect/reconnect quickly we still ignore the
+                            // backfill result.
                             if (connectionState !== ourConnectionState) return;
 
                             this._dispatch({type: "Error", error});
@@ -317,9 +321,9 @@ export class TaskDetailNotesContentEditorWebSocketClient {
 
         // NOTE(calebmer): Originally this function (and everything around it) was
         // implemented as a `useDocumentContentEditorState()` hook. This function
-        // specifically was was in a `useEffect()` so the code style makes more sense
-        // in that context. This function was written assuming it could be called on
-        // basically any update.
+        // specifically was was in a `useEffect()` so the code style makes more sense in
+        // that context. This function was written assuming it could be called on basically
+        // any update.
         const maybeSendUpdatesToServer = () => {
             const state = this._state.getSnapshot();
 
@@ -328,8 +332,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             // 1. We're disconnected (`connectionState === null`)
             // 2. We're waiting on a backfill (`connectionState.isBackfilling === true`)
             //
-            // We have to wait for a backfill (2) in case we were connected previously,
-            // sent an update, but didn't get an acknowledgement for the update back.
+            // We have to wait for a backfill (2) in case we were connected previously, sent an
+            // update, but didn't get an acknowledgement for the update back.
             if (connectionState === null || connectionState.isBackfilling === true) {
                 return;
             }
@@ -350,9 +354,9 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                         clientId: state.pendingSendableSteps.clientId,
                     })
                     .catch(error => {
-                        // If we're connected when an error occurs then this isn't a network related
-                        // issue. Present the error to the user. If we're disconnected when an error
-                        // occurs silently log and we want to retry when the WebSocket reconnects.
+                        // If we're connected when an error occurs then this isn't a network related issue.
+                        // Present the error to the user. If we're disconnected when an error occurs
+                        // silently log and we want to retry when the WebSocket reconnects.
                         if (this._client.state.getSnapshot().isConnected) {
                             this._dispatch({type: "Error", error});
                             return;

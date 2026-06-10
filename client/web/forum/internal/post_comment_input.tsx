@@ -12,6 +12,7 @@ import {
     useMemo,
     useRef,
 } from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
@@ -19,6 +20,7 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {PostListHeader} from "~/client/web/forum/post_list.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageInput} from "~/client/web/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.js";
@@ -29,6 +31,7 @@ import {useScrollToNewMessages} from "~/client/web/messaging/use_scroll_to_new_m
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     messageInputBottomBarBackgroundSlopBottom,
@@ -49,7 +52,7 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
@@ -100,28 +103,28 @@ export function PostCommentInput(props: {
     onJumpToPostRange: (options: JumpToPostRangeOptions) => void;
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     shouldBeConnectedToChannelRealtime: boolean;
-    onPostRealtimeEventTransaction: Memo<
-        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>) => void
-    >;
+    onPostRealtimeEvents: Memo<(events: ReadonlyArray<RynamoEvent<PostModel>>) => void>;
 }) {
     const {currentAccount} = useSpaceContext();
+    const siteRegistry = useSiteRegistry();
+    const hasCommentAccessLevel = useStore(
+        useMemo(() => {
+            // Use the `accessPolicy` from `header` if applicable. Because we update the
+            // `channel` in `header` in realtime. Whereas the `channel` preview in the
+            // `PostModel` might not update in realtime.
+            const accessPolicy =
+                props.header?.type === "Channel" &&
+                props.header.channel.id === props.post.channel.id
+                    ? props.header.channel.accessPolicy
+                    : props.post.channel.accessPolicy;
 
-    const hasCommentAccessLevel = useMemo(
-        () =>
-            hasAccessLevel(
-                getAccountAccessLevelAssumingSpaceAccess(
-                    // Use the `accessPolicy` from `header` if applicable. Because we update
-                    // the `channel` in `header` in realtime. Whereas the `channel` preview
-                    // in the `PostModel` might not update in realtime.
-                    props.header?.type === "Channel" &&
-                        props.header.channel.id === props.post.channel.id
-                        ? props.header.channel.accessPolicy
-                        : props.post.channel.accessPolicy,
-                    currentAccount?.id,
+            return createAccessPolicyStore(accessPolicy, siteRegistry).map(accessPolicy =>
+                hasAccessLevel(
+                    getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+                    "Comment",
                 ),
-                "Comment",
-            ),
-        [currentAccount?.id, props.header, props.post.channel.accessPolicy, props.post.channel.id],
+            );
+        }, [props.header, props.post, siteRegistry, currentAccount?.id]),
     );
 
     if (!hasCommentAccessLevel) {
@@ -137,15 +140,18 @@ function usePostCommentInputRealtime({
     postComments,
     onUpdatePostComments,
     shouldBeConnectedToChannelRealtime,
-    onPostRealtimeEventTransaction,
+    onPostRealtimeEvents,
 }: ComponentProps<typeof PostCommentInput>) {
-    // We connect to realtime in our `<PostCommentInput>` component. When comments
-    // are open this component is always rendered and we only want to connect to
-    // realtime when comments are open so works out.
+    const {currentAccount} = useSpaceContext();
+    const shouldConnectToPostRealtime = currentAccount !== null;
+
+    // We connect to realtime in our `<PostCommentInput>` component. When comments are
+    // open this component is always rendered and we only want to connect to realtime
+    // when comments are open so works out.
     const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "PostRealtimeService",
         PostRealtimeProtocol,
-        `/api/durable-objects/posts/${post.id}`,
+        shouldConnectToPostRealtime ? `/api/durable-objects/posts/${post.id}` : null,
     );
 
     useImperativeHandle(
@@ -200,11 +206,11 @@ function usePostCommentInputRealtime({
                             subscriber(event.event);
                             break;
                         }
-                        case "RealtimeEventTransaction": {
-                            // If we'll receive post update events from our channel realtime durable
-                            // connection then don't handle them here.
+                        case "RealtimeEvents": {
+                            // If we'll receive post update events from our channel realtime durable connection
+                            // then don't handle them here.
                             if (!shouldBeConnectedToChannelRealtime) {
-                                onPostRealtimeEventTransaction(event.eventTransaction);
+                                onPostRealtimeEvents(event.events);
                             }
                             break;
                         }
@@ -215,7 +221,7 @@ function usePostCommentInputRealtime({
 
                 return subscribeToEvents(actualSubscriber);
             },
-            [onPostRealtimeEventTransaction, shouldBeConnectedToChannelRealtime, subscribeToEvents],
+            [onPostRealtimeEvents, shouldBeConnectedToChannelRealtime, subscribeToEvents],
         ),
         subscribeToPongs,
     });
@@ -239,7 +245,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         onJumpToPostRange,
         onDeletePostComment,
         shouldBeConnectedToChannelRealtime,
-        onPostRealtimeEventTransaction,
+        onPostRealtimeEvents,
     } = props;
 
     const context = useAppContext();
@@ -249,21 +255,20 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
 
     const {isConnected, procedures} = usePostCommentInputRealtime(props);
 
-    // Whenever we connect to our WebSocket, we may need to reload our realtime
-    // item in case we missed any realtime updates while we were disconnected.
-    // Going forward we should receive realtime updates from `subscribeToEvents()`.
+    // Whenever we connect to our WebSocket, we may need to reload our realtime item in
+    // case we missed any realtime updates while we were disconnected. Going forward we
+    // should receive realtime updates from `subscribeToEvents()`.
     //
-    // This code was copied from `useDynamoGeneralRealtimeItem()`.
+    // This code was copied from `useRynamoItem()`.
     const lastReloadedPostIdRef = useRef<PostId | null>(null);
     useEffect(() => {
         // If we're connected to channel realtime, we don't need to backfill realtime
-        // updates on connection. Since we'll be backfilling at the channel realtime
-        // level.
+        // updates on connection. Since we'll be backfilling at the channel realtime level.
         if (shouldBeConnectedToChannelRealtime) return;
 
         if (!isConnected) {
-            // Clear the last reloaded key when we go disconnect. That way when we
-            // reconnect we will reload the item.
+            // Clear the last reloaded key when we go disconnect. That way when we reconnect we
+            // will reload the item.
             lastReloadedPostIdRef.current = null;
             return;
         }
@@ -273,13 +278,13 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
 
         getPostWithStrongReadConsistency(context, {postId: post.id}).then(
             ({post}) => {
-                onPostRealtimeEventTransaction([
+                onPostRealtimeEvents([
                     {
                         type: "PutItem",
                         item: post,
                         // NOTE(calebmer): Right now when `shouldBeConnectedToChannelRealtime` is false
-                        // we're updating an individual post instead of posts backed by an index
-                        // query. So we don't need `indexes` for now.
+                        // we're updating an individual post instead of posts backed by an index query. So
+                        // we don't need `indexes` for now.
                         indexes: new Map(),
                     },
                 ]);
@@ -290,16 +295,15 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         );
     }, [
         post.id,
-        onPostRealtimeEventTransaction,
+        onPostRealtimeEvents,
         shouldBeConnectedToChannelRealtime,
         context,
         reporter,
         isConnected,
     ]);
 
-    // We perform the scroll adjustment for new messages in the
-    // `<PostCommentInput>` component which will always be mounted when the post's
-    // comment section is open.
+    // We perform the scroll adjustment for new messages in the `<PostCommentInput>`
+    // component which will always be mounted when the post's comment section is open.
     useScrollToNewMessages({
         viewRef,
         inputRef,
@@ -348,9 +352,8 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             onJumpToPostRange={onJumpToPostRange}
             onDeleteMessage={onDeletePostComment}
             onShowTypingIndicator={() => {
-                // Don't show an error updating typing indicators to the user. We will see an
-                // error in our logs but the user won't see any weird behavior if the
-                // request fails.
+                // Don't show an error updating typing indicators to the user. We will see an error
+                // in our logs but the user won't see any weird behavior if the request fails.
                 procedures
                     .startTypingInCommentInput({})
                     .catch(error =>
@@ -361,9 +364,8 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                     );
             }}
             onHideTypingIndicator={() => {
-                // Don't show an error updating typing indicators to the user. We will see an
-                // error in our logs but the user won't see any weird behavior if the
-                // request fails.
+                // Don't show an error updating typing indicators to the user. We will see an error
+                // in our logs but the user won't see any weird behavior if the request fails.
                 procedures
                     .stopTypingInCommentInput({})
                     .catch(error =>
@@ -415,19 +417,21 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                         isBottomBar && clientInfo.isNativeMobile
                             ? `-${messageInputBottomBarBackgroundSlopBottom}`
                             : undefined,
-                    // Our native mobile wrapper looks for compositing layers created from an
-                    // element with an ID that starts with `nmbb-` and ties their position to
-                    // the tab bar and software keyboard. So we get smooth animations while the
-                    // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                    // layer we need to set `will-change: transform`. It's not specified that
-                    // `will-change: transform` MUST create a compositing layer, instead some
-                    // browser engines implement this hint themselves as an optimization.
+                    // Our native mobile wrapper looks for compositing layers created from an element
+                    // with an ID that starts with `nmbb-` and ties their position to the tab bar and
+                    // software keyboard. So we get smooth animations while the keyboard opens or the
+                    // tab bar shifts offscreen. To create a compositing layer we need to set
+                    // `will-change: transform`. It's not specified that `will-change: transform` MUST
+                    // create a compositing layer, instead some browser engines implement this hint
+                    // themselves as an optimization.
                     //
-                    // It so happens that WebKit is one of those browsers. Here's the code in
-                    // WebKit that does this: [part 1][1], [part 2][2].
+                    // It so happens that WebKit is one of those browsers. Here's the code in WebKit
+                    // that does this: [part 1][1], [part 2][2].
                     //
-                    // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                    // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                    // [1]:
+                    //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                    // [2]:
+                    //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                     willChange: isBottomBar && clientInfo.isNativeMobile ? "transform" : undefined,
                     // Set `transform` to its initial value assuming the tab bar is up.
                     transform:
@@ -435,9 +439,9 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                             ? "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))"
                             : undefined,
                 }}
-                // Suppress React hydration warnings in our native mobile app. The native
-                // mobile app sets the `transform` property on this element. Sometimes before
-                // React finishes hydrating. This is expected, React can ignore the difference.
+                // Suppress React hydration warnings in our native mobile app. The native mobile
+                // app sets the `transform` property on this element. Sometimes before React
+                // finishes hydrating. This is expected, React can ignore the difference.
                 suppressHydrationWarning={
                     isBottomBar && clientInfo.isNativeMobile ? true : undefined
                 }
@@ -484,9 +488,9 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                             >
                                 Can&#x2019;t comment on posts in{" "}
                                 {platform === "mobile" ? (
-                                    // There isn't enough space on mobile to consistently render the channel name.
-                                    // So on mobile only say "this channel". You should be able to see the channel
-                                    // name in the header always anyway.
+                                    // There isn't enough space on mobile to consistently render the channel name. So
+                                    // on mobile only say "this channel". You should be able to see the channel name in
+                                    // the header always anyway.
                                     "this channel"
                                 ) : (
                                     <span
@@ -548,9 +552,8 @@ function PostCommentDisabledInput(props: ComponentProps<typeof PostCommentInput>
                                     <ArrowUp
                                         size={spacing["4"]}
                                         style={{
-                                            // Optically, this icon looks...off in our iOS native mobile app.
-                                            // Presumably everywhere in Safari. If only we had a
-                                            // `clientInfo.isWebKit` test.
+                                            // Optically, this icon looks...off in our iOS native mobile app. Presumably
+                                            // everywhere in Safari. If only we had a `clientInfo.isWebKit` test.
                                             transform:
                                                 clientInfo.isNativeMobile &&
                                                 clientInfo.isAppleDevice

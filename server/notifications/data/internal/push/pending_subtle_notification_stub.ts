@@ -3,8 +3,8 @@ import {InboxEntryKeySchema} from "~/shared/notifications/inbox_model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * A stub for tracking a subtle notification that has not been sent and will be sent later in a
- * batch with other subtle notifications.
+ * A stub for tracking a subtle notification that has not been sent and will be
+ * sent later in a batch with other subtle notifications.
  */
 export const PendingSubtleNotificationStubSchema = Schema.object({
     eventAuthorId: Schema.id<AccountId>(),

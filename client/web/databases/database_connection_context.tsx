@@ -7,8 +7,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export const DatabaseConnectionContext = createContext<DatabaseWorkerConnection | null>(null);
 
 /**
- * Returns the database connection from the nearest
- * {@link DatabaseConnectionContext} provider.
+ * Returns the database connection from the nearest {@link
+ * DatabaseConnectionContext} provider.
  */
 export function useDatabaseConnection(): DatabaseWorkerConnection {
     const conn = useContext(DatabaseConnectionContext);

@@ -7,7 +7,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Add a Stripe purchase to the account's billing history and update relevant account data.
+ * Add a Stripe purchase to the account's billing history and update relevant
+ * account data.
  */
 export async function dangerouslyAddStripePurchaseToAccountBillingAndUpdateAccount(
     context: Context<DynamoContextModules>,

@@ -70,8 +70,8 @@ describe("DatabaseDurableObjectStorage", () => {
 
         truncateFor(doStorage, databaseMainTableId, 1 * sqlitePageSize);
 
-        // Pages 1 and 2 are tombstoned internally; they
-        // surface as missing from readPage. Page 0 survives.
+        // Pages 1 and 2 are tombstoned internally; they surface as missing from readPage.
+        // Page 0 survives.
         expect(doStorage.readPage(databaseMainTableId, 0)).not.toBeNull();
         expect(doStorage.readPage(databaseMainTableId, 1)).toBeNull();
         expect(doStorage.readPage(databaseMainTableId, 2)).toBeNull();
@@ -134,9 +134,8 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("writePages and truncate in the same call share a single version", () => {
-        // Pin the contract that one writePages call produces
-        // exactly one version, regardless of whether it
-        // carries pages, truncates, or both.
+        // Pin the contract that one writePages call produces exactly one version,
+        // regardless of whether it carries pages, truncates, or both.
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
         writePagesFor(
@@ -150,8 +149,8 @@ describe("DatabaseDurableObjectStorage", () => {
             new Map([[databaseMainTableId, 1 * sqlitePageSize]]),
         );
 
-        // Page 2 (written) and any tombstones from the
-        // truncate of pages >= 1 share the same version.
+        // Page 2 (written) and any tombstones from the truncate of pages >= 1 share the
+        // same version.
         expect(doStorage.readPage(databaseMainTableId, 2)!.version).toBe(batchVersion);
     });
 
@@ -218,11 +217,9 @@ describe("DatabaseDurableObjectStorage", () => {
     });
 
     test("nextVersion recovers MAX(version) on cold load", () => {
-        // Seed the underlying storage via one instance, then
-        // construct a fresh instance over the same SqlStorage
-        // (simulating a Durable Object restart). The next
-        // write must produce a version strictly greater than
-        // the previously-persisted one.
+        // Seed the underlying storage via one instance, then construct a fresh instance
+        // over the same SqlStorage (simulating a Durable Object restart). The next write
+        // must produce a version strictly greater than the previously-persisted one.
         const first = new DatabaseDurableObjectStorage(storage.sql);
         const seedVersion = writePagesFor(
             first,
@@ -243,9 +240,8 @@ describe("DatabaseDurableObjectStorage", () => {
     test("getFileSize ignores tombstones in the interior of the file", () => {
         const doStorage = new DatabaseDurableObjectStorage(storage.sql);
 
-        // Write three pages, then tombstone the middle page
-        // by writing a tombstone row directly so we can probe
-        // the size query without going through truncate (which
+        // Write three pages, then tombstone the middle page by writing a tombstone row
+        // directly so we can probe the size query without going through truncate (which
         // would tombstone the trailing pages too).
         writePagesFor(
             doStorage,
@@ -257,10 +253,9 @@ describe("DatabaseDurableObjectStorage", () => {
             ]),
         );
 
-        // Force a fresh `getFileSize` query (don't trust the
-        // fileSizes cache) by constructing a new instance over
-        // the same backing storage. Then write a tombstone for
-        // page 1 directly.
+        // Force a fresh `getFileSize` query (don't trust the fileSizes cache) by
+        // constructing a new instance over the same backing storage. Then write a
+        // tombstone for page 1 directly.
         const reloaded = new DatabaseDurableObjectStorage(storage.sql);
         const sqliteIdRow = storage.sql
             .exec(
@@ -277,8 +272,8 @@ describe("DatabaseDurableObjectStorage", () => {
             999_999,
         );
 
-        // Page 2 is still the highest live page — file size
-        // should still reflect three pages, not one.
+        // Page 2 is still the highest live page — file size should still reflect three
+        // pages, not one.
         expect(reloaded.getFileSize(databaseMainTableId)).toBe(3 * sqlitePageSize);
     });
 
@@ -327,8 +322,7 @@ describe("DatabaseDurableObjectStorage", () => {
         const a2 = writePagesFor(doStorage, tableA, new Map([[1, new Uint8Array(sqlitePageSize)]]));
         const b1 = writePagesFor(doStorage, tableB, new Map([[0, new Uint8Array(sqlitePageSize)]]));
 
-        // Strictly monotonic across the entire database,
-        // not partitioned per table.
+        // Strictly monotonic across the entire database, not partitioned per table.
         expect(a2).toBe(a1 + 1);
         expect(b1).toBe(a2 + 1);
     });

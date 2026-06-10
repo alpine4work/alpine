@@ -1,8 +1,8 @@
 import type {VfsFile} from "~/shared/databases/install_vfs.js";
 
 /**
- * A {@link VfsFile} backed by a single contiguous buffer in
- * memory. Suitable for temp databases and journals.
+ * A {@link VfsFile} backed by a single contiguous buffer in memory. Suitable for
+ * temp databases and journals.
  */
 export class VfsTempFile implements VfsFile {
     private buffer = new Uint8Array(0);

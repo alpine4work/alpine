@@ -4,11 +4,11 @@ import {TreeChange, symmetricDiffTree} from "~/shared/helpers/immutable/symmetri
 
 // A bunch of methods have been added to `ReadonlyMap` iterator methods like
 // `ReadonlyMap.values()` after upgrading to TypeScript 5.9.2 like `take()` and
-// `drop()`. It would be nice to implement these on `ImmutableMap` someday but
-// for now adhere to this more limited `ReadonlyMap` interface.
+// `drop()`. It would be nice to implement these on `ImmutableMap` someday but for
+// now adhere to this more limited `ReadonlyMap` interface.
 //
-// TODO(calebmer, #typescript-5.9.2): Switch back to
-// `implements ReadonlyMap<K, V>` instead of `implements OldReadonlyMap<K, V>`.
+// TODO(calebmer, #typescript-5.9.2): Switch back to `implements ReadonlyMap<K, V>`
+// instead of `implements OldReadonlyMap<K, V>`.
 interface OldReadonlyMap<K, V> {
     forEach(callbackfn: (value: V, key: K, map: OldReadonlyMap<K, V>) => void, thisArg?: any): void;
     get(key: K): V | undefined;
@@ -23,13 +23,12 @@ interface OldReadonlyMap<K, V> {
 assertAssignableTypes<ReadonlyMap<unknown, unknown>, OldReadonlyMap<unknown, unknown>>();
 
 /**
- * A [persistent data structure][1] containing entries of key-value pairs. Each
- * key is associated with exactly one value. Aims for compatibility with the
- * `Map` API.
+ * A [persistent data structure][1] containing entries of key-value pairs. Each key
+ * is associated with exactly one value. Aims for compatibility with the `Map` API.
  *
- * The performance of `get()` and `set()` in `ImmutableMap` is O(log(n)) while
- * the performance of `get()` and `set()` in `Map` is O(1). So most of the time
- * `Map` is faster! If you're using `Map` in an immutable context you can call
+ * The performance of `get()` and `set()` in `ImmutableMap` is O(log(n)) while the
+ * performance of `get()` and `set()` in `Map` is O(1). So most of the time `Map`
+ * is faster! If you're using `Map` in an immutable context you can call
  * `new Map(oldMap)` to clone a map then call `set()` which is O(n).
  *
  * So `ImmutableMap` is faster if you need an immutable data structure and the
@@ -73,7 +72,7 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
      *
      * You could use this to construct an `ImmutableMap` from a mutable `Map`.
      *
-     * Completes in O(n * log(n)) time.
+     * Completes in O(n \* log(n)) time.
      */
     public static from<Key extends string | number, Value>(
         entries: Iterable<[Key, Value]>,
@@ -95,8 +94,7 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Returns the value associated to the passed key, or `undefined` if there
-     * is none.
+     * Returns the value associated to the passed key, or `undefined` if there is none.
      *
      * Completes in O(log(n)) time.
      */
@@ -105,8 +103,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Returns a boolean indicating whether a value has been associated with the
-     * passed key in the map or not.
+     * Returns a boolean indicating whether a value has been associated with the passed
+     * key in the map or not.
      *
      * Completes in O(log(n)) time.
      */
@@ -115,19 +113,19 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Returns a new map with the entry associated with the passed key updated to
-     * the new value. The old map is unchanged.
+     * Returns a new map with the entry associated with the passed key updated to the
+     * new value. The old map is unchanged.
      *
      * Completes in O(log(n)) time.
      *
-     * If the new value is equal to the old value then we will return the immutable
-     * map as-is as an optimization.
+     * If the new value is equal to the old value then we will return the immutable map
+     * as-is as an optimization.
      */
     public set(key: Key, value: Value): ImmutableMap<Key, Value> {
         const node = this._tree.find(key);
         if (node.valid) {
-            // Optimization: If the new value is equal to the old value, return the
-            // existing immutable map without updating.
+            // Optimization: If the new value is equal to the old value, return the existing
+            // immutable map without updating.
             if (Object.is(node.value, value)) return this;
 
             return new ImmutableMap(node.update(value));
@@ -146,8 +144,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
      *
      * Completes in O(log(n)) time.
      *
-     * If the new value is equal to the old value then we will return the immutable
-     * map as-is as an optimization.
+     * If the new value is equal to the old value then we will return the immutable map
+     * as-is as an optimization.
      */
     public update(
         key: Key,
@@ -159,8 +157,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
 
             if (newValue === undefined) return new ImmutableMap(node.remove());
 
-            // Optimization: If the new value is equal to the old value, return the
-            // existing immutable map without updating.
+            // Optimization: If the new value is equal to the old value, return the existing
+            // immutable map without updating.
             if (Object.is(node.value, newValue)) return this;
 
             return new ImmutableMap(node.update(newValue));
@@ -177,8 +175,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
      *
      * Completes in O(log(n)) time.
      *
-     * If every new value is equal to the corresponding old value then we will
-     * return the immutable map as-is as an optimization.
+     * If every new value is equal to the corresponding old value then we will return
+     * the immutable map as-is as an optimization.
      */
     public updateEvery(
         update: (value: Value, key: Key) => Value | undefined,
@@ -207,8 +205,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Returns a new map with the entry associated with the passed key removed.
-     * The old map is unchanged.
+     * Returns a new map with the entry associated with the passed key removed. The old
+     * map is unchanged.
      *
      * Completes in O(log(n)) time.
      */
@@ -248,8 +246,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Returns the entry after the provided key in the map. The key does not need
-     * to exist in the map.
+     * Returns the entry after the provided key in the map. The key does not need to
+     * exist in the map.
      */
     public getEntryAfter(key: Key): [Key, Value] | undefined {
         const iterator = this._tree.gt(key);
@@ -258,8 +256,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Returns the entry before the provided key in the map. The key does not need
-     * to exist in the map.
+     * Returns the entry before the provided key in the map. The key does not need to
+     * exist in the map.
      */
     public getEntryBefore(key: Key): [Key, Value] | undefined {
         const iterator = this._tree.lt(key);
@@ -268,8 +266,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Get the index of an entry in this immutable map by its key. If an entry
-     * doesn't exist for this key we return undefined.
+     * Get the index of an entry in this immutable map by its key. If an entry doesn't
+     * exist for this key we return undefined.
      */
     public getIndexByKey(key: Key): number | undefined {
         const iterator = this._tree.find(key);
@@ -277,8 +275,8 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Get an entry at the specific index in this immutable map. If an entry
-     * doesn't exist for this index we return undefined.
+     * Get an entry at the specific index in this immutable map. If an entry doesn't
+     * exist for this index we return undefined.
      */
     public getEntryByIndex(index: number): [Key, Value] | undefined {
         const iterator = this._tree.at(index);
@@ -427,9 +425,9 @@ export class ImmutableMap<Key extends string | number, Value> implements OldRead
     }
 
     /**
-     * Returns a list of changes between `this` and `otherMap`. It is intended to
-     * be efficient in the case where `this` and `otherMap` share a large amount
-     * of structure. The keys in the output array will be in sorted order.
+     * Returns a list of changes between `this` and `otherMap`. It is intended to be
+     * efficient in the case where `this` and `otherMap` share a large amount of
+     * structure. The keys in the output array will be in sorted order.
      */
     public symmetricDiff(otherMap: ImmutableMap<Key, Value>): Array<TreeChange<Key, Value>> {
         return symmetricDiffTree(this._tree, otherMap._tree);

@@ -1,17 +1,21 @@
 import {Node} from "prosemirror-model";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";
 import {getChannel} from "~/server/forum/data/get_channel.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
-import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
-import {unsubscribeFromChannel} from "~/server/forum/data/unsubscribe_from_channel.js";
+import {
+    subscribeToChannel,
+    unsubscribeFromChannel,
+} from "~/server/forum/data/subscribe_to_channel.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {TestPost, TestPostCreateOptions} from "~/server/forum/test_helpers/test_post.js";
 import {parseTestMessageContent} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {generateId} from "~/shared/id/id.js";
@@ -51,18 +55,20 @@ export class TestChannel {
             id?: ChannelId;
             name?: string;
             description?: string | MessageContent;
-            access?: "Public" | "Private" | AccessPolicy;
+            access?: "Public" | "Private" | CreateOrUpdateAccessPolicy;
         } = {},
     ): Promise<TestChannel> {
-        let accessPolicy: AccessPolicy;
+        let accessPolicy: CreateOrUpdateAccessPolicy;
         if (access === "Public" || access === undefined) {
             accessPolicy = {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: {level: "Manage", generation: 1},
                 urlGrant: null,
             };
         } else if (access === "Private") {
             accessPolicy = {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -77,7 +83,7 @@ export class TestChannel {
             name,
             description:
                 typeof description === "string"
-                    ? parseTestMessageContent(session.space.id, description)
+                    ? parseTestMessageContent(description)
                     : description,
             accessPolicy,
         });
@@ -101,11 +107,11 @@ export class TestChannel {
 
     public readonly access = new TestAccessPolicy({
         get: async () => {
-            const {accessPolicy} = await getChannelPreview(
+            const channel = await getChannelPreview(
                 this.context.systemAction(this.space.id),
                 this.id,
             );
-            return accessPolicy;
+            return channel.accessPolicy.intoAccessPolicy();
         },
         set: async (session, accessPolicy) => {
             await updateChannelAccessPolicy(session.action(), {
@@ -117,16 +123,16 @@ export class TestChannel {
     });
 
     public createPost(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         content: Node | string,
         options?: TestPostCreateOptions,
     ): Promise<TestPost>;
     public createPost(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         options?: TestPostCreateOptions,
     ): Promise<TestPost>;
     public createPost(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         contentOrOptions?: Node | string | TestPostCreateOptions,
         options?: TestPostCreateOptions,
     ): Promise<TestPost> {

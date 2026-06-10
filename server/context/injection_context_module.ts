@@ -1,35 +1,37 @@
 /**
- * Bazel prevents packages from having cyclic dependencies. This is a good
- * thing! Cyclic dependencies increase bundle size, increase type checking
- * time, and generally make code a mess to deal with.
+ * Bazel prevents packages from having cyclic dependencies. This is a good thing!
+ * Cyclic dependencies increase bundle size, increase type checking time, and
+ * generally make code a mess to deal with.
  *
  * However, quite often our features need to integrate with one another. For
- * example, when we're adding an account to a space in `//server/spaces`, we
- * want to add some default favorite search entities with functions from
- * `//server/search`. However, `//server/search` depends on `//server/spaces`
- * and we can't add a cyclic dependency!
+ * example, when we're adding an account to a space in `//server/spaces`, we want
+ * to add some default favorite search entities with functions from
+ * `//server/search`. However, `//server/search` depends on `//server/spaces` and
+ * we can't add a cyclic dependency!
  *
- * The solution: Dependency injection. That's where injection context modules
- * come into play. Injection context modules declare a bunch of functions we
- * want to use from across the backend codebase in ways that break the
- * dependency graph. In production, we provide the proper implementation for
- * each injected function. In tests we either mock injected functions or throw
- * an error.
+ * The solution: Dependency injection. That's where injection context modules come
+ * into play. Injection context modules declare a bunch of functions we want to use
+ * from across the backend codebase in ways that break the dependency graph. In
+ * production, we provide the proper implementation for each injected function. In
+ * tests we either mock injected functions or throw an error.
  *
- * IMPORTANT: Only use this module if you specifically can't take the Bazel
- * package which originally defines the function as a dependency since it'll
- * create a circular dependency. And there's no way to refactor Bazel packages
- * such that you can eliminate the circular dependency.
+ * IMPORTANT: Only use this module if you specifically can't take the Bazel package
+ * which originally defines the function as a dependency since it'll create a
+ * circular dependency. And there's no way to refactor Bazel packages such that you
+ * can eliminate the circular dependency.
  */
-
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {
-    ServerAccountActionContext,
     ServerActionContext,
     ServerActionContextModules,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
+import {
+    ServerMinimalAccountActionContext,
+    ServerMinimalActionContext,
+    ServerMinimalBotActionContext,
+} from "~/server/context/server_minimal_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {TaskContextModuleActionTransaction} from "~/server/context/task_context_module_base.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
@@ -41,19 +43,22 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {
     AccessLevel,
     AccessPolicy,
-    AccessPolicyWithoutGenerations,
+    EffectiveAccessPolicy,
+    LocalAccessPolicy,
 } from "~/shared/access/access_policy.js";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
 import {Context, ContextModulesType} from "~/shared/context/context.js";
 import {ContextModuleBase as _ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
-import {
-    DynamoGeneralRealtimeItem,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoEvent, RynamoItem, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
+import {
+    FileAttachmentTarget,
+    FileAttachmentTargetByArea,
+} from "~/shared/files/file_attachment_target.js";
 import {ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -61,6 +66,7 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {
@@ -70,31 +76,80 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {SearchAffinityEntityId, SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
+import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
-// HACK(calebmer): For some reason Vite in hot reload mode doesn't like it when
-// we try to reference `ContextModuleBase` in `createInjectionContextModule()`
-// if `ContextModuleBase` isn't declared as a `const`.
+// HACK(calebmer): For some reason Vite in hot reload mode doesn't like it when we
+// try to reference `ContextModuleBase` in `createInjectionContextModule()` if
+// `ContextModuleBase` isn't declared as a `const`.
 const ContextModuleBase = _ContextModuleBase;
 type ContextModuleBase<Modules extends {[key: string]: ContextModuleBase | undefined} = {}> =
     _ContextModuleBase<Modules>;
 
+export type InjectedFileAuthorizer = {
+    readonly target: FileAttachmentTarget;
+
+    authorizeTargetAccess(
+        context: ServerActionContext,
+        expectedAccessLevel: "View" | "Edit",
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<void>;
+
+    authorizeTargetAccessIfPossible(
+        context: ServerActionContext,
+        expectedAccessLevel: "View" | "Edit",
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<Result<void, Error>>;
+};
+
 export type ChatInjectionContextModule = InstanceType<typeof ChatInjectionContextModule>;
 
 export const ChatInjectionContextModule = createInjectionContextModule<ChatInjection>({
-    getChatAccountIdsForBotScope: true,
+    getChatAccessPolicyForBotScope: true,
+    authorizeChatAccessIfPossible: true,
+    getChatAndInitialMessagesIfPossible: true,
+    bindFileChatAuthorizer: true,
 });
 
 export type ChatInjection = {
-    getChatAccountIdsForBotScope(
+    getChatAccessPolicyForBotScope(
         context: ServerMinimalBotActionContext,
         chatId: ChatId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<ReadonlyArray<AccountId>>;
+    ): Promise<EffectiveAccessPolicy>;
+
+    authorizeChatAccessIfPossible(
+        context: ServerActionContext,
+        chatId: ChatId,
+        expectedAccessLevel: AccessLevel,
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<Result<{spaceId: SpaceId}, ErrorBase>>;
+
+    getChatAndInitialMessagesIfPossible(
+        context: ServerActionContext,
+        options: {chatId: ChatId; messagesLimit: number; onSiteId?: (siteId: SiteId) => void},
+    ): Promise<Result<
+        {
+            chat: ChatModel;
+            initialIsSubscribed: boolean | null;
+            initialMessages: ReadonlyArray<ChatMessageModel>;
+            initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+        },
+        ErrorBase
+    > | null>;
+
+    bindFileChatAuthorizer(
+        context: ServerMinimalActionContext,
+        target: FileAttachmentTargetByArea["Chat"],
+    ): InjectedFileAuthorizer;
 };
 
 export type DocumentsInjectionContextModule = InstanceType<typeof DocumentsInjectionContextModule>;
@@ -103,6 +158,7 @@ export const DocumentsInjectionContextModule = createInjectionContextModule<Docu
     authorizeDocumentAccessIfPossible: true,
     getDocumentContentPreviewIfPossible: true,
     getDocumentAccessPolicyForBotScope: true,
+    bindFileDocumentAuthorizer: true,
 });
 
 export type DocumentsInjection = {
@@ -121,7 +177,10 @@ export type DocumentsInjection = {
     getDocumentContentPreviewIfPossible(
         context: ServerActionContext,
         documentId: DocumentId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {
+            consistency?: DynamoCacheReadConsistency;
+            onSiteId?: (siteId: SiteId) => void;
+        },
     ): Promise<Result<
         {
             version: number;
@@ -135,7 +194,12 @@ export type DocumentsInjection = {
         context: ServerMinimalBotActionContext,
         documentId: DocumentId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<AccessPolicy>;
+    ): Promise<EffectiveAccessPolicy>;
+
+    bindFileDocumentAuthorizer(
+        context: ServerMinimalActionContext,
+        target: FileAttachmentTargetByArea["Document"],
+    ): InjectedFileAuthorizer;
 };
 
 export type ForumInjectionContextModule = InstanceType<typeof ForumInjectionContextModule>;
@@ -146,6 +210,7 @@ export const ForumInjectionContextModule = createInjectionContextModule<ForumInj
     isSubscribedToChannel: true,
     getPostIfPossible: true,
     getPostAccessPolicyForBotScope: true,
+    bindFilePostAuthorizer: true,
 });
 
 export type ForumInjection = {
@@ -163,8 +228,9 @@ export type ForumInjection = {
             postFilesLimit: number;
             afterItemKey?: DynamoItemKey | null;
             consistency?: DynamoReadConsistency;
+            onSiteId?: (siteId: SiteId) => void;
         },
-    ): Promise<Result<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>, ErrorBase> | null>;
+    ): Promise<Result<RynamoQueryResult<ChannelOrMetadataModel>, ErrorBase> | null>;
 
     isSubscribedToChannel(
         context: ServerSessionActionContext,
@@ -176,13 +242,18 @@ export type ForumInjection = {
         context: ServerActionContext,
         postId: PostId,
         options?: {consistency?: DynamoReadConsistency},
-    ): Promise<Result<DynamoGeneralRealtimeItem<PostModel>, ErrorBase>>;
+    ): Promise<Result<RynamoItem<PostModel>, ErrorBase>>;
 
     getPostAccessPolicyForBotScope(
         context: ServerMinimalBotActionContext,
         postId: PostId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<AccessPolicy>;
+    ): Promise<EffectiveAccessPolicy>;
+
+    bindFilePostAuthorizer(
+        context: ServerMinimalActionContext,
+        target: FileAttachmentTargetByArea["Post"],
+    ): InjectedFileAuthorizer;
 };
 
 export type NotificationsInjectionContextModule = InstanceType<
@@ -196,12 +267,23 @@ export const NotificationsInjectionContextModule =
         archiveInboxChatEntryAfterSetChatMessageReaction: true,
         archiveInboxPostCommentsEntryAfterSetPostCommentReaction: true,
         archiveInboxTaskEntryAfterSetTaskCommentReaction: true,
+        notifyInboxOfSlackIntegrationChange: true,
     });
 
 export type NotificationsInjection = {
     notifyInboxOfTimeZoneChange(
         context: ServerSessionActionContext,
         timeZone: TimeZone,
+    ): Promise<void>;
+
+    notifyInboxOfSlackIntegrationChange(
+        context: ServerActionContext,
+        options: {
+            eventType: "connectSlackAccount" | "disconnectSlackAccount";
+            spaceId: SpaceId;
+            workspaceId: string;
+            accountId: AccountId;
+        },
     ): Promise<void>;
 
     archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
@@ -250,16 +332,27 @@ export type SearchInjectionContextModule = InstanceType<typeof SearchInjectionCo
 
 export const SearchInjectionContextModule = createInjectionContextModule<SearchInjection>({
     getSearchMentionEntityIfPossible: true,
+    markSearchAffinityEntityInteraction: true,
     dangerouslyFavoriteSearchEntityWithoutAuthorization: true,
     dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization: true,
 });
 
 export type SearchInjection = {
     getSearchMentionEntityIfPossible(
-        context: ServerAccountActionContext,
+        context: ServerActionContext,
         spaceId: SpaceId,
         entityId: SearchMentionEntityId,
     ): Promise<ContentReferencesSearchEntity | null>;
+
+    markSearchAffinityEntityInteraction(
+        context: ServerSessionActionContext,
+        options: {
+            spaceId: SpaceId;
+            entityId: SearchAffinityEntityId;
+            interaction: SearchAffinityEntityInteraction;
+            siteId: SiteId | null;
+        },
+    ): Promise<number>;
 
     dangerouslyFavoriteSearchEntityWithoutAuthorization(
         context: DynamoContext,
@@ -280,7 +373,61 @@ export type SearchInjection = {
             erosion?: number;
             isViewInteraction?: boolean;
         },
-    ): Promise<void>;
+    ): Promise<unknown>;
+};
+
+export type SitesInjectionContextModule = InstanceType<typeof SitesInjectionContextModule>;
+export const SitesInjectionContextModule = createInjectionContextModule<SitesInjection>({
+    dangerouslyGetSiteAccessPolicyWithoutAuthorization: true,
+    getSitePreview: true,
+    dangerouslyGetAddToSiteTransactionEntries: true,
+    dangerouslyGetRemoveFromSiteTransactionEntries: true,
+});
+export type SitesInjection = {
+    dangerouslyGetSiteAccessPolicyWithoutAuthorization(
+        context: ServerMinimalActionContext,
+        siteId: SiteId,
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<LocalAccessPolicy>;
+    getSitePreview(
+        context: ServerMinimalActionContext,
+        siteId: SiteId,
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<SitePreviewModel>;
+
+    dangerouslyGetAddToSiteTransactionEntries(
+        context: ServerMinimalAccountActionContext,
+        siteId: SiteId,
+        {
+            entityId,
+            parentId,
+            orderKey,
+        }: {
+            entityId: SiteItemSearchEntityId;
+            parentId: SiteContainerId;
+            orderKey: OrderKey;
+        },
+    ): Promise<
+        Array<{
+            transactionEntry: RynamoTransactionEntry;
+            getEvent: (
+                context: ServerActionContext,
+            ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
+        }>
+    >;
+
+    dangerouslyGetRemoveFromSiteTransactionEntries(
+        context: ServerMinimalAccountActionContext,
+        siteId: SiteId,
+        entityId: SiteItemSearchEntityId,
+    ): Promise<
+        Array<{
+            transactionEntry: RynamoTransactionEntry;
+            getEvent: (
+                context: ServerActionContext,
+            ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
+        }>
+    >;
 };
 
 export type SpacesInjectionContextModule = InstanceType<typeof SpacesInjectionContextModule>;
@@ -309,9 +456,11 @@ export type TasksInjectionContextModule = InstanceType<typeof TasksInjectionCont
 
 export const TasksInjectionContextModule = createInjectionContextModule<TasksInjection>({
     indexTaskActionTransactionAssumingItsCommitted: true,
+    authorizeTaskAccessIfPossible: true,
     authorizeTaskCollectionAccessIfPossible: true,
     internalGetUpdateOurAccountNameTaskTransactionEntries: true,
     getTaskAccessPolicyForBotScope: true,
+    bindFileTaskAuthorizer: true,
 });
 
 export type TasksInjection = {
@@ -319,6 +468,12 @@ export type TasksInjection = {
         context: ServerSystemActionContext,
         actionTransaction: TaskContextModuleActionTransaction,
     ): Promise<void>;
+
+    authorizeTaskAccessIfPossible(
+        context: ServerActionContext,
+        taskId: TaskId,
+        expectedAccessLevel: AccessLevel,
+    ): Promise<Result<{spaceId: SpaceId}, ErrorBase> | null>;
 
     authorizeTaskCollectionAccessIfPossible(
         context: ServerActionContext,
@@ -339,7 +494,12 @@ export type TasksInjection = {
         context: ServerMinimalBotActionContext,
         taskId: TaskId,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<AccessPolicyWithoutGenerations>;
+    ): Promise<EffectiveAccessPolicy>;
+
+    bindFileTaskAuthorizer(
+        context: ServerMinimalActionContext,
+        target: FileAttachmentTargetByArea["Task"],
+    ): InjectedFileAuthorizer;
 };
 
 type ArrayTail<T extends ReadonlyArray<unknown>> = T extends readonly [any, ...infer U] ? U : [];
@@ -360,8 +520,8 @@ type InjectionContextModuleClass<
 };
 
 /**
- * An injection context module instance. Has a method for every injection
- * function. The method expects the context to be of the correct type.
+ * An injection context module instance. Has a method for every injection function.
+ * The method expects the context to be of the correct type.
  */
 type InjectionContextModuleInstance<
     Injection extends {[key: string]: (context: Context<any>, ...args: Array<any>) => any},
@@ -383,8 +543,8 @@ type InjectionContextModuleInstance<
 function createInjectionContextModule<
     Injection extends {[key: string]: (...args: Array<any>) => any},
 >(
-    // Use `Record` to use TypeScript to force the caller to explicitly list out
-    // each injection.
+    // Use `Record` to use TypeScript to force the caller to explicitly list out each
+    // injection.
     injectionKeysObject: Record<keyof Injection, true>,
 ): InjectionContextModuleClass<Injection> {
     const injectionKeys = Object.keys(injectionKeysObject);

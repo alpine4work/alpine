@@ -14,10 +14,10 @@ import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-// TODO(calebmer): Avatars look bad in settings! If the avatar size is greater
-// than 8 we should try using the larger image available in Cloudflare R2
-// instead. Maybe we start with the blurred scaled up image and transition once
-// we have the larger image.
+// TODO(calebmer): Avatars look bad in settings! If the avatar size is greater than
+// 8 we should try using the larger image available in Cloudflare R2 instead. Maybe
+// we start with the blurred scaled up image and transition once we have the larger
+// image.
 export const avatarUploaderSize = "12";
 
 export function AvatarUploader({
@@ -40,16 +40,16 @@ export function AvatarUploader({
 
         const interactionModality = getInteractionModality();
 
-        // If the user presses "cancel" to close the file input, Chrome moves focus to
-        // the last focused element. So make sure to focus the file input before
-        // `click()`ing so Chrome considers the file input as the last focused element.
+        // If the user presses "cancel" to close the file input, Chrome moves focus to the
+        // last focused element. So make sure to focus the file input before `click()`ing
+        // so Chrome considers the file input as the last focused element.
         fileInputElement.focus();
 
         fileInputElement.click();
 
         // Calling `click()` will change `interactionModality` to `virtual` which will
-        // render a focus ring. Make sure we reset to the same interaction modality
-        // that was used before the `click()` call.
+        // render a focus ring. Make sure we reset to the same interaction modality that
+        // was used before the `click()` call.
         setInteractionModality(interactionModality);
     };
 
@@ -69,8 +69,8 @@ export function AvatarUploader({
                     accept="image/*"
                     ref={fileInputRef}
                     style={{
-                        // Hide the input so it's not visible but it still exists in the DOM. This is
-                        // the element that will receive focus for the avatar uploader.
+                        // Hide the input so it's not visible but it still exists in the DOM. This is the
+                        // element that will receive focus for the avatar uploader.
                         position: "fixed",
                         width: 0,
                         height: 0,

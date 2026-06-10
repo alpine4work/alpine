@@ -5,9 +5,9 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 
 /**
  * In-memory implementation of the Cloudflare Durable Object KV storage API.
- * Implements the full interface used by our code (`get()`, `put()`,
- * `delete()`, and `list()`). Backed by a binary search tree internally so we
- * can efficiently implement `list()`.
+ * Implements the full interface used by our code (`get()`, `put()`, `delete()`,
+ * and `list()`). Backed by a binary search tree internally so we can efficiently
+ * implement `list()`.
  */
 export class TemporaryDurableObjectStorage implements DurableObjectTransactionInterface {
     private readonly _storage = new RBTree<{key: string; value: unknown}>((a, b) =>

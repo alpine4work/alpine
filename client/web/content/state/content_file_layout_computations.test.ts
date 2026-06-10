@@ -2,13 +2,17 @@ import {
     computeContentFileFloatLayout,
     computeContentFileRowLikeLayout,
 } from "~/client/web/content/state/content_file_layout_computations.js";
+import {contentStyles} from "~/client/web/styles/styles.js";
+import {contentLargeFallbackFileWidthPx} from "~/shared/design/core/content_shared_styles.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+
+const spaceId = generateId<SpaceId>();
 
 const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [
@@ -29,6 +33,7 @@ const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
 ]);
 
 const standardFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -44,6 +49,7 @@ const standardFile = new FileModel({
 });
 
 const largeFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -59,6 +65,7 @@ const largeFile = new FileModel({
 });
 
 const tallFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -75,6 +82,7 @@ const tallFile = new FileModel({
 
 // iPhone screenshot size
 const phoneScreenshotFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -91,6 +99,7 @@ const phoneScreenshotFile = new FileModel({
 
 // Cinema "scope" 4k resolution
 const cinemaScopeFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -107,6 +116,7 @@ const cinemaScopeFile = new FileModel({
 
 // Cinema "scope" 4k resolution (vertical)
 const cinemaScopeVerticalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -122,6 +132,7 @@ const cinemaScopeVerticalFile = new FileModel({
 });
 
 const iconFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -137,6 +148,7 @@ const iconFile = new FileModel({
 });
 
 const moderateVerticalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -152,6 +164,7 @@ const moderateVerticalFile = new FileModel({
 });
 
 const moderateHorizontalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -167,6 +180,7 @@ const moderateHorizontalFile = new FileModel({
 });
 
 const extremeVerticalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -182,6 +196,7 @@ const extremeVerticalFile = new FileModel({
 });
 
 const extremeHorizontalFile = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -197,6 +212,7 @@ const extremeHorizontalFile = new FileModel({
 });
 
 const audioFile1 = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "audio/mp4",
     contentLength: 100,
@@ -212,6 +228,7 @@ const audioFile1 = new FileModel({
 });
 
 const audioFile2 = new FileModel({
+    spaceId,
     id: generateChronologicalId<FileId>(),
     contentType: "audio/mp4",
     contentLength: 100,
@@ -256,7 +273,7 @@ test("layouts single tall image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 512, width: 384.036, widthFr: 0.64006}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts iPhone screenshot", () => {
@@ -267,7 +284,7 @@ test("layouts iPhone screenshot", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 512, width: 236.571, widthFr: 0.394286}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts cinema scope image", () => {
@@ -289,7 +306,7 @@ test("layouts vertical cinema scope image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts small icon image", () => {
@@ -300,7 +317,7 @@ test("layouts small icon image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 76, width: 76, widthFr: 0.126667}]);
+    ).toEqual([{height: 76, width: 600, widthFr: 1}]);
 });
 
 test("layouts moderate vertical image", () => {
@@ -311,7 +328,7 @@ test("layouts moderate vertical image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 238.095, width: 100, widthFr: 0.166667}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts moderate horizontal image", () => {
@@ -322,7 +339,7 @@ test("layouts moderate horizontal image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 100, width: 318, widthFr: 0.53}]);
+    ).toEqual([{height: 76, width: 600, widthFr: 1}]);
 });
 
 test("layouts extreme vertical image", () => {
@@ -333,7 +350,7 @@ test("layouts extreme vertical image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
+    ).toEqual([{height: 512, width: 600, widthFr: 1}]);
 });
 
 test("layouts extreme horizontal image", () => {
@@ -344,7 +361,7 @@ test("layouts extreme horizontal image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 188.679, width: 600, widthFr: 1}]);
+    ).toEqual([{height: 76, width: 600, widthFr: 1}]);
 });
 
 test("layouts two similar images in a row", () => {
@@ -416,8 +433,8 @@ test("layouts standard and wide image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 159.09, width: 212.261, widthFr: 0.35855},
-        {height: 159.09, width: 379.739, widthFr: 0.64145},
+        {height: 159.346, width: 212.604, widthFr: 0.359128},
+        {height: 159.346, width: 379.396, widthFr: 0.640872},
     ]);
 });
 
@@ -450,8 +467,8 @@ test("layouts two iPhone screenshots in a row", () => {
             },
         ),
     ).toEqual([
-        {height: 512, width: 236.571, widthFr: 0.399614},
-        {height: 512, width: 236.571, widthFr: 0.399614},
+        {height: 512, width: 296, widthFr: 0.5},
+        {height: 512, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -477,6 +494,23 @@ test("layouts three iPhone screenshots in a row", () => {
     ]);
 });
 
+test("layouts moderate horizontal image and iPhone screenshot in a row", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [moderateHorizontalFile.initialData, phoneScreenshotFile.initialData],
+            {
+                maxFileCount: 3,
+                blockWidth: 600,
+                platform: "desktop",
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 200, width: 476.19, widthFr: 0.804376},
+        {height: 200, width: 115.81, widthFr: 0.195624},
+    ]);
+});
+
 test("layouts small icon and standard image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([iconFile.initialData, standardFile.initialData], {
@@ -486,8 +520,8 @@ test("layouts small icon and standard image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 76, width: 76, widthFr: 0.128378},
-        {height: 76, width: 101.401, widthFr: 0.171286},
+        {height: 76, width: 296, widthFr: 0.5},
+        {height: 76, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -500,8 +534,8 @@ test("layouts small icon and tall image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 76, width: 76, widthFr: 0.128378},
-        {height: 76, width: 76, widthFr: 0.128378},
+        {height: 76, width: 296, widthFr: 0.5},
+        {height: 76, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -514,8 +548,8 @@ test("layouts two audio files in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 93.082, width: 296, widthFr: 0.5},
-        {height: 93.082, width: 296, widthFr: 0.5},
+        {height: 124.32, width: 296, widthFr: 0.5},
+        {height: 124.32, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -558,6 +592,23 @@ test("layouts two file entities", () => {
     ).toEqual([
         {height: 225.412, width: 296, widthFr: 0.5},
         {height: 225.412, width: 296, widthFr: 0.5},
+    ]);
+});
+
+test("throws unsatisfiable constraint for two file entities in a narrow row", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [`Document:${generateId<DocumentId>()}`, `Document:${generateId<DocumentId>()}`],
+            {
+                maxFileCount: 3,
+                blockWidth: 150,
+                platform: "desktop",
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 76, width: 76, widthFr: 0.535211},
+        {height: 76, width: 76, widthFr: 0.535211},
     ]);
 });
 
@@ -842,9 +893,9 @@ test("floats vertical banner image left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 99.834,
+        width: 135.114,
         widthFr: 1,
-        height: 237.7,
+        height: 321.7,
     });
 });
 
@@ -902,4 +953,10 @@ test("floats file entity", () => {
         widthFr: 1,
         height: 258.7,
     });
+});
+
+test("contentLargeFallbackFileWidthPx matches mobile block max width at large spacing scale", () => {
+    expect(contentLargeFallbackFileWidthPx).toEqual(
+        contentStyles.blockMaxWidthRem.mobile * remPxBySpacingScale.large,
+    );
 });

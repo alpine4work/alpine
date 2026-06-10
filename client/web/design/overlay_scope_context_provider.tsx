@@ -11,18 +11,17 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 /**
  * Root overlay scope. Most have one of these at the root of the application.
  *
- * Generally you only want one root overlay scope at the root of your
- * application. However, there are some cases where it may make sense to have
- * nested root overlay scopes. For example, on mobile web when the keyboard
- * opens we shrink the viewport in `s.$spaceId.tsx` to the visible space above
- * the keyboard. (In our native mobile app we have different keyboard handling
- * with `--safe-area-inset-bottom`.) We want root overlays with `bottom: 0` to
- * be able to render above the keyboard instead of the space under the
- * keyboard.
+ * Generally you only want one root overlay scope at the root of your application.
+ * However, there are some cases where it may make sense to have nested root
+ * overlay scopes. For example, on mobile web when the keyboard opens we shrink the
+ * viewport in `s.$spaceId.tsx` to the visible space above the keyboard. (In our
+ * native mobile app we have different keyboard handling with
+ * `--safe-area-inset-bottom`.) We want root overlays with `bottom: 0` to be able
+ * to render above the keyboard instead of the space under the keyboard.
  *
- * If `isDisabled` switches from `true` to `false` then we will continue using
- * the old portal elements for a single render then any existing root overlays
- * will unmount and remount into the new portal element.
+ * If `isDisabled` switches from `true` to `false` then we will continue using the
+ * old portal elements for a single render then any existing root overlays will
+ * unmount and remount into the new portal element.
  */
 export function RootOverlayScopeContextProvider({
     isDisabled = false,
@@ -96,11 +95,10 @@ export function RootOverlayScopeContextProvider({
 /**
  * Child `<Overlay>` components will be rendered inside this component.
  *
- * Generally you want to render one of these inside every scrollable element.
- * That way the overlays naturally scroll with the element and can't render
- * outside the element. Otherwise when you scroll, overlays will follow the
- * scroll but the user will see stutter as it won't happen on the scroll
- * animation thread.
+ * Generally you want to render one of these inside every scrollable element. That
+ * way the overlays naturally scroll with the element and can't render outside the
+ * element. Otherwise when you scroll, overlays will follow the scroll but the user
+ * will see stutter as it won't happen on the scroll animation thread.
  *
  * See `useMobileWebKitKeyboardSupport()` for more information.
  */

@@ -65,15 +65,14 @@ class InMemoryStorage implements DatabaseServerStorage {
     }
 }
 
-// Servers created during a test are tracked here and
-// closed in `afterEach` so individual tests don't have
-// to call `server.close()` themselves.
+// Servers created during a test are tracked here and closed in `afterEach` so
+// individual tests don't have to call `server.close()` themselves.
 const openServers: Array<DatabaseServer> = [];
 
 afterEach(() => {
     while (openServers.length > 0) {
-        // Tolerate already-closed servers — earlier tests
-        // may have called close() explicitly.
+        // Tolerate already-closed servers — earlier tests may have called close()
+        // explicitly.
         try {
             openServers.pop()!.close();
         } catch {
@@ -89,17 +88,15 @@ async function createServerWithSchema(...statements: Array<SqlQuery>): Promise<D
     for (const stmt of statements) {
         stmt.exec(db);
     }
-    // Drain test-setup writes to durable storage so a
-    // later failed execute (which discards the buffer)
-    // doesn't roll the schema out from under the test.
+    // Drain test-setup writes to durable storage so a later failed execute (which
+    // discards the buffer) doesn't roll the schema out from under the test.
     server.commitBufferForTests();
     return server;
 }
 
 describe("DatabaseServer — storage failure recovery", () => {
-    // A storage that delegates to an in-memory store but can
-    // be armed to throw from `writePages`, simulating a
-    // durable-storage failure during the buffer drain.
+    // A storage that delegates to an in-memory store but can be armed to throw from
+    // `writePages`, simulating a durable-storage failure during the buffer drain.
     class FlakyStorage implements DatabaseServerStorage {
         private readonly inner = new InMemoryStorage();
         failNextWritePages = false;
@@ -135,8 +132,8 @@ describe("DatabaseServer — storage failure recovery", () => {
             allowWrites: "schema+data",
         });
 
-        // Arm a storage failure: the drain (`writePages`) throws
-        // after `execute` has already buffered its write.
+        // Arm a storage failure: the drain (`writePages`) throws after `execute` has
+        // already buffered its write.
         storage.failNextWritePages = true;
         expect(() =>
             server.execute(
@@ -150,9 +147,8 @@ describe("DatabaseServer — storage failure recovery", () => {
             ),
         ).toThrow("simulated storage failure");
 
-        // The failed drain must not leave the buffer dirty: a
-        // subsequent execute should succeed, not throw
-        // "_runAndPersist requires an empty buffer".
+        // The failed drain must not leave the buffer dirty: a subsequent execute should
+        // succeed, not throw "\_runAndPersist requires an empty buffer".
         expect(() =>
             server.execute(
                 sql`
@@ -168,9 +164,8 @@ describe("DatabaseServer — storage failure recovery", () => {
 });
 
 describe("DatabaseServer", () => {
-    // Pass-through smoke: rows from a SELECT come back as
-    // objects. Exhaustive SQL feature coverage lives in
-    // SQLite's own test suite; we only verify the wiring.
+    // Pass-through smoke: rows from a SELECT come back as objects. Exhaustive SQL
+    // feature coverage lives in SQLite's own test suite; we only verify the wiring.
     test("execute passes SELECT rows through", async () => {
         const server = await createServerWithSchema(
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`,
@@ -316,8 +311,8 @@ describe("DatabaseServer", () => {
                 `,
             );
 
-            // Get each table's root page (SQLite's rootpage is
-            // 1-based; our storage is 0-based).
+            // Get each table's root page (SQLite's rootpage is 1-based; our storage is
+            // 0-based).
             const db = server.unsafeGetDbForTests();
             const schema = sql`
                 SELECT
@@ -346,8 +341,8 @@ describe("DatabaseServer", () => {
 
                 // Page 0 (the schema page) is always accessed.
                 expect(pageIndices).toContain(0);
-                // The table's own root page should be accessed.
-                // rootpage is 1-based, our map keys are 0-based.
+                // The table's own root page should be accessed. rootpage is 1-based, our map keys
+                // are 0-based.
                 expect(pageIndices).toContain(rootpage - 1);
             }
         });
@@ -394,11 +389,9 @@ describe("DatabaseServer", () => {
         });
     });
 
-    // The writeLevel × action authorization matrix is
-    // covered exhaustively in
-    // shared/databases/sqlite_authorizer.test.ts. The tests
-    // here only assert behavior unique to DatabaseServer
-    // (page tracking, changedPages, transaction lifecycle).
+    // The writeLevel × action authorization matrix is covered exhaustively in
+    // shared/databases/sqlite_authorizer.test.ts. The tests here only assert behavior
+    // unique to DatabaseServer (page tracking, changedPages, transaction lifecycle).
 
     describe("execute read-only — isolation", () => {
         test("writes via unsafeGetDbForTests are visible to execute", async () => {
@@ -496,8 +489,8 @@ describe("DatabaseServer", () => {
                 ),
             ).toThrow();
 
-            // After all of the above, the server should still
-            // serve queries and accept new writes.
+            // After all of the above, the server should still serve queries and accept new
+            // writes.
             const after = server.execute(
                 sql`
                     SELECT
@@ -588,8 +581,7 @@ describe("DatabaseServer", () => {
                 {allowWrites: "none"},
             );
 
-            // Each page in the result should match what storage
-            // returns for that page index.
+            // Each page in the result should match what storage returns for that page index.
             for (const [pageIndex, pageData] of result.readPages.get(databaseMainTableId)!) {
                 expect(pageData).toEqual(storage.readPage(databaseMainTableId, pageIndex));
             }
@@ -799,21 +791,20 @@ describe("DatabaseServer", () => {
     });
 
     describe("execute with writes — truncation", () => {
-        // VACUUM is the one SQL path that drains a VFS-produced
-        // file truncate through storage. The truncate size
-        // arrives from SQLite's `xTruncate` as an `i64` (BigInt);
-        // if it isn't normalized to a JS number it poisons the
-        // `Math.floor(size / pageSize)` page arithmetic in
-        // storage's `writePages`. Regression guard: VACUUM that
-        // shrinks the file must drain cleanly and actually shrink.
+        // VACUUM is the one SQL path that drains a VFS-produced file truncate through
+        // storage. The truncate size arrives from SQLite's `xTruncate` as an `i64`
+        // (BigInt); if it isn't normalized to a JS number it poisons the
+        // `Math.floor(size / pageSize)` page arithmetic in storage's `writePages`.
+        // Regression guard: VACUUM that shrinks the file must drain cleanly and actually
+        // shrink.
         test("VACUUM that shrinks the file drains without error", async () => {
             const storage = new InMemoryStorage();
             const server = await DatabaseServer.create(storage);
             openServers.push(server);
             const db = server.unsafeGetDbForTests();
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, BLOB TEXT NOT NULL)`.exec(db);
-            // Grow the file across many pages, then free them all
-            // so the VACUUM rebuild produces a shrinking truncate.
+            // Grow the file across many pages, then free them all so the VACUUM rebuild
+            // produces a shrinking truncate.
             for (let i = 0; i < 200; i++) {
                 sql`
                     INSERT INTO
@@ -965,8 +956,8 @@ describe("DatabaseServer — per-table storage", () => {
         });
         server1.close();
 
-        // Reopen on the same storage; bootstrap should attach
-        // and migrate the existing table so it stays queryable.
+        // Reopen on the same storage; bootstrap should attach and migrate the existing
+        // table so it stays queryable.
         const server2 = await DatabaseServer.create(storage);
         openServers.push(server2);
         const name = sql`

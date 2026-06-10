@@ -1,11 +1,11 @@
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 
 /**
- * Map every value in the async iterable in parallel and return the result as
- * an array. The mapper functions can be asynchronous themselves.
+ * Map every value in the async iterable in parallel and return the result as an
+ * array. The mapper functions can be asynchronous themselves.
  *
- * This function only completes when we've seen every item from the iterable
- * and all the mapper functions have resolved.
+ * This function only completes when we've seen every item from the iterable and
+ * all the mapper functions have resolved.
  */
 export async function parallelMapAsyncIterableToArray<Value, NewValue>(
     iterable: AsyncIterable<Value>,
@@ -25,8 +25,8 @@ export async function parallelMapAsyncIterableToArray<Value, NewValue>(
             // Allocate space in the array for the item when it resolves.
             array.push(null);
 
-            // Call our mapper function and note the promise. We need to wait for the
-            // promise to resolve before returning.
+            // Call our mapper function and note the promise. We need to wait for the promise
+            // to resolve before returning.
             const promise = map(item, index);
             promises.add(promise);
 
@@ -44,8 +44,8 @@ export async function parallelMapAsyncIterableToArray<Value, NewValue>(
             );
         }
     } finally {
-        // Make sure we always wait for any promise we started to resolve. If any
-        // promise threw while we were awaiting, rethrow that error.
+        // Make sure we always wait for any promise we started to resolve. If any promise
+        // threw while we were awaiting, rethrow that error.
         await Promise.allSettled(promises);
 
         if (errors.length > 0) throw createAggregateError(errors);

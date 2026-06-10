@@ -6,6 +6,7 @@ import {
     searchChannelsByAffinity,
     searchChannelsByKeywords,
     searchMentionByKeywords,
+    searchRoomChatsByKeywords,
     searchTaskCollectionsByAffinity,
     searchTaskCollectionsByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
@@ -38,7 +39,7 @@ export default implementRpcs(definitions, {
     searchByAffinity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return searchByAffinity(context.actor.authorizeSession(), input.spaceId);
+            return await searchByAffinity(context.actor.authorizeSession(), input.spaceId);
         },
     },
 
@@ -78,6 +79,17 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             const results = await searchChannelsByAffinity(context.actor.authorizeSession(), input);
+            return {results};
+        },
+    },
+
+    searchRoomChatsByKeywords: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const results = await searchRoomChatsByKeywords(
+                context.actor.authorizeSession(),
+                input,
+            );
             return {results};
         },
     },

@@ -14,7 +14,8 @@ import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
+import {neverPromise} from "~/shared/helpers/async/never_promise.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -24,7 +25,7 @@ const LoaderSchema = Schema.object({
     otherSpaces: Schema.array(
         Schema.object({
             space: SpaceModel.schema(),
-            inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()).nullable(),
+            inbox: createRynamoItemSchema(InboxModel.schema()).nullable(),
         }),
     ),
 });
@@ -58,7 +59,7 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
             title="Switch space"
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
-            defaultPreviousRoute={selectedSpace ? `/s/${selectedSpace.id}/more` : "/"}
+            defaultPreviousRoute={selectedSpace ? `/more/${selectedSpace.id}` : "/"}
             withoutDisappearingTitle
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
@@ -96,11 +97,17 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                             if (NativeMobileBridge) {
                                 NativeMobileBridge.session.switchSpace(otherSpace.id);
 
-                                // `switchSpace()` should destroy the current web browsing context and create a
-                                // new one.
-                                await new Promise(() => {});
+                                // `switchSpace()` should destroy the current web browsing context and create a new
+                                // one.
+                                await neverPromise;
                             } else {
-                                await rootNavigate(`/s/${otherSpace.id}`);
+                                // We must perform a full page navigation when switching spaces in order to reload
+                                // the `_space` route with a new `SpaceId`. We can't currently perform single page
+                                // navigation to a new space because the `_space` route must run in parallel with
+                                // some other loaders and currently Remix makes a network request for each
+                                // individual loader on single page navigation.
+                                window.location.assign(`/home/${otherSpace.id}`);
+                                await neverPromise;
                             }
                         }}
                     />

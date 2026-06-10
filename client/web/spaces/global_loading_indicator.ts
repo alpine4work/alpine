@@ -11,8 +11,8 @@ const mockGlobalLoadingIndicatorContextForTest: GlobalLoadingIndicatorContext | 
     .jest
     ? {
           add: markMemoIfNotRendering(() => {
-              // Adding loading indicators in Jest unit tests is a noop. Since there's no
-              // visual output.
+              // Adding loading indicators in Jest unit tests is a noop. Since there's no visual
+              // output.
           }),
       }
     : null;
@@ -21,9 +21,9 @@ const mockGlobalLoadingIndicatorContextForTest: GlobalLoadingIndicatorContext | 
  * Renders a global loading indicator for the duration of the provided promise.
  *
  * IMPORTANT: You should prefer inline loading indicators in all situations if
- * possible. Only use global loading indicators if there's no good inline
- * loading indicator design. For example, saving indicator on a document after
- * optimistic updates.
+ * possible. Only use global loading indicators if there's no good inline loading
+ * indicator design. For example, saving indicator on a document after optimistic
+ * updates.
  */
 export function useAddGlobalLoadingIndicator(): Memo<
     (promise: Promise<unknown>, indicator: GlobalLoadingIndicator) => void
@@ -49,9 +49,9 @@ export function useAddGlobalLoadingIndicator(): Memo<
  * loading indicator.
  *
  * IMPORTANT: You should prefer inline loading indicators in all situations if
- * possible. Only use global loading indicators if there's no good inline
- * loading indicator design. For example, saving indicator on a document after
- * optimistic updates.
+ * possible. Only use global loading indicators if there's no good inline loading
+ * indicator design. For example, saving indicator on a document after optimistic
+ * updates.
  */
 export function useGlobalLoadingIndicator(indicator: Memo<GlobalLoadingIndicator> | null) {
     const add = useAddGlobalLoadingIndicator();
@@ -86,9 +86,8 @@ export function useGlobalLoadingIndicator(indicator: Memo<GlobalLoadingIndicator
         }
 
         return () => {
-            // If the effect immediately remounts with the same `indicator` then this
-            // timeout will be cancelled and we won't resolve the current loading
-            // indicator.
+            // If the effect immediately remounts with the same `indicator` then this timeout
+            // will be cancelled and we won't resolve the current loading indicator.
             if (lastIndicatorRef.current?.indicator === indicator) {
                 lastIndicatorRef.current.resolveTimeout = createTimeout(() => {
                     if (lastIndicatorRef.current?.indicator === indicator) {

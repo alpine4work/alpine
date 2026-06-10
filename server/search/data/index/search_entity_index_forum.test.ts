@@ -23,8 +23,8 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
@@ -88,7 +88,7 @@ const context = createTestContext({
                 break;
             }
             case "IndexSearchEntityEmbeddingChunks": {
-                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job, span);
                 break;
             }
             default: {
@@ -104,8 +104,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -405,8 +405,8 @@ test(
         testSearchSpace = otherSpace;
         await runTests();
     },
-    // Increase test timeout since we've found that sometimes this test is slow to
-    // run in CI.
+    // Increase test timeout since we've found that sometimes this test is slow to run
+    // in CI.
     30 * 1000,
 );
 
@@ -684,18 +684,12 @@ test("channel access policies are enforced in search", async () => {
     await channel5.access.grant(session1, session2);
     await channel5.access.grant(session1, session3);
 
-    await expect(channel6.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don\u2019t currently support `urlGrant`s",
-    );
+    await channel6.access.grantUrl(session6);
 
-    await expect(channel7.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don\u2019t currently support `urlGrant`s",
-    );
+    await channel7.access.grantUrl(session6);
     await channel7.access.grant(session6, session5);
 
-    await expect(channel8.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don\u2019t currently support `urlGrant`s",
-    );
+    await channel8.access.grantUrl(session6);
     await channel8.access.grantDefault(session6);
 
     import.meta.jest.advanceTimersByTime(10 * 1000);
@@ -1157,8 +1151,8 @@ test("changes channel contributors as posts/comments are made", async () => {
         return results.some(
             result =>
                 result.id === `Channel:${channel.id}` &&
-                // Make sure this result was returned because of a high confidence natural
-                // language match.
+                // Make sure this result was returned because of a high confidence natural language
+                // match.
                 result.score >= standardSearchOptions.naturalLanguage.filterConstantScore,
         );
     };
@@ -1418,10 +1412,12 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Channel:${channel.id}`,
+                    type: "Channel",
                     title: "Engineering Help",
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    channel: {
+                        id: channel.id,
+                        version: 0,
+                    },
                 }),
                 bodyTextSnippet: [],
                 parsedFilter: null,
@@ -1429,10 +1425,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post1.id}`,
+                    type: "Post",
+                    post: {
+                        id: post1.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 1",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in "},
@@ -1446,10 +1446,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post2.id}`,
+                    type: "Post",
+                    post: {
+                        id: post2.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 2",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in "},
@@ -1463,10 +1467,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post3.id}`,
+                    type: "Post",
+                    post: {
+                        id: post3.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 3",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in "},
@@ -1497,10 +1505,12 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Channel:${channel.id}`,
+                    type: "Channel",
                     title: "Engineering Help",
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    channel: {
+                        id: channel.id,
+                        version: 0,
+                    },
                 }),
                 bodyTextSnippet: [],
                 parsedFilter: null,
@@ -1508,10 +1518,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post1.id}`,
+                    type: "Post",
+                    post: {
+                        id: post1.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 1",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in Engineering "},
@@ -1523,10 +1537,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post2.id}`,
+                    type: "Post",
+                    post: {
+                        id: post2.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 2",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in Engineering "},
@@ -1538,10 +1556,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post3.id}`,
+                    type: "Post",
+                    post: {
+                        id: post3.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 3",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in Engineering "},
@@ -1570,10 +1592,12 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Channel:${channel.id}`,
+                    type: "Channel",
                     title: "Engineering Help",
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    channel: {
+                        id: channel.id,
+                        version: 0,
+                    },
                 }),
                 bodyTextSnippet: [],
                 parsedFilter: null,
@@ -1581,10 +1605,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post1.id}`,
+                    type: "Post",
+                    post: {
+                        id: post1.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 1",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in Engineering "},
@@ -1596,10 +1624,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post2.id}`,
+                    type: "Post",
+                    post: {
+                        id: post2.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 2",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in Engineering "},
@@ -1611,10 +1643,14 @@ test("searching for channel shows both the channel and its posts, ranking the ch
             new SearchEntityResultModel({
                 score: expect.any(Number),
                 model: new SearchEntityModel({
-                    id: `Post:${post3.id}`,
+                    type: "Post",
+                    post: {
+                        id: post3.id,
+                        version: 0,
+                        channelVersion: 0,
+                        author: expect.any(AccountModel),
+                    },
                     title: "in Engineering Help: Test Post 3",
-                    titleVersion: {type: "Integers", versions: [0, 0]},
-                    media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [
                     {isHighlighted: false, text: "in Engineering "},
@@ -2494,10 +2530,14 @@ test("can index post with cyclic mention", async () => {
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
-            id: `Post:${post.id}`,
+            type: "Post",
+            post: {
+                id: post.id,
+                version: 1,
+                channelVersion: 0,
+                author: expect.any(AccountModel),
+            },
             title: "in Bar: Qux: […]",
-            titleVersion: {type: "Integers", versions: [1, 0]},
-            media: {type: "Account", account: expect.any(AccountModel)},
         }),
     });
 
@@ -2755,10 +2795,14 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
-            id: `Post:${postA.id}`,
+            type: "Post",
+            post: {
+                id: postA.id,
+                version: 1,
+                channelVersion: 0,
+                author: expect.any(AccountModel),
+            },
             title: "in Bar: a1 Foo in Bar: c Foo in Bar: b […]",
-            titleVersion: {type: "Integers", versions: [1, 0]},
-            media: {type: "Account", account: expect.any(AccountModel)},
         }),
     });
 
@@ -2767,10 +2811,14 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
-            id: `Post:${postB.id}`,
+            type: "Post",
+            post: {
+                id: postB.id,
+                version: 0,
+                channelVersion: 0,
+                author: expect.any(AccountModel),
+            },
             title: "in Bar: b Foo in Bar: a1 Foo in Bar: c […]",
-            titleVersion: {type: "Integers", versions: [0, 0]},
-            media: {type: "Account", account: expect.any(AccountModel)},
         }),
     });
 
@@ -2779,10 +2827,14 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
-            id: `Post:${postC.id}`,
+            type: "Post",
+            post: {
+                id: postC.id,
+                version: 0,
+                channelVersion: 0,
+                author: expect.any(AccountModel),
+            },
             title: "in Bar: c Foo in Bar: b Foo in Bar: a1 […]",
-            titleVersion: {type: "Integers", versions: [0, 0]},
-            media: {type: "Account", account: expect.any(AccountModel)},
         }),
     });
 
@@ -2791,10 +2843,14 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
-            id: `Post:${postE.id}`,
+            type: "Post",
+            post: {
+                id: postE.id,
+                version: 0,
+                channelVersion: 0,
+                author: expect.any(AccountModel),
+            },
             title: "in Bar: e Foo in Bar: c Foo in Bar: b Foo in Bar: a1 […]",
-            titleVersion: {type: "Integers", versions: [0, 0]},
-            media: {type: "Account", account: expect.any(AccountModel)},
         }),
     });
 

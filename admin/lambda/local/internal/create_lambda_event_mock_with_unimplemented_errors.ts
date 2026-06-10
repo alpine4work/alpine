@@ -9,7 +9,8 @@ export function createLambdaEventMockWithUnimplementedErrors<T>(
         | "LambdaContext"
         | "ApiGatewayProxyEventRequestContext",
 ): T {
-    // Create a proxy that automatically throws UnimplementedError for any unimplemented properties
+    // Create a proxy that automatically throws UnimplementedError for any
+    // unimplemented properties
     return new Proxy(baseEventObject, {
         get(target, prop) {
             // If the property exists on the target, return it

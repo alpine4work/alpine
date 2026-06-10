@@ -20,9 +20,9 @@ const taskNotesContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         ...contentBaseProsemirrorSchemaSpec.nodes,
         ...contentMentionProsemirrorNodeSpecs,
         // Currently we only allow `fileFloat`s in documents. They're mostly useful for
-        // narrative storytelling and can create odd layouts if not carefully designed.
-        // So in posts and task notes where file attachments mostly serve as a utility
-        // (vs as a narrative device) we don't currently allow `fileFloat`s.
+        // narrative storytelling and can create odd layouts if not carefully designed. So
+        // in posts and task notes where file attachments mostly serve as a utility (vs as
+        // a narrative device) we don't currently allow `fileFloat`s.
         ...createContentFileProsemirrorNodeSpecs({withTable: true}),
     },
     marks: {

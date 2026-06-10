@@ -19,7 +19,7 @@ import {
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -51,8 +51,8 @@ export type PostRealtimeEventStub =
           readonly event: MessagingRealtimeEventStub;
       }
     | {
-          readonly type: "RealtimeEventTransaction";
-          readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>;
+          readonly type: "RealtimeEvents";
+          readonly events: ReadonlyArray<RynamoEventStub>;
       };
 
 export class PostRealtimeConnection {
@@ -144,7 +144,12 @@ export class PostRealtimeConnection {
         },
 
         createComment: async (context, {parent, content, fileIds, createdTimeZone}) =>
-            this._connection.createMessage(context, {parent, content, fileIds, createdTimeZone}),
+            await this._connection.createMessage(context, {
+                parent,
+                content,
+                fileIds,
+                createdTimeZone,
+            }),
 
         updateCommentContent: (context, {commentIndex: messageIndex, contentVersion, steps}) =>
             this._connection.updateMessageContent(context, {messageIndex, contentVersion, steps}),
@@ -214,15 +219,15 @@ export class PostRealtimeConnection {
                     event: await this._connection.transformEvent(context, eventStub.event),
                 };
             }
-            case "RealtimeEventTransaction": {
-                const {eventTransaction} = await getPostRealtimeEvent(context, {
+            case "RealtimeEvents": {
+                const {events} = await getPostRealtimeEvent(context, {
                     postId: this._postId,
-                    eventTransaction: eventStub.eventTransaction,
+                    events: eventStub.events,
                 });
 
                 return {
-                    type: "RealtimeEventTransaction",
-                    eventTransaction,
+                    type: "RealtimeEvents",
+                    events,
                 };
             }
             default:

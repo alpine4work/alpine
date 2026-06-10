@@ -5,13 +5,15 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {BotForAdmin} from "~/shared/bots/bot_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ApiKey} from "~/shared/id/api_key.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
-// NOTE(ifitzsimmons, #bots): In order to support an internal bot management page, we need to
-// load all bots (with their avatars). Eventually, we should introduce an ownership model for
-// bots that enables indexing bots by owner. However, we don't have a really strong product
-// use case for bot "ownership" yet. Since the only bots are the ones that we've created, it's
-// okay to just get all the bots in the table with their avatars and API keys.
+// NOTE(ifitzsimmons, #bots): In order to support an internal bot management page,
+// we need to load all bots (with their avatars). Eventually, we should introduce
+// an ownership model for bots that enables indexing bots by owner. However, we
+// don't have a really strong product use case for bot "ownership" yet. Since the
+// only bots are the ones that we've created, it's okay to just get all the bots in
+// the table with their avatars and API keys.
 export async function expensivelyGetAllBotsForAdminSettingsPage(
     context: ServerActionContext,
 ): Promise<Array<BotForAdmin>> {
@@ -28,6 +30,8 @@ export async function expensivelyGetAllBotsForAdminSettingsPage(
             apiKeys?: Array<{
                 apiKey: ApiKey;
                 name: string | null;
+                spaceId: SpaceId | null;
+                scope: SchemaSerializedValue | null;
             }>;
         }
     > = new Map();
@@ -52,7 +56,15 @@ export async function expensivelyGetAllBotsForAdminSettingsPage(
         if (item.partitionType === "ApiKey" && item.sortRangeType === "Attributes") {
             botIdsToBotData.set(item.botId, {
                 ...botData,
-                apiKeys: [...(botData?.apiKeys ?? []), {apiKey: item.apiKey, name: item.name}],
+                apiKeys: [
+                    ...(botData?.apiKeys ?? []),
+                    {
+                        apiKey: item.apiKey,
+                        name: item.name,
+                        spaceId: item.spaceId ?? null,
+                        scope: (item.space?.scope ?? null) as SchemaSerializedValue | null,
+                    },
+                ],
             });
         }
     }
@@ -63,6 +75,7 @@ export async function expensivelyGetAllBotsForAdminSettingsPage(
         return {
             ...createBotFromItem({
                 id: botData.item.botId,
+                createdTime: botData.item.createdTime,
                 name: botData.item.name,
                 hasWebhookUrl: !!botData.item.webhookUrl,
                 avatar: botData.avatar ?? null,

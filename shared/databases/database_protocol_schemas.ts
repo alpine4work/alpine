@@ -16,28 +16,24 @@ import {
 } from "~/shared/schema/schema.js";
 
 /**
- * Shared schema definitions used by both the WebSocket
- * realtime protocol (`DatabaseRealtimeProtocol`) and the
- * tab/worker RPC protocols (`tabToWorkerDatabaseRpcMethods`,
- * `workerToTabDatabaseRpcMethods`). Centralizing them
- * here keeps the wire format identical across transports
- * and avoids drift.
+ * Shared schema definitions used by both the WebSocket realtime protocol
+ * (`DatabaseRealtimeProtocol`) and the tab/worker RPC protocols
+ * (`tabToWorkerDatabaseRpcMethods`, `workerToTabDatabaseRpcMethods`). Centralizing
+ * them here keeps the wire format identical across transports and avoids drift.
  */
 
 // -- Pages --------------------------------------------------------------------
 
 /**
- * A set of SQLite page indices grouped by
- * {@link DatabaseTableId}. Used in-memory to track which
- * pages an action read or wrote across one or more tables;
- * not part of any wire format.
+ * A set of SQLite page indices grouped by {@link DatabaseTableId}. Used in-memory
+ * to track which pages an action read or wrote across one or more tables; not part
+ * of any wire format.
  */
 export type ReadonlyDatabasePageSet = ReadonlyMap<DatabaseTableId, ReadonlySet<number>>;
 
 /**
- * The pages of a single database table, keyed by SQLite
- * page index. Each value is the page bytes plus the
- * version at which the canonical server observed them.
+ * The pages of a single database table, keyed by SQLite page index. Each value is
+ * the page bytes plus the version at which the canonical server observed them.
  */
 export const DatabaseTablePagesSchema = Schema.map(
     Schema.integer,
@@ -50,10 +46,9 @@ export const DatabaseTablePagesSchema = Schema.map(
 export type DatabaseTablePages = SchemaType<typeof DatabaseTablePagesSchema>;
 
 /**
- * Pages spanning one or more database tables. Each table
- * is its own SQLite database (attached together on the
- * client), so the outer key is a {@link DatabaseTableId}
- * and the inner is {@link DatabaseTablePagesSchema}.
+ * Pages spanning one or more database tables. Each table is its own SQLite
+ * database (attached together on the client), so the outer key is a {@link
+ * DatabaseTableId} and the inner is {@link DatabaseTablePagesSchema}.
  */
 export const DatabasePagesSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
@@ -67,14 +62,12 @@ export type DatabasePages = SchemaType<typeof DatabasePagesSchema>;
 /**
  * The page diffs for a single database table.
  *
- * `diffs` is keyed by SQLite page index; each value is
- * the diff bytes plus the version at which the
- * canonical server produced them. Mirrors
- * {@link DatabaseTablePagesSchema} for realtime updates.
+ * `diffs` is keyed by SQLite page index; each value is the diff bytes plus the
+ * version at which the canonical server produced them. Mirrors {@link
+ * DatabaseTablePagesSchema} for realtime updates.
  *
- * `fileSizeInPages` is the canonical SQLite file size
- * after applying these diffs — sent alongside the diffs
- * so the client can truncate / extend its OPFS store
+ * `fileSizeInPages` is the canonical SQLite file size after applying these diffs —
+ * sent alongside the diffs so the client can truncate / extend its OPFS store
  * atomically with the page writes.
  */
 export const DatabaseTablePageDiffsSchema = Schema.object({
@@ -91,9 +84,8 @@ export const DatabaseTablePageDiffsSchema = Schema.object({
 export type DatabaseTablePageDiffs = SchemaType<typeof DatabaseTablePageDiffsSchema>;
 
 /**
- * Page diffs spanning one or more database tables.
- * Mirrors {@link DatabasePagesSchema} for realtime
- * updates.
+ * Page diffs spanning one or more database tables. Mirrors {@link
+ * DatabasePagesSchema} for realtime updates.
  */
 export const DatabasePageDiffsSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
@@ -105,9 +97,8 @@ export type DatabasePageDiffs = SchemaType<typeof DatabasePageDiffsSchema>;
 // -- Cache validation ---------------------------------------------------------
 
 /**
- * Map a client sends to validate its page cache: per
- * table, the page-index → version pairs the client
- * believes it has cached.
+ * Map a client sends to validate its page cache: per table, the page-index →
+ * version pairs the client believes it has cached.
  */
 export const DatabasePageVersionsByIndexSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
@@ -119,18 +110,17 @@ export type DatabasePageVersionsByIndex = SchemaType<typeof DatabasePageVersions
 /**
  * Result config for `ensureCacheIsUpToDate`.
  *
- * Keyed by {@link DatabaseTableId}: each table is its own
- * SQLite database (attached together on the client) and
- * the cache is validated independently per table.
+ * Keyed by {@link DatabaseTableId}: each table is its own SQLite database
+ * (attached together on the client) and the cache is validated independently per
+ * table.
  *
- * Within each per-table entry, empty states represent
- * different modes:
+ * Within each per-table entry, empty states represent different modes:
+ *
  * - Both empty — that table's cache is up to date.
- * - `updatedPages` non-empty — server inlined page
- *   data for a small number of stale pages.
- * - `stalePageIndexes` non-empty, `updatedPages`
- *   empty — too many stale pages; client deletes
- *   them and re-fetches on demand.
+ * - `updatedPages` non-empty — server inlined page data for a small number of
+ *   stale pages.
+ * - `stalePageIndexes` non-empty, `updatedPages` empty — too many stale pages;
+ *   client deletes them and re-fetches on demand.
  */
 export const DatabaseEnsureCacheIsUpToDateResultConfig = {
     tables: Schema.map(
@@ -150,8 +140,8 @@ export type DatabaseEnsureCacheIsUpToDateResult = ObjectSchemaConfigType<
 // -- Page acknowledgments -----------------------------------------------------
 
 /**
- * Map a client sends to acknowledge that it received the
- * named pages: per table, the page indexes confirmed.
+ * Map a client sends to acknowledge that it received the named pages: per table,
+ * the page indexes confirmed.
  */
 export const DatabasePageIndexesSchema = Schema.map(
     Schema.id<DatabaseTableId>(),
@@ -163,12 +153,11 @@ export type DatabasePageIndexes = SchemaType<typeof DatabasePageIndexesSchema>;
 // -- Action invocation --------------------------------------------------------
 
 /**
- * Input config for invoking a database action against the
- * canonical server. Used by both the WebSocket procedure
- * and the worker-to-tab `executeActionServer` RPC.
+ * Input config for invoking a database action against the canonical server. Used
+ * by both the WebSocket procedure and the worker-to-tab `executeActionServer` RPC.
  *
- * `returnResult` / `returnPages` let the caller skip
- * fields it doesn't need — e.g. fire-and-forget mutations.
+ * `returnResult` / `returnPages` let the caller skip fields it doesn't need — e.g.
+ * fire-and-forget mutations.
  */
 export const DatabaseExecuteActionInputConfig = {
     action: DatabaseActionObjectSchema,
@@ -178,10 +167,9 @@ export const DatabaseExecuteActionInputConfig = {
 };
 
 /**
- * Output config for {@link DatabaseExecuteActionInputConfig}:
- * the action result and any pages the server read while
- * computing it. Both are nullable so the server can
- * honor the caller's `returnResult` / `returnPages` flags.
+ * Output config for {@link DatabaseExecuteActionInputConfig}: the action result
+ * and any pages the server read while computing it. Both are nullable so the
+ * server can honor the caller's `returnResult` / `returnPages` flags.
  */
 export const DatabaseExecuteActionOutputConfig = {
     result: DatabaseActionResultSchema.nullable(),
@@ -195,11 +183,9 @@ export type DatabaseExecuteActionResponse = ObjectSchemaConfigType<
 // -- Loader-passed action result ---------------------------------------------
 
 /**
- * Per-action schemas for loader-serialized action results.
- * Use a specific variant (e.g.
- * `LoaderDatabaseActionResultSchemas.getViewRowsPage`) when
- * the action name is known at compile time to get a
- * narrower type without casting.
+ * Per-action schemas for loader-serialized action results. Use a specific variant
+ * (e.g. `LoaderDatabaseActionResultSchemas.getViewRowsPage`) when the action name
+ * is known at compile time to get a narrower type without casting.
  */
 export const LoaderDatabaseActionResultSchemas = Object.fromEntries(
     Object.entries(databaseActions).map(([name, def]) => [
@@ -216,9 +202,8 @@ export const LoaderDatabaseActionResultSchemas = Object.fromEntries(
 };
 
 /**
- * Schema for loader-serialized action results. Includes
- * the action name, input, output, and the pages read
- * during execution. Used to pass initial data from SSR
+ * Schema for loader-serialized action results. Includes the action name, input,
+ * output, and the pages read during execution. Used to pass initial data from SSR
  * loaders to client-side reactive action hooks.
  */
 export const LoaderDatabaseActionResultSchema = Schema.unionWithKey(

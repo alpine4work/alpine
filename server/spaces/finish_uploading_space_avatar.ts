@@ -30,7 +30,7 @@ export async function finishUploadingSpaceAvatar(
     context.actor.authorizeSession();
     await authorizeSpaceAccess(context, spaceId, "Admin");
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const oldSpaceItem = await getSpaceItem(context, spaceId);
         const commonUpdateOptions = {
             spaceId,
@@ -41,9 +41,12 @@ export async function finishUploadingSpaceAvatar(
 
         switch (avatarTheme) {
             case "dark":
-                return dangerouslyFinishUploadingSpaceAvatarDarkTheme(context, commonUpdateOptions);
+                return await dangerouslyFinishUploadingSpaceAvatarDarkTheme(
+                    context,
+                    commonUpdateOptions,
+                );
             case "light":
-                return dangerouslyFinishUploadingSpaceAvatarLightTheme(
+                return await dangerouslyFinishUploadingSpaceAvatarLightTheme(
                     context,
                     commonUpdateOptions,
                 );

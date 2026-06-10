@@ -1,4 +1,3 @@
-import {S3Client} from "@aws-sdk/client-s3";
 import {defaultProvider} from "@aws-sdk/credential-provider-node";
 import {createAppAuth as createGithubAppAuth} from "@octokit/auth-app";
 import fs from "fs-extra";
@@ -22,9 +21,11 @@ import {
     ForumInjectionContextModule,
     NotificationsInjectionContextModule,
     SearchInjectionContextModule,
+    SitesInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {
     GithubContextModule,
@@ -44,8 +45,8 @@ import {
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
-import {ImporterContextModule} from "~/server/importer/importer_context_module.js";
-import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
+import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {
     JobQueueServiceProcessContext,
@@ -75,6 +76,12 @@ import {
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
+import {
+    LoopsContextModule,
+    LoopsContextModuleBase,
+    LoopsNoopContextModule,
+} from "~/server/spaces/loops_context_module.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     createServiceTaskRealtimeServiceRouter,
@@ -103,6 +110,9 @@ export const options = {
     apnsCertificatePrivateKey: {type: "string"},
     webPushVapidPublicKey: {type: "string"},
     webPushVapidPrivateKey: {type: "string"},
+    slackClientId: {type: "string"},
+    slackClientSecret: {type: "string"},
+    slackAuthRedirectOrigin: {type: "string"},
     jobQueueArn: {type: "string"},
     schedulerJobQueueRoleArn: {type: "string"},
     githubAppId: {type: "string"},
@@ -110,7 +120,7 @@ export const options = {
     githubAppClientId: {type: "string"},
     githubAppClientSecret: {type: "string"},
     githubAppInstallationId: {type: "string"},
-    importUploadsBucketName: {type: "string"},
+    loopsApiKey: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
@@ -131,8 +141,8 @@ export async function run({
 }) {
     const jobQueueUrl = assertExists(options.jobQueueUrl, "Missing `jobQueueUrl` option");
 
-    // In development, wait for our local SQS server to start before starting
-    // the `JobQueueService`.
+    // In development, wait for our local SQS server to start before starting the
+    // `JobQueueService`.
     {
         const parsedJobQueueUrl = new URL(jobQueueUrl);
         if (parsedJobQueueUrl.hostname === "localhost") {
@@ -176,6 +186,16 @@ export async function run({
     const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
+    const edgeServiceUrl = assertExists(
+        options.edgeServiceUrl,
+        "`edgeServiceUrl` option is required",
+    );
+
+    const resourceServiceUrl = assertExists(
+        options.resourceServiceUrl,
+        "`resourceServiceUrl` option is required",
+    );
+
     const basicProcessContext = Context.new(
         createServerBasicProcessContextModules({
             tracer,
@@ -200,8 +220,8 @@ export async function run({
                   ),
               );
 
-    // In tests, don't send push notifications. Otherwise in development and
-    // production set up a connection pool to APNs so we can send notifications.
+    // In tests, don't send push notifications. Otherwise in development and production
+    // set up a connection pool to APNs so we can send notifications.
     let apnsContextModule: ApnsContextModuleBase;
     if (isTestNodeEnvOrAdminScenariosScript) {
         apnsContextModule = new TestApnsContextModule();
@@ -225,6 +245,34 @@ export async function run({
         vapidPublicKey: webPushVapidPublicKey,
         vapidPrivateKey: webPushVapidPrivateKey,
     });
+
+    let slackContextModule: SlackContextModuleBase;
+
+    if (process.env.NODE_ENV === "production") {
+        slackContextModule = new SlackContextModule({
+            clientId: assertExists(
+                options.slackClientId,
+                "`slackClientId` option is required in production",
+            ),
+            clientSecret: assertExists(
+                options.slackClientSecret,
+                "`slackClientSecret` option is required in production",
+            ),
+            // We do not currently set a `slackAuthRedirectOrigin` option in production, so
+            // this will default to the edge service URL.
+            authRedirectOrigin: options.slackAuthRedirectOrigin ?? edgeServiceUrl,
+        });
+    } else {
+        if (options.slackClientId && options.slackClientSecret && options.slackAuthRedirectOrigin) {
+            slackContextModule = new SlackContextModule({
+                clientId: options.slackClientId,
+                clientSecret: options.slackClientSecret,
+                authRedirectOrigin: options.slackAuthRedirectOrigin,
+            });
+        } else {
+            slackContextModule = new NoopSlackContextModule();
+        }
+    }
 
     const githubContextModule =
         process.env.NODE_ENV !== "production"
@@ -253,8 +301,8 @@ export async function run({
                   return new GithubContextModule(auth.hook.bind(auth));
               })();
 
-    // TODO(calebmer): Scheduler context module implementation in development when
-    // we need it in development.
+    // TODO(calebmer): Scheduler context module implementation in development when we
+    // need it in development.
     const schedulerContextModule =
         process.env.NODE_ENV !== "production"
             ? new UnimplementedSchedulerContextModule()
@@ -266,6 +314,22 @@ export async function run({
                       "Missing `schedulerJobQueueRoleArn` option",
                   ),
               });
+
+    let loopsContextModule: LoopsContextModuleBase;
+    if (process.env.NODE_ENV === "production") {
+        loopsContextModule = new LoopsContextModule({
+            apiKey: assertExists(
+                options.loopsApiKey,
+                "`loopsApiKey` option is required in production",
+            ),
+        });
+    } else {
+        loopsContextModule = !options.loopsApiKey
+            ? new LoopsNoopContextModule()
+            : new LoopsContextModule({
+                  apiKey: options.loopsApiKey,
+              });
+    }
 
     // Jobs are already processed in a system context so this isn't actually an
     // escalation but we still need it for compatibility.
@@ -305,16 +369,6 @@ export async function run({
         );
     };
 
-    const edgeServiceUrl = assertExists(
-        options.edgeServiceUrl,
-        "`edgeServiceUrl` option is required",
-    );
-
-    const resourceServiceUrl = assertExists(
-        options.resourceServiceUrl,
-        "`resourceServiceUrl` option is required",
-    );
-
     const processContext: JobQueueServiceProcessContext = basicProcessContext.clone({
         opensearch: createServiceOpensearchContextModule(awsSigner, options),
         r2: createServiceCloudflareR2ContextModule(options),
@@ -325,11 +379,13 @@ export async function run({
             router: createServiceTaskRealtimeServiceRouter(options),
             dangerouslyEscalateToSystemContext,
         }),
+
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
         notificationsInjection: new NotificationsInjectionContextModule(notificationsInjection),
         searchInjection: new SearchInjectionContextModule(searchInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
 
@@ -344,16 +400,8 @@ export async function run({
                 : new TraceOnlyEmailContextModule(),
         botWebhook: new BotWebhookContextModule(tokenAgent),
         webPush: webPushContextModule,
-        importer:
-            process.env.NODE_ENV === "production"
-                ? new ImporterContextModule({
-                      s3Client: new S3Client({}),
-                      bucketName: assertExists(
-                          options.importUploadsBucketName,
-                          "`importUploadsBucketName` option is required in production",
-                      ),
-                  })
-                : new ImporterDevelopmentContextModule(),
+        slack: slackContextModule,
+        loops: loopsContextModule,
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

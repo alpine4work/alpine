@@ -19,7 +19,7 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {StepByJsonId} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
+import {StepByJsonId} from "~/shared/prosemirror/exhaustive_step.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -77,19 +77,19 @@ export const AddMarksAfterRemoveAllStepRangeSchema = Schema.booleanUnion(
 });
 
 /**
- * Creates a schema in our schema framework from a ProseMirror schema for nodes
- * and steps. It serializes to the same JSON format as ProseMirror and can
- * serialize back from the ProseMirror JSON format.
+ * Creates a schema in our schema framework from a ProseMirror schema for nodes and
+ * steps. It serializes to the same JSON format as ProseMirror and can serialize
+ * back from the ProseMirror JSON format.
  *
  * We need to create our own schema so that:
  *
  * - Attrs can be strictly typed with their own schema.
- * - We can manage cross-version compatibility and data migration of
- *   ProseMirror documents like any other data.
- * - We can efficiently encode ProseMirror documents using type information
- *   from our schema. (Unimplemented as of 2023-02-28 but someday I think we
- *   should implement a binary encoding for the schema framework to minimize
- *   bytes sent over the wire and stored in the database.)
+ * - We can manage cross-version compatibility and data migration of ProseMirror
+ *   documents like any other data.
+ * - We can efficiently encode ProseMirror documents using type information from
+ *   our schema. (Unimplemented as of 2023-02-28 but someday I think we should
+ *   implement a binary encoding for the schema framework to minimize bytes sent
+ *   over the wire and stored in the database.)
  */
 export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
     /* ========================================================================== *\
@@ -662,6 +662,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
     return {
         TopNodeType,
         UncheckedTopNodeType,
+        Node: NodeUnionSchema,
         Mark: MarkUnionSchema,
         createStepSchema,
     };

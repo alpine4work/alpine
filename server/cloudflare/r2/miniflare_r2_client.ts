@@ -8,8 +8,8 @@ import {
     PutObjectCommandInput,
     PutObjectCommandOutput,
 } from "@aws-sdk/client-s3";
-// NOTE: `import type` is important here. We don't want to import Miniflare
-// source files in production. We're just using the types in this module.
+// NOTE: `import type` is important here. We don't want to import Miniflare source
+// files in production. We're just using the types in this module.
 import type * as miniflareTypes from "@miniflare/r2";
 import {NodeJsRuntimeStreamingBlobPayloadInputTypes} from "@smithy/types";
 import {Readable as ReadableStream, Transform as TransformStream} from "stream";
@@ -30,8 +30,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
- * A mock R2 client backed by Miniflare that we use in local development and
- * tests.
+ * A mock R2 client backed by Miniflare that we use in local development and tests.
  */
 export class MiniflareR2Client implements CloudflareR2ClientBase {
     private readonly _fileProcessorServiceUrl: string;
@@ -310,11 +309,11 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 }
 
                 body = body.pipe(
-                    // NOTE(calebmer): I have no idea why but sometimes `put()` calls for
-                    // large audio files aren't finishing even though the stream has been fully
-                    // read unless there's a pass-through stream here. My best guess is Miniflare
-                    // is checking to see if the stream is an HTTP request stream and doing
-                    // something differently that isn't terminating?
+                    // NOTE(calebmer): I have no idea why but sometimes `put()` calls for large audio
+                    // files aren't finishing even though the stream has been fully read unless there's
+                    // a pass-through stream here. My best guess is Miniflare is checking to see if the
+                    // stream is an HTTP request stream and doing something differently that isn't
+                    // terminating?
                     new TransformStream({
                         transform: (chunk: Buffer, encoding, callback) => {
                             streamContentLength += chunk.length;
@@ -372,7 +371,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             spanName += ` ${bucketName}`;
         }
 
-        return tracer.withSpan(spanName, async span => {
+        return await tracer.withSpan(spanName, async span => {
             span.addData({
                 cloudflare: {
                     r2: {
@@ -445,8 +444,8 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             const expirationTimeString = serializeDateString(expirationTime);
 
             // `FileProcessorService` has an internal route for mocking signed URLs in
-            // development. This route is completely insecure and must not work in
-            // production. In production we'll generate actual S3 compatible signed URLs.
+            // development. This route is completely insecure and must not work in production.
+            // In production we'll generate actual S3 compatible signed URLs.
             return `${this._fileProcessorServiceUrl}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
         });
     }

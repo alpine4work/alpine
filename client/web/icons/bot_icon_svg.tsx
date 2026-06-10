@@ -1,4 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
 import escapeHtml from "escape-html";
 import {Robot} from "phosphor-react";
 
@@ -14,6 +13,7 @@ Robot;
  * We use the bot icon for bot account avatars.
  *
  * This component is a modified version of the `phosphor-react` `<Robot>` icon.
+ *
  * 1. The eyes are slightly larger so that they look better at really small sizes.
  * 2. The mouth is a single line.
  * 3. The "antenna" is slightly wider.

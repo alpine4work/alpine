@@ -30,16 +30,16 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
             onPress: () => {
                 const draftId = generateChronologicalId();
 
-                // When in a mobile layout (e.g. a peek) then don't close the peek after a post
-                // is created. We want to navigate to the post and the user can navigate back
-                // to the channel with the back button.
+                // When in a mobile layout (e.g. a peek) then don't close the peek after a post is
+                // created. We want to navigate to the post and the user can navigate back to the
+                // channel with the back button.
                 if (routeLayout === "narrow") {
                     navigate(
-                        `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content`,
+                        `/post/new/${draftId}/${space.id}?channel=${channel.id}&focus=content`,
                     );
                 } else {
                     navigate(
-                        `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content&return=back`,
+                        `/post/new/${draftId}/${space.id}?channel=${channel.id}&focus=content&return=back`,
                     );
                 }
             },
@@ -61,8 +61,7 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
                 borderRadius="1.5"
                 display="flex"
                 alignItems="center"
-                // This is meant to be a fake text input so show text cursor to sell the
-                // illusion.
+                // This is meant to be a fake text input so show text cursor to sell the illusion.
                 cursor="text"
                 {...(buttonProps as any)}
             >
@@ -80,8 +79,7 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
                     paddingX="1.5"
                     fontSize="100"
                     style={inputPlaceholderStyles}
-                    // This is meant to look like placeholder text and only be used by
-                    // sighted users.
+                    // This is meant to look like placeholder text and only be used by sighted users.
                     aria-hidden={true}
                 >
                     Share your ideas…

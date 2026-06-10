@@ -4,31 +4,26 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
- * {@link DatabaseServerStorage} implementation backed by a
- * Cloudflare Durable Object's {@link SqlStorage}.
+ * {@link DatabaseServerStorage} implementation backed by a Cloudflare Durable
+ * Object's {@link SqlStorage}.
  *
- * Pages are partitioned by {@link DatabaseTableId} so one
- * Durable Object can host many SQLite databases. Storage
- * uses two tables:
+ * Pages are partitioned by {@link DatabaseTableId} so one Durable Object can host
+ * many SQLite databases. Storage uses two tables:
  *
- * - `database_table_ids(sqlite_id, database_table_id)` —
- *   maps each external string id to a small integer
- *   `sqlite_id` (its rowid) used as the partition key in
+ * - `database_table_ids(sqlite_id, database_table_id)` — maps each external string
+ *   id to a small integer `sqlite_id` (its rowid) used as the partition key in
  *   `pages`. This keeps long ids out of the hot row.
- * - `pages(sqlite_id, page_index, version, data)` —
- *   versioned page rows keyed by
- *   `(sqlite_id, page_index, version)`. A `NULL` `data`
- *   marks a tombstone (left behind by truncates) which is
- *   surfaced as a missing page at the
- *   {@link DatabaseServerStorage} boundary.
+ * - `pages(sqlite_id, page_index, version, data)` — versioned page rows keyed by
+ *   `(sqlite_id, page_index, version)`. A `NULL` `data` marks a tombstone (left
+ *   behind by truncates) which is surfaced as a missing page at the {@link
+ *   DatabaseServerStorage} boundary.
  *
- * The `sqlite_id` is purely an internal storage
- * optimization and never leaks across the
- * {@link DatabaseServerStorage} boundary.
+ * The `sqlite_id` is purely an internal storage optimization and never leaks
+ * across the {@link DatabaseServerStorage} boundary.
  *
- * Versions are global across tables: a single counter is
- * bumped once per {@link writePages} call, and every row
- * inserted by that call is stamped with the new value.
+ * Versions are global across tables: a single counter is bumped once per {@link
+ * writePages} call, and every row inserted by that call is stamped with the new
+ * value.
  */
 export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     private readonly sql: SqlStorage;
@@ -77,9 +72,9 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
         }
 
         assert(result.next().done);
-        // Tombstones (data IS NULL) surface as missing pages —
-        // the underlying file size already shrank past them via
-        // {@link truncate}, so no caller needs to distinguish.
+        // Tombstones (data IS NULL) surface as missing pages — the underlying file size
+        // already shrank past them via {@link truncate}, so no caller needs to
+        // distinguish.
         if (row.value.data === null) {
             return null;
         }
@@ -95,11 +90,10 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     ): number {
         const version = this.nextVersion();
 
-        // Truncates first: tombstone every page at or past
-        // each table's new boundary. A subsequent write to a
-        // page in this batch that falls past the boundary
-        // re-extends the file naturally — the boundary write
-        // just becomes the latest row at the same version.
+        // Truncates first: tombstone every page at or past each table's new boundary. A
+        // subsequent write to a page in this batch that falls past the boundary re-extends
+        // the file naturally — the boundary write just becomes the latest row at the same
+        // version.
         for (const [databaseTableId, size] of truncates) {
             const sqliteId = this.getOrCreateSqliteId(databaseTableId);
             const maxPageIndex = Math.floor(size / sqlitePageSize);
@@ -174,9 +168,8 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
 
     private nextVersion(): number {
         if (this.lastWriteVersion === undefined) {
-            // Cold load: recover MAX(version) across every
-            // table so the next stamp is strictly greater
-            // than anything already persisted.
+            // Cold load: recover MAX(version) across every table so the next stamp is strictly
+            // greater than anything already persisted.
             const result = this.sql.exec<{v: number | null}>("SELECT MAX(version) AS v FROM pages");
             const row = result.next();
             this.lastWriteVersion = row.done || row.value.v === null ? 0 : row.value.v;
@@ -186,9 +179,8 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     }
 
     /**
-     * Resolve `databaseTableId` to its internal `sqlite_id`,
-     * returning `undefined` if no row exists yet. Used by
-     * read paths so an unwritten table doesn't silently
+     * Resolve `databaseTableId` to its internal `sqlite_id`, returning `undefined` if
+     * no row exists yet. Used by read paths so an unwritten table doesn't silently
      * register a `sqlite_id`.
      */
     private lookupSqliteId(databaseTableId: DatabaseTableId): number | undefined {
@@ -210,9 +202,8 @@ export class DatabaseDurableObjectStorage implements DatabaseServerStorage {
     }
 
     /**
-     * Resolve `databaseTableId` to its internal `sqlite_id`,
-     * inserting a fresh row in `database_table_ids` on first
-     * write.
+     * Resolve `databaseTableId` to its internal `sqlite_id`, inserting a fresh row in
+     * `database_table_ids` on first write.
      */
     private getOrCreateSqliteId(databaseTableId: DatabaseTableId): number {
         const existing = this.lookupSqliteId(databaseTableId);

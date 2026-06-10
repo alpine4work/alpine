@@ -7,8 +7,8 @@ export type OriginalTracerSpan = {
 };
 
 // Original tracer spans are stored in a `WeakMap` instead of our `ErrorBase`
-// constructor to support error objects that were not created by our
-// `ErrorBase` constructor.
+// constructor to support error objects that were not created by our `ErrorBase`
+// constructor.
 const originalTracerSpanByError =
     process.env.NODE_ENV !== "development"
         ? new WeakMap<object, OriginalTracerSpan>()

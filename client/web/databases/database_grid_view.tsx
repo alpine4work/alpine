@@ -133,9 +133,8 @@ function selectionReducer(
 // -- Main component -----------------------------------------------------------
 
 /**
- * Renders database rows in an editable virtualized grid
- * with a sticky header. Uses view field metadata for
- * column names, widths, and field IDs for cell editing.
+ * Renders database rows in an editable virtualized grid with a sticky header. Uses
+ * view field metadata for column names, widths, and field IDs for cell editing.
  */
 export function DatabaseGridView({
     tableId,
@@ -271,12 +270,9 @@ export function DatabaseGridView({
                                         ref={ref}
                                         zIndex="30"
                                         style={{
-                                            // 1px taller than `gridRowHeight` so the
-                                            // header item's measured size includes the
-                                            // sibling border line below — that way row 1
-                                            // starts after the border, mirroring how
-                                            // inter-row borders live inside each row's
-                                            // measured height.
+                                            // 1px taller than `gridRowHeight` so the header item's measured size includes the
+                                            // sibling border line below — that way row 1 starts after the border, mirroring
+                                            // how inter-row borders live inside each row's measured height.
                                             minHeight: `calc(${spacing[gridRowHeight]} + 1px)`,
                                             position: shouldRenderWithRelativePositioning
                                                 ? "relative"
@@ -311,10 +307,8 @@ export function DatabaseGridView({
                                             top: shouldRenderWithRelativePositioning
                                                 ? undefined
                                                 : spacing[gridRowHeight],
-                                            // Pull the border up 1px so its natural
-                                            // flow position lands inside the header's
-                                            // transparent bottom gap (avoiding a 1px
-                                            // jump when scrolling crosses the sticky
+                                            // Pull the border up 1px so its natural flow position lands inside the header's
+                                            // transparent bottom gap (avoiding a 1px jump when scrolling crosses the sticky
                                             // threshold).
                                             marginTop: -1,
                                         }}
@@ -419,8 +413,7 @@ export function DatabaseGridView({
                 overflowY="hidden"
                 onFocus={() => dispatch({type: "focus"})}
                 onBlur={e => {
-                    // Only deactivate if focus moved outside
-                    // the grid entirely (not between children).
+                    // Only deactivate if focus moved outside the grid entirely (not between children).
                     if (!e.currentTarget.contains(e.relatedTarget)) {
                         dispatch({type: "focusout"});
                     }
@@ -453,9 +446,8 @@ export function DatabaseGridView({
 // -- Selection overlay --------------------------------------------------------
 
 /**
- * Renders a floating border around the selected cell(s) using
- * scroll-content coordinates so it scrolls with rows and is
- * occluded by the sticky header.
+ * Renders a floating border around the selected cell(s) using scroll-content
+ * coordinates so it scrolls with rows and is occluded by the sticky header.
  */
 function DatabaseGridViewSelectionOverlay({
     selection,
@@ -470,10 +462,10 @@ function DatabaseGridViewSelectionOverlay({
     rowCount: number;
     scrollViewRef: React.RefObject<VirtualizedScrollViewRef | null>;
 }) {
-    // Cumulative left offset of each visible column. Stored as rem at the
-    // small spacing scale so the value scales with the active scale, the
-    // same way each column's CSS width does. Accounts for the
-    // `marginRight: -1` overlap between adjacent cells.
+    // Cumulative left offset of each visible column. Stored as rem at the small
+    // spacing scale so the value scales with the active scale, the same way each
+    // column's CSS width does. Accounts for the `marginRight: -1` overlap between
+    // adjacent cells.
     const columnLeftRems = useMemo(() => {
         const lefts: Array<number> = [];
         let left = 0;
@@ -492,10 +484,10 @@ function DatabaseGridViewSelectionOverlay({
     const field = fields[fieldIndex];
     const leftRem = columnLeftRems[fieldIndex];
     if (field == null || leftRem == null) return null;
-    // The last data row is shorter by 1px (it has no `borderBottom` slot
-    // since the footer renders its own sticky separator). Extend the
-    // selection by an extra pixel below so its bottom edge lands on the
-    // sticky footer border instead of stopping 1px above it.
+    // The last data row is shorter by 1px (it has no `borderBottom` slot since the
+    // footer renders its own sticky separator). Extend the selection by an extra pixel
+    // below so its bottom edge lands on the sticky footer border instead of stopping
+    // 1px above it.
     const isLast = scrollViewRef.current?.getIndexByKeyIfExists(selection.rowId) === rowCount;
     const heightExtension = isLast ? 2 : 1;
     return (

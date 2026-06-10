@@ -41,8 +41,8 @@ export const wordTaskTitleTestScenario = {
 /**
  * Scenario where we type one word at a time to form a sentence.
  *
- * The sentence comes from the [Unicode default word boundary
- * specification][1] example.
+ * The sentence comes from the [Unicode default word boundary specification][1]
+ * example.
  *
  * [1]: https://unicode.org/reports/tr29/#Default_Word_Boundaries
  */

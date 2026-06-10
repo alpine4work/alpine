@@ -7,8 +7,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * `EditorState` selection. Toggling "off" means setting the block back to the
  * paragraph block type.
  *
- * If some nodes in the selection already have the provided block type then
- * this command toggles on.
+ * If some nodes in the selection already have the provided block type then this
+ * command toggles on.
  */
 export function createToggleBlockTypeCommand(
     nodeType: NodeType,
@@ -19,8 +19,8 @@ export function createToggleBlockTypeCommand(
         let isEveryNodeAlreadyBlockType: boolean | undefined;
 
         state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
-            // If we have found one node that can become our block type we don't need to
-            // keep iterating.
+            // If we have found one node that can become our block type we don't need to keep
+            // iterating.
             if (canAnyNodeBecomeBlockType) return false;
 
             // Ignore nodes that aren't text blocks.

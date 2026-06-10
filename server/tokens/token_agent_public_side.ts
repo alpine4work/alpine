@@ -13,19 +13,19 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
- * The token agent class is responsible for RSA key cryptography between
- * services in our system. This class does tasks related to public keys.
+ * The token agent class is responsible for RSA key cryptography between services
+ * in our system. This class does tasks related to public keys.
  * `TokenAgentPrivateSide` does tasks related to private keys.
  *
- * A service has only its own private key and has the public keys for every
- * other service.
+ * A service has only its own private key and has the public keys for every other
+ * service.
  */
-// TODO(calebmer, #security): We should eventually implement key rotation. No
-// human should ever have access to our system's private keys.
+// TODO(calebmer, #security): We should eventually implement key rotation. No human
+// should ever have access to our system's private keys.
 //
-// TODO(calebmer): When I first wrote this class it only did JWT token signing.
-// Now it also has encryption/decryption methods which means it's a more
-// general purpose RSA cryptography class. Should it be renamed?
+// TODO(calebmer): When I first wrote this class it only did JWT token signing. Now
+// it also has encryption/decryption methods which means it's a more general
+// purpose RSA cryptography class. Should it be renamed?
 export class TokenAgentPublicSide {
     private readonly _serviceName: TokenServiceName;
 
@@ -43,6 +43,8 @@ export class TokenAgentPublicSide {
     private readonly _apiServicePublicKeyForRsaOaep: KeyLike;
     private readonly _resourceServicePublicKeyForRs256: KeyLike;
     private readonly _resourceServicePublicKeyForRsaOaep: KeyLike;
+    private readonly _importerServicePublicKeyForRs256: KeyLike;
+    private readonly _importerServicePublicKeyForRsaOaep: KeyLike;
     private readonly _secretForHs256: Uint8Array;
 
     private constructor({
@@ -61,6 +63,8 @@ export class TokenAgentPublicSide {
         apiServicePublicKeyForRsaOaep,
         resourceServicePublicKeyForRs256,
         resourceServicePublicKeyForRsaOaep,
+        importerServicePublicKeyForRs256,
+        importerServicePublicKeyForRsaOaep,
         secretForHs256,
     }: {
         serviceName: TokenServiceName;
@@ -78,6 +82,8 @@ export class TokenAgentPublicSide {
         apiServicePublicKeyForRsaOaep: KeyLike;
         resourceServicePublicKeyForRs256: KeyLike;
         resourceServicePublicKeyForRsaOaep: KeyLike;
+        importerServicePublicKeyForRs256: KeyLike;
+        importerServicePublicKeyForRsaOaep: KeyLike;
         secretForHs256: Uint8Array;
     }) {
         this._serviceName = serviceName;
@@ -95,6 +101,8 @@ export class TokenAgentPublicSide {
         this._apiServicePublicKeyForRsaOaep = apiServicePublicKeyForRsaOaep;
         this._resourceServicePublicKeyForRs256 = resourceServicePublicKeyForRs256;
         this._resourceServicePublicKeyForRsaOaep = resourceServicePublicKeyForRsaOaep;
+        this._importerServicePublicKeyForRs256 = importerServicePublicKeyForRs256;
+        this._importerServicePublicKeyForRsaOaep = importerServicePublicKeyForRsaOaep;
         this._secretForHs256 = secretForHs256;
     }
 
@@ -107,6 +115,7 @@ export class TokenAgentPublicSide {
         fileProcessorServicePublicKey: fileProcessorServicePublicKeyString,
         apiServicePublicKey: apiServicePublicKeyString,
         resourceServicePublicKey: resourceServicePublicKeyString,
+        importerServicePublicKey: importerServicePublicKeyString,
         secret: secretString,
     }: {
         serviceName: TokenServiceName;
@@ -117,6 +126,7 @@ export class TokenAgentPublicSide {
         fileProcessorServicePublicKey: string;
         apiServicePublicKey: string;
         resourceServicePublicKey: string;
+        importerServicePublicKey: string;
         secret: string;
     }) {
         const [
@@ -134,6 +144,8 @@ export class TokenAgentPublicSide {
             apiServicePublicKeyForRsaOaep,
             resourceServicePublicKeyForRs256,
             resourceServicePublicKeyForRsaOaep,
+            importerServicePublicKeyForRs256,
+            importerServicePublicKeyForRsaOaep,
         ] = await runAllPromises([
             importSPKI(appServicePublicKeyString, "RS256"),
             importSPKI(appServicePublicKeyString, "RSA-OAEP"),
@@ -149,6 +161,8 @@ export class TokenAgentPublicSide {
             importSPKI(apiServicePublicKeyString, "RSA-OAEP"),
             importSPKI(resourceServicePublicKeyString, "RS256"),
             importSPKI(resourceServicePublicKeyString, "RSA-OAEP"),
+            importSPKI(importerServicePublicKeyString, "RS256"),
+            importSPKI(importerServicePublicKeyString, "RSA-OAEP"),
         ]);
 
         const secretForHs256 = decodeBase64(secretString.trim());
@@ -170,6 +184,8 @@ export class TokenAgentPublicSide {
             apiServicePublicKeyForRsaOaep,
             resourceServicePublicKeyForRs256,
             resourceServicePublicKeyForRsaOaep,
+            importerServicePublicKeyForRs256,
+            importerServicePublicKeyForRsaOaep,
             secretForHs256,
         });
     }
@@ -185,6 +201,7 @@ export class TokenAgentPublicSide {
             case "ChatRealtimeService":
             case "MyAccountService":
             case "TaskNotesCollaborationService":
+            case "SiteRealtimeService":
             case "DatabaseGroupService":
                 return this._edgeServiceFamilyPublicKeyForRs256;
             case "TaskRealtimeService":
@@ -197,6 +214,8 @@ export class TokenAgentPublicSide {
                 return this._apiServicePublicKeyForRs256;
             case "ResourceService":
                 return this._resourceServicePublicKeyForRs256;
+            case "ImporterService":
+                return this._importerServicePublicKeyForRs256;
             default:
                 throw exhaustive(serviceName);
         }
@@ -213,6 +232,7 @@ export class TokenAgentPublicSide {
             case "ChatRealtimeService":
             case "MyAccountService":
             case "TaskNotesCollaborationService":
+            case "SiteRealtimeService":
             case "DatabaseGroupService":
                 return this._edgeServiceFamilyPublicKeyForRsaOaep;
             case "TaskRealtimeService":
@@ -225,18 +245,20 @@ export class TokenAgentPublicSide {
                 return this._apiServicePublicKeyForRsaOaep;
             case "ResourceService":
                 return this._resourceServicePublicKeyForRsaOaep;
+            case "ImporterService":
+                return this._importerServicePublicKeyForRsaOaep;
             default:
                 throw exhaustive(serviceName);
         }
     }
 
     /**
-     * Verifies a token produced by any instance of `TokenAgentPrivateSide` and
-     * returns the payload associated with the token when we don't know the token
-     * issuer. Throws an error if the signed token is invalid.
+     * Verifies a token produced by any instance of `TokenAgentPrivateSide` and returns
+     * the payload associated with the token when we don't know the token issuer.
+     * Throws an error if the signed token is invalid.
      *
-     * `verifyTokenFromIssuer()` is slightly more efficient when you know the
-     * issuer up-front.
+     * `verifyTokenFromIssuer()` is slightly more efficient when you know the issuer
+     * up-front.
      */
     public async verifyToken(token: string): Promise<{
         serviceName: TokenServiceName;
@@ -256,9 +278,9 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Verifies a token produced by any instance of `TokenAgentPrivateSide` and
-     * returns the payload associated with the token. Throws an error if the signed
-     * token is invalid.
+     * Verifies a token produced by any instance of `TokenAgentPrivateSide` and returns
+     * the payload associated with the token. Throws an error if the signed token is
+     * invalid.
      */
     public async verifyTokenFromService(
         serviceName: TokenServiceName,
@@ -326,8 +348,8 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Verifies a URL produced by any instance of `TokenAgentPrivateSide` when we
-     * don't know the token issuer. Throws an error if the signed URL is invalid.
+     * Verifies a URL produced by any instance of `TokenAgentPrivateSide` when we don't
+     * know the token issuer. Throws an error if the signed URL is invalid.
      */
     public async verifyUrl(url: URL): Promise<{
         serviceName: TokenServiceName;
@@ -339,8 +361,8 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Verifies a URL produced by any instance of `TokenAgentPrivateSide`. Throws
-     * an error if the signed URL is invalid.
+     * Verifies a URL produced by any instance of `TokenAgentPrivateSide`. Throws an
+     * error if the signed URL is invalid.
      */
     public async verifyUrlFromService(serviceName: TokenServiceName, url: URL): Promise<void> {
         const token = this._getUrlToken(url);
@@ -357,8 +379,8 @@ export class TokenAgentPublicSide {
     }
 
     /**
-     * Encrypt some sensitive data for the provided audience. Generates a compact
-     * JWE string. See [this explainer][1] for more information on JWE.
+     * Encrypt some sensitive data for the provided audience. Generates a compact JWE
+     * string. See [this explainer][1] for more information on JWE.
      *
      * [1]: https://www.scottbrady91.com/jose/json-web-encryption
      */
@@ -366,8 +388,7 @@ export class TokenAgentPublicSide {
         const audiencePublicKey = this._getServicePublicKeyForRsaOaep(audience);
 
         const encrypter = new CompactEncrypt(new TextEncoder().encode(payload))
-            // Algorithm taken from:
-            // https://www.scottbrady91.com/jose/json-web-encryption
+            // Algorithm taken from: https://www.scottbrady91.com/jose/json-web-encryption
             .setProtectedHeader({alg: "RSA-OAEP", enc: "A256CBC-HS512"});
 
         return encrypter.encrypt(audiencePublicKey);

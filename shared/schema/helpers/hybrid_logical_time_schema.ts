@@ -5,8 +5,8 @@ import {Schema} from "~/shared/schema/schema.js";
 const higherBitsMask = 2n ** 48n - 1n;
 const lowerBitsMask = 2n ** 16n - 1n;
 
-// Hybrid logical times were designed to fit in a 64-bit integer. With ticks as the 16
-// lower bits and time as the 48 higher bits.
+// Hybrid logical times were designed to fit in a 64-bit integer. With ticks as the
+// 16 lower bits and time as the 48 higher bits.
 export const HybridLogicalTimeSchema = Schema.uint64.transform<HybridLogicalTime>({
     serialize: serializeHybridLogicalTime,
     deserialize: deserializeHybridLogicalTime,

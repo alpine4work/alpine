@@ -15,7 +15,7 @@ import {
     ApiTaskCollection,
     ApiTaskStatus,
     ApiTaskWithoutContent,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -23,27 +23,30 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 const taskStatusesFilterValues = new Set<ApiTaskStatus["type"]>(["Open", "Closed"]);
 
 /**
- * Returns the task collection and first 100 tasks in the collection. The format is as follows
+ * Returns the task collection and first 100 tasks in the collection. The format is
+ * as follows
  *
  * ```markdown
- * These are the Open (Active) and Open (Inactive) tasks in the Sprint Tasks collection. See
- * [here for Closed tasks](/task-collection/sprint-tasks-other-tasks) in this collection.
+ * These are the Open (Active) and Open (Inactive) tasks in the Sprint Tasks
+ * collection. See
+ * [here for Closed tasks](/task-collection/sprint-tasks-other-tasks) in this
+ * collection.
  *
  * 1. [Title 1](/task/title-1)
- *    - Status: Open (Active)
- *    - Assignee: [Test](/account/test)
- *    - Due: 2025-12-17
- *    - Priority: Urgent
+ *     - Status: Open (Active)
+ *     - Assignee: [Test](/account/test)
+ *     - Due: 2025-12-17
+ *     - Priority: Urgent
  * 2. [Title 2](/task/title-2)
- *    - Status: Open (Inactive)
- *    - Assignee: [Ian](/account/ian)
- *    - Due: 2025-11-21
+ *     - Status: Open (Inactive)
+ *     - Assignee: [Ian](/account/ian)
+ *     - Due: 2025-11-21
  * 3. [Title 3](/task/title-3)
- *    - Status: Open (Inactive)
- *    - Priority: High
+ *     - Status: Open (Inactive)
+ *     - Priority: High
  * 4. [Title 4](/task/title-4)
- *    - Status: Open (Active)
- *    - Assignee: [calbe@gmail.com](/account/calbe-gmail-com)
+ *     - Status: Open (Active)
+ *     - Assignee: [calbe@gmail.com](/account/calbe-gmail-com)
  * ```
  */
 // TODO(ifitzsimmons, #ai): Add sample content once we land on content format
@@ -65,7 +68,7 @@ export async function loadAgentTaskCollectionLinkContent({
 
     const [
         {
-            data: {taskCollection},
+            data: {collection},
         },
         {
             data: {tasks},
@@ -82,8 +85,7 @@ export async function loadAgentTaskCollectionLinkContent({
         }),
     ]);
 
-    if (tasks.length === 0)
-        return getEmptyTaskCollectionContent(taskCollection, appliedStatusesFilter);
+    if (tasks.length === 0) return getEmptyTaskCollectionContent(collection, appliedStatusesFilter);
 
     const taskContentPromises = tasks.map(async (task): Promise<ListItem> => {
         const taskLink = await createAgentLink(transaction, {type: "Task", task});
@@ -106,10 +108,10 @@ export async function loadAgentTaskCollectionLinkContent({
         };
     });
 
-    // TODO(calebmer, #ai): We should include the first few tasks in
-    // the task collection and give ChatGPT a tool to read more.
+    // TODO(calebmer, #ai): We should include the first few tasks in the task
+    // collection and give ChatGPT a tool to read more.
     const [preambleContent, ...tasksContent] = await runAllPromises([
-        getTaskCollectionPreamble(transaction, link, taskCollection, appliedStatusesFilter),
+        getTaskCollectionPreamble(transaction, link, collection, appliedStatusesFilter),
         ...taskContentPromises,
     ]);
 
@@ -133,8 +135,8 @@ async function getTaskCollectionPreamble(
         "and",
     );
 
-    // If the task collection is loading ALL tasks, it's a waste of tokens
-    // to tell the agent that there aren't any tasks for Open (Active), Open (Inactive), or Closed.
+    // If the task collection is loading ALL tasks, it's a waste of tokens to tell the
+    // agent that there aren't any tasks for Open (Active), Open (Inactive), or Closed.
     // We can just say that there aren't any tasks in the collection.
     const taskStatusDescriptor =
         missingStatuses.size === 0
@@ -151,13 +153,13 @@ async function getTaskCollectionPreamble(
     // missing statuses.
     //
     // When asking an agent "What did I do last sprint?", it will (hopefully) load the
-    // appropriate sprint collection. However, we only load Open (Active) and Open (Inactive)
-    // tasks by default. So the agent won't actually be able to see the tasks you completed
-    // (the work you *actually did*) last sprint.
+    // appropriate sprint collection. However, we only load Open (Active) and Open
+    // (Inactive) tasks by default. So the agent won't actually be able to see the
+    // tasks you completed (the work you _actually did_) last sprint.
     //
-    // By giving the agent a link to the task collection with the missing status types, it can
-    // create a more complete picture of what is going on in that collection if it needs to do
-    // so.
+    // By giving the agent a link to the task collection with the missing status types,
+    // it can create a more complete picture of what is going on in that collection if
+    // it needs to do so.
     if (missingStatuses.size > 0) {
         const collectionWithMissingStatusLink = await createAgentLink(transaction, {
             type: "TaskCollection",
@@ -197,8 +199,8 @@ function getEmptyTaskCollectionContent(
     taskCollection: ApiTaskCollection,
     appliedStatusesFilter: ReadonlySet<ApiTaskStatus["type"]>,
 ): Root {
-    // If the task collection is loading ALL tasks, it's a waste of tokens
-    // to tell the agent that there aren't any tasks for Open (Active), Open (Inactive), or Closed.
+    // If the task collection is loading ALL tasks, it's a waste of tokens to tell the
+    // agent that there aren't any tasks for Open (Active), Open (Inactive), or Closed.
     // We can just say that there aren't any tasks in the collection.
     const taskStatusDescriptor =
         taskStatusesFilterValues.difference(appliedStatusesFilter).size === 0

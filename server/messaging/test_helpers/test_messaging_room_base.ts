@@ -1,13 +1,12 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {
     TestAccountActionContext,
@@ -19,6 +18,8 @@ import {
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
@@ -31,7 +32,7 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,
@@ -64,8 +65,8 @@ export abstract class TestMessagingRoomBase {
     protected abstract _getRoomKey(): string;
 
     /**
-     * All messaging rooms must also have valid bot scopes. Since you should be
-     * able to send/receive messages as a bot scoped to that room.
+     * All messaging rooms must also have valid bot scopes. Since you should be able to
+     * send/receive messages as a bot scoped to that room.
      */
     public abstract getBotScope(): BotTokenPayloadScope;
 
@@ -76,20 +77,20 @@ export abstract class TestMessagingRoomBase {
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
-            overrideCreatedTimeForTest?: Date;
+            overrideCreatedTime?: Date;
             isStream?: boolean;
         },
     ): Promise<{index: number; createdTime: Date}>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _getMessage(
         context: TestActionContext,
         messageIndex: number,
     ): Promise<MessageModel>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _updateMessageContent(
         context: TestSessionActionContext,
         options: {
@@ -102,33 +103,34 @@ export abstract class TestMessagingRoomBase {
         contentUpdate: MessageContentPayloadContentUpdate;
     }>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _deleteMessage(
         context: TestSessionActionContext,
         options: {messageIndex: number},
     ): Promise<{deletedTime: Date}>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _putMessageStreamPart(
         context: TestBotActionContext,
         options: {
             messageIndex: number;
             partIndex: number;
             payload: MessageStreamPartPayload;
+            overrideCreatedTime?: Date;
         },
     ): Promise<void>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _completeMessageStream(
         context: TestBotActionContext,
         options: {messageIndex: number},
     ): Promise<void>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _setMessageReaction(
         context: ServerSessionActionContextWithPush,
         options: {
@@ -139,8 +141,8 @@ export abstract class TestMessagingRoomBase {
         },
     ): Promise<void>;
 
-    // Public so that we can call from `TestMessage`. Shouldn't be called outside
-    // of this file.
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside of
+    // this file.
     public abstract _deleteMessageReaction(
         context: ServerSessionActionContext,
         options: {
@@ -156,8 +158,8 @@ export abstract class TestMessagingRoomBase {
     }
 
     // Static method so you can't call `post.createMessage()`, you must call
-    // `post.createComment()`. However, for code working generically on any room
-    // that code can call `TestMessagingRoomBase.createMessage(room)`.
+    // `post.createComment()`. However, for code working generically on any room that
+    // code can call `TestMessagingRoomBase.createMessage(room)`.
     public static createMessage<Room extends TestMessagingRoomBase>(
         room: Room,
         session: TestSession | TestBotAccount | TestAccountActionContext,
@@ -200,7 +202,7 @@ export abstract class TestMessagingRoomBase {
                         : (parent ?? null),
                 content:
                     typeof content === "string"
-                        ? parseTestMessageContent(this.space.id, content)
+                        ? parseTestMessageContent(content)
                         : content instanceof Node
                           ? assertMessageContent(content)
                           : createSimpleMessageContent(""),
@@ -208,7 +210,7 @@ export abstract class TestMessagingRoomBase {
                     ? Array.from(files, file => (typeof file === "string" ? file : file.id))
                     : [],
                 createdTimeZone,
-                overrideCreatedTimeForTest: overrideCreatedTime,
+                overrideCreatedTime,
                 isStream:
                     isStream ||
                     (typeof content !== "string" &&
@@ -244,7 +246,7 @@ export abstract class TestCommentRoomBase extends TestMessageRoomBase {
     }
 
     public createComment(
-        session: TestSession,
+        session: TestSession | TestBotAccount | TestAccountActionContext,
         content?: string | Node,
         options?: TestMessagingRoomCreateMessageOptions,
     ) {
@@ -276,8 +278,8 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         this.createdTime = createdTime;
     }
 
-    // Public so we can call this function from `TestMessagingRoomBase`. Shouldn't
-    // be called outside of this file.
+    // Public so we can call this function from `TestMessagingRoomBase`. Shouldn't be
+    // called outside of this file.
     public static _new<Room extends TestMessagingRoomBase>(
         context: TestContext,
         space: TestSpace,
@@ -290,20 +292,20 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     }
 
     public async get() {
-        return this.room._getMessage(this.space.systemAction(), this.index);
+        return await this.room._getMessage(this.space.systemAction(), this.index);
     }
 
     public async updateContent(session: TestSession, content: string | Node) {
         const message = await this.room._getMessage(
-            // Use a system action since if there's a `PermissionDeniedError` we want it
-            // thrown from `_updateMessageContent()` instead of `_getMessage()`.
+            // Use a system action since if there's a `PermissionDeniedError` we want it thrown
+            // from `_updateMessageContent()` instead of `_getMessage()`.
             this.space.systemAction(),
             this.index,
         );
 
         assert(message.payload.type === "Content");
 
-        return this.room._updateMessageContent(session.action(), {
+        return await this.room._updateMessageContent(session.action(), {
             messageIndex: this.index,
             contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
             steps: [
@@ -312,7 +314,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
                     message.payload.content.doc.content.size,
                     new Slice(
                         (typeof content === "string"
-                            ? parseTestMessageContent(this.space.id, content)
+                            ? parseTestMessageContent(content)
                             : assertMessageContent(content)
                         ).content,
                         0,
@@ -331,16 +333,18 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         context: TestBotActionContext,
         partIndex: number,
         payload: string | Node | MessageStreamPartPayload,
+        {overrideCreatedTime}: {overrideCreatedTime?: Date} = {},
     ) {
         return this.room._putMessageStreamPart(context, {
             messageIndex: this.index,
             partIndex,
             payload:
                 typeof payload === "string"
-                    ? {type: "Content", content: parseTestMessageContent(this.space.id, payload)}
+                    ? {type: "Content", content: parseTestMessageContent(payload)}
                     : payload instanceof Node
                       ? {type: "Content", content: assertMessageContent(payload)}
                       : payload,
+            overrideCreatedTime,
         });
     }
 
@@ -354,18 +358,19 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         pos?: number | "Files",
     ) {
         const message = await this.room._getMessage(
-            // Use a system action since if there's a `PermissionDeniedError` we want it
-            // thrown from `_setMessageReaction()` instead of `_getMessage()`.
+            // Use a system action since if there's a `PermissionDeniedError` we want it thrown
+            // from `_setMessageReaction()` instead of `_getMessage()`.
             this.space.systemAction(),
             this.index,
         );
 
         assert(message.payload.type === "Content");
 
-        return this.room._setMessageReaction(
+        return await this.room._setMessageReaction(
             session.action().clone({
                 apns: new TestApnsContextModule(),
                 webPush: new TestWebPushContextModule(),
+                slack: new NoopSlackContextModule(),
             }),
             {
                 messageIndex: this.index,
@@ -384,15 +389,15 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
     public async deleteReaction(session: TestSession, pos?: number | "Files") {
         const message = await this.room._getMessage(
-            // Use a system action since if there's a `PermissionDeniedError` we want it
-            // thrown from `_setMessageReaction()` instead of `_getMessage()`.
+            // Use a system action since if there's a `PermissionDeniedError` we want it thrown
+            // from `_setMessageReaction()` instead of `_getMessage()`.
             this.space.systemAction(),
             this.index,
         );
 
         assert(message.payload.type === "Content");
 
-        return this.room._deleteMessageReaction(session.action(), {
+        return await this.room._deleteMessageReaction(session.action(), {
             messageIndex: this.index,
             contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
             pos: pos ?? message.payload.content.doc.content.size,
@@ -400,7 +405,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     }
 }
 
-export function parseTestMessageContent(spaceId: SpaceId, content: string): MessageContent {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+export function parseTestMessageContent(content: string): MessageContent {
+    const apiContent = parseApiContentFromMarkdown(content);
     return assertMessageContent(fromApiContent(MessageContentProsemirrorSchema, apiContent));
 }

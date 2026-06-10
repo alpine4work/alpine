@@ -15,6 +15,7 @@ import {
     FileWebUnsafeImageContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
+import {getFilePreviewImageMaxResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -75,26 +76,33 @@ export function createFileWebUnsafeImageProcessor(
 
                         await sharp(inputPath, {pages: 1})
                             .timeout({seconds: sharpTimeoutSeconds})
+                            .resize({
+                                width: getFilePreviewImageMaxResizeWidth(),
+                                height: getFilePreviewImageMaxResizeWidth(),
+                                fit: "inside",
+                                withoutEnlargement: true,
+                            })
                             // AVIF is our preferred format for generating preview images ([source][1],
-                            // [source][2]). AVIF has full browser support, provides better compression
-                            // than JPEG and WebP, and has alpha channel support (unlike JPEG).
+                            // [source][2]). AVIF has full browser support, provides better compression than
+                            // JPEG and WebP, and has alpha channel support (unlike JPEG).
                             //
                             // Ideally we'd produce an image with lossless compression here since this file
                             // will be used as an alternative for the file in our image viewer. However,
-                            // producing an image with lossless compression from an image with some
-                            // compression (e.g. an `.heic` image) creates a much bigger file. So instead
-                            // we opt for some compression but set our quality level really high (93). We
-                            // don't want to produce a file too much larger than our input file and we also
-                            // want to maintain as much detail as possible.
+                            // producing an image with lossless compression from an image with some compression
+                            // (e.g. an `.heic` image) creates a much bigger file. So instead we opt for some
+                            // compression but set our quality level really high (93). We don't want to produce
+                            // a file too much larger than our input file and we also want to maintain as much
+                            // detail as possible.
                             //
                             // Quality level of 93 was picked so that an `.heic` photo taken from my
-                            // (@calebmer's) iPhone exported at high quality is about the same file size as
-                            // the generated preview image.
+                            // (@calebmer's) iPhone exported at high quality is about the same file size as the
+                            // generated preview image.
                             //
-                            // If we decide to switch this to lossless images we should use WebP instead
-                            // since [AVIF is worse at lossless compression][3].
+                            // If we decide to switch this to lossless images we should use WebP instead since
+                            // [AVIF is worse at lossless compression][3].
                             //
-                            // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                            // [1]:
+                            //     https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
                             // [2]: https://jakearchibald.com/2020/avif-has-landed
                             // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
                             .toFormat("avif", {quality: 93})

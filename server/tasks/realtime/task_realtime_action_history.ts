@@ -19,8 +19,8 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * history from `startCommittedTime` (inclusive) to
  * `startCommittedTime + history._segmentDuration` (exclusive).
  *
- * Segments form a doubly linked list which makes it easy for us to
- * garbage collect entire segment of actions at the end of the list at once.
+ * Segments form a doubly linked list which makes it easy for us to garbage collect
+ * entire segment of actions at the end of the list at once.
  */
 type TaskRealtimeActionHistorySegment = {
     readonly startCommittedTime: number;
@@ -31,9 +31,9 @@ type TaskRealtimeActionHistorySegment = {
 
 /**
  * Action history segment for a single space. Task actions do not cross space
- * boundaries. Action transactions are ordered by the time we received them.
- * Not by `committedTime` and not by logical `action.time`. Actions are
- * designed to be applied out-of-order so this is fine.
+ * boundaries. Action transactions are ordered by the time we received them. Not by
+ * `committedTime` and not by logical `action.time`. Actions are designed to be
+ * applied out-of-order so this is fine.
  *
  * We also keep a map of task actions by `TaskId` so if we only want to iterate
  * over the actions for a single task we can.
@@ -44,10 +44,10 @@ type TaskRealtimeActionHistorySpaceSegment = {
     readonly actionsByCollectionId: Map<TaskCollectionId, Array<TaskUpdateCollectionAction>>;
     readonly updateAccountNameActions: Array<TaskUpdateAccountNameAction>;
 
-    // Keep track of accounts referenced by actions in this segment. We need
-    // up-to-date account names for computing `TaskQuerySortCursor`s. The account
-    // in this map may be out-of-date in older segments. Newer segments should have
-    // a `TaskUpdateAccountNameAction` action with the new name.
+    // Keep track of accounts referenced by actions in this segment. We need up-to-date
+    // account names for computing `TaskQuerySortCursor`s. The account in this map may
+    // be out-of-date in older segments. Newer segments should have a
+    // `TaskUpdateAccountNameAction` action with the new name.
     readonly actionReferencedAccountById: Map<AccountId, AccountModel>;
 };
 
@@ -57,8 +57,8 @@ type TaskRealtimeActionHistorySpaceSegmentActionTransaction = {
 };
 
 /**
- * `TaskRealtimeActionHistory` interface where you can only read actions and
- * not add new actions.
+ * `TaskRealtimeActionHistory` interface where you can only read actions and not
+ * add new actions.
  */
 export interface ReadonlyTaskRealtimeActionHistory {
     iterateActions(
@@ -98,23 +98,21 @@ export interface ReadonlyTaskRealtimeActionHistory {
 }
 
 /**
- * Holds all actions within the last 10 minutes (by default) so we can replay
- * the recent action history after loading some data from OpenSearch to make
- * sure what we send to the user is fully caught up and can be maintained in
- * realtime.
+ * Holds all actions within the last 10 minutes (by default) so we can replay the
+ * recent action history after loading some data from OpenSearch to make sure what
+ * we send to the user is fully caught up and can be maintained in realtime.
  */
 export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHistory {
     /**
      * Determines the history visibility window. We keep track of actions committed
-     * this long before the present. By default the visibility window is 10
-     * minutes. That means the last 10 minutes of actions are tracked by this
-     * class by default.
+     * this long before the present. By default the visibility window is 10 minutes.
+     * That means the last 10 minutes of actions are tracked by this class by default.
      *
      * Our visibility window needs to be generous enough for us to catch up a query
      * made against our OpenSearch task index. Our task index refreshes every 30
-     * seconds. Then add to that the latency between committing an action
-     * transaction and indexing it. 10 minutes feels like we'll comfortably have
-     * enough visibility to catch up an OpenSearch query.
+     * seconds. Then add to that the latency between committing an action transaction
+     * and indexing it. 10 minutes feels like we'll comfortably have enough visibility
+     * to catch up an OpenSearch query.
      *
      * We may temporarily hold slightly more actions than this duration in history.
      * `_segmentDuration` influences how often we cleanup old actions.
@@ -135,8 +133,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
     private _oldestSegment: TaskRealtimeActionHistorySegment | null = null;
 
     /**
-     * If we are actively recording history (`start()` was called) then this will
-     * be non-null. While we are actively running, both `this._newestSegment` and
+     * If we are actively recording history (`start()` was called) then this will be
+     * non-null. While we are actively running, both `this._newestSegment` and
      * `this._oldestSegment` should be non-null.
      */
     private _state: {timeout: Timeout} | null = null;
@@ -144,8 +142,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
     private constructor() {}
 
     /**
-     * Create a new history object. Only the history object creator can call
-     * `start()` and `stop()`.
+     * Create a new history object. Only the history object creator can call `start()`
+     * and `stop()`.
      */
     public static new(): [TaskRealtimeActionHistory, {start: () => void; stop: () => void}] {
         const history = new TaskRealtimeActionHistory();
@@ -169,28 +167,26 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
         assert(
             segment === null
                 ? // If `_oldestSegment` is null then `_state` should be null (history is not
-                  // running) and `_newestSegment should be null (doubly linked list is empty).
+                  // running) and `\_newestSegment should be null (doubly linked list is empty).
                   this._state === null && this._newestSegment === null
-                : // If `_oldestSegment` is not null then `_state` should not be null (history
-                  // is running) and there should be no older segment.
+                : // If `_oldestSegment` is not null then `_state` should not be null (history is
+                  // running) and there should be no older segment.
                   this._state !== null && segment.olderSegment === null,
         );
 
         while (segment !== null) {
             assert(
                 segment.newerSegment === null
-                    ? // If there is no newer segment then this should be our newest
-                      // segment.
+                    ? // If there is no newer segment then this should be our newest segment.
                       this._newestSegment === segment
-                    : // Make sure the doubly linked list back link is correct and make sure our
-                      // segment start times are evenly spaced out.
+                    : // Make sure the doubly linked list back link is correct and make sure our segment
+                      // start times are evenly spaced out.
                       segment.newerSegment.olderSegment === segment &&
                           segment.newerSegment.startCommittedTime ===
                               segment.startCommittedTime + this._segmentDuration,
             );
 
-            // Make sure action transactions have the right `committedTime` for
-            // the segment.
+            // Make sure action transactions have the right `committedTime` for the segment.
             for (const spaceSegment of segment.spaceSegmentById.values()) {
                 for (const {committedTime} of spaceSegment.actionTransactions) {
                     assert(
@@ -249,8 +245,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
             // If we expired all the segments in our history class then create a new empty
             // segment at the beginning of our history visibility window.
             //
-            // While our class is running, `this._oldestSegment` should never be null or
-            // else we will ignore all incoming action transactions.
+            // While our class is running, `this._oldestSegment` should never be null or else
+            // we will ignore all incoming action transactions.
             if (this._oldestSegment === null) {
                 const initialSegment = {
                     startCommittedTime: time - this._visibleDuration,
@@ -264,8 +260,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
 
             // Run our cleanup function again when the oldest segment should expire.
             //
-            // Remember timers are best effort and `Date.now()` is not monotonic. So we
-            // always compute ourselves when we expect the next timer to run.
+            // Remember timers are best effort and `Date.now()` is not monotonic. So we always
+            // compute ourselves when we expect the next timer to run.
             state.timeout = createTimeout(
                 cleanup,
                 this._segmentDuration -
@@ -289,8 +285,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
     }
 
     /**
-     * Add an action transaction to our history. If we are not recording (`start()`
-     * has not been called) then this function does nothing.
+     * Add an action transaction to our history. If we are not recording (`start()` has
+     * not been called) then this function does nothing.
      */
     public addActionTransaction(
         {
@@ -314,14 +310,14 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
             return;
         }
 
-        // If `_lastSegment` is non-null then `_firstSegment` should also be non-null.
-        // They form a double-linked list.
+        // If `_lastSegment` is non-null then `_firstSegment` should also be non-null. They
+        // form a double-linked list.
         assert(this._newestSegment !== null);
 
         let segment: TaskRealtimeActionHistorySegment;
 
-        // Create segment(s) when we receive an action transaction newer than our
-        // current segments.
+        // Create segment(s) when we receive an action transaction newer than our current
+        // segments.
         if (committedTime >= this._newestSegment.startCommittedTime + this._segmentDuration) {
             while (
                 committedTime >=
@@ -342,8 +338,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
 
             segment = this._newestSegment;
         }
-        // The segment for our action transaction should already exist, find it and
-        // insert our action transaction.
+        // The segment for our action transaction should already exist, find it and insert
+        // our action transaction.
         //
         // Search from new to old since we mostly receive transactions that ascend in
         // commit time.
@@ -401,8 +397,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
             }
         }
 
-        // Put updated accounts in `referencedAccountById`. If an account already
-        // exists in the map with the latest version then we don't need to override it.
+        // Put updated accounts in `referencedAccountById`. If an account already exists in
+        // the map with the latest version then we don't need to override it.
         for (const newAccount of actionReferencedAccounts) {
             const oldAccount = spaceSegment.actionReferencedAccountById.get(newAccount.id);
             if (!oldAccount || oldAccount.initialData.version < newAccount.initialData.version) {
@@ -437,8 +433,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
     }
 
     /**
-     * Iterate through all the action transactions for the provided space in
-     * our history.
+     * Iterate through all the action transactions for the provided space in our
+     * history.
      */
     public iterateActions(
         tracer: TracerBase,
@@ -476,8 +472,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
     }
 
     /**
-     * Iterate through all the action transactions for the provided task in
-     * our history.
+     * Iterate through all the action transactions for the provided task in our
+     * history.
      */
     public iterateTaskActions(
         tracer: TracerBase,
@@ -519,8 +515,8 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
     }
 
     /**
-     * Iterate through all the action transactions for the provided collection in
-     * our history.
+     * Iterate through all the action transactions for the provided collection in our
+     * history.
      */
     public iterateCollectionActions(
         tracer: TracerBase,

@@ -34,8 +34,8 @@ export const tooltipCoordinationContextForTest: TooltipCoordinationContext | nul
               addHoveredAndAddFocusedTooltipSymbol: unimplemented,
               addHoveredAndDeleteFocusedTooltipSymbol: unimplemented,
               deleteHoveredAndAddFocusedTooltipSymbol: unimplemented,
-              // This is called unconditionally by `<Tooltip>` components. Given there's
-              // nothing to delete in our test coordination context it's safe to noop.
+              // This is called unconditionally by `<Tooltip>` components. Given there's nothing
+              // to delete in our test coordination context it's safe to noop.
               deleteHoveredAndDeleteFocusedTooltipSymbol: noop,
               addDisableTooltipSymbol: unimplemented,
               deleteDisableTooltipSymbol: unimplemented,
@@ -61,8 +61,8 @@ export const initialTooltipCoordinationContextState: TooltipCoordinationContextS
 };
 
 /**
- * While a component is rendered with this hook, we will make sure no tooltips
- * may be rendered.
+ * While a component is rendered with this hook, we will make sure no tooltips may
+ * be rendered.
  */
 export function useShouldDisableTooltips(shouldDisableTooltips: boolean = true) {
     const tooltipSymbol = useMemo(() => Symbol(), []);

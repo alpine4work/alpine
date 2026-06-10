@@ -7,6 +7,7 @@ ts_project(
         "//client/web:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@internationalized/date",
         "//:node_modules/@popperjs/core",
         "//:node_modules/@react-aria/focus",
         "//:node_modules/@react-aria/interactions",
@@ -20,6 +21,7 @@ ts_project(
         "//:node_modules/react",
         "//:node_modules/react-aria",
         "//:node_modules/react-dom",
+        "//:node_modules/react-stately",
         "//:node_modules/unicode-default-word-boundary",
         "//client/web/context",
         "//client/web/helpers",

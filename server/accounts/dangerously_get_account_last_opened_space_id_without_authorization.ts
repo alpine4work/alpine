@@ -6,8 +6,8 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Get the last opened `SpaceId` for the provided account without authorizing
- * whether the current context has access to see the account's last opened
- * space or not.
+ * whether the current context has access to see the account's last opened space or
+ * not.
  */
 export async function dangerouslyGetAccountLastOpenedSpaceIdWithoutAuthorization(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,

@@ -19,6 +19,14 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 
+/**
+ * Process a `NotificationCreatePostEvent` which occurs when a user creates a new
+ * post in a channel.
+ *
+ * If the post includes a mention, the notification is sent immediately to the
+ * mentioned account's push targets, otherwise it may be queued for a later
+ * delivery as part of a digest notification.
+ */
 export const processNotificationCreatePostEvent = createNotificationEventProcessor<
     NotificationCreatePostEvent,
     {}
@@ -49,10 +57,10 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
         // Don't update an entry for the account who created the post.
         if (event.authorId === accountId) return null;
 
-        // If the account was mentioned in the post, we create a separate entry with a
-        // loud notification instead of merging into one channel post summary entry.
+        // If the account was mentioned in the post, we create a separate entry with a loud
+        // notification instead of merging into one channel post summary entry.
         if (event.mentionedAccountIds.has(accountId)) {
-            return updateInboxEntry(
+            return await updateInboxEntry(
                 context,
                 event.authorId,
                 {
@@ -97,7 +105,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
 
         const bucketGeneration = inboxItem?.generation ?? initialInboxGeneration;
 
-        return updateInboxEntry(
+        return await updateInboxEntry(
             context,
             event.authorId,
             {
@@ -123,8 +131,8 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                                 createdTime: event.createdTime,
                             },
                         ] as const,
-                        // Make sure the posts are in chronological order no matter
-                        // what order the events are processed in.
+                        // Make sure the posts are in chronological order no matter what order the events
+                        // are processed in.
                     ].sort(([, a], [, b]) => a.createdTime.getTime() - b.createdTime.getTime()),
                 );
 
@@ -136,10 +144,9 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                     postId: event.postId,
                 };
 
-                // Normally when processing `CreatePost` the `PostInChannelPostsEntry` item
-                // doesn't exist and we need to create it. The `PostInChannelPostsEntry` item
-                // only already exists during race conditions when we process events
-                // out-of-order.
+                // Normally when processing `CreatePost` the `PostInChannelPostsEntry` item doesn't
+                // exist and we need to create it. The `PostInChannelPostsEntry` item only already
+                // exists during race conditions when we process events out-of-order.
                 //
                 // So as an optimization, assume `PostInChannelPostsEntry` doesn't exist on the
                 // initial attempt
@@ -148,8 +155,8 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                     : await NotificationsTable.getItemIfExists(context, postInChannelPostsItemKey);
 
                 if (postInChannelPostsItem) {
-                    // If a `PostInChannelPostsEntry` item already exists for this post then we
-                    // noop. This may happen if we process notifications out-of-order.
+                    // If a `PostInChannelPostsEntry` item already exists for this post then we noop.
+                    // This may happen if we process notifications out-of-order.
                     return "Noop";
                 } else {
                     // When we add a post to the channel posts entry, create an item mapping the
@@ -217,5 +224,8 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
             subtitle,
             body,
         };
+    },
+    shouldSendImmediately: (context, event, {accountId}) => {
+        return event.mentionedAccountIds.has(accountId);
     },
 });

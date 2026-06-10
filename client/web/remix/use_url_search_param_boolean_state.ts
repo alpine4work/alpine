@@ -2,8 +2,8 @@ import {useCallback} from "react";
 import {useUrlSearchParamState} from "~/client/web/remix/use_url_search_param_state.js";
 
 /**
- * Convenient React-style state for a boolean that is persisted in the URL's
- * search parameters.
+ * Convenient React-style state for a boolean that is persisted in the URL's search
+ * parameters.
  */
 export function useUrlSearchParamBooleanState(
     searchParamName: string,

@@ -13,7 +13,7 @@ import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     AccessLevel,
-    AccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
@@ -33,7 +33,7 @@ export function ShareNotificationMobileModal({
     onShare,
 }: {
     accessLevelText: Record<AccessLevel, string>;
-    accessPolicy: AccessPolicy;
+    accessPolicy: ResolvedAccessPolicyWithGenerations;
     excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
     onCloseWithAnimation: () => void;
     onShare: (notification: ShareNotification & {accessLevel: AccessLevel}) => Promise<void>;
@@ -61,7 +61,7 @@ export function ShareNotificationMobileModal({
     );
 
     const defaultAccessLevel = useMemo(
-        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy, null),
         [accessPolicy],
     );
 

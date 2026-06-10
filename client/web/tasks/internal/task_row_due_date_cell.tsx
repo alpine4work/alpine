@@ -145,8 +145,8 @@ function TaskRowDueDateCell(
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
 
-    // Disable expensive features until the user hovers/focuses the cell in
-    // question while not scrolling.
+    // Disable expensive features until the user hovers/focuses the cell in question
+    // while not scrolling.
     //
     // This improves scroll performance and initial load performance. Since we only
     // need to render the read-only version of a cell on initial load.

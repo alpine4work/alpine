@@ -3,10 +3,10 @@ import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_con
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
- * Creates a copy of the provided content between the `from` and `to`
- * positions. Same as ProseMirror's `Node.cut()` method but makes sure ordered
- * list items maintain the right numbering in the cut `Node` (using the
- * `orderStart` attribute).
+ * Creates a copy of the provided content between the `from` and `to` positions.
+ * Same as ProseMirror's `Node.cut()` method but makes sure ordered list items
+ * maintain the right numbering in the cut `Node` (using the `orderStart`
+ * attribute).
  */
 export function cutContent(
     content: Node,

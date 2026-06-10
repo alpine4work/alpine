@@ -6,8 +6,8 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 // implement these on `ImmutableSet` someday but for now adhere to this more
 // limited `ReadonlySet` interface.
 //
-// TODO(calebmer, #typescript-5.9.2): Switch back to
-// `implements ReadonlySet<T>` instead of `implements OldReadonlySet<T>`.
+// TODO(calebmer, #typescript-5.9.2): Switch back to `implements ReadonlySet<T>`
+// instead of `implements OldReadonlySet<T>`.
 interface OldReadonlySet<T> {
     forEach(callbackfn: (value: T, value2: T, set: OldReadonlySet<T>) => void, thisArg?: any): void;
     has(value: T): boolean;
@@ -21,13 +21,12 @@ interface OldReadonlySet<T> {
 assertAssignableTypes<ReadonlySet<unknown>, OldReadonlySet<unknown>>();
 
 /**
- * A [persistent data structure][1] containing entries of key-value pairs. Each
- * key is associated with exactly one value. Aims for compatibility with the
- * `Set` API.
+ * A [persistent data structure][1] containing entries of key-value pairs. Each key
+ * is associated with exactly one value. Aims for compatibility with the `Set` API.
  *
- * The performance of `has()` and `add()` in `ImmutableSet` is O(log(n)) while
- * the performance of `has()` and `add()` in `Set` is O(1). So most of the time
- * `Set` is faster! If you're using `Set` in an immutable context you can call
+ * The performance of `has()` and `add()` in `ImmutableSet` is O(log(n)) while the
+ * performance of `has()` and `add()` in `Set` is O(1). So most of the time `Set`
+ * is faster! If you're using `Set` in an immutable context you can call
  * `new Set(oldSet)` to clone a map then call `add()` which is O(n).
  *
  * So `ImmutableSet` is faster if you need an immutable data structure and the
@@ -64,7 +63,7 @@ export class ImmutableSet<Value extends string | number> implements OldReadonlyS
      *
      * You could use this to construct an `ImmutableSet` from a mutable `Set`.
      *
-     * Completes in O(n * log(n)) time.
+     * Completes in O(n \* log(n)) time.
      */
     public static from<Key extends string | number>(entries: Iterable<Key>): ImmutableSet<Key> {
         let map = ImmutableSet.empty<Key>();
@@ -93,19 +92,19 @@ export class ImmutableSet<Value extends string | number> implements OldReadonlyS
     }
 
     /**
-     * Returns a new set with the entry associated with the passed key updated to
-     * the new value. The old set is unchanged.
+     * Returns a new set with the entry associated with the passed key updated to the
+     * new value. The old set is unchanged.
      *
      * Completes in O(log(n)) time.
      *
-     * If the new value is already in the set then we will return the immutable
-     * map as-is as an optimization.
+     * If the new value is already in the set then we will return the immutable map
+     * as-is as an optimization.
      */
     public add(value: Value): ImmutableSet<Value> {
         const node = this._tree.find(value);
         if (node.valid) {
-            // Optimization: If the value already exists, return the
-            // existing immutable map without updating.
+            // Optimization: If the value already exists, return the existing immutable map
+            // without updating.
             return this;
         } else {
             return new ImmutableSet(this._tree.insert(value, true));
@@ -148,9 +147,9 @@ export class ImmutableSet<Value extends string | number> implements OldReadonlyS
     }
 
     /**
-     * Returns a new iterator of values in the set returned as
-     * `[value, value]`. Same as `ImmutableMap.entries()` except you can think of a
-     * set's key as being the same as its value.
+     * Returns a new iterator of values in the set returned as `[value, value]`. Same
+     * as `ImmutableMap.entries()` except you can think of a set's key as being the
+     * same as its value.
      *
      * Iterates in value order, not insertion order.
      */

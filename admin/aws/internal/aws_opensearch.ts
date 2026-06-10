@@ -80,11 +80,12 @@ export class AwsOpensearch {
         // OpenSearch deploy script:
         //
         // NOTE(calebmer): We doesn't use the [CloudFormation
-        // `AWS::OpenSearchServerless::Index` resource][1] because that resource
-        // provides very little mappings/settings configuration options. Instead we
-        // have a custom CloudFormation resource that runs an AWS lambda deploy script.
+        // `AWS::OpenSearchServerless::Index` resource][1] because that resource provides
+        // very little mappings/settings configuration options. Instead we have a custom
+        // CloudFormation resource that runs an AWS lambda deploy script.
         //
-        // [1]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-opensearchserverless-index.html
+        // [1]:
+        //     https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-opensearchserverless-index.html
         {
             // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
             // `NodejsLambda` since we bundle the code ourselves.
@@ -94,8 +95,7 @@ export class AwsOpensearch {
                 vpc,
                 vpcSubnets: {subnetType: SubnetType.PRIVATE_ISOLATED},
                 timeout: Duration.seconds(120),
-                // TODO(calebmer): Node.js v20 is not currently supported as an AWS lambda
-                // runtime.
+                // TODO(calebmer): Node.js v20 is not currently supported as an AWS lambda runtime.
                 // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
                 runtime: Runtime.NODEJS_18_X,
                 environment: {
@@ -134,6 +134,10 @@ export class AwsOpensearch {
             deployScriptResource.node.addDependency(domain);
         }
 
+        domain.connections.allowFrom(vpc.bastionHost.securityGroup, Port.tcp(443));
+        // Allow the bastion host to read and write to the OpenSearch domain.
+        domain.grantReadWrite(vpc.bastionHost.instance.role);
+
         return new AwsOpensearch(domain, indexNames);
     }
 
@@ -150,9 +154,9 @@ export class AwsOpensearch {
             this._domain.grantIndexReadWrite(indexName, grantee);
         }
 
-        // Allow bulk writing documents or bulk reading documents. This could allow you
-        // to bulk read/write documents outside of the indexes specified above! Be
-        // careful when adding indexes to this domain.
+        // Allow bulk writing documents or bulk reading documents. This could allow you to
+        // bulk read/write documents outside of the indexes specified above! Be careful
+        // when adding indexes to this domain.
         this._domain.grantPathReadWrite("_bulk", grantee);
         this._domain.grantPathReadWrite("_mget", grantee);
     }

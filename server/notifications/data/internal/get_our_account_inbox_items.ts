@@ -9,12 +9,12 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Get all of the session actor's raw inbox items for all the spaces they're in.
- * This acts just like `getOurAccountInboxes` but returns the inbox items instead of
- * constructing inbox models. These inbox items should be converted to inbox models using
- * `InboxTable.buildRealtimeItem` before being sent to the client.
+ * This acts just like `getOurAccountInboxes` but returns the inbox items instead
+ * of constructing inbox models. These inbox items should be converted to inbox
+ * models using `InboxTable.buildRealtimeItem` before being sent to the client.
  *
- * You must provide a list of the account's `SpaceId`s so we can filter out
- * inboxes for spaces the actor has lost access to.
+ * You must provide a list of the account's `SpaceId`s so we can filter out inboxes
+ * for spaces the actor has lost access to.
  */
 export async function getOurAccountInboxItems(
     context: ServerSessionActionContext,
@@ -36,9 +36,8 @@ export async function getOurAccountInboxItems(
             consistency: options.consistency,
         }),
         async item => {
-            // Confirm the account is still a member of this space. If an account is
-            // removed from a space we don't clean up their inbox item in case they're
-            // re-added.
+            // Confirm the account is still a member of this space. If an account is removed
+            // from a space we don't clean up their inbox item in case they're re-added.
             if (!spaceIds.has(item.spaceId)) return null;
 
             return item;

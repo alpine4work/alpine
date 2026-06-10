@@ -42,8 +42,11 @@ function TestContentEditor({
 }) {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: initialContent as DocumentWithoutTitleContent,
-            references: emptyContentReferences,
+            spaceId: null,
+            content: {
+                doc: initialContent as DocumentWithoutTitleContent,
+                references: emptyContentReferences,
+            },
         }),
     );
     return (
@@ -610,6 +613,36 @@ test("will paste word from VSCode", () => {
     expect(getDoc().toString()).toEqual('doc(title, paragraph(code("transformPastedDOM")))');
 });
 
+test("will not parse white-space pre-wrap content as code block", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [{type: "title"}, {type: "paragraph"}],
+            })}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(3))));
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><p><span style="white-space: pre-wrap;">Hey </span><span style="white-space: pre-wrap;">First Name</span><span style="white-space: pre-wrap;">,</span></p><p><span style="white-space: pre-wrap;">Thanks for signing up.</span></p>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, paragraph("Hey First Name,"), paragraph("Thanks for signing up."))',
+    );
+});
+
 test("will paste multiple lines of code from VSCode", () => {
     render(
         <TestContentEditor
@@ -719,6 +752,7 @@ test("will paste markdown with content after code block from web browser", () =>
     expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
 
     // This simulates pasting markdown content from a web browser that includes:
+    //
     // 1. Some text before the code block
     // 2. A code block
     // 3. Some text after the code block

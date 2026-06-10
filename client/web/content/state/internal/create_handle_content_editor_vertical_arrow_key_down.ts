@@ -21,58 +21,58 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * Creates an event handler for `<ContentEditor>`'s `ArrowDown` and `ArrowUp`
  * `keydown` events. We implement `ArrowDown`/`ArrowUp` ourselves when moving
  * between blocks to better handle navigation around our custom node types.
- * Specifically `table`s and `fileRow`s. We want to move vertically through
- * `table` and `fileRow` geometrically, not based on document tree order. If we
- * moved in tree order then arrow down in a `tableCell` would move to a
- * `tableCell` to the right instead of the `tableCell` below. Same for
- * `fileRow`s. Generically, moving vertically between "row"-like nodes requires
- * special handling to preserve the x position of the cursor and to make sure
- * we navigate to the next row instead of another element within the row.
+ * Specifically `table`s and `fileRow`s. We want to move vertically through `table`
+ * and `fileRow` geometrically, not based on document tree order. If we moved in
+ * tree order then arrow down in a `tableCell` would move to a `tableCell` to the
+ * right instead of the `tableCell` below. Same for `fileRow`s. Generically, moving
+ * vertically between "row"-like nodes requires special handling to preserve the x
+ * position of the cursor and to make sure we navigate to the next row instead of
+ * another element within the row.
  *
  * This function keeps track of the x coordinate of the cursor while we're
- * navigating. This is meant to mimic the browser's own internal x coordinate
- * it uses for vertical arrow key navigation. There are edge cases where our
- * state doesn't exactly equal the browser's state but those cases are rare and
- * the bugs aren't that bad. (Long term we could fix these bugs by doing _all_
- * vertical arrow key navigation instead of deferring to the browser when
- * navigating within a text block.)
+ * navigating. This is meant to mimic the browser's own internal x coordinate it
+ * uses for vertical arrow key navigation. There are edge cases where our state
+ * doesn't exactly equal the browser's state but those cases are rare and the bugs
+ * aren't that bad. (Long term we could fix these bugs by doing _all_ vertical
+ * arrow key navigation instead of deferring to the browser when navigating within
+ * a text block.)
  *
  * At a high level the way this function works is:
  *
- * 1. On any arrow up/down event, keep track of the x position we want to
- *    maintain.
+ * 1. On any arrow up/down event, keep track of the x position we want to maintain.
  *
  * 2. Check for paragraph creation at end of content. This handles both
- *    file/divider node selection and textblock navigation when at the end
- *    of the document or container.
+ *    file/divider node selection and textblock navigation when at the end of the
+ *    document or container.
  *
  * 3. When navigating between two ProseMirror nodes, find the next set of nodes
- *    based on `doc` tree order using `collectNextNodes()`. There may be more
- *    then one `nextNodes` if we're moving into a row-like node (e.g.
- *    `fileRow` or `tableRow`). If there's more than one `nextNode`, pick the
- *    node that's closest to our target x position.
+ *    based on `doc` tree order using `collectNextNodes()`. There may be more then
+ *    one `nextNodes` if we're moving into a row-like node (e.g. `fileRow` or
+ *    `tableRow`). If there's more than one `nextNode`, pick the node that's
+ *    closest to our target x position.
  *
- * 4. If the `nextNode` we picked is a text block, find the position in the
- *    text block that's closest to our x position. We call the function
+ * 4. If the `nextNode` we picked is a text block, find the position in the text
+ *    block that's closest to our x position. We call the function
  *    `findElementVerticalNavigationPosition()` for this.
  *
- * There's more complexity in how the function handles arrow navigations with
- * the `altKey`/`shiftKey` and when the function decides to change the
- * selection itself vs defer to the browser. But at a high level the function
- * follows the above steps.
+ * There's more complexity in how the function handles arrow navigations with the
+ * `altKey`/`shiftKey` and when the function decides to change the selection itself
+ * vs defer to the browser. But at a high level the function follows the above
+ * steps.
  */
 export function createHandleContentEditorVerticalArrowKeyDown() {
-    // When navigating into row content (file rows and table rows) we want to match
-    // the browser behavior of preserving the x coordinate from wherever arrow
-    // navigation began (standard text editor behavior).
+    // When navigating into row content (file rows and table rows) we want to match the
+    // browser behavior of preserving the x coordinate from wherever arrow navigation
+    // began (standard text editor behavior).
     //
-    // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our
-    // own text editor from scratch with `<canvas>`. Browsers like Chrome have a
-    // property [`x_pos_for_vertical_arrow_navigation`][1] that ideally we'd be
-    // able to share here. But no! It's not exposed to JavaScript. Solution: Build
-    // our text editor fully in JavaScript.
+    // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our own
+    // text editor from scratch with `<canvas>`. Browsers like Chrome have a property
+    // [`x_pos_for_vertical_arrow_navigation`][1] that ideally we'd be able to share
+    // here. But no! It's not exposed to JavaScript. Solution: Build our text editor
+    // fully in JavaScript.
     //
-    // [1]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/frame_selection.h#L383
+    // [1]:
+    //     https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/frame_selection.h#L383
     const geometryTracker = new GeometryTracker();
 
     return (view: EditorView, dir: -1 | 1, event: KeyboardEvent): boolean => {
@@ -124,14 +124,14 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
 
         const node = $pos.parent.inlineContent ? $pos.parent : $pos.nodeAfter;
 
-        // NOTE(calebmer): I haven't found a case where `node` doesn't exist but
-        // I wouldn't be surprised if it could be null in edge cases like content with
-        // a single node that's selected and up/down is pressed.
+        // NOTE(calebmer): I haven't found a case where `node` doesn't exist but I wouldn't
+        // be surprised if it could be null in edge cases like content with a single node
+        // that's selected and up/down is pressed.
         if (node === null) return false;
 
-        // If we're in a text block and we're not at the end of the text block then let
-        // the browser perform its default navigation. We want to handle all navigation
-        // between nodes.
+        // If we're in a text block and we're not at the end of the text block then let the
+        // browser perform its default navigation. We want to handle all navigation between
+        // nodes.
         if (node.isTextblock && !view.endOfTextblock(movingDown ? "down" : "up")) {
             return false;
         }
@@ -203,8 +203,8 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
                 afterSelectedNodePos = $pos.after(depth);
             }
 
-            // This is just a decomposition of selectedContentTableRect into only the
-            // parts we need without any extra potentially troublesome logic.
+            // This is just a decomposition of selectedContentTableRect into only the parts we
+            // need without any extra potentially troublesome logic.
             const $cell = contentTableCellAround($pos);
 
             // Special check for file rows and dividers
@@ -239,8 +239,8 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
                 !hitNonLastChild &&
                 (afterSelectedNodePos === null || $cell)
             ) {
-                // If we didn't find any special container (codeBlock/quoteBlock) and we
-                // didn't hit a non-last-child then we're at the last line.
+                // If we didn't find any special container (codeBlock/quoteBlock) and we didn't hit
+                // a non-last-child then we're at the last line.
                 isLastLineInBlock = true;
             }
 
@@ -316,9 +316,9 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
         let closestNextNode: {$pos: ResolvedPos & {nodeAfter: Node}; dom: Element} | null = null;
         let closestDistance = Infinity;
 
-        // When navigating with arrow up/down use `coordState.x` to determine which
-        // element to move into. Unless `event.altKey` is held. Then we'll navigate to
-        // the left/right edge of the editor.
+        // When navigating with arrow up/down use `coordState.x` to determine which element
+        // to move into. Unless `event.altKey` is held. Then we'll navigate to the
+        // left/right edge of the editor.
         const targetX = !event.altKey
             ? trackedTargetX
             : dir < 0
@@ -330,8 +330,8 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             assert(dom instanceof Element);
             const rect = dom.getBoundingClientRect();
 
-            // If the x coordinate is inside this node's bounds then let's select this
-            // node! Otherwise, we look for the node closest to the x coordinate.
+            // If the x coordinate is inside this node's bounds then let's select this node!
+            // Otherwise, we look for the node closest to the x coordinate.
             if (rect.left <= targetX && targetX <= rect.right) {
                 if (closestDistance > 0) {
                     closestNextNode = {$pos: nextNode.$pos, dom};
@@ -360,24 +360,24 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             // patch of light.
             // ```
             //
-            // We'd expect `view.endOfTextblock()` to return false here since the cursor
-            // isn't in the last line of text. When `view.endOfTextblock()` returns false
-            // we `return false` above in this function letting the browser handle
-            // navigations within the text block.
+            // We'd expect `view.endOfTextblock()` to return false here since the cursor isn't
+            // in the last line of text. When `view.endOfTextblock()` returns false we
+            // `return false` above in this function letting the browser handle navigations
+            // within the text block.
             //
             // However, `view.endOfTextblock()` returns true. Because the way
             // `view.endOfTextblock()` works is it gets the coordinate position of the
             // selection and checks if that position is at the bottom of the text block's
             // coordinate position. When you call
-            // `window.getSelection().getRangeAt(0).getClientRects()` for the position
-            // above you get two rects! One at the end of the line and one at the start of
-            // the next line.
+            // `window.getSelection().getRangeAt(0).getClientRects()` for the position above
+            // you get two rects! One at the end of the line and one at the start of the next
+            // line.
             //
-            // The coordinate position for this selection is ambiguous! When you're editing
-            // and your cursor is near a line break then the cursor can be rendered at
-            // either the end of the previous line or the start of the next line while
-            // representing the same underlying position. This is more obvious when you
-            // consider a string of text without spaces like:
+            // The coordinate position for this selection is ambiguous! When you're editing and
+            // your cursor is near a line break then the cursor can be rendered at either the
+            // end of the previous line or the start of the next line while representing the
+            // same underlying position. This is more obvious when you consider a string of
+            // text without spaces like:
             //
             // ```
             // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxoxxxxxxxxxxxxxxxx
@@ -404,28 +404,29 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             // |xxxxxxxxxxxxxxxx
             // ```
             //
-            // Both represent the same underlying position but look different when rendered
-            // on screen.
+            // Both represent the same underlying position but look different when rendered on
+            // screen.
             //
-            // The way this is implemented is browser's have this [`TextAffinity`][1]
-            // property on their [internal selection data structure][2] which determines
-            // where the cursor should be rendered. But this affinity property isn't
-            // readable or writable from JavaScript. I (@calebmer) spent an hour pouring
-            // through the Chromium source code looking for a way to figure out the
-            // selection affinity to no avail.
+            // The way this is implemented is browser's have this [`TextAffinity`][1] property
+            // on their [internal selection data structure][2] which determines where the
+            // cursor should be rendered. But this affinity property isn't readable or writable
+            // from JavaScript. I (@calebmer) spent an hour pouring through the Chromium source
+            // code looking for a way to figure out the selection affinity to no avail.
             //
-            // So, anyway, we'd like to `return true` here. We'd like to definitively know
-            // "no more navigation can possibly occur from this position" but unfortunately
-            // we don't have that level of control. We must `return false` here to let the
-            // browser perform navigation in the case where our cursor is on the
-            // second-to-last line in an ambiguous position.
+            // So, anyway, we'd like to `return true` here. We'd like to definitively know "no
+            // more navigation can possibly occur from this position" but unfortunately we
+            // don't have that level of control. We must `return false` here to let the browser
+            // perform navigation in the case where our cursor is on the second-to-last line in
+            // an ambiguous position.
             //
-            // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our
-            // own text editor from scratch with `<canvas>`. We can control the selection
-            // affinity ourselves.
+            // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our own
+            // text editor from scratch with `<canvas>`. We can control the selection affinity
+            // ourselves.
             //
-            // [1]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/text_affinity.h#L34
-            // [2]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/selection_template.h#L143
+            // [1]:
+            //     https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/text_affinity.h#L34
+            // [2]:
+            //     https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/selection_template.h#L143
             return false;
         }
 
@@ -438,24 +439,24 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
 
         if (!nextNode.inlineContent) {
             // `nextNode` is expected to either be selectable or have inline content.
-            // `collectPossibleNextNode()` is responsible for looking at a proposed next
-            // node's type and deciding whether it's a valid `nextNode` and if it's not
-            // then `collectPossibleNextNode()` looks for valid nodes nearby (usually by
-            // iterating into children).
+            // `collectPossibleNextNode()` is responsible for looking at a proposed next node's
+            // type and deciding whether it's a valid `nextNode` and if it's not then
+            // `collectPossibleNextNode()` looks for valid nodes nearby (usually by iterating
+            // into children).
             //
             // If `selectable` is false then we can't create a new `NodeSelection`.
             assert(nextNode.type.spec.selectable);
 
             // If the user is holding shift `collectPossibleNextNode()` should never add a
-            // selectable element to `nextNodes`. `collectPossibleNextNode()` should only
-            // add nodes with inline content.
+            // selectable element to `nextNodes`. `collectPossibleNextNode()` should only add
+            // nodes with inline content.
             assert(!event.shiftKey);
 
             view.dispatch(view.state.tr.setSelection(new NodeSelection($nextPos)).scrollIntoView());
             return true;
         }
-        // If the user holds alt then navigate to the start/end of the textblock
-        // instead of the start/end of the adjacent line of text.
+        // If the user holds alt then navigate to the start/end of the textblock instead of
+        // the start/end of the adjacent line of text.
         else if (event.altKey) {
             view.dispatch(
                 view.state.tr
@@ -471,12 +472,12 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             );
             return true;
         } else {
-            // If the selection started in a text block and we're moving to a text block
-            // then if `hasSkippedNode` is false let the browser perform its default
-            // vertical selection behavior.
+            // If the selection started in a text block and we're moving to a text block then
+            // if `hasSkippedNode` is false let the browser perform its default vertical
+            // selection behavior.
             //
-            // That way the browser can maintain its internal x position state. Useful for
-            // the following case.
+            // That way the browser can maintain its internal x position state. Useful for the
+            // following case.
             //
             // Say you have text like this with the cursor represented as `|`:
             //
@@ -521,20 +522,20 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             // patch of light.
             // ```
             //
-            // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our
-            // own text editor from scratch with `<canvas>`. Browsers like Chrome have a
-            // property [`x_pos_for_vertical_arrow_navigation`][1] that ideally we'd be
-            // able to read/write here. But no! It's not exposed to JavaScript. Solution:
-            // Build our text editor fully in JavaScript.
+            // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our own
+            // text editor from scratch with `<canvas>`. Browsers like Chrome have a property
+            // [`x_pos_for_vertical_arrow_navigation`][1] that ideally we'd be able to
+            // read/write here. But no! It's not exposed to JavaScript. Solution: Build our
+            // text editor fully in JavaScript.
             //
-            // [1]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/frame_selection.h#L383
+            // [1]:
+            //     https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/frame_selection.h#L383
             if (
                 node.inlineContent &&
-                // Don't allow default browser navigation if we're picking between multiple
-                // nodes in a row.
+                // Don't allow default browser navigation if we're picking between multiple nodes
+                // in a row.
                 nextNodes.length === 1 &&
-                // Don't allow default browser navigation if we're moving into or out of a
-                // table.
+                // Don't allow default browser navigation if we're moving into or out of a table.
                 isPosInContentTable($pos) === isPosInContentTable($nextPos) &&
                 // If we've skipped over a `fileFloat` then we can't allow a browser default
                 // navigation which may move into the `fileFloat` we skipped.
@@ -564,11 +565,10 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             if (!event.shiftKey) {
                 newSelection = TextSelection.near($navPos, dir);
             }
-            // If the user is holding shift to select text then we want our selection to
-            // always include at least one character in the new node. Otherwise in some
-            // browsers (like Chrome) the rendered selection highlight won't change! So the
-            // user won't know they've technically selected up until the start of the next
-            // text node.
+            // If the user is holding shift to select text then we want our selection to always
+            // include at least one character in the new node. Otherwise in some browsers (like
+            // Chrome) the rendered selection highlight won't change! So the user won't know
+            // they've technically selected up until the start of the next text node.
             else {
                 if ($navPos.parent.inlineContent && $navPos.parent.nodeSize > 2) {
                     if (movingDown && $navPos.parentOffset === 0) {
@@ -601,14 +601,14 @@ function assertNodeAfter($pos: ResolvedPos, node: Node): ResolvedPos & {nodeAfte
 }
 
 /**
- * Find candidate nodes for the vertical arrow navigation after `$afterPos` and
- * add them to `nextNodes`. `nextNodes` must either be selectable
+ * Find candidate nodes for the vertical arrow navigation after `$afterPos` and add
+ * them to `nextNodes`. `nextNodes` must either be selectable
  * (`node.type.spec.selectable === true`) or have inline content
  * (`node.inlineContent === true`). We can't select other types of nodes!
  *
- * We start by finding the next node in `doc` tree order. If the next node is a
- * row (`fileRow` or `tableRow`) then we'll add a `nextNode` for each column in
- * the row.
+ * We start by finding the next node in `doc` tree order. If the next node is a row
+ * (`fileRow` or `tableRow`) then we'll add a `nextNode` for each column in the
+ * row.
  */
 function collectNextNodes(
     dir: -1 | 1,
@@ -633,15 +633,15 @@ function collectNextNodes(
             if (
                 $maybeNextPos.nodeAfter &&
                 // If the next node (in tree order) is a `tableCell` then don't use it as
-                // `$nextPos` and instead go up one depth level so we look at the next
-                // `tableRow` instead. When navigating vertically we want to go to the cell in
-                // the next row above/below instead of the next cell to the left/right.
+                // `$nextPos` and instead go up one depth level so we look at the next `tableRow`
+                // instead. When navigating vertically we want to go to the cell in the next row
+                // above/below instead of the next cell to the left/right.
                 $maybeNextPos.nodeAfter.type.name !== "tableCell" &&
                 // If the next node (in tree order) is a `file` that's inside a `fileRow` then
-                // don't use the `file` as `$nextPos` and instead go up one depth level so we
-                // look at the next node (adjacent `fileRow` or otherwise) instead. When
-                // navigating vertically we don't want to go to the file to the left/right
-                // within the same row. We want to move up/down.
+                // don't use the `file` as `$nextPos` and instead go up one depth level so we look
+                // at the next node (adjacent `fileRow` or otherwise) instead. When navigating
+                // vertically we don't want to go to the file to the left/right within the same
+                // row. We want to move up/down.
                 !(
                     $maybeNextPos.parent.type.groups.includes("fileRowLike") &&
                     $maybeNextPos.nodeAfter.type.name === "file"
@@ -657,15 +657,15 @@ function collectNextNodes(
             if (
                 $maybeNextPos.nodeBefore &&
                 // If the next node (in tree order) is a `tableCell` then don't use it as
-                // `$nextPos` and instead go up one depth level so we look at the next
-                // `tableRow` instead. When navigating vertically we want to go to the cell in
-                // the next row above/below instead of the next cell to the left/right.
+                // `$nextPos` and instead go up one depth level so we look at the next `tableRow`
+                // instead. When navigating vertically we want to go to the cell in the next row
+                // above/below instead of the next cell to the left/right.
                 $maybeNextPos.nodeBefore.type.name !== "tableCell" &&
                 // If the next node (in tree order) is a `file` that's inside a `fileRow` then
-                // don't use the `file` as `$nextPos` and instead go up one depth level so we
-                // look at the next node (adjacent `fileRow` or otherwise) instead. When
-                // navigating vertically we don't want to go to the file to the left/right
-                // within the same row. We want to move up/down.
+                // don't use the `file` as `$nextPos` and instead go up one depth level so we look
+                // at the next node (adjacent `fileRow` or otherwise) instead. When navigating
+                // vertically we don't want to go to the file to the left/right within the same
+                // row. We want to move up/down.
                 !(
                     $maybeNextPos.parent.type.groups.includes("fileRowLike") &&
                     $maybeNextPos.nodeBefore.type.name === "file"
@@ -680,8 +680,7 @@ function collectNextNodes(
         }
     }
 
-    // If we're at the start or end of the document there's no more nodes to
-    // move into.
+    // If we're at the start or end of the document there's no more nodes to move into.
     if ($nextPos === null) {
         return;
     }
@@ -759,8 +758,8 @@ function collectPossibleNextNode(
         }
 
         // For file rows, each individual file is a possible next node and we need to
-        // choose which file based on the x coordinate. So iterate through the row and
-        // add all child nodes to `nextNodes`.
+        // choose which file based on the x coordinate. So iterate through the row and add
+        // all child nodes to `nextNodes`.
         case "fileRow":
         case "fileRowTable": {
             if (!options.skipSelectableNodes) {
@@ -806,10 +805,10 @@ function collectPossibleNextNode(
             break;
         }
 
-        // Skip over `fileFloat`s while navigating with arrow keys. We've decided it's
-        // too hard to properly handle geometric navigation into a `fileFloat` since
-        // the `fileFloat`'s UI position is basically completely unrelated to its
-        // position in the ProseMirror `doc` tree.
+        // Skip over `fileFloat`s while navigating with arrow keys. We've decided it's too
+        // hard to properly handle geometric navigation into a `fileFloat` since the
+        // `fileFloat`'s UI position is basically completely unrelated to its position in
+        // the ProseMirror `doc` tree.
         case "fileFloat": {
             options.onSkipNode(nextNode);
             collectNextNodes(dir, nextNodes, $nextPos, options);

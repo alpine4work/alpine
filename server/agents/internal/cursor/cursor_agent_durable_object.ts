@@ -44,15 +44,18 @@ import {
     shouldAgentRespondToRequest,
 } from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {TemporaryDurableObjectStorage} from "~/server/agents/internal/temporary_durable_object_storage.js";
-import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
-import {ApiMessageRoomPath, printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
+import {
+    ApiMessageRoomPath,
+    printApiMessageRoomPath,
+} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElement,
     ApiContentTextInlineElement,
     ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     ErrorBase,
@@ -190,8 +193,8 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
                         headers: {"content-type": "text/plain"},
                     });
                 } catch (error) {
-                    // Log errors in development since webhook errors aren't shown to the developer
-                    // in the UI. So we need to show webhook errors in our logs.
+                    // Log errors in development since webhook errors aren't shown to the developer in
+                    // the UI. So we need to show webhook errors in our logs.
                     if (process.env.NODE_ENV !== "production") {
                         // eslint-disable-next-line no-console
                         console.error("Cursor Cloud Agents webhook failed:", error);
@@ -301,7 +304,7 @@ async function getCursorBotSettings({
 
     if (!cloudAgentApiKey) {
         throw new FailedPreconditionError("Missing `cloudAgentApiKey` string in bot settings", {
-            displayMessage: errorDisplayMessage`Please add a Cursor Cloud Agents API key in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)}.`,
+            displayMessage: errorDisplayMessage`Please add a Cursor Cloud Agents API key in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/settings/${spaceId}/bots/${botId}`)}.`,
         });
     }
 
@@ -311,13 +314,13 @@ async function getCursorBotSettings({
 
     if (typeof githubRepositoryUrl !== "string" || githubRepositoryUrl.length === 0) {
         throw new FailedPreconditionError("Missing `githubRepositoryUrl` string in bot settings", {
-            displayMessage: errorDisplayMessage`Please add a GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)}.`,
+            displayMessage: errorDisplayMessage`Please add a GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/settings/${spaceId}/bots/${botId}`)}.`,
         });
     }
 
     if (!/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(githubRepositoryUrl)) {
         throw new FailedPreconditionError("Invalid `githubRepositoryUrl` string in bot settings", {
-            displayMessage: errorDisplayMessage`\u201C${githubRepositoryUrl}\u201D isn\u2019t a valid GitHub repository URL. Make sure your GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/s/${spaceId}/settings/bots/${botId}`)} is formatted as \u201Chttps://github.com/your-org/your-repo\u201D.`,
+            displayMessage: errorDisplayMessage`\u201C${githubRepositoryUrl}\u201D isn\u2019t a valid GitHub repository URL. Make sure your GitHub repository URL in ${errorDisplayMessage.link("settings", `${env.EDGE_SERVICE_URL}/settings/${spaceId}/bots/${botId}`)} is formatted as \u201Chttps://github.com/your-org/your-repo\u201D.`,
         });
     }
 
@@ -453,9 +456,9 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
     span: TracerSpan;
     request: AgentWebhookRequest;
 }) {
-    // In-memory storage that's garbage collected after this webhook finishes. We
-    // use for storing links discovered while printing agent messages. Since we
-    // don't need to keep track of links after the one-shot webhook finishes.
+    // In-memory storage that's garbage collected after this webhook finishes. We use
+    // for storing links discovered while printing agent messages. Since we don't need
+    // to keep track of links after the one-shot webhook finishes.
     const temporaryStorage = new TemporaryDurableObjectStorage();
 
     const conversationState = {
@@ -478,10 +481,10 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
                 transaction: temporaryStorage,
                 request,
                 conversationState,
-                // Cursor doesn't have tool calls so we load more context by default since it
-                // won't be able to load more itself. However, if this is a 1:1 chat then
-                // it's likely that one message = one Cloud Agent since every message gets a
-                // response from our bot.
+                // Cursor doesn't have tool calls so we load more context by default since it won't
+                // be able to load more itself. However, if this is a 1:1 chat then it's likely
+                // that one message = one Cloud Agent since every message gets a response from our
+                // bot.
                 tokenLimitForPage: isOneOnOneChat
                     ? agentInitializeMessagesTokenLimit
                     : cursorAgentInitializeMessagesTokenLimit,
@@ -529,8 +532,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
                     {agentId, kind: "Launch"},
                 );
 
-                // Keep track of the agent for future requests (e.g. cloud agent
-                // webhook calls).
+                // Keep track of the agent for future requests (e.g. cloud agent webhook calls).
                 await CursorCloudAgentCollection.put(transaction, agentId, {
                     actualId: launchedAgent.id,
                     name: launchedAgent.name,
@@ -620,8 +622,8 @@ async function launchCursorCloudAgent({
     const webhookUrl = `${request.origin}/cursor/cloud-agents-webhook/${durableObjectId.toString()}/${agentId}`;
     let actualWebhookUrl = webhookUrl;
 
-    // Provide debugging instructions for developers testing webhook functionality.
-    // Not the most bulletproof of debugging methods but it's good enough for now.
+    // Provide debugging instructions for developers testing webhook functionality. Not
+    // the most bulletproof of debugging methods but it's good enough for now.
     if (process.env.NODE_ENV === "development") {
         if (!env.CURSOR_AGENT_SMEE_WEBHOOK_URL) {
             // eslint-disable-next-line no-console
@@ -648,8 +650,8 @@ async function launchCursorCloudAgent({
             collectLinksFromMarkdownTreeForCursorAgent({
                 type: "root",
                 // Only look for links in the first paragraph of the preamble. This is a hacky
-                // approach to make sure we don't include links from the `<document_preview>`
-                // in document comment thread preambles.
+                // approach to make sure we don't include links from the `<document_preview>` in
+                // document comment thread preambles.
                 children: promptPreambleFirstParagraph ? [promptPreambleFirstParagraph] : [],
             }),
             ([path]) => {
@@ -659,8 +661,8 @@ async function launchCursorCloudAgent({
                         return false;
                     }
                     case "Post": {
-                        // Include no preamble links for post. The post content is included in the
-                        // printed messages.
+                        // Include no preamble links for post. The post content is included in the printed
+                        // messages.
                         return false;
                     }
                     case "DocumentCommentThread": {
@@ -669,8 +671,8 @@ async function launchCursorCloudAgent({
                         return path.startsWith("/document/");
                     }
                     case "Task": {
-                        // If the preamble links to the task, then include the task in context.
-                        // Since linking to the task means it wasn't included in the preamble.
+                        // If the preamble links to the task, then include the task in context. Since
+                        // linking to the task means it wasn't included in the preamble.
                         return path.startsWith("/task/");
                     }
                     default:
@@ -691,11 +693,11 @@ async function launchCursorCloudAgent({
         concatIterables(preambleLinkLabelByUrl, lastMessageLinkLabelByUrl),
     );
 
-    // Remove all links from the conversation history. Cursor cloud agents can't
-    // read links so it doesn't make sense to spend tokens on them.
+    // Remove all links from the conversation history. Cursor cloud agents can't read
+    // links so it doesn't make sense to spend tokens on them.
     //
-    // Don't remove links from the last message. We'll be loading content from
-    // those links and adding it to the prompt.
+    // Don't remove links from the last message. We'll be loading content from those
+    // links and adding it to the prompt.
     stripLinksFromMarkdownTreeForCursorAgent(promptMessagesContent, {
         shouldKeepLink: ({url}) => linkLabelByUrl.has(url),
     });
@@ -753,8 +755,8 @@ async function loadCursorCloudAgentPromptAttachmentsContent({
 }) {
     return await runAllPromises(
         mapIterable(linkLabelByUrl, async ([linkUrl]) => {
-            // Agent links were put in `temporaryStorage` since they're not needed after
-            // the webhook finishes.
+            // Agent links were put in `temporaryStorage` since they're not needed after the
+            // webhook finishes.
             const link = assertExists(
                 await getAgentLink(temporaryStorage, linkUrl),
                 "Expected link to exist in temporary storage since we should have just put it there",
@@ -769,23 +771,21 @@ async function loadCursorCloudAgentPromptAttachmentsContent({
                 // Load a number of tokens as if the agent made 3 "Next page" reads. Since Cursor
                 // doesn't have tool calls we need to aggressively load the context it needs.
                 //
-                // We only load the links in the last message which is the message that
-                // launched the Cursor agent so we feel pretty good that this is useful
-                // context.
+                // We only load the links in the last message which is the message that launched
+                // the Cursor agent so we feel pretty good that this is useful context.
                 tokenLimitFactor:
                     agentPaginationTokenLimitGrowthFactor ** 0 +
                     agentPaginationTokenLimitGrowthFactor ** 1 +
                     agentPaginationTokenLimitGrowthFactor ** 2,
             });
 
-            // Remove all links from the loaded content. Cursor cloud agents can't read
-            // links so it doesn't make sense to spend tokens on them.
+            // Remove all links from the loaded content. Cursor cloud agents can't read links
+            // so it doesn't make sense to spend tokens on them.
             stripLinksFromMarkdownTreeForCursorAgent(markdownTree, {
                 shouldKeepLink: ({url}) => linkLabelByUrl.has(url),
             });
 
             return (
-                // eslint-disable-next-line cyberworlds/string-quotes
                 `<attachment path="${escapeHtml(linkUrl)}">\n` +
                 printAgentContentMarkdownTree(markdownTree).trim() +
                 "\n</attachment>"
@@ -809,15 +809,15 @@ async function handleCursorAgentAddFollowUpFirstPartyWebhook({
     agentId: CursorCloudAgentId;
     agent: CursorCloudAgent;
 }) {
-    // In-memory storage that's garbage collected after this webhook finishes. We
-    // use for storing links discovered while printing agent messages. Since we
-    // don't need to keep track of links after the one-shot webhook finishes.
+    // In-memory storage that's garbage collected after this webhook finishes. We use
+    // for storing links discovered while printing agent messages. Since we don't need
+    // to keep track of links after the one-shot webhook finishes.
     const temporaryStorage = new TemporaryDurableObjectStorage();
 
     let lastMessageIndex = agent.launchMessageIndex;
 
-    // Find the last message the agent has in context. We only load additional
-    // context into the agent for launch messages and follow-up messages.
+    // Find the last message the agent has in context. We only load additional context
+    // into the agent for launch messages and follow-up messages.
     for (const messageIndex of agent.followUpMessageIndexes) {
         if (messageIndex > lastMessageIndex) {
             lastMessageIndex = messageIndex;
@@ -837,8 +837,8 @@ async function handleCursorAgentAddFollowUpFirstPartyWebhook({
             span,
             temporaryStorage,
             request,
-            // `startMessageIndex` is exclusive. We want to load the last message into
-            // context since the agent hasn't seen it yet.
+            // `startMessageIndex` is exclusive. We want to load the last message into context
+            // since the agent hasn't seen it yet.
             lastMessageIndex - 1,
             request.event.index,
         ).then(messages => ({
@@ -884,8 +884,7 @@ async function handleCursorAgentAddFollowUpFirstPartyWebhook({
                     {agentId, kind: "FollowUp"},
                 );
 
-                // Keep track of the agent for future requests (e.g. cloud agent
-                // webhook calls).
+                // Keep track of the agent for future requests (e.g. cloud agent webhook calls).
                 await CursorCloudAgentCollection.put(transaction, agentId, {
                     ...agent,
                     // Refresh the API access token so webhook calls from Cursor work even if the
@@ -955,11 +954,11 @@ async function addCursorCloudAgentFollowUp({
           })
         : emptyMap;
 
-    // Remove all links from the conversation history. Cursor cloud agents can't
-    // read links so it doesn't make sense to spend tokens on them.
+    // Remove all links from the conversation history. Cursor cloud agents can't read
+    // links so it doesn't make sense to spend tokens on them.
     //
-    // Don't remove links from the last message. We'll be loading content from
-    // those links and adding it to the prompt.
+    // Don't remove links from the last message. We'll be loading content from those
+    // links and adding it to the prompt.
     stripLinksFromMarkdownTreeForCursorAgent(promptMessagesContent, {
         shouldKeepLink: ({url}) => linkLabelByUrl.has(url),
     });
@@ -984,9 +983,8 @@ async function addCursorCloudAgentFollowUp({
     });
 }
 
-// Since we don't have an OpenAPI schema for Cursor Cloud Agent webhook
-// payloads we assume every property from their "Payload format" documentation
-// is optional.
+// Since we don't have an OpenAPI schema for Cursor Cloud Agent webhook payloads we
+// assume every property from their "Payload format" documentation is optional.
 //
 // https://cursor.com/docs/cloud-agent/api/webhooks#payload-format
 type CursorCloudAgentsWebhookRequestBody = {
@@ -1003,8 +1001,8 @@ type CursorCloudAgentsWebhookRequestBody = {
 };
 
 /**
- * This handles a webhook from _Cursor_. Not from Alpine! Cursor calls this
- * webhook when the Cloud Agent is done processing.
+ * This handles a webhook from _Cursor_. Not from Alpine! Cursor calls this webhook
+ * when the Cloud Agent is done processing.
  */
 async function handleCursorCloudAgentsThirdPartyWebhook({
     env,
@@ -1037,8 +1035,8 @@ async function handleCursorCloudAgentsThirdPartyWebhook({
 
     const bodyText = await request.text();
 
-    // We need a transaction around the `CursorCloudAgentCollection` `get()` +
-    // `put()` to make sure there are no race conditions.
+    // We need a transaction around the `CursorCloudAgentCollection` `get()` + `put()`
+    // to make sure there are no race conditions.
     await storage.transaction(async transaction => {
         const oldAgent = await CursorCloudAgentCollection.get(transaction, agentId);
         if (!oldAgent) throw new NotFoundError("Cursor Cloud Agent not found");
@@ -1060,8 +1058,8 @@ async function handleCursorCloudAgentsThirdPartyWebhook({
             status: body.status,
         };
 
-        // Create an API client using the `accessToken` we stored in the Durable
-        // Object's state so we can send a new message to the conversation.
+        // Create an API client using the `accessToken` we stored in the Durable Object's
+        // state so we can send a new message to the conversation.
         const apiClient = createApiClient({
             baseUrl: assertExists(
                 env.API_SERVICE_URL,
@@ -1094,8 +1092,8 @@ async function handleCursorCloudAgentsThirdPartyWebhook({
             }
 
             default: {
-                // Make sure we handle all statuses with `cast<never>()` but don't throw (like
-                // we would with `exhaustive()`).
+                // Make sure we handle all statuses with `cast<never>()` but don't throw (like we
+                // would with `exhaustive()`).
                 cast<never>(newAgent.status);
                 break;
             }
@@ -1118,8 +1116,8 @@ async function validateCursorCloudAgentsThirdPartyWebhookSignature({
 }) {
     const actualSignature = request.headers.get("x-webhook-signature");
 
-    // Verify the `X-Webhook-Signature` header to make sure this request is
-    // actually coming from Cursor.
+    // Verify the `X-Webhook-Signature` header to make sure this request is actually
+    // coming from Cursor.
 
     if (!actualSignature) throw new InvalidArgumentError("Missing `X-Webhook-Signature` header");
 
@@ -1180,8 +1178,8 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
         }
 
         case "ERROR":
-        // NOTE(calebmer): Cursor doesn't have any documentation for what `EXPIRED`
-        // means. So use our generic error message until we figure that out.
+        // NOTE(calebmer): Cursor doesn't have any documentation for what `EXPIRED` means.
+        // So use our generic error message until we figure that out.
         case "EXPIRED": {
             paragraphElements.push({
                 type: "Text",
@@ -1207,12 +1205,11 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
     }
 
     // NOTE(calebmer): Cursor has a [`GET /v0/agents/{id}/conversation` API
-    // endpoint][1] that we could use to show a conversation history. However,
-    // it includes messages we consider "thinking" in addition to a final summary
-    // message. We'd love to stream the thinking messages in realtime with a
-    // `Reasoning` stream part but Cursor doesn't have a convenient API for this
-    // and doesn't provide a distinction between thinking parts and non-thinking
-    // parts.
+    // endpoint][1] that we could use to show a conversation history. However, it
+    // includes messages we consider "thinking" in addition to a final summary message.
+    // We'd love to stream the thinking messages in realtime with a `Reasoning` stream
+    // part but Cursor doesn't have a convenient API for this and doesn't provide a
+    // distinction between thinking parts and non-thinking parts.
     //
     // Example messages for "Can you add a new danger button variant for our shared
     // `<Button>` component that's red?" It has 8 "thinking" messages and 1 final
@@ -1226,7 +1223,8 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
     // >
     // > Let me commit and push these changes to the branch.
     // >
-    // > Let me verify the implementation by checking if there are any tests I should run.
+    // > Let me verify the implementation by checking if there are any tests I should
+    // > run.
     // >
     // > ...
     // >
@@ -1244,10 +1242,10 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
     // > A new "danger" variant was added to the shared `<Button>` component in
     // > `client/web/design/button.tsx`.
     // >
-    // > *   The `ButtonVariant` type was extended to include `"danger"`.
-    // > *   Styling for the "danger" variant was implemented:
-    // >     *   Enabled state: `red-60` background with `grey-0` text.
-    // >     *   Disabled state: `grey-5` background with `grey-30` text.
+    // > - The `ButtonVariant` type was extended to include `"danger"`.
+    // > - Styling for the "danger" variant was implemented:
+    // >     - Enabled state: `red-60` background with `grey-0` text.
+    // >     - Disabled state: `grey-5` background with `grey-30` text.
     // >
     // > This provides a distinct visual style for critical actions, aligning with
     // > existing component patterns.
@@ -1256,14 +1254,13 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
     if (body.summary) {
         let summary = body.summary.trim();
 
-        // Make sure `summary` ends with punctuation if punctuation wasn't
-        // already added.
+        // Make sure `summary` ends with punctuation if punctuation wasn't already added.
         if (!doesStringEndWithPunctuation(summary)) {
             summary += ".";
         }
 
-        // We use `AgentMessageStream` even though there's no streaming so we parse
-        // content from LLMs consistently across all our agents.
+        // We use `AgentMessageStream` even though there's no streaming so we parse content
+        // from LLMs consistently across all our agents.
         const summaryMessageStream = new AgentMessageStream({
             spaceId: agent.spaceId,
             getTargetPathIfExists: async () => null,
@@ -1292,8 +1289,8 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
         }
     }
 
-    // Were there any messages sent after our launch message? If yes then we want
-    // to create a new message with our old message as a parent.
+    // Were there any messages sent after our launch message? If yes then we want to
+    // create a new message with our old message as a parent.
     const {
         data: {messages: messagesAfterLastAgentMessage},
     } = await getApiMessagesFromStart(span, apiClient, agent.room, {
@@ -1304,8 +1301,8 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
     const {
         data: {message},
     } = await createApiMessage(span, apiClient, agent.room, {
-        // If there are messages after our launch message then reply to the launch
-        // message. Otherwise, our message will go right underneath the launch message.
+        // If there are messages after our launch message then reply to the launch message.
+        // Otherwise, our message will go right underneath the launch message.
         parent:
             messagesAfterLastAgentMessage.length > 0
                 ? {type: "Message", index: agent.launchMessageIndex}
@@ -1323,9 +1320,9 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
         {agentId, kind: "StatusChange"},
     );
 
-    // The object returned here will be saved to `CursorCloudAgentCollection`. In
-    // the same transaction. So our `CursorCloudAgentByMessageIndexCollection` call
-    // above won't lead to corrupted data.
+    // The object returned here will be saved to `CursorCloudAgentCollection`. In the
+    // same transaction. So our `CursorCloudAgentByMessageIndexCollection` call above
+    // won't lead to corrupted data.
     return {
         ...agent,
         targetBranchName: body.target?.branchName ?? null,

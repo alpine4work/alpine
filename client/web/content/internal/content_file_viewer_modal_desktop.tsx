@@ -33,6 +33,7 @@ import {Button} from "~/client/web/design/button.js";
 import {ErrorBodyRenderer} from "~/client/web/design/error_body_renderer.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {Modal} from "~/client/web/design/modal.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {ErrorBoundary} from "~/client/web/helpers/error_boundary.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
@@ -59,9 +60,9 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
  *
  * IMPORTANT: If you make a change to preview rendering here you should also
  * consider making the same change to `renderContentFilePreview()` and
- * `<ContentFileViewerModalMobile>`. We have three renderers for every file
- * type. The inline preview, the fullscreen desktop modal, and the fullscreen
- * mobile modal. They should all look and behave about the same.
+ * `<ContentFileViewerModalMobile>`. We have three renderers for every file type.
+ * The inline preview, the fullscreen desktop modal, and the fullscreen mobile
+ * modal. They should all look and behave about the same.
  */
 export function ContentFileViewerModalDesktop({
     file,
@@ -76,7 +77,7 @@ export function ContentFileViewerModalDesktop({
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
     const {space} = useSpaceContext();
 
     const [viewerRef, viewerSize] = useResizeObserver();
@@ -111,16 +112,16 @@ export function ContentFileViewerModalDesktop({
 
     const withProcessingIndicator =
         isFileModelDataLoading(file) &&
-        // If the file has an image preview where the size or placeholder are
-        // processing then we'll be showing a large spinner in the center of the entire
-        // modal so we don't need to also show a small spinner here.
+        // If the file has an image preview where the size or placeholder are processing
+        // then we'll be showing a large spinner in the center of the entire modal so we
+        // don't need to also show a small spinner here.
         !(
             file.preview?.type === "Image" &&
             (file.preview.size === "Processing" || file.preview.placeholder === "Processing")
         ) &&
-        // If the file has a code preview where the preview is
-        // processing then we'll be showing a large spinner in the center of the entire
-        // modal so we don't need to also show a small spinner here.
+        // If the file has a code preview where the preview is processing then we'll be
+        // showing a large spinner in the center of the entire modal so we don't need to
+        // also show a small spinner here.
         !(file.preview?.type === "Code" && file.preview.isProcessing);
 
     const fileContentTypeName = getFileContentTypeName(file.contentType);
@@ -132,8 +133,8 @@ export function ContentFileViewerModalDesktop({
             maxWidth="full"
             height="full"
             // More margin than `<SearchModal>` so when the two are overlapping on a narrow
-            // screen they don't have the same width. Also gives the user more space to
-            // click in the margins given the modal is otherwise width/height 100%.
+            // screen they don't have the same width. Also gives the user more space to click
+            // in the margins given the modal is otherwise width/height 100%.
             margin="7"
             // Background is a dark grey in both light and dark mode:
             //
@@ -141,9 +142,9 @@ export function ContentFileViewerModalDesktop({
             // 2. So content that's transparent and uses white or black is visible whether
             //    we're in light mode or dark mode
             backgroundColor={{light: "grey-70-opacity-80", dark: "grey-10-opacity-80"}}
-            // As a fullscreen modal that almost completely covers the content below, we
-            // don't benefit from using lighter grey colors in dark mode. Use the standard
-            // dark mode shades in our content file viewer modal.
+            // As a fullscreen modal that almost completely covers the content below, we don't
+            // benefit from using lighter grey colors in dark mode. Use the standard dark mode
+            // shades in our content file viewer modal.
             withoutElevatedGrey
             borderRadius="2.5"
             // Given the attachment viewer opens in direct response to user interaction, it
@@ -155,19 +156,28 @@ export function ContentFileViewerModalDesktop({
         >
             <GlobalKeyDownEvent
                 onGlobalKeyDown={event => {
-                    if (event.key === "=" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                    if (
+                        event.key === "=" &&
+                        (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                    ) {
                         event.preventDefault();
                         event.stopPropagation();
                         zoomIn();
                     }
 
-                    if (event.key === "-" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                    if (
+                        event.key === "-" &&
+                        (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                    ) {
                         event.preventDefault();
                         event.stopPropagation();
                         zoomOut();
                     }
 
-                    if (event.key === "0" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                    if (
+                        event.key === "0" &&
+                        (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                    ) {
                         event.preventDefault();
                         event.stopPropagation();
                         setZoomLevel(initialZoomLevel);
@@ -180,9 +190,9 @@ export function ContentFileViewerModalDesktop({
                     display="flex"
                     flexDirection="column"
                     overflow="hidden"
-                    // By default use white for text. Make sure to invert our selection color in
-                    // light mode since the default light mode selection color doesn't look good
-                    // with white text.
+                    // By default use white for text. Make sure to invert our selection color in light
+                    // mode since the default light mode selection color doesn't look good with white
+                    // text.
                     color="grey-0-const"
                     className={invertLightSelectionColorsClassName}
                 >
@@ -227,7 +237,11 @@ export function ContentFileViewerModalDesktop({
                                         variant="quiet-above-content-file-viewer-modal"
                                         description="Zoom in"
                                         tooltipPlacement="bottom"
-                                        keyboardShortcutHint={isAppleDevice ? "⌘+=" : "Ctrl+="}
+                                        keyboardShortcutHint={renderKeyboardShortcutHint(
+                                            clientInfo,
+                                            "mod",
+                                            "=",
+                                        )}
                                         isDisabled={zoomLevel >= maxZoomLevel}
                                         onPress={zoomIn}
                                     >
@@ -237,7 +251,11 @@ export function ContentFileViewerModalDesktop({
                                         variant="quiet-above-content-file-viewer-modal"
                                         description="Zoom out"
                                         tooltipPlacement="bottom"
-                                        keyboardShortcutHint={isAppleDevice ? "⌘+-" : "Ctrl+-"}
+                                        keyboardShortcutHint={renderKeyboardShortcutHint(
+                                            clientInfo,
+                                            "mod",
+                                            "-",
+                                        )}
                                         isDisabled={zoomLevel <= minZoomLevel}
                                         onPress={zoomOut}
                                     >

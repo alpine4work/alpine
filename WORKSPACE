@@ -56,6 +56,21 @@ aspect_bazel_lib_dependencies()
 aspect_bazel_lib_register_toolchains()
 
 # =========================================================================== #
+#                                     C++                                     #
+# =========================================================================== #
+
+http_archive(
+    name = "rules_cc",
+    sha256 = "458b658277ba51b4730ea7a2020efdf1c6dcadf7d30de72e37f4308277fa8c01",
+    strip_prefix = "rules_cc-0.2.16",
+    url = "https://github.com/bazelbuild/rules_cc/releases/download/0.2.16/rules_cc-0.2.16.tar.gz",
+)
+
+load("@rules_cc//cc:extensions.bzl", "compatibility_proxy_repo")
+
+compatibility_proxy_repo()
+
+# =========================================================================== #
 #                                   Python                                    #
 # =========================================================================== #
 
@@ -260,7 +275,7 @@ load("//admin/playwright:playwright_browsers.bzl", "playwright_browsers_reposito
 
 playwright_browsers_repository(
     name = "playwright_browsers",
-    playwright_version = "1.46.0",
+    playwright_version = "1.59.1",
 )
 
 # =========================================================================== #
@@ -608,7 +623,7 @@ http_archive(
     build_file = "@//admin/bazel:third_party/BUILD.zlib.bazel",
     integrity = "sha256-mpOyt9/ax3zrpaVYpYDnRmfdb+3kWFuR7vtg8Dty3yM=",
     strip_prefix = "zlib-1.3.1",
-    url = "https://zlib.net/zlib-1.3.1.tar.gz",
+    url = "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz",
 )
 
 http_archive(
@@ -704,3 +719,50 @@ http_file(
     integrity = "sha256-o4RoN7nanENHIdBVMhQgYTM8409WN41ExINWxzMdlI0=",
     url = "https://raw.githubusercontent.com/sqlite/sqlite-wasm/2adc35d7f3e8306edb7b8738812c9a11a635b198/src/index.d.ts",
 )
+
+# =========================================================================== #
+#                                    Rust                                     #
+# =========================================================================== #
+
+http_archive(
+    name = "rules_rust",
+    integrity = "sha256-yKqAbPYGZnmsI0YyQe6ArWkiZdrQRl9RERy74wuJA1I=",
+    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.68.1/rules_rust-0.68.1.tar.gz"],
+)
+
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
+
+rules_rust_dependencies()
+
+rust_register_toolchains(
+    versions = ["1.90.0"],
+)
+
+load(
+    "@rules_rust//crate_universe:repositories.bzl",
+    "crate_universe_dependencies",
+)
+
+crate_universe_dependencies()
+
+load("@rules_rust//crate_universe:defs.bzl", "crates_repository")
+
+crates_repository(
+    name = "swc_plugin_crates",
+    cargo_lockfile = "//admin/swc/plugin:Cargo.lock",
+    lockfile = "//admin/swc/plugin:cargo-bazel-lock.json",
+    manifests = ["//admin/swc/plugin:Cargo.toml"],
+    rust_version = "1.90.0",
+)
+
+load("@swc_plugin_crates//:defs.bzl", "crate_repositories")
+
+crate_repositories()
+
+# =========================================================================== #
+#                             Marketing resources                             #
+# =========================================================================== #
+
+load("//admin/marketing/2026_04_scalable_demos:scalable_demo_repositories.bzl", "scalable_demo_repositories")
+
+scalable_demo_repositories()

@@ -10,28 +10,33 @@ import {
 } from "~/shared/design/core/constant_class_names.js";
 import {FileIdOrFileEntityIdSchema, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, SiteId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
- * TypeScript convenience function for creating a `NodeSpec`. Forces us to
- * adhere to the `NodeSpec` format while allowing the return type to be an
- * instance of `NodeSpec`. (So node keys are preserved, for instance.)
+ * TypeScript convenience function for creating a `NodeSpec`. Forces us to adhere
+ * to the `NodeSpec` format while allowing the return type to be an instance of
+ * `NodeSpec`. (So node keys are preserved, for instance.)
  */
 function createProsemirrorNodesSpec<Nodes extends {[key: string]: NodeSpec}>(nodes: Nodes): Nodes {
     return nodes;
 }
 
+function isFileEntityUrl(url: string): boolean {
+    const entityId = parseSearchEntityIdFromUrl(url);
+    return entityId !== null && isFileEntityId(entityId);
+}
+
 export const contentMentionProsemirrorNodeSpecs = createProsemirrorNodesSpec({
     /**
-     * A mention is an inline reference to an account. Mentioning an account also
-     * sends a notification to the account to get their attention.
+     * A mention is an inline reference to an account. Mentioning an account also sends
+     * a notification to the account to get their attention.
      *
-     * A mention node alone in content does not include all the data we need to
-     * render it. When sending content to the client we need to load extra related
-     * data. In the case of an account, their name and avatar.
+     * A mention node alone in content does not include all the data we need to render
+     * it. When sending content to the client we need to load extra related data. In
+     * the case of an account, their name and avatar.
      */
     mention: {
         inline: true,
@@ -44,8 +49,8 @@ export const contentMentionProsemirrorNodeSpecs = createProsemirrorNodesSpec({
                 schema: ContentMentionSchema,
             },
         },
-        // The rendering of mentions is entirely managed with a custom renderer since
-        // we need to get data from `ContentReferences`.
+        // The rendering of mentions is entirely managed with a custom renderer since we
+        // need to get data from `ContentReferences`.
         toDOM: () => ["span", {}, ""],
         parseDOM: [
             {
@@ -77,18 +82,27 @@ export const contentMentionProsemirrorNodeSpecs = createProsemirrorNodesSpec({
                     const href = node.getAttribute("href");
                     if (!href) return false;
 
-                    const spaceIdMatch = href.match(/\/s\/([^/]+)/);
-                    if (!spaceIdMatch) return false;
-                    if (!isId<SpaceId>(spaceIdMatch[1]!)) return false;
+                    // If `data-cy-site` is set, this `<a>` is a Site mention whose `href` points to
+                    // the site's first entity (e.g. a Document URL). Parsing the `href` would give us
+                    // back the first entity, not the site, so we read the `SiteId` from `data-cy-site`
+                    // instead to reconstruct the `Site:` mention.
+                    const siteId = node.getAttribute("data-cy-site");
+                    if (siteId !== null) {
+                        if (!isId<SiteId>(siteId)) return false;
 
-                    const spaceId = spaceIdMatch[1];
+                        const mention: ContentMention = {
+                            type: "SearchEntity",
+                            entityId: `Site:${siteId}`,
+                        };
 
-                    // We parse the `SearchEntityId` in `data-cy-mention` using whatever `SpaceId`
-                    // is in the URL. It's the responsibility of `<ContentEditor>`'s
-                    // `transformPastedDOM` to remove the `data-cy-mention` attribute from any
-                    // mentions in the wrong space. Since only `<ContentEditor>` will know if we're
-                    // in the right space.
-                    const entityId = parseSearchEntityIdFromUrl(spaceId, href);
+                        return {mention};
+                    }
+
+                    // We parse the `SearchEntityId` in `data-cy-mention` using whatever `SpaceId` is
+                    // in the URL. It's the responsibility of `<ContentEditor>`'s `transformPastedDOM`
+                    // to remove the `data-cy-mention` attribute from any mentions in the wrong space.
+                    // Since only `<ContentEditor>` will know if we're in the right space.
+                    const entityId = parseSearchEntityIdFromUrl(href);
                     if (!entityId) return false;
                     if (!isSearchMentionEntityId(entityId)) return false;
 
@@ -113,38 +127,37 @@ export const createContentFileProsemirrorNodeSpecs = ({
 }: {fileMarks?: string; withTable?: boolean} = {}) => {
     const baseNodes: {[key: string]: NodeSpec} = {
         /**
-         * Renders one or more files in content in a horizontal row. When the user
-         * first adds a file to a document it'll be in a `fileRow`. A single, centered,
-         * file is a `fileRow`.
+         * Renders one or more files in content in a horizontal row. When the user first
+         * adds a file to a document it'll be in a `fileRow`. A single, centered, file is a
+         * `fileRow`.
          *
-         * Up to three files may be rendered horizontally next to each other. File rows
-         * may be stacked vertically to create an image gallery. All images in a file
-         * row have the same height and we try our best to fill the entire width of the
-         * document with each file row. See `layoutContentFileRow()` for more
-         * information on how we layout a file row.
+         * Up to three files may be rendered horizontally next to each other. File rows may
+         * be stacked vertically to create an image gallery. All images in a file row have
+         * the same height and we try our best to fill the entire width of the document
+         * with each file row. See `layoutContentFileRow()` for more information on how we
+         * layout a file row.
          */
         fileRow: {
             group: "block fileRowLike",
             content: "file{1,3}",
             defining: true,
             isolating: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
-            // Allow any marks available on `file` nodes on `fileRow`s (e.g. comment marks
-            // in documents). Comments should never appear on `fileRow`. Only on `file`. We
+            // Allow any marks available on `file` nodes on `fileRow`s (e.g. comment marks in
+            // documents). Comments should never appear on `fileRow`. Only on `file`. We
             // validate this is the case in `get_collaboratively_update_content_result.ts`.
             marks: fileMarks,
             // same class `fileRowLikeClassName` being used for fileRow and fileRowTable
             toDOM: () => ["div", {class: fileRowLikeClassName}, 0],
-            // A `<div>` or `<p>` with a direct child that has a `data-cy-tmp-file`
-            // attribute is parsed as a `fileRow`.
+            // A `<div>` or `<p>` with a direct child that has a `data-cy-tmp-file` attribute
+            // is parsed as a `fileRow`.
             //
-            // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`,
-            // or `<object>` tags on copy. Then on paste `<ContentEditor>`'s
-            // `transformPastedDOM` converts those elements into a `<div>` with a
-            // `data-cy-tmp-file` attribute.
+            // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`, or
+            // `<object>` tags on copy. Then on paste `<ContentEditor>`'s `transformPastedDOM`
+            // converts those elements into a `<div>` with a `data-cy-tmp-file` attribute.
             parseDOM: paragraphParseRules.map(paragraphParseRule => ({
                 ...paragraphParseRule,
                 // Make sure this is higher priority than our paragraph `div` parse rule.
@@ -157,7 +170,7 @@ export const createContentFileProsemirrorNodeSpecs = ({
                             (childNode instanceof HTMLElement &&
                                 childNode.hasAttribute("data-cy-tmp-file")) ||
                             (childNode instanceof HTMLIFrameElement &&
-                                childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
+                                isFileEntityUrl(childNode.src))
                         ) {
                             hasDirectFileChildNode = true;
                             break;
@@ -170,13 +183,13 @@ export const createContentFileProsemirrorNodeSpecs = ({
         },
 
         /**
-         * A file attached to our content. Files can be images, videos, documents
-         * (e.g. PDFs or Microsoft Word docs), audio, code, and more.
+         * A file attached to our content. Files can be images, videos, documents (e.g.
+         * PDFs or Microsoft Word docs), audio, code, and more.
          *
-         * Files are never directly embedded in content. Instead they must be wrapped
-         * in some container. For example, `fileRow`. The `file` node is responsible
-         * for rendering file content whereas the container is responsible for figuring
-         * out how to lay out the file.
+         * Files are never directly embedded in content. Instead they must be wrapped in
+         * some container. For example, `fileRow`. The `file` node is responsible for
+         * rendering file content whereas the container is responsible for figuring out how
+         * to lay out the file.
          */
         file: {
             defining: true,
@@ -184,10 +197,10 @@ export const createContentFileProsemirrorNodeSpecs = ({
             selectable: true,
             marks: fileMarks,
             attrs: {
-                // `fileId` is nullable so the `file` node is generatable. Otherwise
-                // ProseMirror complains that `fileRow` can't be generated because it requires
-                // at least one file node. `fileId: null` files will always render with an
-                // error. You should always provide a `FileId`.
+                // `fileId` is nullable so the `file` node is generatable. Otherwise ProseMirror
+                // complains that `fileRow` can't be generated because it requires at least one
+                // file node. `fileId: null` files will always render with an error. You should
+                // always provide a `FileId`.
                 fileId: {
                     schema: FileIdOrFileEntityIdSchema.nullable(),
                     default: null,
@@ -196,10 +209,9 @@ export const createContentFileProsemirrorNodeSpecs = ({
             toDOM: () => ["div", {class: fileClassName}],
             parseDOM: [
                 {
-                    // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`,
-                    // or `<object>` tags on copy. Then on paste `<ContentEditor>`'s
-                    // `transformPastedDOM` converts those elements into a `<div>` with a
-                    // `data-cy-tmp-file` attribute.
+                    // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`, or
+                    // `<object>` tags on copy. Then on paste `<ContentEditor>`'s `transformPastedDOM`
+                    // converts those elements into a `<div>` with a `data-cy-tmp-file` attribute.
                     tag: "div[data-cy-tmp-file]",
                     // Make sure this is higher priority than our paragraph `div` parse rule.
                     priority: paragraphParseRulePriority + 50,
@@ -220,16 +232,7 @@ export const createContentFileProsemirrorNodeSpecs = ({
                     getAttrs: node => {
                         if (!(node instanceof HTMLIFrameElement)) return false;
 
-                        // NOTE(calebmer): Matching `spaceId` from the current URL is a little hacky.
-                        // What if someday you can view content from two spaces at a time? (e.g. In
-                        // a peek.)
-                        const spaceIdMatch = window.location.pathname.match(/^\/s\/([^/]+)/);
-                        if (!spaceIdMatch) return false;
-
-                        const spaceId = spaceIdMatch[1]!;
-                        if (!isId<SpaceId>(spaceId)) return false;
-
-                        const entityId = parseSearchEntityIdFromUrl(spaceId, node.src);
+                        const entityId = parseSearchEntityIdFromUrl(node.src);
                         if (entityId === null || !isFileEntityId(entityId)) return false;
 
                         return {fileId: entityId};
@@ -241,8 +244,8 @@ export const createContentFileProsemirrorNodeSpecs = ({
 
     // If `withTable` is true, add a `fileRowTable` node into the content spec.
     //
-    // In Alpine there are different places where we are using prosemirror editor.
-    // For eg: documents, posts, task notes, messages, etc.
+    // In Alpine there are different places where we are using prosemirror editor. For
+    // eg: documents, posts, task notes, messages, etc.
     //
     // In documents, we want to allow tables and `fileRowTable`s.
     //
@@ -257,21 +260,21 @@ export const createContentFileProsemirrorNodeSpecs = ({
             content: "file{1,1}",
             defining: true,
             isolating: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             // Allow any marks available on `file` nodes on `fileRowTable`s (e.g. comment marks
-            // in documents). Comments should never appear on `fileRowTable`. Only on `file`. We
-            // validate this is the case in `get_collaboratively_update_content_result.ts`.
+            // in documents). Comments should never appear on `fileRowTable`. Only on `file`.
+            // We validate this is the case in `get_collaboratively_update_content_result.ts`.
             marks: fileMarks,
             attrs: {},
             // same classes being used for fileRow and fileRowTable
             toDOM: () => ["div", {class: fileRowLikeClassName}, 0],
             parseDOM: paragraphParseRules.map(paragraphParseRule => ({
                 ...paragraphParseRule,
-                // Make sure this is higher priority than our paragraph `div` parse rule
-                // and our `fileRow` parse rule.
+                // Make sure this is higher priority than our paragraph `div` parse rule and our
+                // `fileRow` parse rule.
                 priority: paragraphParseRule.priority + 100,
                 // Only parse if the parent node is a `table`.
                 context: "table//",
@@ -283,7 +286,7 @@ export const createContentFileProsemirrorNodeSpecs = ({
                             (childNode instanceof HTMLElement &&
                                 childNode.hasAttribute("data-cy-tmp-file")) ||
                             (childNode instanceof HTMLIFrameElement &&
-                                childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
+                                isFileEntityUrl(childNode.src))
                         ) {
                             hasDirectFileChildNode = true;
                             break;
@@ -304,33 +307,32 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({
 }: {fileMarks?: string} = {}) =>
     createProsemirrorNodesSpec({
         /**
-         * Renders a single file floating to the left or right. Text will wrap around
-         * the floating file. A useful rendering mode for files when you're writing
-         * prose. You can put your file to the side of your text where it will
-         * supplements the document's content instead of interrupting it.
+         * Renders a single file floating to the left or right. Text will wrap around the
+         * floating file. A useful rendering mode for files when you're writing prose. You
+         * can put your file to the side of your text where it will supplements the
+         * document's content instead of interrupting it.
          *
          * Keyboard navigation and selection of floated files can be non-intuitive at
-         * times. Floated files usually exist in the document at their top edge.
-         * However, if there would be multiple conflicting floats at a given X position
-         * than they're cleared with the CSS `clear: both`. So a float may be visually
-         * pushed down the page by another float. This means a floating file can be in
-         * a completely different position visually than it is in the document.
-         * Changing keyboard navigation and selection interactions so they match the
-         * visual position of the file would be a difficult, maybe impossible, task. So
-         * we accept the user can get into some weird states with floating files and
-         * leave them to it.
+         * times. Floated files usually exist in the document at their top edge. However,
+         * if there would be multiple conflicting floats at a given X position than they're
+         * cleared with the CSS `clear: both`. So a float may be visually pushed down the
+         * page by another float. This means a floating file can be in a completely
+         * different position visually than it is in the document. Changing keyboard
+         * navigation and selection interactions so they match the visual position of the
+         * file would be a difficult, maybe impossible, task. So we accept the user can get
+         * into some weird states with floating files and leave them to it.
          */
         fileFloat: {
             group: "block",
             content: "file",
             defining: true,
             isolating: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
-            // Allow any marks available on `file` nodes on `fileFloat`s (e.g. comment marks
-            // in documents). Comments should never appear on `fileFloat`. Only on `file`. We
+            // Allow any marks available on `file` nodes on `fileFloat`s (e.g. comment marks in
+            // documents). Comments should never appear on `fileFloat`. Only on `file`. We
             // validate this is the case in `get_collaboratively_update_content_result.ts`.
             marks: fileMarks,
             attrs: {
@@ -351,17 +353,16 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({
             ],
             parseDOM: [
                 {
-                    // A `<div>` with a style attribute including `float: left` or `float: right`
-                    // and at least one child that has a `data-cy-tmp-file` attribute is parsed as
-                    // a `fileFloat`.
+                    // A `<div>` with a style attribute including `float: left` or `float: right` and
+                    // at least one child that has a `data-cy-tmp-file` attribute is parsed as a
+                    // `fileFloat`.
                     //
-                    // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`,
-                    // or `<object>` tags on copy. Then on paste `<ContentEditor>`'s
-                    // `transformPastedDOM` converts those elements into a `<div>` with a
-                    // `data-cy-tmp-file` attribute.
+                    // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`, or
+                    // `<object>` tags on copy. Then on paste `<ContentEditor>`'s `transformPastedDOM`
+                    // converts those elements into a `<div>` with a `data-cy-tmp-file` attribute.
                     tag: "div[style*=float]",
-                    // Make sure this is higher priority than our paragraph `div` parse rule. Also
-                    // our `fileRow` `div` parse rule.
+                    // Make sure this is higher priority than our paragraph `div` parse rule. Also our
+                    // `fileRow` `div` parse rule.
                     priority: paragraphParseRulePriority + 100,
                     getAttrs: node => {
                         if (!(node instanceof HTMLElement)) return false;
@@ -374,7 +375,7 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({
                                 (childNode instanceof HTMLElement &&
                                     childNode.hasAttribute("data-cy-tmp-file")) ||
                                 (childNode instanceof HTMLIFrameElement &&
-                                    childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
+                                    isFileEntityUrl(childNode.src))
                             ) {
                                 return {direction: node.style.float};
                             }

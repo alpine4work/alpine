@@ -38,9 +38,10 @@ export async function getNotionImport(
 /**
  * Get all Notion imports for a space.
  *
- * Filters out in-progress imports (not Success or Failed) that were started by
- * other users. This prevents users from seeing each other's in-progress imports
- * while still showing their own and all completed/failed imports.
+ * Filters out imports that haven't queued processing yet from other users. Once an
+ * import reaches ProcessQueued or later, all space members can see it. This
+ * prevents users from seeing each other's uploads/validations while still showing
+ * all imports that are queued, processing, or done.
  */
 export async function getAllNotionImportsForSpace(
     context: ServerSessionActionContext,
@@ -69,10 +70,18 @@ export async function getAllNotionImportsForSpace(
         ),
     );
 
-    // Filter out in-progress imports from other users
+    // Filter out imports that haven't queued processing yet from other users. Once
+    // processing is queued, all space members can see the import.
     return items.filter(isNonNullable).filter(item => {
-        const isFinished = item.status.type === "Success" || item.status.type === "Failed";
         const isOwnImport = item.startedByAccountId === currentAccountId;
-        return isFinished || isOwnImport;
+        if (isOwnImport) return true;
+
+        const status = item.status.type;
+        return (
+            status === "ProcessQueued" ||
+            status === "Processing" ||
+            status === "Success" ||
+            status === "Failed"
+        );
     });
 }

@@ -34,9 +34,9 @@ const previousReferencedCollectionByIdBySubscriptionForTest =
 
 export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
     /**
-     * A new task is referenced by a loaded task in the query directly or
-     * indirectly. All parent tasks of our loaded tasks are considered referenced
-     * and all parent tasks of parent tasks recursively are considered referenced.
+     * A new task is referenced by a loaded task in the query directly or indirectly.
+     * All parent tasks of our loaded tasks are considered referenced and all parent
+     * tasks of parent tasks recursively are considered referenced.
      *
      * May happen when:
      *
@@ -70,12 +70,12 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
     ): void;
 
     /**
-     * A task that was referenced directly or indirectly by a loaded task is no
-     * longer referenced.
+     * A task that was referenced directly or indirectly by a loaded task is no longer
+     * referenced.
      *
      * We don't need to apply any new `TaskAction`s to this task since it should
-     * disappear in the UI. If the task is referenced again then you will get
-     * an add event.
+     * disappear in the UI. If the task is referenced again then you will get an add
+     * event.
      */
     onReferencedTaskRemove(
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
@@ -84,12 +84,11 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
 
     /**
      * A new collection is referenced by a loaded task in the query directly or
-     * indirectly. May be referenced indirectly by any parent task of a loaded
-     * task.
+     * indirectly. May be referenced indirectly by any parent task of a loaded task.
      *
      * You are expected to send a backfill message to clients with the referenced
-     * collection. The client may not have seen relevant actions leading up to
-     * this event.
+     * collection. The client may not have seen relevant actions leading up to this
+     * event.
      */
     onReferencedCollectionAdd(
         context: TaskRealtimeSystemActionContext,
@@ -114,12 +113,12 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
     ): void;
 
     /**
-     * A collection that was referenced directly or indirectly by a loaded task is
-     * no longer referenced.
+     * A collection that was referenced directly or indirectly by a loaded task is no
+     * longer referenced.
      *
-     * We don't need to apply any new `TaskAction`s to this collection since it
-     * should disappear in the UI. If the task is referenced again then you will
-     * get an add event.
+     * We don't need to apply any new `TaskAction`s to this collection since it should
+     * disappear in the UI. If the task is referenced again then you will get an add
+     * event.
      */
     onReferencedCollectionRemove(
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
@@ -130,12 +129,11 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
 /**
  * Base class for `TaskRealtimeQuerySubscriptionInternal` and
  * `TaskRealtimeTaskSubscriptionInternal`. Both of these classes maintain a
- * subscription to some tasks. They also need to maintain subscriptions to all
- * data referenced by the tasks including parent tasks (recursively) and
- * collections.
+ * subscription to some tasks. They also need to maintain subscriptions to all data
+ * referenced by the tasks including parent tasks (recursively) and collections.
  *
- * This base class shares the bookkeeping logic for maintaining task
- * references in realtime.
+ * This base class shares the bookkeeping logic for maintaining task references in
+ * realtime.
  */
 export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     protected abstract _isSubscribed: boolean;
@@ -158,16 +156,16 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
-        // Makes sure we apply any updates to this task before adding it. See the
-        // comment on our `onReferencedTaskRemove()` call below for more information.
+        // Makes sure we apply any updates to this task before adding it. See the comment
+        // on our `onReferencedTaskRemove()` call below for more information.
         //
-        // While it's ok for this class to see an add with an old task then an update
-        // with the new task, our subscribed callbacks may be confused to see an old
-        // task from this call when it's seen a new task from another subscription.
+        // While it's ok for this class to see an add with an old task then an update with
+        // the new task, our subscribed callbacks may be confused to see an old task from
+        // this call when it's seen a new task from another subscription.
         this._getStore().onReferencedTaskAddOrRemove(newTask.id);
 
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedTaskByIdBySubscriptionForTest),
@@ -198,8 +196,8 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     ) {
         assert(this._isSubscribed);
 
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedTaskByIdBySubscriptionForTest),
@@ -232,29 +230,27 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
     ) {
-        // When we apply an action transaction, there are potentially many updates to
-        // many tasks that we apply all at once. Let's say a query references a parent
-        // task and we both need to update the parent task and remove it from the query
-        // in the same action transaction.
+        // When we apply an action transaction, there are potentially many updates to many
+        // tasks that we apply all at once. Let's say a query references a parent task and
+        // we both need to update the parent task and remove it from the query in the same
+        // action transaction.
         //
-        // This happens when deleting a task and all its children if you're subscribed
-        // to the children query, for instance. The parent task of the children is
-        // referenced and its children counts update (since the children are all
-        // deleted).
+        // This happens when deleting a task and all its children if you're subscribed to
+        // the children query, for instance. The parent task of the children is referenced
+        // and its children counts update (since the children are all deleted).
         //
-        // So in this case we need to see the update to the referenced task BEFORE we
-        // can remove it. We assert that EVERY update to a task must be witnessed by
-        // this class in order. Otherwise our tracked references might be left in a
-        // bad state.
+        // So in this case we need to see the update to the referenced task BEFORE we can
+        // remove it. We assert that EVERY update to a task must be witnessed by this class
+        // in order. Otherwise our tracked references might be left in a bad state.
         //
-        // So while applying an action transaction, our store provides an
-        // implementation for this function that if we're removing a task that has a
-        // pending update the store can tell us about the update immediately before
-        // continuing with the remove.
+        // So while applying an action transaction, our store provides an implementation
+        // for this function that if we're removing a task that has a pending update the
+        // store can tell us about the update immediately before continuing with the
+        // remove.
         this._getStore().onReferencedTaskAddOrRemove(oldTask.id);
 
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedTaskByIdBySubscriptionForTest),
@@ -333,8 +329,8 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
         if (oldParentTaskId !== newParentTaskId) {
             // Track references for the new parent first so if the old parent indirectly
-            // references stuff in the new parent we don't remove those references and add
-            // them immediately back.
+            // references stuff in the new parent we don't remove those references and add them
+            // immediately back.
             if (newParentTaskId) {
                 this._trackNewParentTaskDependency(context, eventBuilder, newParentTaskId);
             }
@@ -482,8 +478,8 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
                         // loading the task is removed but the task was part of a cycle then we need to
                         // detect we're in that case since we can't call `_onReferencedTaskAdd` twice.
                         //
-                        // If the task is being removed then we have a remove callback running right
-                        // after us at all times which will finish cleaning the task up.
+                        // If the task is being removed then we have a remove callback running right after
+                        // us at all times which will finish cleaning the task up.
                         if (detectCycleWhenAddingRemovedTaskId === taskEntry.task.id) {
                             return taskEntry;
                         }
@@ -516,9 +512,9 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldParentTaskId: TaskId,
     ) {
-        // If we are removing a cycle then we should recursively visit this function
-        // but the task has already been removed so we don't need to remove it again
-        // (we'll get an assertion error if we try).
+        // If we are removing a cycle then we should recursively visit this function but
+        // the task has already been removed so we don't need to remove it again (we'll get
+        // an assertion error if we try).
         if (removingCycleStartingWithTaskId === oldParentTaskId) return;
 
         const referencedTaskEntry = assertExists(
@@ -552,14 +548,14 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
             );
         }
         // If we have a cycle then a task entry's one remaining reference might be a
-        // reference to itself! Loop through the task's parents to see if we have a
-        // cycle and if we find a cycle remove the entire thing.
+        // reference to itself! Loop through the task's parents to see if we have a cycle
+        // and if we find a cycle remove the entire thing.
         else if (referencedTaskEntry.referenceCount === 1) {
             const seenTaskIds = new Set<TaskId>([]);
             let currentReferencedTaskEntry = referencedTaskEntry;
             while (true) {
-                // If a parent has more than one reference the cycle isn't dead even if we have
-                // a cycle.
+                // If a parent has more than one reference the cycle isn't dead even if we have a
+                // cycle.
                 if (currentReferencedTaskEntry.referenceCount !== 1) break;
 
                 const currentReferencedTaskEntryPromiseState =
@@ -571,8 +567,8 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
                 if (!parentTaskId) break;
 
                 // If we find a parent we've already seen before, this is a cycle! Remove the
-                // entire cycle as dependencies. `_onReferencedTaskRemove` will recursively
-                // visit the other cycle members.
+                // entire cycle as dependencies. `_onReferencedTaskRemove` will recursively visit
+                // the other cycle members.
                 if (seenTaskIds.has(taskEntry.task.id)) {
                     const previousRemovingCycleFromInitialTaskId = removingCycleStartingWithTaskId;
                     removingCycleStartingWithTaskId = taskEntry.task.id;
@@ -599,8 +595,8 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ) {
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousCollectionById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedCollectionByIdBySubscriptionForTest),
@@ -629,8 +625,8 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     ) {
         assert(this._isSubscribed);
 
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousCollectionById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedCollectionByIdBySubscriptionForTest),
@@ -660,8 +656,8 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldCollection: TaskCollectionIndexDoc,
     ) {
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousCollectionById = getOrSetDefaultMapValue(
                 assertExists(previousReferencedCollectionByIdBySubscriptionForTest),

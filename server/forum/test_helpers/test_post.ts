@@ -1,7 +1,6 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
@@ -38,8 +37,11 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {
     PostContent,
     PostContentProsemirrorSchema,
@@ -52,7 +54,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
@@ -75,8 +77,8 @@ export class TestPost extends TestCommentRoomBase {
     public readonly id: PostId;
     public readonly createdTime: Date;
     // NOTE(calebmer, 2024-11-01): We haven't implemented moving a post between
-    // channels but we intend to. Which is why this is called `initialChannel`
-    // instead of `channel`.
+    // channels but we intend to. Which is why this is called `initialChannel` instead
+    // of `channel`.
     public readonly initialChannel: TestChannel;
 
     private constructor(
@@ -96,21 +98,21 @@ export class TestPost extends TestCommentRoomBase {
         this.initialChannel = initialChannel;
     }
 
-    // Starts with an underscore since you should prefer calling
-    // `channel.createPost()` to `TestPost._create()`.
+    // Starts with an underscore since you should prefer calling `channel.createPost()`
+    // to `TestPost._create()`.
     public static async _create(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         channel: TestChannel,
         content: Node | string,
         options?: TestPostCreateOptions,
     ): Promise<TestPost>;
     public static async _create(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         channel: TestChannel,
         options?: TestPostCreateOptions,
     ): Promise<TestPost>;
     public static async _create(
-        session: TestSpaceSession,
+        session: TestSession | TestBotAccount,
         channel: TestChannel,
         contentOrOptions?: Node | string | TestPostCreateOptions,
         options?: TestPostCreateOptions,
@@ -131,7 +133,7 @@ export class TestPost extends TestCommentRoomBase {
         {};
 
         if (typeof content === "string") {
-            content = parsePostTestContent(session.space.id, content);
+            content = parsePostTestContent(content);
         }
 
         const attachFiles =
@@ -169,16 +171,22 @@ export class TestPost extends TestCommentRoomBase {
             );
         }
 
-        // To create a post with files we first need to create a draft and attach all
-        // files to that draft. Then we create the post using the draft which will move
-        // any attachments from the draft to the post.
+        // To create a post with files we first need to create a draft and attach all files
+        // to that draft. Then we create the post using the draft which will move any
+        // attachments from the draft to the post.
         let draftId: PostDraftId | null = null;
         if (attachFiles.length > 0) {
+            if (!(session instanceof TestSession)) {
+                throw new UnimplementedError(
+                    "Attaching files to bot create post isn\u2019t implemented",
+                );
+            }
+
             draftId = generateChronologicalId<PostDraftId>();
 
             await createOrReplacePostDraft(
                 session.action(),
-                session.space.id,
+                channel.space.id,
                 session.account.id,
                 draftId,
                 {
@@ -193,6 +201,7 @@ export class TestPost extends TestCommentRoomBase {
                         session,
                         FilePostAuthorizer.bind({
                             type: "PostDraft",
+                            spaceId: channel.space.id,
                             accountId: session.account.id,
                             draftId: draftId!,
                         }),
@@ -212,8 +221,8 @@ export class TestPost extends TestCommentRoomBase {
 
         return new TestPost(
             session.context,
-            session.space,
-            session.account,
+            channel.space,
+            session instanceof TestSession ? session.account : session,
             post.id,
             post.createdTime,
             channel,
@@ -242,14 +251,14 @@ export class TestPost extends TestCommentRoomBase {
             content,
             fileIds,
             createdTimeZone,
-            overrideCreatedTimeForTest,
+            overrideCreatedTime,
             isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
-            overrideCreatedTimeForTest?: Date;
+            overrideCreatedTime?: Date;
             isStream?: boolean;
         },
     ) {
@@ -260,7 +269,7 @@ export class TestPost extends TestCommentRoomBase {
             fileIds,
             isStream,
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
-            overrideCreatedTimeForTest,
+            overrideCreatedTimeForTest: overrideCreatedTime,
         });
     }
 
@@ -371,7 +380,7 @@ export class TestPost extends TestCommentRoomBase {
         return (await getPost(this.space.systemAction(), this.id)).model;
     }
 
-    public async getRealtime(): Promise<DynamoGeneralRealtimeItem<PostModel>> {
+    public async getRealtime(): Promise<RynamoItem<PostModel>> {
         return await getPost(this.space.systemAction(), this.id);
     }
 
@@ -396,14 +405,14 @@ export class TestPost extends TestCommentRoomBase {
         originalAttachFiles ??= emptyArray;
 
         const post = await getPostContentAndChannelPreview(
-            // Use a system action since if there's a `PermissionDeniedError` we want it
-            // thrown from `updatePostContent()` instead of here.
+            // Use a system action since if there's a `PermissionDeniedError` we want it thrown
+            // from `updatePostContent()` instead of here.
             this.space.systemAction(),
             this.id,
         );
 
         if (typeof content === "string") {
-            content = parsePostTestContent(this.space.id, content);
+            content = parsePostTestContent(content);
         }
 
         const attachFiles =
@@ -468,7 +477,7 @@ export class TestPost extends TestCommentRoomBase {
         session: TestSession,
         reaction: Reaction | "GenericLike" | ReactionEmotion = "GenericLike",
     ) {
-        return setPostReaction(
+        return await setPostReaction(
             session.action().clone({
                 apns: new TestApnsContextModule(),
                 webPush: new TestWebPushContextModule(),
@@ -484,11 +493,11 @@ export class TestPost extends TestCommentRoomBase {
     }
 
     public async deleteReaction(session: TestSession) {
-        return deletePostReaction(session.action(), this.id);
+        return await deletePostReaction(session.action(), this.id);
     }
 }
 
-function parsePostTestContent(spaceId: SpaceId, content: string): PostContent {
-    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+function parsePostTestContent(content: string): PostContent {
+    const apiContent = parseApiContentFromMarkdown(content);
     return assertPostContent(fromApiContent(PostContentProsemirrorSchema, apiContent));
 }

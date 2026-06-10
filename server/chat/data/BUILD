@@ -7,6 +7,7 @@ ts_project(
         "//server/chat/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/messaging/test_helpers/suite",
+        "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
     ],
     tests = {
@@ -24,6 +25,7 @@ ts_project(
         "//server/content",
         "//server/context",
         "//server/dynamo/core",
+        "//server/feed",
         "//server/files/data",
         "//server/helpers",
         "//server/messaging/helpers",

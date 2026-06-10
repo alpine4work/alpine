@@ -1,8 +1,8 @@
 diff --git a/lib/providers/ec2.d.ts b/lib/providers/ec2.d.ts
-index 5ed1001f3d3abd6312c3d172cab2163486333c6c..8f1c87d9a5381f5f51abca307765e93396f753b6 100644
+index 5ed1001f3d3abd6312c3d172cab2163486333c6c..635fa215633aa9b39cca0494e450852fdb7abc50 100644
 --- a/lib/providers/ec2.d.ts
 +++ b/lib/providers/ec2.d.ts
-@@ -87,6 +87,10 @@ export interface Ec2RunnerProviderProps extends RunnerProviderProps {
+@@ -87,6 +87,12 @@ export interface Ec2RunnerProviderProps extends RunnerProviderProps {
       * @default no max price (you will pay current spot price)
       */
      readonly spotMaxPrice?: string;
@@ -10,18 +10,21 @@ index 5ed1001f3d3abd6312c3d172cab2163486333c6c..8f1c87d9a5381f5f51abca307765e933
 +    // when it launches. Can be any string, by convention we typically pass in
 +    // a JSON string.
 +    readonly userDataExtra?: string;
++    // NOTE(rmtobin): Extra tags to add to EC2 instances launched by this runner.
++    readonly extraTags?: Array<{key: string; value: string}>;
  }
  /**
   * GitHub Actions runner provider using EC2 to execute jobs.
 diff --git a/lib/providers/ec2.js b/lib/providers/ec2.js
-index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..0ba583989d3df38c8a1e13f7efd13b71756a3bf0 100644
+index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..fde524ec479f28df03a6cc828833bc40dcf95bb5 100644
 --- a/lib/providers/ec2.js
 +++ b/lib/providers/ec2.js
-@@ -22,6 +22,7 @@ repoPath="{}"
+@@ -22,6 +22,8 @@ repoPath="{}"
  runnerTokenPath="{}"
  labels="{}"
  registrationURL="{}"
 +export USER_DATA_EXTRA="$(echo "{}" | base64 --decode)"
++export ALPINE_RUNNER_TAG="$(node -e "process.stdout.write((JSON.parse(process.env.USER_DATA_EXTRA).alpineRunnerTag || ''))")"
  
  heartbeat () {
    while true; do
@@ -30,7 +33,7 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..0ba583989d3df38c8a1e13f7efd13b71
  
    # Execute the run command
 -  sudo --preserve-env=AWS_REGION -Hu runner /home/runner/run.sh || exit 2
-+  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA -Hu runner /home/runner/run.sh || exit 2
++  sudo --preserve-env=AWS_REGION,USER_DATA_EXTRA,ALPINE_RUNNER_TAG -Hu runner /home/runner/run.sh || exit 2
  
    # Retrieve the status
    STATUS=$(grep -Phors "finish job request for job [0-9a-f\\-]+ with result: \K.*" /home/runner/_diag/ | tail -n1)
@@ -42,15 +45,16 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..0ba583989d3df38c8a1e13f7efd13b71
  
  # EC2Launch only starts ssm agent after user data is done, so we need to start it ourselves (it is disabled by default)
  Set-Service -StartupType Manual AmazonSSMAgent
-@@ -236,6 +238,7 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
+@@ -236,6 +238,8 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
              removalPolicy: aws_cdk_lib_1.RemovalPolicy.DESTROY,
          });
          this.logGroup.grantWrite(this);
 +        this.userDataExtra = props.userDataExtra || "";
++        this.extraTags = props.extraTags || [];
      }
      /**
       * Generate step function task(s) to start a new runner.
-@@ -256,6 +259,7 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
+@@ -256,6 +260,7 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
              parameters.runnerTokenPath,
              this.labels.join(','),
              parameters.registrationUrl,
@@ -58,3 +62,74 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..0ba583989d3df38c8a1e13f7efd13b71
          ];
          const passUserData = new aws_cdk_lib_1.aws_stepfunctions.Pass(this, `${this.labels.join(', ')} data`, {
              parameters: {
+@@ -316,8 +321,11 @@ class Ec2RunnerProvider extends common_1.BaseProvider {
+                     TagSpecifications: [
+                         {
+                             ResourceType: 'instance',
+-                            Tags: [{
++                            Tags: [
++                                {
+                                     Key: 'GitHubRunners:Provider',
+                                     Value: this.node.path,
+-                                }],
++                                },
++                                ...this.extraTags.map(t => ({Key: t.key, Value: t.value})),
++                            ],
+                         },
+diff --git a/lib/runner.js b/lib/runner.js
+index 873389efcb92bfd53137a3a2834ac2093d7975c0..dd60e7f1588dfaf159d6a8115f9b4f46a415bb94 100644
+--- a/lib/runner.js
++++ b/lib/runner.js
+@@ -99,6 +99,7 @@ class GithubRunners extends constructs_1.Construct {
+                 return {
+                     provider: p.node.path,
+                     labels: p.labels,
++                    dynamicLabelPrefixes: p.dynamicLabelPrefixes ?? [],
+                 };
+             }),
+             requireSelfHostedLabel: this.props?.requireSelfHostedLabel ?? true,
+diff --git a/lib/webhook.d.ts b/lib/webhook.d.ts
+index 98e06d64ddd7b21ef8a6e3eb19ee64824c9465eb..115867e06c94ea399c1f49e20120e6c1b983065e 100644
+--- a/lib/webhook.d.ts
++++ b/lib/webhook.d.ts
+@@ -8,6 +8,9 @@ import { WebhookHandlerFunction } from './webhook-handler-function';
+ export interface SupportedLabels {
+     readonly provider: string;
+     readonly labels: string[];
++    // PATCH(imjoshin): Allow providers to accept dynamic per-job labels
++    // without listing every generated label in CDK.
++    readonly dynamicLabelPrefixes?: string[];
+ }
+ /**
+  * Properties for GithubWebhookHandler
+diff --git a/lib/webhook-handler.lambda.js b/lib/webhook-handler.lambda.js
+index d4a078cd5ada2d4dfcc29f6cd64de3915fb89a93..f50c516d50b5b0c33ff41773929c9e2f2332e6b7 100644
+--- a/lib/webhook-handler.lambda.js
++++ b/lib/webhook-handler.lambda.js
+@@ -63,7 +63,11 @@ function matchLabelsToProvider(labels) {
+     // is every label the job requires available in the runner provider?
+     for (const supportedLabelSet of supportedLabels) {
+         const lowerCasedSupportedLabelSet = supportedLabelSet.labels.map((label) => label.toLowerCase());
+-        if (jobLabelSet.every(label => label == 'self-hosted' || lowerCasedSupportedLabelSet.includes(label))) {
++        const lowerCasedDynamicLabelPrefixes = (supportedLabelSet.dynamicLabelPrefixes ?? [])
++            .map((labelPrefix) => labelPrefix.toLowerCase());
++        if (jobLabelSet.every(label => label == 'self-hosted' ||
++            lowerCasedSupportedLabelSet.includes(label) ||
++            lowerCasedDynamicLabelPrefixes.some(labelPrefix => label.startsWith(labelPrefix)))) {
+             return supportedLabelSet.provider;
+         }
+     }
+diff --git a/assets/webhook-handler.lambda/index.js b/assets/webhook-handler.lambda/index.js
+index e8ac7a183da38b466929db472c4c6ff328dfc09f..0a8a77d1fd67925cf9231e8a8fc7cd21718c5b18 100644
+--- a/assets/webhook-handler.lambda/index.js
++++ b/assets/webhook-handler.lambda/index.js
+@@ -13282,7 +13282,8 @@ function matchLabelsToProvider(labels) {
+   const supportedLabels = JSON.parse(process.env.SUPPORTED_LABELS);
+   for (const supportedLabelSet of supportedLabels) {
+     const lowerCasedSupportedLabelSet = supportedLabelSet.labels.map((label) => label.toLowerCase());
+-    if (jobLabelSet.every((label) => label == "self-hosted" || lowerCasedSupportedLabelSet.includes(label))) {
++    const lowerCasedDynamicLabelPrefixes = (supportedLabelSet.dynamicLabelPrefixes ?? []).map((labelPrefix) => labelPrefix.toLowerCase());
++    if (jobLabelSet.every((label) => label == "self-hosted" || lowerCasedSupportedLabelSet.includes(label) || lowerCasedDynamicLabelPrefixes.some((labelPrefix) => label.startsWith(labelPrefix)))) {
+       return supportedLabelSet.provider;
+     }
+   }

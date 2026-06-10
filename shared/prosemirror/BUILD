@@ -3,8 +3,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "prosemirror",
     test_deps = [
+        "//:node_modules/fast-check",
+        "//:node_modules/prettier",
         "//:node_modules/prosemirror-schema-basic",
         "//shared/content",
+        "//shared/documents",
         "//shared/forum",
     ],
     visibility = ["//visibility:public"],
@@ -15,6 +18,7 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-state",
         "//:node_modules/prosemirror-transform",
+        "//:node_modules/unicode-default-word-boundary",
         "//shared/error",
         "//shared/schema",
     ],

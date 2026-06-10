@@ -8,8 +8,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 /**
  * Update our account's Stripe customer ID.
  *
- * If the customer ID already exists in the database, this will update both
- * the Customer item and the Account Billing item to ensure consistency.
+ * If the customer ID already exists in the database, this will update both the
+ * Customer item and the Account Billing item to ensure consistency.
  *
  * If the customer ID does not exist, this will create both items.
  */

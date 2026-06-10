@@ -14,7 +14,8 @@ import {
 } from "~/shared/helpers/string/safe_string.js";
 
 /**
- * Creates a div that houses the necessary canvas and scripts needed to render a blob.
+ * Creates a div that houses the necessary canvas and scripts needed to render a
+ * blob.
  */
 export function renderBlobsArtToHtml(
     props: Partial<BlobsSettings> & {

@@ -2,9 +2,9 @@ import {InboxEntryItem} from "~/server/notifications/data/internal/inbox_table.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
- * Returns a string that is unique for a specific inbox notification event and does not group
- * together related notifications into a single entry (e.g. not all messages in a chat or all
- * comments on a post).
+ * Returns a string that is unique for a specific inbox notification event and does
+ * not group together related notifications into a single entry (e.g. not all
+ * messages in a chat or all comments on a post).
  */
 export function getPushNotificationEntryId(item: InboxEntryItem): string {
     let id: string;
@@ -19,8 +19,8 @@ export function getPushNotificationEntryId(item: InboxEntryItem): string {
             id = `${item.sortRangeType.toLowerCase()}-${item.channelId}-${item.bucketGeneration}`;
             break;
         case "DocumentCommentThreadEntry":
-            // `DocumentCommentThreadId` is only guaranteed to be unique within a document.
-            // It may not be unique across documents.
+            // `DocumentCommentThreadId` is only guaranteed to be unique within a document. It
+            // may not be unique across documents.
             id = `${item.sortRangeType.toLowerCase()}-${item.documentId}-${item.commentThreadId}`;
             break;
         case "DocumentNewCommentThreadsEntry":

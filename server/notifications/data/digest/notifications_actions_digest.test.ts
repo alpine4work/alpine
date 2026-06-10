@@ -42,10 +42,12 @@ const context = createTestContext({
     },
 });
 
-// NOTE(rmtobin): Watch out for the if statement ordering in `isInboxEligibleForDigestNotification`,
-// since a bug with an earlier if statement could cause all later ones to fail, or cause misleading test results.
-// Ideally we'd mock out the `isAccountMemberOfSpace` function to reduce this risk, but Jest's ESM
-// module support doesn't allow partial mocks (and there's a lot of functions in the spaces module).
+// NOTE(rmtobin): Watch out for the if statement ordering in
+// `isInboxEligibleForDigestNotification`, since a bug with an earlier if statement
+// could cause all later ones to fail, or cause misleading test results. Ideally
+// we'd mock out the `isAccountMemberOfSpace` function to reduce this risk, but
+// Jest's ESM module support doesn't allow partial mocks (and there's a lot of
+// functions in the spaces module).
 describe("isInboxEligibleForDigestNotification", () => {
     const currentTime = new Date("2024-01-10T00:00:00Z");
     test("should return false when digestNotificationsOptedOutTime is set", async () => {
@@ -239,6 +241,16 @@ describe("computeDigestNotificationsNextScheduledDateTime", () => {
             {
                 description: "Eastern European Standard Time",
                 tzString: "Europe/Kyiv",
+                calendarDate: "2024-01-15",
+            },
+            {
+                description: "Asia Kolkata Time, +30 minute offset",
+                tzString: "Asia/Kolkata",
+                calendarDate: "2024-01-15",
+            },
+            {
+                description: "Australian Central Western Time, +45 minute offset",
+                tzString: "Australia/Eucla",
                 calendarDate: "2024-01-15",
             },
         ])(
@@ -1219,12 +1231,13 @@ describe("getNotificationDigestContent", () => {
             digestEntries: [
                 {
                     brandIconType: "Chat",
-                    firstAccount: {
+                    featuredAccount: {
                         avatar: null,
                         botId: undefined,
                         id: scenario.session3.account.id,
                         name: scenario.session3.account.initialName,
                         nameVersion: 0,
+                        plan: undefined,
                         space: {
                             addedTime: expect.any(Date),
                             role: "Member",
@@ -1236,13 +1249,14 @@ describe("getNotificationDigestContent", () => {
                     },
                     loudNotificationCount: 1,
                     preview: "Test: message1",
-                    secondAccount: {
+                    otherAccount: {
                         avatar: null,
                         botId: undefined,
                         id: scenario.session2.account.id,
                         name: scenario.session2.account.initialName,
 
                         nameVersion: 0,
+                        plan: undefined,
                         space: {
                             addedTime: expect.any(Date),
                             role: "Member",
@@ -1252,7 +1266,7 @@ describe("getNotificationDigestContent", () => {
                         version: 0,
                         reactionCharacter: expect.any(Object),
                     },
-                    summary: [
+                    title: [
                         {
                             name: parseAccountNameAssumingWesternNameOrder(
                                 scenario.session3.account.initialName,
@@ -1273,7 +1287,7 @@ describe("getNotificationDigestContent", () => {
                     url: expect.any(URL),
                 },
             ],
-            inboxUrl: new URL(`/s/${scenario.space.id}/inbox`, context.constants.edgeServiceUrl),
+            inboxUrl: new URL(`/inbox/${scenario.space.id}`, context.constants.edgeServiceUrl),
             remainingEntryCount: 0,
         };
         expect(content).toEqual(expectedContent);
@@ -1307,7 +1321,7 @@ describe("getNotificationDigestContent", () => {
 
         const expectedContent = {
             digestEntries: [],
-            inboxUrl: new URL(`/s/${scenario.space.id}/inbox`, context.constants.edgeServiceUrl),
+            inboxUrl: new URL(`/inbox/${scenario.space.id}`, context.constants.edgeServiceUrl),
             remainingEntryCount: 0,
         };
         expect(content).toEqual(expectedContent);
@@ -1347,7 +1361,7 @@ describe("sendScheduledDigestsForTime", () => {
     afterEach(async () => {
         await context.resetDynamoLocal();
     });
-    test("should send digests for the given digestTime that is already rounded to the nearest hour", async () => {
+    test("should send digests for a send time that is already rounded to the nearest quarter hour", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1364,14 +1378,14 @@ describe("sendScheduledDigestsForTime", () => {
             lastEntryUpdatedTime: new Date("2025-10-15T12:00:00Z"),
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: null,
-            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T21:00:00.000Z") as any,
+            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T20:30:00.000Z") as any,
         });
-        const sendTime = new Date("2025-10-15T20:15:00.000Z");
+        const sendTime = new Date("2025-10-15T20:30:00.000Z");
         await sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime);
         expect(sendNotificationDigestMock).toHaveBeenCalled();
     });
 
-    test("should send digests for a digestTime with non-zero seconds or milliseconds", async () => {
+    test("should send digests for a send time with non-zero seconds or milliseconds", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1388,14 +1402,14 @@ describe("sendScheduledDigestsForTime", () => {
             lastEntryUpdatedTime: new Date("2025-10-15T12:00:00Z"),
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: null,
-            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T21:00:00.000Z") as any,
+            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T20:15:00.000Z") as any,
         });
         const sendTime = new Date("2025-10-15T20:01:02.123Z");
         await sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime);
         expect(sendNotificationDigestMock).toHaveBeenCalled();
     });
 
-    test("should throw if digestTime is not a valid date", async () => {
+    test("should throw if send time is not a valid date", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -1421,7 +1435,7 @@ describe("sendScheduledDigestsForTime", () => {
         expect(sendNotificationDigestMock).not.toHaveBeenCalled();
     });
 
-    test("should throw if sendTime is not a valid scheduleDateTime", async () => {
+    test("should throw if send time is not a valid ScheduleDateTime", async () => {
         const emailSpy = import.meta.jest.spyOn(
             EmailContextModule.NoopEmailContextModule.prototype,
             "send",

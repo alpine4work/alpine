@@ -2,9 +2,9 @@
 
 const path = require("path");
 
-// Use `process.cwd()` since ESLint is invoked with `cwd` set to the workspace root.
-// We can't use `__dirname` because when loaded from `node_modules`, that path
-// doesn't relate to the repo structure.
+// Use `process.cwd()` since ESLint is invoked with `cwd` set to the workspace
+// root. We can't use `__dirname` because when loaded from `node_modules`, that
+// path doesn't relate to the repo structure.
 const repoDir = process.cwd();
 
 module.exports = {
@@ -38,8 +38,7 @@ module.exports = {
                 let pathInternalIndex = importPath.indexOf(internalPathSegment);
 
                 while (pathInternalIndex !== -1) {
-                    // Reject an import: `~/foo/internal/bar`
-                    // From: `~/qux/buz`
+                    // Reject an import: `~/foo/internal/bar` From: `~/qux/buz`
                     if (
                         ourPath.slice(pathStartIndex, pathInternalIndex) !==
                         importPath.slice(pathStartIndex, pathInternalIndex)

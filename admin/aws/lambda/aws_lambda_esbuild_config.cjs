@@ -1,8 +1,7 @@
 "use strict";
 
-// Extract the compilation mode from the `BAZEL_BINDIR` environment variable.
-// This is a little hacky.
-// https://bazel.build/docs/user-manual#compilation-mode
+// Extract the compilation mode from the `BAZEL_BINDIR` environment variable. This
+// is a little hacky. https://bazel.build/docs/user-manual#compilation-mode
 //
 // IMPORTANT: If you update the code here, you should also update the code in
 // `styles_esbuild_config.cjs` and `edge_esbuild_config.cjs`.

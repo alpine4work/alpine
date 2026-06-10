@@ -11,6 +11,7 @@ import {
     navigationBarHeight,
 } from "~/client/web/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/web/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/web/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -23,9 +24,10 @@ import {
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
-import {getClientInfo} from "~/client/web/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/web/rpc/send_rpc_navigator_beacon.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
@@ -47,14 +49,12 @@ import {createOrReplacePostDraft, createPost} from "~/shared/rpc/forum_rpc_defin
 
 export function PostCreator({
     draftId,
-    displayCreatedTime,
     initialChannel,
     initialContent,
     shouldReturnBack,
     initiallyFocus,
 }: {
     draftId: PostDraftId;
-    displayCreatedTime: Date;
     initialChannel: ChannelPreviewModel | null;
     initialContent: PostContentWithReferences;
     shouldReturnBack: boolean;
@@ -62,16 +62,28 @@ export function PostCreator({
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
+    const clientInfo = useClientInfo();
     const platform = usePlatform();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
+
+    const displayCreatedDate = useCurrentDate();
+    const displayCreatedTime = useMemo(
+        () => new Date(displayCreatedDate.toDate(clientInfo.timeZone)),
+        [clientInfo.timeZone, displayCreatedDate],
+    );
 
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const channelSelectorRef = useRef<PostCreatorChannelSelectorInputRef>(null);
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
-    const [state, setState] = useState(() => ContentEditorState.create(initialContent));
+    const [state, setState] = useState(() =>
+        ContentEditorState.create({
+            spaceId: space.id,
+            content: initialContent,
+        }),
+    );
 
     const [channel, setChannel] = useState(initialChannel);
 
@@ -83,9 +95,9 @@ export function PostCreator({
     const clearSaveDebounceTimeoutRef = useRef<(() => void) | null>(null);
 
     // Save the draft on a debounced 5s timer. If the draft hasn't updated for 5
-    // seconds then we save it on the server. If the user closes the page (which
-    // emits a `visibilitychange` event) then we also make sure to save the draft
-    // so it's available the next time the user loads the page.
+    // seconds then we save it on the server. If the user closes the page (which emits
+    // a `visibilitychange` event) then we also make sure to save the draft so it's
+    // available the next time the user loads the page.
     useEffect(() => {
         if (lastDocRef.current === doc && lastChannelIdRef.current === channelId) {
             return;
@@ -98,8 +110,8 @@ export function PostCreator({
         lastChannelIdRef.current = channelId;
 
         const run = () => {
-            // In case this runs when the user closes the page (`visibilitychange` event)
-            // we want to use `navigator.sendBeacon()` so the request isn't cancelled.
+            // In case this runs when the user closes the page (`visibilitychange` event) we
+            // want to use `navigator.sendBeacon()` so the request isn't cancelled.
             sendRpcNavigatorBeacon(createOrReplacePostDraft, {
                 spaceId: space.id,
                 draftId,
@@ -164,11 +176,12 @@ export function PostCreator({
             variant="neutral"
             withoutMinWidth={platform === "mobile"}
             isDisabled={isContentEmpty(state.getDoc()) || !channel}
+            keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "enter")}
             pressErrorTitle="Couldn&#x2019;t create post"
             onPress={async () => {
                 if (!channel) return;
 
-                const {post, eventTransaction} = await createPost(context, {
+                const {post, events} = await createPost(context, {
                     channelId: channel.id,
                     draftId,
                     content: trimContent(state.getDoc()),
@@ -176,18 +189,17 @@ export function PostCreator({
                 });
 
                 // While the client should get their new post data through `<ChannelView>`s
-                // WebSocket connection, we emit the realtime event returned by
-                // `createPost()` so `<ChannelView>` can use that too in case the WebSocket
-                // is slow.
+                // WebSocket connection, we emit the realtime event returned by `createPost()` so
+                // `<ChannelView>` can use that too in case the WebSocket is slow.
                 optimisticCreatePostEventEmitter.emit({
                     channelId: channel.id,
-                    eventTransaction,
+                    events,
                 });
 
                 if (shouldReturnBack) {
                     await navigate(-1);
                 } else {
-                    await navigate(`/s/${space.id}/posts/${post.id}`, {
+                    await navigate(`/post/${post.id}`, {
                         replace: true,
                         // In our native mobile app, we want to call
                         // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
@@ -214,13 +226,18 @@ export function PostCreator({
                 {createButtonNode}
             </Box>
         ),
+        defaultPreviousRoute: channelId ? `/channel/${channelId}` : `/create/${space.id}`,
     });
 
+    const onSelectGif = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
+
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
-        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
-        //   initial render.
-        // - Disable on `sidebarState.isOpen` since the comment view should be
-        //   scrolling not the document.
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
+        //   render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be scrolling
+        //   not the document.
         isDisabled: isInitialAppRender,
         getAnchorPosition: useCallback(() => getContentEditorScrollAnchorPosition(editorRef), []),
     });
@@ -236,8 +253,8 @@ export function PostCreator({
             flexDirection="column"
         >
             {platform !== "mobile" && (
-                // No safe area cover on mobile since the navigation bar will act as a safe
-                // area cover.
+                // No safe area cover on mobile since the navigation bar will act as a safe area
+                // cover.
                 <Box
                     position="absolute"
                     top="0"
@@ -295,6 +312,14 @@ export function PostCreator({
                                                 channel={channel}
                                                 onChannelChange={setChannel}
                                                 width="full"
+                                                onModEnterKeyDown={event => {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+
+                                                    // Programmatically press the button instead of calling `createPost()` directly to
+                                                    // correctly handle loading and error states.
+                                                    assertExists(createButtonRef.current).press();
+                                                }}
                                             />
                                         }
                                     />
@@ -327,6 +352,14 @@ export function PostCreator({
                                             channel={channel}
                                             onChannelChange={setChannel}
                                             width="full"
+                                            onModEnterKeyDown={event => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+
+                                                // Programmatically press the button instead of calling `createPost()` directly to
+                                                // correctly handle loading and error states.
+                                                assertExists(createButtonRef.current).press();
+                                            }}
                                         />
                                     </Box>
                                 </Box>
@@ -337,13 +370,13 @@ export function PostCreator({
                             aria-label="New post"
                             state={state}
                             onChange={state => setState(state)}
-                            // On mobile, don't allow interactions when unfocused. We're already in an
-                            // editing modality.
+                            // On mobile, don't allow interactions when unfocused. We're already in an editing
+                            // modality.
                             withoutMobileDualModality={true}
                             placeholder="Share your ideas, press @ to insert…"
                             // Special case for `<ShareOverlay>`'s "Post in channel". If there's an empty
-                            // paragraph followed by a file row then consider the body to be empty so we
-                            // see the placeholder in the first empty paragraph instead of empty space.
+                            // paragraph followed by a file row then consider the body to be empty so we see
+                            // the placeholder in the first empty paragraph instead of empty space.
                             isBodyEmpty={
                                 doc.childCount === 2 &&
                                 doc.firstChild!.type.name === "paragraph" &&
@@ -352,8 +385,13 @@ export function PostCreator({
                                 doc.lastChild!.childCount === 1
                             }
                             fileAttachmentTarget={useMemo(
-                                () => ({type: "PostDraft", accountId: currentAccount.id, draftId}),
-                                [currentAccount.id, draftId],
+                                () => ({
+                                    type: "PostDraft",
+                                    spaceId: space.id,
+                                    accountId: currentAccount.id,
+                                    draftId,
+                                }),
+                                [space.id, currentAccount.id, draftId],
                             )}
                             onEnsureFileAttachmentTarget={async () => {
                                 clearSaveDebounceTimeoutRef.current?.();
@@ -376,15 +414,16 @@ export function PostCreator({
                                 }),
                             )}
                             onModEnterKeyDown={() => {
-                                // Programmatically press the button instead of calling `createPost()`
-                                // directly to correctly handle loading and error states.
+                                // Programmatically press the button instead of calling `createPost()` directly to
+                                // correctly handle loading and error states.
                                 assertExists(createButtonRef.current).press();
                             }}
-                            // Since the post content editor fills the entire screen height, it makes
-                            // sense that if the user `mousedown`s in the bottom margin we should create a
-                            // new paragraph and move selection there if the last item is not already a
-                            // paragraph (e.g. a divider or table or something).
+                            // Since the post content editor fills the entire screen height, it makes sense
+                            // that if the user `mousedown`s in the bottom margin we should create a new
+                            // paragraph and move selection there if the last item is not already a paragraph
+                            // (e.g. a divider or table or something).
                             withMouseDownAtEndCreatesParagraph={true}
+                            onSelectGif={onSelectGif}
                         />
                     </Box>
                 </OverlayScopeContextProvider>

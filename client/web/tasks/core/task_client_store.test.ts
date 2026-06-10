@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {
     TaskClientReadonlyStore,
@@ -22,11 +23,22 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {OrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SiteId,
+    SiteSideBarId,
+    SiteTopBarId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
+import {SiteTopBarContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
@@ -36,14 +48,13 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {taskAuthorizedState} from "~/shared/tasks/task_realtime_protocol.js";
 
-// We disable the `commitTaskActionTransaction()` mutex in this file so commits
-// can be sent and responses received out-of-order. These tests were written
-// before we placed a mutex around `commitTaskActionTransaction()` and the
-// out-of-order tests tickle interesting code-paths in `TaskClientStore` we
-// want to keep testing.
+// We disable the `commitTaskActionTransaction()` mutex in this file so commits can
+// be sent and responses received out-of-order. These tests were written before we
+// placed a mutex around `commitTaskActionTransaction()` and the out-of-order tests
+// tickle interesting code-paths in `TaskClientStore` we want to keep testing.
 //
-// So even though out-of-order commits aren't possible in a web browser, allow
-// them in this test file.
+// So even though out-of-order commits aren't possible in a web browser, allow them
+// in this test file.
 beforeAll(() => {
     setShouldDisableCommitTaskActionTransactionMutexForTest(true);
 });
@@ -57,6 +68,7 @@ const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 const accountRegistry = getAccountRegistry(spaceId);
+const siteRegistry = getSiteRegistry(spaceId);
 
 const account1 = createTestAccountModel({name: "Test Account 1"});
 
@@ -86,12 +98,12 @@ function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
     const taskEntry = store.getTaskEntrySnapshot(taskId);
     if (!taskEntry) return null;
 
-    // This test was written before we added `actionReferencedAccountStoreById` to
-    // task entries. Discard `actionReferencedAccountStoreById` so we can avoid
-    // rewriting tests.
+    // This test was written before we added `actionReferencedAccountStoreById` to task
+    // entries. Discard `actionReferencedAccountStoreById` so we can avoid rewriting
+    // tests.
 
-    // Use a `WeakMap` to make sure we maintain referential equality if the task
-    // entry doesn't change.
+    // Use a `WeakMap` to make sure we maintain referential equality if the task entry
+    // doesn't change.
     return getOrSetDefaultMapValue(taskEntryCache, taskEntry, () => ({
         ...taskEntry,
         actions: taskEntry.actions?.map(({action}) => action) ?? null,
@@ -193,6 +205,7 @@ afterEach(() => {
 function createAutoRetainStore() {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -206,8 +219,8 @@ function createAutoRetainStore() {
             if (taskIdsWithSubscription.has(taskId)) continue;
             taskIdsWithSubscription.add(taskId);
 
-            // Create a subscription to every `TaskId` we see updated so our tests don't
-            // have to worry about retaining task entries.
+            // Create a subscription to every `TaskId` we see updated so our tests don't have
+            // to worry about retaining task entries.
             taskSubscriptions.push(store.createAndRetainTaskSubscription(taskId));
         }
 
@@ -215,8 +228,8 @@ function createAutoRetainStore() {
             if (collectionIdsWithSubscription.has(collectionId)) continue;
             collectionIdsWithSubscription.add(collectionId);
 
-            // Create a subscription to every `TaskId` we see updated so our tests don't
-            // have to worry about retaining task entries.
+            // Create a subscription to every `TaskId` we see updated so our tests don't have
+            // to worry about retaining task entries.
             collectionSubscriptions.push(store.createAndRetainCollectionSubscription(collectionId));
         }
     });
@@ -255,7 +268,7 @@ function createTask(
         time = store.clock.now(),
         taskAction = {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     }: {
@@ -274,9 +287,10 @@ function createCollection(
         time = store.clock.now(),
         collectionAction = {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -300,8 +314,8 @@ async function resolveLastRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     output: Output,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.resolveLastExecution(definition, output);
@@ -315,8 +329,8 @@ async function resolveRpcExecution<Input, Output>(
     n: number,
     output: Output,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.resolveExecution(definition, n, output);
@@ -329,8 +343,8 @@ async function rejectRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     n: number,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.rejectExecution(definition, n);
@@ -342,8 +356,8 @@ async function rejectRpcExecution<Input, Output>(
 async function rejectLastRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.rejectLastExecution(definition);
@@ -367,6 +381,7 @@ test("backfills an authorized task", () => {
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -404,6 +419,7 @@ test("backfills authorized tasks", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1.id)).toEqual({
@@ -434,6 +450,7 @@ test("backfills authorized tasks", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1.id)).toEqual({
@@ -495,6 +512,7 @@ test("backfill merges with existing authorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -512,6 +530,7 @@ test("backfill merges with existing authorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1b}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -552,6 +571,7 @@ test("backfill merges with existing unauthorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -571,6 +591,7 @@ test("backfill merges with existing unauthorized task", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -590,6 +611,7 @@ test("backfill merges with existing unauthorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1b}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -634,6 +656,7 @@ test("backfill merges behind existing unauthorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -653,6 +676,7 @@ test("backfill merges behind existing unauthorized task", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -672,6 +696,7 @@ test("backfill merges behind existing unauthorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1b}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -719,6 +744,7 @@ test("backfill adds task behind existing unauthorized task", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -738,6 +764,7 @@ test("backfill adds task behind existing unauthorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1b}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -779,6 +806,7 @@ test("action is applied to authorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -796,6 +824,7 @@ test("action is applied to authorized task", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -831,6 +860,7 @@ test("action is applied to unauthorized task", () => {
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -850,6 +880,7 @@ test("action is applied to unauthorized task", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -869,6 +900,7 @@ test("action is applied to unauthorized task", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(task1a.rawData).not.toEqual(task1a.applyAction(action1a, getSortableAccount).rawData);
@@ -908,6 +940,7 @@ test("actions can be applied out of order", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -925,6 +958,7 @@ test("actions can be applied out of order", () => {
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(task1a.rawData).not.toEqual(task1a.applyAction(action1a, getSortableAccount).rawData);
@@ -964,6 +998,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -983,6 +1018,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -1002,6 +1038,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(task1a.rawData).not.toEqual(task1a.applyAction(action1a, getSortableAccount).rawData);
@@ -1039,6 +1076,7 @@ test("if nothing changes in the task entry after action it\u2019s left as same r
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -1056,6 +1094,7 @@ test("if nothing changes in the task entry after action it\u2019s left as same r
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(task1a.rawData).not.toEqual(task1a.applyAction(action1a, getSortableAccount).rawData);
@@ -1077,6 +1116,7 @@ test("if nothing changes in the task entry after action it\u2019s left as same r
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toBe(taskEntry);
@@ -1111,6 +1151,7 @@ test("if nothing changes in the task entry after backfill it\u2019s left as same
         backfillTasks: [{type: "Authorized", task: task1a}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -1128,6 +1169,7 @@ test("if nothing changes in the task entry after backfill it\u2019s left as same
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(task1a.rawData).not.toEqual(task1a.applyAction(action1a, getSortableAccount).rawData);
@@ -1151,6 +1193,7 @@ test("if nothing changes in the task entry after backfill it\u2019s left as same
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toBe(taskEntry);
@@ -1181,6 +1224,7 @@ test("action can be applied then task can be marked unauthorized", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -1200,6 +1244,7 @@ test("action can be applied then task can be marked unauthorized", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -1243,6 +1288,7 @@ test("redundant unauthorized action doesn\u2019t change task", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual({
@@ -1262,6 +1308,7 @@ test("redundant unauthorized action doesn\u2019t change task", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     const taskEntry = getTaskEntryIfExists(store, task1a.id);
@@ -1285,6 +1332,7 @@ test("redundant unauthorized action doesn\u2019t change task", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task1a.id)).toBe(taskEntry);
@@ -1299,7 +1347,7 @@ test("create action will create a task", () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1314,6 +1362,7 @@ test("create action will create a task", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action.taskId)).toEqual({
@@ -1347,7 +1396,7 @@ test("can receive create action out of order", () => {
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1362,6 +1411,7 @@ test("can receive create action out of order", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1379,6 +1429,7 @@ test("can receive create action out of order", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1402,7 +1453,7 @@ test("can receive create action with another action within a transaction", () =>
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1427,6 +1478,7 @@ test("can receive create action with another action within a transaction", () =>
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1460,7 +1512,7 @@ test("can receive create action out of order within a transaction", () => {
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1475,6 +1527,7 @@ test("can receive create action out of order within a transaction", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1504,6 +1557,7 @@ test("applies commit action calls optimistically", async () => {
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -1544,6 +1598,7 @@ test("applies commit action calls optimistically", async () => {
     await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -1563,7 +1618,7 @@ test("can create tasks optimistically", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1598,6 +1653,7 @@ test("can create tasks optimistically", async () => {
     await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1624,7 +1680,7 @@ test("can create then update tasks optimistically", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1697,6 +1753,7 @@ test("can create then update tasks optimistically", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1726,6 +1783,7 @@ test("can create then update tasks optimistically", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1752,7 +1810,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1825,6 +1883,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1850,6 +1909,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -1888,7 +1948,7 @@ test("can create then update tasks optimistically after an action from the serve
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -1913,6 +1973,7 @@ test("can create then update tasks optimistically after an action from the serve
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -1980,6 +2041,7 @@ test("can create then update tasks optimistically after an action from the serve
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -2011,6 +2073,7 @@ test("can create then update tasks optimistically after an action from the serve
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -2039,7 +2102,7 @@ test("can create then update tasks optimistically our of order", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2105,6 +2168,7 @@ test("can create then update tasks optimistically our of order", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -2130,6 +2194,7 @@ test("can create then update tasks optimistically our of order", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -2168,7 +2233,7 @@ test("can create then update tasks optimistically out of order after an action f
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2193,6 +2258,7 @@ test("can create then update tasks optimistically out of order after an action f
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -2253,6 +2319,7 @@ test("can create then update tasks optimistically out of order after an action f
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -2280,6 +2347,7 @@ test("can create then update tasks optimistically out of order after an action f
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -2320,7 +2388,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2410,6 +2478,7 @@ test("can create then update tasks optimistically out of order with more non-cre
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -2440,6 +2509,7 @@ test("can create then update tasks optimistically out of order with more non-cre
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -2467,6 +2537,7 @@ test("can create then update tasks optimistically out of order with more non-cre
     await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -2495,7 +2566,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2568,6 +2639,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -2605,6 +2677,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
@@ -2645,6 +2718,7 @@ test("regular task actions are added to optimistic state", async () => {
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -2680,6 +2754,7 @@ test("regular task actions are added to optimistic state", async () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -2703,6 +2778,7 @@ test("regular task actions are added to optimistic state", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -2760,6 +2836,7 @@ test("regular task actions are added to optimistic state with multiple actions",
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -2795,6 +2872,7 @@ test("regular task actions are added to optimistic state with multiple actions",
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -2843,6 +2921,7 @@ test("regular task actions are added to optimistic state with multiple actions",
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -2866,6 +2945,7 @@ test("regular task actions are added to optimistic state with multiple actions",
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -2924,6 +3004,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -2959,6 +3040,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3007,6 +3089,7 @@ test("regular task actions are added to optimistic state with multiple actions t
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3031,6 +3114,7 @@ test("regular task actions are added to optimistic state with multiple actions t
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3097,6 +3181,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3118,6 +3203,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3191,6 +3277,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3234,6 +3321,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3252,6 +3340,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3325,6 +3414,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3368,6 +3458,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3389,6 +3480,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3408,7 +3500,7 @@ test("regular actions are added to optimistic state when task is created optimis
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3494,6 +3586,7 @@ test("regular actions are added to optimistic state when task is created optimis
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3521,6 +3614,7 @@ test("regular actions are added to optimistic state when task is created optimis
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3547,6 +3641,7 @@ test("regular actions are added to optimistic state when task is created optimis
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3571,7 +3666,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3667,6 +3762,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3723,6 +3819,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3751,6 +3848,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3777,6 +3875,7 @@ test("regular actions are added to optimistic state with multiple actions when t
     await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3802,7 +3901,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3898,6 +3997,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3954,6 +4054,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -3982,6 +4083,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4009,6 +4111,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4126,6 +4229,7 @@ test("three optimistic actions when task is not backfilled", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4147,6 +4251,7 @@ test("three optimistic actions when task is not backfilled", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4165,6 +4270,7 @@ test("three optimistic actions when task is not backfilled", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4228,6 +4334,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4254,6 +4361,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4277,6 +4385,7 @@ test("backfilling a task when none exists and there are optimistic actions works
     await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4324,6 +4433,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4359,6 +4469,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         backfillTasks: [{type: "Authorized", task: task.applyAction(action3, getSortableAccount)}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4379,6 +4490,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
     await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4400,7 +4512,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4451,6 +4563,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4515,6 +4628,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         backfillTasks: [{type: "Authorized", task: task.applyAction(action4, getSortableAccount)}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4541,6 +4655,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4565,6 +4680,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4593,6 +4709,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -4652,7 +4769,7 @@ test("can create tasks optimistically (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4709,7 +4826,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4822,7 +4939,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4951,7 +5068,7 @@ test("can create then update tasks optimistically after an action from the serve
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -4976,6 +5093,7 @@ test("can create then update tasks optimistically after an action from the serve
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -5083,7 +5201,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5205,7 +5323,7 @@ test("can create then update tasks optimistically out of order after an action f
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5230,6 +5348,7 @@ test("can create then update tasks optimistically out of order after an action f
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
@@ -5346,7 +5465,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         taskId: action1.taskId,
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5505,7 +5624,7 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -5578,6 +5697,7 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
@@ -5655,6 +5775,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -5690,6 +5811,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -5768,6 +5890,7 @@ test("regular task actions are added to optimistic state with multiple actions (
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -5803,6 +5926,7 @@ test("regular task actions are added to optimistic state with multiple actions (
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -5923,6 +6047,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -5958,6 +6083,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -6089,6 +6215,7 @@ test("regular actions are added to optimistic state when task is not backfilled 
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -6183,6 +6310,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -6314,6 +6442,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -6394,7 +6523,7 @@ test("regular actions are added to optimistic state when task is created optimis
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -6480,6 +6609,7 @@ test("regular actions are added to optimistic state when task is created optimis
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -6550,7 +6680,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -6646,6 +6776,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -6764,7 +6895,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -6860,6 +6991,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7169,6 +7301,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7195,6 +7328,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7263,6 +7397,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7298,6 +7433,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         backfillTasks: [{type: "Authorized", task: task.applyAction(action3, getSortableAccount)}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7337,7 +7473,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -7388,6 +7524,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7452,6 +7589,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         backfillTasks: [{type: "Authorized", task: task.applyAction(action4, getSortableAccount)}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7519,7 +7657,7 @@ test("create task applied after optimistic updates", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -7578,6 +7716,7 @@ test("create task applied after optimistic updates", async () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7623,6 +7762,7 @@ test("create task applied after optimistic updates", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7643,6 +7783,7 @@ test("create task applied after optimistic updates", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7664,7 +7805,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -7723,6 +7864,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7768,6 +7910,7 @@ test("create task applied after optimistic updates that are resolved out of orde
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7791,6 +7934,7 @@ test("create task applied after optimistic updates that are resolved out of orde
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7812,7 +7956,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -7871,6 +8015,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -7950,7 +8095,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -8009,6 +8154,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
@@ -8091,9 +8237,10 @@ test("can create then update collections optimistically", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -8169,6 +8316,7 @@ test("can create then update collections optimistically", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
@@ -8198,6 +8346,7 @@ test("can create then update collections optimistically", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
@@ -8224,9 +8373,10 @@ test("can create then update collections optimistically and resolve commits out 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -8302,6 +8452,7 @@ test("can create then update collections optimistically and resolve commits out 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
@@ -8327,6 +8478,7 @@ test("can create then update collections optimistically and resolve commits out 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
@@ -8365,9 +8517,10 @@ test("can create then update collections optimistically after an action from the
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -8395,6 +8548,7 @@ test("can create then update collections optimistically after an action from the
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8462,6 +8616,7 @@ test("can create then update collections optimistically after an action from the
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8493,6 +8648,7 @@ test("can create then update collections optimistically after an action from the
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8521,9 +8677,10 @@ test("can create then update collections optimistically our of order", async () 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -8592,6 +8749,7 @@ test("can create then update collections optimistically our of order", async () 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
@@ -8617,6 +8775,7 @@ test("can create then update collections optimistically our of order", async () 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
@@ -8655,9 +8814,10 @@ test("can create then update collections optimistically out of order after an ac
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -8685,6 +8845,7 @@ test("can create then update collections optimistically out of order after an ac
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8745,6 +8906,7 @@ test("can create then update collections optimistically out of order after an ac
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8772,6 +8934,7 @@ test("can create then update collections optimistically out of order after an ac
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8812,9 +8975,10 @@ test("can create then update collections optimistically out of order with more n
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -8907,6 +9071,7 @@ test("can create then update collections optimistically out of order with more n
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8937,6 +9102,7 @@ test("can create then update collections optimistically out of order with more n
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8964,6 +9130,7 @@ test("can create then update collections optimistically out of order with more n
     await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -8992,9 +9159,10 @@ test("resolving collection optimistic update after garbage collection is ok", as
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -9070,6 +9238,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
@@ -9107,6 +9276,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
@@ -9147,6 +9317,7 @@ test("regular collection actions are added to optimistic state", async () => {
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9182,6 +9353,7 @@ test("regular collection actions are added to optimistic state", async () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9203,6 +9375,7 @@ test("regular collection actions are added to optimistic state", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9258,6 +9431,7 @@ test("regular collection actions are added to optimistic state with multiple act
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9293,6 +9467,7 @@ test("regular collection actions are added to optimistic state with multiple act
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9336,6 +9511,7 @@ test("regular collection actions are added to optimistic state with multiple act
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9354,6 +9530,7 @@ test("regular collection actions are added to optimistic state with multiple act
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9409,6 +9586,7 @@ test("regular collection actions are added to optimistic state with multiple act
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9444,6 +9622,7 @@ test("regular collection actions are added to optimistic state with multiple act
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9487,6 +9666,7 @@ test("regular collection actions are added to optimistic state with multiple act
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9508,6 +9688,7 @@ test("regular collection actions are added to optimistic state with multiple act
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9571,6 +9752,7 @@ test("regular actions are added to optimistic state when collection is not backf
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9592,6 +9774,7 @@ test("regular actions are added to optimistic state when collection is not backf
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9665,6 +9848,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9708,6 +9892,7 @@ test("regular actions are added to optimistic state with multiple actions when c
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9726,6 +9911,7 @@ test("regular actions are added to optimistic state with multiple actions when c
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9799,6 +9985,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9842,6 +10029,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9863,6 +10051,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9882,9 +10071,10 @@ test("regular actions are added to optimistic state when collection is created o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -9973,6 +10163,7 @@ test("regular actions are added to optimistic state when collection is created o
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -9998,6 +10189,7 @@ test("regular actions are added to optimistic state when collection is created o
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10022,6 +10214,7 @@ test("regular actions are added to optimistic state when collection is created o
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10044,9 +10237,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -10145,6 +10339,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10196,6 +10391,7 @@ test("regular actions are added to optimistic state with multiple actions when c
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10221,6 +10417,7 @@ test("regular actions are added to optimistic state with multiple actions when c
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10242,6 +10439,7 @@ test("regular actions are added to optimistic state with multiple actions when c
     await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10264,9 +10462,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -10365,6 +10564,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10416,6 +10616,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10441,6 +10642,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10465,6 +10667,7 @@ test("regular actions are added to optimistic state with multiple actions that a
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10579,6 +10782,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10600,6 +10804,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10618,6 +10823,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10681,6 +10887,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10707,6 +10914,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10728,6 +10936,7 @@ test("backfilling a collection when none exists and there are optimistic actions
     await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10773,6 +10982,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10808,6 +11018,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection.applyAction(action3)}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10826,6 +11037,7 @@ test("backfilling a collection when one is already backfilled and there are opti
     await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10845,9 +11057,10 @@ test("backfilling a collection when there are optimistic actions but no previous
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -10901,6 +11114,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10963,6 +11177,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection.applyAction(action4)}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -10984,6 +11199,7 @@ test("backfilling a collection when there are optimistic actions but no previous
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -11005,6 +11221,7 @@ test("backfilling a collection when there are optimistic actions but no previous
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -11030,6 +11247,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -11089,9 +11307,10 @@ test("can create collections optimistically (rejected)", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -11151,9 +11370,10 @@ test("can create then update collections optimistically (rejected)", async () =>
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -11269,9 +11489,10 @@ test("can create then update collections optimistically and resolve commits out 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -11403,9 +11624,10 @@ test("can create then update collections optimistically after an action from the
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -11433,6 +11655,7 @@ test("can create then update collections optimistically after an action from the
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -11540,9 +11763,10 @@ test("can create then update collections optimistically our of order (rejected)"
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -11667,9 +11891,10 @@ test("can create then update collections optimistically out of order after an ac
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -11697,6 +11922,7 @@ test("can create then update collections optimistically out of order after an ac
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
@@ -11813,9 +12039,10 @@ test("can create then update collections optimistically out of order with more n
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -11977,9 +12204,10 @@ test("resolving collection optimistic update after garbage collection is ok (rej
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -12055,6 +12283,7 @@ test("resolving collection optimistic update after garbage collection is ok (rej
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
@@ -12132,6 +12361,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12167,6 +12397,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12243,6 +12474,7 @@ test("regular collection actions are added to optimistic state with multiple act
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12278,6 +12510,7 @@ test("regular collection actions are added to optimistic state with multiple act
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12391,6 +12624,7 @@ test("regular collection actions are added to optimistic state with multiple act
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12426,6 +12660,7 @@ test("regular collection actions are added to optimistic state with multiple act
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12550,6 +12785,7 @@ test("regular actions are added to optimistic state when collection is not backf
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12644,6 +12880,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12775,6 +13012,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -12855,9 +13093,10 @@ test("regular actions are added to optimistic state when collection is created o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -12946,6 +13185,7 @@ test("regular actions are added to optimistic state when collection is created o
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13014,9 +13254,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -13115,6 +13356,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13228,9 +13470,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -13329,6 +13572,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13633,6 +13877,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13659,6 +13904,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13725,6 +13971,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13760,6 +14007,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection.applyAction(action3)}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13797,9 +14045,10 @@ test("backfilling a collection when there are optimistic actions but no previous
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -13853,6 +14102,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13915,6 +14165,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection.applyAction(action4)}],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -13970,9 +14221,10 @@ test("create collection applied after optimistic updates", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -14034,6 +14286,7 @@ test("create collection applied after optimistic updates", async () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -14077,6 +14330,7 @@ test("create collection applied after optimistic updates", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -14095,6 +14349,7 @@ test("create collection applied after optimistic updates", async () => {
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -14114,9 +14369,10 @@ test("create collection applied after optimistic updates that are resolved out o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -14178,6 +14434,7 @@ test("create collection applied after optimistic updates that are resolved out o
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -14221,6 +14478,7 @@ test("create collection applied after optimistic updates that are resolved out o
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -14242,6 +14500,7 @@ test("create collection applied after optimistic updates that are resolved out o
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -14261,9 +14520,10 @@ test("create collection applied after optimistic updates (rejected)", async () =
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -14325,6 +14585,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -14402,9 +14663,10 @@ test("create collection applied after optimistic updates that are resolved out o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -14466,6 +14728,7 @@ test("create collection applied after optimistic updates that are resolved out o
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
@@ -14567,6 +14830,7 @@ test("subscription to parent task captures all updates during child task removal
         ],
         backfillCollections: [],
         referencedAccounts: [account1],
+        referencedSites: [],
     });
 
     // Apply the set parent action to establish parent-child relationship
@@ -14578,6 +14842,7 @@ test("subscription to parent task captures all updates during child task removal
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     {
@@ -14586,8 +14851,8 @@ test("subscription to parent task captures all updates during child task removal
         expect(newChildTask.getParent()?.taskId).toBe(parentTask.id);
     }
 
-    // Create subscription to parent task before performing the removal
-    // This is crucial for the bug reproduction
+    // Create subscription to parent task before performing the removal This is crucial
+    // for the bug reproduction
     const parentSubscription = store.createAndRetainTaskSubscription(parentTask.id);
 
     // Now remove the parent reference which should update child counts on parent
@@ -14601,8 +14866,8 @@ test("subscription to parent task captures all updates during child task removal
         },
     };
 
-    // The bug appears to be related to how these updates are processed
-    // Commit the action instead of applying it directly to test the optimistic update path
+    // The bug appears to be related to how these updates are processed Commit the
+    // action instead of applying it directly to test the optimistic update path
     store.commitTaskActionTransaction(context, [removeParentAction], {
         undoManager: null,
         affinityManager: noopAffinityManager,
@@ -14631,6 +14896,7 @@ test("subscription to parent task captures all updates during child task removal
             },
         ],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     {
@@ -14641,4 +14907,964 @@ test("subscription to parent task captures all updates during child task removal
 
     // Clean up
     parentSubscription.release();
+});
+
+// =============================================================================
+// Referenced Sites Tests
+// =============================================================================
+
+function createTestSite(siteId: SiteId, name = "Test Site"): SitePreviewModel {
+    return new SitePreviewModel({
+        id: siteId,
+        spaceId,
+        name,
+        firstEntityId: null,
+        createdTime: new Date(),
+        accessPolicy: {
+            type: "Local",
+            accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+        version: 1,
+        rootContainerId: printSiteContainerId({type: "SideBar", id: generateId<SiteSideBarId>()}),
+        creatorId: account1.id,
+    });
+}
+
+/**
+ * Position used by `Site` access policy assertions in these tests. Task action
+ * schemas now require a `position` for any `UpdateAccessPolicy` action that
+ * switches to a `Site` policy. The actual values are arbitrary because these tests
+ * don't assert on them — they just need to be a valid `SiteContainerId`
+ *
+ * - `OrderKey` shape.
+ */
+const testSitePosition: {parentId: SiteTopBarContainerId; orderKey: OrderKey} = {
+    parentId: `TopBar:${generateId<SiteTopBarId>()}`,
+    orderKey: initialOrderKey,
+};
+
+describe("referenced sites", () => {
+    function createSiteAccessPolicyForUpdate(siteId: SiteId) {
+        return {
+            type: "Site",
+            siteId: siteId,
+            position: testSitePosition,
+        } as const;
+    }
+
+    test("collection with site reference makes site store available via getReferencedSiteStoreIfExists", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site = createTestSite(siteId);
+
+        // Add site to registry first (simulating server returning referencedSites)
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site);
+
+        const collection = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        });
+
+        // Backfill the collection
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [{type: "Authorized", collection}],
+            referencedAccounts: [account1],
+            referencedSites: [{ok: true, value: site}],
+        });
+
+        // The site store should be available
+        const siteStore = store.getReferencedSiteStoreIfExists(siteId);
+        expect(siteStore).not.toBeNull();
+        expect(siteStore?.getSnapshot().id).toBe(siteId);
+        expect(siteStore?.getSnapshot().name).toBe("Test Site");
+    });
+
+    test("updating collection to remove site makes site store unavailable", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site = createTestSite(siteId);
+
+        // Add site to registry first
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site);
+
+        const collection = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        });
+
+        // Backfill the collection with site access policy
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [{type: "Authorized", collection}],
+            referencedAccounts: [account1],
+            referencedSites: [{ok: true, value: site}],
+        });
+
+        // Verify site store is available initially
+        expect(store.getReferencedSiteStoreIfExists(siteId)).not.toBeNull();
+
+        // Update collection to use Local access policy (removing site reference)
+        const updateAction: TaskAction = {
+            type: "UpdateCollection",
+            time: store.clock.now(),
+            collectionId: collection.id,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicy: {
+                    type: "Local",
+                    accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            },
+        };
+
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [updateAction],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+        });
+
+        // Now the site store should not be available through the task store
+        expect(store.getReferencedSiteStoreIfExists(siteId)).toBeNull();
+    });
+
+    test("updating collection to add site makes site store available again", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site = createTestSite(siteId);
+
+        // Add site to registry first
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site);
+
+        // Create collection with Local access policy (no site reference)
+        const collection = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection",
+                accessPolicy: {
+                    type: "Local",
+                    accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            },
+        });
+
+        // Backfill the collection without site reference
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [{type: "Authorized", collection}],
+            referencedAccounts: [account1],
+            referencedSites: [],
+        });
+
+        // Site store should not be available
+        expect(store.getReferencedSiteStoreIfExists(siteId)).toBeNull();
+
+        // Update collection to use Site access policy
+        const updateAction: TaskAction = {
+            type: "UpdateCollection",
+            time: store.clock.now(),
+            collectionId: collection.id,
+            collectionAction: {
+                type: "UpdateAccessPolicy",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        };
+
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [updateAction],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [{ok: true, value: site}],
+        });
+
+        // Now the site store should be available
+        const siteStore = store.getReferencedSiteStoreIfExists(siteId);
+        expect(siteStore).not.toBeNull();
+        expect(siteStore?.getSnapshot().id).toBe(siteId);
+    });
+
+    test("full lifecycle: add site, remove site, add site again", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site = createTestSite(siteId);
+
+        // Add site to registry
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site);
+
+        // Create collection with site reference
+        const collection = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        });
+
+        // Step 1: Backfill collection with site
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [{type: "Authorized", collection}],
+            referencedAccounts: [account1],
+            referencedSites: [{ok: true, value: site}],
+        });
+
+        // Site store should be available
+        expect(store.getReferencedSiteStoreIfExists(siteId)).not.toBeNull();
+
+        // Step 2: Remove site by updating to Local access policy
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: store.clock.now(),
+                    collectionId: collection.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            type: "Local",
+                            accountGrantById: new Map([
+                                [account1.id, {level: "Manage", generation: 0}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+        });
+
+        // Site store should NOT be available
+        expect(store.getReferencedSiteStoreIfExists(siteId)).toBeNull();
+
+        // Step 3: Add site back
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: store.clock.now(),
+                    collectionId: collection.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            type: "Site",
+                            siteId,
+                            position: testSitePosition,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [{ok: true, value: site}],
+        });
+
+        // Site store should be available again
+        const siteStore = store.getReferencedSiteStoreIfExists(siteId);
+        expect(siteStore).not.toBeNull();
+        expect(siteStore?.getSnapshot().id).toBe(siteId);
+    });
+
+    test("referencedSites with ok: false are skipped and do not add site to registry", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site = createTestSite(siteId);
+
+        // Pre-add site to registry (needed for collection to reference it)
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site);
+
+        const collection = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        });
+
+        // Backfill with ok: false - the site should be skipped
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [{type: "Authorized", collection}],
+            referencedAccounts: [account1],
+            referencedSites: [
+                {
+                    ok: false,
+                    error: new InternalError("Site not found"),
+                },
+            ],
+        });
+
+        // The site store should still be available because we pre-added it to the registry
+        // This test verifies that ok: false doesn't cause errors and is simply skipped
+        expect(store.getReferencedSiteStoreIfExists(siteId)).not.toBeNull();
+    });
+
+    test("mix of ok: true and ok: false sites processes correctly", () => {
+        const store = createAutoRetainStore();
+
+        const siteId1 = generateId<SiteId>();
+        const siteId2 = generateId<SiteId>();
+        const site1 = createTestSite(siteId1, "Site 1");
+        const site2 = createTestSite(siteId2, "Site 2");
+
+        // Pre-add both sites to registry
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site1);
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site2);
+
+        const collection1 = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Collection 1",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId1),
+            },
+        });
+
+        const collection2 = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Collection 2",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId2),
+            },
+        });
+
+        // Backfill with mix of ok: true and ok: false
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [
+                {type: "Authorized", collection: collection1},
+                {type: "Authorized", collection: collection2},
+            ],
+            referencedAccounts: [account1],
+            referencedSites: [
+                {ok: true, value: site1},
+                {ok: false, error: new InternalError("Site 2 not accessible")},
+            ],
+        });
+
+        // Both site stores should be available (because we pre-added them)
+        expect(store.getReferencedSiteStoreIfExists(siteId1)).not.toBeNull();
+        expect(store.getReferencedSiteStoreIfExists(siteId2)).not.toBeNull();
+    });
+
+    test("multiple collections referencing the same site share reference count", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site = createTestSite(siteId);
+
+        // Add site to registry
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site);
+
+        // Create two collections with site reference
+        const collection1 = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection 1",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        });
+
+        const collection2 = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection 2",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        });
+
+        // Backfill both collections
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [
+                {type: "Authorized", collection: collection1},
+                {type: "Authorized", collection: collection2},
+            ],
+            referencedAccounts: [account1],
+            referencedSites: [{ok: true, value: site}],
+        });
+
+        // Site store should be available
+        expect(store.getReferencedSiteStoreIfExists(siteId)).not.toBeNull();
+
+        // Remove site from first collection
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: store.clock.now(),
+                    collectionId: collection1.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            type: "Local",
+                            accountGrantById: new Map([
+                                [account1.id, {level: "Manage", generation: 0}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+        });
+
+        // Site store should STILL be available (collection2 still references it)
+        expect(store.getReferencedSiteStoreIfExists(siteId)).not.toBeNull();
+
+        // Remove site from second collection
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: store.clock.now(),
+                    collectionId: collection2.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            type: "Local",
+                            accountGrantById: new Map([
+                                [account1.id, {level: "Manage", generation: 0}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+        });
+
+        // Now site store should NOT be available (no collections reference it)
+        expect(store.getReferencedSiteStoreIfExists(siteId)).toBeNull();
+    });
+
+    test("task with site reference makes site store available", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site = createTestSite(siteId);
+
+        // Add site to registry first
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site);
+
+        const task = createTask(store);
+
+        // Backfill task first without site
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [{type: "Authorized", task}],
+            backfillCollections: [],
+            referencedAccounts: [account1],
+            referencedSites: [],
+        });
+
+        // Site store should not be available yet
+        expect(store.getReferencedSiteStoreIfExists(siteId)).toBeNull();
+
+        // Update task to use Site access policy
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: store.clock.now(),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            type: "Site",
+                            siteId,
+                            position: testSitePosition,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [{ok: true, value: site}],
+        });
+
+        // Now the site store should be available
+        const siteStore = store.getReferencedSiteStoreIfExists(siteId);
+        expect(siteStore).not.toBeNull();
+        expect(siteStore?.getSnapshot().id).toBe(siteId);
+    });
+
+    test("task and collection sharing same site increases reference count", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site = createTestSite(siteId);
+
+        // Add site to registry
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site);
+
+        const task = createTask(store);
+        const collection = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        });
+
+        // Backfill both task and collection with site reference
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: store.clock.now(),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            type: "Site",
+                            siteId,
+                            position: testSitePosition,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [{type: "Authorized", task}],
+            backfillCollections: [{type: "Authorized", collection}],
+            referencedAccounts: [account1],
+            referencedSites: [{ok: true, value: site}],
+        });
+
+        // Site store should be available
+        expect(store.getReferencedSiteStoreIfExists(siteId)).not.toBeNull();
+
+        // Remove site from collection only
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: store.clock.now(),
+                    collectionId: collection.id,
+                    collectionAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            type: "Local",
+                            accountGrantById: new Map([
+                                [account1.id, {level: "Manage", generation: 0}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+        });
+
+        // Site store should STILL be available (task still references it)
+        expect(store.getReferencedSiteStoreIfExists(siteId)).not.toBeNull();
+
+        // Remove site from task
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: store.clock.now(),
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateAccessPolicy",
+                        accessPolicy: {
+                            type: "Local",
+                            accountGrantById: new Map([
+                                [account1.id, {level: "Manage", generation: 0}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        },
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+        });
+
+        // Now site store should NOT be available
+        expect(store.getReferencedSiteStoreIfExists(siteId)).toBeNull();
+    });
+
+    test("site data is updated when newer version is received", () => {
+        const store = createAutoRetainStore();
+
+        const siteId = generateId<SiteId>();
+        const site1 = new SitePreviewModel({
+            id: siteId,
+            spaceId,
+            name: "Original Name",
+            firstEntityId: null,
+            createdTime: new Date(),
+            accessPolicy: {
+                type: "Local",
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+            version: 1,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: account1.id,
+        });
+
+        const site2 = new SitePreviewModel({
+            id: siteId,
+            spaceId,
+            name: "Updated Name",
+            firstEntityId: null,
+            createdTime: new Date(),
+            accessPolicy: {
+                type: "Local",
+                accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+            version: 2,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: account1.id,
+        });
+
+        // Add initial site to registry
+        siteRegistry.getAndImmediatelyUpdateSiteStore(site1);
+
+        const collection = createCollection(store, {
+            collectionAction: {
+                type: "Create",
+                creator: null,
+                name: "Test Collection",
+                accessPolicy: createSiteAccessPolicyForUpdate(siteId),
+            },
+        });
+
+        // Backfill with version 1
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [{type: "Authorized", collection}],
+            referencedAccounts: [account1],
+            referencedSites: [{ok: true, value: site1}],
+        });
+
+        // Verify original name
+        const siteStore = store.getReferencedSiteStoreIfExists(siteId);
+        expect(siteStore?.getSnapshot().name).toBe("Original Name");
+
+        // Send update with newer version
+        store.applyUpdateEvent({
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: clock.now(),
+            actions: [],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [{ok: true, value: site2}],
+        });
+
+        // Verify name was updated
+        expect(siteStore?.getSnapshot().name).toBe("Updated Name");
+        expect(siteStore?.getSnapshot().version).toBe(2);
+    });
+});
+
+test("task subscription keeps referenced collection during optimistic collection removal until commit", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const task = createTask(store);
+
+    const taskWithCollection = task.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task.id,
+            taskAction: {
+                type: "AddCollection",
+                collectionId: collection.id,
+                orderKey: initialOrderKey,
+            },
+        },
+        getSortableAccount,
+    );
+
+    store.applyUpdateEvent({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: clock.now(),
+        actions: [],
+        backfillTasks: [{type: "Authorized", task: taskWithCollection}],
+        backfillCollections: [{type: "Authorized", collection}],
+        referencedAccounts: [account1],
+        referencedSites: [],
+    });
+
+    const taskSubscription = store.createAndRetainTaskSubscription(taskWithCollection.id);
+
+    const previousTaskSubscriptions = taskSubscriptions;
+    taskSubscriptions = [taskSubscription];
+    for (const subscription of previousTaskSubscriptions) {
+        subscription.release();
+    }
+
+    const previousCollectionSubscriptions = collectionSubscriptions;
+    collectionSubscriptions = [];
+    for (const subscription of previousCollectionSubscriptions) {
+        subscription.release();
+    }
+
+    expect(taskSubscription.getReferencedCollectionSnapshot(collection.id)).toEqual(collection);
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
+    });
+
+    const removeCollectionAction: TaskActionModel = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: taskWithCollection.id,
+        taskAction: {
+            type: "RemoveCollection",
+            collectionId: collection.id,
+        },
+    };
+
+    store.commitTaskActionTransaction(context, [removeCollectionAction], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
+
+    expect(
+        assertExists(store.getTaskEntrySnapshot(taskWithCollection.id)?.task)
+            .getCollections()
+            .getArray(),
+    ).toEqual([]);
+    expect(taskSubscription.getReferencedCollectionSnapshot(collection.id)).toEqual(collection);
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
+    });
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    expect(
+        assertExists(store.getTaskEntrySnapshot(taskWithCollection.id)?.task)
+            .getCollections()
+            .getArray(),
+    ).toEqual([]);
+    expect(() => taskSubscription.getReferencedCollectionSnapshot(collection.id)).toThrow(
+        "Collection is not referenced",
+    );
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+});
+
+test("task subscription keeps referenced parent during optimistic parent removal until commit", async () => {
+    const store = createAutoRetainStore();
+
+    const parentTask = createTask(store);
+
+    const childTask = createTask(store);
+
+    const childTaskWithParent = childTask.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: childTask.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: parentTask.id,
+            },
+        },
+        getSortableAccount,
+    );
+
+    store.applyUpdateEvent({
+        type: "Update",
+        originClientId: null,
+        defaultAuthorizationStateVersion: clock.now(),
+        actions: [],
+        backfillTasks: [
+            {type: "Authorized", task: parentTask},
+            {type: "Authorized", task: childTaskWithParent},
+        ],
+        backfillCollections: [],
+        referencedAccounts: [account1],
+        referencedSites: [],
+    });
+
+    const childTaskSubscription = store.createAndRetainTaskSubscription(childTaskWithParent.id);
+
+    const previousTaskSubscriptions = taskSubscriptions;
+    taskSubscriptions = [childTaskSubscription];
+    for (const subscription of previousTaskSubscriptions) {
+        subscription.release();
+    }
+
+    expect(childTaskSubscription.getReferencedTaskSnapshot(parentTask.id).id).toEqual(
+        parentTask.id,
+    );
+    expect(assertExists(store.getTaskEntrySnapshot(parentTask.id)?.task).id).toEqual(parentTask.id);
+
+    const removeParentAction: TaskActionModel = {
+        type: "UpdateTask",
+        time: store.clock.now(),
+        taskId: childTaskWithParent.id,
+        taskAction: {
+            type: "UpdateParentTaskId",
+            parentTaskId: null,
+        },
+    };
+
+    store.commitTaskActionTransaction(context, [removeParentAction], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
+
+    expect(
+        assertExists(store.getTaskEntrySnapshot(childTaskWithParent.id)?.task).getParent(),
+    ).toBeNull();
+    expect(childTaskSubscription.getReferencedTaskSnapshot(parentTask.id).id).toEqual(
+        parentTask.id,
+    );
+    expect(assertExists(store.getTaskEntrySnapshot(parentTask.id)?.task).id).toEqual(parentTask.id);
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    expect(
+        assertExists(store.getTaskEntrySnapshot(childTaskWithParent.id)?.task).getParent(),
+    ).toBeNull();
+    expect(() => childTaskSubscription.getReferencedTaskSnapshot(parentTask.id)).toThrow(
+        "Task is not referenced",
+    );
+    expect(getTaskEntryIfExists(store, parentTask.id)).toEqual(null);
 });

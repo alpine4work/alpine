@@ -1,11 +1,11 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * A time zone identifier. We determine if a string is a valid time zone by
- * trying to use it with `Intl.DateTimeFormat()`.
+ * A time zone identifier. We determine if a string is a valid time zone by trying
+ * to use it with `Intl.DateTimeFormat()`.
  *
- * There is a risk we are running in an environment that does not have full
- * support for all IANA time zone identifiers.
+ * There is a risk we are running in an environment that does not have full support
+ * for all IANA time zone identifiers.
  */
 export type TimeZone = string & {readonly _TimeZone: never};
 
@@ -20,8 +20,8 @@ let validTimeZones: Set<string> | null = null;
  * Is the provided string a valid time zone?
  */
 export function isTimeZone(string: string): string is TimeZone {
-    // Optimization: If we've already determined a `TimeZone` is valid we don't
-    // need to construct `Intl.DateTimeFormat` again.
+    // Optimization: If we've already determined a `TimeZone` is valid we don't need to
+    // construct `Intl.DateTimeFormat` again.
     validTimeZones ??= new Set();
     if (validTimeZones.has(string)) return true;
 
@@ -73,8 +73,8 @@ export function formatTimeZoneAbbreviation(timeZone: TimeZone, time: Date): stri
         return shortValue;
     }
 
-    // Fallback: try to create an abbreviation from the long format
-    // e.g., "Japan Standard Time" -> "JST", "Australian Eastern Daylight Time" -> "AEDT"
+    // Fallback: try to create an abbreviation from the long format e.g., "Japan
+    // Standard Time" -> "JST", "Australian Eastern Daylight Time" -> "AEDT"
     try {
         const longFormatter = new Intl.DateTimeFormat("en-US", {
             timeZone,

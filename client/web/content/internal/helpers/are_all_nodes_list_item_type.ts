@@ -5,8 +5,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 /**
  * Are all nodes the provided list item type?
  *
- * If true then we expect `createToggleListItemsCommand()` to toggle the block
- * type off.
+ * If true then we expect `createToggleListItemsCommand()` to toggle the block type
+ * off.
  */
 export function areAllNodesListItemType(
     parentNode: Node,

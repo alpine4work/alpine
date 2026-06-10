@@ -96,7 +96,7 @@ function TaskRowTitleChildTasksButton(
             if (!isMaxExpandedTaskDepth) {
                 onAreChildTasksExpandedToggle();
             } else {
-                if (task) navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+                if (task) navigate(`/task/${task.id}`);
             }
         },
     });
@@ -131,13 +131,12 @@ function TaskRowTitleChildTasksButton(
                     className={buttonClassName}
                     // Focusable by keyboard navigation.
                     //
-                    // Except on mobile! In mobile mode we expect the user to be interacting with
-                    // touch and not have access to a physical keyboard. If the virtual keyboard is
-                    // open (since they're editing text) and they expand/collapse a task then we
-                    // don't want to move focus to the button causing the keyboard to close.
-                    // Ideally this could be focusable on mobile but we prevent moving focus and
-                    // closing the keyboard with `event.preventDefault()` but this doesn't seem
-                    // possible.
+                    // Except on mobile! In mobile mode we expect the user to be interacting with touch
+                    // and not have access to a physical keyboard. If the virtual keyboard is open
+                    // (since they're editing text) and they expand/collapse a task then we don't want
+                    // to move focus to the button causing the keyboard to close. Ideally this could be
+                    // focusable on mobile but we prevent moving focus and closing the keyboard with
+                    // `event.preventDefault()` but this doesn't seem possible.
                     tabIndex={platform !== "mobile" ? -1 : undefined}
                     style={{
                         paddingRight: isMaxExpandedTaskDepth ? spacing["1.5"] : undefined,
@@ -160,8 +159,8 @@ function TaskRowTitleChildTasksButton(
                     {!isMaxExpandedTaskDepth && (
                         <CaretUp
                             // When our grid view resets (we find out through a `stateKey` change) we don't
-                            // want to animate our caret. By setting it as a key here React will fully
-                            // destroy and recreate this component skipping the transition animation.
+                            // want to animate our caret. By setting it as a key here React will fully destroy
+                            // and recreate this component skipping the transition animation.
                             key={stateKey}
                             size={spacing["3"]}
                             style={{

@@ -23,13 +23,13 @@ export type ClipboardSerializerResult = {
     html: Node;
 
     /**
-     * If provided, indicates the author of this content. When copying content
-     * from multiple different authors, we'll prepend the author's name as a
-     * prefix to distinguish who wrote what. If all copied content is from the
-     * same author, no prefix is added.
+     * If provided, indicates the author of this content. When copying content from
+     * multiple different authors, we'll prepend the author's name as a prefix to
+     * distinguish who wrote what. If all copied content is from the same author, no
+     * prefix is added.
      *
-     * We store the `AccountModel` and `spaceId` so we can look up the latest
-     * account name from the registry at copy time.
+     * We store the `AccountModel` and `spaceId` so we can look up the latest account
+     * name from the registry at copy time.
      */
     authorPrefix?: {spaceId: SpaceId; account: AccountModel};
 };
@@ -49,23 +49,22 @@ export function registerClipboardSerializer(
 }
 
 /**
- * We override the `copy` event when the selection is not entirely within a
- * text input element. This allows us to have custom copy behavior for
- * non-editable views. For example, we can use our content clipboard serializer
- * when copying `<ContentView>` to match `<ContentEditor>`.
+ * We override the `copy` event when the selection is not entirely within a text
+ * input element. This allows us to have custom copy behavior for non-editable
+ * views. For example, we can use our content clipboard serializer when copying
+ * `<ContentView>` to match `<ContentEditor>`.
  *
  * By default we use a similar algorithm to HTML's `innerText` for generating
- * copied content. This drops all CSS styling from copied content. If you want
- * to preserve some HTML styling you must use `registerClipboardSerializer()`.
+ * copied content. This drops all CSS styling from copied content. If you want to
+ * preserve some HTML styling you must use `registerClipboardSerializer()`.
  *
- * While not implemented yet, we can also use this to make the result of
- * copying content from a post view or messaging view much nicer. For example,
- * by including text like "From Caleb Meredith at 4:00pm" before each message.
+ * While not implemented yet, we can also use this to make the result of copying
+ * content from a post view or messaging view much nicer. For example, by including
+ * text like "From Caleb Meredith at 4:00pm" before each message.
  */
 export function handleCopyEventIfNotTextInputElement(event: ClipboardEvent) {
-    // If focus is in a text input element then we want to let the text input
-    // element handle the `copy` event. Or let the browser perform its default copy
-    // behavior.
+    // If focus is in a text input element then we want to let the text input element
+    // handle the `copy` event. Or let the browser perform its default copy behavior.
     if (document.activeElement && isTextInputElement(document.activeElement)) {
         return;
     }
@@ -85,8 +84,8 @@ export function handleCopyEventIfNotTextInputElement(event: ClipboardEvent) {
     });
 
     if (result) {
-        // If there is no `navigator.clipboard` (e.g. in Safari) then write text only
-        // with our fallback.
+        // If there is no `navigator.clipboard` (e.g. in Safari) then write text only with
+        // our fallback.
         if (!navigator.clipboard) {
             writeTextToClipboardFallback(result.text);
         } else {
@@ -116,21 +115,21 @@ export function getSelectionClipboardData(initialSelection: {
     // - `startNode` is inclusive of its child nodes
     // - `endNode` is not inclusive of its child nodes
 
-    // First pass: determine start/end from the original selection so we know
-    // which direction the selection goes.
+    // First pass: determine start/end from the original selection so we know which
+    // direction the selection goes.
     const selectionAfterFirstPass = getSelectionStartNodeAndEndNode(initialSelection);
 
-    // Trim invisible selection extensions that Chrome creates when selections
-    // extend to the very edge of a text node. We need to know start vs end
-    // to trim correctly (trim the end backwards, not forwards).
+    // Trim invisible selection extensions that Chrome creates when selections extend
+    // to the very edge of a text node. We need to know start vs end to trim correctly
+    // (trim the end backwards, not forwards).
     const trimmedSelection =
         trimDomSelectionInvisibleExtensionIntoAdjacentNodes(selectionAfterFirstPass);
 
     const {startNode, startOffset, endNode, endOffset} = trimmedSelection;
 
     // Get `startParentNodes` and `endParentNodes` for the new, trimmed selection.
-    // These are available in `getSelectionStartNodeAndEndNode()` but may have
-    // changed after trimming.
+    // These are available in `getSelectionStartNodeAndEndNode()` but may have changed
+    // after trimming.
     const startParentNodes: Array<Node> = [];
     const endParentNodes: Array<Node> = [];
 
@@ -217,8 +216,8 @@ export function getSelectionClipboardData(initialSelection: {
             }
         }
 
-        // If there was no clipboard serializer for the start node and we're starting
-        // in a text node then add the slice of text we have selected...
+        // If there was no clipboard serializer for the start node and we're starting in a
+        // text node then add the slice of text we have selected...
         if (!startNodeWithClipboardSerializer && startNode instanceof Text) {
             const parentElement = startNode.parentElement;
             const parentComputedStyle = parentElement ? getComputedStyle(parentElement) : null;
@@ -226,8 +225,8 @@ export function getSelectionClipboardData(initialSelection: {
             // Same check as we have in our loop for skipping over hidden elements.
             const isParentElementHidden =
                 (parentComputedStyle?.visibility ?? "visible") !== "visible" ||
-                // Don't look at client rects in Jest unit tests. JSDOM never lays out elements
-                // so the length will always be 0.
+                // Don't look at client rects in Jest unit tests. JSDOM never lays out elements so
+                // the length will always be 0.
                 (!import.meta.jest &&
                     parentElement &&
                     parentElement.getClientRects().length === 0) ||
@@ -263,9 +262,8 @@ export function getSelectionClipboardData(initialSelection: {
         // wants styles on their element to be preserved when copying then they MUST
         // manually register copy behavior.
         //
-        // We copy each step of the algorithm into comments over the code implementing
-        // the step. If we modify the `innerText` algorithm then we say so in a NOTE
-        // comment.
+        // We copy each step of the algorithm into comments over the code implementing the
+        // step. If we modify the `innerText` algorithm then we say so in a NOTE comment.
         //
         // [1]: https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute
         let visited = !!startNodeWithClipboardSerializer;
@@ -296,30 +294,27 @@ export function getSelectionClipboardData(initialSelection: {
                 } else {
                     const computedStyle = getComputedStyle(node);
 
-                    // 2. If node's computed value of 'visibility' is not 'visible', then return
-                    //    items.
+                    // 2. If node's computed value of 'visibility' is not 'visible', then return items.
                     //
                     // 3. If node is not being rendered, then return items. For the purpose of this
-                    //    step, the following elements must act as described if the computed value
-                    //    of the 'display' property is not 'none':
+                    //    step, the following elements must act as described if the computed value of
+                    //    the 'display' property is not 'none':
+                    //     - `select` elements have an associated non-replaced inline CSS box whose
+                    //       child boxes include only those of `optgroup` and `option` element child
+                    //       nodes;
                     //
-                    //    - `select` elements have an associated non-replaced inline CSS box whose
-                    //      child boxes include only those of `optgroup` and `option` element child
-                    //      nodes;
+                    //     - `optgroup` elements have an associated non-replaced block-level CSS box
+                    //       whose child boxes include only those of `option` element child nodes; and
                     //
-                    //    - `optgroup` elements have an associated non-replaced block-level CSS box
-                    //      whose child boxes include only those of `option` element child nodes;
-                    //      and
+                    //     - `option` element have an associated non-replaced block-level CSS box whose
+                    //       child boxes are as normal for non-replaced block-level CSS boxes.
                     //
-                    //    - `option` element have an associated non-replaced block-level CSS box
-                    //      whose child boxes are as normal for non-replaced block-level CSS boxes.
-                    //
-                    // NOTE(calebmer): Ignoring the instructions around `<select>`, `<optgroup>`,
-                    // and `<option>` for now.
+                    // NOTE(calebmer): Ignoring the instructions around `<select>`, `<optgroup>`, and
+                    // `<option>` for now.
                     if (
                         computedStyle.visibility !== "visible" ||
-                        // Don't look at client rects in Jest unit tests. JSDOM never lays out elements
-                        // so the length will always be 0.
+                        // Don't look at client rects in Jest unit tests. JSDOM never lays out elements so
+                        // the length will always be 0.
                         (!import.meta.jest && node.getClientRects().length === 0) ||
                         // Optimization: Skip descending into SVG icon children. Interestingly, `svg`
                         // element `tagName`s are not capitalized.
@@ -341,8 +336,8 @@ export function getSelectionClipboardData(initialSelection: {
                             results.push(2);
                         }
                         // 9. (Part 1.) If node's used value of 'display' is block-level or
-                        //    'table-caption', then append 1 (a required line break count) at the
-                        //    beginning and end of items.
+                        //    'table-caption', then append 1 (a required line break count) at the beginning
+                        //    and end of items.
                         else if (
                             isDisplayBlockLevel(
                                 computedStyle.display ||
@@ -357,9 +352,9 @@ export function getSelectionClipboardData(initialSelection: {
                 }
             }
 
-            // 1. Let items be the result of running the rendered text collection steps
-            //    with each child node of node in tree order, and then concatenating the
-            //    results to a single list.
+            // 1. Let items be the result of running the rendered text collection steps with
+            //    each child node of node in tree order, and then concatenating the results to
+            //    a single list.
             if (visited === false) {
                 if (node.firstChild === null) {
                     visited = true;
@@ -372,21 +367,20 @@ export function getSelectionClipboardData(initialSelection: {
 
             // Fail-safe. If `node` contains `endNode` then we should have stopped the loop
             // while iterating through `node`'s children. However, if we skipped visiting
-            // `node`'s children for some reason
-            // (e.g. `node.getClientRects().length === 0`) then we'll end the loop at this
-            // failsafe.
+            // `node`'s children for some reason (e.g. `node.getClientRects().length === 0`)
+            // then we'll end the loop at this failsafe.
             if (node.contains(endNode) || node.contains(endNodeWithClipboardSerializer)) {
                 break;
             }
 
             // 4. If node is a `Text` node, then for each CSS text box produced by node, in
             //    content order, compute the text of the box after application of the CSS
-            //    'white-space' processing rules and 'text-transform' rules, set items to
-            //    the list of the resulting strings, and return items. The CSS
-            //    'white-space' processing rules are slightly modified: collapsible spaces
-            //    at the end of lines are always collapsed, but they are only removed if
-            //    the line is the last line of the block, or it ends with a br element.
-            //    Soft hyphens should be preserved.
+            //    'white-space' processing rules and 'text-transform' rules, set items to the
+            //    list of the resulting strings, and return items. The CSS 'white-space'
+            //    processing rules are slightly modified: collapsible spaces at the end of
+            //    lines are always collapsed, but they are only removed if the line is the last
+            //    line of the block, or it ends with a br element. Soft hyphens should be
+            //    preserved.
             //
             // NOTE(calebmer): Ignoring the instructions around `white-space` and
             // `text-transform` processing for now.
@@ -417,14 +411,14 @@ export function getSelectionClipboardData(initialSelection: {
                 //
                 // In Safari `user-select` is behind a vendor prefix.
                 if ((computedStyle.userSelect || computedStyle.webkitUserSelect) !== "none") {
-                    // 5. If node is a `br` element, then append a string containing a single
-                    //    U+000A LF code point to items.
+                    // 5. If node is a `br` element, then append a string containing a single U+000A LF
+                    //    code point to items.
                     if (node.tagName === "BR") {
                         // NOTE(calebmer): We add special handling for `<br>` elements with
-                        // `data-copy="force-newlines"`. We don't add any text for the element, instead
-                        // we prevent the newlines around this position from collapsing. Useful for
-                        // `<ContentFileCodeViewer>` to make sure code is copied correctly without
-                        // needing a custom clipboard serializer.
+                        // `data-copy="force-newlines"`. We don't add any text for the element, instead we
+                        // prevent the newlines around this position from collapsing. Useful for
+                        // `<ContentFileCodeViewer>` to make sure code is copied correctly without needing
+                        // a custom clipboard serializer.
                         if (node.getAttribute("data-copy") === "force-newlines") {
                             results.push({text: "", html: null});
                         } else {
@@ -432,13 +426,13 @@ export function getSelectionClipboardData(initialSelection: {
                         }
                     }
 
-                    // 6. If node's computed value of 'display' is 'table-cell', and node's CSS box
-                    //    is not the last 'table-cell' box of its enclosing 'table-row' box, then
-                    //    append a string containing a single U+0009 TAB code point to items.
+                    // 6. If node's computed value of 'display' is 'table-cell', and node's CSS box is
+                    //    not the last 'table-cell' box of its enclosing 'table-row' box, then append a
+                    //    string containing a single U+0009 TAB code point to items.
                     //
-                    // 7. If node's computed value of 'display' is 'table-row', and node's CSS box
-                    //    is not the last 'table-row' box of the nearest ancestor 'table' box, then
-                    //    append a string containing a single U+000A LF code point to items.
+                    // 7. If node's computed value of 'display' is 'table-row', and node's CSS box is
+                    //    not the last 'table-row' box of the nearest ancestor 'table' box, then append
+                    //    a string containing a single U+000A LF code point to items.
                     //
                     // NOTE(calebmer): Ignoring these instructions for now. Tables should mostly be
                     // rendered as content which will have its own text serializer.
@@ -449,8 +443,8 @@ export function getSelectionClipboardData(initialSelection: {
                         results.push(2);
                     }
                     // 9. (Part 2.) If node's used value of 'display' is block-level or
-                    //    'table-caption', then append 1 (a required line break count) at the
-                    //    beginning and end of items.
+                    //    'table-caption', then append 1 (a required line break count) at the beginning
+                    //    and end of items.
                     else if (
                         isDisplayBlockLevel(
                             computedStyle.display ||
@@ -479,15 +473,15 @@ export function getSelectionClipboardData(initialSelection: {
 
             results.push(result);
         }
-        // If there was no clipboard serializer for the end node and we're ending
-        // in a text node then add the slice of text we have selected...
+        // If there was no clipboard serializer for the end node and we're ending in a text
+        // node then add the slice of text we have selected...
         else if (node === endNode && endNode instanceof Text && startNode !== endNode) {
             results.push(endNode.data.slice(0, endOffset));
         }
     }
 
-    // Check if we have multiple different authors. If so, we'll add author
-    // prefixes to distinguish who wrote what.
+    // Check if we have multiple different authors. If so, we'll add author prefixes to
+    // distinguish who wrote what.
     const authorIds = new Set<string>();
     for (const result of results) {
         if (typeof result !== "string" && typeof result !== "number" && result.authorPrefix) {
@@ -506,11 +500,11 @@ export function getSelectionClipboardData(initialSelection: {
             continue;
         }
 
-        // If our HTML starts/ends with an element that itself inserts line breaks
-        // (e.g. `<p>` and `<div>`) we shouldn't insert `<br>` elements since the
-        // resulting HTML rendered with default CSS styles will have more whitespace
-        // than necessary. Given the line breaking elements will create a newline AND
-        // `<br>` will create another newline.
+        // If our HTML starts/ends with an element that itself inserts line breaks (e.g.
+        // `<p>` and `<div>`) we shouldn't insert `<br>` elements since the resulting HTML
+        // rendered with default CSS styles will have more whitespace than necessary. Given
+        // the line breaking elements will create a newline AND `<br>` will create another
+        // newline.
         const lastRequiredLineBreakCountForHtml = Math.max(
             0,
             lastRequiredLineBreakCount -
@@ -534,9 +528,9 @@ export function getSelectionClipboardData(initialSelection: {
             text += result;
             if (result.length > 0) html.appendChild(document.createTextNode(result));
         } else {
-            // Add author prefix if we have multiple authors and this result has one.
-            // The prefix format is "Author Name: ". We use getAccountRegistry to get
-            // the latest account name rather than using potentially stale data.
+            // Add author prefix if we have multiple authors and this result has one. The
+            // prefix format is "Author Name: ". We use getAccountRegistry to get the latest
+            // account name rather than using potentially stale data.
             let prefix = "";
             if (hasMultipleAuthors && result.authorPrefix) {
                 const accountName = getAccountRegistry(result.authorPrefix.spaceId)
@@ -549,8 +543,8 @@ export function getSelectionClipboardData(initialSelection: {
 
             if (result.html !== null) {
                 if (prefix.length > 0) {
-                    // Add the prefix to the HTML. If the first element is a <p>, add the
-                    // prefix inside it. Otherwise, prepend a text node.
+                    // Add the prefix to the HTML. If the first element is a <p>, add the prefix inside
+                    // it. Otherwise, prepend a text node.
                     if (result.html instanceof Element && result.html.tagName === "P") {
                         result.html.insertBefore(
                             document.createTextNode(prefix),
@@ -572,11 +566,11 @@ export function getSelectionClipboardData(initialSelection: {
 }
 
 /**
- * Implements a subset of the HTML `innerText` algorithm for determining how
- * many line breaks `innerText` would add at the start of the provided node.
- * Our implementation closely follows `getSelectionClipboardData()` which
- * documents each step of the `innerText` algorithm. Refer to that function for
- * more details about each of the steps in this function.
+ * Implements a subset of the HTML `innerText` algorithm for determining how many
+ * line breaks `innerText` would add at the start of the provided node. Our
+ * implementation closely follows `getSelectionClipboardData()` which documents
+ * each step of the `innerText` algorithm. Refer to that function for more details
+ * about each of the steps in this function.
  */
 function getStartLineBreakCount(node: Node): number {
     let lineBreakCount = 0;
@@ -623,11 +617,11 @@ function getStartLineBreakCount(node: Node): number {
 }
 
 /**
- * Implements a subset of the HTML `innerText` algorithm for determining how
- * many line breaks `innerText` would add at the end of the provided node.
- * Our implementation closely follows `getSelectionClipboardData()` which
- * documents each step of the `innerText` algorithm. Refer to that function for
- * more details about each of the steps in this function.
+ * Implements a subset of the HTML `innerText` algorithm for determining how many
+ * line breaks `innerText` would add at the end of the provided node. Our
+ * implementation closely follows `getSelectionClipboardData()` which documents
+ * each step of the `innerText` algorithm. Refer to that function for more details
+ * about each of the steps in this function.
  */
 function getEndLineBreakCount(node: Node): number {
     let lineBreakCount = 0;

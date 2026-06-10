@@ -1,11 +1,15 @@
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {RpcHttpBatchCallEventOutputSchema} from "~/shared/rpc/helpers/rpc_http_schema.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export async function deserializeRpcBatchResponse(
-    callBatch: ReadonlyArray<{outputPromiseResolver: PromiseResolver<SchemaSerializedValue>}>,
+    callBatch: ReadonlyArray<{
+        name: string;
+        outputPromiseResolver: PromiseResolver<SchemaSerializedValue>;
+    }>,
     response: Response,
 ) {
     const decoder = new TextDecoder();
@@ -22,8 +26,8 @@ export async function deserializeRpcBatchResponse(
                     stream: !result.done,
                 });
 
-                // If there's a newline in the output that means the content preceding the
-                // newline has at least one valid event maybe more.
+                // If there's a newline in the output that means the content preceding the newline
+                // has at least one valid event maybe more.
                 let newLineIndex = chunkString.lastIndexOf("\n");
 
                 if (newLineIndex !== -1) {
@@ -46,15 +50,19 @@ export async function deserializeRpcBatchResponse(
             }
         }
 
-        // Once we're done reading, we assume the last string is also valid JSON.
-        // Unless the string is empty. Then we assume it's a trailing newline.
+        // Once we're done reading, we assume the last string is also valid JSON. Unless
+        // the string is empty. Then we assume it's a trailing newline.
         if (unfinishedString.length !== 0) {
             yield unfinishedString;
         }
     }
 
+    let receivedEventCount = 0;
+
     for await (const eventString of read()) {
         const event = RpcHttpBatchCallEventOutputSchema.deserialize(JSON.parse(eventString));
+
+        receivedEventCount++;
 
         const call = callBatch[event.index];
         const callOutput = event.call;
@@ -63,8 +71,8 @@ export async function deserializeRpcBatchResponse(
             throw new InternalError("Batch request included output for an unknown call");
         }
 
-        // If anything throws while processing the output for a single call,
-        // reject only that call's promise.
+        // If anything throws while processing the output for a single call, reject only
+        // that call's promise.
         if (!callOutput.ok) {
             call.outputPromiseResolver.reject(callOutput.error);
         } else {
@@ -72,10 +80,14 @@ export async function deserializeRpcBatchResponse(
         }
     }
 
-    for (const call of callBatch) {
+    for (let i = 0; i < callBatch.length; i++) {
+        const call = callBatch[i]!;
         if (!call.outputPromiseResolver.isSettled()) {
             call.outputPromiseResolver.reject(
-                new InternalError("Batch request didn\u2019t include output for call"),
+                new InternalError(
+                    quote`Batch request didn\u2019t include output for call ${call.name}` +
+                        ` (index ${i}, received ${receivedEventCount}/${callBatch.length} events)`,
+                ),
             );
         }
     }

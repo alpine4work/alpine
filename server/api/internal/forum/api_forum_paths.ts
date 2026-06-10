@@ -1,15 +1,17 @@
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {createIntoApiPostCommentContentPayloadParent} from "~/server/api/internal/forum/internal/create_into_api_post_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {
+    getApiMentionTitleWithStrongConsistency,
     intoApiContentWithReferencesAndReturnReferences,
     intoApiMessageContentWithReferences,
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
+import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
@@ -23,7 +25,9 @@ import {
     pingPostCommentStream,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
-import {getSearchEntityMentionWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -37,6 +41,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {FileId, PostId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -71,7 +77,8 @@ export const apiForumPaths: Pick<
     "/channels/{id}/mention": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
-            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+
+            const {title} = await getApiMentionTitleWithStrongConsistency(
                 context,
                 spaceId,
                 `Channel:${pathParameters.id}`,
@@ -85,7 +92,7 @@ export const apiForumPaths: Pick<
                             type: "Channel",
                             id: pathParameters.id,
                         },
-                        title: searchEntity.title,
+                        title,
                     },
                 },
             };
@@ -96,32 +103,54 @@ export const apiForumPaths: Pick<
         post: async (context, {requestBody}) => {
             const channelId = requestBody.channelId;
 
+            const postId = generateId<PostId>();
+
             const content = assertPostContent(
                 fromApiContent(PostContentProsemirrorSchema, requestBody.content),
             );
 
+            // Attach files referenced in the content to the post before creating the post so
+            // there's no race where a reader sees the post before its files are attached.
+            const fileIds = extractFileIdsFromApiContent(requestBody.content);
+            fileIds.delete(unknownFileId);
+            if (fileIds.size > 0) {
+                await runAllPromises(
+                    [...fileIds].map(fileId =>
+                        attachFileToTargetAsBot(
+                            context,
+                            fileId,
+                            FilePostAuthorizer.bind({type: "Post", postId}),
+                        ),
+                    ),
+                );
+            }
+
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
 
-            const [post, author, {content: contentWithReferences, references}] =
-                await runAllPromises([
-                    createPost(context, {
-                        channelId,
-                        createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
-                        content,
-                        consistency: "Strong",
-                    }),
-                    getApiAccount(
-                        referencesContext,
-                        referencesContext.actor.getSpaceId(),
-                        referencesContext.actor.getBotAccountId(),
-                    ),
-                    intoApiContentWithReferencesAndReturnReferences(
-                        referencesContext,
-                        referencesContext.actor.getSpaceId(),
-                        "AssertHasNoFiles",
-                        content,
-                    ),
-                ]);
+            const [post, author] = await runAllPromises([
+                createPost(context, {
+                    id: postId,
+                    channelId,
+                    createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
+                    content,
+                    consistency: "Strong",
+                }),
+                getApiAccount(
+                    referencesContext,
+                    referencesContext.actor.getSpaceId(),
+                    referencesContext.actor.getBotAccountId(),
+                ),
+            ]);
+
+            // Resolve content references after creating the post so the file authorizer can
+            // find the post attachment target.
+            const {content: contentWithReferences, references} =
+                await intoApiContentWithReferencesAndReturnReferences(
+                    referencesContext,
+                    referencesContext.actor.getSpaceId(),
+                    FilePostAuthorizer.bind({type: "Post", postId}),
+                    content,
+                );
 
             return {
                 content: {
@@ -204,7 +233,8 @@ export const apiForumPaths: Pick<
     "/posts/{id}/mention": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
-            const searchEntity = await getSearchEntityMentionWithStrongConsistency(
+
+            const {title} = await getApiMentionTitleWithStrongConsistency(
                 context,
                 spaceId,
                 `Post:${pathParameters.id}`,
@@ -218,7 +248,7 @@ export const apiForumPaths: Pick<
                             type: "Post",
                             id: pathParameters.id,
                         },
-                        title: searchEntity.title,
+                        title,
                     },
                 },
             };
@@ -322,13 +352,30 @@ export const apiForumPaths: Pick<
             );
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+            const fileIds = (requestBody.files ?? []).map(parseFileIdFromApiFileElement);
+            const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
+
+            // Attach files before creating the message, matching the app client flow. The
+            // service function validates attachments exist.
+            await runAllPromises(
+                attachmentFileIds.map(fileId =>
+                    attachFileToTargetAsBot(
+                        context,
+                        fileId,
+                        FilePostAuthorizer.bind({
+                            type: "PostComments",
+                            postId: pathParameters.id,
+                        }),
+                    ),
+                ),
+            );
 
             const {spaceId, index, createdTime} = await createPostComment(context, {
                 postId: pathParameters.id,
                 parent,
                 content,
                 createdTimeZone,
-                fileIds: [],
+                fileIds,
                 isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
             });
@@ -338,26 +385,26 @@ export const apiForumPaths: Pick<
                 parent,
                 content,
                 contentUpdate: null,
-                fileIds: [],
+                fileIds,
                 reactionsByPos: emptyMap,
                 filesReactions: emptyReactionSet,
             };
 
-            // If this broadcast fails (or it's never sent, say if the process dies) then
-            // users connected to this messaging room won't see this message appear in
-            // realtime. The realtime connection will be "stuck". Any future messages will
-            // be placed in a queue (since the connection is waiting on a previous message)
-            // and will never be flushed to the client.
+            // If this broadcast fails (or it's never sent, say if the process dies) then users
+            // connected to this messaging room won't see this message appear in realtime. The
+            // realtime connection will be "stuck". Any future messages will be placed in a
+            // queue (since the connection is waiting on a previous message) and will never be
+            // flushed to the client.
             //
-            // To get out of this state, the user can reload the page. Or navigate to
-            // another page then navigate back. We hope this won't be too big of an issue
-            // since the user should still receive a realtime inbox update telling them
-            // they have a new message.
+            // To get out of this state, the user can reload the page. Or navigate to another
+            // page then navigate back. We hope this won't be too big of an issue since the
+            // user should still receive a realtime inbox update telling them they have a new
+            // message.
             //
-            // NOTE(calebmer): The best fix for this is probably to send the broadcast
-            // event in a DynamoDB Streams listener that reacts to the update. We plan to
-            // move `NotificationEvent`, `IndexSearchEntity`, and other processing that
-            // needs to reliably run after an updates to DynamoDB Stream.
+            // NOTE(calebmer): The best fix for this is probably to send the broadcast event in
+            // a DynamoDB Streams listener that reacts to the update. We plan to move
+            // `NotificationEvent`, `IndexSearchEntity`, and other processing that needs to
+            // reliably run after an updates to DynamoDB Stream.
             context.process.waitUntil(
                 context.edge.broadcastToDurableObject(
                     `/api/durable-objects/posts/${pathParameters.id}/broadcast-new-message`,

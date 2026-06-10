@@ -1,8 +1,7 @@
 "use strict";
 
-// Extract the compilation mode from the `BAZEL_BINDIR` environment variable.
-// This is a little hacky.
-// https://bazel.build/docs/user-manual#compilation-mode
+// Extract the compilation mode from the `BAZEL_BINDIR` environment variable. This
+// is a little hacky. https://bazel.build/docs/user-manual#compilation-mode
 //
 // IMPORTANT: If you update the code here, you should also update the code in
 // `styles_esbuild_config.cjs` and `edge_esbuild_config.cjs`.
@@ -26,10 +25,9 @@ module.exports = {
     platform: "node",
     target: "node18",
     format: "cjs",
-    // In Node.js v18 (AWS Lambda's latest Node.js version) `crypto` is not
-    // available as a global. Set it as a global at the top of generated JavaScript
-    // files. Some of our modules like `shared/id/id.ts` depend on a `crypto`
-    // global.
+    // In Node.js v18 (AWS Lambda's latest Node.js version) `crypto` is not available
+    // as a global. Set it as a global at the top of generated JavaScript files. Some
+    // of our modules like `shared/id/id.ts` depend on a `crypto` global.
     //
     // Fine to use `banner` since we only generate one JavaScript file given
     // `splitting` is off.

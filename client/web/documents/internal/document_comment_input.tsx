@@ -91,8 +91,8 @@ export function DocumentCommentInput({
         },
     );
 
-    // We connect to realtime in our `<DocumentCommentInput>` component. This
-    // component is always mounted for a document comment thread.
+    // We connect to realtime in our `<DocumentCommentInput>` component. This component
+    // is always mounted for a document comment thread.
     useMessagingRealtime({
         isConnected,
         messages: comments,
@@ -140,19 +140,19 @@ export function DocumentCommentInput({
             (subscriber: (event: MessagingRealtimeEvent<DocumentCommentModel>) => void) =>
                 subscribeToCommentThreadEvents(commentThread.id, event => {
                     if (event.type === "PersistedContent") {
-                        // Synchronously flush since we want the React updates made here to be applied
-                        // in the same render as our WebSocket client's state `ValueStore` updates in
-                        // response to this event.
+                        // Synchronously flush since we want the React updates made here to be applied in
+                        // the same render as our WebSocket client's state `ValueStore` updates in response
+                        // to this event.
                         //
-                        // We want these state updates to happen at the same time since we're replacing
-                        // the optimistic "unpersisted" resolution state from our state store with a
-                        // more permanent update to the `commentThread` object. If these renders don't
-                        // happen at the same time the user may see the resolve button briefly flash
-                        // into an incorrect state.
+                        // We want these state updates to happen at the same time since we're replacing the
+                        // optimistic "unpersisted" resolution state from our state store with a more
+                        // permanent update to the `commentThread` object. If these renders don't happen at
+                        // the same time the user may see the resolve button briefly flash into an
+                        // incorrect state.
                         //
                         // Given our WebSocket client's state `ValueStore` is subscribed to using
-                        // `useSyncExternalStore()` we'll already be synchronously rendering so it's ok
-                        // to again synchronously render here.
+                        // `useSyncExternalStore()` we'll already be synchronously rendering so it's ok to
+                        // again synchronously render here.
                         flushSync(() => {
                             handlePersistedContentEvent(event.updatedCommentThread);
                         });
@@ -209,9 +209,8 @@ export function DocumentCommentInput({
             onShowTypingIndicator={() => {
                 procedures
                     .startTypingInCommentInput({commentThreadId: commentThread.id})
-                    // Don't show an error updating typing indicators to the user. We will see an
-                    // error in our logs but the user won't see any weird behavior if the
-                    // request fails.
+                    // Don't show an error updating typing indicators to the user. We will see an error
+                    // in our logs but the user won't see any weird behavior if the request fails.
                     .catch(error =>
                         reporter.logErrorWithoutDisplaying(
                             "Couldn\u2019t update typing indicator",
@@ -222,9 +221,8 @@ export function DocumentCommentInput({
             onHideTypingIndicator={() => {
                 procedures
                     .stopTypingInCommentInput({commentThreadId: commentThread.id})
-                    // Don't show an error updating typing indicators to the user. We will see an
-                    // error in our logs but the user won't see any weird behavior if the
-                    // request fails.
+                    // Don't show an error updating typing indicators to the user. We will see an error
+                    // in our logs but the user won't see any weird behavior if the request fails.
                     .catch(error =>
                         reporter.logErrorWithoutDisplaying(
                             "Couldn\u2019t update typing indicator",

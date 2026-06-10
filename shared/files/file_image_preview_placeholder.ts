@@ -8,8 +8,8 @@ import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
  * max height is `round(5 / minFilePreviewAspectRatio)` which equals 12 as of
  * 2024-10-04).
  *
- * A pixel is 3 or 4 bytes depending on whether there's an alpha channel. So
- * the max number of bytes in a placeholder is 240 bytes.
+ * A pixel is 3 or 4 bytes depending on whether there's an alpha channel. So the
+ * max number of bytes in a placeholder is 240 bytes.
  */
 export const fileImagePreviewPlaceholderBaseSize = 5;
 
@@ -24,13 +24,14 @@ export const fileImagePreviewPlaceholderBaseSize = 5;
  * Lambda Functions][1]" (though our implementation doesn't use BlurHash). Our
  * implementation is derived from [`plaiceholder`][2].
  *
- * When stored in the database and serialized over the network the placeholder
- * is represented by a dense array of bytes. These bytes are a flattened pixel
- * grid. This grid is rendered on the client using `linear-gradient()`s in CSS
- * to create the blur effect. It's more efficient to store the raw pixel data
- * instead of the `linear-gradient()` strings.
+ * When stored in the database and serialized over the network the placeholder is
+ * represented by a dense array of bytes. These bytes are a flattened pixel grid.
+ * This grid is rendered on the client using `linear-gradient()`s in CSS to create
+ * the blur effect. It's more efficient to store the raw pixel data instead of the
+ * `linear-gradient()` strings.
  *
- * [1]: https://css-tricks.com/inline-image-previews-with-sharp-blurhash-and-lambda-functions
+ * [1]:
+ *     https://css-tricks.com/inline-image-previews-with-sharp-blurhash-and-lambda-functions
  * [2]: https://plaiceholder.co/docs
  */
 export type FileImagePreviewPlaceholder = InstanceType<typeof FileImagePreviewPlaceholder>;

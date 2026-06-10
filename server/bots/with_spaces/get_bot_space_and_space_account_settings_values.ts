@@ -19,9 +19,9 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 /**
  * Get both space and space account settings for a bot in one request.
  *
- * Only the account itself may load its account settings. Bots can load
- * account settings for any account in the space for their bot id. Space
- * settings are filtered based on role for non-admin accounts.
+ * Only the account itself may load its account settings. Bots can load account
+ * settings for any account in the space for their bot id. Space settings are
+ * filtered based on role for non-admin accounts.
  */
 export async function getBotSpaceAndSpaceAccountSettingsValues(
     context: ServerAccountActionContext,
@@ -49,9 +49,9 @@ export async function getBotSpaceAndSpaceAccountSettingsValues(
         accountSettingsItem,
     ] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
-        // Bots are allowed to read the bot settings for all accounts. In Alpine you
-        // can only read your own bot settings but the third-party bot creator can
-        // decide a different permissions scheme.
+        // Bots are allowed to read the bot settings for all accounts. In Alpine you can
+        // only read your own bot settings but the third-party bot creator can decide a
+        // different permissions scheme.
         context.actor.type !== "Bot" ? authorizeOwnSpaceAccountAccess(context, accountId) : null,
         isAccountMemberOfSpace(context, spaceId, accountId),
         isAccountMemberOfSpace(context, spaceId, context.actor.getPossiblyBotAccountId(), "Admin"),

@@ -10,9 +10,9 @@ export function trimContentFragment(fragment: Fragment): Fragment {
 }
 
 /**
- * Trim spaces from the end of a ProseMirror node. We call this before sending
- * a chat message or creating a post. Trailing white space is usually an
- * accident and looks weird in the message.
+ * Trim spaces from the end of a ProseMirror node. We call this before sending a
+ * chat message or creating a post. Trailing white space is usually an accident and
+ * looks weird in the message.
  */
 export function trimContentEnd<Content extends Node>(node: Content): Content {
     const trimPos = trimContentFragmentEndPos(node.content);
@@ -73,8 +73,8 @@ export function trimContentFragmentEndPos(fragment: Fragment): number | null {
     if (!lastChildNode.isText) {
         const trimPos = trimContentFragmentEndPos(lastChildNode.content);
 
-        // If the last node is an empty paragraph, then remove it and then try trimming
-        // the new last node.
+        // If the last node is an empty paragraph, then remove it and then try trimming the
+        // new last node.
         if (
             fragment.content.length > 1 &&
             (lastChildNode.type.name === "paragraph" ||
@@ -116,8 +116,8 @@ export function trimContentFragmentStartPos(fragment: Fragment): number | null {
 
         const trimPos = trimContentFragmentStartPos(firstChildNode.content);
 
-        // If the first node is an empty paragraph, then remove it and then try
-        // trimming the new first node.
+        // If the first node is an empty paragraph, then remove it and then try trimming
+        // the new first node.
         if (
             fragment.content.length > 1 &&
             firstChildNode.type.name === "paragraph" &&

@@ -24,6 +24,7 @@ import {
 } from "~/client/web/design/internal/reporter_context.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {toastStyles} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
@@ -40,20 +41,20 @@ import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 /**
- * Error toasts should be visible long enough for the user to read but short
- * enough so that the user can try again. Or if the user is already trying
- * again we can show a queued error message.
+ * Error toasts should be visible long enough for the user to read but short enough
+ * so that the user can try again. Or if the user is already trying again we can
+ * show a queued error message.
  *
- * For accessibility it's recommended to have a [minimum time of 6
- * seconds][1].
+ * For accessibility it's recommended to have a [minimum time of 6 seconds][1].
  *
- * [1]: https://sheribyrnehaber.medium.com/designing-toast-messages-for-accessibility-fb610ac364be
+ * [1]:
+ *     https://sheribyrnehaber.medium.com/designing-toast-messages-for-accessibility-fb610ac364be
  */
-const defaultToastDurationSeconds = 6;
+export const defaultToastDurationSeconds = 6;
 
 /**
- * Toasts display brief, temporary notifications. They're meant to be noticed
- * but not disrupt a user's experience.
+ * Toasts display brief, temporary notifications. They're meant to be noticed but
+ * not disrupt a user's experience.
  */
 type Toast = InfoToast | ErrorToast;
 
@@ -63,22 +64,23 @@ type Toast = InfoToast | ErrorToast;
 type InfoToast = {
     readonly type: "Info";
     readonly message: ReactNode;
+    readonly key?: unknown;
     readonly durationSeconds?: number;
+    readonly pendingPromise?: Promise<unknown>;
 };
 
 /**
- * A toast displaying an error message. It lets the user know an error has
- * occurred but does not interrupt the user's experience.
+ * A toast displaying an error message. It lets the user know an error has occurred
+ * but does not interrupt the user's experience.
  */
 type ErrorToast = {
     readonly type: "Error";
 
     /**
-     * The "what happened" part of an error message according to [Adobe
-     * Spectrum's][1] error content guidelines.
+     * The "what happened" part of an error message according to [Adobe Spectrum's][1]
+     * error content guidelines.
      *
-     * Should not include ending punctuation. Ending punctuation will be
-     * added for you.
+     * Should not include ending punctuation. Ending punctuation will be added for you.
      *
      * [1]: https://spectrum.adobe.com/page/writing-for-errors
      */
@@ -91,12 +93,14 @@ type ErrorToast = {
     readonly error: unknown;
 
     /**
-     * The context where the error was reported. We want to use the
-     * tracer from this context when logging the error.
+     * The context where the error was reported. We want to use the tracer from this
+     * context when logging the error.
      */
     readonly reportingContext: AppContext;
 
+    readonly key?: undefined;
     readonly durationSeconds?: undefined;
+    readonly pendingPromise?: undefined;
 };
 
 let nextReporterModalDialogId = 1;
@@ -114,6 +118,7 @@ type ReporterState = {
     | {
           readonly platform: "mobile";
           readonly activeToast?: undefined;
+          readonly toastQueue?: undefined;
       }
     | {
           readonly platform: "desktop";
@@ -195,8 +200,8 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
         }
         case "DisplayError": {
             if (state.platform === "mobile") {
-                // NOTE(calebmer): The dialog doesn't show an error icon. That's because we
-                // don't have much ability to customize the native iOS dialog we render.
+                // NOTE(calebmer): The dialog doesn't show an error icon. That's because we don't
+                // have much ability to customize the native iOS dialog we render.
                 return reduceReporterState(state, {
                     type: "ShowDialog",
                     dialogProps: {
@@ -367,6 +372,7 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                         context,
                     ),
                     showInfoToast: reporter.showInfoToast.bind(undefined, context),
+                    hasInfoToastWithKey: reporter.hasInfoToastWithKey,
                 };
 
                 return newReporter as Memo<typeof newReporter>;
@@ -413,9 +419,18 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                     toast: {
                         type: "Info",
                         message,
+                        key: options?.key,
                         durationSeconds: options?.durationSeconds,
+                        pendingPromise: options?.pendingPromise,
                     },
                 });
+            },
+
+            hasInfoToastWithKey: key => {
+                return (
+                    stateRef.current.activeToast?.toast.key === key ||
+                    !!stateRef.current.toastQueue?.some(toast => toast.key === key)
+                );
             },
         };
 
@@ -437,8 +452,8 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
 
                 onAfterCloseByModalDialogIdRef.current.delete(id);
 
-                // If we have a callback for a dialog that isn't the active dialog and isn't in
-                // the queue then finally call `onAfterClose`.
+                // If we have a callback for a dialog that isn't the active dialog and isn't in the
+                // queue then finally call `onAfterClose`.
                 try {
                     onAfterClose();
                 } catch (error) {
@@ -505,10 +520,10 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
     );
 }
 
-// NOTE(calebmer): Toasts can only be rendered on desktop right now. Which is
-// why they're a part of this `Reporter` abstraction. `Reporter` is responsible
-// for providing cross-platform "report" methods which may use toasts (on
-// desktop) and other UI on mobile.
+// NOTE(calebmer): Toasts can only be rendered on desktop right now. Which is why
+// they're a part of this `Reporter` abstraction. `Reporter` is responsible for
+// providing cross-platform "report" methods which may use toasts (on desktop) and
+// other UI on mobile.
 function ToastView({
     toast,
     startTime,
@@ -523,7 +538,12 @@ function ToastView({
         [startTime, toast.durationSeconds],
     );
 
+    const pendingPromiseState = usePromise(toast.pendingPromise ?? null);
+
     useEffect(() => {
+        // Don't dismiss if there's a `pendingPromise`.
+        if (pendingPromiseState.isPending) return;
+
         const remainingDuration = expirationTime.getTime() - Date.now();
         if (remainingDuration <= 0) {
             onDismiss();
@@ -532,7 +552,7 @@ function ToastView({
 
         const timeout = createTimeout(onDismiss, remainingDuration);
         return () => timeout.clear();
-    }, [expirationTime, onDismiss, startTime]);
+    }, [expirationTime, onDismiss, pendingPromiseState.isPending, startTime]);
 
     const [isInitialRender, setIsInitialRender] = useState(true);
     useLayoutEffect(() => {
@@ -571,7 +591,8 @@ function ToastView({
                         // initially render without content then the element immediately re-renders with
                         // the alert content.
                         //
-                        // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role
+                        // [1]:
+                        //     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role
                         (toast.type === "Info" ? (
                             toast.message
                         ) : (
@@ -585,17 +606,22 @@ function ToastView({
                         ))}
                 </Box>
             </Box>
-            <Box flexShrink="0" paddingTop="0.5" paddingBottom="1.5" paddingRight="0.5">
-                <IconButton
-                    size="xs"
-                    description="Dismiss alert"
-                    withoutTooltip={true}
-                    onPress={() => onDismiss({withoutAnimation: true})}
-                >
-                    <X />
-                </IconButton>
-                <ToastViewTimer startTime={startTime} expirationTime={expirationTime} />
-            </Box>
+            {!toast.pendingPromise && (
+                // If we have a `pendingPromise` then we don't know when the toast will finish so
+                // don't show a timer. Or the "X" button because `pendingPromise` probably means we
+                // want to keep showing the toast until the promise is done.
+                <Box flexShrink="0" paddingTop="0.5" paddingBottom="1.5" paddingRight="0.5">
+                    <IconButton
+                        size="xs"
+                        description="Dismiss alert"
+                        withoutTooltip={true}
+                        onPress={() => onDismiss({withoutAnimation: true})}
+                    >
+                        <X />
+                    </IconButton>
+                    <ToastViewTimer startTime={startTime} expirationTime={expirationTime} />
+                </Box>
+            )}
         </Box>
     );
 }

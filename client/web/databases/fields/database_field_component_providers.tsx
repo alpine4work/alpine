@@ -6,8 +6,8 @@ import type {DatabaseFieldType} from "~/shared/databases/fields/database_field_p
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * All known field component providers. Use this for
- * iteration (e.g. rendering the type picker).
+ * All known field component providers. Use this for iteration (e.g. rendering the
+ * type picker).
  */
 export const databaseFieldComponentProviders = [
     databasePlainTextFieldComponentProvider,
@@ -16,9 +16,8 @@ export const databaseFieldComponentProviders = [
 ] as const;
 
 /**
- * Per-field-type client rendering provider. Derived
- * from the registered component providers so `type` is
- * the literal union, not `string`.
+ * Per-field-type client rendering provider. Derived from the registered component
+ * providers so `type` is the literal union, not `string`.
  */
 export type DatabaseFieldComponentProvider = (typeof databaseFieldComponentProviders)[number];
 
@@ -29,10 +28,9 @@ const providersByType = new Map<DatabaseFieldType, DatabaseFieldComponentProvide
 );
 
 /**
- * Look up the component provider for a given field type.
- * Returns {@link DatabaseFieldComponentProviderBase} so
- * components are instantiable without knowing the
- * concrete field type.
+ * Look up the component provider for a given field type. Returns {@link
+ * DatabaseFieldComponentProviderBase} so components are instantiable without
+ * knowing the concrete field type.
  */
 export function getDatabaseFieldComponentProvider(
     type: DatabaseFieldType,

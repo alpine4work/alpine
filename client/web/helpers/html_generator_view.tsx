@@ -7,13 +7,13 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 
 /**
- * Takes an `HtmlElementGenerator` and integrates it with React. If the
- * component re-renders with a new `HtmlElementGenerator` then we'll use
- * `patchNode()` to update the DOM.
+ * Takes an `HtmlElementGenerator` and integrates it with React. If the component
+ * re-renders with a new `HtmlElementGenerator` then we'll use `patchNode()` to
+ * update the DOM.
  */
 // TODO(calebmer): `content_file_preview_component.tsx` and
-// `content_file_entity_preview_component.tsx` should use this component. Those
-// two files implement effectively the same logic plus some other stuff.
+// `content_file_entity_preview_component.tsx` should use this component. Those two
+// files implement effectively the same logic plus some other stuff.
 export function HtmlGeneratorView({
     ref = null,
     as = "div",
@@ -43,8 +43,8 @@ export function HtmlGeneratorView({
         if (previousHtmlGenerator === htmlGenerator) return;
 
         if (!previousHtmlGenerator) {
-            // This case happens during a hot reload. We need to remove the children
-            // currently in the DOM.
+            // This case happens during a hot reload. We need to remove the children currently
+            // in the DOM.
             while (containerElement.hasChildNodes()) {
                 containerElement.firstChild!.remove();
             }

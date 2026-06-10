@@ -13,7 +13,7 @@ import {
     paragraphMargin,
 } from "~/client/web/styles/other/internal/content.css.js";
 import {containerClassName} from "~/client/web/styles/other/internal/content_editor.css.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
@@ -22,18 +22,8 @@ export const textCursorNotInheritedClassName = style({
 });
 
 globalStyle(`${textCursorNotInheritedClassName} > *`, {
-    // Our `:root` cursor is explicitly set to `"default"` so `userSelect: "none"`
-    // text always has a default cursor.
-    cursor: "default",
-});
-
-export const textCursorNotInherited2ClassName = style({
-    cursor: "text",
-});
-
-globalStyle(`${textCursorNotInherited2ClassName} > * > *`, {
-    // Our `:root` cursor is explicitly set to `"default"` so `userSelect: "none"`
-    // text always has a default cursor.
+    // Our `:root` cursor is explicitly set to `"default"` so `userSelect: "none"` text
+    // always has a default cursor.
     cursor: "default",
 });
 
@@ -49,8 +39,7 @@ globalStyle(`${rowTitleInputEmptyContainerClassName} ${rowTitleInputPlaceholderC
 
 export const rowTitleInputIsNotEditableClassName = style({});
 
-// Make sure we have higher CSS precedence than
-// `sprinkles({userSelect: "text"})`.
+// Make sure we have higher CSS precedence than `sprinkles({userSelect: "text"})`.
 globalStyle(`${rowTitleInputIsNotEditableClassName}${rowTitleInputIsNotEditableClassName}`, {
     userSelect: "text",
     cursor: "auto",
@@ -119,8 +108,8 @@ export const rowTitleInputSingleLineOverflowGradientContainerClassName = style({
 export const dateInputTextSegmentClassName = style({});
 
 globalStyle(`${dateInputTextSegmentClassName}::selection`, {
-    // When a text segment is selected we already apply the selection background
-    // color. Don't apply it again with the proper text selection highlight.
+    // When a text segment is selected we already apply the selection background color.
+    // Don't apply it again with the proper text selection highlight.
     background: "none",
 });
 
@@ -138,18 +127,17 @@ export const rowNumberClassName = style({
         "&::before": {
             content: `counter(${rowNumberCounterName})`,
             position: "absolute",
-            left: 0,
+            right: `${parseRemLength(spacing["2"]) - parseRemLength(spacing["0.5"]) / 2}rem`,
             top: "50%",
             transform: "translateY(-50%)",
             pointerEvents: "none",
             display: "block",
-            minWidth: spacing["4"],
             maxWidth: spacing["8"],
             ...fontSizes["25"],
             ...fontStyles["truncate"],
             letterSpacing: "-0.1ch",
-            // The right-most digits are most significant. Truncate at the start instead of
-            // the end.
+            // The right-most digits are most significant. Truncate at the start instead of the
+            // end.
             direction: "rtl",
             color: colorSchemeVars["grey-20"],
             textAlign: "right",
@@ -172,17 +160,31 @@ export const rowTitleInputMultilineAfterClassName = style({
     },
 });
 
+const detailNotesContentEditorMinParagraphCount = 2;
+
 export const detailNotesContentEditorMinHeightPx = mapObjectValues(
     paragraphLineHeightPx,
     (paragraphLineHeight, spacingScale) =>
-        paragraphLineHeight * 2 + convertRemLengthToPx(paragraphMargin, spacingScale) * 1,
+        paragraphLineHeight * detailNotesContentEditorMinParagraphCount +
+        convertRemLengthToPx(paragraphMargin, spacingScale) *
+            (detailNotesContentEditorMinParagraphCount - 1),
+);
+
+const projectDetailNotesContentEditorMinParagraphCount = 4;
+
+export const projectDetailNotesContentEditorMinHeightPx = mapObjectValues(
+    paragraphLineHeightPx,
+    (paragraphLineHeight, spacingScale) =>
+        paragraphLineHeight * projectDetailNotesContentEditorMinParagraphCount +
+        convertRemLengthToPx(paragraphMargin, spacingScale) *
+            (projectDetailNotesContentEditorMinParagraphCount - 1),
 );
 
 export const detailNotesContentEditorClassName = style({
     height: "100%",
     selectors: {
-        // We need the `${containerClassName} > ${docClassName}` selectors to make sure
-        // we override the `min-height: 100%` set with the same selector.
+        // We need the `${containerClassName} > ${docClassName}` selectors to make sure we
+        // override the `min-height: 100%` set with the same selector.
         [`&, ${containerClassName} > ${docClassName}&`]: {
             minHeight: detailNotesContentEditorMinHeightPx.small,
         },
@@ -193,6 +195,25 @@ export const detailNotesContentEditorClassName = style({
         [`${largeSpacingScaleSelector} &, ${largeSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
             {
                 minHeight: detailNotesContentEditorMinHeightPx.large,
+            },
+    },
+});
+
+export const projectDetailNotesContentEditorClassName = style({
+    height: "100%",
+    selectors: {
+        // We need the `${containerClassName} > ${docClassName}` selectors to make sure we
+        // override the `min-height: 100%` set with the same selector.
+        [`&, ${containerClassName} > ${docClassName}&`]: {
+            minHeight: projectDetailNotesContentEditorMinHeightPx.small,
+        },
+        [`${mediumSpacingScaleSelector} &, ${mediumSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
+            {
+                minHeight: projectDetailNotesContentEditorMinHeightPx.medium,
+            },
+        [`${largeSpacingScaleSelector} &, ${largeSpacingScaleSelector} ${containerClassName} > ${docClassName}&`]:
+            {
+                minHeight: projectDetailNotesContentEditorMinHeightPx.large,
             },
     },
 });

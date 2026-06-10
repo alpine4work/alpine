@@ -37,7 +37,9 @@ import {ValueStore} from "~/shared/store/value_store.js";
 
 // ---------------------------------------------------------------------------
 // Dependency interfaces — mirror browser APIs at the lowest level
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 /** Mirrors the subset of `navigator.locks` we use. */
 export interface ActiveTabLockManager {
@@ -91,7 +93,9 @@ export interface ActiveTabBroadcastChannel {
 
 // ---------------------------------------------------------------------------
 // Connection type
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 type TabToWorkerRpc = WebWorkerRpc<
     typeof tabToWorkerDatabaseRpcMethods,
@@ -114,9 +118,8 @@ export interface DatabaseReactiveActionHandle<N extends DatabaseActionName> {
 }
 
 /**
- * Call signature exposed to consumers. Omits
- * `databaseGroupId` from inputs since the manager
- * injects it automatically.
+ * Call signature exposed to consumers. Omits `databaseGroupId` from inputs since
+ * the manager injects it automatically.
  */
 type DatabaseConnectionCall = <K extends keyof typeof tabToWorkerDatabaseRpcMethods>(
     method: K,
@@ -141,7 +144,9 @@ export interface DatabaseWorkerConnection {
 
 // ---------------------------------------------------------------------------
 // Internal types
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 interface RawConnection {
     readonly rpc: TabToWorkerRpc;
@@ -158,12 +163,13 @@ interface QueuedCall {
 
 // ---------------------------------------------------------------------------
 // ServiceWorker class
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 /**
- * Runs in the ServiceWorker. Stores the leader tab's
- * clientId and relays MessagePorts from followers to
- * the leader.
+ * Runs in the ServiceWorker. Stores the leader tab's clientId and relays
+ * MessagePorts from followers to the leader.
  */
 export class DatabaseActiveTabServiceWorker {
     private leaderClientId: string | null = null;
@@ -189,12 +195,13 @@ export class DatabaseActiveTabServiceWorker {
 
 // ---------------------------------------------------------------------------
 // Worker class
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 /**
- * Runs in the dedicated worker. Creates RPC handlers
- * for the main thread connection and any additional
- * ports forwarded from follower tabs. Delegates all
+ * Runs in the dedicated worker. Creates RPC handlers for the main thread
+ * connection and any additional ports forwarded from follower tabs. Delegates all
  * reactive action logic to {@link DatabaseClient}.
  */
 export class DatabaseActiveTabWorker {
@@ -220,26 +227,22 @@ export class DatabaseActiveTabWorker {
                         await client.seedPages(initialPages);
                     }
 
-                    // We're an always-online app: OPFS is just a cache,
-                    // so any cold-open failure (server unreachable,
-                    // cache validation) is meant to bubble up as
-                    // "couldn't connect to the database".
+                    // We're an always-online app: OPFS is just a cache, so any cold-open failure
+                    // (server unreachable, cache validation) is meant to bubble up as "couldn't
+                    // connect to the database".
                     await client.ensureCacheIsUpToDate(conn);
 
                     return client;
                 } catch (error) {
-                    // The client opened its OPFS sync-access handles
-                    // before failing; close it so the eviction below
-                    // leaves the next open free of OPFS's exclusive
-                    // handle lock.
+                    // The client opened its OPFS sync-access handles before failing; close it so the
+                    // eviction below leaves the next open free of OPFS's exclusive handle lock.
                     client.close();
                     throw error;
                 }
             })();
-            // Evict on failure so the next call re-attempts the
-            // cold-open rather than replaying the cached rejection
-            // forever. The identity guard avoids clobbering a newer
-            // attempt if this one rejects after eviction.
+            // Evict on failure so the next call re-attempts the cold-open rather than
+            // replaying the cached rejection forever. The identity guard avoids clobbering a
+            // newer attempt if this one rejects after eviction.
             created.catch(() => {
                 if (this.clientPromises.get(databaseGroupId) === created) {
                     this.clientPromises.delete(databaseGroupId);
@@ -252,8 +255,8 @@ export class DatabaseActiveTabWorker {
     }
 
     /**
-     * Returns a message handler function. The caller
-     * wires it to `workerSelf.onmessage` or a mock.
+     * Returns a message handler function. The caller wires it to
+     * `workerSelf.onmessage` or a mock.
      */
     createMessageHandler(
         send: (message: unknown) => void,
@@ -274,20 +277,16 @@ export class DatabaseActiveTabWorker {
     }
 
     /**
-     * Creates an RPC + connection pair for a single
-     * connected tab. The connection's `executeServer`
-     * routes back through this RPC to the tab's own
-     * WebSocket.
+     * Creates an RPC + connection pair for a single connected tab. The connection's
+     * `executeServer` routes back through this RPC to the tab's own WebSocket.
      *
-     * The RPC speaks per-table (matching the network
-     * protocol); this method wraps the calls so the
-     * single-table {@link DatabaseClient} sees only the
-     * main table's pages.
+     * The RPC speaks per-table (matching the network protocol); this method wraps the
+     * calls so the single-table {@link DatabaseClient} sees only the main table's
+     * pages.
      */
     private createConnection(send: (message: unknown) => void) {
-        // conn is defined after rpc but handlers only run
-        // asynchronously, so conn is always initialized by
-        // the time a handler executes.
+        // conn is defined after rpc but handlers only run asynchronously, so conn is
+        // always initialized by the time a handler executes.
         const rpc: WorkerToTabRpc = new WebWorkerRpc({
             callMethods: workerToTabDatabaseRpcMethods,
             handleMethods: tabToWorkerDatabaseRpcMethods,
@@ -389,12 +388,10 @@ export class DatabaseActiveTabWorker {
     }
 
     /**
-     * Execute SQL with full permissions (including DDL)
-     * on the worker's client. Creates the client if it
-     * doesn't exist yet. Writes land in the optimistic
-     * overlay; pair with {@link commitOptimisticPagesForTests}
-     * to materialize them on disk. Use for test schema
-     * setup only.
+     * Execute SQL with full permissions (including DDL) on the worker's client.
+     * Creates the client if it doesn't exist yet. Writes land in the optimistic
+     * overlay; pair with {@link commitOptimisticPagesForTests} to materialize them on
+     * disk. Use for test schema setup only.
      */
     async executeLocallyForTests(databaseGroupId: DatabaseGroupId, sql: string): Promise<void> {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
@@ -403,9 +400,8 @@ export class DatabaseActiveTabWorker {
     }
 
     /**
-     * Drain the optimistic overlay onto disk for the named
-     * database group. Test-only counterpart to
-     * {@link executeLocallyForTests}.
+     * Drain the optimistic overlay onto disk for the named database group. Test-only
+     * counterpart to {@link executeLocallyForTests}.
      */
     async commitOptimisticPagesForTests(databaseGroupId: DatabaseGroupId): Promise<void> {
         assert(import.meta.jest, "commitOptimisticPagesForTests is test-only");
@@ -430,18 +426,17 @@ export class DatabaseActiveTabWorker {
 
 // ---------------------------------------------------------------------------
 // Main-thread class
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 /**
- * Runs on the main thread. Handles leader election
- * via Web Locks, spawns the worker (leader) or
- * connects via the ServiceWorker port relay (follower).
+ * Runs on the main thread. Handles leader election via Web Locks, spawns the
+ * worker (leader) or connects via the ServiceWorker port relay (follower).
  *
- * The connection returned by {@link connect} is
- * resilient: if the leader tab dies, followers
- * automatically re-elect a leader and reconnect.
- * In-flight and new calls are queued during the
- * transition and replayed on the new connection.
+ * The connection returned by {@link connect} is resilient: if the leader tab dies,
+ * followers automatically re-elect a leader and reconnect. In-flight and new calls
+ * are queued during the transition and replayed on the new connection.
  */
 export class DatabaseActiveTabManager {
     private raw: RawConnection | null = null;
@@ -622,8 +617,8 @@ export class DatabaseActiveTabManager {
         const msg = data as {type?: string} | null;
 
         if (msg?.type === "db-leader-closing" && this.raw !== null && !this.raw.isLeader) {
-            // Leader is about to close — switch to queuing mode
-            // immediately so no new calls go to the dying port.
+            // Leader is about to close — switch to queuing mode immediately so no new calls go
+            // to the dying port.
             this.moveInflightToQueue();
             this.raw.close();
             this.raw = null;
@@ -643,8 +638,7 @@ export class DatabaseActiveTabManager {
             this.lockWaitActive = false;
             if (this.closed) return;
 
-            // Wait for any in-progress follower reconnection
-            // to finish before we overwrite it.
+            // Wait for any in-progress follower reconnection to finish before we overwrite it.
             if (this.reconnecting) {
                 await this.reconnecting;
             }
@@ -659,10 +653,9 @@ export class DatabaseActiveTabManager {
     // -- Reconnection --------------------------------------------------------
 
     /**
-     * Called when this tab's lock-wait fires (the
-     * previous leader died and we acquired the lock).
-     * Swaps the internal connection from follower to
-     * leader and notifies other tabs.
+     * Called when this tab's lock-wait fires (the previous leader died and we acquired
+     * the lock). Swaps the internal connection from follower to leader and notifies
+     * other tabs.
      */
     private async promoteToLeader(): Promise<void> {
         this.promoting = true;
@@ -685,10 +678,8 @@ export class DatabaseActiveTabManager {
     }
 
     /**
-     * Called when a "db-new-leader" broadcast is
-     * received. Closes the dead follower connection
-     * and reconnects to the new leader via the
-     * ServiceWorker port relay.
+     * Called when a "db-new-leader" broadcast is received. Closes the dead follower
+     * connection and reconnects to the new leader via the ServiceWorker port relay.
      */
     private async reconnectAsFollower(): Promise<void> {
         if (this.reconnecting) return;
@@ -722,9 +713,8 @@ export class DatabaseActiveTabManager {
         this.bc?.close();
         this.bc = null;
 
-        // Release the Web Lock so a follower can acquire it.
-        // Without this, in-page navigation (component unmount
-        // without tab close) would hold the lock forever.
+        // Release the Web Lock so a follower can acquire it. Without this, in-page
+        // navigation (component unmount without tab close) would hold the lock forever.
         const resolve = this.lockHoldResolve;
         this.lockHoldResolve = null;
         resolve?.();

@@ -145,7 +145,8 @@ describe("getAgentUsageLimitWindows", () => {
         // Mock no existing windows (new account)
         mockAgentUsageDatabase.getWindowByAccountIdAndType.mockResolvedValue(null);
 
-        // Mock usage query - weekly window will query since it starts at Sunday, dynamic won't since it starts now
+        // Mock usage query - weekly window will query since it starts at Sunday, dynamic
+        // won't since it starts now
         mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(0);
 
         mockAgentUsageDatabase.setWindowByAccountIdAndType.mockResolvedValueOnce({
@@ -696,7 +697,8 @@ describe("isAgentUsageLimitExceeded", () => {
             const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
 
-            // Create scenario where dynamic window was started later and will reset after weekly ends
+            // Create scenario where dynamic window was started later and will reset after
+            // weekly ends
             const dynamicStartTime = nextWeekWeeklyStartTime - 6 * 60 * 60 * 1000; // 6 hours ago
             const windows: Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents> = [
                 {

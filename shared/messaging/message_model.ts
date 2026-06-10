@@ -1,5 +1,5 @@
 import {MessageContentWithReferencesSchema} from "~/shared/content/message_content_schema.js";
-import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {FileEntityIdSchema, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -19,6 +19,7 @@ import {
     MessageStream,
 } from "~/shared/messaging/message_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {isDeepEqualWithSchema} from "~/shared/schema/helpers/is_deep_equal_with_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -44,18 +45,18 @@ export interface MessageModelBase {
     readonly createdTimeZone: TimeZone;
 
     /**
-     * The message payload. Determines the contents of the message and how it
-     * will be rendered.
+     * The message payload. Determines the contents of the message and how it will be
+     * rendered.
      */
     readonly payload: MessagePayloadModel;
 
     /**
-     * If this message is a stream then this property will be set and will contain
-     * the stream's parts.
+     * If this message is a stream then this property will be set and will contain the
+     * stream's parts.
      *
      * The references for content parts will be in
-     * `MessagePayloadModel.content.references`. So if a message references the
-     * same content multiple times we only include it once in the message model.
+     * `MessagePayloadModel.content.references`. So if a message references the same
+     * content multiple times we only include it once in the message model.
      */
     readonly stream: MessageStream | null;
 }
@@ -73,10 +74,10 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
      * between index 0 and 10 exist.
      *
      * When an author deletes their message it leaves a "Message deleted by X"
-     * statement with the same index. This is a compromise to let users control
-     * their data (messages can be edited + deleted) while maintaining the shape of
-     * the conversation to combat gaslighting. Users won't be confused if they get
-     * a notification and a message is no longer there.
+     * statement with the same index. This is a compromise to let users control their
+     * data (messages can be edited + deleted) while maintaining the shape of the
+     * conversation to combat gaslighting. Users won't be confused if they get a
+     * notification and a message is no longer there.
      */
     readonly index: number;
 
@@ -101,8 +102,8 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
     getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number | "Files"): string;
 
     /**
-     * Clone the model object, replacing any values with those provided in the
-     * partial value.
+     * Clone the model object, replacing any values with those provided in the partial
+     * value.
      */
     clone(partialValue: {
         version?: number;
@@ -115,9 +116,9 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
 }
 
 /**
- * An optimistic message is one which has been created on the client but has
- * not yet been confirmed on the server. Which means the server has not yet
- * assigned it an index.
+ * An optimistic message is one which has been created on the client but has not
+ * yet been confirmed on the server. Which means the server has not yet assigned it
+ * an index.
  */
 export interface OptimisticMessageModel extends MessageModelBase {
     readonly isOptimistic: true;
@@ -128,8 +129,8 @@ export interface OptimisticMessageModel extends MessageModelBase {
     readonly optimisticId: Id;
 
     /**
-     * Was there an error when trying to send this optimistic message to the
-     * server? If true we tell the user and let them retry.
+     * Was there an error when trying to send this optimistic message to the server? If
+     * true we tell the user and let them retry.
      */
     readonly optimisticRequestErrorState:
         | {readonly hasError: false}
@@ -160,6 +161,17 @@ export const MessageContentPayloadModelFileSchema = Schema.union({
         fileEntityId: FileEntityIdSchema,
         fileEntityResult: FileEntityModelResultSchema,
     }),
+    // If we couldn't load the file entity for some reason, we'll use this `Null`
+    // variant. The only reason we'd return this variant as of 2026-02-24 is we exceed
+    // the file entity depth recursion limit.
+    //
+    // Conceptually, this is the same as a `file` node being present in
+    // `DocumentContent` with a `fileId` that doesn't exist in
+    // `DocumentContentReference`'s `fileById`.
+    Null: Schema.object({
+        type: Schema.value("Null"),
+        fileId: FileIdOrFileEntityIdSchema,
+    }),
 });
 
 const MessageContentPayloadModelSchema = Schema.object({
@@ -189,13 +201,12 @@ const MessageDeletedPayloadModelSchema: Schema<{
 
 /**
  * `MessagePayloadModel` is different from `MessagePayload` in that
- * `MessagePayloadModel` is what we send to the client whereas `MessagePayload`
- * is what we store in the database. So `MessagePayloadModel` typically has
- * extra data for the client we don't need in the database.
+ * `MessagePayloadModel` is what we send to the client whereas `MessagePayload` is
+ * what we store in the database. So `MessagePayloadModel` typically has extra data
+ * for the client we don't need in the database.
  *
  * We expect that `MessagePayloadModel` is a supertype of `MessagePayload`. So
- * anywhere that expects a `MessagePayload` could also get
- * a `MessagePayloadModel`.
+ * anywhere that expects a `MessagePayload` could also get a `MessagePayloadModel`.
  */
 export const MessagePayloadModelSchema = Schema.union({
     Content: MessageContentPayloadModelSchema,
@@ -237,7 +248,15 @@ export function areMessagePayloadModelsEqual(
 
             if (!payload1.content.doc.eq(payload2.content.doc)) return false;
 
-            if (!isDeepEqual(payload1.contentUpdate, payload2.contentUpdate)) return false;
+            if (
+                !isDeepEqualWithSchema(
+                    MessageContentPayloadContentUpdateSchema,
+                    payload1.contentUpdate,
+                    payload2.contentUpdate,
+                )
+            ) {
+                return false;
+            }
 
             if (!isDeepEqual(payload1.clerical, payload2.clerical)) return false;
 
@@ -248,6 +267,8 @@ export function areMessagePayloadModelsEqual(
                             return file.file.id;
                         case "FileEntity":
                             return file.fileEntityId;
+                        case "Null":
+                            return file.fileId;
                         default:
                             throw exhaustive(file);
                     }
@@ -259,6 +280,8 @@ export function areMessagePayloadModelsEqual(
                             return file.file.id;
                         case "FileEntity":
                             return file.fileEntityId;
+                        case "Null":
+                            return file.fileId;
                         default:
                             throw exhaustive(file);
                     }
@@ -308,6 +331,8 @@ export function fromMessagePayloadModel(payload: MessagePayloadModel): MessagePa
                             return file.file.id;
                         case "FileEntity":
                             return file.fileEntityId;
+                        case "Null":
+                            return file.fileId;
                         default:
                             throw exhaustive(file);
                     }

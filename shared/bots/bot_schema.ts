@@ -1,10 +1,11 @@
 import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export const BotSchema = Schema.object({
     id: Schema.id<BotId>(),
+    createdTime: Schema.date,
     name: Schema.string,
     avatar: AvatarModelSchema.nullable(),
 });
@@ -18,6 +19,8 @@ export const BotForAdminSchema = BotSchema.merge(
             Schema.object({
                 apiKey: Schema.string,
                 name: LabelStringSchema.nullable(),
+                spaceId: Schema.id<SpaceId>().nullable(),
+                scope: Schema.unknown().nullable(),
             }),
         ),
     }),

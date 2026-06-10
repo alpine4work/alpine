@@ -1,4 +1,5 @@
 import {AccountModelWithoutSpaceAndAvatarDataSchema} from "~/shared/accounts/account_model_without_space.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const SpaceAccountStateRemovedReasons = ["ActionByAdmin", "InviteRejectedAsSpam"] as const;
@@ -20,6 +21,7 @@ export const SpaceAccountStateSchemas = {
     InvitePending: Schema.object({
         type: Schema.value("InvitePending"),
         invitedTime: Schema.date,
+        inviterAccountId: Schema.id<AccountId>().nullable().default(null),
         pendingAccountData: AccountModelWithoutSpaceAndAvatarDataSchema,
         wasPreviouslyRemoved: Schema.boolean.default(false),
     }),

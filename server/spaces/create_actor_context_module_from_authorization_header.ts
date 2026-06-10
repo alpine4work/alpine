@@ -4,6 +4,7 @@ import {
     ActorContextModule,
     AnonymousActorContextModule,
     BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -16,11 +17,11 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
+    InternalError,
     InvalidArgumentError,
     PermissionDeniedError,
     UnauthenticatedError,
 } from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -48,8 +49,10 @@ export async function createActorContextModuleFromAuthorizationHeader(
                 context,
                 requestHeaders,
                 tokenAgent,
-                spaceId,
-                {serviceName, authorizationHeaderPayload},
+                {
+                    serviceName,
+                    authorizationHeaderPayload,
+                },
             );
         }
         case "System": {
@@ -59,6 +62,32 @@ export async function createActorContextModuleFromAuthorizationHeader(
             return SystemActorContextModule.dangerouslyNew(
                 serviceName,
                 authorizationHeaderPayload.spaceId,
+            );
+        }
+        case "ImpersonatedAccount": {
+            if (spaceId !== authorizationHeaderPayload.spaceId) {
+                throw new PermissionDeniedError(
+                    "Impersonated account actor doesn\u2019t have access to space",
+                );
+            }
+            const systemActorContextModule = SystemActorContextModule.dangerouslyNew(
+                serviceName,
+                authorizationHeaderPayload.spaceId,
+            );
+            const isMember = await isAccountMemberOfSpaceWithoutAuthorization(
+                context,
+                authorizationHeaderPayload.spaceId,
+                authorizationHeaderPayload.accountId,
+            );
+            if (!isMember) {
+                throw new PermissionDeniedError(
+                    "Impersonated account isn\u2019t a member of space",
+                );
+            }
+
+            return ImpersonatedAccountActorContextModule.dangerouslyNew(
+                systemActorContextModule,
+                authorizationHeaderPayload.accountId,
             );
         }
         case "Anonymous": {
@@ -93,7 +122,6 @@ export async function createDynamoActorSessionContextModule(
     }>,
     requestHeaders: Headers,
     tokenAgent: TokenAgent,
-    spaceId?: SpaceId,
     parsedHeaders?: {
         serviceName: TokenServiceName;
         authorizationHeaderPayload: SessionTokenPayload;
@@ -109,34 +137,25 @@ export async function createDynamoActorSessionContextModule(
         );
     }
 
-    // Optimization: When loading our session from the database, also attempt to
-    // load whether the account associated with the session is a member of the
-    // space we're in.
-    const spaceIdPromiseItem = spaceId
-        ? () =>
-              isAccountMemberOfSpaceWithoutAuthorization(
-                  context,
-                  spaceId,
-                  authorizationHeaderPayload.accountId,
-              )
-        : () => {};
+    const sessionAccountId = await getSessionIfExists(
+        context,
+        authorizationHeaderPayload.sessionId,
+    );
 
-    const [session] = await runAllPromises([
-        getSessionIfExists(
-            context,
-            authorizationHeaderPayload.sessionId,
-            authorizationHeaderPayload.accountId,
-        ),
-        spaceIdPromiseItem(),
-    ]);
-
-    if (!session) {
+    if (sessionAccountId === null) {
         throw new PermissionDeniedError("Session not found");
     }
+
+    if (sessionAccountId !== authorizationHeaderPayload.accountId) {
+        throw new InternalError(
+            "`Authorization` header `AccountId` doesn\u2019t match session `AccountId`",
+        );
+    }
+
     return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
         serviceName,
-        session.id,
-        session.accountId,
+        authorizationHeaderPayload.sessionId,
+        sessionAccountId,
     );
 }
 

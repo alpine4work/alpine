@@ -13,12 +13,11 @@ import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 const AccountRegistryContext = createGlobalContext(() => new Map<SpaceId, AccountRegistry>());
 
 /**
- * On the client you have global access to the account registry. Not just
- * access through React context.
+ * On the client you have global access to the account registry. Not just access
+ * through React context.
  *
- * If the global registry hasn't been initialized yet (since a context
- * provider component hasn't mounted) then calling this function will
- * initialize it.
+ * If the global registry hasn't been initialized yet (since a context provider
+ * component hasn't mounted) then calling this function will initialize it.
  *
  * Will throw an error if we're not running in a web browser.
  */
@@ -56,9 +55,9 @@ export function useAccountRegistryForSpaceId(spaceId: SpaceId): AccountRegistry 
 }
 
 /**
- * Returns up-to-date data for the provided account that's the same as
- * everywhere else the account is presented. If we observe the account's data
- * change this hook will re-render with the new data.
+ * Returns up-to-date data for the provided account that's the same as everywhere
+ * else the account is presented. If we observe the account's data change this hook
+ * will re-render with the new data.
  */
 export function useAccountModel(account: AccountModel): AccountModelData;
 export function useAccountModel<Value>(account: AccountModel | Value): AccountModelData | Value;

@@ -10,7 +10,6 @@ ts_project(
     deps = [
         "//server/context",
         "//server/dynamo/core",
-        "//server/dynamo/core/general_realtime",
         "//server/search/data/table",
         "//server/spaces",
         "//shared/databases",

@@ -34,7 +34,7 @@ export type DatabaseGridViewFieldEditing = {
 export type DatabaseGridViewFieldWithEditing = DatabaseGridViewField & {
     readonly columnStyle: React.CSSProperties;
     readonly editing: DatabaseGridViewFieldEditing | null;
-    // `columnName` is set to "__pending__" for fields that are being added
+    // `columnName` is set to "**pending**" for fields that are being added
     // optimistically and don't yet have a server-assigned SQL column name.
     readonly columnName: string;
 };
@@ -62,12 +62,10 @@ type EditingState = {
 } | null;
 
 /**
- * Manages the field array for a grid view, including
- * optimistic updates and inline editing state for both
- * adding new fields and renaming existing ones. Operates
- * on a single `fields` array where each field carries a
- * `hidden` flag; derives the visible grid columns and
- * the hidden-fields list from it.
+ * Manages the field array for a grid view, including optimistic updates and inline
+ * editing state for both adding new fields and renaming existing ones. Operates on
+ * a single `fields` array where each field carries a `hidden` flag; derives the
+ * visible grid columns and the hidden-fields list from it.
  */
 export function useGridViewFields({
     tableId,
@@ -312,9 +310,8 @@ export function useGridViewFields({
         const startX = event.clientX;
         const startWidth = field.width;
         const pointerId = event.pointerId;
-        // Stored widths are in small-scale px. Convert CSS px
-        // deltas to small-scale px so the column tracks the
-        // pointer 1:1 at any spacing scale.
+        // Stored widths are in small-scale px. Convert CSS px deltas to small-scale px so
+        // the column tracks the pointer 1:1 at any spacing scale.
         const pxToStored = remPxBySpacingScale.small / remPxBySpacingScale[spacingScale];
 
         setResizingState({fieldId, startX, startWidth, currentWidth: startWidth, pointerId});
@@ -382,9 +379,8 @@ export function useGridViewFields({
         });
     });
 
-    // Total pixel width of all visible columns plus the
-    // header toolbar (add-field + visibility buttons) at
-    // the current spacing scale. Used by the grid view to
+    // Total pixel width of all visible columns plus the header toolbar (add-field +
+    // visibility buttons) at the current spacing scale. Used by the grid view to
     // enable horizontal scrolling when columns overflow.
     const contentMinWidth = useMemo(() => {
         const pxPerRem = remPxBySpacingScale[spacingScale];
@@ -393,9 +389,8 @@ export function useGridViewFields({
         for (const field of outputFields) {
             total += field.width * scale;
         }
-        // Account for the header toolbar: two sm icon
-        // buttons (1.25rem each) + paddingX 0.25rem×2 +
-        // gap 0.125rem = 3.125rem.
+        // Account for the header toolbar: two sm icon buttons (1.25rem each) + paddingX
+        // 0.25rem×2 + gap 0.125rem = 3.125rem.
         total += 3.125 * pxPerRem;
         return total;
     }, [outputFields, spacingScale]);

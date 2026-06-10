@@ -8,9 +8,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {ObjectSchema, SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * Typed handler map inferred from a method definitions object. Each key
- * matches a method name; the handler receives deserialized input and
- * returns deserialized output.
+ * Typed handler map inferred from a method definitions object. Each key matches a
+ * method name; the handler receives deserialized input and returns deserialized
+ * output.
  */
 export type WebWorkerRpcHandlers<Def extends WebWorkerRpcMethodDefinitions> = {
     readonly [K in keyof Def]: (
@@ -19,18 +19,17 @@ export type WebWorkerRpcHandlers<Def extends WebWorkerRpcMethodDefinitions> = {
 };
 
 /**
- * Typed RPC for web worker communication. Supports asymmetric
- * method sets: `CallDef` lists methods this side can invoke on
- * the remote, `HandleDef` lists methods the remote can invoke
- * on this side.
+ * Typed RPC for web worker communication. Supports asymmetric method sets:
+ * `CallDef` lists methods this side can invoke on the remote, `HandleDef` lists
+ * methods the remote can invoke on this side.
  *
  * - Use {@link call} to invoke a method on the remote side.
  * - Use {@link handleMessage} to process incoming messages.
  *
  * The boundaries are `unknown` — the class handles all
- * serialization/deserialization of messages via schemas. Pass a
- * `send` callback (e.g. `postMessage`) and feed incoming data
- * (e.g. from `onmessage`) into `handleMessage`.
+ * serialization/deserialization of messages via schemas. Pass a `send` callback
+ * (e.g. `postMessage`) and feed incoming data (e.g. from `onmessage`) into
+ * `handleMessage`.
  */
 export class WebWorkerRpc<
     CallDef extends WebWorkerRpcMethodDefinitions,
@@ -89,9 +88,9 @@ export class WebWorkerRpc<
     }
 
     /**
-     * Call a method on the remote side. Serializes the input and the
-     * outgoing message, sends it via the `send` callback, and returns
-     * a promise that resolves when the remote side responds.
+     * Call a method on the remote side. Serializes the input and the outgoing message,
+     * sends it via the `send` callback, and returns a promise that resolves when the
+     * remote side responds.
      */
     call<K extends string & keyof CallDef>(
         method: K,
@@ -114,11 +113,11 @@ export class WebWorkerRpc<
     }
 
     /**
-     * Process an incoming message. Deserializes the raw value using
-     * the message schema, then dispatches by type:
+     * Process an incoming message. Deserializes the raw value using the message
+     * schema, then dispatches by type:
      *
-     * - `"request"` — deserialize input, call local handler, send
-     *   response (or error if handler throws).
+     * - `"request"` — deserialize input, call local handler, send response (or error
+     *   if handler throws).
      * - `"response"` — deserialize output, resolve pending promise.
      * - `"error"` — reject pending promise.
      */

@@ -29,5 +29,5 @@ export async function deletePostReaction(context: ServerAccountActionContext, po
         {initialItem: item},
     );
 
-    return {getDynamoGeneralRealtimeEvent: getEvent};
+    return {getRynamoEvent: getEvent};
 }

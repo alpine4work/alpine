@@ -44,7 +44,6 @@ import {
 import {NavigationBarResult} from "~/client/web/navigation/navigation_bar_types.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderMinHeightWithoutPaddingTop,
@@ -89,11 +88,6 @@ import {Schema} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
-const documentCommentThreadListViewMarginY = addRemLengths(
-    documentCommentThreadHeaderPaddingY,
-    documentCommentThreadHeaderPaddingY,
-);
-
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
 // fast. Manually use the `sprinkles()` function instead. This reduces the
@@ -118,8 +112,8 @@ export type DocumentCommentThreadListViewRef = {
     setScrollOffset(scrollOffset: number, options?: {behavior?: "instant" | "smooth"}): void;
 
     /**
-     * Jump to the provided comment. If the comment thread or comment do
-     * not exist this will do nothing.
+     * Jump to the provided comment. If the comment thread or comment do not exist this
+     * will do nothing.
      */
     jumpToCommentRange(options: JumpToMessageRangeOptions<DocumentCommentRoomKey>): void;
 };
@@ -247,8 +241,8 @@ function DocumentCommentThreadListView(
         onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
 
         /**
-         * The initial comment threads loaded to populate this view. We will use this
-         * to construct a `DocumentCommentThreadTree` class.
+         * The initial comment threads loaded to populate this view. We will use this to
+         * construct a `DocumentCommentThreadTree` class.
          */
         initialCommentThreadResults: ReadonlyArray<{
             checkpoint: ServerSynchronizationCheckpoint;
@@ -270,8 +264,8 @@ function DocumentCommentThreadListView(
 
         /**
          * If we should disable rendering of the comment thread preview. Used when
-         * rendering a comment thread in document in mobile layouts since the document
-         * text is displayed above.
+         * rendering a comment thread in document in mobile layouts since the document text
+         * is displayed above.
          */
         withoutCommentThreadPreview?: boolean;
 
@@ -289,9 +283,9 @@ function DocumentCommentThreadListView(
         }>;
 
         /**
-         * If you want to include a navigation bar in this list view you may pass in
-         * the result of `useNavigationBar()` here and the virtualized scroll view will
-         * be properly configured.
+         * If you want to include a navigation bar in this list view you may pass in the
+         * result of `useNavigationBar()` here and the virtualized scroll view will be
+         * properly configured.
          */
         navigationBar?: NavigationBarResult;
 
@@ -310,20 +304,20 @@ function DocumentCommentThreadListView(
         pinnedCommentInputRef?: Ref<MessageInputRef>;
 
         /**
-         * If we're about to focus our pinned comment input in response to the user
-         * asking to reply to a comment or edit a comment then we call this function.
-         * You can stop focusing by returning `preventDefault: true`.
+         * If we're about to focus our pinned comment input in response to the user asking
+         * to reply to a comment or edit a comment then we call this function. You can stop
+         * focusing by returning `preventDefault: true`.
          *
-         * Useful for `<DocumentContentEditor>` where we need to expand the comment
-         * sidebar before we can allow the user to write a comment.
+         * Useful for `<DocumentContentEditor>` where we need to expand the comment sidebar
+         * before we can allow the user to write a comment.
          */
         onBeforePinnedCommentInputFocusFromReplyOrEditingChange?: () => {
             preventDefault: boolean;
         } | void;
 
         /**
-         * Have we called `NativeMobileBridge.tabBar.hide()`? If true then we need
-         * to handle safe area a bit differently.
+         * Have we called `NativeMobileBridge.tabBar.hide()`? If true then we need to
+         * handle safe area a bit differently.
          */
         isNativeMobileTabBarHidden?: boolean;
 
@@ -332,18 +326,18 @@ function DocumentCommentThreadListView(
          *
          * This background slop is used to implement full-screenable comment threads on
          * mobile. When you open a comment thread in a document we start by showing you
-         * just a preview. If you tap the comment input then the thread should expand
-         * to take the full screen. Since animating `height` is expensive, we instead
-         * animate `translateY`. So the comment thread is actually always the
-         * fullscreen size but when collapsed we have offscreen slop.
+         * just a preview. If you tap the comment input then the thread should expand to
+         * take the full screen. Since animating `height` is expensive, we instead animate
+         * `translateY`. So the comment thread is actually always the fullscreen size but
+         * when collapsed we have offscreen slop.
          */
         backgroundSlopBottomIfPinnedCommentInput?: RemLength;
 
         /**
          * Is this comment thread archived?
          *
-         * We should the inbox archival button if this property is provided (even if
-         * always returns false).
+         * We should the inbox archival button if this property is provided (even if always
+         * returns false).
          */
         isCommentThreadArchived?: Memo<(commentThreadId: DocumentCommentThreadId) => boolean>;
 
@@ -366,7 +360,6 @@ function DocumentCommentThreadListView(
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
 
-    const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const [tree, setTree, setTreeOptimistically] = useStateWithOptimisticUpdates(() => {
@@ -399,9 +392,9 @@ function DocumentCommentThreadListView(
         return tree;
     });
 
-    // Stable list of all the `DocumentCommentThreadId`s in this list. It's
-    // important that this is stable so we can use it as a dependency for a
-    // `useMemo()` on our snippet cache.
+    // Stable list of all the `DocumentCommentThreadId`s in this list. It's important
+    // that this is stable so we can use it as a dependency for a `useMemo()` on our
+    // snippet cache.
     const commentThreadIds = useStableJsonValue(
         useMemo(() => {
             return Array.from(
@@ -412,8 +405,8 @@ function DocumentCommentThreadListView(
 
     const collectCommentThreadSnippets = useMemo(
         () =>
-            // Optimization: If we aren't rendering comment thread previews, don't
-            // collect snippets.
+            // Optimization: If we aren't rendering comment thread previews, don't collect
+            // snippets.
             !withoutCommentThreadPreview
                 ? createDocumentCommentThreadSnippetCollector(commentThreadIds)
                 : () => new Map(),
@@ -450,8 +443,8 @@ function DocumentCommentThreadListView(
         }, [allUnpersistedResolutionStateByCommentThreadId, commentThreadIds]),
     );
 
-    // Always pin the comment input to the bottom of the list view of a single
-    // comment thread.
+    // Always pin the comment input to the bottom of the list view of a single comment
+    // thread.
     const isSingleCommentThreadWithPinnedCommentInput = tree.getNodeCount() === 1;
     const hasNavigationBar = !!navigationBar?.navigationBar;
 
@@ -487,8 +480,8 @@ function DocumentCommentThreadListView(
             ): {isLoading: false} | {isLoading: true; promise: Promise<void>} {
                 if (!renderedRange) return {isLoading: false};
 
-                // Adjust rendered range if we have a header item so the indexes are relative
-                // to our `tree` data structure.
+                // Adjust rendered range if we have a header item so the indexes are relative to
+                // our `tree` data structure.
                 if (header) {
                     renderedRange = {
                         startIndex: Math.max(0, renderedRange.startIndex - 1),
@@ -595,11 +588,11 @@ function DocumentCommentThreadListView(
         },
     );
 
-    // Whenever our list data changes, try loading more comments. In case our
-    // rendered range stayed the same but we see some some unloaded comments.
+    // Whenever our list data changes, try loading more comments. In case our rendered
+    // range stayed the same but we see some some unloaded comments.
     //
-    // This effect should also fire when `tryLoadingMoreData()` completes
-    // in case it didn't fully load the list.
+    // This effect should also fire when `tryLoadingMoreData()` completes in case it
+    // didn't fully load the list.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         tree;
@@ -612,8 +605,8 @@ function DocumentCommentThreadListView(
     //
     // This is at the list level because:
     //
-    // 1. If a message is scrolled out of the virtualization window we still want
-    //    it to be editable so it shouldn't lose state.
+    // 1. If a message is scrolled out of the virtualization window we still want it to
+    //    be editable so it shouldn't lose state.
     //
     // 2. We want only one message to be editable at a time.
     const {messageEditing, modals} = useMessageEditing<DocumentCommentRoomKey>({
@@ -679,14 +672,14 @@ function DocumentCommentThreadListView(
         [jumpToMessageRange],
     );
 
-    // Make sure the bottom of the scroll view stays visible when the keyboard
-    // opens and closes.
+    // Make sure the bottom of the scroll view stays visible when the keyboard opens
+    // and closes.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         getAnchorPosition: useEvent(oldVisibleRect => {
-            // NOTE(calebmer, 2024-07-16): We used to anchor chat view scroll to the
-            // message the user was replying to or editing. However, in practice this felt
-            // janky to me. Scrolling wasn't predictable when swiping to reply to a
-            // message! I think consistency is likely the better user experience here.
+            // NOTE(calebmer, 2024-07-16): We used to anchor chat view scroll to the message
+            // the user was replying to or editing. However, in practice this felt janky to me.
+            // Scrolling wasn't predictable when swiping to reply to a message! I think
+            // consistency is likely the better user experience here.
             //
             // To look at the old message anchoring code, git blame this comment to see the
             // commit where I remove it.
@@ -780,8 +773,8 @@ function DocumentCommentThreadListView(
                     };
                 }
 
-                // Adjust index so it's relative to `tree` data structure for the rest of
-                // this function.
+                // Adjust index so it's relative to `tree` data structure for the rest of this
+                // function.
                 index -= 1;
             }
 
@@ -791,9 +784,9 @@ function DocumentCommentThreadListView(
                     // All comment threads should be in the same document.
                     assert(item.commentThread.documentId === documentId);
 
-                    // If we have a navigation bar, then use less top padding since when the
-                    // navigation bar isn't opaque it visually adds a lot of padding to the top of
-                    // the screen already.
+                    // If we have a navigation bar, then use less top padding since when the navigation
+                    // bar isn't opaque it visually adds a lot of padding to the top of the screen
+                    // already.
                     //
                     // The `paddingTop` of `2` also happens to align with the `<TaskStatusButton>`
                     // placement on mobile.
@@ -802,7 +795,7 @@ function DocumentCommentThreadListView(
                         : documentCommentThreadHeaderPaddingY;
 
                     const minHeight = addRemLengths(
-                        index !== 0 ? documentCommentThreadListViewMarginY : paddingTop,
+                        index !== 0 ? documentCommentThreadHeaderPaddingY : paddingTop,
                         !withoutCommentThreadPreview
                             ? documentCommentThreadHeaderMinHeightWithoutPaddingTop
                             : documentCommentThreadActionsHeight,
@@ -840,12 +833,12 @@ function DocumentCommentThreadListView(
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
-                                                left: "0",
-                                                right: "0",
-                                                height: "border-thick",
+                                                top: "0",
+                                                left: screenPaddingX,
+                                                right: screenPaddingX,
+                                                height: "border",
                                                 backgroundColor: "grey-5",
                                             })}
-                                            style={{top: -1}}
                                         />
                                     </div>
                                 )}
@@ -854,18 +847,18 @@ function DocumentCommentThreadListView(
                                         className={sprinkles({
                                             position: "relative",
                                             width: "full",
+                                            height: documentCommentThreadHeaderPaddingY,
                                             maxWidth: contentStyles.contentMaxWidth,
                                             paddingX: screenPaddingX,
                                         })}
-                                        style={{height: documentCommentThreadListViewMarginY}}
                                     >
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
-                                                left: "0",
-                                                right: "0",
-                                                bottom: documentCommentThreadHeaderPaddingY,
-                                                height: "border-thick",
+                                                left: screenPaddingX,
+                                                right: screenPaddingX,
+                                                top: "0",
+                                                height: "border",
                                                 backgroundColor: "grey-5",
                                             })}
                                         />
@@ -962,7 +955,7 @@ function DocumentCommentThreadListView(
                         },
                         getMessageUrl: commentIndex => {
                             return new URL(
-                                `/s/${space.id}/documents/${documentId}?comments=${item.commentThread.id}&comment=${commentIndex}`,
+                                `/doc/${documentId}?thread=${item.commentThread.id}&comment=${commentIndex}`,
                                 window.location.href,
                             );
                         },
@@ -971,13 +964,12 @@ function DocumentCommentThreadListView(
                         onUpdateMessagesOptimistically: handleUpdateMessagesOptimistically,
                         shouldAddMarginBottom:
                             isSingleCommentThreadWithPinnedCommentInput &&
-                            // -2 instead of -1 since when
-                            // `isSingleCommentThreadWithPinnedCommentInput` is true we don't
-                            // actually render the final comment input item in `tree`.
+                            // -2 instead of -1 since when `isSingleCommentThreadWithPinnedCommentInput` is
+                            // true we don't actually render the final comment input item in `tree`.
                             //
                             // We intentionally use `--keyboard-safe-area-inset-bottom` here for comment
-                            // threads rendered on top of a document since the native tab bar is hidden in
-                            // this case.
+                            // threads rendered on top of a document since the native tab bar is hidden in this
+                            // case.
                             index === tree.getItemCount() - 2
                                 ? isNativeMobileTabBarHidden
                                     ? backgroundSlopBottomIfPinnedCommentInput
@@ -1017,23 +1009,23 @@ function DocumentCommentThreadListView(
                     };
                 }
 
-                // The document comment thread input item sticks to the bottom of the screen
-                // while the associated comment thread is visible. Whenever any item in the
-                // comment thread is rendered we also additionally render this input
+                // The document comment thread input item sticks to the bottom of the screen while
+                // the associated comment thread is visible. Whenever any item in the comment
+                // thread is rendered we also additionally render this input
                 // (`renderAdditionalItemIndexes`) so that virtualization doesn't remove it.
                 //
-                // We create a `<div>` that spans the bottom of the document preview to the end
-                // of the entire thread. This is the range in which our comment input will be
-                // sticky. We create a second `<div>` of the same range but rendering the full
-                // thread width border. The comment input is shaped so that when we reach the
-                // bottom of the page the full width border will slide underneath it. Creating
-                // the effect of while scrolling the comment input is a layer on top of the thread
-                // and when at the bottom of the thread the comment input is inline.
+                // We create a `<div>` that spans the bottom of the document preview to the end of
+                // the entire thread. This is the range in which our comment input will be sticky.
+                // We create a second `<div>` of the same range but rendering the full thread width
+                // border. The comment input is shaped so that when we reach the bottom of the page
+                // the full width border will slide underneath it. Creating the effect of while
+                // scrolling the comment input is a layer on top of the thread and when at the
+                // bottom of the thread the comment input is inline.
                 //
-                // IMPORTANT: This code is very similar to how we render `<PostCommentInput>`
-                // in `<PostListView>`! If you are updating this code you also probably want to
-                // update `<PostListView>`. We don't know what a good abstraction here is so
-                // following the advice "no abstraction is better than the wrong abstraction".
+                // IMPORTANT: This code is very similar to how we render `<PostCommentInput>` in
+                // `<PostListView>`! If you are updating this code you also probably want to update
+                // `<PostListView>`. We don't know what a good abstraction here is so following the
+                // advice "no abstraction is better than the wrong abstraction".
                 case "DocumentCommentInput": {
                     const inputParent =
                         inputParentByCommentThreadId.get(item.commentThread.id) ?? null;
@@ -1148,7 +1140,6 @@ function DocumentCommentThreadListView(
                                             width: "full",
                                             display: "flex",
                                             justifyContent: "center",
-                                            overflow: "hidden",
                                         })}
                                     >
                                         <div
@@ -1197,7 +1188,6 @@ function DocumentCommentThreadListView(
             handleUpdateMessagesOptimistically,
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
-            space.id,
             inputParentByCommentThreadId,
             inputRefByCommentThreadId,
             isConnected,
@@ -1226,22 +1216,18 @@ function DocumentCommentThreadListView(
                 })}
             >
                 {withSafeAreaInsetTop && !navigationBar?.navigationBar && (
-                    // Only render a safe area cover if we don't have a navigation bar. Otherwise
-                    // the navigation bar acts as our safe area cover.
+                    // Only render a safe area cover if we don't have a navigation bar. Otherwise the
+                    // navigation bar acts as our safe area cover.
                     <div
                         className={sprinkles({
                             position: "absolute",
                             top: "0",
                             left: "0",
                             right: "0",
+                            height: "safe-area-inset-top",
                             zIndex: "10",
                             backgroundColor: "grey-0",
                         })}
-                        style={{
-                            // Subtract 1px from `safe-area-inset-top` to account for the thick (2px) top
-                            // border on comment threads.
-                            height: `calc(var(--safe-area-inset-top, 0px) - 1px)`,
-                        }}
                     />
                 )}
                 <VirtualizedScrollView
@@ -1260,8 +1246,8 @@ function DocumentCommentThreadListView(
                     itemCount={
                         (header ? 1 : 0) +
                         tree.getItemCount() -
-                        // Don't render the comment input (which should be the last item) if we are
-                        // pinning the comment input to the bottom of the view.
+                        // Don't render the comment input (which should be the last item) if we are pinning
+                        // the comment input to the bottom of the view.
                         (isSingleCommentThreadWithPinnedCommentInput ? 1 : 0)
                     }
                     renderItem={renderItem}

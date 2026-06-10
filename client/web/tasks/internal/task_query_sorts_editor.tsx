@@ -40,8 +40,8 @@ export function TaskQuerySortsEditor({
     const platform = usePlatform();
 
     // By default `<DndContext>` uses `PointerSensor` and `KeyboardSensor` but
-    // `PointerSensor` can't stop scroll when dragging with touch. So instead we
-    // want to directly use `MouseSensor` and `TouchSensor`.
+    // `PointerSensor` can't stop scroll when dragging with touch. So instead we want
+    // to directly use `MouseSensor` and `TouchSensor`.
     const sensors = useSensors(
         useSensor(MouseSensor),
         useSensor(TouchSensor),
@@ -212,6 +212,21 @@ function TaskQuerySortsEditorRow({
                     <TaskQuerySortsEditorRowPriorityDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
+                    />
+                </TaskQuerySortsEditorRowBase>
+            );
+        }
+        case "Layout": {
+            return (
+                <TaskQuerySortsEditorRowBase
+                    id={id}
+                    name="Project"
+                    onDelete={onSortDelete}
+                    isDragOverlay={isDragOverlay}
+                >
+                    <TaskQuerySortsEditorRowLayoutDirection
+                        missing={sort.missing}
+                        onMissingChange={missing => onSortChange({...sort, missing})}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -436,8 +451,8 @@ function TaskQuerySortsEditorRowBase({
                         cursor: "grab",
                         color: "grey-70",
                     })}
-                    // Drag handle is not tab focusable. Keyboard navigation within a task grid is
-                    // not done with tab navigation.
+                    // Drag handle is not tab focusable. Keyboard navigation within a task grid is not
+                    // done with tab navigation.
                     tabIndex={-1}
                 >
                     <DotsSixVertical size={spacing[platform === "mobile" ? "4" : "3"]} />
@@ -531,6 +546,46 @@ function TaskQuerySortsEditorRowPriorityDirection({
                 iconPlacement="end"
             >
                 {direction === "Ascending" ? ascendingLabel : descendingLabel}
+            </Button>
+        </MenuButton>
+    );
+}
+
+function TaskQuerySortsEditorRowLayoutDirection({
+    missing,
+    onMissingChange,
+}: {
+    missing: "First" | "Last";
+    onMissingChange: (missing: "First" | "Last") => void;
+}) {
+    const platform = usePlatform();
+
+    const firstLabel = "Task → Project";
+    const lastLabel = "Project → Task";
+
+    return (
+        <MenuButton
+            actions={[
+                {
+                    label: lastLabel,
+                    isSelected: missing === "Last",
+                    onPress: () => onMissingChange("Last"),
+                },
+                {
+                    label: firstLabel,
+                    isSelected: missing === "First",
+                    onPress: () => onMissingChange("First"),
+                },
+            ]}
+        >
+            <Button
+                variant="quieter"
+                height={platform === "mobile" ? "full" : "5"}
+                paddingX={platform === "mobile" ? "2" : "1.5"}
+                icon={<CaretDown />}
+                iconPlacement="end"
+            >
+                {missing === "First" ? firstLabel : lastLabel}
             </Button>
         </MenuButton>
     );

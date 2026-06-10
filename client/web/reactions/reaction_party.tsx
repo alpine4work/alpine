@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import {useId, useMemo} from "react";
 import {usePress} from "react-aria";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
@@ -120,8 +118,8 @@ function useReactionParty({
             return {reactionEntries, node: null};
         }
 
-        // Special rendering for a single reaction that puts the reaction in the middle
-        // of the post footer instead of on a second line.
+        // Special rendering for a single reaction that puts the reaction in the middle of
+        // the post footer instead of on a second line.
         if (reactionEntries.length === 1) {
             return {
                 reactionEntries,
@@ -305,9 +303,9 @@ function renderReactionPartySvg({
     }
 
     // Make sure to reset `iconTranslateYRandomIndex`. Second row offsets should be
-    // calculated independently from the first row. Otherwise if we add a reaction
-    // to the first row then it'll change the offsets for all reactions in the
-    // second row that come before it.
+    // calculated independently from the first row. Otherwise if we add a reaction to
+    // the first row then it'll change the offsets for all reactions in the second row
+    // that come before it.
     iconTranslateYRandomIndex = 0;
     previousIconTranslateY = undefined;
 

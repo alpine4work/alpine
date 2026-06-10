@@ -1,7 +1,10 @@
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
+    TaskClientStoreUndoManagerStackEntry,
 } from "~/client/web/tasks/core/task_client_store.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
@@ -15,7 +18,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
@@ -26,9 +29,11 @@ import {
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
+import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
@@ -43,6 +48,7 @@ import {
     TaskRealtimeUpdateEventSchema,
     taskAuthorizedState,
 } from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskTitleUpdateModel, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -58,6 +64,7 @@ afterEach(() => {
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 const accountRegistry = getAccountRegistry(spaceId);
+const siteRegistry = getSiteRegistry(spaceId);
 
 const account1 = createTestAccountModel({name: "Test Account 1"});
 const account2 = createTestAccountModel({name: "Test Account 2"});
@@ -90,12 +97,12 @@ function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
     const taskEntry = store.getTaskEntrySnapshot(taskId);
     if (!taskEntry) return null;
 
-    // This test was written before we added `actionReferencedAccountStoreById` to
-    // task entries. Discard `actionReferencedAccountStoreById` so we can avoid
-    // rewriting tests.
+    // This test was written before we added `actionReferencedAccountStoreById` to task
+    // entries. Discard `actionReferencedAccountStoreById` so we can avoid rewriting
+    // tests.
 
-    // Use a `WeakMap` to make sure we maintain referential equality if the task
-    // entry doesn't change.
+    // Use a `WeakMap` to make sure we maintain referential equality if the task entry
+    // doesn't change.
     return getOrSetDefaultMapValue(taskEntryCache, taskEntry, () => ({
         ...taskEntry,
         actions: taskEntry.actions?.map(({action}) => action) ?? null,
@@ -141,7 +148,7 @@ function createTask(
         time = store.clock.now(),
         taskAction = {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     }: {
@@ -158,12 +165,29 @@ const noopAffinityManager: TaskClientStoreSearchAffinityManager = {
     addGlobalLoadingIndicator: () => {},
 };
 
+let undoStackEntries: Array<TaskClientStoreUndoManagerStackEntry> = [];
+
+const mockUndoManager: TaskClientStoreUndoManager & {
+    popUndoStackEntry(): TaskClientStoreUndoManagerStackEntry;
+} = {
+    pushUndoStackEntry: entry => {
+        undoStackEntries.push(entry);
+    },
+    popUndoStackEntry: () => {
+        return assertExists(undoStackEntries.pop());
+    },
+};
+
+afterEach(() => {
+    undoStackEntries = [];
+});
+
 async function resolveLastRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     output: Output,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.resolveLastExecution(definition, output);
@@ -176,8 +200,8 @@ async function rejectRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     n: number,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.rejectExecution(definition, n);
@@ -189,8 +213,8 @@ async function rejectRpcExecution<Input, Output>(
 async function rejectLastRpcExecution<Input, Output>(
     definition: RpcDefinition<Input, Output>,
 ): Promise<void> {
-    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
-    // until after a microtask. So wait for that to happen.
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()` until
+    // after a microtask. So wait for that to happen.
     await waitMacrotask();
 
     TestRpcContextModule.rejectLastExecution(definition);
@@ -202,6 +226,7 @@ async function rejectLastRpcExecution<Input, Output>(
 test("if optimistic task creation is reverted then queries remove the task", async () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -213,7 +238,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -352,6 +377,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 test("task can be added to query through backfill", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -386,6 +412,7 @@ test("task can be added to query through backfill", () => {
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -397,6 +424,7 @@ test("task can be added to query through backfill", () => {
 test("task can be added to query through previously backfilled tasks", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -430,6 +458,7 @@ test("task can be added to query through previously backfilled tasks", () => {
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -461,6 +490,7 @@ test("task can be added to query through previously backfilled tasks", () => {
 test("task can be added to query through action", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -531,6 +561,7 @@ test("task can be added to query through action", () => {
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -543,6 +574,7 @@ test("task can be added to query through action", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -554,6 +586,7 @@ test("task can be added to query through action", () => {
 test("task can be removed from a query through an action", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -615,6 +648,7 @@ test("task can be removed from a query through an action", () => {
         backfillTasks: [{type: "Authorized", task: task.applyAction(action1, getSortableAccount)}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -629,6 +663,7 @@ test("task can be removed from a query through an action", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -638,6 +673,7 @@ test("task can be removed from a query through an action", () => {
 test("task can be moved in query through an action", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -723,6 +759,7 @@ test("task can be moved in query through an action", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -739,6 +776,7 @@ test("task can be moved in query through an action", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -752,6 +790,7 @@ test("task can be moved in query through an action", () => {
 test("task can be left alone through an action", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -834,6 +873,7 @@ test("task can be left alone through an action", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -850,6 +890,7 @@ test("task can be left alone through an action", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -863,6 +904,7 @@ test("task can be left alone through an action", () => {
 test("task references can be added to query through backfill", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -874,9 +916,10 @@ test("task references can be added to query through backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -890,9 +933,10 @@ test("task references can be added to query through backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -906,9 +950,10 @@ test("task references can be added to query through backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1106,6 +1151,7 @@ test("task references can be added to query through backfill", () => {
             {type: "Authorized", collection: collection3},
         ],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -1124,6 +1170,7 @@ test("task references can be added to query through backfill", () => {
 test("task references can be added to query through previous backfill", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -1135,9 +1182,10 @@ test("task references can be added to query through previous backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1151,9 +1199,10 @@ test("task references can be added to query through previous backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1167,9 +1216,10 @@ test("task references can be added to query through previous backfill", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1356,6 +1406,7 @@ test("task references can be added to query through previous backfill", () => {
             {type: "Authorized", collection: collection3},
         ],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -1404,6 +1455,7 @@ test("task references can be added to query through previous backfill", () => {
 test("task references can be added to query through action", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -1415,9 +1467,10 @@ test("task references can be added to query through action", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1431,9 +1484,10 @@ test("task references can be added to query through action", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1447,9 +1501,10 @@ test("task references can be added to query through action", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1635,6 +1690,7 @@ test("task references can be added to query through action", () => {
             {type: "Authorized", collection: collection3},
         ],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -1658,6 +1714,7 @@ test("task references can be added to query through action", () => {
         ],
         backfillCollections: [{type: "Authorized", collection: collection1}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -1678,6 +1735,7 @@ test("task references can be added to query through action", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -1696,6 +1754,7 @@ test("task references can be added to query through action", () => {
 test("task references can be removed from query through actions", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -1707,9 +1766,10 @@ test("task references can be removed from query through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1723,9 +1783,10 @@ test("task references can be removed from query through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1739,9 +1800,10 @@ test("task references can be removed from query through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -1969,6 +2031,7 @@ test("task references can be removed from query through actions", () => {
             {type: "Authorized", collection: collection3},
         ],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -1990,6 +2053,7 @@ test("task references can be removed from query through actions", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2010,6 +2074,7 @@ test("task references can be removed from query through actions", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2027,6 +2092,7 @@ test("task references can be removed from query through actions", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2039,6 +2105,7 @@ test("task references can be removed from query through actions", () => {
 test("references from optimistic task can be removed", async () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -2050,9 +2117,10 @@ test("references from optimistic task can be removed", async () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2066,9 +2134,10 @@ test("references from optimistic task can be removed", async () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2082,9 +2151,10 @@ test("references from optimistic task can be removed", async () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2244,6 +2314,7 @@ test("references from optimistic task can be removed", async () => {
             {type: "Authorized", collection: collection2},
         ],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2262,7 +2333,7 @@ test("references from optimistic task can be removed", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -2311,6 +2382,7 @@ test("references from optimistic task can be removed", async () => {
         backfillTasks: [{type: "Authorized", task: task5}],
         backfillCollections: [{type: "Authorized", collection: collection3}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2356,6 +2428,7 @@ test("references from optimistic task can be removed", async () => {
 test("task references can be added and removed through actions", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -2367,9 +2440,10 @@ test("task references can be added and removed through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2383,9 +2457,10 @@ test("task references can be added and removed through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2399,9 +2474,10 @@ test("task references can be added and removed through actions", () => {
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2544,6 +2620,7 @@ test("task references can be added and removed through actions", () => {
         backfillTasks: [{type: "Authorized", task: task1}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2561,6 +2638,7 @@ test("task references can be added and removed through actions", () => {
         backfillTasks: [{type: "Authorized", task: task2}],
         backfillCollections: [{type: "Authorized", collection: collection2}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2578,6 +2656,7 @@ test("task references can be added and removed through actions", () => {
         backfillTasks: [{type: "Authorized", task: task3}],
         backfillCollections: [{type: "Authorized", collection: collection3}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2595,6 +2674,7 @@ test("task references can be added and removed through actions", () => {
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection1}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2614,6 +2694,7 @@ test("task references can be added and removed through actions", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2631,6 +2712,7 @@ test("task references can be added and removed through actions", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2645,6 +2727,7 @@ test("task references can be added and removed through actions", () => {
 test("task references can be added and removed through actions on a referenced task", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -2656,9 +2739,10 @@ test("task references can be added and removed through actions on a referenced t
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2672,9 +2756,10 @@ test("task references can be added and removed through actions on a referenced t
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2688,9 +2773,10 @@ test("task references can be added and removed through actions on a referenced t
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2851,6 +2937,7 @@ test("task references can be added and removed through actions on a referenced t
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2868,6 +2955,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillTasks: [{type: "Authorized", task: task3}],
         backfillCollections: [{type: "Authorized", collection: collection2}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2885,6 +2973,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillTasks: [{type: "Authorized", task: task4}],
         backfillCollections: [{type: "Authorized", collection: collection3}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2902,6 +2991,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection1}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2921,6 +3011,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2938,6 +3029,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2952,6 +3044,7 @@ test("task references can be added and removed through actions on a referenced t
 test("task references can be added and removed through actions on a task that\u2019s both loaded and referenced", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -2963,9 +3056,10 @@ test("task references can be added and removed through actions on a task that\u2
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 1",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2979,9 +3073,10 @@ test("task references can be added and removed through actions on a task that\u2
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 2",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -2995,9 +3090,10 @@ test("task references can be added and removed through actions on a task that\u2
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test 3",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -3171,6 +3267,7 @@ test("task references can be added and removed through actions on a task that\u2
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3189,6 +3286,7 @@ test("task references can be added and removed through actions on a task that\u2
         backfillTasks: [{type: "Authorized", task: task3}],
         backfillCollections: [{type: "Authorized", collection: collection2}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3207,6 +3305,7 @@ test("task references can be added and removed through actions on a task that\u2
         backfillTasks: [{type: "Authorized", task: task4}],
         backfillCollections: [{type: "Authorized", collection: collection3}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3225,6 +3324,7 @@ test("task references can be added and removed through actions on a task that\u2
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection1}],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3245,6 +3345,7 @@ test("task references can be added and removed through actions on a task that\u2
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3263,6 +3364,7 @@ test("task references can be added and removed through actions on a task that\u2
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3278,6 +3380,7 @@ test("task references can be added and removed through actions on a task that\u2
 test("can handle a temporary cycle", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -3385,6 +3488,7 @@ test("can handle a temporary cycle", () => {
         backfillTasks: [{type: "Authorized", task: task3}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3405,6 +3509,7 @@ test("can handle a temporary cycle", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3422,6 +3527,7 @@ test("can handle a temporary cycle", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3436,6 +3542,7 @@ test("can handle a temporary cycle", () => {
 test("can handle a temporary cycle unrelated to loaded task", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -3562,6 +3669,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3579,6 +3687,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
         backfillTasks: [{type: "Authorized", task: task1}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3596,6 +3705,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3610,6 +3720,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
 test("temporarily holds on to actions applied to task that wasn\u2019t backfilled", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -3634,6 +3745,7 @@ test("temporarily holds on to actions applied to task that wasn\u2019t backfille
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3658,6 +3770,7 @@ test("temporarily holds on to actions applied to task that wasn\u2019t backfille
 test("temporarily holds on to actions applied to collection that wasn\u2019t backfilled", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -3682,6 +3795,7 @@ test("temporarily holds on to actions applied to collection that wasn\u2019t bac
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3701,6 +3815,7 @@ test("temporarily holds on to actions applied to collection that wasn\u2019t bac
 test("action removing from the query immediately releases task", async () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -3712,7 +3827,7 @@ test("action removing from the query immediately releases task", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3778,6 +3893,7 @@ test("action removing from the query immediately releases task", async () => {
         backfillTasks: [{type: "Authorized", task: task.applyAction(action2, getSortableAccount)}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3793,6 +3909,7 @@ test("action removing from the query immediately releases task", async () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3803,6 +3920,7 @@ test("action removing from the query immediately releases task", async () => {
 test("optimistic update retains task until resolved", async () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -3814,7 +3932,7 @@ test("optimistic update retains task until resolved", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3880,6 +3998,7 @@ test("optimistic update retains task until resolved", async () => {
         backfillTasks: [{type: "Authorized", task: task.applyAction(action2, getSortableAccount)}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -3899,6 +4018,7 @@ test("optimistic update retains task until resolved", async () => {
     await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(store.getTaskCountForTest()).toEqual(0);
@@ -3908,6 +4028,7 @@ test("optimistic update retains task until resolved", async () => {
 test("optimistic update retains task until rejected", async () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -3919,7 +4040,7 @@ test("optimistic update retains task until rejected", async () => {
         taskId: generateId(),
         taskAction: {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     } satisfies TaskAction;
@@ -3985,6 +4106,7 @@ test("optimistic update retains task until rejected", async () => {
         backfillTasks: [{type: "Authorized", task: task.applyAction(action2, getSortableAccount)}],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -4015,6 +4137,7 @@ test("optimistic update retains task until rejected", async () => {
 test("deleting task and all children when subscribed to task and its children", async () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -4026,9 +4149,10 @@ test("deleting task and all children when subscribed to task and its children", 
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account1.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -4165,6 +4289,7 @@ test("deleting task and all children when subscribed to task and its children", 
         ],
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [account1],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -4237,6 +4362,7 @@ test("deleting task and all children when subscribed to task and its children", 
             },
         ],
         referencedAccounts: [],
+        referencedSites: [],
     });
 
     expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -4249,6 +4375,7 @@ test("deleting task and all children when subscribed to task and its children", 
 test("backfilling tasks a store already has adds them to query", async () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -4291,6 +4418,7 @@ test("backfilling tasks a store already has adds them to query", async () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -4331,6 +4459,7 @@ test("backfilling tasks a store already has adds them to query", async () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -4341,11 +4470,12 @@ test("backfilling tasks a store already has adds them to query", async () => {
     ]);
 });
 
-// NOTE(calebmer): This test scenario is reduced from a real scenario I was
-// seeing in my development environment with actual data.
+// NOTE(calebmer): This test scenario is reduced from a real scenario I was seeing
+// in my development environment with actual data.
 test("peek task over collection initial load scenario", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -4452,7 +4582,10 @@ test("peek task over collection initial load scenario", () => {
                         parent: {
                             taskId: {value: task2Id, version: "111292192539475969"},
                             position: {
-                                value: {orderTime: "111292192539475970", orderKey: "a0"},
+                                value: {
+                                    orderTime: "111292192539475970",
+                                    orderKey: assertOrderKey("a0"),
+                                },
                                 version: "111292192539475970",
                             },
                         },
@@ -4488,7 +4621,10 @@ test("peek task over collection initial load scenario", () => {
                         parent: {
                             taskId: {value: null, version: "111137674037297152"},
                             position: {
-                                value: {orderTime: "111137674037297152", orderKey: "a0"},
+                                value: {
+                                    orderTime: "111137674037297152",
+                                    orderKey: assertOrderKey("a0"),
+                                },
                                 version: "111137674037297152",
                             },
                         },
@@ -4516,6 +4652,7 @@ test("peek task over collection initial load scenario", () => {
                     collection: {
                         id: collection1Id,
                         spaceId: store.spaceId,
+                        creator: null,
                         createdTime: "111178016799522816",
                         deletedTime: null,
                         undeletedTime: null,
@@ -4523,6 +4660,7 @@ test("peek task over collection initial load scenario", () => {
                         color: {value: "purple", version: "111267806774231040"},
                         accessPolicy: {
                             value: {
+                                type: "Local",
                                 accountGrantById: [[account1.id, {level: "Manage", generation: 0}]],
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -4534,6 +4672,7 @@ test("peek task over collection initial load scenario", () => {
             ],
             defaultAuthorizationStateVersion: "111296531173474304",
             referencedAccounts: [AccountModel.schema.serialize(account1)],
+            referencedSites: [],
             originClientId: null,
         }),
     );
@@ -4564,7 +4703,10 @@ test("peek task over collection initial load scenario", () => {
                         parent: {
                             taskId: {value: task1Id, version: "111296386826174464"},
                             position: {
-                                value: {orderTime: "111296386826174465", orderKey: "a0"},
+                                value: {
+                                    orderTime: "111296386826174465",
+                                    orderKey: assertOrderKey("a0"),
+                                },
                                 version: "111296386826174465",
                             },
                         },
@@ -4598,7 +4740,10 @@ test("peek task over collection initial load scenario", () => {
                         parent: {
                             taskId: {value: null, version: "111137674037297152"},
                             position: {
-                                value: {orderTime: "111137674037297152", orderKey: "a0"},
+                                value: {
+                                    orderTime: "111137674037297152",
+                                    orderKey: assertOrderKey("a0"),
+                                },
                                 version: "111137674037297152",
                             },
                         },
@@ -4634,7 +4779,10 @@ test("peek task over collection initial load scenario", () => {
                         parent: {
                             taskId: {value: task2Id, version: "111292192539475969"},
                             position: {
-                                value: {orderTime: "111292192539475970", orderKey: "a0"},
+                                value: {
+                                    orderTime: "111292192539475970",
+                                    orderKey: assertOrderKey("a0"),
+                                },
                                 version: "111292192539475970",
                             },
                         },
@@ -4662,6 +4810,7 @@ test("peek task over collection initial load scenario", () => {
                     collection: {
                         id: collection1Id,
                         spaceId: store.spaceId,
+                        creator: null,
                         createdTime: "111178016799522816",
                         deletedTime: null,
                         undeletedTime: null,
@@ -4675,6 +4824,7 @@ test("peek task over collection initial load scenario", () => {
                         },
                         accessPolicy: {
                             value: {
+                                type: "Local",
                                 accountGrantById: [[account1.id, {level: "Manage", generation: 0}]],
                                 defaultGrant: null,
                                 urlGrant: null,
@@ -4686,6 +4836,7 @@ test("peek task over collection initial load scenario", () => {
             ],
             defaultAuthorizationStateVersion: "111296587857461248",
             referencedAccounts: [AccountModel.schema.serialize(account1)],
+            referencedSites: [],
             originClientId: null,
         }),
     );
@@ -4694,6 +4845,7 @@ test("peek task over collection initial load scenario", () => {
 test("can handle unauthorized task with another unauthorized task parent due to a collection becoming authorized", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -4705,9 +4857,10 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         store.clock.now(),
         {
             type: "Create",
-            creatorId: null,
+            creator: null,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account2.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -4722,6 +4875,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         collectionAction: {
             type: "UpdateAccessPolicy",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([[account2.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
@@ -4732,7 +4886,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
     const task1 = createTask(store, {
         taskAction: {
             type: "Create",
-            creatorId: account2.id,
+            creator: {accountId: account2.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     });
@@ -4740,7 +4894,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
     let task2 = createTask(store, {
         taskAction: {
             type: "Create",
-            creatorId: account2.id,
+            creator: {accountId: account2.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     });
@@ -4823,6 +4977,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -4866,6 +5021,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
             {type: "Authorized", collection: collection.applyAction(collectionAction)},
         ],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -4912,4 +5068,812 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         ),
         optimisticState: null,
     });
+});
+
+test("can undo/redo creation of many tasks", async () => {
+    /* ========================================================================== *\
+     *                                  1. Setup                                  *
+    \* ========================================================================== */
+
+    // We're going to simulate a bullet list paste into the task product. Setup the
+    // store like the application would in the following scenario:
+    //
+    // - "PARENT" (`rootTaskId`)
+    //     - "" (`task311Id`)
+    //
+    // So that's:
+    //
+    // 1. A query that only finds `rootTaskId` (for this test that's all high priority
+    //    tasks by a certain creator).
+    //
+    // 2. A child query for `rootTaskId` which finds `task311Id`. `task311Id` is where
+    //    we'll paste our bullet list into.
+
+    const store = new TaskClientStore({
+        accountRegistry,
+        siteRegistry,
+        spaceId,
+        currentAccountId,
+        onError: handleError,
+    });
+
+    function createTaskTitleUpdateModel(text: string): TaskTitleUpdateModel {
+        return emptyTaskTitleModel.get().replace(0, 0, text);
+    }
+
+    const rootTaskId = assertId<TaskId>("n8h72shgj0w9fvchbfdqqyyvxg");
+    const task3Id = assertId<TaskId>("rz559h9qf83vbg5d8br07q31dc");
+    const task31Id = assertId<TaskId>("vznjk1bzcp8s4yec0zs0ycpxkr");
+    const task311Id = assertId<TaskId>("qyjn31nhr04z7dkc0eq5101bnr");
+
+    let rootTask = createTask(store, {
+        id: rootTaskId,
+        time: [1775058180643, 0],
+        taskAction: {
+            type: "Create",
+            creator: {accountId: account1.id, from: null},
+            creatorTimeZone: defaultTimeZone,
+        },
+    });
+
+    rootTask = rootTask
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: [1775058180643, 1],
+                taskId: rootTask.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: [1775058180643, 2],
+                taskId: rootTask.id,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: createTaskTitleUpdateModel("PARENT"),
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task311 = createTask(store, {
+        id: task311Id,
+        time: [1775058180643, 3],
+        taskAction: {
+            type: "Create",
+            creator: {accountId: account1.id, from: null},
+            creatorTimeZone: defaultTimeZone,
+        },
+    });
+
+    task311 = task311.applyAction(
+        {
+            type: "UpdateTask",
+            time: [1775058180643, 4],
+            taskId: task311.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: rootTask.id,
+            },
+        },
+        getSortableAccount,
+    );
+
+    const {query, rootChildrenQuery} = batchStoreUpdates(() => {
+        const query = store.createAndRetainQuery({
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                creatorFilter: {
+                    type: "OneOf",
+                    accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+                },
+                priorityFilter: {
+                    ifHigh: true,
+                    ifNull: false,
+                    ifLow: false,
+                    ifMedium: false,
+                    ifUrgent: false,
+                },
+            },
+            sorts: defaultTaskQueryNormalizedSorts,
+            limit: 100,
+        });
+
+        const rootChildrenQuery = store.ensureAndRetainTaskChildrenQuery(rootTask.id, {
+            limit: 100,
+        });
+
+        store.loadTasksIntoQuery(query, {
+            limit: 100,
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+        });
+
+        store.loadTasksIntoQuery(rootChildrenQuery, {
+            limit: 100,
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+        });
+
+        store.applyUpdateEvent({
+            type: "Update",
+            defaultAuthorizationStateVersion: [1775058180643, 5],
+            actions: [],
+            backfillTasks: [
+                {type: "Authorized", task: rootTask},
+                {type: "Authorized", task: task311},
+            ],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+            originClientId: null,
+        });
+
+        return {query, rootChildrenQuery};
+    });
+
+    expect(store.getTaskEntrySnapshot(rootTaskId)).toMatchObject({
+        task: rootTask,
+        actions: null,
+        optimisticState: null,
+    });
+
+    expect(store.getTaskEntrySnapshot(task311Id)).toMatchObject({
+        task: task311,
+        actions: null,
+        optimisticState: null,
+    });
+
+    /* ========================================================================== *\
+     *                          2. Define paste actions                           *
+    \* ========================================================================== */
+
+    // This is a set of actions `handleTaskRowTitleInputPaste()` (in
+    // `task_row_title_input.tsx`) may generate when pasting the bullet list:
+    //
+    // - "Task 1"
+    // - "Task 2"
+    // - "Task 3"
+    //     - "Task 3.1"
+    //         - "Task 3.1.1"
+    //
+    // ...into `task311Id` in the following:
+    //
+    // - "PARENT" (`rootTaskId`)
+    //     - "" (`task311Id`)
+    //
+    // The expected result is:
+    //
+    // - "PARENT" (`rootTaskId`)
+    //     - "Task 1"
+    //     - "Task 2"
+    //     - "Task 3" (`task3Id`)
+    //         - "Task 3.1" (`task31Id`)
+    //             - "Task 3.1.1" (`task311Id`)
+    //
+    // Notably since the paste happened while focus was in `task311Id` then the last
+    // task ("Task 3.1.1") keeps the same `TaskId` (`task311Id`) so the selection
+    // automatically ends up in this new task.
+
+    const actions: Array<TaskActionModel> = [
+        {
+            type: "UpdateTask",
+            time: [1775058180644, 0],
+            taskId: assertId<TaskId>("cdpyapwkrng3rwmatdtadgs2h4"),
+            taskAction: {
+                type: "Create",
+                creator: {accountId: account1.id, from: null},
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180644, 1],
+            taskId: assertId<TaskId>("cdpyapwkrng3rwmatdtadgs2h4"),
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: createTaskTitleUpdateModel("Task 1"),
+                withoutUndoMerge: true,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 3],
+            taskId: assertId<TaskId>("73sv7bcp454v5bbdbfdnkn0smc"),
+            taskAction: {
+                type: "Create",
+                creator: {accountId: account1.id, from: null},
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 4],
+            taskId: assertId<TaskId>("73sv7bcp454v5bbdbfdnkn0smc"),
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: createTaskTitleUpdateModel("Task 2"),
+                withoutUndoMerge: true,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 5],
+            taskId: task3Id,
+            taskAction: {
+                type: "Create",
+                creator: {accountId: account1.id, from: null},
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 6],
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: createTaskTitleUpdateModel("Task 3"),
+                withoutUndoMerge: true,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 7],
+            taskId: task31Id,
+            taskAction: {
+                type: "Create",
+                creator: {accountId: account1.id, from: null},
+                creatorTimeZone: defaultTimeZone,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 8],
+            taskId: task31Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task3Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 9],
+            taskId: task31Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: createTaskTitleUpdateModel("Task 3.1"),
+                withoutUndoMerge: true,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 10],
+            taskId: task311Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: null,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 11],
+            taskId: task311Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task31Id,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 12],
+            taskId: task311Id,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: createTaskTitleUpdateModel("Task 3.1.1"),
+                withoutUndoMerge: true,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 13],
+            taskId: assertId<TaskId>("cdpyapwkrng3rwmatdtadgs2h4"),
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: rootTaskId,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 14],
+            taskId: assertId<TaskId>("cdpyapwkrng3rwmatdtadgs2h4"),
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {
+                    orderTime: [1775058175450, 1],
+                    orderKey: assertOrderKey("Zx"),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 13],
+            taskId: assertId<TaskId>("73sv7bcp454v5bbdbfdnkn0smc"),
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: rootTaskId,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 14],
+            taskId: assertId<TaskId>("73sv7bcp454v5bbdbfdnkn0smc"),
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {
+                    orderTime: [1775058175450, 1],
+                    orderKey: assertOrderKey("Zy"),
+                },
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 13],
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: rootTaskId,
+            },
+        },
+        {
+            type: "UpdateTask",
+            time: [1775058180645, 14],
+            taskId: task3Id,
+            taskAction: {
+                type: "UpdateParentPosition",
+                parentPosition: {
+                    orderTime: [1775058175450, 1],
+                    orderKey: assertOrderKey("Zz"),
+                },
+            },
+        },
+    ];
+
+    /* ========================================================================== *\
+     *                              3. Perform paste                              *
+    \* ========================================================================== */
+
+    // Actually commit the actions now! The state after this paste is:
+    //
+    // - "PARENT" (`rootTaskId`)
+    //     - "Task 1"
+    //     - "Task 2"
+    //     - "Task 3" (`task3Id`)
+    //         - "Task 3.1" (`task31Id`)
+    //             - "Task 3.1.1" (`task311Id`)
+
+    // `useTaskGridViewExpansionState()` adds a `subscribeToBatchUpdate()` listener
+    // that when a task is created with child tasks and all the child tasks are created
+    // in the same transaction then we automatically consider the task "expanded" and
+    // we create a query for the new task's children (with `loadedState` set to
+    // `Full`). Here we simulate that behavior by creating the children queries
+    // manually.
+    const {task3ChildrenQuery, task31ChildrenQuery} = batchStoreUpdates(() => {
+        const task3ChildrenQuery = store.ensureAndRetainTaskChildrenQuery(task3Id, {limit: 0});
+
+        store.loadTasksIntoQuery(task3ChildrenQuery, {
+            limit: 0,
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+        });
+
+        const task31ChildrenQuery = store.ensureAndRetainTaskChildrenQuery(task31Id, {limit: 0});
+
+        store.loadTasksIntoQuery(task31ChildrenQuery, {
+            limit: 0,
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+        });
+
+        return {task3ChildrenQuery, task31ChildrenQuery};
+    });
+
+    store.commitTaskActionTransaction(context, actions, {
+        undoManager: mockUndoManager,
+        affinityManager: noopAffinityManager,
+    });
+
+    expect(store.getTaskEntrySnapshot(task3Id)?.task?.getTitle().getText()).toEqual("Task 3");
+    expect(store.getTaskEntrySnapshot(task3Id)?.task?.getParent()?.taskId).toEqual(rootTaskId);
+    expect(store.getTaskEntrySnapshot(task31Id)?.task?.getParent()?.taskId).toEqual(task3Id);
+    expect(store.getTaskEntrySnapshot(task311Id)?.task?.getParent()?.taskId).toEqual(task31Id);
+
+    const undoStackEntry = mockUndoManager.popUndoStackEntry();
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [
+            {
+                type: "UpdateTask",
+                time: [1775058180645, 15],
+                taskId: rootTaskId,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 3,
+                    removedChildTaskCount: 0,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    expect(store.getTaskEntrySnapshot(task3Id)?.task?.getTitle().getText()).toEqual("Task 3");
+    expect(store.getTaskEntrySnapshot(task3Id)?.task?.getParent()?.taskId).toEqual(rootTaskId);
+    expect(store.getTaskEntrySnapshot(task31Id)?.task?.getParent()?.taskId).toEqual(task3Id);
+    expect(store.getTaskEntrySnapshot(task311Id)?.task?.getParent()?.taskId).toEqual(task31Id);
+
+    /* ========================================================================== *\
+     *                               4. Undo paste                                *
+    \* ========================================================================== */
+
+    // Undo the paste, this deletes all the tasks we just created and returns
+    // `task311Id` to be a child of `rootTaskId`. The state after this undo is:
+    //
+    // - "PARENT" (`rootTaskId`)
+    //     - "" (`task311Id`)
+
+    store.commitTaskActionTransaction(context, undoStackEntry.undoActions.get(store), {
+        undoManager: mockUndoManager,
+        affinityManager: noopAffinityManager,
+    });
+
+    const redoStackEntry = mockUndoManager.popUndoStackEntry();
+
+    undoStackEntry.release();
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [
+            {
+                type: "UpdateTask",
+                time: [1775058180645, 16],
+                taskId: rootTaskId,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 3,
+                    removedChildTaskCount: 3,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    /* ========================================================================== *\
+     *                               5. Redo paste                                *
+    \* ========================================================================== */
+
+    // Redo the paste, this adds back all the tasks we just deleted. `task311Id` will
+    // be a child of `task31Id` again. The state after this redo is:
+    //
+    // - "PARENT" (`rootTaskId`)
+    //     - "Task 1"
+    //     - "Task 2"
+    //     - "Task 3" (`task3Id`)
+    //         - "Task 3.1" (`task31Id`)
+    //             - "Task 3.1.1" (`task311Id`)
+
+    store.commitTaskActionTransaction(context, redoStackEntry.undoActions.get(store), {
+        undoManager: mockUndoManager,
+        affinityManager: noopAffinityManager,
+    });
+
+    const undoRedoStackEntry = mockUndoManager.popUndoStackEntry();
+
+    redoStackEntry.release();
+
+    // NOTE(calebmer, 2026-04-01): This is the critical `expect()` in this unit test.
+    // Which observes a bug introduced in this commit we have to fix.
+    expect(store.getTaskEntrySnapshot(task3Id)?.task?.getTitle().getText()).toEqual("Task 3");
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [
+            {
+                type: "UpdateTask",
+                time: [1775058180645, 17],
+                taskId: rootTaskId,
+                taskAction: {
+                    type: "UpdateChildrenCounts",
+                    addedChildTaskCount: 6,
+                    removedChildTaskCount: 3,
+                    addedClosedChildTaskCount: 0,
+                    removedClosedChildTaskCount: 0,
+                },
+            },
+        ],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    expect(store.getTaskEntrySnapshot(task3Id)?.task?.getTitle().getText()).toEqual("Task 3");
+
+    {
+        undoRedoStackEntry.release();
+
+        batchStoreUpdates(() => {
+            task31ChildrenQuery.release();
+            task3ChildrenQuery.release();
+            rootChildrenQuery.release();
+            query.release();
+        });
+
+        batchStoreUpdates(() => {
+            store._onQueryUnsubscribed(task31ChildrenQuery);
+            store._onQueryUnsubscribed(task3ChildrenQuery);
+            store._onQueryUnsubscribed(rootChildrenQuery);
+            store._onQueryUnsubscribed(query);
+        });
+    }
+
+    // Make sure after releasing all our queries, we've also released all task
+    // references.
+    assert(store.getTaskCountForTest() === 0, "Expected all tasks to be released");
+    assert(store.getCollectionCountForTest() === 0, "Expected all collections to be released");
+});
+
+test("can undo moving one task out of query range", async () => {
+    const store = new TaskClientStore({
+        accountRegistry,
+        siteRegistry,
+        spaceId,
+        currentAccountId,
+        onError: handleError,
+    });
+
+    const tasks: Array<TaskModel> = [];
+
+    for (let i = 0; i < 20; i++) {
+        let task = createTask(store, {
+            taskAction: {
+                type: "Create",
+                creator: {accountId: account1.id, from: null},
+                creatorTimeZone: defaultTimeZone,
+            },
+        });
+
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: i <= 7 ? "High" : i <= 14 ? "Medium" : "Low",
+                },
+            },
+            getSortableAccount,
+        );
+
+        tasks.push(task);
+    }
+
+    const query = batchStoreUpdates(() => {
+        const query = store.createAndRetainQuery({
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                creatorFilter: {
+                    type: "OneOf",
+                    accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+                },
+            },
+            sorts: [
+                {type: "Priority", direction: "Descending", missing: "Last"},
+                {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+            ],
+            limit: 100,
+        });
+
+        store.loadTasksIntoQuery(query, {
+            limit: 10,
+            loadedState: {
+                type: "Partial",
+                endCursor: getTaskQueryNormalizedSortCursorForModel(query.sorts, tasks[9]!),
+            },
+            previouslyBackfilledTaskIds: [],
+        });
+
+        store.applyUpdateEvent({
+            type: "Update",
+            defaultAuthorizationStateVersion: store.clock.now(),
+            actions: [],
+            backfillTasks: tasks.slice(0, 10).map(task => ({type: "Authorized", task})),
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+            originClientId: null,
+        });
+
+        return query;
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual(
+        tasks.slice(0, 10).map(task => task.id),
+    );
+
+    store.commitTaskActionTransaction(
+        context,
+        [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: tasks[3]!.id,
+                taskAction: {type: "UpdatePriority", priority: "Low"},
+            },
+        ],
+        {
+            undoManager: mockUndoManager,
+            affinityManager: noopAffinityManager,
+        },
+    );
+
+    // Critical assertion: The task is removed from the query.
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual(
+        [...tasks.slice(0, 3), ...tasks.slice(4, 10)].map(task => task.id),
+    );
+
+    const undoStackEntry = mockUndoManager.popUndoStackEntry();
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    store.commitTaskActionTransaction(context, undoStackEntry.undoActions.get(store), {
+        undoManager: mockUndoManager,
+        affinityManager: noopAffinityManager,
+    });
+
+    undoStackEntry.release();
+
+    // Critical assertion: The task returns to the query!
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual(
+        tasks.slice(0, 10).map(task => task.id),
+    );
+
+    const redoStackEntry = mockUndoManager.popUndoStackEntry();
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    redoStackEntry.release();
+    query.release();
+    store._onQueryUnsubscribed(query);
+
+    // Make sure after releasing all our queries, we've also released all task
+    // references.
+    assert(store.getTaskCountForTest() === 0, "Expected all tasks to be released");
+    assert(store.getCollectionCountForTest() === 0, "Expected all collections to be released");
+});
+
+test("can undo deletion of single task with `deleteTaskAndAllChildren()`", async () => {
+    const store = new TaskClientStore({
+        accountRegistry,
+        siteRegistry,
+        spaceId,
+        currentAccountId,
+        onError: handleError,
+    });
+
+    const task = createTask(store, {
+        taskAction: {
+            type: "Create",
+            creator: {accountId: account1.id, from: null},
+            creatorTimeZone: defaultTimeZone,
+        },
+    });
+
+    const query = batchStoreUpdates(() => {
+        const query = store.createAndRetainQuery({
+            filters: {
+                ...defaultTaskQueryNormalizedFilters,
+                creatorFilter: {
+                    type: "OneOf",
+                    accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+                },
+            },
+            sorts: defaultTaskQueryNormalizedSorts,
+            limit: 100,
+        });
+
+        store.loadTasksIntoQuery(query, {
+            limit: 100,
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+        });
+
+        store.applyUpdateEvent({
+            type: "Update",
+            defaultAuthorizationStateVersion: store.clock.now(),
+            actions: [],
+            backfillTasks: [{type: "Authorized", task}],
+            backfillCollections: [],
+            referencedAccounts: [],
+            referencedSites: [],
+            originClientId: null,
+        });
+
+        return query;
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task.id,
+    ]);
+
+    const deleteTime = store.clock.now();
+
+    const promise = store.deleteTaskAndAllChildren(context, task.id, {
+        undoManager: mockUndoManager,
+        time: deleteTime,
+    });
+
+    await resolveLastRpcExecution(deleteTaskAndAllChildren, {
+        actions: [
+            {
+                type: "UpdateTask",
+                time: deleteTime,
+                taskId: task.id,
+                taskAction: {type: "Delete"},
+            },
+        ],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    await promise;
+
+    // Critical assertion: The task is removed from the query.
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    const undoStackEntry = mockUndoManager.popUndoStackEntry();
+
+    store.commitTaskActionTransaction(context, undoStackEntry.undoActions.get(store), {
+        undoManager: mockUndoManager,
+        affinityManager: noopAffinityManager,
+    });
+
+    undoStackEntry.release();
+
+    // Critical assertion: The task returns to the query!
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task.id,
+    ]);
+
+    const redoStackEntry = mockUndoManager.popUndoStackEntry();
+
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+        referencedSites: [],
+    });
+
+    redoStackEntry.release();
+    query.release();
+    store._onQueryUnsubscribed(query);
+
+    // Make sure after releasing all our queries, we've also released all task
+    // references.
+    assert(store.getTaskCountForTest() === 0, "Expected all tasks to be released");
+    assert(store.getCollectionCountForTest() === 0, "Expected all collections to be released");
 });

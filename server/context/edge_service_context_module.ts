@@ -11,10 +11,9 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 /**
- * Allow communication with our edge service family. Importantly, this allows
- * us to send requests to our durable objects which live on the edge in
- * Cloudflare. For instance, we may need to broadcast realtime events to
- * durable objects.
+ * Allow communication with our edge service family. Importantly, this allows us to
+ * send requests to our durable objects which live on the edge in Cloudflare. For
+ * instance, we may need to broadcast realtime events to durable objects.
  */
 export interface EdgeServiceContextModuleBase extends ContextModuleBase, ForkableContextModuleBase {
     broadcastToDurableObject(
@@ -25,14 +24,7 @@ export interface EdgeServiceContextModuleBase extends ContextModuleBase, Forkabl
             body?: SchemaSerializedValue | null;
         },
     ): Promise<void>;
-
-    /**
-     * Send a request to a durable object and return the JSON
-     * response body. Unlike {@link broadcastToDurableObject},
-     * this will initialize the durable object if it isn't
-     * already running.
-     */
-    fetchDurableObject(
+    sendRequestToDurableObject(
         url: `/api/durable-objects/${string}`,
         options: {
             serviceName: TokenServiceName;
@@ -56,9 +48,9 @@ export class EdgeServiceContextModule
     }
 
     /**
-     * Send a broadcast HTTP request to a durable object. For a broadcast, we
-     * don't care about the response returned by the durable object and if there's
-     * no live durable object then the broadcast won't wake it up.
+     * Send a broadcast HTTP request to a durable object. For a broadcast, we don't
+     * care about the response returned by the durable object and if there's no live
+     * durable object then the broadcast won't wake it up.
      *
      * We'll include a token signed by our service's private key.
      */
@@ -87,9 +79,9 @@ export class EdgeServiceContextModule
 
         const headers: {[key: string]: string} = {
             authorization: `bearer ${token}`,
-            // If the durable object is not initialized this request will fail with a 412.
-            // If there are no realtime subscribers on the durable object, we don't need to
-            // send our event transaction. We can drop this request on the floor.
+            // If the durable object is not initialized, this request will fail with a 412. If
+            // there are no realtime subscribers on the durable object, we don't need to send
+            // our event transaction. We can drop this request on the floor.
             "cyberworlds-durable-object-if-initialized": "true",
         };
 
@@ -117,7 +109,14 @@ export class EdgeServiceContextModule
         );
     }
 
-    public async fetchDurableObject(
+    /**
+     * Send an HTTP request to a durable object. Unlike `broadcastToDurableObject()`,
+     * if the durable object is not currently running, we will wake it up for the
+     * request and also return the response.
+     *
+     * We'll include a token signed by our service's private key.
+     */
+    public async sendRequestToDurableObject(
         this: EdgeServiceContextModule &
             ContextModuleBase<{actor: ContextModuleBase & {getTokenPayload(): TokenPayload}}>,
         url: `/api/durable-objects/${string}`,
@@ -130,9 +129,11 @@ export class EdgeServiceContextModule
             route: `/api/durable-objects/${string}`;
             body?: SchemaSerializedValue | null;
         },
-    ): Promise<SchemaSerializedValue> {
+    ) {
+        // Double-check that we're sending a request to our durable object.
         assert(url.startsWith("/api/durable-objects/"));
 
+        // Include a token showing this request is from `AppService`.
         const token = await this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
             serviceName,
             this._context.actor.getTokenPayload(),
@@ -146,7 +147,7 @@ export class EdgeServiceContextModule
             headers["content-type"] = "application/json";
         }
 
-        return fetchWithTracer(
+        return await fetchWithTracer(
             this._context.tracer.getTracer(),
             new URL(url, this._edgeServiceUrl),
             {
@@ -162,7 +163,7 @@ export class EdgeServiceContextModule
                         quote`Fetch to ${route} failed with status code ${response.status}`,
                     );
                 }
-                return (await response.json()) as SchemaSerializedValue;
+                return await response.json();
             },
         );
     }

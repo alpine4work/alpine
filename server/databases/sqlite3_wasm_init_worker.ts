@@ -1,13 +1,12 @@
-// Side-effect import: registers the sqlite3 WASM loader for
-// Cloudflare Workers and Miniflare environments.
+// Side-effect import: registers the sqlite3 WASM loader for Cloudflare Workers and
+// Miniflare environments.
 //
-// The host pre-compiles the WASM binary and injects it as a
-// global. In Miniflare dev, edge_service_dev_main.mjs does this
-// via WebAssembly.compile() + globals injection.
+// The host pre-compiles the WASM binary and injects it as a global. In Miniflare
+// dev, edge_service_dev_main.mjs does this via WebAssembly.compile() + globals
+// injection.
 //
-// TODO: Replace the global with `import wasmModule from
-// './sqlite3.wasm'` once esbuild/Bazel plumbing supports .wasm
-// imports in the bundle.
+// TODO: Replace the global with `import wasmModule from './sqlite3.wasm'` once
+// esbuild/Bazel plumbing supports .wasm imports in the bundle.
 
 import {registerSqlite3WasmLoader} from "~/shared/databases/sqlite3_wasm_loader.js";
 import {assert} from "~/shared/helpers/control/assert.js";

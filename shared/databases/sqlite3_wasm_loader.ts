@@ -1,11 +1,11 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * Callback that loads and instantiates the sqlite3 WASM binary.
- * Matches the Emscripten `Module.instantiateWasm` signature.
+ * Callback that loads and instantiates the sqlite3 WASM binary. Matches the
+ * Emscripten `Module.instantiateWasm` signature.
  *
- * Platform-specific init files register an implementation via
- * {@link registerSqlite3WasmLoader} before any sqlite3 code runs.
+ * Platform-specific init files register an implementation via {@link
+ * registerSqlite3WasmLoader} before any sqlite3 code runs.
  */
 export type Sqlite3InstantiateWasm = (
     imports: WebAssembly.Imports,
@@ -15,8 +15,8 @@ export type Sqlite3InstantiateWasm = (
 let loader: Sqlite3InstantiateWasm | undefined;
 
 /**
- * Register the platform-specific WASM loader. Called once from a
- * side-effect import at the service entry-point.
+ * Register the platform-specific WASM loader. Called once from a side-effect
+ * import at the service entry-point.
  */
 export function registerSqlite3WasmLoader(fn: Sqlite3InstantiateWasm): void {
     assert(
@@ -41,9 +41,8 @@ export function sqlite3WasmLoader(): Sqlite3InstantiateWasm {
 }
 
 /**
- * Returns the registered loader, or `undefined` if none was
- * registered. Use this when falling back to default Emscripten
- * loading is acceptable (e.g. in tests).
+ * Returns the registered loader, or `undefined` if none was registered. Use this
+ * when falling back to default Emscripten loading is acceptable (e.g. in tests).
  */
 export function trySqlite3WasmLoader(): Sqlite3InstantiateWasm | undefined {
     return loader;

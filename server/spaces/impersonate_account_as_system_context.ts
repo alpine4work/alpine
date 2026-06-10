@@ -15,16 +15,15 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * As a system actor, impersonate any account in the system actor's space.
- * Throws an error if the provided account isn't a member of the space.
+ * As a system actor, impersonate any account in the system actor's space. Throws
+ * an error if the provided account isn't a member of the space.
  *
- * You may only access the account's data in the system actor's space. You
- * can't use this function to read an account's data in another space. (If
- * authorization checks for impersonated accounts are implemented properly.)
+ * You may only access the account's data in the system actor's space. You can't
+ * use this function to read an account's data in another space. (If authorization
+ * checks for impersonated accounts are implemented properly.)
  *
- * A system actor should have access to all data in a space. So impersonating
- * an account means you end up with a subset of data your system actor has
- * access to.
+ * A system actor should have access to all data in a space. So impersonating an
+ * account means you end up with a subset of data your system actor has access to.
  *
  * This function is useful for performing an action with the permissions of an
  * account from a system action.
@@ -68,14 +67,14 @@ export async function impersonateAccountAsSystemContext<
 
     // Bot accounts can't be impersonated. Bot accounts only get access to content
     // through "scopes". When a bot is mentioned we give them a token with limited
-    // access but they may have access to content that wasn't directly shared with
-    // the bot. Therefore there's not much stuff a bot can do on its own so it
-    // doesn't make sense to impersonate a bot.
+    // access but they may have access to content that wasn't directly shared with the
+    // bot. Therefore there's not much stuff a bot can do on its own so it doesn't make
+    // sense to impersonate a bot.
     if (await isBotSpaceAccount(context, context.actor.getSpaceId(), accountId)) {
         throw new PermissionDeniedError("Can\u2019t impersonate bot account");
     }
 
-    return context.with(
+    return await context.with(
         {
             cache: context.cache.forkForChangedActor(),
             batch: context.batch.forkForChangedActor(),

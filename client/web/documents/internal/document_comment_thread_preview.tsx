@@ -62,9 +62,9 @@ export function DocumentCommentThreadPreview({
         };
     }, [commentThread.id, contentReferences, contentSnippet]);
 
-    // Our `previousContent` state holds the last `currentContent` object we
-    // rendered. So if `currentContent` becomes null we can continue to render the
-    // last value we saw out of `previousContent`.
+    // Our `previousContent` state holds the last `currentContent` object we rendered.
+    // So if `currentContent` becomes null we can continue to render the last value we
+    // saw out of `previousContent`.
     const [previousContent, setPreviousContent] = useState<{
         doc: Node;
         references: DocumentContentReferences;
@@ -76,15 +76,15 @@ export function DocumentCommentThreadPreview({
 
     const content = currentContent ?? previousContent ?? commentThread.fallbackContentSnippet;
 
-    // NOTE(calebmer): This offset was picked to intentionally clip off some text
-    // from the top and bottom lines in a block of text to make it clear you're
-    // looking at a preview. We try to have enough text of the top line that you
-    // can read it but know its cut and enough text on the bottom line that you
-    // know its there but can't read it.
+    // NOTE(calebmer): This offset was picked to intentionally clip off some text from
+    // the top and bottom lines in a block of text to make it clear you're looking at a
+    // preview. We try to have enough text of the top line that you can read it but
+    // know its cut and enough text on the bottom line that you know its there but
+    // can't read it.
     const commentOffset = convertRemLengthToPx(addRemLengths("6", "0.5"), spacingScale);
 
-    // There is a `<ScriptBeforeAppInitialRender>` element below that copies this
-    // logic so we can correctly position the preview during server-side rendering.
+    // There is a `<ScriptBeforeAppInitialRender>` element below that copies this logic
+    // so we can correctly position the preview during server-side rendering.
     useLayoutEffectWithoutServerSideWarning(() => {
         // If the content isn't rendering we can't position it.
         if (!content) return;
@@ -93,7 +93,6 @@ export function DocumentCommentThreadPreview({
         const previewContentElement = assertExists(previewContentRef.current);
 
         const commentElement = assertExists(
-            // eslint-disable-next-line cyberworlds/string-quotes
             previewContentElement.querySelector(`[data-comment="${commentThread.id}"]`),
             "Snippet should contain previewed comment thread",
         );
@@ -106,12 +105,12 @@ export function DocumentCommentThreadPreview({
         );
         previewElement.scrollTop = scrollTop;
 
-        // NOTE(calebmer, 2024-12-29): I'm observing on initial app render after the
-        // server side render sometimes this element scrolls to position 0? I can't
-        // figure out what's causing this from the scroll event debugger. So add some
-        // defense in, whenever there's a scroll event on the preview element, reset us
-        // back to the expected scroll position. Ideally we'd figure out what's causing
-        // the scroll and stop it at the source, though.
+        // NOTE(calebmer, 2024-12-29): I'm observing on initial app render after the server
+        // side render sometimes this element scrolls to position 0? I can't figure out
+        // what's causing this from the scroll event debugger. So add some defense in,
+        // whenever there's a scroll event on the preview element, reset us back to the
+        // expected scroll position. Ideally we'd figure out what's causing the scroll and
+        // stop it at the source, though.
         const handleScroll = () => {
             if (previewElement.scrollTop !== scrollTop) {
                 previewElement.scrollTop = scrollTop;
@@ -136,8 +135,8 @@ export function DocumentCommentThreadPreview({
         buttonRef,
     );
 
-    // We strip all comments except the one the comment thread is rendering. So
-    // it's safe to highlight all comments.
+    // We strip all comments except the one the comment thread is rendering. So it's
+    // safe to highlight all comments.
     const shouldHighlightComment = useCallback(() => true, []);
 
     const shouldShowMarkRemovedWarning = !currentContent && !isResolved;
@@ -146,14 +145,14 @@ export function DocumentCommentThreadPreview({
     );
 
     // Update whether we should show the banner only if the resolve button is not
-    // pending. While the resolve button is pending we can get into a state where
-    // we've received a `PersistedContent` event (which updates `commentThread`)
-    // before an `UpdateContentWithoutPersistence` event (which adds or removes the
-    // mark in our content).
+    // pending. While the resolve button is pending we can get into a state where we've
+    // received a `PersistedContent` event (which updates `commentThread`) before an
+    // `UpdateContentWithoutPersistence` event (which adds or removes the mark in our
+    // content).
     //
     // To avoid the banner flashing in unnecessarily we must wait until we receive
-    // `UpdateContentWithoutPersistence`. `isResolveButtonPending` will be true
-    // until we receive `UpdateContentWithoutPersistence`.
+    // `UpdateContentWithoutPersistence`. `isResolveButtonPending` will be true until
+    // we receive `UpdateContentWithoutPersistence`.
     if (showMarkRemovedWarning !== shouldShowMarkRemovedWarning && !isResolveButtonPending) {
         setShowMarkRemovedWarning(shouldShowMarkRemovedWarning);
     }
@@ -173,9 +172,9 @@ export function DocumentCommentThreadPreview({
                 display="block"
                 position="relative"
                 zIndex="0"
-                // Use `fileClassName` to mimic the CSS for file entities. Mostly we want it
-                // here since it sets `pointer-events: none` in a way that's not overridden by
-                // child CSS like tables.
+                // Use `fileClassName` to mimic the CSS for file entities. Mostly we want it here
+                // since it sets `pointer-events: none` in a way that's not overridden by child CSS
+                // like tables.
                 className={`${fileClassName} ${contentStyles.fileEntityClassName}`}
                 {...(buttonProps as any)}
             >
@@ -218,14 +217,14 @@ export function DocumentCommentThreadPreview({
                             paddingX="5"
                         >
                             {content && (
-                                // Don't render the snippet on initial app render because we need a layout
-                                // effect to correctly position the content. Flashing content from invisible
-                                // to visible is better than flashing content with the wrong scroll position
-                                // to the right scroll position.
+                                // Don't render the snippet on initial app render because we need a layout effect
+                                // to correctly position the content. Flashing content from invisible to visible is
+                                // better than flashing content with the wrong scroll position to the right scroll
+                                // position.
                                 <ContentView
                                     content={content}
-                                    // Don't allow interacting with the content at all. (Like clicking links.)
-                                    // Clicking on the preview opens it in the document.
+                                    // Don't allow interacting with the content at all. (Like clicking links.) Clicking
+                                    // on the preview opens it in the document.
                                     isInert={true}
                                     shouldHighlightComment={shouldHighlightComment}
                                     fileAttachmentTarget={fileAttachmentTarget}

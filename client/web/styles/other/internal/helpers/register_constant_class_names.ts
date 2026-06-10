@@ -6,11 +6,11 @@ import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 
-// Register all of our shared content class names with `@vanilla-extract/css`
-// so that we can use them in CSS selectors without needing to add a `.`. For
-// example, `${paragraphClassName} &` should work whereas without registering
-// class names you'd need to write `.${paragraphClassName} &` (notice the `.`
-// in the second example).
+// Register all of our shared content class names with `@vanilla-extract/css` so
+// that we can use them in CSS selectors without needing to add a `.`. For example,
+// `${paragraphClassName} &` should work whereas without registering class names
+// you'd need to write `.${paragraphClassName} &` (notice the `.` in the second
+// example).
 setFileScope("shared/design/core/constant_class_names.js");
 for (const className of filterIterable(
     concatIterables(

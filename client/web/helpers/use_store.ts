@@ -3,8 +3,8 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {Store} from "~/shared/store/store.js";
 
 /**
- * Convenience hook that directly calls [`useSyncExternalStore()`][1] for using
- * the value from `Store` and keeping it up-to-date over time.
+ * Convenience hook that directly calls [`useSyncExternalStore()`][1] for using the
+ * value from `Store` and keeping it up-to-date over time.
  *
  * [1]: https://react.dev/reference/react/useSyncExternalStore
  */

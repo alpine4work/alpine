@@ -10,9 +10,9 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-// NOTE(calebmer): Apps like Google Docs put a search under the URL input to
-// allow easy linking to headings or other docs. Could be nice to have this
-// capability too.
+// NOTE(calebmer): Apps like Google Docs put a search under the URL input to allow
+// easy linking to headings or other docs. Could be nice to have this capability
+// too.
 
 export type ContentEditorMobileLinkModalState = {
     readonly initialText: string;
@@ -44,8 +44,8 @@ export function ContentEditorMobileLinkModal({
             urlInputRef.current?.focus();
             urlInputRef.current?.select();
         } else {
-            // Focus input after the push animation finishes. Otherwise the web view may
-            // not be mounted to the screen.
+            // Focus input after the push animation finishes. Otherwise the web view may not be
+            // mounted to the screen.
             NativeMobileBridge.navigation.scheduleAfterAnimation(() => {
                 urlInputRef.current?.focus();
                 urlInputRef.current?.select();
@@ -139,9 +139,8 @@ export function ContentEditorMobileLinkModal({
                 >
                     <Button
                         // Not focusable since we want to return focus to the underlying content editor
-                        // when the button is pressed. The button itself should not be focused. If you
-                        // have a keyboard you can use keyboard shortcuts instead of tabbing into these
-                        // buttons.
+                        // when the button is pressed. The button itself should not be focused. If you have
+                        // a keyboard you can use keyboard shortcuts instead of tabbing into these buttons.
                         isFocusable={false}
                         paddingX="2"
                         fontSize="100"
@@ -162,9 +161,8 @@ export function ContentEditorMobileLinkModal({
                 >
                     <Button
                         // Not focusable since we want to return focus to the underlying content editor
-                        // when the button is pressed. The button itself should not be focused. If you
-                        // have a keyboard you can use keyboard shortcuts instead of tabbing into these
-                        // buttons.
+                        // when the button is pressed. The button itself should not be focused. If you have
+                        // a keyboard you can use keyboard shortcuts instead of tabbing into these buttons.
                         isFocusable={false}
                         paddingX="2"
                         fontSize="100"
@@ -178,8 +176,7 @@ export function ContentEditorMobileLinkModal({
             <Box paddingX={screenPaddingX}>
                 <Spacer space="5" />
                 <TextInput
-                    // Don't auto-capitalize since this may be a snippet of text in a
-                    // longer sentence.
+                    // Don't auto-capitalize since this may be a snippet of text in a longer sentence.
                     autoCapitalize="none"
                     fontSize="100"
                     label="Text"

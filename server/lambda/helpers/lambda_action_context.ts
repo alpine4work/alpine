@@ -72,13 +72,12 @@ export function createLambdaActionContext({
     fileProcessorServiceUrl?: string;
 }): LambdaActionContext {
     return Context.new({
-        // NOTE(ifitzsimmons, 07-22-2025): I'm not sure that we need all of this context here
-        // in AWS Lambda for instance, jobQueueUrl is useless for Lambdas that are
-        // triggered via SQS -- there's no need to poll the queue
-        // With that said, it's easy to just always create the context here and
-        // make sure that the Lambdas have all of the secrets available in their
-        // environment variables. If we start reaching env var limits, we can revisit
-        // the decision to create the context the same way.
+        // NOTE(ifitzsimmons, 07-22-2025): I'm not sure that we need all of this context
+        // here in AWS Lambda for instance, jobQueueUrl is useless for Lambdas that are
+        // triggered via SQS -- there's no need to poll the queue With that said, it's easy
+        // to just always create the context here and make sure that the Lambdas have all
+        // of the secrets available in their environment variables. If we start reaching
+        // env var limits, we can revisit the decision to create the context the same way.
         ...createServerBasicProcessContextModulesWithoutShutdownManager({
             tracer,
             waitUntil: (promise: Promise<unknown>) => {
@@ -144,11 +143,13 @@ export async function getLambdaActionContextOptions(
     return {
         temporaryDirectoryPath: os.tmpdir(),
         ...secret,
-        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove these options
+        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove these
+        // options
         ensureLocalCachePath: process.env.ENSURE_LOCAL_CACHE_PATH || "/tmp/cache",
         dynamoLocalPort: process.env.DYNAMO_LOCAL_PORT || "8000", // Not used in production Lambda
         jobQueueUrl: process.env.JOB_QUEUE_URL || "not-used",
-        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+        // original job queue url
         fileProcessorJobQueueUrl: process.env.FILE_PROCESSOR_JOB_QUEUE_URL || "not-used",
         // TODO(ifitzsimmons, 2025-07-30, #add-light-and-heavy-queues)
         fileProcessorHeavyJobQueueUrl: process.env.FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL || "not-used",

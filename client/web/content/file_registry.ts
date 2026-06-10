@@ -1,3 +1,5 @@
+/* eslint-disable cyberworlds/no-model-initial-data */
+
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {
@@ -39,19 +41,19 @@ const fileSignedUrlEagerExpirationDurationMs = 1000 * 20;
 const fileSignedUrlRefreshDurationMs = fileSignedUrlEagerExpirationDurationMs + 1000 * 20;
 
 /**
- * Get how much time to wait in seconds before polling the content file again
- * for attempt number `x`.
+ * Get how much time to wait in seconds before polling the content file again for
+ * attempt number `x`.
  */
 const getFilePollWaitSeconds = (() => {
-    // Poll wait time is based on an `arctan()` function. The poll time starts
-    // at 0.2 seconds (`b`) and grows slowly then starts to grow more rapidly and
-    // eventually slows down never exceeding 5 seconds (`a`).
+    // Poll wait time is based on an `arctan()` function. The poll time starts at 0.2
+    // seconds (`b`) and grows slowly then starts to grow more rapidly and eventually
+    // slows down never exceeding 5 seconds (`a`).
     //
-    // This has the effect of polling very quickly at the start and eventually
-    // slowing down if we're not receiving data back from the server.
+    // This has the effect of polling very quickly at the start and eventually slowing
+    // down if we're not receiving data back from the server.
     //
-    // - `a` is the maximum wait time in seconds. It's the limit of the function,
-    //   taken to infinity the function will reach this value.
+    // - `a` is the maximum wait time in seconds. It's the limit of the function, taken
+    //   to infinity the function will reach this value.
     //
     // - `b` is the starting wait time in seconds.
     //
@@ -97,44 +99,42 @@ type FileRegistryState = {
 };
 
 /**
- * Normalized registry of file model data for the client. We may render the
- * same `FileModel` in multiple different places in the product at the same
- * time. For example in a post, in a channel files section, and in a file
- * viewer modal. We want files across all these surfaces to be consistent. And
- * to have the following behaviors:
+ * Normalized registry of file model data for the client. We may render the same
+ * `FileModel` in multiple different places in the product at the same time. For
+ * example in a post, in a channel files section, and in a file viewer modal. We
+ * want files across all these surfaces to be consistent. And to have the following
+ * behaviors:
  *
  * 1. The file should use the same signed URL in all the places its rendered to
  *    leverage browser caching.
  *
- * 2. If the file is processing we should have one polling loop across the
- *    entire app that'll tell us when the file is done processing.
+ * 2. If the file is processing we should have one polling loop across the entire
+ *    app that'll tell us when the file is done processing.
  *
- * 3. If the file's signed URL is expired we should refresh it once for the
- *    app.
+ * 3. If the file's signed URL is expired we should refresh it once for the app.
  *
- * Most of the time a file is only rendered in a single place at once. This
- * store is still useful for implementing the file stateful behaviors listed
- * above.
+ * Most of the time a file is only rendered in a single place at once. This store
+ * is still useful for implementing the file stateful behaviors listed above.
  *
- * Written so that stores are garbage collected when there are no more
- * references to the associated `FileModel`s in our realm.
+ * Written so that stores are garbage collected when there are no more references
+ * to the associated `FileModel`s in our realm.
  *
- * We should only have one `FileRegistry` per space. We assume all file
- * models in this store are in the same space.
+ * We should only have one `FileRegistry` per space. We assume all file models in
+ * this store are in the same space.
  */
 export class FileRegistry {
     private readonly _spaceId: SpaceId;
 
     private _scheduledFileUpdates: Array<FileModelRegistryData> | null = null;
 
-    // NOTE(calebmer): We broadly discourage usage of `AdvancedWeakValuesMap` since
-    // it leads to non-deterministic behavior. This class is fine since you call
+    // NOTE(calebmer): We broadly discourage usage of `AdvancedWeakValuesMap` since it
+    // leads to non-deterministic behavior. This class is fine since you call
     // `getFileStore()` which doesn't introduce non-deterministic behavior due to
     // JavaScript garbage collector timing.
     //
-    // We could use a simple `Map` but that would lead to a memory leak since
-    // file data would never be garbage collected. Account data is small so
-    // arguably a memory leak is acceptable.
+    // We could use a simple `Map` but that would lead to a memory leak since file data
+    // would never be garbage collected. Account data is small so arguably a memory
+    // leak is acceptable.
     private readonly _fileStoreById = new AdvancedWeakValuesMap<
         FileId,
         ValueStore<FileModelRegistryData>
@@ -163,15 +163,15 @@ export class FileRegistry {
 
         // As long as the `FileModel` lives, hold a reference to
         // `ValueStore<FileModelRegistryData>`. This prevents a bug where we're in a
-        // virtualized scroll view and a component rendering a `FileModel` is
-        // scrolled offscreen so it no longer references the store so the store is
-        // garbage collected. If the store held newer `FileModelRegistryData` then when
-        // you scroll and `FileModel` is back onscreen it will appear like the file
-        // reverted to its original state.
+        // virtualized scroll view and a component rendering a `FileModel` is scrolled
+        // offscreen so it no longer references the store so the store is garbage
+        // collected. If the store held newer `FileModelRegistryData` then when you scroll
+        // and `FileModel` is back onscreen it will appear like the file reverted to its
+        // original state.
         //
-        // `FileModel` will still be referenced by whatever data is backing the
-        // virtualized scroll view. So keep a reference to the store alive while the
-        // `FileModel` is alive.
+        // `FileModel` will still be referenced by whatever data is backing the virtualized
+        // scroll view. So keep a reference to the store alive while the `FileModel` is
+        // alive.
         this._fileStoreByModel.set(file, fileStore);
 
         return fileStore;
@@ -211,12 +211,12 @@ export class FileRegistry {
     /**
      * Get the normalized file data store for our `FileModel`.
      *
-     * If our store hasn't seen the file yet then we'll initialize a store with
-     * the `FileModel`'s `initialData`.
+     * If our store hasn't seen the file yet then we'll initialize a store with the
+     * `FileModel`'s `initialData`.
      *
-     * If our store has seen the file but our `FileModel`'s `initialData` is
-     * newer than what's in the store, we will schedule a render with the file's
-     * new data. Updating everywhere the file is visible in the product.
+     * If our store has seen the file but our `FileModel`'s `initialData` is newer than
+     * what's in the store, we will schedule a render with the file's new data.
+     * Updating everywhere the file is visible in the product.
      */
     public getFileStore(fileReference: {
         signedUrlSearch: string;
@@ -236,8 +236,8 @@ export class FileRegistry {
             this._scheduledFileUpdates = [data];
 
             // Use the React scheduler to schedule a low priority update. If React is
-            // processing user actions then we want that to finish before rendering
-            // new accounts.
+            // processing user actions then we want that to finish before rendering new
+            // accounts.
             unstable_scheduleCallback(unstable_LowPriority, () => {
                 this._runScheduledFileUpdates();
             });
@@ -259,21 +259,20 @@ export class FileRegistry {
     }
 
     /**
-     * Start maintaining a file's state. To stop maintaining a file's state call
-     * the returned stop function. Maintaining a file's state means:
+     * Start maintaining a file's state. To stop maintaining a file's state call the
+     * returned stop function. Maintaining a file's state means:
      *
-     * 1. If the file is processing we poll the file for updates every few
-     *    milliseconds
+     * 1. If the file is processing we poll the file for updates every few milliseconds
      *
-     * 2. If the file is about to expire we refresh the signed URL so the user can
-     *    keep viewing the file
+     * 2. If the file is about to expire we refresh the signed URL so the user can keep
+     *    viewing the file
      *
      * 3. If the file is expired then we update the file's state setting an
      *    `isSignedUrlExpired` flag to true
      *
-     * If you call `startMaintainingFile()` multiple times for the same file then
-     * we dedupe the calls. So there'll only ever be one polling loop for a file
-     * and we'll only refresh a file once.
+     * If you call `startMaintainingFile()` multiple times for the same file then we
+     * dedupe the calls. So there'll only ever be one polling loop for a file and we'll
+     * only refresh a file once.
      */
     public startMaintainingFile(
         getContext: () => AppContext,
@@ -290,8 +289,8 @@ export class FileRegistry {
                 : initialFileDataOrReference.id;
 
         // Hold onto a file store reference for the duration of this function. The
-        // `fileStore` won't be garbage collected until our cleanup function is called
-        // and collected.
+        // `fileStore` won't be garbage collected until our cleanup function is called and
+        // collected.
         const fileStore =
             "file" in initialFileDataOrReference
                 ? this._getFileStore(initialFileDataOrReference)
@@ -319,9 +318,9 @@ export class FileRegistry {
         fileState.cleanupTimeout?.clear();
         fileState.cleanupTimeout = null;
 
-        // If we're the first reference then start running our timers for the file. We
-        // may be reviving an old `fileState` object that has zero references but
-        // hasn't been cleaned up yet.
+        // If we're the first reference then start running our timers for the file. We may
+        // be reviving an old `fileState` object that has zero references but hasn't been
+        // cleaned up yet.
         if (fileState.referenceCount === 1) {
             this._startMaintainingFile(fileId, fileStore, fileState);
         }
@@ -370,8 +369,8 @@ export class FileRegistry {
                 }, 1000);
             }
 
-            // Do something with the `fileStore` to make sure it's not garbage
-            // collected until the cleanup function is garbage collected.
+            // Do something with the `fileStore` to make sure it's not garbage collected until
+            // the cleanup function is garbage collected.
             fileStore.getSnapshot();
         };
     }
@@ -393,8 +392,8 @@ export class FileRegistry {
             const refreshTime = expirationTime - fileSignedUrlRefreshDurationMs;
 
             // When the file expires, mark `isSignedUrlExpired` as `true`. We set
-            // `isSignedUrlExpired` to `true` a bit before the file actually expires (the
-            // eager expiration time) to avoid time skew issues.
+            // `isSignedUrlExpired` to `true` a bit before the file actually expires (the eager
+            // expiration time) to avoid time skew issues.
             {
                 fileState.expirationTimeout?.clear();
                 if (currentTime > eagerExpirationTime) {
@@ -428,11 +427,9 @@ export class FileRegistry {
 
                     (attachmentTarget === "Uploader"
                         ? getFileSignedUrlAsUploader(getContext(), {
-                              spaceId: this._spaceId,
                               fileId,
                           })
                         : getFileSignedUrlFromAttachment(getContext(), {
-                              spaceId: this._spaceId,
                               fileId,
                               target: attachmentTarget,
                           })
@@ -459,9 +456,9 @@ export class FileRegistry {
                             });
                         },
                         error => {
-                            // TODO: We should retry this RPC if there's an error. Ideally retries are done
-                            // at the RPC client layer. We should have an `isIdempotent` flag for RPCs and
-                            // retry any idempotent RPCs until they succeed.
+                            // TODO: We should retry this RPC if there's an error. Ideally retries are done at
+                            // the RPC client layer. We should have an `isIdempotent` flag for RPCs and retry
+                            // any idempotent RPCs until they succeed.
                             getContext()
                                 .tracer.getRoot()
                                 .logException(
@@ -484,9 +481,9 @@ export class FileRegistry {
                 }
             }
 
-            // While the file is loading, poll the server for updates. We don't have a
-            // realtime connection for files since they're immutable after they've finished
-            // processing so instead if we have a file that's currently processing we poll.
+            // While the file is loading, poll the server for updates. We don't have a realtime
+            // connection for files since they're immutable after they've finished processing
+            // so instead if we have a file that's currently processing we poll.
             if (!isFileModelDataLoading(file)) {
                 fileState.poll?.timeout?.clear();
                 fileState.poll = null;
@@ -515,11 +512,9 @@ export class FileRegistry {
 
                     (attachmentTarget === "Uploader"
                         ? getFileWithoutSignedUrlAsUploader(getContext(), {
-                              spaceId: this._spaceId,
                               fileId,
                           })
                         : getFileWithoutSignedUrlFromAttachment(getContext(), {
-                              spaceId: this._spaceId,
                               fileId,
                               target: attachmentTarget,
                           })
@@ -549,9 +544,9 @@ export class FileRegistry {
                             }
                         },
                         error => {
-                            // TODO: We should retry this RPC if there's an error. Ideally retries are done
-                            // at the RPC client layer. We should have an `isIdempotent` flag for RPCs and
-                            // retry any idempotent RPCs until they succeed.
+                            // TODO: We should retry this RPC if there's an error. Ideally retries are done at
+                            // the RPC client layer. We should have an `isIdempotent` flag for RPCs and retry
+                            // any idempotent RPCs until they succeed.
                             getContext()
                                 .tracer.getRoot()
                                 .logException(

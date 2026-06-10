@@ -14,14 +14,13 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
  *
  * Throws an error if the space account isn't found.
  *
- * If you called `authorizeSpaceAccess()` before this function (as a session
- * actor for the `AccountId` you're passing into this function) then we don't
- * make any database requests. The information we need os be available in
- * cache.
+ * If you called `authorizeSpaceAccess()` before this function (as a session actor
+ * for the `AccountId` you're passing into this function) then we don't make any
+ * database requests. The information we need os be available in cache.
  *
- * This function is strongly consistent. It makes an eventually consistent read
- * to our action cache but since whether an account is or is not a bot is an
- * immutable fact an eventually consistent read is fine.
+ * This function is strongly consistent. It makes an eventually consistent read to
+ * our action cache but since whether an account is or is not a bot is an immutable
+ * fact an eventually consistent read is fine.
  */
 export async function isBotSpaceAccount(
     context: Context<{

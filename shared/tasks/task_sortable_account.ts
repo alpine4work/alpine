@@ -8,17 +8,16 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * `AccountId` alone since that's randomly generated. So we denormalize the
  * account's name into the task and keep it up to date in realtime.
  *
- * Users expect when they sort by accounts to see accounts in alphabetical
- * order by name. That means account name needs to be integrated with our query
- * system. However in practice it lives in a separate DynamoDB table from our
- * task data and has less strict realtime requirements than our task query
- * system. So we store the account name directly in the task and index it in
- * OpenSearch.
+ * Users expect when they sort by accounts to see accounts in alphabetical order by
+ * name. That means account name needs to be integrated with our query system.
+ * However in practice it lives in a separate DynamoDB table from our task data and
+ * has less strict realtime requirements than our task query system. So we store
+ * the account name directly in the task and index it in OpenSearch.
  *
- * The account name within our task system may not be consistent with the
- * account name in the rest of the product. We don't have that requirement.
- * However. the account name should be consistent throughout our task system.
- * The rest of the product should eventually update to the right account name.
+ * The account name within our task system may not be consistent with the account
+ * name in the rest of the product. We don't have that requirement. However. the
+ * account name should be consistent throughout our task system. The rest of the
+ * product should eventually update to the right account name.
  */
 export type TaskSortableAccount = SchemaType<typeof TaskSortableAccountSchema>;
 

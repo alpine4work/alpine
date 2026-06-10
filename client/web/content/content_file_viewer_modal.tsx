@@ -52,8 +52,8 @@ export function ContentFileViewerModal({
     // If we don't have a `fileReference` loaded then fetch one. If opening a file
     // viewer from a file preview then we should immediately have a `fileReference`
     // available through `useHandoffContentFilePreviewState()`. So this code only
-    // really runs if the page reloads and there's an attachment viewer open
-    // according to the URL.
+    // really runs if the page reloads and there's an attachment viewer open according
+    // to the URL.
     useEffect(() => {
         if (fileReference) {
             hasFetchedFileReferenceRef.current = false;
@@ -65,11 +65,9 @@ export function ContentFileViewerModal({
 
         (attachmentTarget === "Uploader"
             ? getFileAsUploader(context, {
-                  spaceId: space.id,
                   fileId,
               })
             : getFileFromAttachment(context, {
-                  spaceId: space.id,
                   fileId,
                   target: attachmentTarget,
               })
@@ -104,9 +102,9 @@ export function ContentFileViewerModal({
     const loadedLoaderDataPromiseResolverRef =
         useRef<PromiseImmediateResolver<ContentFileViewerLoaderData | null> | null>(null);
 
-    // Load any data needed to render the file viewer modal. We will delay opening
-    // the file viewer modal for a bit so if the network is fast we don't need to
-    // show a loading spinner.
+    // Load any data needed to render the file viewer modal. We will delay opening the
+    // file viewer modal for a bit so if the network is fast we don't need to show a
+    // loading spinner.
     useEffect(() => {
         if (!file) return;
 

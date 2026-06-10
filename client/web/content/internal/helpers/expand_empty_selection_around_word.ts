@@ -4,9 +4,9 @@ import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 
 /**
- * If the selection is empty and inside a word then return a selection that
- * covers that word. If the selection is at the edge of a word or already
- * covers some content, return null.
+ * If the selection is empty and inside a word then return a selection that covers
+ * that word. If the selection is at the edge of a word or already covers some
+ * content, return null.
  */
 export function expandEmptySelectionAroundWord(
     doc: Node,

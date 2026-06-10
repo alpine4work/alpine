@@ -1,4 +1,4 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {MessageContentWithReferencesSchema} from "~/shared/content/message_content_schema.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -16,7 +16,7 @@ export class ChannelModel extends Model(
         createdTime: Schema.date,
         name: LabelStringSchema,
         description: MessageContentWithReferencesSchema,
-        accessPolicy: AccessPolicySchema,
+        accessPolicy: AccessPolicyModel.schema,
     }),
 ) {
     public asPreview() {
@@ -38,15 +38,15 @@ export class ChannelPreviewModel extends Model(
         version: Schema.integer,
         createdTime: Schema.date,
         name: LabelStringSchema,
-        accessPolicy: AccessPolicySchema,
+        accessPolicy: AccessPolicyModel.schema,
     }),
 ) {}
 
 export const renderedMaxChannelTopContributorCount = 10;
 
-// We load more contributors than we render so that if we load some
-// contributors that have been removed from the space we can take them out of
-// our top contributor list and have another account to render in their place.
+// We load more contributors than we render so that if we load some contributors
+// that have been removed from the space we can take them out of our top
+// contributor list and have another account to render in their place.
 export const maxChannelTopContributorCount = Math.round(
     renderedMaxChannelTopContributorCount * 1.5,
 );

@@ -16,12 +16,12 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 /**
  * Get the bot settings for a particular space.
  *
- * Admins are allowed to see all bot space settings but members are only
- * allowed to see bot space settings that are not secrets and have
- * corresponding property schemas.
+ * Admins are allowed to see all bot space settings but members are only allowed to
+ * see bot space settings that are not secrets and have corresponding property
+ * schemas.
  *
- * If it's a bot actor and we're requesting the settings for the bot itself
- * then the bot is allowed to see its own settings.
+ * If it's a bot actor and we're requesting the settings for the bot itself then
+ * the bot is allowed to see its own settings.
  *
  * Throws if the actor isn't a member of the space.
  */
@@ -38,8 +38,8 @@ export async function getBotSpaceSettingsValues(
     secretPropertyKeysWithValues: Set<string>;
 }> {
     const [, hasAdminAccess, actorBotId, settings, spaceSettingsItem] = await runAllPromises([
-        // These three requests should all check the same cache and so should only make
-        // ~1 database request for the account data.
+        // These three requests should all check the same cache and so should only make ~1
+        // database request for the account data.
         authorizeSpaceAccess(context, spaceId),
         isAccountMemberOfSpace(context, spaceId, context.actor.getPossiblyBotAccountId(), "Admin"),
         context.actor.type === "Bot"
@@ -62,8 +62,8 @@ export async function getBotSpaceSettingsValues(
 
     const secretPropertyKeysWithValues = new Set<string>();
 
-    // We expose which secret properties has values to non-admin accounts. We only
-    // add string values to this set if the string is non-empty.
+    // We expose which secret properties has values to non-admin accounts. We only add
+    // string values to this set if the string is non-empty.
     if (spaceSettingsItem) {
         for (const [propertyKey, propertySchema] of settings.schema.properties) {
             if (propertySchema.level !== "Space") continue;

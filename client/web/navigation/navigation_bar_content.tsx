@@ -31,6 +31,7 @@ import {useIsTextInputFocused} from "~/client/web/design/use_is_text_input_focus
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
 import {defaultAccessLevelText} from "~/client/web/navigation/access_level_text.js";
+import {allowShareOverlayEscapeGlobalKeyDownDefault} from "~/client/web/navigation/allow_share_overlay_escape_global_key_down_default.js";
 import {ShareMobileModal} from "~/client/web/navigation/internal/share_mobile_modal.js";
 import {ShareOverlay, ShareOverlayRef} from "~/client/web/navigation/internal/share_overlay.js";
 import {ShareSwitch} from "~/client/web/navigation/internal/share_switch.js";
@@ -53,7 +54,6 @@ import {
     isSpacing,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {OutOfRangeError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -135,26 +135,25 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
 
     const {isTextInputFocused, reconcileFocusedTextInput} = useIsTextInputFocused({
         // Don't show done button on web mobile, only native mobile. Web mobile (e.g.
-        // Safari) renders an accessory view with the input that comes with a done
-        // button.
+        // Safari) renders an accessory view with the input that comes with a done button.
         isDisabled: !isMobile || !isNativeMobile || withoutFocusedTextInputDoneButton,
 
         ignore: useCallback((element: Element) => {
             // Don't show "Done" button if the focused text input has a popup
-            // (`role="combobox"` [implicitly has `aria-haspopup="listbox"`][1]). These
-            // inputs come with an overlay and so dismissing the input means clicking
-            // outside of the overlay. Since the interaction for dismissing the keyboard
-            // for the input is obvious we don't show a "Done" button. Also because often
-            // autocomplete inputs have a blocking cover (they set `isBlocking={true}` on
-            // their `<Overlay>`) you wouldn't be able to interact with the "Done" button
-            // anyway.
+            // (`role="combobox"` [implicitly has `aria-haspopup="listbox"`][1]). These inputs
+            // come with an overlay and so dismissing the input means clicking outside of the
+            // overlay. Since the interaction for dismissing the keyboard for the input is
+            // obvious we don't show a "Done" button. Also because often autocomplete inputs
+            // have a blocking cover (they set `isBlocking={true}` on their `<Overlay>`) you
+            // wouldn't be able to interact with the "Done" button anyway.
             //
-            // We added this for the assignee task filter on mobile (and the collection
-            // task filter). It has a search input in a blocking overlay. We don't want to
-            // show the "Done" button while the search input is focused. We also want this
-            // to apply to inputs like `<TaskAssigneeInput>` in a detail view.
+            // We added this for the assignee task filter on mobile (and the collection task
+            // filter). It has a search input in a blocking overlay. We don't want to show the
+            // "Done" button while the search input is focused. We also want this to apply to
+            // inputs like `<TaskAssigneeInput>` in a detail view.
             //
-            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+            // [1]:
+            //     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
             const ariaHasPopup =
                 element.ariaHasPopup ?? (element.role === "combobox" ? "listbox" : null);
             return ariaHasPopup !== null;
@@ -198,18 +197,23 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const hasRightActions: boolean =
         !!replaceActions || !!shareButton || isTextInputFocused || menuActions.length > 0;
 
-    const handleBackButtonPress = () => {
+    const handleBackButtonPress = async () => {
         if (navigationState.hasPreviousLocation) {
-            navigate(-1);
-        } else if (defaultPreviousRoute) {
-            if (typeof defaultPreviousRoute === "function") {
-                void navigate(defaultPreviousRoute());
-            } else {
-                void navigate(defaultPreviousRoute);
-            }
-        } else {
-            throw new OutOfRangeError("No previous page in browser history");
+            await navigate(-1);
+            return;
         }
+
+        if (defaultPreviousRoute) {
+            await navigate(
+                typeof defaultPreviousRoute === "function"
+                    ? defaultPreviousRoute()
+                    : defaultPreviousRoute,
+            );
+            return;
+        }
+        // If we don't have a previous page in browser history and no default previous
+        // route, navigate to the space home page.
+        await navigate(spaceContext?.space.id ? `/home/${spaceContext.space.id}` : "/");
     };
 
     return (
@@ -276,10 +280,10 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                   </Box>
                               ) : (
                                   !withoutMobileBackButton &&
-                                  // Don't show the back button if the actor doesn't have space access. If the
-                                  // actor doesn't have space access they're probably looking at a shared URL in
-                                  // their web browser. So they're not in an application context. A back button
-                                  // doesn't make sense in a non-application context.
+                                  // Don't show the back button if the actor doesn't have space access. If the actor
+                                  // doesn't have space access they're probably looking at a shared URL in their web
+                                  // browser. So they're not in an application context. A back button doesn't make
+                                  // sense in a non-application context.
                                   //
                                   // TODO(calebmer): Maybe put an Alpine logo here instead? When `currentAccount`
                                   // does not exist. Or put the space logo.
@@ -327,6 +331,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                 <Box
                     flexGrow="1"
                     flexShrink="1"
+                    minWidth="flex-fit"
                     height={navigationBarHeight}
                     paddingX={isMobile ? navigationBarMobileGap : undefined}
                     paddingLeft={
@@ -342,10 +347,6 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     gap="3"
                     style={{
                         maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
-                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                        // have `min-width: auto` which extends with content.
-                        // https://stackoverflow.com/a/66689926/1568890
-                        minWidth: 0,
                     }}
                 >
                     {!isMobile && desktopControls && <Box>{desktopControls}</Box>}
@@ -453,22 +454,30 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                             <ShareButton
                                                 entityNoun={shareButton.entityNoun}
                                                 entityId={shareButton.entityId}
-                                                withoutUrlGrantIfNull={
-                                                    shareButton.withoutUrlGrantIfNull
-                                                }
                                                 isReadOnly={shareButton.isReadOnly}
                                                 accessPolicy={shareButton.accessPolicy}
+                                                inherited={shareButton.inherited}
                                                 onAccessPolicyChange={
                                                     shareButton.onAccessPolicyChange
                                                 }
+                                                withoutEditAccessLevel={
+                                                    shareButton.withoutEditAccessLevel
+                                                }
+                                                withHiddenCommentAccessLevel={
+                                                    shareButton.withHiddenCommentAccessLevel
+                                                }
                                                 onCopyLink={shareButton.onCopyLink}
+                                                activationHint={shareButton.activationHint}
+                                                onActivationHintHide={
+                                                    shareButton.onActivationHintHide
+                                                }
                                             />
                                         </Box>
                                     )}
                                 {isTextInputFocused ? (
                                     // If a text input is focused then we hide menu actions and replace it with a
-                                    // "Done" button. This helps the user see how to end their editing session.
-                                    // Opening menu actions would cause the text input to unfocus anyway.
+                                    // "Done" button. This helps the user see how to end their editing session. Opening
+                                    // menu actions would cause the text input to unfocus anyway.
                                     <Box
                                         display="flex"
                                         justifyContent="flex-end"
@@ -476,8 +485,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     >
                                         <Button
                                             fontSize="100"
-                                            // Don't remove focus from the current text input element
-                                            // on press start. Remove focus on press finish.
+                                            // Don't remove focus from the current text input element on press start. Remove
+                                            // focus on press finish.
                                             isFocusable={false}
                                             onPress={() => {
                                                 if (document.activeElement instanceof HTMLElement) {
@@ -495,8 +504,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                         (shareButton &&
                                             (routeLayout !== "wide" ||
                                                 withWideRouteLayoutShareMenuItem))) && (
-                                        // We re-create `<MenuButton>` in this file since when clicking on the share
-                                        // option we want to dynamically switch the menu for the `<ShareOverlay>`.
+                                        // We re-create `<MenuButton>` in this file since when clicking on the share option
+                                        // we want to dynamically switch the menu for the `<ShareOverlay>`.
                                         <NavigationBarContentMoreButton
                                             menuActions={menuActions}
                                             menuOffset={menuOffset}
@@ -519,7 +528,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     );
 });
 
-function NavigationBarContentMoreButton({
+export function NavigationBarContentMoreButton({
     menuActions,
     menuOffset,
     extraBottom,
@@ -545,9 +554,9 @@ function NavigationBarContentMoreButton({
 
     const lastShowShareOverlayRef = useRef(showShareDesktopOverlay);
 
-    // When `<OverlayTriggerButton>` opens an overlay, it moves focus into the
-    // first focusable element of the overlay. Recreate this behavior when
-    // switching from `showShareOverlay` false to true.
+    // When `<OverlayTriggerButton>` opens an overlay, it moves focus into the first
+    // focusable element of the overlay. Recreate this behavior when switching from
+    // `showShareOverlay` false to true.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (lastShowShareOverlayRef.current === showShareDesktopOverlay) return;
         lastShowShareOverlayRef.current = showShareDesktopOverlay;
@@ -568,6 +577,7 @@ function NavigationBarContentMoreButton({
                   entityNoun: shareButton.entityNoun,
                   accessLevelText: shareButton.accessLevelText ?? defaultAccessLevelText,
                   accessPolicy: shareButton.accessPolicy,
+                  inherited: shareButton.inherited,
                   onAccessPolicyChangeWithoutValidations: shareButton.onAccessPolicyChange,
                   isReadOnly: shareButton.isReadOnly,
               }
@@ -589,15 +599,20 @@ function NavigationBarContentMoreButton({
                             <ShareOverlay
                                 ref={overlayRef}
                                 id={shareState.modalOwnerId}
+                                entityNoun={shareButton.entityNoun}
                                 entityId={shareButton.entityId}
-                                withoutUrlGrantIfNull={shareButton.withoutUrlGrantIfNull}
                                 accessLevelText={
                                     shareButton.accessLevelText ?? defaultAccessLevelText
                                 }
                                 accessPolicy={shareButton.accessPolicy}
+                                inherited={shareButton.inherited}
                                 onAccessPolicyChange={shareState.changeAccessPolicy}
                                 isVisible={isVisible}
                                 isReadOnly={shareState.isReadOnly}
+                                withoutEditAccessLevel={shareButton.withoutEditAccessLevel}
+                                withHiddenCommentAccessLevel={
+                                    shareButton.withHiddenCommentAccessLevel
+                                }
                                 onCopyLink={shareButton.onCopyLink}
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                             />
@@ -631,14 +646,7 @@ function NavigationBarContentMoreButton({
                 onOverlayEscapeGlobalKeyDown={event => {
                     if (!showShareDesktopOverlay) return;
 
-                    // If the focused element is a combobox input, `<MenuButton>`, or menu item
-                    // that's open and the user hits escape then we want the escape keydown to close
-                    // the focused element's overlay.
-                    if (
-                        event.target instanceof HTMLElement &&
-                        (event.target.getAttribute("aria-expanded") === "true" ||
-                            event.target.role === "menuitem")
-                    ) {
+                    if (allowShareOverlayEscapeGlobalKeyDownDefault(event)) {
                         return {allowDefault: true};
                     }
                 }}
@@ -654,9 +662,9 @@ function NavigationBarContentMoreButton({
 
                     const overlay = assertExists(overlayRef.current);
 
-                    // If the share overlay's account grant input combobox is open and the user
-                    // clicks outside of the overlay, instead of closing the entire overlay just
-                    // close the combobox. A second click will close the overlay too.
+                    // If the share overlay's account grant input combobox is open and the user clicks
+                    // outside of the overlay, instead of closing the entire overlay just close the
+                    // combobox. A second click will close the overlay too.
                     if (overlay.isAccountGrantInputComboBoxOpen()) {
                         overlay.closeAccountGrantInputComboBox();
                         return {preventDefault: true};
@@ -667,8 +675,8 @@ function NavigationBarContentMoreButton({
                     size={platform === "mobile" ? "base" : "md"}
                     description="More"
                     withoutTooltip={true}
-                    // Don't focus the button on press since pressing will open the overlay and
-                    // should focus the overlay.
+                    // Don't focus the button on press since pressing will open the overlay and should
+                    // focus the overlay.
                     //
                     // TODO(calebmer): Find a way to automate this instead of setting this prop
                     // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
@@ -677,10 +685,9 @@ function NavigationBarContentMoreButton({
                     <DotsThreeVertical
                     // Vertical dots create better visual balance on mobile because:
                     //
-                    // 1. On mobile we have a back button on the left and we want this button to
-                    //    look aligned with that
-                    // 2. The title might be truncated with ellipsis which looks like horizontal
-                    //    dots
+                    // 1. On mobile we have a back button on the left and we want this button to look
+                    //    aligned with that
+                    // 2. The title might be truncated with ellipsis which looks like horizontal dots
                     />
                 </IconButton>
             </OverlayTriggerButton>
@@ -693,13 +700,17 @@ function NavigationBarContentMoreButton({
                             {shareState.modals}
                             <ShareMobileModal
                                 entityNoun={shareButton.entityNoun}
-                                withoutUrlGrantIfNull={shareButton.withoutUrlGrantIfNull}
                                 accessLevelText={
                                     shareButton.accessLevelText ?? defaultAccessLevelText
                                 }
                                 accessPolicy={shareButton.accessPolicy}
+                                inherited={shareButton.inherited}
                                 onAccessPolicyChange={shareState.changeAccessPolicy}
                                 isReadOnly={shareState.isReadOnly}
+                                withoutEditAccessLevel={shareButton.withoutEditAccessLevel}
+                                withHiddenCommentAccessLevel={
+                                    shareButton.withHiddenCommentAccessLevel
+                                }
                                 onCloseWithAnimation={onCloseWithAnimation}
                             />
                         </>
@@ -740,9 +751,9 @@ function addShareMenuItem({
 }): MenuActions {
     const shareMenuItem = createShareMenuItem({platform, shareButton, onShare});
 
-    // Merge with the "Copy link" section on mobile. But on desktop where the
-    // switch is a part of the menu item, the share menu item needs a divider
-    // to make it feel separate.
+    // Merge with the "Copy link" section on mobile. But on desktop where the switch is
+    // a part of the menu item, the share menu item needs a divider to make it feel
+    // separate.
     const firstSection = actions[0];
     if (platform !== "desktop" && firstSection) {
         // Check if the first section is a readonly array (MenuAction[])
@@ -778,9 +789,11 @@ function createShareMenuItem({
         label: "Share",
         icon:
             platform !== "desktop" ? (
-                shareButton.accessPolicy.urlGrant ? (
+                shareButton.accessPolicy.urlGrant ||
+                shareButton.inherited?.accessPolicy.urlGrant ? (
                     <Globe />
-                ) : shareButton.accessPolicy.defaultGrant ? (
+                ) : shareButton.accessPolicy.defaultGrant ||
+                  shareButton.inherited?.accessPolicy.defaultGrant ? (
                     <BuildingsIcon />
                 ) : (
                     <Lock />
@@ -805,6 +818,7 @@ function NavigationBarContentShareMenuItemSwitch({
         entityNoun: shareButton.entityNoun,
         accessLevelText: shareButton.accessLevelText ?? defaultAccessLevelText,
         accessPolicy: shareButton.accessPolicy,
+        inherited: shareButton.inherited,
         onAccessPolicyChangeWithoutValidations: shareButton.onAccessPolicyChange,
     });
 
@@ -816,6 +830,7 @@ function NavigationBarContentShareMenuItemSwitch({
                     isReadOnly={isReadOnly}
                     entityNoun={shareButton.entityNoun}
                     accessPolicy={shareButton.accessPolicy}
+                    inherited={shareButton.inherited}
                     onAccessPolicyChange={changeAccessPolicy}
                 />
             </Box>

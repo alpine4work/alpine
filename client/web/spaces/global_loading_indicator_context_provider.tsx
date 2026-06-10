@@ -9,6 +9,7 @@ import {
     mergeManyGlobalLoadingIndicators,
 } from "~/client/web/spaces/global_loading_indicator_types.js";
 import {GlobalLoadingIndicatorContext} from "~/client/web/spaces/internal/global_loading_indicator_context.js";
+import {addGlobalSavingIndicatorPromise} from "~/client/web/spaces/internal/global_saving_indicator_context.js";
 import {spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
@@ -94,9 +95,9 @@ export function GlobalLoadingIndicatorContextProvider({
                 return {
                     mergedIndicator: indicatorState.mergedIndicator,
                     // If we're removing a loading indicator while we still have more loading
-                    // indicators then wait a bit before replacing the old loading indicator. This
-                    // is for cases like file upload. First we have an "Uploading" indicator which
-                    // is followed by a short "Saving" indicator. Instead of flashing the "Saving"
+                    // indicators then wait a bit before replacing the old loading indicator. This is
+                    // for cases like file upload. First we have an "Uploading" indicator which is
+                    // followed by a short "Saving" indicator. Instead of flashing the "Saving"
                     // indicator we'd like to keep showing the "Uploading" indicator until saving
                     // completes.
                     clearMergedIndicatorTime:
@@ -107,10 +108,13 @@ export function GlobalLoadingIndicatorContextProvider({
             });
         };
 
-        // Ignore any errors from this promise so we don't get uncaught promise
-        // rejections. It's expected that the caller of this function will deal with
-        // rejections from the provided promise.
+        // Ignore any errors from this promise so we don't get uncaught promise rejections.
+        // It's expected that the caller of this function will deal with rejections from
+        // the provided promise.
         promise.then(remove, remove);
+
+        // Keep track of all saving indicators on the page.
+        if (indicator.type === "Saving") addGlobalSavingIndicatorPromise(promise);
     }, []);
 
     const indicator = indicatorState.mergedIndicator;
@@ -142,8 +146,8 @@ export function GlobalLoadingIndicatorContextProvider({
         },
     }));
 
-    // Warn the user if they try to leave Alpine while there are still some changes
-    // to which are saving.
+    // Warn the user if they try to leave Alpine while there are still some changes to
+    // which are saving.
     useEffect(() => {
         hasSavingIndicatorRef.current = hasSavingIndicator;
 
@@ -170,15 +174,14 @@ export function GlobalLoadingIndicatorContextProvider({
 
     const hasIndicator = indicator !== null;
 
-    // `shouldShowIndicator` is true if we're more than
-    // `delayLoadingIndicatorLimitMs` from the oldest indicator
-    // (determined by `minIndicatorStartTime`). Once the oldest indicator
-    // completes, we set `shouldShowIndicator` to false if the remaining indicators
-    // are younger than `delayLoadingIndicatorLimitMs`.
+    // `shouldShowIndicator` is true if we're more than `delayLoadingIndicatorLimitMs`
+    // from the oldest indicator (determined by `minIndicatorStartTime`). Once the
+    // oldest indicator completes, we set `shouldShowIndicator` to false if the
+    // remaining indicators are younger than `delayLoadingIndicatorLimitMs`.
     //
-    // This way if a user is continuously typing and an individual update while
-    // they're typing takes a while we'll show the indicator just for that update
-    // and then the update disappears if the subsequent updates are fast.
+    // This way if a user is continuously typing and an individual update while they're
+    // typing takes a while we'll show the indicator just for that update and then the
+    // update disappears if the subsequent updates are fast.
     //
     // This code is similar to `useDelayLoadingIndicator()`.
     let shouldShowIndicator = false;
@@ -194,9 +197,8 @@ export function GlobalLoadingIndicatorContextProvider({
         useEffect(() => {
             if (hasIndicator === false) return;
 
-            // The assert is fine since if `hasIndicator` is true then
-            // `minIndicatorStartTime` should be non-null since there's at least one
-            // indicator.
+            // The assert is fine since if `hasIndicator` is true then `minIndicatorStartTime`
+            // should be non-null since there's at least one indicator.
             const timeoutMs =
                 assertExists(minIndicatorStartTime) + delayLoadingIndicatorLimitMs - Date.now();
 
@@ -270,8 +272,8 @@ export function GlobalLoadingIndicatorChip({indicator}: {indicator: GlobalLoadin
                     ? ` (${clamp(
                           0,
                           Math.round(progress * 100),
-                          // We never want to show 100%. The most we'll show is 99%. 100% means done. As
-                          // long as the loading indicator is visible, clearly we're not done.
+                          // We never want to show 100%. The most we'll show is 99%. 100% means done. As long
+                          // as the loading indicator is visible, clearly we're not done.
                           99,
                       )}%)`
                     : null}

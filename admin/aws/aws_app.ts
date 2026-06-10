@@ -2,6 +2,7 @@ import {App, Duration, Stack, aws_iam, aws_lambda} from "aws-cdk-lib";
 import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {ciScheduleDeployIamArn} from "~/admin/aws/aws_known_ids.js";
+import {AwsAnalyticsMirror} from "~/admin/aws/internal/aws_analytics_mirror.js";
 import {AwsApiService} from "~/admin/aws/internal/aws_api_service.js";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
@@ -10,6 +11,7 @@ import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsFileProcessorService} from "~/admin/aws/internal/aws_file_processor_service.js";
 import {AwsGithubRunners} from "~/admin/aws/internal/aws_github_runners.js";
 import {AwsImportUploadsData} from "~/admin/aws/internal/aws_import_uploads_data.js";
+import {AwsImporterService} from "~/admin/aws/internal/aws_importer_service.js";
 import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
 import {AwsMigrationService} from "~/admin/aws/internal/aws_migration_service.js";
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
@@ -26,7 +28,8 @@ export async function createAwsApp() {
 
     const app = new App({autoSynth: false});
 
-    // Resources related to shared observability for our infrastructure and services live in this stack.
+    // Resources related to shared observability for our infrastructure and services
+    // live in this stack.
     const observabilityStack = new Stack(app, "CyberworldsObservabilityStack", {
         env: {region: "us-east-1"},
     });
@@ -39,8 +42,8 @@ export async function createAwsApp() {
     });
 
     // Resources related to continuous integration and continuous deployment live in
-    // this stack. The term "lifecycle" is from the industry term
-    // "software development lifecycle" (SDLC).
+    // this stack. The term "lifecycle" is from the industry term "software development
+    // lifecycle" (SDLC).
     const lifecycleStack = new Stack(app, "CyberworldsLifecycleStack", {
         env: {region: "us-east-1"},
     });
@@ -89,6 +92,17 @@ async function addAwsResources(
         observability,
     });
 
+    const importerService = new AwsImporterService(stack, {
+        vpc,
+        ecsCluster,
+        cloudflareAccountId,
+        dynamo,
+        sqs,
+        importUploads,
+        observability,
+        taskRealtimeService,
+    });
+
     new AwsAppService(stack, {
         vpc,
         ecsCluster,
@@ -100,6 +114,7 @@ async function addAwsResources(
         taskRealtimeService,
         observability,
         importUploads,
+        importerService,
     });
 
     new AwsApiService(stack, {
@@ -144,6 +159,12 @@ async function addAwsResources(
         observability,
     });
 
+    new AwsAnalyticsMirror(stack, {
+        cloudflareAccountId,
+        sqs,
+        observability,
+    });
+
     // Create our schedule deploy lambda and allow our CI credentials to invoke it
     const scheduleDeployLambda = new AwsLambda(stack, "ScheduleDeploy", {
         bazelConfiguration: {
@@ -170,14 +191,14 @@ async function addAwsResources(
 
     scheduleDeployLambda.grantInvoke(ciScheduleDeployIam);
 
-    // Manually export resources through CloudFormation instead of using the CDK's
-    // auto export capabilities. We were finding ourselves running into issues when
-    // trying to change how exported resources are used in dependent stacks.
+    // Manually export resources through CloudFormation instead of using the CDK's auto
+    // export capabilities. We were finding ourselves running into issues when trying
+    // to change how exported resources are used in dependent stacks.
     //
     // For example, if we remove a VPC reference from a dependant stack like
     // `CyberworldsLifecycleStack` we'd get an error trying to deploy
-    // `CyberworldsStack` since it was trying to delete the CloudFormation output
-    // while the output was still in use by `CyberworldsLifecycleStack`.
+    // `CyberworldsStack` since it was trying to delete the CloudFormation output while
+    // the output was still in use by `CyberworldsLifecycleStack`.
     //
     // By explicitly exporting the VPC we:
     //
@@ -207,11 +228,11 @@ function addAwsLifecycleResources(
     const dynamo = importDynamo(stack);
     const sqs = importSqs(stack);
 
-    // Create our own VPC for lifecycle resources. Right now, we put most resources
-    // in public subnets anyway so this doesn't add too much security. What this
-    // does that's really useful is allows us to launch GitHub runner instances in
-    // all availability zones. In case the first few availability zone we try don't
-    // have capacity.
+    // Create our own VPC for lifecycle resources. Right now, we put most resources in
+    // public subnets anyway so this doesn't add too much security. What this does
+    // that's really useful is allows us to launch GitHub runner instances in all
+    // availability zones. In case the first few availability zone we try don't have
+    // capacity.
     const vpc = new Vpc(stack, "Vpc", {
         natGateways: 0,
         availabilityZones: [
@@ -233,9 +254,8 @@ function addAwsLifecycleResources(
         observability,
     });
 
-    // Create our send alert lambda
-    // NOTE: If this is renamed, the url used by alerting webhooks will also be changed.
-    // THIS WILL BREAK OUR ALERTS, which is not great.
+    // Create our send alert lambda NOTE: If this is renamed, the url used by alerting
+    // webhooks will also be changed. THIS WILL BREAK OUR ALERTS, which is not great.
     const sendAlertSecrets = Secret.fromSecretNameV2(stack, "SecretsImport", "AlertSecrets");
     const sendAlertLambda = new AwsLambda(stack, "SendAlert", {
         bazelConfiguration: {

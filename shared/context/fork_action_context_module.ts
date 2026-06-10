@@ -8,40 +8,40 @@ import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_s
 
 /**
  * A context module that can be forked. Forking should create a completely new
- * module instance with new state but with the same underlying configuration.
- * For example, caches like `CacheContextModule` and batchers like
- * `BatchContextModule` don't share caches/batches with forked modules.
- * However `SessionActorContextModule` does maintain its `accountId` and
- * `sessionId` in the fork.
+ * module instance with new state but with the same underlying configuration. For
+ * example, caches like `CacheContextModule` and batchers like `BatchContextModule`
+ * don't share caches/batches with forked modules. However
+ * `SessionActorContextModule` does maintain its `accountId` and `sessionId` in the
+ * fork.
  */
 export interface ForkableContextModuleBase extends ContextModuleBase {
     fork(): ForkableContextModuleBase;
 }
 
 /**
- * The fork context module can be used for forking a completely fresh context
- * from an existing context. Used in the context of server actions to start,
+ * The fork context module can be used for forking a completely fresh context from
+ * an existing context. Used in the context of server actions to start,
  * effectively, a new action with the same credentials.
  *
- * It's up to the context creator to decide what's shared in a fork. We
- * recommend resetting any caches in your fork.
+ * It's up to the context creator to decide what's shared in a fork. We recommend
+ * resetting any caches in your fork.
  *
  * The forked context will typically reuse the credentials of the action it was
  * forked from. You can create a detached forker which lets you keep spawning
- * forked actions with your original action's credentials forever! Be careful
- * with your detached forkers and make sure if you fork a request it's always
- * because the user indicated they wanted some action to occur. Don't surprise
- * users with an action they didn't perform.
+ * forked actions with your original action's credentials forever! Be careful with
+ * your detached forkers and make sure if you fork a request it's always because
+ * the user indicated they wanted some action to occur. Don't surprise users with
+ * an action they didn't perform.
  *
- * The "action" part of the name is because this module is intended to be used
- * with action contexts. Action contexts:
+ * The "action" part of the name is because this module is intended to be used with
+ * action contexts. Action contexts:
  *
  * - Have a `TracerSpan` covering the action. The fork context module is
  *   responsible for starting new, related spans
  *
- * - Is constructed with `Context.with()` which means the context will be
- *   destroyed at the end of its lifetime. The fork context module extends the
- *   lifetime of an action
+ * - Is constructed with `Context.with()` which means the context will be destroyed
+ *   at the end of its lifetime. The fork context module extends the lifetime of an
+ *   action
  */
 export class ForkActionContextModule
     extends ContextModuleBase<{tracer: TracerContextModule}>
@@ -70,9 +70,9 @@ export class ForkActionContextModule
                 const forkableModule = module as ForkableContextModuleBase;
                 const forkedModule = forkableModule.fork();
 
-                // When we bind a module to a context we call `Object.create(module)` and
-                // assign the bound context to that object. So an unbound module has one less
-                // prototype layer.
+                // When we bind a module to a context we call `Object.create(module)` and assign
+                // the bound context to that object. So an unbound module has one less prototype
+                // layer.
                 assert(
                     Object.getPrototypeOf(forkedModule) ===
                         Object.getPrototypeOf(Object.getPrototypeOf(forkableModule)),
@@ -93,9 +93,9 @@ export class ForkActionContextModule
      * Get a detached forker which lets you continue making forks even after this
      * context module is destroyed with the credentials of the original action.
      *
-     * Be careful with your detached forkers and make sure if you fork a request
-     * it's always because the user indicated they wanted some action to occur.
-     * Don't surprise users with an action they didn't perform.
+     * Be careful with your detached forkers and make sure if you fork a request it's
+     * always because the user indicated they wanted some action to occur. Don't
+     * surprise users with an action they didn't perform.
      */
     public getDetachedForker<Modules extends {[key: string]: ForkableContextModuleBase}>(
         this: ContextModuleBase<Modules> & ForkActionContextModule,
@@ -113,9 +113,9 @@ export class ForkActionContextModule
             const forkableModule = module as ForkableContextModuleBase;
             const forkedModule = forkableModule.fork();
 
-            // When we bind a module to a context we call `Object.create(module)` and
-            // assign the bound context to that object. So an unbound module has one less
-            // prototype layer.
+            // When we bind a module to a context we call `Object.create(module)` and assign
+            // the bound context to that object. So an unbound module has one less prototype
+            // layer.
             assert(
                 Object.getPrototypeOf(forkedModule) ===
                     Object.getPrototypeOf(Object.getPrototypeOf(forkableModule)),
@@ -140,8 +140,8 @@ export class ForkActionContextModule
 }
 
 /**
- * A detached forker which can keep forking actions even after the original
- * context is destroyed.
+ * A detached forker which can keep forking actions even after the original context
+ * is destroyed.
  */
 export class ForkActionContextModuleDetachedForker<
     Modules extends {[key: string]: ForkableContextModuleBase},
@@ -198,7 +198,7 @@ export class ForkActionContextModuleDetachedForker<
             action = optionalAction;
         }
 
-        return this._withForkFromCustomSpan(span, modules, action);
+        return await this._withForkFromCustomSpan(span, modules, action);
     }
 
     /**
@@ -243,8 +243,8 @@ export class ForkActionContextModuleDetachedForker<
         try {
             // Link to the parent span which may have been created long ago...
             if (this._propagationContext) {
-                // Merge in our propagation context's data. If the `span` already the same data
-                // as what we pass in then the data in `span` will win.
+                // Merge in our propagation context's data. If the `span` already the same data as
+                // what we pass in then the data in `span` will win.
                 span._addDefaultPropagatedFlatData(this._propagationContext.data);
 
                 span.link(`Parent of: ${span.getName()}`, {
@@ -262,8 +262,8 @@ export class ForkActionContextModuleDetachedForker<
                     // We manually add a new `TracerContextModule` with the new span.
                     if (key === "tracer") continue;
 
-                    // If we're replacing a forked module then double check the new module has the
-                    // same type as the forked module. This helps make sure our TypeScript types are
+                    // If we're replacing a forked module then double check the new module has the same
+                    // type as the forked module. This helps make sure our TypeScript types are
                     // correct.
                     assert(
                         this._baseForkedModules[key] &&

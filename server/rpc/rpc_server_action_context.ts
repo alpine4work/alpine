@@ -1,6 +1,7 @@
 import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
@@ -23,4 +24,5 @@ export type RpcServerActionExtraContextModules = {
     billing: BillingContextModuleBase;
     importer: ImporterContextModuleBase;
     logoDev: LogoDevContextModuleBase;
+    slack: SlackContextModuleBase;
 };

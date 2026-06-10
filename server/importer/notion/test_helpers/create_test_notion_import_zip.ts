@@ -6,8 +6,7 @@ import {join} from "path";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * Generates a 32 hex character ID matching Notion's format (UUID without
- * dashes).
+ * Generates a 32 hex character ID matching Notion's format (UUID without dashes).
  */
 function generateNotionId(): string {
     const bytes = new Uint8Array(16);
@@ -28,19 +27,18 @@ abstract class ExportedNotionItem {
     }
 
     /**
-     * Returns a placeholder string that will be replaced with the
-     * actual markdown reference when the zip is generated. For
-     * documents this becomes `[Title](path.md)`, for databases
-     * `[Title](path.csv)`.
+     * Returns a placeholder string that will be replaced with the actual markdown
+     * reference when the zip is generated. For documents this becomes
+     * `[Title](path.md)`, for databases `[Title](path.csv)`.
      */
     toReference(): string {
         return `[${referencePlaceholderPrefix}${this.notionId}]`;
     }
 
     /**
-     * Sets the parent document of this item and adds this item to the
-     * parent's children. If the item already has a parent, it is
-     * removed from the previous parent's children.
+     * Sets the parent document of this item and adds this item to the parent's
+     * children. If the item already has a parent, it is removed from the previous
+     * parent's children.
      */
     setParent(
         parent: ExportedNotionDocument | null,
@@ -65,12 +63,12 @@ abstract class ExportedNotionItem {
 }
 
 /**
- * A Notion document export consists of a title, content, optional child
- * items (sub-pages and databases), and optional attached files.
+ * A Notion document export consists of a title, content, optional child items
+ * (sub-pages and databases), and optional attached files.
  *
- * Files are NOT children in the tree hierarchy. They are referenced
- * inline in the markdown content and placed alongside the document
- * (flat mode) or in the document's subdirectory (nested mode).
+ * Files are NOT children in the tree hierarchy. They are referenced inline in the
+ * markdown content and placed alongside the document (flat mode) or in the
+ * document's subdirectory (nested mode).
  */
 class ExportedNotionDocument extends ExportedNotionItem {
     public readonly title: string;
@@ -88,9 +86,9 @@ class ExportedNotionDocument extends ExportedNotionItem {
     }
 
     /**
-     * Adds child items to this document and sets their parent to this
-     * document. If the child items already have a parent, they are
-     * removed from their previous parent's children.
+     * Adds child items to this document and sets their parent to this document. If the
+     * child items already have a parent, they are removed from their previous parent's
+     * children.
      */
     addChildren(
         children: Array<ExportedNotionItem>,
@@ -128,10 +126,10 @@ class ExportedNotionDocument extends ExportedNotionItem {
     }
 
     /**
-     * Associates files with this document. In the generated zip, files
-     * are placed at root level (flat) or in the document's
-     * subdirectory (nested). Use `file.toReference()` in the content
-     * to create a placeholder that resolves to the correct path.
+     * Associates files with this document. In the generated zip, files are placed at
+     * root level (flat) or in the document's subdirectory (nested). Use
+     * `file.toReference()` in the content to create a placeholder that resolves to the
+     * correct path.
      */
     addFiles(files: Array<ExportedNotionFile>): ExportedNotionDocument {
         this.files.push(...files);
@@ -144,16 +142,19 @@ class ExportedNotionDocument extends ExportedNotionItem {
  * representing rows and columns. The first row is the header row.
  *
  * When a database is a child of a document:
- * - Use `toReference()` to create a link to the database's .md file (standard Notion export behavior)
- * - Use `toCsvReference()` to create a direct link to the CSV file (for testing inline database replacement)
  *
- * Databases can have children (documents that become rows in the database).
- * In Notion exports, these children are placed in a subdirectory named after
- * the database (without the Notion ID suffix).
+ * - Use `toReference()` to create a link to the database's .md file (standard
+ *   Notion export behavior)
+ * - Use `toCsvReference()` to create a direct link to the CSV file (for testing
+ *   inline database replacement)
  *
- * Set `inline: true` to make this a CSV-only database (no .md wrapper).
- * This simulates how Notion exports inline databases that are embedded
- * directly in document content.
+ * Databases can have children (documents that become rows in the database). In
+ * Notion exports, these children are placed in a subdirectory named after the
+ * database (without the Notion ID suffix).
+ *
+ * Set `inline: true` to make this a CSV-only database (no .md wrapper). This
+ * simulates how Notion exports inline databases that are embedded directly in
+ * document content.
  */
 class ExportedNotionDatabase extends ExportedNotionItem {
     private readonly _csvRefId = generateNotionId();
@@ -175,9 +176,9 @@ class ExportedNotionDatabase extends ExportedNotionItem {
     }
 
     /**
-     * Returns a placeholder string that will be replaced with a direct
-     * link to the CSV file. Use this to test inline database replacement
-     * where the CSV content should be inlined as a table.
+     * Returns a placeholder string that will be replaced with a direct link to the CSV
+     * file. Use this to test inline database replacement where the CSV content should
+     * be inlined as a table.
      */
     toCsvReference(): string {
         return `[${referencePlaceholderPrefix}${this._csvRefId}]`;
@@ -189,8 +190,8 @@ class ExportedNotionDatabase extends ExportedNotionItem {
     }
 
     /**
-     * Adds child documents to this database. In Notion exports, database
-     * children are placed in a subdirectory named after the database.
+     * Adds child documents to this database. In Notion exports, database children are
+     * placed in a subdirectory named after the database.
      */
     addChildren(
         children: Array<ExportedNotionDocument>,
@@ -222,13 +223,11 @@ const fixtureName = {
 };
 
 /**
- * A Notion exported file, such as an image, video, or audio file.
- * Files are NOT part of the document tree hierarchy. They are
- * referenced inline in the markdown content and placed in the
- * document's directory in the zip.
+ * A Notion exported file, such as an image, video, or audio file. Files are NOT
+ * part of the document tree hierarchy. They are referenced inline in the markdown
+ * content and placed in the document's directory in the zip.
  *
- * Reads real binary data from test fixtures to produce realistic
- * exports.
+ * Reads real binary data from test fixtures to produce realistic exports.
  */
 class ExportedNotionFile {
     public readonly name: string;
@@ -241,9 +240,8 @@ class ExportedNotionFile {
     }
 
     /**
-     * Returns a placeholder string that will be replaced with the
-     * actual file reference when the zip is generated. For images
-     * this becomes `![name](path)`.
+     * Returns a placeholder string that will be replaced with the actual file
+     * reference when the zip is generated. For files this becomes `[name](path)`.
      */
     toReference(): string {
         return `[${referencePlaceholderPrefix}${this._refId}]`;
@@ -263,9 +261,9 @@ class ExportedNotionFile {
 }
 
 /**
- * A Notion teamspace groups items under a named section in the
- * workspace. In the index.html, teamspaces are represented as
- * `<ul id="id::UUID">` whose `<a>` has no `href` attribute.
+ * A Notion teamspace groups items under a named section in the workspace. In the
+ * index.html, teamspaces are represented as `<ul id="id::UUID">` whose `<a>` has
+ * no `href` attribute.
  */
 class ExportedNotionTeamspace {
     public readonly notionId = generateNotionId();
@@ -284,14 +282,13 @@ interface CreateTestNotionImportZipOptions {
 }
 
 /**
- * Creates a test ZIP file in memory for testing Notion import
- * functionality. Returns the ZIP file as a Uint8Array.
+ * Creates a test ZIP file in memory for testing Notion import functionality.
+ * Returns the ZIP file as a Uint8Array.
  *
- * The output matches the structure of Notion's export: an outer zip
- * containing a single inner zip (`Export-<uuid>-Part-1.zip`). The inner
- * zip contains all the exported files under a root directory. Notion
- * always nests exports this way, likely so partial exports can be
- * split across multiple inner zip parts.
+ * The output matches the structure of Notion's export: an outer zip containing a
+ * single inner zip (`Export-<uuid>-Part-1.zip`). The inner zip contains all the
+ * exported files under a root directory. Notion always nests exports this way,
+ * likely so partial exports can be split across multiple inner zip parts.
  */
 export function createTestNotionImportZip(
     items: Array<ExportedNotionItem> | Array<ExportedNotionTeamspace>,
@@ -325,9 +322,9 @@ export function createTestNotionImportZip(
         }
     }
 
-    // Global resolution: replace all reference placeholders in markdown
-    // files. This resolves cross-document references (e.g. siblings or
-    // ancestors referencing each other).
+    // Global resolution: replace all reference placeholders in markdown files. This
+    // resolves cross-document references (e.g. siblings or ancestors referencing each
+    // other).
     for (const [path, content] of Object.entries(files)) {
         if (!path.endsWith(".md")) continue;
         let markdown = strFromU8(content);
@@ -350,9 +347,9 @@ export function createTestNotionImportZip(
     // Create the inner zip containing the actual export files
     const innerZip = zipSync(files);
 
-    // Wrap in outer zip — Notion always nests exports inside another
-    // zip named `Export-<uuid>-Part-1.zip`. This allows Notion to
-    // split large exports across multiple "Part" archives.
+    // Wrap in outer zip — Notion always nests exports inside another zip named
+    // `Export-<uuid>-Part-1.zip`. This allows Notion to split large exports across
+    // multiple "Part" archives.
     const outerFiles: Record<string, Uint8Array> = {
         [`${rootDir}-Part-1.zip`]: innerZip,
     };
@@ -375,19 +372,19 @@ function addItemToFiles(
         // Register this document in the reference map
         referenceMap.set(item.toReference(), `[${item.title}](${encodePath(filePath)})`);
 
-        // In nested mode, the document creates a subdirectory with its
-        // title that houses all children and attached files.
+        // In nested mode, the document creates a subdirectory with its title that houses
+        // all children and attached files.
         const childPath = nested ? (parentPath ? `${parentPath}/${item.title}` : item.title) : "";
 
         const markdown = buildDocumentMarkdown(item);
         files[`${rootDir}/${filePath}`] = strToU8(markdown);
 
-        // Place attached files in the document's directory (nested) or
-        // at root level (flat). Files are NOT tree children — they're
-        // referenced inline in the markdown content.
+        // Place attached files in the document's directory (nested) or at root level
+        // (flat). Files are NOT tree children — they're referenced inline in the markdown
+        // content.
         for (const file of item.files) {
             const fileFilePath = childPath ? `${childPath}/${file.name}` : file.name;
-            referenceMap.set(file.toReference(), `![${file.name}](${encodePath(fileFilePath)})`);
+            referenceMap.set(file.toReference(), `[${file.name}](${encodePath(fileFilePath)})`);
             files[`${rootDir}/${fileFilePath}`] = file.data;
         }
 
@@ -406,8 +403,8 @@ function addItemToFiles(
         referenceMap.set(csvRefPlaceholder, `[${item.title}](${encodePath(csvFilePath)})`);
 
         if (item.inline) {
-            // Inline databases are CSV-only (no .md wrapper).
-            // The reference placeholder still points to the CSV directly.
+            // Inline databases are CSV-only (no .md wrapper). The reference placeholder still
+            // points to the CSV directly.
             referenceMap.set(item.toReference(), `[${item.title}](${encodePath(csvFilePath)})`);
         } else {
             // Full-page databases have an .md wrapper that links to the CSV.
@@ -422,14 +419,14 @@ function addItemToFiles(
         const csv = buildDatabaseCsv(item);
         files[`${rootDir}/${csvFilePath}`] = strToU8(csv);
 
-        // Notion also exports an _all.csv with the same content
+        // Notion also exports an \_all.csv with the same content
         const allFileName = `${item.title} ${item.notionId}_all.csv`;
         const allFilePath = parentPath ? `${parentPath}/${allFileName}` : allFileName;
         files[`${rootDir}/${allFilePath}`] = strToU8(csv);
 
-        // Database children (row documents) are placed in a subdirectory named after
-        // the database title (without Notion ID). In nested mode, this is under the
-        // parent path; in flat mode, it's at the root level.
+        // Database children (row documents) are placed in a subdirectory named after the
+        // database title (without Notion ID). In nested mode, this is under the parent
+        // path; in flat mode, it's at the root level.
         if (item.children.length > 0) {
             const databaseChildPath = parentPath ? `${parentPath}/${item.title}` : item.title;
             for (const child of item.children) {
@@ -442,9 +439,9 @@ function addItemToFiles(
 function buildDocumentMarkdown(doc: ExportedNotionDocument): string {
     let md = `# ${doc.title}\n`;
 
-    // List child documents and databases as reference placeholders
-    // before the content. The global resolution pass replaces these
-    // with the correct links after all file paths are known.
+    // List child documents and databases as reference placeholders before the content.
+    // The global resolution pass replaces these with the correct links after all file
+    // paths are known.
     const childLinks = buildChildLinks(doc);
     if (childLinks) {
         md += `\n${childLinks}`;
@@ -463,8 +460,7 @@ function buildDocumentMarkdown(doc: ExportedNotionDocument): string {
 }
 
 /**
- * Encodes each segment of a path individually, preserving `/`
- * separators.
+ * Encodes each segment of a path individually, preserving `/` separators.
  */
 function encodePath(path: string): string {
     return path.split("/").map(encodeURIComponent).join("/");
@@ -598,8 +594,8 @@ function generateIndexHtmlEntry(
 }
 
 /**
- * Formats a 32-char hex notion ID as a UUID with dashes for use in
- * index.html id attributes.
+ * Formats a 32-char hex notion ID as a UUID with dashes for use in index.html id
+ * attributes.
  */
 function formatNotionIdAsUuid(notionId: string): string {
     return [

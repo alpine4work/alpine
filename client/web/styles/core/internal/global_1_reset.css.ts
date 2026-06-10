@@ -1,15 +1,15 @@
 /**
  * Our CSS reset is derived from the [tailwindcss preflight][1] file.
  *
- * This file is aimed at removing browser styles and fixing compatibility
- * issues. If you want to set a style by default globally, put it in
+ * This file is aimed at removing browser styles and fixing compatibility issues.
+ * If you want to set a style by default globally, put it in
  * `bootstrap-style-global.css.ts`.
  *
  * It is important that this CSS file is imported before `sprinkles.css.ts`!
- * Otherwise styles like our button background color reset will take
- * precedence.
+ * Otherwise styles like our button background color reset will take precedence.
  *
- * [1]: https://github.com/tailwindlabs/tailwindcss/blob/262079e1e5809d2a58e8d264d179c712e3d5d953/src/css/preflight.css#L1
+ * [1]:
+ *     https://github.com/tailwindlabs/tailwindcss/blob/262079e1e5809d2a58e8d264d179c712e3d5d953/src/css/preflight.css#L1
  */
 
 import {globalStyle} from "@vanilla-extract/css";
@@ -24,9 +24,8 @@ globalStyle("*, ::before, ::after", {
 });
 
 globalStyle("html", {
-    // Prevent adjustments of font size since our app is built with responsive
-    // design in mind.
-    // https://developer.mozilla.org/en-US/docs/Web/CSS/text-size-adjust
+    // Prevent adjustments of font size since our app is built with responsive design
+    // in mind. https://developer.mozilla.org/en-US/docs/Web/CSS/text-size-adjust
     WebkitTextSizeAdjust: "100%",
     textSizeAdjust: "100%",
     // Use a more readable tab size.
@@ -45,7 +44,8 @@ globalStyle("body", {
 globalStyle("hr", {
     // Add the correct height in Firefox.
     height: 0,
-    // Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
+    // Correct the inheritance of border color in Firefox.
+    // (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
     color: "inherit",
     // Ensure horizontal rules are visible by default.
     borderTopWidth: 1,
@@ -100,9 +100,13 @@ globalStyle("sup", {
 });
 
 globalStyle("table", {
-    // Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
+    // Remove text indentation from table contents in Chrome and Safari.
+    // (https://bugs.chromium.org/p/chromium/issues/detail?id=999088,
+    // https://bugs.webkit.org/show_bug.cgi?id=201297)
     textIndent: "0",
-    // Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
+    // Correct table border color inheritance in all Chrome and Safari.
+    // (https://bugs.chromium.org/p/chromium/issues/detail?id=935729,
+    // https://bugs.webkit.org/show_bug.cgi?id=195016)
     borderColor: "inherit",
     // Remove gaps between table borders by default.
     borderCollapse: "collapse",
@@ -121,8 +125,8 @@ globalStyle("button, input, optgroup, select, textarea", {
     padding: 0,
 });
 
-// `:where()` has a specificity of 0. So a sprinkles CSS class that sets
-// background color can override it.
+// `:where()` has a specificity of 0. So a sprinkles CSS class that sets background
+// color can override it.
 globalStyle(":where(input[type='text'])", {
     // Remove default background color.
     backgroundColor: "transparent",
@@ -146,7 +150,8 @@ globalStyle(":-moz-focusring", {
     outline: "auto",
 });
 
-// Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+// Remove the additional `:invalid` styles in Firefox.
+// (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
 globalStyle(":-moz-ui-invalid", {
     boxShadow: "none",
 });
@@ -211,19 +216,25 @@ globalStyle("textarea", {
 });
 
 globalStyle("input::placeholder, textarea::placeholder", {
-    // Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+    // Reset the default placeholder opacity in Firefox.
+    // (https://github.com/tailwindlabs/tailwindcss/issues/3300)
     opacity: 1,
 });
 
 globalStyle("img, svg, video, canvas, audio, iframe, embed, object", {
-    // Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
+    // Make replaced elements `display: block` by default.
+    // (https://github.com/mozdevs/cssremedy/issues/14)
     display: "block",
-    // Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
-    // This can trigger a poorly considered lint error in some tools but is included by design.
+    // Add `vertical-align: middle` to align replaced elements more sensibly by
+    // default.
+    // (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210) This
+    // can trigger a poorly considered lint error in some tools but is included by
+    // design.
     verticalAlign: "middle",
 });
 
-// Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
+// Constrain images and videos to the parent width and preserve their intrinsic
+// aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
 globalStyle("img, video", {
     maxWidth: "100%",
     height: "auto",

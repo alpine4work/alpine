@@ -6,14 +6,16 @@ import {updateChannelAccessPolicyBase} from "~/server/forum/data/internal/update
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {AccountId, ChannelId} from "~/shared/id/types/id_types.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**
- * Updates the channel's `AccessPolicy` by adding account grants. This allows
- * you to avoid conflicting update race conditions since you're not replacing
- * the entire access policy.
+ * Updates the channel's `AccessPolicy` by adding account grants. This allows you
+ * to avoid conflicting update race conditions since you're not replacing the
+ * entire access policy.
  */
 export async function addAccountGrantsToChannelAccessPolicy(
     context: ServerSessionActionContext,
@@ -27,19 +29,26 @@ export async function addAccountGrantsToChannelAccessPolicy(
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
-    ) => Promise<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>
-    >;
+    ) => Promise<ReadonlyArray<RynamoEvent<ChannelModel | ChannelContributorsModel>>>;
+    getRynamoEventsForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
-    return updateChannelAccessPolicyBase(context, {
+    return await updateChannelAccessPolicyBase(context, {
         channelId,
-        updateAccessPolicy: accessPolicy =>
-            reduceAccessPolicy(context.actor.getAccountId(), accessPolicy, {
+        updateAccessPolicy: accessPolicy => {
+            if (accessPolicy.type === "Site") {
+                throw new FailedPreconditionError(
+                    "Can\u2019t modify site access policy through one of its entities",
+                );
+            }
+            return reduceAccessPolicy(context.actor.getAccountId(), accessPolicy, {
                 type: "AddAccountGrants",
                 accountGrantById,
-            }),
+            });
+        },
         notification,
     });
 }

@@ -2,19 +2,18 @@ import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_el
 import {withoutClearSelectionOnMouseDownClassName} from "~/client/web/styles/styles.js";
 
 /**
- * By default, the browser clears your selection if you click on an element
- * with `user-select: text`. However, the browser won't clear your selection by
- * default if you click on an element with `user-select: none`. Given in our
- * CSS we default everything to `user-select: none`
- * (see `global_2_defaults.css.ts`) we have some JavaScript that makes sure the
- * selection is always cleared on mouse down even if we're clicking an element
- * with `user-select: none`.
+ * By default, the browser clears your selection if you click on an element with
+ * `user-select: text`. However, the browser won't clear your selection by default
+ * if you click on an element with `user-select: none`. Given in our CSS we default
+ * everything to `user-select: none` (see `global_2_defaults.css.ts`) we have some
+ * JavaScript that makes sure the selection is always cleared on mouse down even if
+ * we're clicking an element with `user-select: none`.
  */
 export function registerAlwaysClearSelectionOnMouseDown() {
     // Must be on `window` (not `document.documentElement`) so if a React
     // `onPointerDown` handler calls `event.preventDefault()` (like
-    // `useOutOfBoundsClickSelection()`) then we see the default was prevented
-    // in this function.
+    // `useOutOfBoundsClickSelection()`) then we see the default was prevented in this
+    // function.
     window.addEventListener("pointerdown", event => {
         // Fixes triple clicking empty space in a task title input (managed by
         // `useOutOfBoundsClickSelection()`) deselecting the task title.
@@ -35,8 +34,8 @@ export function registerAlwaysClearSelectionOnMouseDown() {
                 // In Safari `user-select` is behind a vendor prefix.
                 getComputedStyle(event.target).webkitUserSelect) !== "none";
 
-        // If the click is in an element with `user-select: text` then the browser
-        // should clear our selection automatically.
+        // If the click is in an element with `user-select: text` then the browser should
+        // clear our selection automatically.
         if (isPointerDownFromSelectableElement) return;
 
         // Make sure the click isn't in an editable element.
@@ -48,8 +47,8 @@ export function registerAlwaysClearSelectionOnMouseDown() {
         //
         // TODO(calebmer): I think it could be better if everywhere we use
         // `withoutClearSelectionOnMouseDownClassName` we instead call
-        // `event.preventDefault()`. Use the natural semantics of the browser instead
-        // of a random one-off CSS class.
+        // `event.preventDefault()`. Use the natural semantics of the browser instead of a
+        // random one-off CSS class.
         if (event.target.closest(`.${withoutClearSelectionOnMouseDownClassName}`)) return;
 
         selection.removeAllRanges();

@@ -13,7 +13,8 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
-// If you update this, be sure to also update the token used in app/routes/api.internal.accounts.$accountId.plan.ts
+// If you update this, be sure to also update the token used in
+// app/routes/api.internal.accounts.$accountId.plan.ts
 const appServiceAccountPlanSecretToken = "cyberworlds-super-secret-internal-agent-service-token";
 
 // Mock fetch function
@@ -32,12 +33,13 @@ const mockAgentUsageDatabase: jest.Mocked<AgentUsageDatabaseInterface> = {
 
 const mockAgentUsageDatabaseClass = mockAgentUsageDatabase as unknown as AgentUsageDatabase;
 
-// Mock environment, cloudflare types are tricky in tests
-// So for now, just ignore type checking. We don't use them here.
-// This also doesn't fail locally, but fails in CI, so we have to use ts-ignore.
+// Mock environment, cloudflare types are tricky in tests So for now, just ignore
+// type checking. We don't use them here. This also doesn't fail locally, but fails
+// in CI, so we have to use ts-ignore.
 const mockEnv: AgentServiceEnv = {
     ChatGptAgentDurableObjectNamespace: {} as any,
-    MockAgentDurableObjectNamespace: {} as any,
+    MockChatGptAgentDurableObjectNamespace: {} as any,
+    MockCursorAgentDurableObjectNamespace: {} as any,
     CursorAgentDurableObjectNamespace: {} as any,
     AgentUsageDatabase: {} as any,
     API_SERVICE_URL: "https://api.test.cyberworlds.dev",
@@ -45,6 +47,7 @@ const mockEnv: AgentServiceEnv = {
     CHAT_GPT_API_SERVICE_KEY: "test-chat-gpt-key",
     CURSOR_API_SERVICE_KEY: "test-cursor-key",
     MOCK_CHAT_GPT_API_SERVICE_KEY: "test-mock-key",
+    MOCK_CURSOR_API_SERVICE_KEY: "test-mock-key",
     OPEN_AI_API_KEY: "test-openai-key",
     HONEYCOMB_API_KEY: "test-honeycomb-key",
 };
@@ -312,7 +315,8 @@ describe("refreshAccountEntitlements", () => {
                 {fetch: mockFetch as typeof fetch},
             );
 
-            // Fast-forward time through all retry attempts (5 attempts = ~31 seconds with exponential backoff)
+            // Fast-forward time through all retry attempts (5 attempts = ~31 seconds with
+            // exponential backoff)
             await jest.advanceTimersByTimeAsync(60000);
 
             await expect(refreshPromise).rejects.toThrow(DeadlineExceededError);

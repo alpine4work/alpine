@@ -1,5 +1,3 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import escapeHtml from "escape-html";
 import {DotsSixVertical} from "phosphor-react";
 

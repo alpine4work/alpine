@@ -107,8 +107,8 @@ export function ReactionCharacterCarouselSelector() {
                             accountRegistry.immediatelyUpdateAccountStoreIfExists(account);
                         });
 
-                        // The `flushSync()` function above forces React to re-render synchronously.
-                        // So we should be getting the correct newly selected element here.
+                        // The `flushSync()` function above forces React to re-render synchronously. So we
+                        // should be getting the correct newly selected element here.
 
                         const carouselElement = assertExists(carouselRef.current);
                         const ourCharacterCarouselItemElement = assertExists(
@@ -160,8 +160,8 @@ export function ReactionCharacterCarouselSelector() {
                             accountRegistry.immediatelyUpdateAccountStoreIfExists(account);
                         });
 
-                        // The `flushSync()` function above forces React to re-render synchronously.
-                        // So we should be getting the correct newly selected element here.
+                        // The `flushSync()` function above forces React to re-render synchronously. So we
+                        // should be getting the correct newly selected element here.
 
                         const carouselElement = assertExists(carouselRef.current);
                         const ourCharacterCarouselItemElement = assertExists(

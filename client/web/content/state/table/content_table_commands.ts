@@ -1,30 +1,29 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove
- * features we don't use and customize the user experience. You can find the
- * original file in the `prosemirror-tables` package at:
+ * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove features
+ * we don't use and customize the user experience. You can find the original file
+ * in the `prosemirror-tables` package at:
  * https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/commands.ts
  *
  * The MIT License
  *
  * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
@@ -58,8 +57,8 @@ function addContentTableColumn(
     let newTableWidth: number;
 
     // When adding columns we keep the table width constant up until
-    // `tableMaxColumnCountForMaintainingBlockWidth` (currently 4) columns. At
-    // which point we start adding columns with an equal expected pixel width.
+    // `tableMaxColumnCountForMaintainingBlockWidth` (currently 4) columns. At which
+    // point we start adding columns with an equal expected pixel width.
     if (tableMap.width < contentStyles.tableMaxColumnCountForMaintainingBlockWidth) {
         newColumnWidth = 1;
         newTableWidth = tableMap.tableWidth;
@@ -73,10 +72,9 @@ function addContentTableColumn(
         // scale or platform is different. The table's relative values should scale
         // appropriately.
         //
-        // If the user keeps pressing "add column" then before we start growing the
-        // table they'll have a couple columns of equal width. When we start growing
-        // the table, we want the new column to have the same width as the previous
-        // columns.
+        // If the user keeps pressing "add column" then before we start growing the table
+        // they'll have a couple columns of equal width. When we start growing the table,
+        // we want the new column to have the same width as the previous columns.
         const newColumnWidthPx =
             (contentStyles.blockMaxWidthRem.desktop * remPx) /
             contentStyles.tableMaxColumnCountForMaintainingBlockWidth;
@@ -104,7 +102,8 @@ function addContentTableColumn(
         // newColumnWidth = -((oldTotalColumnWidth * newColumnWidthPx) / (newColumnWidthPx - newTotalColumnWidthPx))
         // ```
         //
-        // [1]: https://www.wolframalpha.com/input?i=solve+for+a+in+a+%2F+%28a+%2B+b%29+%3D+c+%2F+d
+        // [1]:
+        //     https://www.wolframalpha.com/input?i=solve+for+a+in+a+%2F+%28a+%2B+b%29+%3D+c+%2F+d
         newColumnWidth = -(
             (tableMap.totalColumnWidth * newColumnWidthPx) /
             (newColumnWidthPx - newTotalColumnWidthPx)
@@ -543,8 +542,8 @@ export function deleteContentTableCellSelection(
     if (transaction.docChanged) {
         dispatch?.(transaction);
     }
-    // If all cells are already empty then we delete the selected rows/columns even
-    // the table if the full table is selected.
+    // If all cells are already empty then we delete the selected rows/columns even the
+    // table if the full table is selected.
     else {
         const rect = selectedContentTableRect(state);
 
@@ -629,9 +628,9 @@ export function selectContentTableRow(tablePos: number, rowIndex: number): Comma
  * `startRowIndex` (inclusive) and `endRowIndex` (exclusive).
  *
  * Produces a transaction that deletes rows from their old position and inserts
- * rows into their new position. Any conflicting transaction steps in cells
- * outside of the moved rows will be mapped appropriately but any conflicting
- * transaction steps within the moved rows will be lost.
+ * rows into their new position. Any conflicting transaction steps in cells outside
+ * of the moved rows will be mapped appropriately but any conflicting transaction
+ * steps within the moved rows will be lost.
  */
 export function moveContentTableRow(
     tablePos: number,
@@ -659,8 +658,8 @@ export function moveContentTableRow(
 
         let deletedNodeSize = 0;
 
-        // Delete the rows we're moving. We delete in reverse order so we can use old
-        // table positions.
+        // Delete the rows we're moving. We delete in reverse order so we can use old table
+        // positions.
         for (
             let deleteRowIndex = endRowIndex - 1;
             deleteRowIndex >= startRowIndex;
@@ -701,8 +700,8 @@ export function moveContentTableRow(
             insertPos = tablePos + cells[0]! - 1;
         }
 
-        // Insert the nodes we're moving in their new position. We insert in reverse
-        // order so we can use the same `insertPos` each time.
+        // Insert the nodes we're moving in their new position. We insert in reverse order
+        // so we can use the same `insertPos` each time.
         for (
             let insertRowIndex = endRowIndex - 1;
             insertRowIndex >= startRowIndex;
@@ -715,9 +714,8 @@ export function moveContentTableRow(
                 // mapped since the deletion happens below `insertPos`
                 transaction.insert(insertPos, tableRow);
             } else {
-                // case 2: moving rows down in the table so first we update
-                // our insertPos by removing the size of the deleted nodes
-                // from calculated insertPos
+                // case 2: moving rows down in the table so first we update our insertPos by
+                // removing the size of the deleted nodes from calculated insertPos
                 transaction.insert(insertPos - deletedNodeSize, tableRow);
             }
         }
@@ -757,20 +755,19 @@ export function moveContentTableRow(
  * Move a range of table columns to a new position. The table column range is
  * between `startColumnIndex` (inclusive) and `endColumnIndex` (exclusive).
  *
- * Produces a transaction that, for every table row, deletes cells from their
- * old position and inserts cells into their new position. Any conflicting
- * transaction steps in cells outside of the moved cells will be mapped
- * appropriately but any conflicting transaction steps within the moved cells
- * will be lost.
+ * Produces a transaction that, for every table row, deletes cells from their old
+ * position and inserts cells into their new position. Any conflicting transaction
+ * steps in cells outside of the moved cells will be mapped appropriately but any
+ * conflicting transaction steps within the moved cells will be lost.
  *
- * Since we need to update each row individually, the transaction produced by
- * this command may be quite large! It'll have
+ * Since we need to update each row individually, the transaction produced by this
+ * command may be quite large! It'll have
  * `rowCount * (endColumnIndex - startColumnIndex) * 2` steps. An alternative
  * implementation if we run into large transaction problems is to produce a new
  * table node with moved columns and replace the entire table at once. This
- * implementation would only have one step but any conflicting transaction
- * steps would be lost. (The previous implementation of this function replaced
- * the whole table. See the parent git commit.)
+ * implementation would only have one step but any conflicting transaction steps
+ * would be lost. (The previous implementation of this function replaced the whole
+ * table. See the parent git commit.)
  */
 export function moveContentTableColumn(
     tablePos: number,
@@ -804,12 +801,10 @@ export function moveContentTableColumn(
         );
 
         if (newColumnIndex < startColumnIndex) {
-            // Insert moved columns before the target position
-            // moving to the left
+            // Insert moved columns before the target position moving to the left
             newColumnWidths.splice(newColumnIndex, 0, ...movedColumnWidths);
         } else {
-            // moving to the right!
-            // Insert moved columns after accounting for the removal
+            // moving to the right! Insert moved columns after accounting for the removal
             newColumnWidths.splice(
                 newColumnIndex - (endColumnIndex - startColumnIndex),
                 0,
@@ -828,11 +823,12 @@ export function moveContentTableColumn(
 
             // this if- else branch is for calculating the insertPos wrt the doc
             if (newColumnIndex === oldTableMap.width) {
-                // if the newColumnIndex is the last column index then this branch will calculate the insertPos
+                // if the newColumnIndex is the last column index then this branch will calculate
+                // the insertPos
                 insertPos = tablePos + tableRowNodeSize + oldTableRow.nodeSize - 1;
             } else {
-                // get the first cell of the newColumnIndex column and calculate
-                //  and then calculate the insertPos by getting the position of this cell
+                // get the first cell of the newColumnIndex column and calculate and then calculate
+                // the insertPos by getting the position of this cell
                 const cells = oldTableMap.cellsInRect({
                     left: newColumnIndex,
                     right: newColumnIndex + 1,
@@ -846,8 +842,8 @@ export function moveContentTableColumn(
 
             let insertedNodeSize = 0;
 
-            // Insert the nodes we're moving in their new position. We insert in reverse
-            // order so we can use the same `insertPos` each time.
+            // Insert the nodes we're moving in their new position. We insert in reverse order
+            // so we can use the same `insertPos` each time.
             for (
                 let insertColumnIndex = endColumnIndex - 1;
                 insertColumnIndex >= startColumnIndex;

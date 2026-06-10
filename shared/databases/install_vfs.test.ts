@@ -205,8 +205,7 @@ describe("installVfs", () => {
             });
 
             const db = new sqlite3.oo1.DB("/test-access.db", "ct", name);
-            // SQLite checks for hot journals when acquiring a
-            // shared lock for the first read.
+            // SQLite checks for hot journals when acquiring a shared lock for the first read.
             db.exec("SELECT * FROM sqlite_schema");
             expect(accessedFiles.length).toBeGreaterThan(0);
             db.close();
@@ -226,8 +225,7 @@ describe("installVfs", () => {
             });
 
             const db = new sqlite3.oo1.DB("/test-delete.db", "ct", name);
-            // A write transaction creates and then deletes the
-            // journal file on commit.
+            // A write transaction creates and then deletes the journal file on commit.
             db.exec("CREATE TABLE t (id INTEGER)");
             expect(deletedFiles.length).toBeGreaterThan(0);
             db.close();

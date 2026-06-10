@@ -7,14 +7,16 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
  * When sending a chat message notification event, we want to make sure that we
  * only propagate the currently viewed entity if it's in a 1:1 chat with a bot.
  *
- * IMPORTANT: Keep this function in sync with `getSafeCurrentlyViewedEntityIfPossibleForServer`
+ * IMPORTANT: Keep this function in sync with
+ * `getSafeCurrentlyViewedEntityIfPossibleForServer`
  */
-// TODO(ifitzsimmons, share-entity-with-agents): This should support a multi-agent chat.
-// For example, I should be able to start a chat with ChatGPT and Cursor and they should
-// both have access to the entity that I'm looking at. However, this involves some careful
-// thought. We don't want to do a bunch of async work here and slow down the agent's
-// response. We probably want to check `isBotSpaceAccount` for every account id (other than
-// the author) and return false as soon as we find a human.
+// TODO(ifitzsimmons, share-entity-with-agents): This should support a multi-agent
+// chat. For example, I should be able to start a chat with ChatGPT and Cursor and
+// they should both have access to the entity that I'm looking at. However, this
+// involves some careful thought. We don't want to do a bunch of async work here
+// and slow down the agent's response. We probably want to check
+// `isBotSpaceAccount` for every account id (other than the author) and return
+// false as soon as we find a human.
 export function getSafeCurrentlyViewedEntityIfPossibleForClient(
     context: SpaceContext,
     chat: ChatModel | undefined,
@@ -23,14 +25,17 @@ export function getSafeCurrentlyViewedEntityIfPossibleForClient(
     if (currentlyViewedSearchEntityId === null || chat === undefined) return null;
 
     // Currently viewed entity is only allowed in 1:1 chats with a bot.
-    if (chat.accounts.length !== 2) return null;
+    if (chat.definition.type !== "Direct") return null;
 
-    const currentAccountInChat = chat.accounts.find(
+    const {accounts} = chat.definition;
+    if (accounts.length !== 2) return null;
+
+    const currentAccountInChat = accounts.find(
         account => account.id === context.currentAccount?.id,
     );
     assert(currentAccountInChat !== undefined);
 
-    const otherAccount = chat.accounts.find(account => account.id !== currentAccountInChat.id);
+    const otherAccount = accounts.find(account => account.id !== currentAccountInChat.id);
     assert(otherAccount !== undefined);
 
     return otherAccount.botId ? currentlyViewedSearchEntityId : null;

@@ -51,6 +51,7 @@ import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {
     subscribeToUpdateSearchFavoriteEntityMenuAction,
     updateSearchFavoriteEntityMenuAction,
@@ -116,8 +117,8 @@ export function SearchFavoritesView({
         useStateWithOptimisticUpdates(initialResults);
 
     // If some other code unfavorites an entity while `<SearchFavoritesView>` is
-    // mounted then remove it from our state. This mainly exists to support the
-    // mobile workflow of:
+    // mounted then remove it from our state. This mainly exists to support the mobile
+    // workflow of:
     //
     // 1. Navigate to favorites view
     // 2. Navigating to an entity within the favorites view
@@ -125,8 +126,8 @@ export function SearchFavoritesView({
     // 4. Pop navigation back to favorites view
     useEffect(() => {
         return subscribeToUpdateSearchFavoriteEntityMenuAction((spaceId, entityId, isFavorite) => {
-            // Ignore favorite actions since we don't have the full entity data. Only
-            // subscribe to unfavorite actions.
+            // Ignore favorite actions since we don't have the full entity data. Only subscribe
+            // to unfavorite actions.
             if (isFavorite) return;
 
             if (spaceId !== space.id) return;
@@ -142,8 +143,8 @@ export function SearchFavoritesView({
         useMemo(
             () => ({
                 activationConstraint: {
-                    // The pointer must move to activate dragging. That way a plain click can be
-                    // used to open the favorite.
+                    // The pointer must move to activate dragging. That way a plain click can be used
+                    // to open the favorite.
                     distance: 2,
                 },
             }),
@@ -158,9 +159,9 @@ export function SearchFavoritesView({
         useMemo(
             () => ({
                 keyboardCodes: {
-                    // Instead of starting the keyboard drag with the default "Enter" or "Space"
-                    // keys, we start the drag with the "m" key. That way the default "Enter" or
-                    // "Space" key can be used to navigate to the favorite.
+                    // Instead of starting the keyboard drag with the default "Enter" or "Space" keys,
+                    // we start the drag with the "m" key. That way the default "Enter" or "Space" key
+                    // can be used to navigate to the favorite.
                     start: ["KeyM"],
                     cancel: ["Escape"],
                     end: ["Space", "Enter", "Tab"],
@@ -206,8 +207,8 @@ export function SearchFavoritesView({
                 },
             });
 
-            // 1. Show an error if the update fails. Refetch search affinity list if the
-            //    update succeeds.
+            // 1. Show an error if the update fails. Refetch search affinity list if the update
+            //    succeeds.
             movePromise.then(
                 () => {
                     forceRevalidateSearchByAffinity(
@@ -233,8 +234,8 @@ export function SearchFavoritesView({
                 },
             );
 
-            // 2. Show a loading indicator if the update takes a while (this will also stop
-            //    the user from closing the browser).
+            // 2. Show a loading indicator if the update takes a while (this will also stop the
+            //    user from closing the browser).
             addGlobalLoadingIndicator(movePromise, {type: "Saving"});
 
             // 3. Optimistically update our `results` state. Will revert the update if the
@@ -275,8 +276,8 @@ export function SearchFavoritesView({
             orderKey: newFavoriteOrderKey,
         });
 
-        // 1. Show an error if the update fails. Refetch search affinity list if the
-        //    update succeeds.
+        // 1. Show an error if the update fails. Refetch search affinity list if the update
+        //    succeeds.
         movePromise.then(
             () => {
                 // We're moving an item below the shortcut divider to a position also below the
@@ -342,8 +343,8 @@ export function SearchFavoritesView({
             },
         );
 
-        // 2. Show a loading indicator if the update takes a while (this will also stop
-        //    the user from closing the browser).
+        // 2. Show a loading indicator if the update takes a while (this will also stop the
+        //    user from closing the browser).
         addGlobalLoadingIndicator(movePromise, {type: "Saving"});
 
         // 3. Optimistically update our `results` state. Will revert the update if the
@@ -411,8 +412,8 @@ export function SearchFavoritesView({
                                 } else if (lastDragOverIdRef.current !== over.id) {
                                     lastDragOverIdRef.current = over.id;
 
-                                    // Whenever we're dragging over something new, play the selection changed
-                                    // haptic feedback.
+                                    // Whenever we're dragging over something new, play the selection changed haptic
+                                    // feedback.
                                     NativeMobileBridge?.haptic.playSelectionChanged();
                                 }
                             }
@@ -464,9 +465,9 @@ function SearchFavoritesViewInner({
             const result = results[index]!;
             sortableIds.push(result.id);
 
-            // Only allow sorting `ShortcutDivider` if we're actively dragging `ShortcutDivider`.
-            // Otherwise it should stay in the same position while other items move
-            // around it.
+            // Only allow sorting `ShortcutDivider` if we're actively dragging
+            // `ShortcutDivider`. Otherwise it should stay in the same position while other
+            // items move around it.
             if (dndContext.active?.id === "ShortcutDivider" && index === shortcutDividerIndex)
                 sortableIds.push("ShortcutDivider");
         }
@@ -481,7 +482,8 @@ function SearchFavoritesViewInner({
                 (options: Parameters<SortingStrategy>[0]) => {
                     const activeId = sortableIds[options.activeIndex];
 
-                    // Don't allow `ShortcutDivider` to be dragged below more than the max entity count.
+                    // Don't allow `ShortcutDivider` to be dragged below more than the max entity
+                    // count.
                     if (activeId === "ShortcutDivider") {
                         return rectSortingStrategy({
                             ...options,
@@ -525,7 +527,7 @@ function SearchFavoritesViewInner({
                             });
 
                             // This is very race condition prone. But it's good enough for this
-                            // non-collaborative use case. *Shrug*
+                            // non-collaborative use case. _Shrug_
                             updateSearchFavoriteEntityMenuAction(space.id, result.id, false);
 
                             updateResults(results =>
@@ -637,6 +639,7 @@ function SearchFavoritesViewItem({
     const {space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const activeContextMenuActions = useContextMenuActions();
+    const entityData = useSearchEntityModel(result.model);
 
     const id = useId();
 
@@ -644,12 +647,12 @@ function SearchFavoritesViewItem({
         () =>
             getSearchEntityPath({
                 spaceId: space.id,
-                entityId: result.id,
+                entityData,
                 randomSeed,
                 currentTime,
                 routeLayout,
             }),
-        [currentTime, randomSeed, result.id, routeLayout, space.id],
+        [currentTime, randomSeed, entityData, routeLayout, space.id],
     );
 
     const {
@@ -685,10 +688,10 @@ function SearchFavoritesViewItem({
             setIsPending(true);
 
             try {
-                // When you select a favorite, don't navigate the peek we're in and don't open
-                // a peek if we're fullscreen. Always perform a fullscreen navigation. This
-                // way we consider opening search, pressing "see all", then pressing a
-                // favorite closes `<SearchModal>`. A fast, successful, navigation session.
+                // When you select a favorite, don't navigate the peek we're in and don't open a
+                // peek if we're fullscreen. Always perform a fullscreen navigation. This way we
+                // consider opening search, pressing "see all", then pressing a favorite closes
+                // `<SearchModal>`. A fast, successful, navigation session.
                 //
                 // Holding shift performs a normal navigation.
                 if (!event.shiftKey) {
@@ -837,9 +840,9 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
         id: "ShortcutDivider",
         disabled: {
             draggable: isDragOverlay,
-            // Only allow sorting `ShortcutDivider` if we're actively dragging `ShortcutDivider`.
-            // Otherwise it should stay in the same position while other items move
-            // around it.
+            // Only allow sorting `ShortcutDivider` if we're actively dragging
+            // `ShortcutDivider`. Otherwise it should stay in the same position while other
+            // items move around it.
             droppable: dndContext.active?.id !== "ShortcutDivider",
         },
     });

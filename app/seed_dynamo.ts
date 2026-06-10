@@ -13,8 +13,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 /**
  * Seed DynamoDB with some data in development and test environments.
  *
- * This seed function is idempotent. You may run it however many times you want
- * and it will keep working.
+ * This seed function is idempotent. You may run it however many times you want and
+ * it will keep working.
  */
 // TODO(calebmer): I'd love to delete this entirely when we have a proper space
 // creation/onboarding flow and run that flow instead.
@@ -36,12 +36,10 @@ export function seedDynamo(
     assert(process.env.NODE_ENV !== "production");
 
     return context.tracer.withSpan("Seed DynamoDB test data", async context => {
-        // Make sure accounts exist since everything that follows depends
-        // on accounts:
+        // Make sure accounts exist since everything that follows depends on accounts:
         await seedTestAccounts(context);
 
-        // Make sure spaces exist since everything that follows depends on
-        // the spaces:
+        // Make sure spaces exist since everything that follows depends on the spaces:
         await seedTestSpaces(context);
 
         await runAllPromises([

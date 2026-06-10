@@ -1,9 +1,9 @@
 /**
- * We use [vanilla extract's sprinkles][1] library to create our own atomic
- * CSS system.
+ * We use [vanilla extract's sprinkles][1] library to create our own atomic CSS
+ * system.
  *
- * Our choice of which properties to include and which values is mostly taken
- * from [tailwindcss][2].
+ * Our choice of which properties to include and which values is mostly taken from
+ * [tailwindcss][2].
  *
  * [1]: https://vanilla-extract.style/documentation/sprinkles-api
  * [2]: https://tailwindcss.com
@@ -43,20 +43,19 @@ globalStyle(mobilePlatformSelector, {
 const properties = defineProperties({
     properties: {
         // Wherever we have `overflow: "auto"` or `overflow: "scroll"` also add
-        // `overscrollBehavior: "none"` (`"contain"` on mobile) to prevent scroll
-        // chaining. This is generally a better user experience for elements like drop
-        // down menus and modals which is why we make it the default.
+        // `overscrollBehavior: "none"` (`"contain"` on mobile) to prevent scroll chaining.
+        // This is generally a better user experience for elements like drop down menus and
+        // modals which is why we make it the default.
         //
-        // It's especially important, however, on iOS Safari when the keyboard is open.
-        // iOS Safari is annoying and makes the `html` element unconditionally
-        // scrollable when the keyboard is open. So if the user scrolls a scrollable
-        // element we can't let overscroll affect the newly scrollable `html` element.
+        // It's especially important, however, on iOS Safari when the keyboard is open. iOS
+        // Safari is annoying and makes the `html` element unconditionally scrollable when
+        // the keyboard is open. So if the user scrolls a scrollable element we can't let
+        // overscroll affect the newly scrollable `html` element.
         //
-        // We use `overscrollBehavior: "none"` on desktop because the default MacOS
-        // scroll bouncing doesn't feel right for our rich application. And sometimes
-        // looks outright strange when you have sticky top bars/bottom bars that don't
-        // move with the bounce. On mobile, however, scrolling feels broken if it
-        // doesn't bounce.
+        // We use `overscrollBehavior: "none"` on desktop because the default MacOS scroll
+        // bouncing doesn't feel right for our rich application. And sometimes looks
+        // outright strange when you have sticky top bars/bottom bars that don't move with
+        // the bounce. On mobile, however, scrolling feels broken if it doesn't bounce.
         overflow: {
             auto: {overflow: "auto", overscrollBehavior: overscrollBehaviorVarWithFallback},
             hidden: "hidden",
@@ -133,10 +132,10 @@ const properties = defineProperties({
             return {
                 ...omitObject(style, ["letterSpacing"]),
                 selectors: {
-                    // Use a triple selector so that this letter spacing overrides the letter
-                    // spacing of a `fontSizes` size with a condition. Letter spacing in
-                    // `fontSizes` with size has a specificity of 2. One for the
-                    // selector and one for the media query. So quadruple selector beats it.
+                    // Use a triple selector so that this letter spacing overrides the letter spacing
+                    // of a `fontSizes` size with a condition. Letter spacing in `fontSizes` with size
+                    // has a specificity of 2. One for the selector and one for the media query. So
+                    // quadruple selector beats it.
                     "&&&": {letterSpacing: style.letterSpacing},
                 },
             };
@@ -185,6 +184,11 @@ const spacingWithNegatives = {
 };
 
 const responsiveProperties = defineProperties({
+    // TODO(calebmer): We could probably save a good chunk of CSS bundle size by
+    // removing these conditions and using `platform` checks in React code instead. We
+    // added these conditions in the past because we didn't have a reliable
+    // `usePlatform()` hook in React code. Now, the CSS break points and
+    // `usePlatform()` hook are in sync so we don't need this.
     conditions: {
         default: {},
         mobile: {selector: `${mobilePlatformSelector} &`},
@@ -272,7 +276,13 @@ const responsiveProperties = defineProperties({
             "safe-area-inset-left": "var(--safe-area-inset-left, 0px)",
             "safe-area-inset-right": "var(--safe-area-inset-right, 0px)",
         },
-        minWidth: {...spacingWithPercentages, none: "none"},
+        minWidth: {
+            ...spacingWithPercentages,
+            none: "none",
+            // Same as `minWidth="0"` but with a more descriptive name to make it clear it's a
+            // workaround for: https://stackoverflow.com/a/66689926/1568890
+            "flex-fit": "0",
+        },
         maxWidth: {...spacingWithPercentages, none: "none"},
         height: {
             ...spacingWithPercentages,
@@ -292,51 +302,51 @@ const responsiveProperties = defineProperties({
         borderBottomLeftRadius: borderRadius,
         borderBottomRightRadius: borderRadius,
         borderWidth: {
-            // Use a quadruple selector so that this border width overrides the border
-            // width of a `colorProperties` border with a condition. Border width in
-            // `colorProperties` with condition has a specificity of 3. One for the
-            // selector and two for the condition (in light mode we have `:root:not(...)`
-            // as the condition). So quadruple selector beats it.
+            // Use a quadruple selector so that this border width overrides the border width of
+            // a `colorProperties` border with a condition. Border width in `colorProperties`
+            // with condition has a specificity of 3. One for the selector and two for the
+            // condition (in light mode we have `:root:not(...)` as the condition). So
+            // quadruple selector beats it.
             none: {selectors: {"&&&&": {borderWidth: 0}}},
             base: {selectors: {"&&&&": {borderWidth: 1}}},
             thick: {selectors: {"&&&&": {borderWidth: 2}}},
         },
         borderTopWidth: {
-            // Use a quadruple selector so that this border width overrides the border
-            // width of a `colorProperties` border with a condition. Border width in
-            // `colorProperties` with condition has a specificity of 3. One for the
-            // selector and two for the condition (in light mode we have `:root:not(...)`
-            // as the condition). So quadruple selector beats it.
+            // Use a quadruple selector so that this border width overrides the border width of
+            // a `colorProperties` border with a condition. Border width in `colorProperties`
+            // with condition has a specificity of 3. One for the selector and two for the
+            // condition (in light mode we have `:root:not(...)` as the condition). So
+            // quadruple selector beats it.
             none: {selectors: {"&&&&": {borderTopWidth: 0}}},
             base: {selectors: {"&&&&": {borderTopWidth: 1}}},
             thick: {selectors: {"&&&&": {borderTopWidth: 2}}},
         },
         borderBottomWidth: {
-            // Use a quadruple selector so that this border width overrides the border
-            // width of a `colorProperties` border with a condition. Border width in
-            // `colorProperties` with condition has a specificity of 3. One for the
-            // selector and two for the condition (in light mode we have `:root:not(...)`
-            // as the condition). So quadruple selector beats it.
+            // Use a quadruple selector so that this border width overrides the border width of
+            // a `colorProperties` border with a condition. Border width in `colorProperties`
+            // with condition has a specificity of 3. One for the selector and two for the
+            // condition (in light mode we have `:root:not(...)` as the condition). So
+            // quadruple selector beats it.
             none: {selectors: {"&&&&": {borderBottomWidth: 0}}},
             base: {selectors: {"&&&&": {borderBottomWidth: 1}}},
             thick: {selectors: {"&&&&": {borderBottomWidth: 2}}},
         },
         borderLeftWidth: {
-            // Use a quadruple selector so that this border width overrides the border
-            // width of a `colorProperties` border with a condition. Border width in
-            // `colorProperties` with condition has a specificity of 3. One for the
-            // selector and two for the condition (in light mode we have `:root:not(...)`
-            // as the condition). So quadruple selector beats it.
+            // Use a quadruple selector so that this border width overrides the border width of
+            // a `colorProperties` border with a condition. Border width in `colorProperties`
+            // with condition has a specificity of 3. One for the selector and two for the
+            // condition (in light mode we have `:root:not(...)` as the condition). So
+            // quadruple selector beats it.
             none: {selectors: {"&&&&": {borderLeftWidth: 0}}},
             base: {selectors: {"&&&&": {borderLeftWidth: 1}}},
             thick: {selectors: {"&&&&": {borderLeftWidth: 2}}},
         },
         borderRightWidth: {
-            // Use a quadruple selector so that this border width overrides the border
-            // width of a `colorProperties` border with a condition. Border width in
-            // `colorProperties` with condition has a specificity of 3. One for the
-            // selector and two for the condition (in light mode we have `:root:not(...)`
-            // as the condition). So quadruple selector beats it.
+            // Use a quadruple selector so that this border width overrides the border width of
+            // a `colorProperties` border with a condition. Border width in `colorProperties`
+            // with condition has a specificity of 3. One for the selector and two for the
+            // condition (in light mode we have `:root:not(...)` as the condition). So
+            // quadruple selector beats it.
             base: {selectors: {"&&&&": {borderRightWidth: 1}}},
             none: {selectors: {"&&&&": {borderRightWidth: 0}}},
             thick: {selectors: {"&&&&": {borderRightWidth: 2}}},
@@ -466,8 +476,8 @@ export type Sprinkles = Parameters<typeof sprinkles>[0];
 export const sprinkles = createSprinkles(properties, responsiveProperties, colorProperties);
 
 // Export a hash of our `sprinkles()` definition. This will cause us to fully
-// reload the page when the sprinkles function changes. Otherwise we ignore
-// changes to the sprinkles function in our `import.meta.hot.accept()` call in
+// reload the page when the sprinkles function changes. Otherwise we ignore changes
+// to the sprinkles function in our `import.meta.hot.accept()` call in
 // `client/styles/styles.ts` since we can't determine function equality between
 // modules.
 export const sprinklesHash = murmurhash

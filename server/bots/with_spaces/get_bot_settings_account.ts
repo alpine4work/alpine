@@ -8,9 +8,9 @@ import {BotSettingsAccount} from "~/shared/bots/bot_settings_account_schema.js";
 import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get a bot account for the bot settings page. If no bot account exists and
- * it's a known bot then we return some default account data (e.g. default
- * name, default avatar, etc.)
+ * Get a bot account for the bot settings page. If no bot account exists and it's a
+ * known bot then we return some default account data (e.g. default name, default
+ * avatar, etc.)
  */
 export async function getBotSettingsAccount(
     context: ServerSessionActionContext,

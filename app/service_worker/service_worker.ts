@@ -16,13 +16,12 @@ declare const self: ServiceWorkerGlobalScope;
 
 // --- Database coordination: MessagePort relay ---
 //
-// The leader tab registers its clientId. Follower tabs
-// send a MessagePort which we relay to the leader so
-// followers can talk directly to the leader's worker.
+// The leader tab registers its clientId. Follower tabs send a MessagePort which we
+// relay to the leader so followers can talk directly to the leader's worker.
 //
-// This is an inline copy of `DatabaseActiveTabServiceWorker`
-// to avoid pulling `client/web/databases` (and its heavy
-// SQLite deps) into the service worker bundle.
+// This is an inline copy of `DatabaseActiveTabServiceWorker` to avoid pulling
+// `client/web/databases` (and its heavy SQLite deps) into the service worker
+// bundle.
 
 let dbLeaderClientId: string | null = null;
 
@@ -56,8 +55,8 @@ self.addEventListener("activate", (event: ExtendableEvent) => {
 
 // Push event - fired when a push notification is received
 self.addEventListener("push", (event: PushEvent) => {
-    // We should always have a title for a push notification, but just in case, this allows
-    // us to still display a notification.
+    // We should always have a title for a push notification, but just in case, this
+    // allows us to still display a notification.
     let title = "Someone is trying to get your attention in Alpine";
 
     let notificationData: {
@@ -79,8 +78,8 @@ self.addEventListener("push", (event: PushEvent) => {
             tag: payload.tag,
         };
     } catch {
-        // Use text data as the title if JSON parsing fails. This is mostly here to support sending
-        // test push notifications from Chrome DevTools.
+        // Use text data as the title if JSON parsing fails. This is mostly here to support
+        // sending test push notifications from Chrome DevTools.
         title = event.data?.text() ?? "";
         notificationData = {
             body: "",
@@ -132,8 +131,8 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
 self.addEventListener("fetch", (event: FetchEvent) => {
     const url = new URL(event.request.url);
     if (url.pathname.startsWith("/sign-out")) {
-        // This only deregisters the push subscription on the client. We deregister the subscription
-        // on the server separately in the `sign-out` route loader.
+        // This only deregisters the push subscription on the client. We deregister the
+        // subscription on the server separately in the `sign-out` route loader.
         const deregisterPushSubscription = async () => {
             // Wait for the sign out request to finish successfully.
             await event.handled;
@@ -153,29 +152,28 @@ self.addEventListener("fetch", (event: FetchEvent) => {
         };
         // Wipes all Alpine Databases storage from OPFS on sign out.
         //
-        // We don't journal writes to OPFS yet, so a bad write could corrupt the
-        // local store with no way to recover. As a first work-around, we clear
-        // all databases storage on sign out so a fresh sign in always starts
-        // from a clean, fully re-synced state.
+        // We don't journal writes to OPFS yet, so a bad write could corrupt the local
+        // store with no way to recover. As a first work-around, we clear all databases
+        // storage on sign out so a fresh sign in always starts from a clean, fully
+        // re-synced state.
         //
-        // This is inlined rather than importing `client/web/databases` to keep
-        // the heavy SQLite deps out of the service worker bundle, matching the
-        // database coordination relay above.
+        // This is inlined rather than importing `client/web/databases` to keep the heavy
+        // SQLite deps out of the service worker bundle, matching the database coordination
+        // relay above.
         const clearDatabasesStorage = async () => {
             // Wait for the sign out request to finish successfully.
             await event.handled;
 
-            // Minimal OPFS root type. We declare it locally rather than
-            // importing `client/web/databases` to keep that package (and its
-            // SQLite deps) out of the service worker bundle.
+            // Minimal OPFS root type. We declare it locally rather than importing
+            // `client/web/databases` to keep that package (and its SQLite deps) out of the
+            // service worker bundle.
             const root: {
                 removeEntry(name: string, options?: {recursive?: boolean}): Promise<void>;
             } = await (navigator.storage as any).getDirectory();
 
-            // The leader tab's database worker holds exclusive OPFS locks on
-            // these files. The locks are released once the tab navigates away on
-            // sign out, but that can race with this cleanup, so retry a few times
-            // before giving up.
+            // The leader tab's database worker holds exclusive OPFS locks on these files. The
+            // locks are released once the tab navigates away on sign out, but that can race
+            // with this cleanup, so retry a few times before giving up.
             for (let attempt = 0; attempt < 10; attempt++) {
                 try {
                     await root.removeEntry("databases", {recursive: true});
@@ -185,8 +183,7 @@ self.addEventListener("fetch", (event: FetchEvent) => {
                     if ((error as {name?: string}).name === "NotFoundError") {
                         return;
                     }
-                    // Locks are likely still held by the tab being torn down.
-                    // Wait, then retry.
+                    // Locks are likely still held by the tab being torn down. Wait, then retry.
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
             }
@@ -201,20 +198,23 @@ self.addEventListener("fetch", (event: FetchEvent) => {
     }
 });
 
-// NOTE: (rmtobin, 2025-12-05) The Push API spec says that browsers should fire this event when the
-// push subscription is refreshed, revoked, or lost.[1] In practice however, different browsers have
-// different opinions on when this event should be fired and whether or not oldSubscription and
-// newSubscription are included in the payload, so we can't expect that the old and new subscriptions
-// will be included in the payload, so instead we always register a new subscription, and get the old
-// subscription data from our web push store.
+// NOTE: (rmtobin, 2025-12-05) The Push API spec says that browsers should fire
+// this event when the push subscription is refreshed, revoked, or lost.[1] In
+// practice however, different browsers have different opinions on when this event
+// should be fired and whether or not oldSubscription and newSubscription are
+// included in the payload, so we can't expect that the old and new subscriptions
+// will be included in the payload, so instead we always register a new
+// subscription, and get the old subscription data from our web push store.
 //
-// This is a relatively new part of the Push API, so it is possible that this will change. If you're
-// reading this in the future, make sure to take a look at the Push API spec for the latest information.
+// This is a relatively new part of the Push API, so it is possible that this will
+// change. If you're reading this in the future, make sure to take a look at the
+// Push API spec for the latest information.
 //
-// This could be run in the background, and we rely on the user having a valid session cookie to
-// authenticate requests to register and deregister web push subscriptions with the server. Since we
-// unsubscribe from any existing subscriptions on sign out, it's expected that this event should never
-// be triggered for a signed out user.
+// This could be run in the background, and we rely on the user having a valid
+// session cookie to authenticate requests to register and deregister web push
+// subscriptions with the server. Since we unsubscribe from any existing
+// subscriptions on sign out, it's expected that this event should never be
+// triggered for a signed out user.
 //
 // [1] https://www.w3.org/TR/push-api/#the-pushsubscriptionchange-event
 self.addEventListener("pushsubscriptionchange", (event: PushSubscriptionChangeEvent) => {
@@ -222,11 +222,11 @@ self.addEventListener("pushsubscriptionchange", (event: PushSubscriptionChangeEv
         const cookie = await self.cookieStore.get("browser");
         const browserId = cookie?.value ? cookie.value.split("%40")[0] : null;
 
-        // Treat the browser cookie as the source of truth for the current browser id. If there isn't
-        // a browser id in the cookie, we don't have a way to identify the current browser, so we skip
-        // updating the web push subscription. If the user is actively using Alpine, we'll set the
-        // browser cookie on requests, and any space routes will create the web push subscription
-        // instead.
+        // Treat the browser cookie as the source of truth for the current browser id. If
+        // there isn't a browser id in the cookie, we don't have a way to identify the
+        // current browser, so we skip updating the web push subscription. If the user is
+        // actively using Alpine, we'll set the browser cookie on requests, and any space
+        // routes will create the web push subscription instead.
         if (!browserId) {
             return;
         }
@@ -238,8 +238,8 @@ self.addEventListener("pushsubscriptionchange", (event: PushSubscriptionChangeEv
             deleteWebPushSubscription,
         } = getWebPushStore();
 
-        // TODO(rmtobin, 2025-12-17) This doesn't batch events like our other tracer implementations
-        // but probably should. Currently it sends two events separately.
+        // TODO(rmtobin, 2025-12-17) This doesn't batch events like our other tracer
+        // implementations but probably should. Currently it sends two events separately.
         const sendTracerEvent = (event: TracerEvent) => {
             // eslint-disable-next-line cyberworlds/no-global-fetch
             void fetch("/api/tracer", {
@@ -259,27 +259,27 @@ self.addEventListener("pushsubscriptionchange", (event: PushSubscriptionChangeEv
             // Events from our client tracer are untrusted because any bad actor could get
             // ahold of our client tracer and send whatever event they want to the server.
             //
-            // We can filter out events with this untrusted flag on the server to get
-            // clean data.
+            // We can filter out events with this untrusted flag on the server to get clean
+            // data.
             untrusted: true,
             // TODO(rmtobin, 2025-12-17) This uses the unsynchronized system clock because our
-            // client-side synchronized system clock implementation uses browser APIs that are not
-            // available in service workers.
+            // client-side synchronized system clock implementation uses browser APIs that are
+            // not available in service workers.
             clock: unsynchronizedSystemClock,
             sendEvent: sendTracerEvent,
         });
-        return tracer.withSpan("Handle push subscription change event", async span => {
+        return await tracer.withSpan("Handle push subscription change event", async span => {
             const existingSubscriptions = await getAllWebPushSubscriptions();
             const staleSubscriptionPromises = existingSubscriptions
-                // Important to only deregister subscriptions for old browserIds, otherwise we could
-                // accidentally owerwrite the new subscription on the server if this RPC call happens
-                // after the new subscription is registered.
+                // Important to only deregister subscriptions for old browserIds, otherwise we
+                // could accidentally owerwrite the new subscription on the server if this RPC call
+                // happens after the new subscription is registered.
                 .filter(subscription => subscription.browserId !== assertId<BrowserId>(browserId))
                 .flatMap(subscription => [
-                    // We use fetchWithTracer here instead of importing our RPC definitions to reduce the
-                    // size of our service worker bundle since we have to bundle all dependencies into a
-                    // single `iife` formatted file. We lose out on some type safety and validation, but
-                    // this drastically reduces the size of the bundle.
+                    // We use fetchWithTracer here instead of importing our RPC definitions to reduce
+                    // the size of our service worker bundle since we have to bundle all dependencies
+                    // into a single `iife` formatted file. We lose out on some type safety and
+                    // validation, but this drastically reduces the size of the bundle.
                     fetchWithTracer(
                         tracer,
                         `${self.location.origin}/api/rpc/deregisterOurAccountWebPushSubscription`,
@@ -331,10 +331,10 @@ self.addEventListener("pushsubscriptionchange", (event: PushSubscriptionChangeEv
                     },
                 }),
 
-                // We use fetchWithTracer here instead of importing our RPC definitions to reduce the
-                // size of our service worker bundle since we have to bundle all dependencies into a
-                // single `iife` formatted file. We lose out on some type safety and validation, but
-                // this drastically reduces the size of the bundle.
+                // We use fetchWithTracer here instead of importing our RPC definitions to reduce
+                // the size of our service worker bundle since we have to bundle all dependencies
+                // into a single `iife` formatted file. We lose out on some type safety and
+                // validation, but this drastically reduces the size of the bundle.
                 fetchWithTracer(
                     span,
                     `${self.location.origin}/api/rpc/registerOurAccountWebPushSubscription`,

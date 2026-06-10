@@ -11,8 +11,8 @@ import {generateApiKey} from "~/shared/id/api_key.js";
 const mutexByDirectoryPath = new DefaultMap<string, Mutex>(() => new Mutex());
 
 /**
- * Make sure our development key files exist. If our key files do not exist
- * then we generate new keys. Otherwise this function does nothing.
+ * Make sure our development key files exist. If our key files do not exist then we
+ * generate new keys. Otherwise this function does nothing.
  */
 export async function ensureServiceKeys(directoryPath: string) {
     await mutexByDirectoryPath.getOrSetDefault(directoryPath).withLock(async () => {
@@ -26,6 +26,7 @@ export async function ensureServiceKeys(directoryPath: string) {
             "file_processor_service",
             "api_service",
             "resource_service",
+            "importer_service",
         ];
 
         await runAllPromises([
@@ -43,6 +44,7 @@ export async function ensureServiceKeys(directoryPath: string) {
                 "chat_gpt_scoped_api_key",
                 "cursor_unscoped_api_key",
                 "mock_chat_gpt_unscoped_api_key",
+                "mock_cursor_unscoped_api_key",
             ].map(async apiKeyName => {
                 if (await fs.pathExists(joinPath(directoryPath, apiKeyName))) return;
 

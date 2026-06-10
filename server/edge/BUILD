@@ -59,6 +59,7 @@ ts_project(
         "//server/forum/realtime",
         "//server/helpers",
         "//server/notifications/my_account",
+        "//server/sites/realtime",
         "//server/tasks/notes_collaboration",
         "//server/tasks/router",
         "//server/tracer",

@@ -11,7 +11,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {
     DateString,
     deserializeDateString,
@@ -34,13 +34,8 @@ import {
     decodeElenIntegerIfPossible,
     encodeElenInteger,
 } from "~/shared/helpers/number/elen_integer.js";
-import {
-    OrderKey,
-    isOrderKey,
-    maxOrderKey,
-    minOrderKey,
-    orderKeyDigits,
-} from "~/shared/helpers/sort/order_key.js";
+import {decodeOrderKey, encodeOrderKey} from "~/shared/helpers/sort/encode_order_key.js";
+import {OrderKey, isOrderKey, maxOrderKey, minOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
 import {
@@ -50,8 +45,8 @@ import {
 } from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
- * An attribute of a DynamoDB key is an ASCII string excluding the `#`
- * character and any characters with a smaller character code.
+ * An attribute of a DynamoDB key is an ASCII string excluding the `#` character
+ * and any characters with a smaller character code.
  *
  * To form a DynamoDB key, we concatenate attributes together with the `#`
  * character. So we don't allow it in key attributes since we use it as a
@@ -60,25 +55,24 @@ import {
 export type DynamoKeyAttribute =
     | (string & {readonly _DynamoKeyAttribute: never})
 
-    // We include some opaque types we know to be safe DynamoDB key attributes.
-    // This allows us to safely skip a validation call for these types.
+    // We include some opaque types we know to be safe DynamoDB key attributes. This
+    // allows us to safely skip a validation call for these types.
 
-    // An ID in our system is comprised of numbers and letters. This makes it a
-    // valid DynamoDB key attribute.
+
+    // An ID in our system is comprised of numbers and letters. This makes it a valid
+    // DynamoDB key attribute.
     | Id
 
     // An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) string is comprised of
     // characters that are safe for a DynamoDB key attribute.
     | DateString
 
-    // An `ElenInteger` is only digits and the `-` and `=` characters. Both of
-    // which are larger than `#`. This makes the type a valid DynamoDB key
-    // attribute.
+    // An `ElenInteger` is only digits and the `-` and `=` characters. Both of which
+    // are larger than `#`. This makes the type a valid DynamoDB key attribute.
     | ElenInteger
 
-    // An `ElenFloat` is only digits and the `-` and `=` characters. Both of
-    // which are larger than `#`. This makes the type a valid DynamoDB key
-    // attribute.
+    // An `ElenFloat` is only digits and the `-` and `=` characters. Both of which are
+    // larger than `#`. This makes the type a valid DynamoDB key attribute.
     | ElenFloat
 
     // An `OrderKey` is only alphanumeric characters. This makes the type a valid
@@ -88,28 +82,28 @@ export type DynamoKeyAttribute =
 /**
  * The separator character between attributes in a DynamoDB key.
  *
- * We chose the `#` character because it is the smallest ASCII character that
- * looks like a separator. And because it is uncommon in string formats. `_` is
- * not a good choice because it has a greater character code than uppercase
- * letters and numbers. `-` is not a good choice because it is a part of common
- * string formats like the date format [ISO 8601][1].
+ * We chose the `#` character because it is the smallest ASCII character that looks
+ * like a separator. And because it is uncommon in string formats. `_` is not a
+ * good choice because it has a greater character code than uppercase letters and
+ * numbers. `-` is not a good choice because it is a part of common string formats
+ * like the date format [ISO 8601][1].
  *
- * The separator needs a small character code so that DynamoDB keys with
- * multiple attributes have the correct [lexicographic order][2].
+ * The separator needs a small character code so that DynamoDB keys with multiple
+ * attributes have the correct [lexicographic order][2].
  *
  * Say we have two compound keys. One is `["AB", "F"]` and the other is
- * `["ABC", "E"]`. We want `["AB", "F"]` to be sorted before `["ABC", "E"]`
- * because the first attribute is smaller (`"AB" < "ABC"`).
+ * `["ABC", "E"]`. We want `["AB", "F"]` to be sorted before `["ABC", "E"]` because
+ * the first attribute is smaller (`"AB" < "ABC"`).
  *
- * If we concatenate with no separator then `"ABCE" < "ABF"` which is wrong. If
- * we concatenate with the `_` separator we also get `"ABC_E" < "AB_F"`. This
- * is because `"C" < "_"` since `_` has a higher character code than uppercase
- * letters. With `#` we get `"AB#F" < "ABC#E"` which is the result we want
- * because `"#" < "C"`.
+ * If we concatenate with no separator then `"ABCE" < "ABF"` which is wrong. If we
+ * concatenate with the `_` separator we also get `"ABC_E" < "AB_F"`. This is
+ * because `"C" < "_"` since `_` has a higher character code than uppercase
+ * letters. With `#` we get `"AB#F" < "ABC#E"` which is the result we want because
+ * `"#" < "C"`.
  *
- * All characters in a key attribute must have a greater character code than
- * our separator (`#`) so that when one key attribute is shorter than the other
- * we're comparing, the shorter attribute is ordered first.
+ * All characters in a key attribute must have a greater character code than our
+ * separator (`#`) so that when one key attribute is shorter than the other we're
+ * comparing, the shorter attribute is ordered first.
  *
  * [1]: https://en.wikipedia.org/wiki/ISO_8601
  * [2]: https://en.wikipedia.org/wiki/Lexicographic_order
@@ -133,11 +127,10 @@ export const dynamoKeyAttributeMaxCharCode = "~".charCodeAt(0);
  * Is our string a valid DynamoDB key attribute?
  */
 export function isDynamoKeyAttribute(string: string): string is DynamoKeyAttribute {
-    // Require key attributes to be non-empty. This restriction may not be
-    // necessary and can be removed in the future.
+    // Require key attributes to be non-empty. This restriction may not be necessary
+    // and can be removed in the future.
     //
-    // It is nice aesthetically so you never get DynamoDB keys that look
-    // like `a##b#`.
+    // It is nice aesthetically so you never get DynamoDB keys that look like `a##b#`.
     if (string.length === 0) return false;
 
     for (let index = 0; index < string.length; index++) {
@@ -179,14 +172,9 @@ export type DynamoKeyAttributeSchemaDescription =
           readonly schema: DynamoKeyAttributeSchemaDescription;
       };
 
-const orderKeyDigitIndexByChar = new Map<string, number>(
-    orderKeyDigits.split("").map((char, index) => [char, index]),
-);
-
 /**
- * The maximum label string is the largest Unicode code point
- * [U+10FFFF noncharacter][1]. We don't allow strings to start with this code
- * point.
+ * The maximum label string is the largest Unicode code point [U+10FFFF
+ * noncharacter][1]. We don't allow strings to start with this code point.
  *
  * [1]: https://graphemica.com/10FFFF
  */
@@ -197,8 +185,8 @@ export const maxLabelStringForDynamoKeyAttribute = "\u{10FFFF}";
  *
  * All DynamoDB key attributes must have a string encoding with a lexicographic
  * order that's the same as their underlying value. That's because all key
- * attributes will be concatenated together into one key string that DynamoDB
- * will use to sort records.
+ * attributes will be concatenated together into one key string that DynamoDB will
+ * use to sort records.
  */
 export class DynamoKeyAttributeSchema<Value> {
     /**
@@ -256,8 +244,8 @@ export class DynamoKeyAttributeSchema<Value> {
                     byteOffset,
                     // We use a bigint since safe JavaScript integers can go up to 2^53.
                     BigInt(value.getTime()),
-                    // It is important that we store in big endian format so that when comparing
-                    // bytes without knowledge of the type we get the correct order.
+                    // It is important that we store in big endian format so that when comparing bytes
+                    // without knowledge of the type we get the correct order.
                     false,
                 );
 
@@ -266,8 +254,8 @@ export class DynamoKeyAttributeSchema<Value> {
                 bytes[byteOffset]! ^= 0b10000000;
             },
             deserializeBytes: (bytes, byteOffset) => {
-                // Clone the bytes before manipulating them so we don't mess up the bytes we
-                // are deserializing from...
+                // Clone the bytes before manipulating them so we don't mess up the bytes we are
+                // deserializing from...
                 const clonedBuffer = new ArrayBuffer(8);
                 const clonedBytes = new Uint8Array(clonedBuffer);
                 clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
@@ -281,8 +269,9 @@ export class DynamoKeyAttributeSchema<Value> {
     });
 
     /**
-     * ScheduleDateTime acts just like Date, but enforces that the time is truncated to the nearest
-     * minute and its string representation is in the format "YYYY-MM-DDTHH:mm:ss.SSSZ".
+     * ScheduleDateTime acts just like Date, but enforces that the time is rounded up
+     * to the nearest quarter hour and its string representation is in the format
+     * "YYYY-MM-DDTHH:mm:ss.SSSZ".
      */
     public static ScheduleDateTime = new DynamoKeyAttributeSchema<ScheduleDateTime>({
         description: {type: "ScheduleDateTime"},
@@ -303,10 +292,9 @@ export class DynamoKeyAttributeSchema<Value> {
                 view.setBigInt64(
                     byteOffset,
                     // We use a bigint since safe JavaScript integers can go up to 2^53.
-
                     BigInt(serializeScheduleDateTime(value).getTime()),
-                    // It is important that we store in big endian format so that when comparing
-                    // bytes without knowledge of the type we get the correct order.
+                    // It is important that we store in big endian format so that when comparing bytes
+                    // without knowledge of the type we get the correct order.
                     false,
                 );
 
@@ -315,8 +303,8 @@ export class DynamoKeyAttributeSchema<Value> {
                 bytes[byteOffset]! ^= 0b10000000;
             },
             deserializeBytes: (bytes, byteOffset) => {
-                // Clone the bytes before manipulating them so we don't mess up the bytes we
-                // are deserializing from...
+                // Clone the bytes before manipulating them so we don't mess up the bytes we are
+                // deserializing from...
                 const clonedBuffer = new ArrayBuffer(8);
                 const clonedBytes = new Uint8Array(clonedBuffer);
                 clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
@@ -332,8 +320,8 @@ export class DynamoKeyAttributeSchema<Value> {
     /**
      * Booleans are serialized to either the `true` or `false` string.
      *
-     * `false` is  ordered first and `true` is ordered second. Conveniently that's
-     * how the strings `true` and `false` order themselves.
+     * `false` is ordered first and `true` is ordered second. Conveniently that's how
+     * the strings `true` and `false` order themselves.
      */
     public static boolean = new DynamoKeyAttributeSchema<boolean>({
         description: {type: "Boolean"},
@@ -356,10 +344,10 @@ export class DynamoKeyAttributeSchema<Value> {
     });
 
     /**
-     * Booleans are serialized to either the `true` or `false` string. Except we
-     * append `0-` to `true` and `1-` to `false` so that true values are ordered
-     * first and false values are ordered second. Same functionality as calling
-     * `.reverse()` but with more legible serialized values.
+     * Booleans are serialized to either the `true` or `false` string. Except we append
+     * `0-` to `true` and `1-` to `false` so that true values are ordered first and
+     * false values are ordered second. Same functionality as calling `.reverse()` but
+     * with more legible serialized values.
      */
     public static booleanReversed = new DynamoKeyAttributeSchema<boolean>({
         description: {type: "BooleanReversed"},
@@ -382,10 +370,11 @@ export class DynamoKeyAttributeSchema<Value> {
     });
 
     /**
-     * Integers are serialized to an `ElenInteger`. Only supports [safe
-     * JavaScript integers][1].
+     * Integers are serialized to an `ElenInteger`. Only supports [safe JavaScript
+     * integers][1].
      *
-     * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
+     * [1]:
+     *     https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
      */
     public static integer = new DynamoKeyAttributeSchema<number>({
         description: {type: "Integer"},
@@ -408,8 +397,8 @@ export class DynamoKeyAttributeSchema<Value> {
                     byteOffset,
                     // We use a bigint since safe JavaScript integers can go up to 2^53.
                     BigInt(value),
-                    // It is important that we store in big endian format so that when comparing
-                    // bytes without knowledge of the type we get the correct order.
+                    // It is important that we store in big endian format so that when comparing bytes
+                    // without knowledge of the type we get the correct order.
                     false,
                 );
 
@@ -418,8 +407,8 @@ export class DynamoKeyAttributeSchema<Value> {
                 bytes[byteOffset]! ^= 0b10000000;
             },
             deserializeBytes: (bytes, byteOffset) => {
-                // Clone the bytes before manipulating them so we don't mess up the bytes we
-                // are deserializing from...
+                // Clone the bytes before manipulating them so we don't mess up the bytes we are
+                // deserializing from...
                 const clonedBuffer = new ArrayBuffer(8);
                 const clonedBytes = new Uint8Array(clonedBuffer);
                 clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
@@ -441,8 +430,8 @@ export class DynamoKeyAttributeSchema<Value> {
     public static float = new DynamoKeyAttributeSchema<number>({
         description: {type: "Float"},
 
-        // In the elen encoding of floats, `-NaN` is smaller than `-Infinity` and
-        // `+NaN` is larger than `+Infinity`.
+        // In the elen encoding of floats, `-NaN` is smaller than `-Infinity` and `+NaN` is
+        // larger than `+Infinity`.
         minValue: -NaN,
         maxValue: NaN,
 
@@ -453,9 +442,9 @@ export class DynamoKeyAttributeSchema<Value> {
             return value;
         },
 
-        // Order preserving binary float encodings are challenging to get right. We
-        // also need an encoding that matches our elen encoding that puts NaNs
-        // before/after Infinity.
+        // Order preserving binary float encodings are challenging to get right. We also
+        // need an encoding that matches our elen encoding that puts NaNs before/after
+        // Infinity.
         //
         // See this blog post on the FoundationDB order preserving encoding for a good
         // encoding example:
@@ -464,12 +453,12 @@ export class DynamoKeyAttributeSchema<Value> {
     });
 
     /**
-     * Binary data with a fixed length. Useful if you have some opaque binary data
-     * you want to use as a key.
+     * Binary data with a fixed length. Useful if you have some opaque binary data you
+     * want to use as a key.
      *
      * When serialized to a string we use a base64 format that is URL safe and
-     * preserves the order of the underlying binary data. If you try to serialize
-     * byte data with a different length then you'll get an error.
+     * preserves the order of the underlying binary data. If you try to serialize byte
+     * data with a different length then you'll get an error.
      */
     public static bytes(byteLength: number) {
         return new DynamoKeyAttributeSchema<Uint8Array>({
@@ -513,58 +502,75 @@ export class DynamoKeyAttributeSchema<Value> {
         },
 
         binary: {
-            getByteCount: orderKey => orderKey.length + 1,
+            getByteCount: orderKey => {
+                let byteCount = 1;
+
+                // TODO(calebmer): It's inefficient to encode twice. Could we return a `Uint8Array`
+                // directly and skip `serializeBytes()`?
+                for (const byte of encodeOrderKey(orderKey)) {
+                    byteCount += byte <= 1 ? 2 : 1;
+                }
+
+                return byteCount;
+            },
 
             serializeBytes: (orderKey, bytes, byteOffset) => {
                 let byteIndex = byteOffset;
 
-                for (let i = 0; i < orderKey.length; i++) {
-                    const char = orderKey[i]!;
-                    bytes[byteIndex++] =
-                        assertExists(
-                            orderKeyDigitIndexByChar.get(char),
-                            "Unrecognized order key character",
-                        ) + 1;
+                for (const byte of encodeOrderKey(orderKey)) {
+                    if (byte <= 1) {
+                        bytes[byteIndex++] = 1;
+                        bytes[byteIndex++] = byte + 1;
+                    } else {
+                        bytes[byteIndex++] = byte;
+                    }
                 }
 
-                // Null byte terminates the order key.
                 bytes[byteIndex++] = 0;
             },
 
             deserializeBytes: (bytes, byteOffset) => {
-                let orderKey = "";
+                const orderKeyBytes: Array<number> = [];
                 let byteIndex = byteOffset;
 
                 while (true) {
-                    const byte = assertExists(
-                        bytes[byteIndex++],
-                        "Unexpected end of order key bytes",
-                    );
+                    const byte = bytes[byteIndex++]!;
                     if (byte === 0) break;
-                    orderKey += assertExists(
-                        orderKeyDigits[byte - 1],
-                        "Unrecognized order key digit",
-                    );
+
+                    if (byte === 1) {
+                        const escapedByte = bytes[byteIndex++]!;
+                        assert(escapedByte === 1 || escapedByte === 2);
+                        orderKeyBytes.push(escapedByte - 1);
+                    } else {
+                        orderKeyBytes.push(byte);
+                    }
                 }
 
-                return orderKey as OrderKey;
+                const orderKey = decodeOrderKey(new Uint8Array(orderKeyBytes));
+                return orderKey;
             },
         },
     });
 
     /**
-     * A short, single-line, string that is validated with `LabelStringWithoutMaxLengthSchema`.
+     * A short, single-line, string that is validated with
+     * `LabelStringWithoutMaxLengthSchema`.
      *
-     * By default, the max length is 50 characters, though this can be overridden up to 2048
-     * characters (the maximum length of a DynamoDB key). However, keep in mind that we often
-     * concatenate key attributes with other values, so you may have fewer than 2048 characters left
-     * for your string. Exeeding this limit will result in an error from DynamoDB.
+     * By default, the max length is 50 characters, though this can be overridden up to
+     * 2048 characters (the maximum length of a DynamoDB key). However, keep in mind
+     * that we often concatenate key attributes with other values, so you may have
+     * fewer than 2048 characters left for your string. Exeeding this limit will result
+     * in an error from DynamoDB.
      */
     public static labelString<Value extends string = string>(
         {maxLength}: {maxLength?: number | null} = {maxLength: maxLabelStringLength},
     ): DynamoKeyAttributeSchema<Value> {
         // Use a cache to optimize a `getByteCount()` that may be immediately followed by
         // `serializeBytes()` for the same value.
+        //
+        // TODO(calebmer): It's inefficient to keep a cache around in memory. Could we
+        // return a `Uint8Array` directly from `getByteCount()` and skip
+        // `serializeBytes()`?
         const valueToBytesCache = new Map<string, Uint8Array>();
 
         const baseSchema = maxLength
@@ -578,9 +584,9 @@ export class DynamoKeyAttributeSchema<Value> {
             maxValue: maxLabelStringForDynamoKeyAttribute,
 
             serialize: value => {
-                // Don't allow strings that start with the max label string. You could create
-                // a string that's larger than our max label string by starting with U+10FFFF
-                // and adding more characters. So we ban that possibility.
+                // Don't allow strings that start with the max label string. You could create a
+                // string that's larger than our max label string by starting with U+10FFFF and
+                // adding more characters. So we ban that possibility.
                 assert(
                     !value.startsWith(maxLabelStringForDynamoKeyAttribute) ||
                         value === maxLabelStringForDynamoKeyAttribute,
@@ -599,9 +605,8 @@ export class DynamoKeyAttributeSchema<Value> {
                     const value = baseSchema.serialize(originalValue) as string;
 
                     // Optimization: We often call `getByteCount()` then `serializeBytes()` right
-                    // after. Given we won't know the byte count of a string without fully
-                    // serializing it to UTF-8 we cache byte serialization here so we can reuse
-                    // it later.
+                    // after. Given we won't know the byte count of a string without fully serializing
+                    // it to UTF-8 we cache byte serialization here so we can reuse it later.
                     const valueBytes = getOrSetDefaultMapValue(valueToBytesCache, value, () => {
                         scheduleMicrotask(() => valueToBytesCache.delete(value));
                         return serializeLabelStringDynamoKeyAttributeToBinary(value);
@@ -613,9 +618,8 @@ export class DynamoKeyAttributeSchema<Value> {
                     const value = baseSchema.serialize(originalValue) as string;
 
                     // Optimization: We often call `getByteCount()` then `serializeBytes()` right
-                    // after. Given we won't know the byte count of a string without fully
-                    // serializing it to UTF-8 we cache byte serialization here so we can reuse
-                    // it later.
+                    // after. Given we won't know the byte count of a string without fully serializing
+                    // it to UTF-8 we cache byte serialization here so we can reuse it later.
                     const valueBytes = getOrSetDefaultMapValue(valueToBytesCache, value, () => {
                         scheduleMicrotask(() => valueToBytesCache.delete(value));
                         return serializeLabelStringDynamoKeyAttributeToBinary(value);
@@ -630,9 +634,8 @@ export class DynamoKeyAttributeSchema<Value> {
                     );
 
                     // Optimization: We often call `deserializeBytes()` then `getByteCount()` right
-                    // after. Given we won't know the byte count of a string without fully
-                    // serializing it to UTF-8 we cache byte deserialization here so we can reuse
-                    // it later.
+                    // after. Given we won't know the byte count of a string without fully serializing
+                    // it to UTF-8 we cache byte deserialization here so we can reuse it later.
                     valueToBytesCache.set(value, valueBytes);
                     scheduleMicrotask(() => valueToBytesCache.delete(value));
 
@@ -645,20 +648,18 @@ export class DynamoKeyAttributeSchema<Value> {
     }
 
     /**
-     * The description of this attribute for backwards compatibility checking
-     * purposes.
+     * The description of this attribute for backwards compatibility checking purposes.
      */
     public readonly description: DynamoKeyAttributeSchemaDescription;
 
     /**
-     * The smallest value serializable by this schema. Useful for creating
-     * query bounds.
+     * The smallest value serializable by this schema. Useful for creating query
+     * bounds.
      */
     public readonly minValue: Value;
 
     /**
-     * The largest value serializable by this schema. Useful for creating
-     * query bounds.
+     * The largest value serializable by this schema. Useful for creating query bounds.
      */
     public readonly maxValue: Value;
 
@@ -668,8 +669,8 @@ export class DynamoKeyAttributeSchema<Value> {
     public readonly serialize: (value: Value) => DynamoKeyAttribute;
 
     /**
-     * Deserializes the DynamoDB key attribute into our attribute value. Throws if
-     * the DynamoDB key attribute is incorrectly formatted.
+     * Deserializes the DynamoDB key attribute into our attribute value. Throws if the
+     * DynamoDB key attribute is incorrectly formatted.
      */
     public readonly deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
 
@@ -710,13 +711,13 @@ export class DynamoKeyAttributeSchema<Value> {
         this.deserialize = deserialize;
         this.binary = binary;
 
-        // In development and test environments, make sure our value is within the min
-        // and max value bounds. In production we don't check to avoid extra overhead
-        // in a hot code path.
+        // In development and test environments, make sure our value is within the min and
+        // max value bounds. In production we don't check to avoid extra overhead in a hot
+        // code path.
         //
-        // Also make sure the sort order of serialized values is consistent across
-        // string serialization and binary serialization. Make sure that string and
-        // binary deserialization can also deserialize to the same value we serialized.
+        // Also make sure the sort order of serialized values is consistent across string
+        // serialization and binary serialization. Make sure that string and binary
+        // deserialization can also deserialize to the same value we serialized.
         if (process.env.NODE_ENV !== "production") {
             const serializedStringMinValue = serialize(minValue);
             const serializedStringMaxValue = serialize(maxValue);
@@ -749,9 +750,9 @@ export class DynamoKeyAttributeSchema<Value> {
             const runValueTests = (value: Value) => {
                 const serializedStringValue = serialize(value);
 
-                // Test that when serializing to a string we can deserialize the value back to
-                // the exact same value and that the string falls within our minimum and
-                // maximum values.
+                // Test that when serializing to a string we can deserialize the value back to the
+                // exact same value and that the string falls within our minimum and maximum
+                // values.
                 {
                     assert(
                         serializedStringValue === serialize(deserialize(serializedStringValue)),
@@ -771,9 +772,9 @@ export class DynamoKeyAttributeSchema<Value> {
 
                 let serializedBinaryValue: Uint8Array | null = null;
 
-                // Test that when serializing to binary we can deserialize the value back to
-                // the exact same value and that the string falls within our minimum and
-                // maximum values.
+                // Test that when serializing to binary we can deserialize the value back to the
+                // exact same value and that the string falls within our minimum and maximum
+                // values.
                 if (binary) {
                     serializedBinaryValue = new Uint8Array(binary.getByteCount(value));
                     binary.serializeBytes(value, serializedBinaryValue, 0);
@@ -804,8 +805,7 @@ export class DynamoKeyAttributeSchema<Value> {
                     );
                 }
 
-                // Ignore min/max values since we've already our values orders relative
-                // to them.
+                // Ignore min/max values since we've already our values orders relative to them.
                 if (
                     serializedStringValue === serializedStringMinValue ||
                     serializedStringValue === serializedStringMaxValue
@@ -833,8 +833,8 @@ export class DynamoKeyAttributeSchema<Value> {
                     if (nextTestValueIndex === maxTestValueCount) nextTestValueIndex = 0;
                 }
 
-                // Test that values serialized to a string and values serialized to binary
-                // have the same sort order.
+                // Test that values serialized to a string and values serialized to binary have the
+                // same sort order.
                 if (binary) {
                     const sortedSerializedStringValues = new Map(
                         Array.from(testValues)
@@ -859,7 +859,10 @@ export class DynamoKeyAttributeSchema<Value> {
                     );
 
                     assert(
-                        isDeepEqual(sortedSerializedStringValues, sortedSerializedBinaryValues),
+                        isDeepEqualForUnknownValues(
+                            sortedSerializedStringValues,
+                            sortedSerializedBinaryValues,
+                        ),
                         "Sort order when serializing key values to string is different from sort order when serializing key values to binary",
                     );
                 }
@@ -868,8 +871,8 @@ export class DynamoKeyAttributeSchema<Value> {
             };
 
             this.serialize = value => {
-                // Test that string serialization and binary serialization produce consistent
-                // sort orders. It is very bad if they do not!
+                // Test that string serialization and binary serialization produce consistent sort
+                // orders. It is very bad if they do not!
                 //
                 // Conveniently, this function also serializes our value to a string.
                 return runValueTests(value).serializedStringValue;
@@ -881,8 +884,8 @@ export class DynamoKeyAttributeSchema<Value> {
                     serializeBytes: (value, bytes, byteOffset) => {
                         binary.serializeBytes(value, bytes, byteOffset);
 
-                        // Test that string serialization and binary serialization produce consistent
-                        // sort orders. It is very bad if they do not!
+                        // Test that string serialization and binary serialization produce consistent sort
+                        // orders. It is very bad if they do not!
                         runValueTests(value);
                     },
                 };
@@ -893,8 +896,8 @@ export class DynamoKeyAttributeSchema<Value> {
     /**
      * Order our values in reverse.
      *
-     * Does this by serializing the value into a hexadecimal string with reverse
-     * byte order from the input string.
+     * Does this by serializing the value into a hexadecimal string with reverse byte
+     * order from the input string.
      */
     public reverse(): DynamoKeyAttributeSchema<Value> {
         const {binary} = this;
@@ -930,8 +933,8 @@ export class DynamoKeyAttributeSchema<Value> {
                           }
                       },
                       deserializeBytes: (bytes, byteOffset) => {
-                          // Clone bytes before deserializing them so we don't change what's in the
-                          // source buffer we're parsing from.
+                          // Clone bytes before deserializing them so we don't change what's in the source
+                          // buffer we're parsing from.
                           const clonedBuffer = new ArrayBuffer(bytes.byteLength - byteOffset);
                           const clonedBytes = new Uint8Array(clonedBuffer);
                           clonedBytes.set(bytes.slice(byteOffset));
@@ -952,8 +955,8 @@ export class DynamoKeyAttributeSchema<Value> {
      *
      * If null then the value serializes to `0`. Otherwise we append `1-` to the
      * serialized value. This means that null values come first by default. You can
-     * customize this behavior with `nullsOrder`. When set to `Last` null
-     * serializes to `1` and we append `0-` to other values.
+     * customize this behavior with `nullsOrder`. When set to `Last` null serializes to
+     * `1` and we append `0-` to other values.
      */
     public nullable({
         nullsOrder = "First",
@@ -1014,8 +1017,8 @@ export class DynamoKeyAttributeSchema<Value> {
 }
 
 /**
- * Serializes an arbitrary string into a version that is safe for a DynamoDB
- * key. By escaping any characters outside the DynamoDB key character range.
+ * Serializes an arbitrary string into a version that is safe for a DynamoDB key.
+ * By escaping any characters outside the DynamoDB key character range.
  *
  * The escaped string is parsable with `JSON.parse()`.
  */
@@ -1040,8 +1043,8 @@ function serializeStringDynamoKeyAttribute(string: string): DynamoKeyAttribute {
             // using a Unicode escape sequence.
             //
             // We use either the minimum or maximum key attribute character as the escape
-            // character. We use the minimum character if the escaped character is before
-            // our valid character range.
+            // character. We use the minimum character if the escaped character is before our
+            // valid character range.
             serializedString += `${
                 stringByte < dynamoKeyAttributeMinCharCode + 1
                     ? String.fromCharCode(dynamoKeyAttributeMinCharCode)
@@ -1054,8 +1057,8 @@ function serializeStringDynamoKeyAttribute(string: string): DynamoKeyAttribute {
 }
 
 /**
- * Deserializes a string produced from `serializeStringDynamoKeyAttribute()`
- * back into a regular string.
+ * Deserializes a string produced from `serializeStringDynamoKeyAttribute()` back
+ * into a regular string.
  */
 function deserializeStringDynamoKeyAttribute(string: DynamoKeyAttribute): string {
     const stringBytes: Array<number> = [];
@@ -1095,9 +1098,9 @@ function deserializeStringDynamoKeyAttribute(string: DynamoKeyAttribute): string
 /**
  * Reverses a DynamoDB key attribute.
  *
- * The reversed format is a hexadecimal encoding of the input string where
- * every character is reversed. We also append a value larger than any other
- * character to the end so that short strings are sorted last.
+ * The reversed format is a hexadecimal encoding of the input string where every
+ * character is reversed. We also append a value larger than any other character to
+ * the end so that short strings are sorted last.
  */
 export function serializeReversedDynamoKeyAttribute(
     keyAttribute: DynamoKeyAttribute,
@@ -1109,12 +1112,12 @@ export function serializeReversedDynamoKeyAttribute(
         bytes[index] = reversedCharCode;
     }
 
-    // As the last byte, add an integer larger than any other. This way shorter
-    // strings will short after longer strings.
+    // As the last byte, add an integer larger than any other. This way shorter strings
+    // will short after longer strings.
     bytes[keyAttribute.length] = 127;
 
-    // Convert our bytes into hexadecimal which will maintain the byte
-    // order lexicographically.
+    // Convert our bytes into hexadecimal which will maintain the byte order
+    // lexicographically.
     const reversedKeyAttribute = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join(
         "",
     );
@@ -1127,8 +1130,8 @@ export function serializeReversedDynamoKeyAttribute(
 export function deserializeReversedDynamoKeyAttribute(
     reversedKeyAttribute: DynamoKeyAttribute,
 ): DynamoKeyAttribute {
-    // Hexadecimal string should be non-empty, only contain valid characters, with
-    // an even number of characters.
+    // Hexadecimal string should be non-empty, only contain valid characters, with an
+    // even number of characters.
     assert(/^[0-9a-f]+$/.test(reversedKeyAttribute));
     assert(reversedKeyAttribute.length % 2 === 0);
 
@@ -1150,8 +1153,8 @@ export function deserializeReversedDynamoKeyAttribute(
 
 /**
  * Serializes a label string into a null byte terminated variable length binary
- * format where special code units like 0x00 are escaped with 0x0a
- * (newline U+000A) because newlines aren't allowed in label strings.
+ * format where special code units like 0x00 are escaped with 0x0a (newline U+000A)
+ * because newlines aren't allowed in label strings.
  */
 function serializeLabelStringDynamoKeyAttributeToBinary(string: string): Uint8Array {
     // For now, we require DynamoDB key attributes to be non-empty. This is a
@@ -1163,8 +1166,8 @@ function serializeLabelStringDynamoKeyAttributeToBinary(string: string): Uint8Ar
     const newBytes: Array<number> = [];
 
     for (const byte of bytes) {
-        // [U+000A newline][1] isn't allowed in label strings. We force label strings
-        // to be a single line. So we use U+000A as our string escape character.
+        // [U+000A newline][1] isn't allowed in label strings. We force label strings to be
+        // a single line. So we use U+000A as our string escape character.
         //
         // [1]: https://graphemica.com/000A
         assert(byte !== 0x0a);

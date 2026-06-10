@@ -12,8 +12,8 @@ export function serializeTaskQuerySortCursorForApi(cursor: TaskQuerySortCursor):
 }
 
 /**
- * Decode a base64 string cursor back to a TaskQuerySortCursor.
- * Throws BadRequestError if the cursor is invalid.
+ * Decode a base64 string cursor back to a TaskQuerySortCursor. Throws
+ * BadRequestError if the cursor is invalid.
  */
 export function deserializeTaskQuerySortCursorForApi(cursorString: string): TaskQuerySortCursor {
     let cursor: TaskQuerySortCursor;

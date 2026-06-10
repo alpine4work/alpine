@@ -4,7 +4,7 @@ import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getSearchEntityTableForTest} from "~/server/search/data/table/internal/search_entity_table.js";
+import {getSearchEntityTableForTest} from "~/server/search/data/table/get_search_entity_table_for_test.js";
 import {
     addSearchAffinityEntityActiveTaskAssigneePoints,
     assignSearchAffinityEntityDerivedAttributes,
@@ -27,7 +27,7 @@ import {
     unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -186,9 +186,9 @@ test("can determine when search entity account affinity points will expire", () 
 
 // This tests the core idea behind `addSearchAffinityActiveTaskAssigneePoints()`
 // and `removeSearchAffinityActiveTaskAssigneePoints()` without calling them
-// directly. We should be able to add some large point boost when the task
-// becomes active then later remove that point boost and it'll be as if we
-// never added the point boost in the first place.
+// directly. We should be able to add some large point boost when the task becomes
+// active then later remove that point boost and it'll be as if we never added the
+// point boost in the first place.
 test("can increment by some point value and decrement by the decayed point value later", () => {
     const time1 = new Date();
     const time2 = addDays(time1, 10);
@@ -248,8 +248,8 @@ test("can increment by some point value and decrement by the decayed point value
     expect(points3cDecrement).toEqual(36.787944117144235);
     expect(points3c).toBeCloseTo(points3a, 10);
 
-    // Test that we get the same value calling `getCurrentSearchAffinityPoints()`
-    // with already decayed values.
+    // Test that we get the same value calling `getCurrentSearchAffinityPoints()` with
+    // already decayed values.
     {
         expect(
             getCurrentSearchAffinityEntityPoints(time3.getTime(), {
@@ -334,7 +334,7 @@ test("can\u2019t read affinitive items for the wrong space", async () => {
     const documentCount = 20;
 
     // Limit concurrent requests to reduce test flakiness.
-    const mutexes = createArrayWithLength(10, () => new Mutex());
+    const mutexes = createArrayWithLength(5, () => new Mutex());
 
     const documents = await runAllPromises(
         createArrayWithLength(documentCount, index =>
@@ -488,7 +488,7 @@ test(
         const documentCount = Math.floor(searchAffinityEntityQueryPageLimit * 4.5);
 
         // Limit concurrent requests to reduce test flakiness.
-        const mutexes = createArrayWithLength(10, () => new Mutex());
+        const mutexes = createArrayWithLength(5, () => new Mutex());
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
@@ -497,6 +497,12 @@ test(
                         title: `Document ${index + 1}`,
                     });
                     await document.access.grantDefault(session);
+
+                    // Wait for feed entries to be created otherwise we get "Retry with exponential
+                    // backoff" failures because there's a lot of writes trying to update the account's
+                    // `FeedAccountCandidates#Attributes` item at once.
+                    await ProcessContextModule.waitForTestTasks();
+
                     return document;
                 }),
             ),
@@ -712,7 +718,7 @@ test(
         const documentCount = Math.floor(searchAffinityEntityQueryPageLimit * 4.5);
 
         // Limit concurrent requests to reduce test flakiness.
-        const mutexes = createArrayWithLength(10, () => new Mutex());
+        const mutexes = createArrayWithLength(5, () => new Mutex());
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
@@ -721,6 +727,12 @@ test(
                         title: `Document ${index + 1}`,
                     });
                     await document.access.grantDefault(session);
+
+                    // Wait for feed entries to be created otherwise we get "Retry with exponential
+                    // backoff" failures because there's a lot of writes trying to update the account's
+                    // `FeedAccountCandidates#Attributes` item at once.
+                    await ProcessContextModule.waitForTestTasks();
+
                     return document;
                 }),
             ),
@@ -936,7 +948,7 @@ test(
         const documentCount = Math.floor(searchAffinityEntityQueryPageLimit * 4.5);
 
         // Limit concurrent requests to reduce test flakiness.
-        const mutexes = createArrayWithLength(10, () => new Mutex());
+        const mutexes = createArrayWithLength(5, () => new Mutex());
 
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
@@ -945,6 +957,12 @@ test(
                         title: `Document ${index + 1}`,
                     });
                     await document.access.grantDefault(session);
+
+                    // Wait for feed entries to be created otherwise we get "Retry with exponential
+                    // backoff" failures because there's a lot of writes trying to update the account's
+                    // `FeedAccountCandidates#Attributes` item at once.
+                    await ProcessContextModule.waitForTestTasks();
+
                     return document;
                 }),
             ),
@@ -1241,6 +1259,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(1);
@@ -1249,6 +1268,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(2);
@@ -1257,6 +1277,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(3);
@@ -1337,6 +1358,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(154);
@@ -1345,6 +1367,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(155);
@@ -1353,6 +1376,7 @@ test("can add, remove, and add again search affinity task assignee points to a t
         spaceId: space.id,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toBeCloseTo(156);
@@ -1392,6 +1416,7 @@ test("marking create document interaction adds erosion to affinity item", async 
         spaceId: space.id,
         documentId,
         creatorId: session.account.id,
+        siteId: null,
     });
 
     expect(
@@ -2011,7 +2036,10 @@ test("will show top three favorites at the start of affinity list when querying 
     ]);
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session2.account.id,
         session3.account.id,
@@ -2026,7 +2054,10 @@ test("will show top three favorites at the start of affinity list when querying 
     });
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session2.account.id,
@@ -2041,7 +2072,10 @@ test("will show top three favorites at the start of affinity list when querying 
     });
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session5.account.id,
@@ -2056,7 +2090,10 @@ test("will show top three favorites at the start of affinity list when querying 
     });
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session5.account.id,
@@ -2071,7 +2108,10 @@ test("will show top three favorites at the start of affinity list when querying 
     });
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session5.account.id,
@@ -2144,7 +2184,10 @@ test("will show top three favorites at the start of affinity list when querying 
     ]);
 
     expect(
-        await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+        Array.from(
+            await getPossiblyStaleAccountSearchAffinityEntityIds(session1.action(), space.id),
+            ({id}) => id,
+        ),
     ).toEqual([
         session6.account.id,
         session5.account.id,
@@ -2184,6 +2227,7 @@ test("adding and removing search affinity points is a noop for bot account", asy
         accountId: botAccountId,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toEqual(null);
@@ -2193,6 +2237,7 @@ test("adding and removing search affinity points is a noop for bot account", asy
         accountId: botAccountId,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toEqual(null);
@@ -2202,6 +2247,7 @@ test("adding and removing search affinity points is a noop for bot account", asy
         accountId: botAccountId,
         entityId: `Task:${task.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     expect(await getTaskSearchAffinityPoints()).toEqual(null);
@@ -2238,6 +2284,7 @@ test("bot can add affinity points on behalf of another account via markSearchAff
         spaceId: space.id,
         documentId,
         creatorId: adminSession.account.id,
+        siteId: null,
     });
 
     // The affinity points should be attributed to the human account, not the bot

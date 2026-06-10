@@ -46,5 +46,5 @@ export async function setPostReaction(
         }),
     );
 
-    return {getDynamoGeneralRealtimeEvent: getEvent};
+    return {getRynamoEvent: getEvent};
 }

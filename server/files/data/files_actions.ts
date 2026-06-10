@@ -2,7 +2,6 @@ import prettyBytes from "pretty-bytes";
 import {
     ServerAccountActionContext,
     ServerActionContext,
-    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -13,11 +12,15 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer, FileAuthorizerUnbound} from "~/server/files/data/file_authorizer.js";
-import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
+import {
+    FileProcessorAccountActionContext,
+    FileProcessorActionContext,
+    FileProcessorSystemActionContext,
+} from "~/server/files/data/file_processor_context.js";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {
     FilesTable,
-    PostDraftFileAttachmentsIndex,
+    PostDraftFile2AttachmentsIndex,
 } from "~/server/files/data/internal/files_table.js";
 import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
@@ -46,72 +49,67 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {AccountId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**
- * NOTE: this file is currently being split up. We do not anticipate adding more methods here.
+ * NOTE: this file is currently being split up. We do not anticipate adding more
+ * methods here.
  */
 
-type FileItem = DynamoTableItemType<typeof FilesTable, "Space", "File">;
+type FileItem = DynamoTableItemType<typeof FilesTable, "File2", "Attributes">;
 
 type FileAttachmentTargetItemKey = DynamoTableItemKeyType<
     typeof FilesTable,
-    "File",
+    "File2",
     `${string}AttachmentTarget`
 >;
 
 function getFileAttachmentTargetItemKey(
-    spaceId: SpaceId,
     fileId: FileId,
     target: FileAttachmentTarget,
 ): FileAttachmentTargetItemKey {
     switch (target.type) {
         case "ChatMessages": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "ChatMessagesAttachmentTarget",
-                spaceId,
                 fileId,
                 chatId: target.chatId,
             };
         }
         case "Document": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "DocumentAttachmentTarget",
-                spaceId,
                 fileId,
                 documentId: target.documentId,
             };
         }
         case "DocumentComments": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "DocumentCommentsAttachmentTarget",
-                spaceId,
                 fileId,
                 documentId: target.documentId,
             };
         }
         case "Post": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "PostAttachmentTarget",
-                spaceId,
                 fileId,
                 postId: target.postId,
             };
         }
         case "PostDraft": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "PostDraftAttachmentTarget",
-                spaceId,
                 fileId,
                 accountId: target.accountId,
                 draftId: target.draftId,
@@ -119,27 +117,24 @@ function getFileAttachmentTargetItemKey(
         }
         case "PostComments": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "PostCommentsAttachmentTarget",
-                spaceId,
                 fileId,
                 postId: target.postId,
             };
         }
         case "TaskNotes": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "TaskNotesAttachmentTarget",
-                spaceId,
                 fileId,
                 taskId: target.taskId,
             };
         }
         case "TaskComments": {
             return {
-                partitionType: "File",
+                partitionType: "File2",
                 sortRangeType: "TaskCommentsAttachmentTarget",
-                spaceId,
                 fileId,
                 taskId: target.taskId,
             };
@@ -150,19 +145,69 @@ function getFileAttachmentTargetItemKey(
 }
 
 /**
- * The total number of bytes you're allowed to store in an Alpine space on the
- * free plan (5 GB). After you exceed this amount we'll start deleting old
- * files. This is the same as Slack's file limit for their free plan.
+ * Create (or replace) a file attachment target record. This is used by code
+ * outside `files_actions.ts` that needs to create attachment records without
+ * access to the private `getFileAttachmentTargetItemKey` helper.
+ */
+export async function createFileAttachmentTarget(
+    context: ServerActionContext,
+    fileId: FileId,
+    target: FileAttachmentTarget,
+): Promise<void> {
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(fileId, target),
+        createdTime: new Date(),
+    });
+}
+
+/**
+ * Get the uploader account ID for a file, verifying it exists in the given space.
+ * Returns `null` if the file doesn't exist or belongs to a different space. Used
+ * by bot file attachment to decide whether the bot uploaded the file or needs to
+ * prove access through an existing attachment.
+ */
+export async function getFileUploaderIdIfExists(
+    context: ServerActionContext,
+    fileId: FileId,
+    spaceId: SpaceId,
+): Promise<AccountId | null> {
+    const item = await getFileItemIfExistsWithCache(context, fileId, {
+        consistency: "StrongWithinCache",
+    });
+    if (!item) return null;
+    if (item.spaceId !== spaceId) return null;
+    return item.uploaderId;
+}
+
+/**
+ * The total number of bytes you're allowed to store in an Alpine space on the free
+ * plan (5 GB). After you exceed this amount we'll start deleting old files. This
+ * is the same as Slack's file limit for their free plan.
  *
- * We should allow paying users to upload more but this is a fine starting
- * place.
+ * We should allow paying users to upload more but this is a fine starting place.
  */
 const maxFileTotalContentLengthForSpace = 5e9;
 
 /**
- * Called by `EdgeService` before writing our file to Cloudflare R2. Makes sure
- * the space has enough storage for the file and creates a file item in
- * DynamoDB containing information about the file.
+ * The upper bound of "infinite" file uploads for a space (250GB). During our
+ * import process, we allow files to be uploaded beyond the space's limit, but we
+ * shouldn't allow an unlimited number of files. If someone hits this limit, we
+ * should have them contact us.
+ */
+const dangerousMaxFileTotalContentLengthForSpaceWithAllowedOverage = 250e9;
+
+/**
+ * Which services are allowed to upload files.
+ *
+ * We only allow file uploads from EdgeService (client uploads) and ImporterService
+ * (Notion imports, etc.).
+ */
+const allowedUploadServices = new Set(["EdgeService", "ImporterService"]);
+
+/**
+ * Called by `EdgeService` before writing our file to Cloudflare R2. Makes sure the
+ * space has enough storage for the file and creates a file item in DynamoDB
+ * containing information about the file.
  *
  * Throws an error if not called by `EdgeService`. A complete file upload is
  * orchestrated by `EdgeService` and involves three parts:
@@ -172,33 +217,78 @@ const maxFileTotalContentLengthForSpace = 5e9;
  * 3. `finishUploadingAndStartProcessingFile()` (which submits a job to our job
  *    queue to process the file)
  *
- * If there's an error and we don't complete one of those three steps the
- * resulting file item in DynamoDB won't be very useful.
+ * If there's an error and we don't complete one of those three steps the resulting
+ * file item in DynamoDB won't be very useful.
  */
+// ServerAccountActionContext with optional attachTargetAuthorizer
 export async function startUploadingFile(
     context: ServerAccountActionContext,
-    {
-        spaceId,
-        fileId: providedFileId = null,
-        contentType,
-        contentLength,
-        attachTargetAuthorizer = null,
-    }: {
+    options: {
         spaceId: SpaceId;
         fileId?: FileId | null;
         contentType: FileContentType;
         contentLength: number;
         attachTargetAuthorizer?: FileAuthorizer | null;
     },
+): Promise<{fileId: FileId}>;
+// FileProcessorAccountActionContext (minimal context type), no
+// attachTargetAuthorizer allowed
+export async function startUploadingFile(
+    context: FileProcessorAccountActionContext,
+    options: {
+        spaceId: SpaceId;
+        fileId?: FileId | null;
+        contentType: FileContentType;
+        contentLength: number;
+        dangerouslyAllowSpaceLimitOverage?: boolean;
+    },
+): Promise<{fileId: FileId}>;
+export async function startUploadingFile(
+    context: ServerAccountActionContext | FileProcessorAccountActionContext,
+    {
+        spaceId,
+        fileId: providedFileId = null,
+        contentType,
+        contentLength,
+        attachTargetAuthorizer = null,
+        dangerouslyAllowSpaceLimitOverage = false,
+    }: {
+        spaceId: SpaceId;
+        fileId?: FileId | null;
+        contentType: FileContentType;
+        contentLength: number;
+        attachTargetAuthorizer?: FileAuthorizer | null;
+        /**
+         * This allows us to upload files beyond the space's limit. This is used by
+         * importers to temporarily allow us to upload files beyond the space's limit. This
+         * is dangerous and should only be used in limited cases.
+         */
+        dangerouslyAllowSpaceLimitOverage?: boolean;
+    },
 ): Promise<{fileId: FileId}> {
     await authorizeSpaceAccess(context, spaceId);
 
-    // If we're attaching the file to a target as a part of the upload, verify we
-    // have edit access to the target.
-    await attachTargetAuthorizer?.authorizeTargetAccess(context, spaceId, "Edit");
+    // If we're attaching the file to a target as a part of the upload, verify we have
+    // edit access to the target. When attachTargetAuthorizer is provided, the overload
+    // signature guarantees context is ServerAccountActionContext.
+    if (attachTargetAuthorizer) {
+        // Runtime check: Our types should not allow this case, but let's add another check
+        // to make sure we have the right context type for authorizeTargetAccess. The
+        // authorizer calls functions like authorizeDocumentAccess which require entity
+        // injections. This function can be called by importers which do not have a full
+        // action context.
+        assert(
+            "documentsInjection" in context,
+            "attachTargetAuthorizer requires ServerAccountActionContext",
+        );
 
-    if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
-        throw new PermissionDeniedError("Only `EdgeService` can upload files");
+        await attachTargetAuthorizer.authorizeTargetAccess(context, "Edit");
+    }
+
+    // Only allow file uploads from EdgeService (client uploads) and ImporterService
+    // (Notion imports, etc.).
+    if (!import.meta.jest && !allowedUploadServices.has(context.actor.serviceName)) {
+        throw new PermissionDeniedError("Only allowed services can upload files");
     }
 
     if (!(0 < contentLength && contentLength <= maxFileContentLength)) {
@@ -213,21 +303,27 @@ export async function startUploadingFile(
     if (providedFileId === null) {
         fileId = generateChronologicalId();
     } else {
-        const time = getChronologicalIdTime(providedFileId);
-        const currentTime = Date.now();
+        // ImporterService uses pre-generated deterministic file IDs that may not have
+        // valid timestamps. Skip the time check for imports.
+        const isImportService = context.actor.serviceName === "ImporterService";
 
-        // Make sure the time provided by the client is reasonable so our files table
-        // is still roughly sorted by creation time.
-        if (Math.abs(time - currentTime) > 1000 * 60 * 2) {
-            throw new FailedPreconditionError(
-                "Provided `FileId` must be within a 4 minute window of the current time",
-            );
+        if (!isImportService) {
+            const time = getChronologicalIdTime(providedFileId);
+            const currentTime = Date.now();
+
+            // Make sure the time provided by the client is reasonable so our files table is
+            // still roughly sorted by creation time.
+            if (Math.abs(time - currentTime) > 1000 * 60 * 2) {
+                throw new FailedPreconditionError(
+                    "Provided `FileId` must be within a 4 minute window of the current time",
+                );
+            }
         }
 
         fileId = providedFileId;
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const fileTotalsItem = (await FilesTable.getItemIfExists(context, {
             partitionType: "Space",
             sortRangeType: "FileTotals",
@@ -240,27 +336,28 @@ export async function startUploadingFile(
             contentLength: 0,
         };
 
-        // If we're in the default development space then we'll allow infinite file
-        // uploads so developers can test file uploads without limits.
+        // If we're in the default development space then we'll allow infinite file uploads
+        // so developers can test file uploads without limits.
         const isFileLimitEnforced =
             (process.env.NODE_ENV !== "development" ||
                 spaceId !== getDynamoSeedConstants().defaultSpaceId) &&
             // We also disable the file limit for our own space.
             spaceId !== alpineCompanyKnownSpaceId;
 
+        const maxFileTotalContentLength = dangerouslyAllowSpaceLimitOverage
+            ? dangerousMaxFileTotalContentLengthForSpaceWithAllowedOverage
+            : maxFileTotalContentLengthForSpace;
+
         // We allow one file to be uploaded beyond the space's max content length. This
         // allows us to say "you've reached your limit" in our error message.
-        if (
-            isFileLimitEnforced &&
-            fileTotalsItem.contentLength > maxFileTotalContentLengthForSpace
-        ) {
+        if (isFileLimitEnforced && fileTotalsItem.contentLength > maxFileTotalContentLength) {
             throw new InvalidArgumentError(
                 `Uploading files beyond our ${prettyBytes(
-                    maxFileTotalContentLengthForSpace,
+                    maxFileTotalContentLength,
                 )} limit is currently unsupported. Eventually we should: 1) Increase the limit for paying customers, 2) Archive old uploaded files to create more space`,
                 {
                     displayMessage: errorDisplayMessage`This space has exceeded its ${prettyBytes(
-                        maxFileTotalContentLengthForSpace,
+                        maxFileTotalContentLength,
                     )} storage limit. Can\u2019t upload more files. To raise this space\u2019s storage limit contact ${
                         errorDisplayMessage.supportLink
                     }.`,
@@ -306,10 +403,10 @@ export async function startUploadingFile(
         }
 
         const fileItem: FileItem = {
-            partitionType: "Space",
-            sortRangeType: "File",
-            spaceId,
+            partitionType: "File2",
+            sortRangeType: "Attributes",
             fileId,
+            spaceId,
             contentType,
             contentLength,
             uploaderId: context.actor.getPossiblyBotAccountId(),
@@ -325,7 +422,6 @@ export async function startUploadingFile(
                 contentLength: fileTotalsItem.contentLength + contentLength,
             }),
 
-            // Don't allow creating duplicate files when providing a `FileId`.
             providedFileId
                 ? FilesTable.transactionCreateItem(fileItem)
                 : FilesTable.transactionCreateOrReplaceItem(fileItem),
@@ -333,11 +429,7 @@ export async function startUploadingFile(
             ...(attachTargetAuthorizer
                 ? [
                       FilesTable.transactionCreateOrReplaceItem({
-                          ...getFileAttachmentTargetItemKey(
-                              spaceId,
-                              fileId,
-                              attachTargetAuthorizer.target,
-                          ),
+                          ...getFileAttachmentTargetItemKey(fileId, attachTargetAuthorizer.target),
                           createdTime: new Date(),
                       }),
                   ]
@@ -349,42 +441,48 @@ export async function startUploadingFile(
 }
 
 /**
- * Once `EdgeService` has finished uploading a file to Cloudflare R2 it calls
- * this function which marks the file as uploaded and starts processing the
- * file. Throws an error if not called by `EdgeService`. See the documentation
- * on `startUploadingFile()` for more information.
+ * Once `EdgeService` has finished uploading a file to Cloudflare R2 it calls this
+ * function which marks the file as uploaded and starts processing the file. Throws
+ * an error if not called by `EdgeService`. See the documentation on
+ * `startUploadingFile()` for more information.
  */
 export async function finishUploadingAndStartProcessingFile(
-    context: ServerAccountActionContext,
+    context: FileProcessorAccountActionContext,
     {
         spaceId,
         fileId,
         validateContentLength,
         withoutProcessJobForTest,
+        withoutProcessJob,
     }: {
         spaceId: SpaceId;
         fileId: FileId;
         validateContentLength?: number;
         withoutProcessJobForTest?: boolean;
+        /**
+         * Skip scheduling a file processor job. Use this when the caller will handle file
+         * processing inline (e.g. during imports).
+         */
+        withoutProcessJob?: boolean;
     },
 ): Promise<FileModel> {
-    if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
-        throw new PermissionDeniedError("Only `EdgeService` can upload files");
+    if (!import.meta.jest && !allowedUploadServices.has(context.actor.serviceName)) {
+        throw new PermissionDeniedError("Only allowed services can upload files");
     }
 
     if (withoutProcessJobForTest) {
         assert(process.env.NODE_ENV === "test");
     }
 
-    return context.dynamo.retryTransaction(async context => {
-        let item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+    return await context.dynamo.retryTransaction(async context => {
+        let item = await getFileItemIfExistsAsUploader(context, fileId, {
             consistency: "Eventual",
         });
 
-        // In case there's an eventual consistency lag, retry reading the item with
-        // strong consistency.
+        // In case there's an eventual consistency lag, retry reading the item with strong
+        // consistency.
         if (!item) {
-            item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+            item = await getFileItemIfExistsAsUploader(context, fileId, {
                 consistency: "Strong",
             });
         }
@@ -415,10 +513,10 @@ export async function finishUploadingAndStartProcessingFile(
         const {hasAlternative, hasPreview} =
             fileProcessorDeclarationByContentType[item.contentType];
 
-        if (!withoutProcessJobForTest && (hasAlternative || hasPreview)) {
-            // Now that the file has finished uploading we can start processing it. Wait
-            // for the message to be added to our queue. If sending the process file
-            // message fails we want to fail the entire upload.
+        if (!withoutProcessJobForTest && !withoutProcessJob && (hasAlternative || hasPreview)) {
+            // Now that the file has finished uploading we can start processing it. Wait for
+            // the message to be added to our queue. If sending the process file message fails
+            // we want to fail the entire upload.
 
             // Determine the appropriate processing tier based on content type and file size
             const {jobType, reason} = routeFileToProcessor(item);
@@ -437,22 +535,21 @@ export async function finishUploadingAndStartProcessingFile(
 }
 
 /**
- * Get an instance of `FileUploader` we can use for finishing a file upload.
- * Only an uploader may get an instance of the `FileUploader` class.
+ * Get an instance of `FileUploader` we can use for finishing a file upload. Only
+ * an uploader may get an instance of the `FileUploader` class.
  */
 export async function getFileUploaderAsUploader(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
 ): Promise<FileUploader> {
-    let fileItem = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+    let fileItem = await getFileItemIfExistsAsUploader(context, fileId, {
         consistency: "Eventual",
     });
 
-    // If we weren't able to find a file that might be because of eventual
-    // consistency lag. Try again with strong consistency.
+    // If we weren't able to find a file that might be because of eventual consistency
+    // lag. Try again with strong consistency.
     if (!fileItem) {
-        fileItem = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+        fileItem = await getFileItemIfExistsAsUploader(context, fileId, {
             consistency: "Strong",
         });
     }
@@ -467,9 +564,9 @@ export async function getFileUploaderAsUploader(
 /**
  * Stateful object used to update our file in DynamoDB while it's uploading.
  *
- * It's useful to have a stateful object to save on read requests since the
- * class can hold onto the last value of `FileItem` so we don't need to read it
- * from the database.
+ * It's useful to have a stateful object to save on read requests since the class
+ * can hold onto the last value of `FileItem` so we don't need to read it from the
+ * database.
  */
 export class FileUploader {
     public readonly spaceId: SpaceId;
@@ -540,9 +637,9 @@ export class FileUploader {
     }
 
     /**
-     * Finish processing the file's alternative if the file has an alternative. If
-     * the file was not declared to have an alternative upon creation then this
-     * method will throw an error.
+     * Finish processing the file's alternative if the file has an alternative. If the
+     * file was not declared to have an alternative upon creation then this method will
+     * throw an error.
      */
     public async finishProcessingAlternative(
         context: FileProcessorActionContext,
@@ -554,9 +651,8 @@ export class FileUploader {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -597,13 +693,13 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.size` we call this method to add the
-     * preview size to DynamoDB. If we've finished processing all of
-     * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
+     * When we're done processing `preview.size` we call this method to add the preview
+     * size to DynamoDB. If we've finished processing all of `preview.size`,
+     * `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      *
-     * May also finish processing the video duration if `alsoPreviewVideoDuration`
-     * is provided as an option.
+     * May also finish processing the video duration if `alsoPreviewVideoDuration` is
+     * provided as an option.
      */
     public async finishProcessingImagePreviewSize(
         context: FileProcessorActionContext,
@@ -616,9 +712,8 @@ export class FileUploader {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -629,8 +724,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an image preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
 
                     if (
@@ -653,9 +748,8 @@ export class FileUploader {
                                       type: "Image",
                                       isProcessing: false,
                                       ok: true,
-                                      // Only update if size is processing. If we've already finished
-                                      // processing size then we want to leave the old size in
-                                      // place. This makes the function idempotent.
+                                      // Only update if size is processing. If we've already finished processing size
+                                      // then we want to leave the old size in place. This makes the function idempotent.
                                       size:
                                           item.preview.size === "Processing"
                                               ? size
@@ -664,8 +758,8 @@ export class FileUploader {
                                       content: item.preview.content,
                                       videoDuration:
                                           // Only update if video duration is processing. If we've already finished
-                                          // processing video duration then we want to leave the old video duration in
-                                          // place. This makes the function idempotent.
+                                          // processing video duration then we want to leave the old video duration in place.
+                                          // This makes the function idempotent.
                                           (item.preview.videoDuration === "Processing"
                                               ? (alsoPreviewVideoDuration ??
                                                 item.preview.videoDuration)
@@ -674,9 +768,8 @@ export class FileUploader {
                                 : {
                                       type: "Image",
                                       isProcessing: true,
-                                      // Only update if size is processing. If we've already finished
-                                      // processing size then we want to leave the old size in
-                                      // place. This makes the function idempotent.
+                                      // Only update if size is processing. If we've already finished processing size
+                                      // then we want to leave the old size in place. This makes the function idempotent.
                                       size:
                                           item.preview.size === "Processing"
                                               ? size
@@ -685,8 +778,8 @@ export class FileUploader {
                                       content: item.preview.content,
                                       videoDuration:
                                           // Only update if video duration is processing. If we've already finished
-                                          // processing video duration then we want to leave the old video duration in
-                                          // place. This makes the function idempotent.
+                                          // processing video duration then we want to leave the old video duration in place.
+                                          // This makes the function idempotent.
                                           item.preview.videoDuration === "Processing"
                                               ? (alsoPreviewVideoDuration ??
                                                 item.preview.videoDuration)
@@ -695,9 +788,9 @@ export class FileUploader {
                     };
 
                     // Optimization: If we left both `item.preview.size` alone and
-                    // `item.preview.videoDuration` alone then return the old item to skip a
-                    // DynamoDB write.
-                    if (isDeepEqual(newItem, item)) return item;
+                    // `item.preview.videoDuration` alone then return the old item to skip a DynamoDB
+                    // write.
+                    if (isDeepEqualForUnknownValues(newItem, item)) return item;
 
                     return newItem;
                 },
@@ -707,8 +800,8 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.placeholder` we call this method to add
-     * the preview placeholder to DynamoDB. If we've finished processing all of
+     * When we're done processing `preview.placeholder` we call this method to add the
+     * preview placeholder to DynamoDB. If we've finished processing all of
      * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      */
@@ -722,9 +815,8 @@ export class FileUploader {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -735,8 +827,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an image preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
                     if (item.preview.placeholder !== "Processing") return item;
 
@@ -771,9 +863,9 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.content` we call this method to add
-     * the preview image to DynamoDB. If we've finished processing all of
-     * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
+     * When we're done processing `preview.content` we call this method to add the
+     * preview image to DynamoDB. If we've finished processing all of `preview.size`,
+     * `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewContent(
@@ -794,9 +886,8 @@ export class FileUploader {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 (item): FileItem => {
@@ -817,8 +908,8 @@ export class FileUploader {
                         ...item,
                         alternative:
                             // Only update if the alternative is processing. If we've already finished
-                            // processing the alternative then we want to leave the old alternative in
-                            // place. This makes the function idempotent.
+                            // processing the alternative then we want to leave the old alternative in place.
+                            // This makes the function idempotent.
                             isAlternative &&
                             item.alternative?.isProcessing &&
                             (item.preview.content === "Processing" ||
@@ -833,8 +924,8 @@ export class FileUploader {
                                 : item.alternative,
                         preview:
                             // Only update if preview content is processing. If we've already finished
-                            // processing the alternative then we want to leave the old alternative in
-                            // place. This makes the function idempotent.
+                            // processing the alternative then we want to leave the old alternative in place.
+                            // This makes the function idempotent.
                             item.preview.isProcessing && item.preview.content === "Processing"
                                 ? item.preview.size !== "Processing" &&
                                   item.preview.placeholder !== "Processing" &&
@@ -861,7 +952,7 @@ export class FileUploader {
 
                     // Optimization: If we left both `item.preview.content` alone and
                     // `item.alternative` alone then return the old item to skip a DynamoDB write.
-                    if (isDeepEqual(newItem, item)) return item;
+                    if (isDeepEqualForUnknownValues(newItem, item)) return item;
 
                     return newItem;
                 },
@@ -875,10 +966,10 @@ export class FileUploader {
      * the preview video duration to DynamoDB. If we've finished processing all the
      * data in `preview` then we can set `preview.isProcessing` to false.
      *
-     * Calling this multiple times with the same `videoDuration` will noop. (Hence
-     * the "if needed" in the name.) This is because sometimes preview video
-     * duration is available at the same time preview size is available and so we
-     * write the video duration with the preview size.
+     * Calling this multiple times with the same `videoDuration` will noop. (Hence the
+     * "if needed" in the name.) This is because sometimes preview video duration is
+     * available at the same time preview size is available and so we write the video
+     * duration with the preview size.
      */
     public async finishProcessingImagePreviewVideoDurationIfNeeded(
         context: FileProcessorActionContext,
@@ -886,7 +977,7 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             if (!itemRef.current.preview) {
                 throw new InternalError("File doesn\u2019t have a preview");
             }
@@ -897,9 +988,8 @@ export class FileUploader {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -910,8 +1000,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an image preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
 
                     if (item.preview.videoDuration === undefined) {
@@ -920,8 +1010,8 @@ export class FileUploader {
                         );
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (item.preview.videoDuration !== "Processing") return item;
 
                     return {
@@ -955,8 +1045,8 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.duration` for a file with an audio
-     * preview this function is called.
+     * When we're done processing `preview.duration` for a file with an audio preview
+     * this function is called.
      */
     public async finishProcessingAudioPreviewDuration(
         context: FileProcessorActionContext,
@@ -964,13 +1054,12 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -981,8 +1070,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an audio preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
                     if (item.preview.duration !== "Processing") return item;
 
@@ -1011,8 +1100,8 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.metadata` for a file with an audio
-     * preview this function is called.
+     * When we're done processing `preview.metadata` for a file with an audio preview
+     * this function is called.
      */
     public async finishProcessingAudioPreviewMetadata(
         context: FileProcessorActionContext,
@@ -1020,13 +1109,12 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -1037,8 +1125,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have an audio preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
                     if (item.preview.metadata !== "Processing") return item;
 
@@ -1067,10 +1155,10 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.content` for a file with a code
-     * preview this function is called. Since code previews only need the preview
-     * content the file is immediately considered to have finished processing after
-     * this function is called.
+     * When we're done processing `preview.content` for a file with a code preview this
+     * function is called. Since code previews only need the preview content the file
+     * is immediately considered to have finished processing after this function is
+     * called.
      */
     public async finishProcessingCodePreviewContent(
         context: FileProcessorActionContext,
@@ -1078,13 +1166,12 @@ export class FileUploader {
     ): Promise<void> {
         this._authorize(context);
 
-        return this._item.withLock(async itemRef => {
+        return await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -1095,8 +1182,8 @@ export class FileUploader {
                         throw new InternalError("File doesn\u2019t have a code preview");
                     }
 
-                    // Noop if we've already finished processing the preview. This makes the
-                    // function idempotent.
+                    // Noop if we've already finished processing the preview. This makes the function
+                    // idempotent.
                     if (!item.preview.isProcessing) return item;
                     if (item.preview.content !== "Processing") return item;
 
@@ -1125,9 +1212,8 @@ export class FileUploader {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -1167,9 +1253,8 @@ export class FileUploader {
             itemRef.current = await FilesTable.updateItem(
                 context,
                 {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
+                    partitionType: "File2",
+                    sortRangeType: "Attributes",
                     fileId: this.fileId,
                 },
                 item => {
@@ -1179,8 +1264,8 @@ export class FileUploader {
 
                     switch (item.preview.type) {
                         case "Image": {
-                            // Noop if we've already finished processing the preview. This makes the
-                            // function idempotent.
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
                             if (!item.preview.isProcessing) return item;
 
                             return {
@@ -1210,8 +1295,8 @@ export class FileUploader {
                             };
                         }
                         case "Audio": {
-                            // Noop if we've already finished processing the preview. This makes the
-                            // function idempotent.
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
                             if (!item.preview.isProcessing) return item;
 
                             return {
@@ -1233,8 +1318,8 @@ export class FileUploader {
                             };
                         }
                         case "Code": {
-                            // Noop if we've already finished processing the preview. This makes the
-                            // function idempotent.
+                            // Noop if we've already finished processing the preview. This makes the function
+                            // idempotent.
                             if (!item.preview.isProcessing) return item;
 
                             return {
@@ -1261,25 +1346,23 @@ export class FileUploader {
     }
 }
 
-const FileItemContextCache = new DynamoContextCache<`${SpaceId}:${FileId}`, FileItem | null>({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+const FileItemContextCache = new DynamoContextCache<FileId, FileItem | null>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
 function getFileItemIfExistsWithCache(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
-    return FileItemContextCache.get(context, consistency, `${spaceId}:${fileId}`, consistency =>
+    return FileItemContextCache.get(context, consistency, fileId, consistency =>
         FilesTable.getItemIfExists(
             context,
             {
-                partitionType: "Space",
-                sortRangeType: "File",
-                spaceId,
+                partitionType: "File2",
+                sortRangeType: "Attributes",
                 fileId,
             },
             {consistency},
@@ -1289,16 +1372,15 @@ function getFileItemIfExistsWithCache(
 
 async function getFileItemIfExistsAsUploader(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
-    const item = await getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency});
+    const item = await getFileItemIfExistsWithCache(context, fileId, {consistency});
     if (!item) return null;
 
     switch (context.actor.type) {
         case "System": {
-            await authorizeSpaceAccess(context, spaceId);
+            await authorizeSpaceAccess(context, item.spaceId);
             break;
         }
         case "Session": {
@@ -1308,7 +1390,7 @@ async function getFileItemIfExistsAsUploader(
             break;
         }
         case "ImpersonatedAccount": {
-            await authorizeSpaceAccess(context, spaceId);
+            await authorizeSpaceAccess(context, item.spaceId);
 
             if (item.uploaderId !== context.actor.getAccountId()) {
                 throw new PermissionDeniedError("Account didn\u2019t upload file");
@@ -1333,44 +1415,42 @@ async function getFileItemIfExistsAsUploader(
 
 /**
  * Get a file as the file's uploader. Returns null if the file doesn't exist.
- * Throws an error if you're not the account that upload the file. If we have
- * a system actor then the system actor may read all files.
+ * Throws an error if you're not the account that upload the file. If we have a
+ * system actor then the system actor may read all files.
  *
- * Prefer calling `getFileIfExistsFromAttachment()` since that will work for
- * all accounts with access to the file.
+ * Prefer calling `getFileIfExistsFromAttachment()` since that will work for all
+ * accounts with access to the file.
  */
 export async function getFileIfExistsAsUploader(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel | null> {
-    const item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, options);
+    const item = await getFileItemIfExistsAsUploader(context, fileId, options);
     if (!item) return null;
     return createFileModelFromItem(item);
 }
 
 /**
- * Get a file as the file's uploader. Throws an error if the file doesn't
- * exist. Throws an error if you're not the account that upload the file. If we
- * have a system actor then the system actor may read all files.
+ * Get a file as the file's uploader. Throws an error if the file doesn't exist.
+ * Throws an error if you're not the account that upload the file. If we have a
+ * system actor then the system actor may read all files.
  *
- * Prefer calling `getFileIfFromAttachment()` since that will work for all
- * accounts with access to the file.
+ * Prefer calling `getFileIfFromAttachment()` since that will work for all accounts
+ * with access to the file.
  */
 export async function getFileAsUploader(
     context: FileProcessorActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel> {
-    const file = await getFileIfExistsAsUploader(context, spaceId, fileId, options);
+    const file = await getFileIfExistsAsUploader(context, fileId, options);
     if (!file) throw new NotFoundError("File not found");
     return file;
 }
 
 export function getFileIfExistsAsSystem(
-    context: ServerSystemActionContext,
+    context: FileProcessorSystemActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
@@ -1378,32 +1458,31 @@ export function getFileIfExistsAsSystem(
 
     // `getFileIfExistsAsUploader()` works for system actors. This is a convenience
     // function with a nicer name for system actors.
-    return getFileIfExistsAsUploader(context, context.actor.getSpaceId(), fileId, options);
+    return getFileIfExistsAsUploader(context, fileId, options);
 }
 
 export function getFileAsSystem(
-    context: ServerSystemActionContext,
+    context: FileProcessorSystemActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
     context.actor.authorizeSystem();
 
-    // `getFileAsUploader()` works for system actors. This is a convenience
-    // function with a nicer name for system actors.
-    return getFileAsUploader(context, context.actor.getSpaceId(), fileId, options);
+    // `getFileAsUploader()` works for system actors. This is a convenience function
+    // with a nicer name for system actors.
+    return getFileAsUploader(context, fileId, options);
 }
 
 /**
  * Get a file attached to some entity. Returns null if the file doesn't exist.
  *
- * To authorize we need a `FileAuthorizer`. This object contains the target
- * we're viewing the file in the context of. We'll throw an error if the actor
- * doesn't have access to the attachment target or the file isn't actually
- * attached to the target.
+ * To authorize we need a `FileAuthorizer`. This object contains the target we're
+ * viewing the file in the context of. We'll throw an error if the actor doesn't
+ * have access to the attachment target or the file isn't actually attached to the
+ * target.
  */
 export async function getFileIfExistsFromAttachment(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
     {
@@ -1415,29 +1494,23 @@ export async function getFileIfExistsFromAttachment(
     } = {},
 ): Promise<FileModel | null> {
     const [item, , targetItem] = await runAllPromises([
-        getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),
+        getFileItemIfExistsWithCache(context, fileId, {consistency}),
 
         // 1. Make sure we have access to the file's attachment target
-        targetAuthorizer.authorizeTargetAccess(context, spaceId, accessLevel),
+        targetAuthorizer.authorizeTargetAccess(context, accessLevel, {consistency}),
 
         // 2. Make sure the file is actually attached to the provided target
         (async () => {
             let targetItem = await FilesTable.getItemIfExists(
                 context,
-                getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
-                {
-                    consistency,
-                    // It's ok to call this function when expecting strong read consistency.
-                    // This authorization check is mostly strongly consistent since we retry with
-                    // strong consistency below if our eventually consistent read fails.
-                    allowsEventualReadConsistency: true,
-                },
+                getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
+                {consistency},
             );
 
             if (!targetItem && consistency === "Eventual") {
                 targetItem = await FilesTable.getItemIfExists(
                     context,
-                    getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
+                    getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
                     {consistency: "Strong"},
                 );
             }
@@ -1447,8 +1520,6 @@ export async function getFileIfExistsFromAttachment(
     ]);
     if (!item) return null;
 
-    // If the file doesn't exist we're ok returning null instead of throwing a not
-    // attached error.
     if (!targetItem) {
         throw new PermissionDeniedError("File isn\u2019t attached to target");
     }
@@ -1459,6 +1530,7 @@ export async function getFileIfExistsFromAttachment(
 function createFileModelFromItem(item: FileItem) {
     return new FileModel({
         id: item.fileId,
+        spaceId: item.spaceId,
         contentType: item.contentType,
         contentLength: item.contentLength,
         isUploading: item.isUploading,
@@ -1468,36 +1540,28 @@ function createFileModelFromItem(item: FileItem) {
 }
 
 /**
- * Get a file attached to some entity. Throws an error if the file doesn't
- * exist.
+ * Get a file attached to some entity. Throws an error if the file doesn't exist.
  *
- * To authorize we need a `FileAuthorizer`. This object contains the target
- * we're viewing the file in the context of. We'll throw an error if the actor
- * doesn't have access to the attachment target or the file isn't actually
- * attached to the target.
+ * To authorize we need a `FileAuthorizer`. This object contains the target we're
+ * viewing the file in the context of. We'll throw an error if the actor doesn't
+ * have access to the attachment target or the file isn't actually attached to the
+ * target.
  */
 export async function getFileFromAttachment(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
     options?: {consistency?: DynamoCacheReadConsistency; accessLevel?: "View" | "Edit"},
 ): Promise<FileModel> {
-    const file = await getFileIfExistsFromAttachment(
-        context,
-        spaceId,
-        fileId,
-        targetAuthorizer,
-        options,
-    );
+    const file = await getFileIfExistsFromAttachment(context, fileId, targetAuthorizer, options);
     if (!file) throw new NotFoundError("File not found");
     return file;
 }
 
 /**
- * Attach a file to some `FileAttachmentTarget` (represented by a
- * `FileAuthorizer` instance) as the file's uploader. Throws an error if the
- * file doesn't exist or if the actor isn't the file's uploader.
+ * Attach a file to some `FileAttachmentTarget` (represented by a `FileAuthorizer`
+ * instance) as the file's uploader. Throws an error if the file doesn't exist or
+ * if the actor isn't the file's uploader.
  *
  * If you want to attach the file to another target and you're not the file's
  * uploader then use `attachFileFromAttachment()`.
@@ -1507,33 +1571,21 @@ export async function getFileFromAttachment(
  */
 export async function attachFileAsUploader(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
 ): Promise<FileModel> {
-    const [file] = await runAllPromises([
-        // Make sure the file exists and our actor is the uploader.
-        //
-        // If we can't read the file with eventual consistency then retry with strong
-        // consistency in case the file was just created and we're observing an
-        // eventual consistency lag.
-        (async () => {
-            const file = await getFileIfExistsAsUploader(context, spaceId, fileId, {
-                consistency: "Eventual",
-            });
-            if (file) return file;
+    const file = await (async () => {
+        const file = await getFileIfExistsAsUploader(context, fileId, {
+            consistency: "Eventual",
+        });
+        if (file) return file;
+        return await getFileAsUploader(context, fileId, {consistency: "Strong"});
+    })();
 
-            return getFileAsUploader(context, spaceId, fileId, {
-                consistency: "Strong",
-            });
-        })(),
-
-        // Make sure we have access to the new file authorizer.
-        targetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
-    ]);
+    await targetAuthorizer.authorizeTargetAccess(context, "Edit");
 
     await FilesTable.createOrReplaceItem(context, {
-        ...getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
+        ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
         createdTime: new Date(),
     });
 
@@ -1541,8 +1593,32 @@ export async function attachFileAsUploader(
 }
 
 /**
- * Attach a file to some `FileAttachmentTarget` (`to`) based on the actor's
- * access to the file through a different `FileAttachmentTarget` (`from`).
+ * Attach a file to a document as a system actor, bypassing authorization.
+ *
+ * This is used by the importer service to attach files to documents during import.
+ * The importer uploads files and creates documents, but the file attachment
+ * records need to be created separately.
+ *
+ * WARNING: This bypasses all authorization checks. Only use for trusted system
+ * operations where the caller has already verified that the file exists and the
+ * attachment is valid.
+ */
+export async function attachFileToDocumentAsSystem(
+    context: FileProcessorSystemActionContext,
+    fileId: FileId,
+    documentId: DocumentId,
+): Promise<void> {
+    context.actor.authorizeSystem();
+
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(fileId, {type: "Document", documentId}),
+        createdTime: new Date(),
+    });
+}
+
+/**
+ * Attach a file to some `FileAttachmentTarget` (`to`) based on the actor's access
+ * to the file through a different `FileAttachmentTarget` (`from`).
  *
  * See `attachFileAsUploader()` for more information. You call this method when
  * there's a file you already have you want to attach to another target (e.g.
@@ -1550,11 +1626,10 @@ export async function attachFileAsUploader(
  */
 export async function attachFileFromAttachment(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     {
-        from: fromTargetAuthorizer,
-        to: toTargetAuthorizer,
+        from,
+        to,
         dangerouslySkipToAuthorizeTargetAccess,
     }: {
         from: FileAuthorizer;
@@ -1562,25 +1637,14 @@ export async function attachFileFromAttachment(
         dangerouslySkipToAuthorizeTargetAccess?: boolean;
     },
 ): Promise<FileModel> {
-    const [file] = await runAllPromises([
-        // Make sure the file exists with the provided authorizer.
-        getFileFromAttachment(context, spaceId, fileId, fromTargetAuthorizer),
+    const file = await getFileFromAttachment(context, fileId, from);
 
-        // Make sure we have access to the new file authorizer.
-        //
-        // Allow skipping this authorization check. Useful if we're attaching a file to
-        // an entity that's about to be created. It's not even that dangerous to allow
-        // file attachments to an entity you don't have access to. An "attached" file
-        // isn't rendered unless the underlying entity references the file. If the
-        // actor can't update the underlying entity then the unused attached file will
-        // eventually be garbage collected away.
-        !dangerouslySkipToAuthorizeTargetAccess
-            ? toTargetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit")
-            : null,
-    ]);
+    if (!dangerouslySkipToAuthorizeTargetAccess) {
+        await to.authorizeTargetAccess(context, "Edit");
+    }
 
     await FilesTable.createOrReplaceItem(context, {
-        ...getFileAttachmentTargetItemKey(spaceId, fileId, toTargetAuthorizer.target),
+        ...getFileAttachmentTargetItemKey(fileId, to.target),
         createdTime: new Date(),
     });
 
@@ -1588,21 +1652,22 @@ export async function attachFileFromAttachment(
 }
 
 /**
- * Detach a file from the provided attachment target. Noop if the file
- * attachment doesn't exist but throws if the file doesn't exist.
+ * Detach a file from the provided attachment target. Noop if the file attachment
+ * doesn't exist but throws if the file doesn't exist.
  */
 export async function detachFile(
     context: ServerActionContext,
-    spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
 ): Promise<void> {
     // Make sure the file exists with the provided authorizer. This will call
     // `targetAuthorizer.authorizeTargetAccess()`.
-    await getFileFromAttachment(context, spaceId, fileId, targetAuthorizer, {accessLevel: "Edit"});
+    await getFileFromAttachment(context, fileId, targetAuthorizer, {
+        accessLevel: "Edit",
+    });
 
     await FilesTable.deleteItemWithKeyIfExists(context, {
-        ...getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
+        ...getFileAttachmentTargetItemKey(fileId, targetAuthorizer.target),
         createdTime: new Date(),
     });
 }
@@ -1618,13 +1683,13 @@ export async function getPostDraftFileAttachments(
     targetUnboundAuthorizer: FileAuthorizerUnbound<"Post">,
 ): Promise<Array<FileId>> {
     await targetUnboundAuthorizer
-        .bind({type: "PostDraft", accountId, draftId})
-        .authorizeTargetAccess(context, spaceId, "View");
+        .bind({type: "PostDraft", spaceId, accountId, draftId})
+        .authorizeTargetAccess(context, "View");
 
-    return arrayFromAsyncIterable(
+    return await arrayFromAsyncIterable(
         mapAsyncIterableIterator(
-            PostDraftFileAttachmentsIndex.query(context, {
-                partitionKey: {spaceId, accountId, draftId},
+            PostDraftFile2AttachmentsIndex.query(context, {
+                partitionKey: {accountId, draftId},
                 limit: "All",
             }),
             item => item.fileId,

@@ -1,36 +1,35 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove
- * features we don't use and customize the user experience. You can find the
- * original file in the `prosemirror-tables` package at:
+ * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove features
+ * we don't use and customize the user experience. You can find the original file
+ * in the `prosemirror-tables` package at:
  * https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/cellselection.ts
  *
  * The MIT License
  *
  * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-// This file defines a ProseMirror selection subclass that models
-// table cell selections. The table plugin needs to be active to wire
-// in the user interaction part of table selections (so that you
-// actually get such selections when you select across cells).
+// This file defines a ProseMirror selection subclass that models table cell
+// selections. The table plugin needs to be active to wire in the user interaction
+// part of table selections (so that you actually get such selections when you
+// select across cells).
 
 import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
 import {
@@ -58,12 +57,12 @@ export type ContentTableCellSelectionJson = {
 
 export class ContentTableCellSelection extends Selection {
     public override readonly visible = false;
-    // A resolved position pointing _in front of_ the anchor cell (the one
-    // that doesn't move when extending the selection).
+    // A resolved position pointing _in front of_ the anchor cell (the one that doesn't
+    // move when extending the selection).
     public readonly $anchorCell: ResolvedPos;
 
-    // A resolved position pointing in front of the head cell (the one
-    // moves when extending the selection).
+    // A resolved position pointing in front of the head cell (the one moves when
+    // extending the selection).
     public readonly $headCell: ResolvedPos;
 
     public readonly tablePos: number;
@@ -71,10 +70,9 @@ export class ContentTableCellSelection extends Selection {
     public readonly tableMap: ContentTableMap;
     public readonly tableRect: ContentTableMapRect;
 
-    // A table selection is identified by its anchor and head cells. The
-    // positions given to this constructor should point _before_ two
-    // cells in the same table. They may be the same, to select a single
-    // cell.
+    // A table selection is identified by its anchor and head cells. The positions
+    // given to this constructor should point _before_ two cells in the same table.
+    // They may be the same, to select a single cell.
     constructor($anchorCell: ResolvedPos, $headCell: ResolvedPos = $anchorCell) {
         const tablePos = $anchorCell.start(-1);
         const table = $anchorCell.node(-1);
@@ -86,8 +84,8 @@ export class ContentTableCellSelection extends Selection {
 
         const doc = $anchorCell.node(0);
         const cells = tableMap.cellsInRect(tableRect).filter(p => p != $headCell.pos - tablePos);
-        // Make the head cell the first range, so that it counts as the
-        // primary part of the selection
+        // Make the head cell the first range, so that it counts as the primary part of the
+        // selection
         cells.unshift($headCell.pos - tablePos);
         const ranges = cells.map(pos => {
             const cell = table.nodeAt(pos);
@@ -124,8 +122,7 @@ export class ContentTableCellSelection extends Selection {
         return TextSelection.between($anchorCell, $headCell);
     }
 
-    // Returns a rectangular slice of table rows containing the selected
-    // cells.
+    // Returns a rectangular slice of table rows containing the selected cells.
     public override content(): Slice {
         const rect = this.tableRect;
         const seen: Record<number, boolean> = {};
@@ -240,12 +237,11 @@ export class ContentTableCellSelection extends Selection {
 
     // NOTE(calebmer): We don't register the cell selection class with
     // `Selection.jsonID()`. Because our hot reloading implementation makes global
-    // registry patterns like the one used by `Selection.jsonID()` difficult (if
-    // not impossible) to work with. Since if we hot reload this file then
-    // `Selection.jsonID()` will be called twice for the type `"cell"` which throws
-    // an error. Instead if you're serializing a selection from JSON you should be
-    // using `ContentSelectionSchema` which has built-in knowledge of cell
-    // selections.
+    // registry patterns like the one used by `Selection.jsonID()` difficult (if not
+    // impossible) to work with. Since if we hot reload this file then
+    // `Selection.jsonID()` will be called twice for the type `"cell"` which throws an
+    // error. Instead if you're serializing a selection from JSON you should be using
+    // `ContentSelectionSchema` which has built-in knowledge of cell selections.
     public static override fromJSON(
         doc: Node,
         json: ContentTableCellSelectionJson,

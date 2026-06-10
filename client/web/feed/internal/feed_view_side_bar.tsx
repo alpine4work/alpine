@@ -9,6 +9,7 @@ import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useGlobalContext} from "~/client/web/helpers/global_context.js";
 import {useInitialAppRenderId} from "~/client/web/helpers/lifecycle/initial_app_render.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
@@ -17,11 +18,16 @@ import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {
+    useSearchEntityModel,
+    useSearchEntityRegistry,
+} from "~/client/web/search/core/search_entity_registry_context.js";
 import {updateSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
-    feedViewSideBarPaddingLeft,
+    feedViewSideBarPaddingX,
     feedViewSideBarSpaceNameFontSize,
     feedViewSideBarSpaceNameNegativeMarginBottom,
 } from "~/client/web/styles/feed_shared_styles.js";
@@ -35,6 +41,7 @@ import {
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -52,7 +59,10 @@ import {
     parseSearchAffinityEntityId,
     parseSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 
 export function FeedViewSideBar({
     height,
@@ -66,16 +76,17 @@ export function FeedViewSideBar({
     const spacingScale = useSpacingScale();
     const rpcCache = useGlobalContext(RpcCacheContext);
     const {space} = useSpaceContext();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const [randomSeed] = useState(() =>
         initialAppRenderId ? `${initialAppRenderId}-FeedViewSideBar` : generateId(),
     );
 
-    // Even though we've already loaded the affinity search from the server, we
-    // call `useLazyLoadRpc()` so that if you navigate away from the browser
-    // then navigate back the affinity list is re-fetched. Also any time you
-    // favorite/unfavorite something we revalidate the RPC cache for
-    // `searchByAffinity()` which will cause this component to re-render.
+    // Even though we've already loaded the affinity search from the server, we call
+    // `useLazyLoadRpc()` so that if you navigate away from the browser then navigate
+    // back the affinity list is re-fetched. Also any time you favorite/unfavorite
+    // something we revalidate the RPC cache for `searchByAffinity()` which will cause
+    // this component to re-render.
     const {output} = useLazyLoadRpc(
         searchByAffinity,
         {spaceId: space.id},
@@ -98,86 +109,110 @@ export function FeedViewSideBar({
             convertRemLengthToPx(feedViewSideBarSpaceNameNegativeMarginBottom, spacingScale));
 
     // We estimate the available height assuming there's at least one non-favorites
-    // section header. We won't know how many headers there actually are until
-    // after we check the contents of the first `estimatedVisibleResultCount`
-    // results and determine what groups we have.
+    // section header. We won't know how many headers there actually are until after we
+    // check the contents of the first `estimatedVisibleResultCount` results and
+    // determine what groups we have.
     const estimatedAvailableHeight =
         availableHeightWithoutSectionHeaders -
         (hasFavorites ? sectionHeaderHeight : 0) -
         sectionHeaderHeight;
 
-    // The feed search affinity list sidebar doesn't scroll. We render as many
-    // entities as will fit on the screen and that's it. The feed post list does,
-    // however, scroll.
+    // The feed search affinity list sidebar doesn't scroll. We render as many entities
+    // as will fit on the screen and that's it. The feed post list does, however,
+    // scroll.
     //
-    // The search affinity list doesn't scroll because I want mouse wheel events to
-    // be interpreted as scrolling the feed. Not the search affinity list. We could
-    // make the search affinity list and feed scrollable separately that's probably
-    // fine but I like that it's conceptually clean that there's no conflicting
-    // scrollbars on the home page.
+    // The search affinity list doesn't scroll because I want mouse wheel events to be
+    // interpreted as scrolling the feed. Not the search affinity list. We could make
+    // the search affinity list and feed scrollable separately that's probably fine but
+    // I like that it's conceptually clean that there's no conflicting scrollbars on
+    // the home page.
     const estimatedVisibleResultCount = Math.floor(
         estimatedAvailableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
     );
 
-    const peopleResults = [];
-    const suggestedResults = [];
+    const {peopleResults, suggestedResults} = useStore(
+        useMemo(() => {
+            return computeStore(get => {
+                const peopleResults = [];
+                const suggestedResults = [];
 
-    if (output) {
-        for (const result of sliceIterable(
-            output.results,
-            0,
-            estimatedVisibleResultCount - favoriteResults.length,
-        )) {
-            if (isSearchAffinityResultChatOrAccount(result)) {
-                peopleResults.push(result);
-            } else {
-                suggestedResults.push(result);
-            }
-        }
-    }
-
-    // We could have up to three section headers.
-    const availableHeight =
-        availableHeightWithoutSectionHeaders -
-        (hasFavorites ? sectionHeaderHeight : 0) -
-        (peopleResults.length > 0 ? sectionHeaderHeight : 0) -
-        (suggestedResults.length > 0 ? sectionHeaderHeight : 0);
-
-    const visibleResultCount = Math.floor(
-        availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
-    );
-
-    const visibleResultCountWithoutFavorites = Math.floor(
-        visibleResultCount - favoriteResults.length,
-    );
-
-    // Remove the result with the lowest score from the "People" and "Suggested"
-    // sections (not the "Favorites" section) until we have `visibleResultCount`
-    // items in total.
-    if (visibleResultCountWithoutFavorites > 0) {
-        while (
-            peopleResults.length + suggestedResults.length >
-            visibleResultCountWithoutFavorites
-        ) {
-            if (peopleResults.length === 0) {
-                suggestedResults.pop();
-            } else if (suggestedResults.length === 0) {
-                peopleResults.pop();
-            } else {
-                const lastPeopleResult = peopleResults[peopleResults.length - 1]!;
-                const lastSuggestedResult = suggestedResults[suggestedResults.length - 1]!;
-
-                if (lastPeopleResult.score < lastSuggestedResult.score) {
-                    peopleResults.pop();
-                } else {
-                    suggestedResults.pop();
+                if (output) {
+                    for (const result of sliceIterable(
+                        output.results,
+                        0,
+                        estimatedVisibleResultCount - favoriteResults.length,
+                    )) {
+                        if (
+                            isSearchAffinityResultDirectChatOrAccount(
+                                get,
+                                searchEntityRegistry,
+                                result,
+                            )
+                        ) {
+                            peopleResults.push(result);
+                        } else {
+                            suggestedResults.push(result);
+                        }
+                    }
                 }
-            }
-        }
-    }
+
+                // We could have up to three section headers.
+                const availableHeight =
+                    availableHeightWithoutSectionHeaders -
+                    (hasFavorites ? sectionHeaderHeight : 0) -
+                    (peopleResults.length > 0 ? sectionHeaderHeight : 0) -
+                    (suggestedResults.length > 0 ? sectionHeaderHeight : 0);
+
+                const visibleResultCount = Math.floor(
+                    availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
+                );
+
+                const visibleResultCountWithoutFavorites = Math.floor(
+                    visibleResultCount - favoriteResults.length,
+                );
+
+                // Remove the result with the lowest score from the "People" and "Suggested"
+                // sections (not the "Favorites" section) until we have `visibleResultCount` items
+                // in total.
+                if (visibleResultCountWithoutFavorites > 0) {
+                    while (
+                        peopleResults.length + suggestedResults.length >
+                        visibleResultCountWithoutFavorites
+                    ) {
+                        if (peopleResults.length === 0) {
+                            suggestedResults.pop();
+                        } else if (suggestedResults.length === 0) {
+                            peopleResults.pop();
+                        } else {
+                            const lastPeopleResult = peopleResults[peopleResults.length - 1]!;
+                            const lastSuggestedResult =
+                                suggestedResults[suggestedResults.length - 1]!;
+
+                            if (lastPeopleResult.score < lastSuggestedResult.score) {
+                                peopleResults.pop();
+                            } else {
+                                suggestedResults.pop();
+                            }
+                        }
+                    }
+                }
+
+                return {peopleResults, suggestedResults};
+            });
+        }, [
+            availableHeightWithoutSectionHeaders,
+            estimatedVisibleResultCount,
+            favoriteResults.length,
+            hasFavorites,
+            output,
+            searchEntityRegistry,
+            sectionHeaderHeight,
+            spacingScale,
+        ]),
+    );
 
     return (
-        <Box pointerEvents="auto" width="full" paddingLeft={feedViewSideBarPaddingLeft}>
+        <Box pointerEvents="auto" width="full" paddingX={feedViewSideBarPaddingX}>
             <Box
                 display="flex"
                 alignItems="center"
@@ -188,12 +223,8 @@ export function FeedViewSideBar({
                 <Box
                     fontStyle="truncate-bold"
                     fontSize={feedViewSideBarSpaceNameFontSize}
-                    style={{
-                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                        // have `min-width: auto` which extends with content.
-                        // https://stackoverflow.com/a/66689926/1568890
-                        minWidth: 0,
-                    }}
+                    minWidth="flex-fit"
+                    userSelect="text"
                 >
                     {space.name}
                 </Box>
@@ -210,11 +241,11 @@ export function FeedViewSideBar({
                         >
                             Favorites
                             {hasMoreFavoriteResults && (
-                                // Intentionally using [U+2219 (bullet operator)][1] instead of
-                                // [U+2022 (bullet)][2] since the former is thinner.
+                                // Intentionally using [U+2219 (bullet operator)][1] instead of [U+2022
+                                // (bullet)][2] since the former is thinner.
                                 //
-                                // A bullet separator here is nicer than parentheses like "(see all)"
-                                // since the parentheses draw a lot of attention.
+                                // A bullet separator here is nicer than parentheses like "(see all)" since the
+                                // parentheses draw a lot of attention.
                                 //
                                 // [1]: https://graphemica.com/%E2%88%99
                                 // [2]: https://graphemica.com/%E2%80%A2
@@ -239,7 +270,7 @@ export function FeedViewSideBar({
                                     });
 
                                     // This is very race condition prone. But it's good enough for this
-                                    // non-collaborative use case. *Shrug*
+                                    // non-collaborative use case. _Shrug_
                                     updateSearchFavoriteEntityMenuAction(
                                         space.id,
                                         result.id,
@@ -334,6 +365,7 @@ function FeedSearchAffinityView({
     const {space} = useSpaceContext();
     const activeContextMenuActions = useContextMenuActions();
     const peekStackContext = usePeekStackContext();
+    const entityData = useSearchEntityModel(result.model);
 
     const [isPendingNavigation, setIsPendingNavigation] = useState(false);
 
@@ -343,7 +375,7 @@ function FeedSearchAffinityView({
 
             const path = getSearchEntityPath({
                 spaceId: space.id,
-                entityId: result.id,
+                entityData,
                 randomSeed,
                 currentTime: new Date(),
                 routeLayout: "wide",
@@ -351,32 +383,39 @@ function FeedSearchAffinityView({
 
             setIsPendingNavigation(true);
 
-            // When clicking on a path from the feed sidebar, fully navigate the app to
-            // that thing. Don't open it in a peek. The home page is your entrypoint into
-            // the rest of the product. You won't be doing much work on the home page so we
-            // don't need to open a peek that keeps you in context.
+            // When clicking on a path from the feed sidebar, fully navigate the app to that
+            // thing. Don't open it in a peek. The home page is your entrypoint into the rest
+            // of the product. You won't be doing much work on the home page so we don't need
+            // to open a peek that keeps you in context.
             //
             // If the user is holding shift then open in a peek.
             //
-            // Chats and tasks always open in a peek. Because they're small and don't use
-            // the fullscreen space effectively, so better to keep them in a peek.
+            // Chats and tasks always open in a peek. Because they're small and don't use the
+            // fullscreen space effectively, so better to keep them in a peek.
             const shouldOpenInPeek = event.shiftKey || shouldOpenSearchAffinityResultInPeek(result);
 
             void navigate(path, {stopPropagation: !shouldOpenInPeek})
                 .then(() => {
                     // Whenever the user selects a suggested (or favorite) result, we record a high
-                    // intent affinity interaction. This is because the user opening a result from
-                    // the feed view sidebar is super high signal that this is an entity they care
-                    // about. In this way the suggested list is a self reinforcing system. The more
-                    // a user selects an entity, the higher the entity will appear in the user's
-                    // next search.
+                    // intent affinity interaction. This is because the user opening a result from the
+                    // feed view sidebar is super high signal that this is an entity they care about.
+                    // In this way the suggested list is a self reinforcing system. The more a user
+                    // selects an entity, the higher the entity will appear in the user's next search.
                     markSearchAffinityEntityInteraction(context, {
                         spaceId: space.id,
                         entityId: result.id,
                         interaction: {type: "HighIntentUpdate"},
+                        // We don't add afinity points to the site when user clicks on a search entity in
+                        // the sidebar. At click-time, the user doesn't know anything about the site the
+                        // entity may or may not belong to. Adding points to the site could potentially
+                        // lead to a suggested entity with which the user has never really interacted.
+                        //
+                        // The entity's own view-time affinity hook will fire once they land on it (with a
+                        // known siteId), so entity engagement within a site still cascades to the site.
+                        siteId: null,
                     }).catch(error => {
-                        // Silently fail. This doesn't affect anything the user sees so we don't need
-                        // to report the error to the user.
+                        // Silently fail. This doesn't affect anything the user sees so we don't need to
+                        // report the error to the user.
                         reporter.logErrorWithoutDisplaying(
                             "Couldn\u2019t mark search result select affinity interaction",
                             error,
@@ -413,7 +452,7 @@ function FeedSearchAffinityView({
             onPress: async () => {
                 const path = getSearchEntityPath({
                     spaceId: space.id,
-                    entityId: result.id,
+                    entityData,
                     randomSeed,
                     currentTime: new Date(),
                     routeLayout: "wide",
@@ -429,7 +468,7 @@ function FeedSearchAffinityView({
             onPress: async () => {
                 const path = getSearchEntityPath({
                     spaceId: space.id,
-                    entityId: result.id,
+                    entityData,
                     randomSeed,
                     currentTime: new Date(),
                     routeLayout: "wide",
@@ -464,9 +503,19 @@ function FeedSearchAffinityView({
         <ContextMenuActions actions={contextMenuActions}>
             <Box
                 {...pressProps}
-                paddingX={searchEntityViewDefaultPaddingX}
-                backgroundColor={isPressed || hasActiveContextMenu ? "grey-10" : undefined}
+                paddingLeft={searchEntityViewDefaultPaddingX}
+                backgroundColor={isPressed || hasActiveContextMenu ? "grey-5" : undefined}
                 borderRadius="1.5"
+                // Don't extend to 100% width, instead fit whatever the title is. It feels weird to
+                // click in open space and have that activate a suggested search entity. In other
+                // surfaces where we show feed entities there's a clear right border so it makes
+                // more sense the click target would extend to the end of that border.
+                width="fit-content"
+                style={{
+                    // We use slightly more `paddingRight` so that the full entity looks visually
+                    // balanced.
+                    paddingRight: addRemLengths(searchEntityViewDefaultPaddingX, "1"),
+                }}
             >
                 <SearchAffinityEntityView result={result} lineClamp={1} />
             </Box>
@@ -487,7 +536,7 @@ function FeedViewFavoritesHeaderSeeMoreButton() {
             runPromiseWithoutAwaiting(async () => {
                 setIsPending(true);
                 try {
-                    navigate(`/s/${space.id}/favorites`);
+                    navigate(`/favorites/${space.id}`);
                 } finally {
                     setIsPending(false);
                 }
@@ -499,8 +548,8 @@ function FeedViewFavoritesHeaderSeeMoreButton() {
         <Box
             {...pressProps}
             display="inline"
-            // We don't usually use a pointer cursor for pressable things but in this case
-            // it's not obvious this text is interactive without it.
+            // We don't usually use a pointer cursor for pressable things but in this case it's
+            // not obvious this text is interactive without it.
             cursor="pointer"
             opacity={isPressed ? "60" : undefined}
             paddingX="1"
@@ -514,12 +563,29 @@ function FeedViewFavoritesHeaderSeeMoreButton() {
     );
 }
 
-function isSearchAffinityResultChatOrAccount(result: SearchAffinityEntityResultModel): boolean {
+function isSearchAffinityResultDirectChatOrAccount(
+    get: <Value>(store: Store<Value>) => Value,
+    searchEntityRegistry: SearchEntityRegistry,
+    result: SearchAffinityEntityResultModel,
+): boolean {
     if (!isSearchDynamicEntityId(result.id)) return false;
 
     const {type: entityType} = parseSearchDynamicEntityId(result.id);
 
-    return entityType === "Chat" || entityType === "Account";
+    if (entityType === "Account") return true;
+
+    if (entityType === "Chat" && result.model instanceof SearchEntityModel) {
+        const entity = get(searchEntityRegistry.getEntityStore(result.model));
+        assert(entity.type === "Chat");
+
+        // HACK: Room chats have a null `accountCount` whereas direct chats have an integer
+        // `accountCount`. So check `accountCount === null` to tell if this is a room chat.
+        if (entity.chat.media?.type === "AccountPile" && entity.chat.media.accountCount !== null) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function shouldOpenSearchAffinityResultInPeek(result: SearchAffinityEntityResultModel): boolean {
@@ -536,6 +602,7 @@ function shouldOpenSearchAffinityResultInPeek(result: SearchAffinityEntityResult
         case "Document":
         case "Channel":
         case "TaskCollection":
+        case "Site":
             return false;
         default:
             throw exhaustive(entityType);

@@ -34,8 +34,8 @@ const initialOverlayAnimatedState: OverlayAnimatedState = {
 };
 
 /**
- * Same as the `<Overlay>` component but we animate the overlay in and out when
- * the `visible` prop changes.
+ * Same as the `<Overlay>` component but we animate the overlay in and out when the
+ * `visible` prop changes.
  *
  * So when you pass in `visible` false the overlay may still be rendered for a
  * couple milliseconds. You may use `disableAnimation` on this component if you
@@ -55,8 +55,8 @@ function OverlayAnimated(
         ...props
     }: OverlayProps & {
         /**
-         * Should disable the animation. The `visible` prop will be what's passed to
-         * the underlying overlay component.
+         * Should disable the animation. The `visible` prop will be what's passed to the
+         * underlying overlay component.
          *
          * Defaults to `false`.
          */
@@ -78,15 +78,15 @@ function OverlayAnimated(
 
         /**
          * The `zIndex` to use for the overlay wrapper `<div>`. Setting `zIndex` on the
-         * element you pass into `overlay` won't work since there's a wrapper `<div>`
-         * added by `<OverlayAnimated>`.
+         * element you pass into `overlay` won't work since there's a wrapper `<div>` added
+         * by `<OverlayAnimated>`.
          */
         overlayZIndex?: Sprinkles["zIndex"];
 
         /**
          * The `pointerEvents` to use for the overlay wrapper `<div>`. Setting
-         * `pointerEvents` on the element you pass into `overlay` won't work since
-         * there's a wrapper `<div>` added by `<OverlayAnimated>`.
+         * `pointerEvents` on the element you pass into `overlay` won't work since there's
+         * a wrapper `<div>` added by `<OverlayAnimated>`.
          */
         overlayPointerEvents?: Sprinkles["pointerEvents"];
 
@@ -133,10 +133,9 @@ function OverlayAnimated(
     const overlayContainerRef = useRef<HTMLDivElement>(null);
     const overlayRef = useRef<HTMLElement>(null);
 
-    // We need this intermediate `<div>` because our animation uses CSS `translate`
-    // but `<Overlay>` also sets CSS `translate` to position the overlay. So
-    // `<Overlay>` will translate this intermediate `<div>` and we'll animate the
-    // child.
+    // We need this intermediate `<div>` because our animation uses CSS `translate` but
+    // `<Overlay>` also sets CSS `translate` to position the overlay. So `<Overlay>`
+    // will translate this intermediate `<div>` and we'll animate the child.
     const overlay = (
         <div
             ref={overlayContainerRef}
@@ -172,14 +171,13 @@ function OverlayAnimated(
 
     const fadeOutAnimationRef = useRef<AnimationPlaybackControls | null>(null);
 
-    // NOTE(calebmer, #mobile-webkit-weirdness): Implement fade out animation with
-    // the `motion` package. I've observed CSS class based animations randomly stop
-    // working on mobile WebKit after ~3min of app use. Implementing the animation
-    // with `motion` fixes the issue. I have no idea why it fixes the issue, but it
-    // does.
+    // NOTE(calebmer, #mobile-webkit-weirdness): Implement fade out animation with the
+    // `motion` package. I've observed CSS class based animations randomly stop working
+    // on mobile WebKit after ~3min of app use. Implementing the animation with
+    // `motion` fixes the issue. I have no idea why it fixes the issue, but it does.
     //
-    // Adding `allowWebkitAcceleration: true` breaks the animation again.
-    // Interestingly translation will work but the opacity change won't work.
+    // Adding `allowWebkitAcceleration: true` breaks the animation again. Interestingly
+    // translation will work but the opacity change won't work.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!state.isAnimating || state.isVisible) {
             if (state.isVisible) {
@@ -194,11 +192,26 @@ function OverlayAnimated(
         if (fadeOutAnimationRef.current !== null) {
             let isCancelled = false;
 
-            void fadeOutAnimationRef.current.finished.finally(() => {
+            const run = () => {
                 if (isCancelled) return;
                 fadeOutAnimationRef.current = null;
                 setState(prevState => ({...prevState, isAnimating: false}));
-            });
+            };
+
+            // NOTE(calebmer, 2026-03-20): Annoyingly, it looks like Playwright with faked
+            // clocks (`page.clock.install()`) doesn't run the `finally()` callback of Motion
+            // promises. So we never set `isAnimating: false` when closing overlays which means
+            // the overlay stays open. Work around this by using `setTimeout()` in integration
+            // tests.
+            if (process.env.NODE_ENV !== "production" && (globalThis as any).__isIntegrationTest) {
+                setTimeout(
+                    run,
+                    (fadeOutAnimationRef.current.duration - fadeOutAnimationRef.current.time) *
+                        1000,
+                );
+            } else {
+                void fadeOutAnimationRef.current.finished.finally(run);
+            }
 
             return () => {
                 isCancelled = true;
@@ -212,9 +225,9 @@ function OverlayAnimated(
         if (animateOut) {
             let isCancelled = false;
 
-            // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is
-            // [quite choppy on iOS Safari][1]. I have no idea why adding this helps.
-            // My best guess is the animation is being blocked by some JavaScript code?
+            // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is [quite
+            // choppy on iOS Safari][1]. I have no idea why adding this helps. My best guess is
+            // the animation is being blocked by some JavaScript code?
             //
             // [1]: https://gist.github.com/calebmer/ab71d37aa8ebf3866043882ad17d32ca
             requestAnimationFrame(() => {
@@ -279,9 +292,9 @@ function OverlayAnimated(
 
         let isCancelled = false;
 
-        // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is
-        // [quite choppy on iOS Safari][1]. I have no idea why adding this helps.
-        // My best guess is the animation is being blocked by some JavaScript code?
+        // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is [quite
+        // choppy on iOS Safari][1]. I have no idea why adding this helps. My best guess is
+        // the animation is being blocked by some JavaScript code?
         //
         // [1]: https://gist.github.com/calebmer/ab71d37aa8ebf3866043882ad17d32ca
         requestAnimationFrame(() => {
@@ -292,11 +305,26 @@ function OverlayAnimated(
                 ease: parseCubicBezier(overlayFadeInOutTimingFunction),
             });
 
-            void fadeOutAnimationRef.current.finished.finally(() => {
+            const run = () => {
                 if (isCancelled) return;
                 fadeOutAnimationRef.current = null;
                 setState(prevState => ({...prevState, isAnimating: false}));
-            });
+            };
+
+            // NOTE(calebmer, 2026-03-20): Annoyingly, it looks like Playwright with faked
+            // clocks (`page.clock.install()`) doesn't run the `finally()` callback of Motion
+            // promises. So we never set `isAnimating: false` when closing overlays which means
+            // the overlay stays open. Work around this by using `setTimeout()` in integration
+            // tests.
+            if (process.env.NODE_ENV !== "production" && (globalThis as any).__isIntegrationTest) {
+                setTimeout(
+                    run,
+                    (fadeOutAnimationRef.current.duration - fadeOutAnimationRef.current.time) *
+                        1000,
+                );
+            } else {
+                void fadeOutAnimationRef.current.finished.finally(run);
+            }
         });
 
         return () => {
@@ -323,11 +351,12 @@ function OverlayAnimated(
             // For example, in `<PostContentView>` when you add/remove a reaction the
             // `<ReactionButton>` shifts to make way for the reaction party. When you
             // add/remove a reaction that also starts the `<ReactionRadialPicker>` exit
-            // animation. We don't want the `<ReactionRadialPicker>` to shift at the start
-            // of its exit animation! We want the `<ReactionRadialPicker>` to stay in its
-            // old position. [Demo video][1].
+            // animation. We don't want the `<ReactionRadialPicker>` to shift at the start of
+            // its exit animation! We want the `<ReactionRadialPicker>` to stay in its old
+            // position. [Demo video][1].
             //
-            // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/t2r2edbxjmnbsrzcv3c9d6ff2c
+            // [1]:
+            //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/t2r2edbxjmnbsrzcv3c9d6ff2c
             withPreviousPosition={!state.isVisible && state.isAnimating}
             overlay={overlay}
         />

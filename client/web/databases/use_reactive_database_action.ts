@@ -12,16 +12,13 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 
 /**
- * Subscribes to a reactive (watched) action on the
- * current database connection. Returns `null` while the
- * action is being set up, then a result that auto-updates
+ * Subscribes to a reactive (watched) action on the current database connection.
+ * Returns `null` while the action is being set up, then a result that auto-updates
  * whenever the underlying data changes.
  *
- * Pass `null` for `input` to skip the subscription.
- * When `initialData` is provided and its action name and
- * input match the current subscription (deep equality),
- * the initial output is returned while the reactive
- * subscription boots up.
+ * Pass `null` for `input` to skip the subscription. When `initialData` is provided
+ * and its action name and input match the current subscription (deep equality),
+ * the initial output is returned while the reactive subscription boots up.
  */
 export function useReactiveDatabaseAction<N extends DatabaseActionName>(options: {
     name: N;

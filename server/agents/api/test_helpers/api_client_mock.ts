@@ -9,8 +9,8 @@ import {
     ApiTaskCollection,
     ApiTaskResponse,
     ApiTaskWithoutContent,
-} from "~/shared/api/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -71,9 +71,9 @@ type RequestRecord = {
 };
 
 /**
- * If you provide a matcher, the mock will only return data if the request is an exact match.
- * If you don't provide a matcher, the mock will return data for the requested path in the order
- * in which you created the mock.
+ * If you provide a matcher, the mock will only return data if the request is an
+ * exact match. If you don't provide a matcher, the mock will return data for the
+ * requested path in the order in which you created the mock.
  */
 // Spy configuration - auto-returns {data: undefined} for matching paths
 type SpyConfig = {
@@ -94,10 +94,10 @@ export class ApiClientMock implements ApiClient {
     }
 
     /**
-     * Configure a mock response for a GET request
-     * @param path - The API path (e.g. "/chats/{id}/messages/{index}")
-     * @param responses - Array of responses to return on successive calls
-     * @param params - Optional params to match (if provided, only matches exact params)
+     * Configure a mock response for a GET request @param path - The API path (e.g.
+     * "/chats/{id}/messages/{index}") @param responses - Array of responses to return
+     * on successive calls @param params - Optional params to match (if provided, only
+     * matches exact params)
      */
     mockGet<Path extends PathsWithMethod<ApiSpecification.paths, "get">>(
         path: Path,
@@ -152,8 +152,8 @@ export class ApiClientMock implements ApiClient {
     }
 
     /**
-     * Register a path to spy on. Calls to this path will be recorded in request history
-     * and auto-return {data: undefined} without needing an explicit mock.
+     * Register a path to spy on. Calls to this path will be recorded in request
+     * history and auto-return {data: undefined} without needing an explicit mock.
      * Useful for endpoints like stream parts, pings, and completions.
      */
     spy(method: HttpMethod, path: string): void {
@@ -176,23 +176,23 @@ export class ApiClientMock implements ApiClient {
 
     // Implement ApiClient interface
     get: ApiClient["get"] = async (tracer, url, options) => {
-        return this.handleRequest("GET", tracer, url, options);
+        return await this.handleRequest("GET", tracer, url, options);
     };
 
     put: ApiClient["put"] = async (tracer, url, options) => {
-        return this.handleRequest("PUT", tracer, url, options);
+        return await this.handleRequest("PUT", tracer, url, options);
     };
 
     post: ApiClient["post"] = async (tracer, url, options) => {
-        return this.handleRequest("POST", tracer, url, options);
+        return await this.handleRequest("POST", tracer, url, options);
     };
 
     delete: ApiClient["delete"] = async (tracer, url, options) => {
-        return this.handleRequest("DELETE", tracer, url, options);
+        return await this.handleRequest("DELETE", tracer, url, options);
     };
 
     patch: ApiClient["patch"] = async (tracer, url, options) => {
-        return this.handleRequest("PATCH", tracer, url, options);
+        return await this.handleRequest("PATCH", tracer, url, options);
     };
 
     private async handleRequest(
@@ -259,7 +259,7 @@ export class ApiClientMock implements ApiClient {
     private findMatchingMock(
         method: HttpMethod,
         path: string,
-        params?: unknown,
+        params?: any,
     ): MockConfig | undefined {
         return this.mockConfigs.find(config => {
             // Method must match
@@ -357,8 +357,8 @@ export class ApiClientMock implements ApiClient {
             nextCursor?: number | null;
             messages?: Array<ApiMessageResponse>;
         },
-        // If you don't provide this, it'll match any page info in the order that you
-        // call the mock.
+        // If you don't provide this, it'll match any page info in the order that you call
+        // the mock.
         pageInfo?: {
             from?: "start" | "end";
             // undefined means the query is starting at the begining of the list of comments
@@ -395,7 +395,12 @@ export class ApiClientMock implements ApiClient {
     mockGetDocument(
         spaceId: SpaceId,
         documentId: DocumentId,
-        responseData: Partial<{creatorId: AccountId; title: string; content: ApiContentResponse}>,
+        responseData: Partial<{
+            creatorId: AccountId;
+            title: string;
+            content: ApiContentResponse;
+            version: number;
+        }>,
     ): void {
         documentId ??= generateId<DocumentId>();
         spaceId ??= generateId<SpaceId>();
@@ -413,6 +418,7 @@ export class ApiClientMock implements ApiClient {
                         id: documentId,
                         title: responseData.title ?? "Test Document",
                         content: responseData.content ?? defaultContent,
+                        version: responseData.version ?? 1,
                     },
                     spaceId,
                 },
@@ -529,8 +535,8 @@ export class ApiClientMock implements ApiClient {
             nextCursor?: number | null;
             messages?: Array<ApiMessageResponse>;
         },
-        // If you don't provide this, it'll match any page info in the order that you
-        // call the mock.
+        // If you don't provide this, it'll match any page info in the order that you call
+        // the mock.
         pageInfo?: {
             from?: "start" | "end";
             // undefined means the query is starting at the begining of the list of comments
@@ -648,7 +654,7 @@ export class ApiClientMock implements ApiClient {
             {
                 data: {
                     spaceId,
-                    taskCollection: {
+                    collection: {
                         id: collectionId,
                         name: responseData.name ?? "Test Task Collection",
                     },

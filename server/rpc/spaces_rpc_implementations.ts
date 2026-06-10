@@ -37,25 +37,37 @@ export default implementRpcs(definitions, {
                 ),
             ]);
 
-            const sortedIndexByAccountId = new Map<AccountId, number>();
-            for (let i = 0; i < sortedAccountIds.length; i++) {
-                sortedIndexByAccountId.set(sortedAccountIds[i]!, i);
+            const pointsByAccountId = new Map<AccountId, number>();
+            for (const {id, points} of sortedAccountIds) {
+                pointsByAccountId.set(id, points);
             }
 
             const sortedAccounts = [...accounts].sort((account1, account2) => {
-                const sortedIndex1 = sortedIndexByAccountId.get(account1.id);
-                const sortedIndex2 = sortedIndexByAccountId.get(account2.id);
+                const points1 = pointsByAccountId.get(account1.id);
+                const points2 = pointsByAccountId.get(account2.id);
 
-                if (sortedIndex1 !== undefined && sortedIndex2 !== undefined)
-                    return sortedIndex1 - sortedIndex2;
+                if (points1 !== undefined && points2 !== undefined) return points2 - points1;
 
-                if (sortedIndex1 !== undefined && sortedIndex2 === undefined) return -1;
-                if (sortedIndex1 === undefined && sortedIndex2 !== undefined) return 1;
+                if (points1 !== undefined && points2 === undefined) return -1;
+                if (points1 === undefined && points2 !== undefined) return 1;
 
                 return account1.initialData.name.localeCompare(account2.initialData.name);
             });
 
-            return {accounts: sortedAccounts};
+            const affinityPoints: Array<number> = [];
+
+            // Collect all affinity points then stop at the first account that doesn't have
+            // affinity points.
+            for (const account of sortedAccounts) {
+                const points = pointsByAccountId.get(account.id);
+                if (points !== undefined) {
+                    affinityPoints.push(points);
+                } else {
+                    break;
+                }
+            }
+
+            return {accounts: sortedAccounts, affinityPoints};
         },
     },
 
@@ -78,7 +90,7 @@ export default implementRpcs(definitions, {
     addSpaceAccount: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const account = await addSpaceAccount(context, input);
+            const account = await addSpaceAccount(context.actor.authorizeSession(), input);
             return {account};
         },
     },
@@ -93,8 +105,8 @@ export default implementRpcs(definitions, {
             const [spaces, inboxes] = await runAllPromises([
                 runAllPromises(
                     Array.from(spaceIds, async spaceId => {
-                        // In case we read stale a stale list of `SpaceId`s that includes a space we
-                        // lost access to.
+                        // In case we read stale a stale list of `SpaceId`s that includes a space we lost
+                        // access to.
                         const spaceResult = await getSpaceIfPossible(context, spaceId);
 
                         if (!spaceResult) return null;
@@ -162,8 +174,9 @@ export default implementRpcs(definitions, {
     updateSpaceAccountRole: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            // The updateSpaceAccountRole function from spaces_table.ts will handle all permission
-            // checks (actor is owner/admin, target is not owner, etc.) and the actual update.
+            // The updateSpaceAccountRole function from spaces_table.ts will handle all
+            // permission checks (actor is owner/admin, target is not owner, etc.) and the
+            // actual update.
             const account = await updateSpaceAccountRole(context.actor.authorizeSession(), {
                 spaceId: input.spaceId,
                 accountId: input.accountId,
@@ -197,9 +210,11 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const {
                 accounts,
+                affinityPoints,
                 invalidEmailAddresses,
                 rejectedAsSpamEmailAddresses,
                 alreadyMemberEmailAddresses,
+                requiresAdminAccessEmailAddresses,
                 unexpectedFailureEmailAddresses,
             } = await inviteEmailAddressesToSpace(context.actor.authorizeSession(), {
                 emailAddresses: input.emailAddresses,
@@ -207,10 +222,14 @@ export default implementRpcs(definitions, {
             });
             return {
                 accounts,
+                affinityPoints,
                 errors: {
-                    invalidEmailAddresses,
-                    rejectedAsSpamEmailAddresses,
-                    alreadyMemberEmailAddresses,
+                    invalidEmailAddresses: Array.from(invalidEmailAddresses),
+                    rejectedAsSpamEmailAddresses: Array.from(rejectedAsSpamEmailAddresses),
+                    alreadyMemberEmailAddresses: Array.from(alreadyMemberEmailAddresses.keys()),
+                    requiresAdminAccessEmailAddresses: Array.from(
+                        requiresAdminAccessEmailAddresses,
+                    ),
                     unexpectedFailureEmailAddresses,
                 },
             };

@@ -26,19 +26,18 @@ import {
 
 export const taskAnimationDurationMs = 100;
 
-// HACK(calebmer): Hackishly get the constructor for a
-// `functional-red-black-tree` iterator so we can construct it since there's
-// not an official API. This happens to be a tiny bit more efficient than
-// calling `tree.find()` with the node returned from `search()` given we
-// already know the node stack.
+// HACK(calebmer): Hackishly get the constructor for a `functional-red-black-tree`
+// iterator so we can construct it since there's not an official API. This happens
+// to be a tiny bit more efficient than calling `tree.find()` with the node
+// returned from `search()` given we already know the node stack.
 const unsafe_TreeIterator: {
     new <K, V>(tree: Tree<K, V>, stack: Array<TreeNode<K, V>>): TreeIterator<K, V>;
 } = createTree().begin.constructor as any;
 
 /**
  * Tree of tasks that will be rendered by a task virtualized grid view. Parent
- * tasks may have expanded child tasks and those child tasks may themselves
- * have expanded children. This naturally forms a tree.
+ * tasks may have expanded child tasks and those child tasks may themselves have
+ * expanded children. This naturally forms a tree.
  *
  * `<VirtualizedScrollView>` needs a flat list so we wrap this with
  * `TaskGridViewVirtualizedList` which provides a flat interface to the tree.
@@ -74,24 +73,24 @@ function createTaskGridViewVirtualizedTaskTree(
     return flatMapTreeStoreValues(query.taskOrderStore, (_null, cursor) => {
         const taskId = getTaskQuerySortCursorTaskId(cursor);
 
-        // It's a rare edge case but it is possible for there to be a temporary cycle
-        // among task children. If we detect a child task with the same `TaskId` as our
-        // root task that means we have a cycle. Break it by returning a null store.
+        // It's a rare edge case but it is possible for there to be a temporary cycle among
+        // task children. If we detect a child task with the same `TaskId` as our root task
+        // that means we have a cycle. Break it by returning a null store.
         if (parents.length > 0 && getTaskQuerySortCursorTaskId(parents[0]!.cursor) === taskId) {
             return nullStore;
         }
 
-        // Don't allow expanding tasks infinitely. You must open the task to see
-        // subtasks after this depth.
+        // Don't allow expanding tasks infinitely. You must open the task to see subtasks
+        // after this depth.
         if (parents.length >= maxGridExpandableTaskDepth) {
             return nullStore;
         }
 
         const newParents = [...parents, {query, cursor}];
 
-        // IMPORTANT: We are being very careful here to avoid taking a dependency
-        // on anything that would cause the entire task order tree to invalidate should
-        // it update. Try to avoid adding any such dependencies for common operations.
+        // IMPORTANT: We are being very careful here to avoid taking a dependency on
+        // anything that would cause the entire task order tree to invalidate should it
+        // update. Try to avoid adding any such dependencies for common operations.
 
         return getAreChildTasksExpandedStore(
             newParents.map(({cursor}) => getTaskQuerySortCursorTaskId(cursor)),
@@ -230,14 +229,14 @@ assertAssignableTypes<
  * `<VirtualizedScrollView>`. While tasks form a naturally nested structure, we
  * need to flatten them for virtualization.
  *
- * This class only contains the actual tasks in the grid view. Not the ghost
- * tasks or decorative tasks like `useTaskGridViewVirtualizedList()`.
+ * This class only contains the actual tasks in the grid view. Not the ghost tasks
+ * or decorative tasks like `useTaskGridViewVirtualizedList()`.
  *
- * This class's implementation is derived from `VirtualizedTree`. It didn't
- * make sense to use `VirtualizedTree` itself because order was determined by
- * `OrderKey`s (and we want to use `TaskQuerySortCursor`) but we're using the
- * same subtree item count caching technique to make re-rendering after a
- * change O(log(n)) instead of O(n).
+ * This class's implementation is derived from `VirtualizedTree`. It didn't make
+ * sense to use `VirtualizedTree` itself because order was determined by
+ * `OrderKey`s (and we want to use `TaskQuerySortCursor`) but we're using the same
+ * subtree item count caching technique to make re-rendering after a change
+ * O(log(n)) instead of O(n).
  */
 export class TaskGridViewVirtualizedListState {
     private readonly _tree: TaskGridViewVirtualizedTaskTree | null;
@@ -266,8 +265,8 @@ export class TaskGridViewVirtualizedListState {
         getAreChildTasksExpandedStore: (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>,
         maxGridExpandableTaskDepth: number,
     ): Store<TaskGridViewVirtualizedListState> {
-        // Share the item count subtree cache across all virtualized lists that
-        // are created.
+        // Share the item count subtree cache across all virtualized lists that are
+        // created.
         const itemCountSubtreeCache = new WeakMap<
             TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>,
             number
@@ -290,15 +289,15 @@ export class TaskGridViewVirtualizedListState {
     /**
      * Get the number of items in the provided subtree.
      *
-     * WARNING: If you want to get the count of all items before the node you
-     * are looking at, do not use `_getSubtreeItemCount(iterator.node.left)`,
-     * instead use `_getPreviousItemCount(iterator)`. The former does not count
-     * items in parent nodes.
+     * WARNING: If you want to get the count of all items before the node you are
+     * looking at, do not use `_getSubtreeItemCount(iterator.node.left)`, instead use
+     * `_getPreviousItemCount(iterator)`. The former does not count items in parent
+     * nodes.
      *
      * This function is cached and takes advantage of the structural sharing in our
-     * binary tree. When the tree is updated, some subtrees are left untouched so
-     * we maintain the cached value for those subtrees. Running this function on a
-     * new tree is O(n) but running this function on an updated tree is O(log(n)).
+     * binary tree. When the tree is updated, some subtrees are left untouched so we
+     * maintain the cached value for those subtrees. Running this function on a new
+     * tree is O(n) but running this function on an updated tree is O(log(n)).
      */
     private _getSubtreeItemCount(
         node: TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null> | null,
@@ -334,8 +333,7 @@ export class TaskGridViewVirtualizedListState {
     }
 
     /**
-     * Get the item count of all entries before the node the iterator is
-     * looking at.
+     * Get the item count of all entries before the node the iterator is looking at.
      */
     private _getPreviousItemCount(
         query: TaskClientQuery,
@@ -377,8 +375,8 @@ export class TaskGridViewVirtualizedListState {
     }
 
     /**
-     * If the provided `TaskQuerySortCursor` exists in our state at the root level
-     * then return the index corresponding to the task. Otherwise return null.
+     * If the provided `TaskQuerySortCursor` exists in our state at the root level then
+     * return the index corresponding to the task. Otherwise return null.
      */
     public getIndexByRootCursorIfExists(cursor: TaskQuerySortCursor): number | null {
         if (!this._tree) return null;
@@ -389,8 +387,8 @@ export class TaskGridViewVirtualizedListState {
 
     /**
      * If a task with the provided cursor within parents with the provided cursors
-     * exists in our state then return the index corresponding to the task.
-     * Otherwise return null.
+     * exists in our state then return the index corresponding to the task. Otherwise
+     * return null.
      */
     public getIndexByCursorAndParentsIfExists({
         parents,
@@ -408,8 +406,8 @@ export class TaskGridViewVirtualizedListState {
         for (const parent of parents) {
             if (!tree) return null;
 
-            // Safe guard so we don't end up comparing cursors from different queries
-            // (which may cause assertion failures).
+            // Safe guard so we don't end up comparing cursors from different queries (which
+            // may cause assertion failures).
             if (tree.query !== parent.query) return null;
 
             const iterator = tree.tasks.find(parent.cursor);
@@ -450,10 +448,10 @@ export class TaskGridViewVirtualizedListState {
      * this list's bounds you'll get an error.
      *
      * When you first call this function we perform an O(log(n)) binary search to
-     * determine the right item. Afterwards if you iterate forward one item at a
-     * time (`getItem(n + 1)`) we internally hold an iterator so subsequent calls
-     * can be O(1). Iterating backwards (`getItem(n - 1)`) is not optimized and
-     * will be O(log(n)).
+     * determine the right item. Afterwards if you iterate forward one item at a time
+     * (`getItem(n + 1)`) we internally hold an iterator so subsequent calls can be
+     * O(1). Iterating backwards (`getItem(n - 1)`) is not optimized and will be
+     * O(log(n)).
      */
     public getItem(itemIndex: number): TaskGridViewVirtualizedListStateItem {
         if (this._iterator) {
@@ -625,8 +623,8 @@ export class TaskGridViewVirtualizedListState {
                     const animation: TaskGridViewVirtualizedListAnimation = {
                         type: "Create",
                         startTime,
-                        // If a task has some children, allow the animation to take a little longer but
-                        // not too long.
+                        // If a task has some children, allow the animation to take a little longer but not
+                        // too long.
                         duration: taskAnimationDurationMs * (1 + Math.min(newChildrenCount, 1)),
                         kind: "Task",
                         taskId: getTaskQuerySortCursorTaskId(key),
@@ -659,8 +657,8 @@ export class TaskGridViewVirtualizedListState {
                     const animation: TaskGridViewVirtualizedListAnimation = {
                         type: "Delete",
                         startTime,
-                        // If a task has some children, allow the animation to take a little longer but
-                        // not too long.
+                        // If a task has some children, allow the animation to take a little longer but not
+                        // too long.
                         duration: taskAnimationDurationMs * (1 + Math.min(oldChildrenCount, 1)),
                         kind: "Task",
                         taskId: getTaskQuerySortCursorTaskId(key),
@@ -695,9 +693,9 @@ export class TaskGridViewVirtualizedListState {
             for (const change of changes) {
                 switch (change.type) {
                     case "CreateEntry": {
-                        // If a task was created to replace an unloaded child task then we don't want
-                        // to animate that task when it appears. This prevents an animation when you
-                        // expand a task in grid view and the tasks within are unloaded.
+                        // If a task was created to replace an unloaded child task then we don't want to
+                        // animate that task when it appears. This prevents an animation when you expand a
+                        // task in grid view and the tasks within are unloaded.
                         const oldLastCursor = oldTree.tasks.end.key;
                         if (
                             (!oldLastCursor ||
@@ -719,8 +717,8 @@ export class TaskGridViewVirtualizedListState {
                         const animation: TaskGridViewVirtualizedListAnimation = {
                             type: "Create",
                             startTime,
-                            // If a task has some children, allow the animation to take a little longer but
-                            // not too long.
+                            // If a task has some children, allow the animation to take a little longer but not
+                            // too long.
                             duration: taskAnimationDurationMs * (1 + Math.min(newChildrenCount, 1)),
                             kind: "Task",
                             taskId: getTaskQuerySortCursorTaskId(change.key),
@@ -750,8 +748,8 @@ export class TaskGridViewVirtualizedListState {
                         const animation: TaskGridViewVirtualizedListAnimation = {
                             type: "Delete",
                             startTime,
-                            // If a task has some children, allow the animation to take a little longer but
-                            // not too long.
+                            // If a task has some children, allow the animation to take a little longer but not
+                            // too long.
                             duration: taskAnimationDurationMs * (1 + Math.min(oldChildrenCount, 1)),
                             kind: "Task",
                             taskId: getTaskQuerySortCursorTaskId(change.key),
@@ -788,14 +786,14 @@ export class TaskGridViewVirtualizedListState {
             }
         };
 
-        // If our root tree is transitioning to null or away from null then don't
-        // animate all children.
+        // If our root tree is transitioning to null or away from null then don't animate
+        // all children.
         if (previousState._tree && this._tree) {
             getAnimations(previousState._tree, this._tree, 0, 0);
         }
 
-        // If a task was both deleted and recreated then collapse that into one
-        // move animation.
+        // If a task was both deleted and recreated then collapse that into one move
+        // animation.
         for (const taskAnimations of animationsByTaskId.values()) {
             if (taskAnimations.size !== 2) continue;
 
@@ -851,8 +849,8 @@ export class TaskGridViewVirtualizedListState {
 }
 
 /**
- * Iterates forward through a `TaskGridViewVirtualizedTaskTree` starting
- * anywhere in the tree.
+ * Iterates forward through a `TaskGridViewVirtualizedTaskTree` starting anywhere
+ * in the tree.
  *
  * If a node has children then the node will be visited twice. Once with the
  * `Enter` phase and once after iterating through all its children with the
@@ -934,8 +932,8 @@ function* iterateTaskGridViewVirtualizedTaskTreeNodes(
 }
 
 /**
- * Iterates through a `TaskGridViewVirtualizedTaskTree` starting anywhere in
- * the tree and emitting `TaskGridViewVirtualizedTaskListItem`s.
+ * Iterates through a `TaskGridViewVirtualizedTaskTree` starting anywhere in the
+ * tree and emitting `TaskGridViewVirtualizedTaskListItem`s.
  *
  * If we start with a `UnloadedChildTask` then you should provide
  * `initialUnloadedChildTaskIndex`. It requires the tree node iterator to start
@@ -973,8 +971,8 @@ function* iterateTaskGridViewVirtualizedListStateItems(
         initialUnloadedChildTaskIndex = null;
     }
 
-    // Loop through our tree yielding `UnloadedChildTask`s when we exit a node
-    // when appropriate.
+    // Loop through our tree yielding `UnloadedChildTask`s when we exit a node when
+    // appropriate.
     for (const {tree, firstKey, node, phase} of iterator) {
         if (phase === "Enter") {
             yield {
@@ -1027,8 +1025,8 @@ export function isTaskGridViewVirtualizedListStateItemAfter(
             targetCursor = targetParent.cursor;
         }
 
-        // All preceding parents were after. If our target item has more indentation
-        // then the after item it's always considered after.
+        // All preceding parents were after. If our target item has more indentation then
+        // the after item it's always considered after.
         if (i > afterItem.parents.length) {
             return true;
         }
@@ -1045,8 +1043,8 @@ export function isTaskGridViewVirtualizedListStateItemAfter(
             afterCursor = afterParent.cursor;
         }
 
-        // If the sorts change (we don't expect this to happen) we can't
-        // compare cursors. Return null since we can't accurately answer.
+        // If the sorts change (we don't expect this to happen) we can't compare cursors.
+        // Return null since we can't accurately answer.
         if (!isDeepEqual(targetQuery.sorts, afterQuery.sorts)) return null;
 
         const comparison = compareTaskQuerySortCursors(
@@ -1066,11 +1064,11 @@ export function isTaskGridViewVirtualizedListStateItemAfter(
     //
     // - [1]
     // - [2]
-    //   - [2, 1]
+    //     - [2, 1]
     // - [3]
     //
-    // Here [2] should be considered before [2, 1] and [3] should be considered
-    // after [2, 1]. Both reach this branch so return false if parent cursors have
-    // all been equal. [1] already returned false because 1 is less than 2.
+    // Here [2] should be considered before [2, 1] and [3] should be considered after
+    // [2, 1]. Both reach this branch so return false if parent cursors have all been
+    // equal. [1] already returned false because 1 is less than 2.
     return !isEqual;
 }

@@ -5,7 +5,7 @@ load("//admin/typescript/workspace:workspace_typescript_test.bzl", "workspace_ty
 
 workspace_typescript_test(
     name = "workspace_test",
-    size = "medium",
+    size = "large",
     tags = [
         "eslint",
         "typescript",
@@ -50,23 +50,33 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//admin/dev",
     "//admin/dynamo",
     "//admin/eslint",
+    "//admin/experimental/calebmer:calebmer",
+    "//admin/experimental/ifitzsimmons:ifitzsimmons",
+    "//admin/marketing/2026_04_scalable_demos:2026_04_scalable_demos",
     "//admin/scenarios",
+    "//admin/scenarios/screenshots:screenshots_lib",
+    "//app/routes_test:routes_test",
     "//app/integration_tests:integration_tests_lib",
+    "//client/web/content/file_entity/internal/test_helpers:test_helpers",
     # Can't use `//native/mobile/ios:app` since then we need to traverse
     # `swift_library()` and `ios_application()` which we can't do on our Linux CI
     # server since Swift isn't installed.
     "//native/mobile/ios/Resources/Assets.xcassets",
     "//server/agents",
+    "//server/agents/api/test_helpers:test_helpers",
     "//server/api",
+    "//server/api/internal/test_helpers:test_helpers",
     "//server/deploy/script",
     "//server/edge",
     "//server/files/processor",
     "//server/files/processor/test_helpers",
+    "//server/importer/notion/test_helpers:test_helpers",
     "//server/messaging/realtime/test_helpers",
     "//server/notifications/data:notifications_actions_forum_test",
     "//server/resources",
     "//server/tasks/realtime:task_realtime_connection_test",
-    "//shared/api:specification_generate_lib",
+    "//shared/api/markdown/test_helpers:test_helpers",
+    "//shared/api/specification:specification_generate_lib",
     "//shared/spaces/test_helpers",
 ]
 

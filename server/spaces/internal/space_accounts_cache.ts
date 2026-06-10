@@ -2,8 +2,10 @@ import _Fuse from "fuse.js";
 import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {
+    AuthorizeSpaceAccessContext,
+    authorizeSpaceAccess,
+} from "~/server/spaces/authorize_space_access.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {SpaceAccountAvatarOverrideItemContextCache} from "~/server/spaces/internal/get_account_if_exists_without_authorization.js";
 import {SpaceAccountItemContextCache} from "~/server/spaces/internal/get_space_account_item.js";
@@ -39,19 +41,19 @@ type SpaceAccountsCacheData = {
 };
 
 /**
- * How long we can used cached space accounts before we need to reload the
- * data. In practice, we reload the data faster due to our revalidation
- * interval `spaceAccountsCacheEntryRevalidateMs`.
+ * How long we can used cached space accounts before we need to reload the data. In
+ * practice, we reload the data faster due to our revalidation interval
+ * `spaceAccountsCacheEntryRevalidateMs`.
  *
  * This timeout can't be too long because we read from the cache to authorize
- * accounts! If an account is removed, it's ok if their requests get blocked a
- * few seconds later but not a few minutes later.
+ * accounts! If an account is removed, it's ok if their requests get blocked a few
+ * seconds later but not a few minutes later.
  */
 const spaceAccountsCacheEntryInvalidatedMs = 15 * 1000;
 
 /**
- * How long until we should make a background cache revalidation request. We
- * can keep using the old cache data while refreshing our cache.
+ * How long until we should make a background cache revalidation request. We can
+ * keep using the old cache data while refreshing our cache.
  */
 const spaceAccountsCacheEntryRevalidateMs = spaceAccountsCacheEntryInvalidatedMs - 5 * 1000;
 
@@ -67,11 +69,11 @@ type SpaceAccountsCacheEntry = {
 
 /**
  * Maintain a cache of all accounts in a space in-memory. We frequently need to
- * look up the accounts in a space for authorization, mentions, and search.
- * Keeping this data cached allows us to answer these queries efficiently.
+ * look up the accounts in a space for authorization, mentions, and search. Keeping
+ * this data cached allows us to answer these queries efficiently.
  *
- * Reading from a cache is always eventually consistent. Cached space accounts
- * are much slower to update (at most 15 seconds) than reading from DynamoDB.
+ * Reading from a cache is always eventually consistent. Cached space accounts are
+ * much slower to update (at most 15 seconds) than reading from DynamoDB.
  */
 export class SpaceAccountsCache {
     private readonly _entryBySpaceId = new Map<SpaceId, SpaceAccountsCacheEntry>();
@@ -88,9 +90,9 @@ export class SpaceAccountsCache {
                 this._entryBySpaceId.clear();
             });
 
-            // We may have some `afterEach()` callbacks that run after our `afterEach()`
-            // above adding back entries to our space accounts cache. So have a backup
-            // `afterAll()` that runs after all `afterEach()` callbacks.
+            // We may have some `afterEach()` callbacks that run after our `afterEach()` above
+            // adding back entries to our space accounts cache. So have a backup `afterAll()`
+            // that runs after all `afterEach()` callbacks.
             afterAll(() => {
                 for (const {timeout} of this._entryBySpaceId.values()) {
                     timeout.clear();
@@ -112,31 +114,26 @@ export class SpaceAccountsCache {
     }
 
     /**
-     * Get all the accounts in a space from our cache. If the data is not present
-     * in our cache we'll add it.
+     * Get all the accounts in a space from our cache. If the data is not present in
+     * our cache we'll add it.
      */
     public async getData(
-        context: Context<{
-            process: ProcessContextModule;
-            tracer: TracerContextModule;
-            cache: CacheContextModule;
-            dynamo: DynamoContextModule;
-            actor: ActorContextModule;
-        }>,
+        context: AuthorizeSpaceAccessContext,
         spaceId: SpaceId,
+        {allowInvitePending}: {allowInvitePending?: boolean} = {},
     ): Promise<SpaceAccountsCacheData> {
         // Make sure we're allowed to read data from the space.
-        await authorizeSpaceAccess(context, spaceId);
+        await authorizeSpaceAccess(context, spaceId, undefined, {allowInvitePending});
 
-        return this.dangerouslyGetDataWithoutAuthorizing(context, spaceId);
+        return await this.dangerouslyGetDataWithoutAuthorizing(context, spaceId);
     }
 
     /**
-     * Get all the accounts in a space from our cache. If the data is not present
-     * in our cache we'll add it.
+     * Get all the accounts in a space from our cache. If the data is not present in
+     * our cache we'll add it.
      *
-     * We don't check that the actor is authorized to read this space! If you call
-     * this method, make sure you provide your own authorization mechanisms.
+     * We don't check that the actor is authorized to read this space! If you call this
+     * method, make sure you provide your own authorization mechanisms.
      */
     public dangerouslyGetDataWithoutAuthorizing(
         context: Context<{
@@ -173,8 +170,8 @@ export class SpaceAccountsCache {
             return dataPromise;
         }
 
-        // If we've passed our revalidation interval then start a new data fetch for
-        // the space in the background.
+        // If we've passed our revalidation interval then start a new data fetch for the
+        // space in the background.
         if (
             entry.next !== null &&
             entry.readTime + spaceAccountsCacheEntryRevalidateMs < currentTime
@@ -190,17 +187,17 @@ export class SpaceAccountsCache {
             // reported in a span. `waitUntil()` doesn't need to report them.
             context.process.waitUntil(entry.next.dataPromise.catch(() => {}));
 
-            // Once our background promise has finished, update the cache entry to use the
-            // new data.
+            // Once our background promise has finished, update the cache entry to use the new
+            // data.
             //
             // If there was an error then we need to clear the cache.
             void entry.next.dataPromise.then(
                 () => {
                     const entry = this._entryBySpaceId.get(spaceId);
 
-                    // Our `dataPromise` may have been moved from `entry.next.dataPromise` by the
-                    // time this code runs if `_clearEntry()` was called (e.g. when
-                    // `entry.dataPromise` rejects).
+                    // Our `dataPromise` may have been moved from `entry.next.dataPromise` by the time
+                    // this code runs if `_clearEntry()` was called (e.g. when `entry.dataPromise`
+                    // rejects).
                     if (entry?.next?.dataPromise !== dataPromise) return;
 
                     assert(entry.next);
@@ -220,8 +217,8 @@ export class SpaceAccountsCache {
                 () => {
                     const entry = this._entryBySpaceId.get(spaceId);
 
-                    // Make sure we're not the active `dataPromise`. We may have been upgraded to
-                    // the active `dataPromise` if there was an error.
+                    // Make sure we're not the active `dataPromise`. We may have been upgraded to the
+                    // active `dataPromise` if there was an error.
                     if (entry?.dataPromise === dataPromise) {
                         this._clearEntry(spaceId);
                     } else if (entry?.next?.dataPromise === dataPromise) {
@@ -307,17 +304,11 @@ export class SpaceAccountsCache {
     }
 
     /**
-     * Get all the accounts in a space from our cache. If the data is not present
-     * in our cache we return null instead of loading the data.
+     * Get all the accounts in a space from our cache. If the data is not present in
+     * our cache we return null instead of loading the data.
      */
     public async getDataIfExistsWithoutLoading(
-        context: Context<{
-            process: ProcessContextModule;
-            tracer: TracerContextModule;
-            cache: CacheContextModule;
-            dynamo: DynamoContextModule;
-            actor: ActorContextModule;
-        }>,
+        context: AuthorizeSpaceAccessContext,
         spaceId: SpaceId,
     ): Promise<SpaceAccountsCacheData | null> {
         // Make sure we're allowed to read data from the space.
@@ -326,15 +317,15 @@ export class SpaceAccountsCache {
         const entry = this._entryBySpaceId.get(spaceId);
         if (!entry) return null;
 
-        return entry.dataPromise;
+        return await entry.dataPromise;
     }
 
     /**
-     * Get all the accounts in a space from our cache. If the data is not present
-     * in our cache we return null instead of loading the data.
+     * Get all the accounts in a space from our cache. If the data is not present in
+     * our cache we return null instead of loading the data.
      *
-     * We don't check that the actor is authorized to read this space! If you call
-     * this method, make sure you provide your own authorization mechanisms.
+     * We don't check that the actor is authorized to read this space! If you call this
+     * method, make sure you provide your own authorization mechanisms.
      */
     public async dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
         context: Context<{
@@ -348,7 +339,7 @@ export class SpaceAccountsCache {
         const entry = this._entryBySpaceId.get(spaceId);
         if (!entry) return null;
 
-        return entry.dataPromise;
+        return await entry.dataPromise;
     }
 }
 
@@ -374,7 +365,7 @@ export async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
         consistency?: DynamoReadConsistency;
     },
 ): Promise<ReadonlyArray<AccountModel>> {
-    return context.tracer.withSpan("Load all space accounts", async (context, span) => {
+    return await context.tracer.withSpan("Load all space accounts", async (context, span) => {
         span.addData({
             common: {isBlocking},
             dynamodb: {consistentRead: consistency === "Strong"},
@@ -401,8 +392,8 @@ export async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
                     },
                 }),
                 item => {
-                    // Optimization: Add item to cache so we can skip loading it later if the item
-                    // is requested again.
+                    // Optimization: Add item to cache so we can skip loading it later if the item is
+                    // requested again.
                     SpaceAccountAvatarOverrideItemContextCache.set(
                         context,
                         consistency,
@@ -434,8 +425,8 @@ export async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
                     },
                 }),
                 item => {
-                    // Optimization: Add item to cache so we can skip loading it later if the item
-                    // is requested again.
+                    // Optimization: Add item to cache so we can skip loading it later if the item is
+                    // requested again.
                     SpaceAccountItemContextCache.set(
                         context,
                         consistency,
@@ -448,15 +439,16 @@ export async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
             ),
         );
 
-        // NOTE(ifitzsimmons, #space-account-avatar-override-query) We could technically fetch
-        // the Space#Account and Space#AccountAvatarOverride items in a single query since the
-        // sort ranges are adjacent. However, we'd then have to perform an extra iteration on the
-        // result to split up the Space#Account and Space#AccountAvatarOverride items into separate
-        // lists. Given that Avatars are relatively large pieces of data (~ 3Kb) and that there
-        // may be many accounts in the space, the extra iteration seems not worth it. Splitting the
-        // queries into separate calls will incur at most 1 more RCU (because 2 avatars cannot fit
-        // within the 4Kb limit). I think that, for now, removing the need for the extra iteration
-        // is worth the cost of the extra DDB connection.
+        // NOTE(ifitzsimmons, #space-account-avatar-override-query) We could technically
+        // fetch the Space#Account and Space#AccountAvatarOverride items in a single query
+        // since the sort ranges are adjacent. However, we'd then have to perform an extra
+        // iteration on the result to split up the Space#Account and
+        // Space#AccountAvatarOverride items into separate lists. Given that Avatars are
+        // relatively large pieces of data (~ 3Kb) and that there may be many accounts in
+        // the space, the extra iteration seems not worth it. Splitting the queries into
+        // separate calls will incur at most 1 more RCU (because 2 avatars cannot fit
+        // within the 4Kb limit). I think that, for now, removing the need for the extra
+        // iteration is worth the cost of the extra DDB connection.
         const [spaceAccounts, accountAvatarOverrideItems] = await runAllPromises([
             spaceAccountsPromise,
             accountAvatarOverrideItemsPromise,

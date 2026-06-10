@@ -36,8 +36,8 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 export type TaskQueryViewCustomizationBarRef = {
     openAddFilterMenu(): void;
     openAddSortMenu(): void;
-    // Throws if no collection filter editor component is mounted. So be careful
-    // when calling this function.
+    // Throws if no collection filter editor component is mounted. So be careful when
+    // calling this function.
     openFirstCollectionsFilterOperationValue(): void;
 };
 
@@ -56,6 +56,7 @@ function TaskQueryViewCustomizationBar(
         onSortsChange,
         defaultOrderSentence,
         initiallyFocus = null,
+        excludeFilters,
     }: {
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -70,6 +71,10 @@ function TaskQueryViewCustomizationBar(
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
         defaultOrderSentence: string;
         initiallyFocus?: "AddFilter" | "AddSort" | null;
+        /**
+         * Filter types to exclude from the add filter menu.
+         */
+        excludeFilters?: ReadonlySet<TaskQueryFilter["type"]>;
     },
     ref: Ref<TaskQueryViewCustomizationBarRef>,
 ) {
@@ -137,13 +142,8 @@ function TaskQueryViewCustomizationBar(
                 flexWrap="wrap"
                 alignItems="center"
                 gap="2"
+                minWidth="flex-fit"
                 marginLeft={shouldCollapse ? "-2" : undefined}
-                style={{
-                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                    // have `min-width: auto` which extends with content.
-                    // https://stackoverflow.com/a/66689926/1568890
-                    minWidth: 0,
-                }}
             >
                 {filters.map((filter, index) => {
                     // The first collections filter should get our ref.
@@ -189,6 +189,7 @@ function TaskQueryViewCustomizationBar(
                         onAddFilter={filter => {
                             onFiltersChange([...filters, filter]);
                         }}
+                        excludeFilters={excludeFilters}
                     >
                         {filters.length > 0 ? (
                             <IconButton size="sm" description="Add filter" withoutTooltip>
@@ -233,8 +234,8 @@ function TaskQueryViewCustomizationBar(
                         icon={<SortAscending />}
                         height={taskQueryFilterEditorDesktopHeight}
                         paddingX="2"
-                        // Don't focus the button on press since pressing will open the overlay and
-                        // should focus the overlay.
+                        // Don't focus the button on press since pressing will open the overlay and should
+                        // focus the overlay.
                         //
                         // TODO(calebmer): Find a way to automate this instead of setting this prop
                         // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
@@ -276,9 +277,8 @@ function TaskQueryViewCustomizationBarSortsOverlay({
         onSortsChange(sortsWithId.map(({sort}) => sort));
     };
 
-    // We assign IDs to sort objects within this function. If we receive new sorts
-    // from props that don't match our state then reset our state and
-    // regenerate IDs.
+    // We assign IDs to sort objects within this function. If we receive new sorts from
+    // props that don't match our state then reset our state and regenerate IDs.
     if (
         !useMemo(
             () =>
@@ -289,7 +289,11 @@ function TaskQueryViewCustomizationBarSortsOverlay({
             [sorts, sortsWithId],
         )
     ) {
-        setSortsWithId(sorts.map(sort => ({id: nextSortId++, sort})));
+        // This runs during render so we call `actuallySetSortsWithId()` directly instead
+        // of `setSortsWithId()`. The latter would call `onSortsChange()` (a `useEvent()`
+        // callback that throws when called while rendering), and notifying the parent here
+        // would be circular anyway since the change originated from the `sorts` prop.
+        actuallySetSortsWithId(sorts.map(sort => ({id: nextSortId++, sort})));
     }
 
     const addSort = (sort: TaskQuerySort) => {

@@ -26,10 +26,9 @@ import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema
 // -- Helpers ------------------------------------------------------------------
 
 /**
- * SQLite stores booleans as INTEGER 0/1 but
- * `Schema.boolean` expects a real boolean. This schema
- * migrates 0/1 on read and relies on the SQLite binding
- * layer converting `true`/`false` back to 1/0 on write.
+ * SQLite stores booleans as INTEGER 0/1 but `Schema.boolean` expects a real
+ * boolean. This schema migrates 0/1 on read and relies on the SQLite binding layer
+ * converting `true`/`false` back to 1/0 on write.
  */
 const sqlBoolean = Schema.boolean.migration({
     serialize: value => value,
@@ -46,16 +45,14 @@ const alpineTableConfig = {
 };
 
 /**
- * Server-only capabilities. Present on the server, `null`
- * on the client — so client-side actions can't attach
- * per-table files.
+ * Server-only capabilities. Present on the server, `null` on the client — so
+ * client-side actions can't attach per-table files.
  */
 export interface DatabaseActionServerContext {
     /**
-     * Attach a per-table database file (no-op if already
-     * attached) so the action can create or write to it.
-     * Used by server-only schema actions like
-     * {@link databaseActions.createTable}.
+     * Attach a per-table database file (no-op if already attached) so the action can
+     * create or write to it. Used by server-only schema actions like {@link
+     * databaseActions.createTable}.
      */
     attach(tableId: DatabaseTableId): void;
 }
@@ -69,27 +66,22 @@ export interface DatabaseActionContext {
 }
 
 /**
- * Defines a database action with typed input/output
- * schemas, a write level, and a shared `run()` function
- * that executes on both client and server.
+ * Defines a database action with typed input/output schemas, a write level, and a
+ * shared `run()` function that executes on both client and server.
  *
- * `serverOnly` actions never run optimistically on the
- * client; the client routes them straight to the server.
- * This lets them generate ids internally and attach new
- * per-table files without client/server divergence.
+ * `serverOnly` actions never run optimistically on the client; the client routes
+ * them straight to the server. This lets them generate ids internally and attach
+ * new per-table files without client/server divergence.
  */
 function defineDatabaseAction<Input, Output>(def: {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     /**
-     * When `true`, the client skips optimistic local
-     * execution and routes the action straight to the
-     * server. Use for actions whose `run()` is
-     * non-deterministic in a way that would diverge
-     * between client and server — e.g. allocating IDs
-     * via `generateChronologicalId()` — making
-     * optimistic execution unsafe.
+     * When `true`, the client skips optimistic local execution and routes the action
+     * straight to the server. Use for actions whose `run()` is non-deterministic in a
+     * way that would diverge between client and server — e.g. allocating IDs via
+     * `generateChronologicalId()` — making optimistic execution unsafe.
      */
     serverOnly?: boolean;
     run: (ctx: DatabaseActionContext, input: Input) => any;
@@ -104,9 +96,9 @@ function defineDatabaseAction<Input, Output>(def: {
 }
 
 /**
- * Reads a table's SQLite identifier (`table_name`) from its
- * own per-db file. The display name and identifier are
- * private and never live in the public main database.
+ * Reads a table's SQLite identifier (`table_name`) from its own per-db file. The
+ * display name and identifier are private and never live in the public main
+ * database.
  */
 function readTableName(db: Database, tableId: DatabaseTableId): string {
     return sql`
@@ -118,33 +110,29 @@ function readTableName(db: Database, tableId: DatabaseTableId): string {
 }
 
 /**
- * Stable name for a table's `_created_at` index. Keyed by
- * the immutable table id (not the mutable SQL table name),
- * so renaming the table leaves the index in place rather
- * than dropping and rebuilding it.
+ * Stable name for a table's `_created_at` index. Keyed by the immutable table id
+ * (not the mutable SQL table name), so renaming the table leaves the index in
+ * place rather than dropping and rebuilding it.
  */
 function createdAtIndexName(tableId: DatabaseTableId): string {
     return `_alpine_index_${tableId}_created_at`;
 }
 
 /**
- * Resolves a `tableOrViewId` (which may be either a
- * table ID or a view ID) into the canonical triple of
- * `{tableId, viewId, tableName}`.
+ * Resolves a `tableOrViewId` (which may be either a table ID or a view ID) into
+ * the canonical triple of `{tableId, viewId, tableName}`.
  *
- * A bare view ID is routed to its owning table through the
- * main database's ID-only `_alpine_views(id, table_id)`
- * routing index (the happy path after URL canonicalization);
- * the table's name then comes from its per-db file. A bare
- * table ID falls back to picking its first view from that
- * table's per-db file.
+ * A bare view ID is routed to its owning table through the main database's ID-only
+ * `_alpine_views(id, table_id)` routing index (the happy path after URL
+ * canonicalization); the table's name then comes from its per-db file. A bare
+ * table ID falls back to picking its first view from that table's per-db file.
  */
 function resolveTableOrViewId(
     db: Database,
     tableOrViewId: string,
 ): {tableId: DatabaseTableId; viewId: DatabaseViewId; tableName: string} {
-    // Happy path: route the view ID to its table via the
-    // main routing index (URLs canonicalize to view IDs).
+    // Happy path: route the view ID to its table via the main routing index (URLs
+    // canonicalize to view IDs).
     const routing = sql`
         SELECT
             table_id
@@ -164,8 +152,8 @@ function resolveTableOrViewId(
         };
     }
 
-    // Fallback: resolve as a table ID and pick its first
-    // view from that table's per-db file.
+    // Fallback: resolve as a table ID and pick its first view from that table's per-db
+    // file.
     const table = sql`
         SELECT
             id
@@ -190,12 +178,10 @@ function resolveTableOrViewId(
 }
 
 /**
- * Add a field to an existing table: resolves the table
- * name, generates a unique column name, computes the
- * next view position, inserts metadata into
- * `_alpine_fields` and `_alpine_view_fields`, then runs
- * `ALTER TABLE ADD COLUMN` with the appropriate type
- * affinity and CHECK constraint.
+ * Add a field to an existing table: resolves the table name, generates a unique
+ * column name, computes the next view position, inserts metadata into
+ * `_alpine_fields` and `_alpine_view_fields`, then runs `ALTER TABLE ADD COLUMN`
+ * with the appropriate type affinity and CHECK constraint.
  */
 function createField(
     db: Database,
@@ -306,18 +292,16 @@ export const databaseActions = {
             viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
-        // Server-only so it can mint ids internally and attach
-        // a brand-new per-db file without client/server
-        // divergence; the client routes this to the server.
+        // Server-only so it can mint ids internally and attach a brand-new per-db file
+        // without client/server divergence; the client routes this to the server.
         serverOnly: true,
         run({db, server}, {name}) {
             assert(server !== null, "createTable is server-only");
             const tableId = generateChronologicalId<DatabaseTableId>();
             const viewId = generateChronologicalId<DatabaseViewId>();
 
-            // Attach + migrate the new per-db file before
-            // writing any of the table's data or metadata into
-            // it. `attach` is a no-op if already attached.
+            // Attach + migrate the new per-db file before writing any of the table's data or
+            // metadata into it. `attach` is a no-op if already attached.
             server.attach(tableId);
             runTableMigrations(db, tableId);
 
@@ -338,15 +322,13 @@ export const databaseActions = {
                     )
             `.exec(db);
 
-            // SQLite identifier for the data table. It only has
-            // to be unique within this table's own file, and
-            // `formatUniqueSqlName` strips leading underscores
-            // so it can never collide with the `_alpine_*`
-            // metadata tables.
+            // SQLite identifier for the data table. It only has to be unique within this
+            // table's own file, and `formatUniqueSqlName` strips leading underscores so it can
+            // never collide with the `_alpine_*` metadata tables.
             const tableName = formatUniqueSqlName(name, new Set());
 
-            // Real, table-scoped metadata lives in the per-db
-            // file, never in the public main database.
+            // Real, table-scoped metadata lives in the per-db file, never in the public main
+            // database.
             sql`
                 INSERT INTO
                     ${sql.tableRef(tableId, "_alpine_table")} (id, name, table_name)
@@ -408,9 +390,8 @@ export const databaseActions = {
                     ${sql.tableRef(tableId, "_alpine_table")}
             `.selectOne(db, alpineTableConfig);
 
-            // The identifier only has to be unique within this
-            // table's own file, so there are no other names to
-            // avoid.
+            // The identifier only has to be unique within this table's own file, so there are
+            // no other names to avoid.
             const tableName = formatUniqueSqlName(name, new Set());
 
             if (tableName !== existing.tableName) {
@@ -565,9 +546,8 @@ export const databaseActions = {
         run({db}, {tableOrViewId, afterCursor, endCursor}) {
             const {tableId, viewId, tableName} = resolveTableOrViewId(db, tableOrViewId);
 
-            // Get the view's fields in position order so we
-            // can build a deterministic SELECT list and a
-            // per-page field-index mapping.
+            // Get the view's fields in position order so we can build a deterministic SELECT
+            // list and a per-page field-index mapping.
             const viewFields = sql`
                 SELECT
                     f.id,
@@ -586,7 +566,7 @@ export const databaseActions = {
                 config: DatabaseFieldConfigSqlSchema,
             });
 
-            // _id is always at index 0; view fields start at 1.
+            // \_id is always at index 0; view fields start at 1.
             const selectColumns = [
                 sql.identifier("_id"),
                 ...viewFields.map(f => sql.identifier(f.columnName)),
@@ -598,10 +578,8 @@ export const databaseActions = {
                 fieldIndexes.set(viewFields[i]!.id, i + 1);
             }
 
-            // Build a schema tuple matching the SELECT list so
-            // raw SQL values are deserialized through each
-            // field's sqlValueSchema (e.g. INTEGER → boolean
-            // for checkboxes).
+            // Build a schema tuple matching the SELECT list so raw SQL values are deserialized
+            // through each field's sqlValueSchema (e.g. INTEGER → boolean for checkboxes).
             const columnSchemas: Array<Schema<any>> = [
                 Schema.id<DatabaseRowId>(),
                 ...viewFields.map(f => getDatabaseFieldProvider(f.config.type).sqlValueSchema),
@@ -884,8 +862,8 @@ export type DatabaseActionResult<N extends DatabaseActionName = DatabaseActionNa
 // -- Derived schemas ---------------------------------------------------------
 
 /**
- * Schema for action request objects: `{name, input}`.
- * Discriminated union keyed on `name`.
+ * Schema for action request objects: `{name, input}`. Discriminated union keyed on
+ * `name`.
  */
 export const DatabaseActionObjectSchema = Schema.unionWithKey(
     "name",
@@ -903,8 +881,8 @@ export const DatabaseActionObjectSchema = Schema.unionWithKey(
 );
 
 /**
- * Schema for action result objects: `{name, output}`.
- * Discriminated union keyed on `name`.
+ * Schema for action result objects: `{name, output}`. Discriminated union keyed on
+ * `name`.
  */
 export const DatabaseActionResultSchema = Schema.unionWithKey(
     "name",

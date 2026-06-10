@@ -35,8 +35,7 @@ export async function authorizeChannelAccess(
  * Authorize that the current user has access to a channel. Implicitly also
  * authorizes that the current user has access to the space the channel is in.
  *
- * Returns a result instead of throwing an error if the user doesn't have
- * access.
+ * Returns a result instead of throwing an error if the user doesn't have access.
  */
 export async function authorizeChannelAccessIfPossible(
     context: ServerActionContext,

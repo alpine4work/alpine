@@ -52,9 +52,9 @@ export function DocumentCommentThreadHeader({
     const [isPending, setIsPending] = useState(false);
 
     // `commentThread` is updated in realtime when resolution state changes and is
-    // persisted. However, our document collaboration service may be ahead of
-    // what's persisted. We want to show the latest unpersisted resolution state as
-    // a convenience and rely on `commentThread` to have the correct state.
+    // persisted. However, our document collaboration service may be ahead of what's
+    // persisted. We want to show the latest unpersisted resolution state as a
+    // convenience and rely on `commentThread` to have the correct state.
     const isResolved = unpersistedIsResolved ?? commentThread.isResolved;
 
     const handlePress = () => {

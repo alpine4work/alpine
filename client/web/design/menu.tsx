@@ -46,7 +46,7 @@ import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -55,8 +55,8 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 /**
- * A list of actions or action sections. In between each section is a divider
- * and optionally a header.
+ * A list of actions or action sections. In between each section is a divider and
+ * optionally a header.
  */
 export type MenuActions = ReadonlyArray<MenuAction | MenuActionsSection>;
 
@@ -82,8 +82,8 @@ export type MenuAction = MenuStandardAction | MenuCustomAction | MenuChildrenAct
 
 export type MenuStandardAction = {
     /**
-     * Unique key for the action. Optional, by default we'll use the action index
-     * as the key.
+     * Unique key for the action. Optional, by default we'll use the action index as
+     * the key.
      */
     readonly key?: Key;
 
@@ -125,15 +125,15 @@ export type MenuStandardAction = {
     /**
      * Is the action disabled? Does not display a reason tooltip like when you use
      * `disabledReason`. Generally you should prefer `disabledReason`. If you set
-     * `disabledReason` then you don't have to set `isDisabled`. Disabled actions
-     * may not be selected.
+     * `disabledReason` then you don't have to set `isDisabled`. Disabled actions may
+     * not be selected.
      */
     readonly isDisabled?: boolean;
 
     /**
-     * Is this action disabled? If so, for what reason? We will display the reason
-     * as a tooltip if the user tries to interact with a disabled action. Disabled
-     * actions may not be selected.
+     * Is this action disabled? If so, for what reason? We will display the reason as a
+     * tooltip if the user tries to interact with a disabled action. Disabled actions
+     * may not be selected.
      */
     readonly disabledReason?: string;
 
@@ -143,29 +143,28 @@ export type MenuStandardAction = {
     readonly keyboardShortcutHint?: ReactNode;
 
     /**
-     * A single character keyboard shortcut that triggers this action when the
-     * menu is open. When the user presses this key, the action's `onPress`
-     * handler will be called immediately.
+     * A single character keyboard shortcut that triggers this action when the menu is
+     * open. When the user presses this key, the action's `onPress` handler will be
+     * called immediately.
      *
      * Must be unique within the menu - duplicate shortcuts will throw an error.
      */
     readonly keyboardShortcut?: string;
 
     /**
-     * When the user chooses this action through either the keyboard or mouse we
-     * will call this handler.
+     * When the user chooses this action through either the keyboard or mouse we will
+     * call this handler.
      *
-     * If a promise is returned we will show a loading spinner while waiting for
-     * the promise to resolve. If you return a promise you must pass in a
-     * `pressErrorTitle` property to communicate to the user what failed after
-     * the press.
+     * If a promise is returned we will show a loading spinner while waiting for the
+     * promise to resolve. If you return a promise you must pass in a `pressErrorTitle`
+     * property to communicate to the user what failed after the press.
      */
     readonly onPress: () => MaybePromise<{withoutClose: boolean} | void>;
 
     /**
-     * If an error occurs while running `onPress` we will report the error to the user with
-     * this title. It is the "what happened" part of an error message according to [Adobe
-     * Spectrum's][1] error content guidelines.
+     * If an error occurs while running `onPress` we will report the error to the user
+     * with this title. It is the "what happened" part of an error message according to
+     * [Adobe Spectrum's][1] error content guidelines.
      *
      * So for example it this is a delete comment action say "Couldn't delete comment".
      *
@@ -176,10 +175,10 @@ export type MenuStandardAction = {
     readonly pressErrorTitle?: string;
 
     /**
-     * Render some UI outside of the menu item to the right of it. Clicking on this
-     * bit of UI won't select the menu item. It has its own rules. You also won't
-     * be able to keyboard navigate to this bit of UI since arrow up/down will
-     * still navigate menu items as normal.
+     * Render some UI outside of the menu item to the right of it. Clicking on this bit
+     * of UI won't select the menu item. It has its own rules. You also won't be able
+     * to keyboard navigate to this bit of UI since arrow up/down will still navigate
+     * menu items as normal.
      */
     readonly extraActions?: ReactNode;
 
@@ -190,26 +189,26 @@ export type MenuStandardAction = {
 
 export type MenuCustomAction = {
     /**
-     * If the standard action props are not enough for you then you can provide
-     * your own, custom, React renderer for menu actions.
+     * If the standard action props are not enough for you then you can provide your
+     * own, custom, React renderer for menu actions.
      *
      * However, doing so means you lose some standard functionality! Including:
      *
-     * - Search for action by name by pressing letter keys (e.g. "e" jumps you
-     *   to "Edit")
+     * - Search for action by name by pressing letter keys (e.g. "e" jumps you to
+     *   "Edit")
      * - Disabled states
      *
-     * Otherwise custom menu actions still have correct accessibility properties
-     * and can be keyboard navigated.
+     * Otherwise custom menu actions still have correct accessibility properties and
+     * can be keyboard navigated.
      */
     readonly withCustomLayout: true;
     readonly hasChildren?: undefined;
     readonly heading?: undefined;
 
     /**
-     * A single character keyboard shortcut that triggers this action when the
-     * menu is open. When the user presses this key, the action's `onPress`
-     * handler will be called immediately.
+     * A single character keyboard shortcut that triggers this action when the menu is
+     * open. When the user presses this key, the action's `onPress` handler will be
+     * called immediately.
      *
      * Must be unique within the menu - duplicate shortcuts will throw an error.
      */
@@ -218,17 +217,16 @@ export type MenuCustomAction = {
     /**
      * Called when this action is activated either by mouse or by keyboard.
      *
-     * If a promise is returned we will show a loading spinner while waiting for
-     * the promise to resolve. If you return a promise you must pass in a
-     * `pressErrorTitle` property to communicate to the user what failed after
-     * the press.
+     * If a promise is returned we will show a loading spinner while waiting for the
+     * promise to resolve. If you return a promise you must pass in a `pressErrorTitle`
+     * property to communicate to the user what failed after the press.
      */
     readonly onPress: () => MaybePromise<{withoutClose: boolean} | void>;
 
     /**
-     * If an error occurs while running `onPress` we will report the error to the user with
-     * this title. It is the "what happened" part of an error message according to [Adobe
-     * Spectrum's][1] error content guidelines.
+     * If an error occurs while running `onPress` we will report the error to the user
+     * with this title. It is the "what happened" part of an error message according to
+     * [Adobe Spectrum's][1] error content guidelines.
      *
      * So for example it this is a delete comment action say "Couldn't delete comment".
      *
@@ -254,12 +252,12 @@ export type MenuCustomAction = {
           /**
            * Custom renderer for your menu action.
            *
-           * You're responsible for rendering the menu item's structure! Which is a
-           * `<Box>` element that includes event handlers (e.g. keyboard event handlers)
-           * needed for the menu to operate correctly.
+           * You're responsible for rendering the menu item's structure! Which is a `<Box>`
+           * element that includes event handlers (e.g. keyboard event handlers) needed for
+           * the menu to operate correctly.
            *
-           * You must call `renderStructure` and return the result. Otherwise, all sorts
-           * of assumptions the menu component makes may break.
+           * You must call `renderStructure` and return the result. Otherwise, all sorts of
+           * assumptions the menu component makes may break.
            *
            * This is useful if you need to wrap the structure element in an
            * `<OverlayTriggerButton>` or similar. Otherwise prefer the simpler `render`.
@@ -282,25 +280,25 @@ export type MenuChildrenAction = {
      * dropdown. When the user hovers over the item they'll see more actions to the
      * right.
      *
-     * We recommend against menus like this on mobile since the complexity becomes
-     * hard for the user to manage.
+     * We recommend against menus like this on mobile since the complexity becomes hard
+     * for the user to manage.
      */
     readonly hasChildren: true;
     readonly withCustomLayout?: undefined;
     readonly heading?: undefined;
 
     /**
-     * We need a unique key for menu items with children so we can make sure the
-     * menu stays open across re-renders that change the action object.
+     * We need a unique key for menu items with children so we can make sure the menu
+     * stays open across re-renders that change the action object.
      */
     readonly key: Key;
 
     /**
      * Is the child overlay placed to the right or left? Defaults to right.
      *
-     * Generally it makes more sense to place child menus on the right so it
-     * doesn't conflict with the left aligned menu label text. But sometimes your
-     * layout will required putting them on the left.
+     * Generally it makes more sense to place child menus on the right so it doesn't
+     * conflict with the left aligned menu label text. But sometimes your layout will
+     * required putting them on the left.
      */
     readonly placement?: "right" | "left";
 
@@ -313,8 +311,8 @@ export type MenuChildrenAction = {
     readonly label: string;
 
     /**
-     * Override the size of the sub-menu. By default we inherit the size of the
-     * parent menu.
+     * Override the size of the sub-menu. By default we inherit the size of the parent
+     * menu.
      */
     readonly size?: MenuSize;
 
@@ -326,9 +324,8 @@ export type MenuChildrenAction = {
     /**
      * The child actions of this menu which will be displayed in a submenu.
      *
-     * If you provide a function, you may load the actions asynchronously. The
-     * actions will be loaded once when you open the submenu and cached while the
-     * menu is open.
+     * If you provide a function, you may load the actions asynchronously. The actions
+     * will be loaded once when you open the submenu and cached while the menu is open.
      */
     readonly actions: MenuActions | (() => MaybePromise<MenuActions>);
 
@@ -338,12 +335,12 @@ export type MenuChildrenAction = {
     readonly onOpenChange?: (isOpen: boolean) => void;
 
     /**
-     * Whenever an item within this menu is focused then `isFocusWithin` will be
-     * set to true.
+     * Whenever an item within this menu is focused then `isFocusWithin` will be set to
+     * true.
      *
-     * If you provide a handler for this event, you should also consider watching
-     * when the menu closes and setting this to `false`. Since the blur isn't
-     * called on an unmounted element.
+     * If you provide a handler for this event, you should also consider watching when
+     * the menu closes and setting this to `false`. Since the blur isn't called on an
+     * unmounted element.
      */
     readonly onFocusWithinChange?: (isFocusWithin: boolean) => void;
 };
@@ -369,8 +366,8 @@ const menuSizeConstants: {
 };
 
 /**
- * A menu offers a list of actions to a user. A menu is rendered as an overlay
- * on top of the application.
+ * A menu offers a list of actions to a user. A menu is rendered as an overlay on
+ * top of the application.
  *
  * Implements the [WAI-ARIA menu pattern][1].
  *
@@ -395,24 +392,23 @@ const Menu = forwardRef(function Menu(
         /**
          * The size of our menu. Defaults to `base`.
          *
-         * On mobile, `base` menus get larger to accommodate less precise input
-         * mechanisms (fingers). Items grow to `lg` size even if the menu width as a
-         * whole doesn't.
+         * On mobile, `base` menus get larger to accommodate less precise input mechanisms
+         * (fingers). Items grow to `lg` size even if the menu width as a whole doesn't.
          */
         size?: MenuSize;
 
         /**
-         * All the actions available in a menu's popup. When clicking on the button
-         * element to open
+         * All the actions available in a menu's popup. When clicking on the button element
+         * to open
          *
-         * If you have nested arrays then each sub-array will form a section with a
-         * divider between sections.
+         * If you have nested arrays then each sub-array will form a section with a divider
+         * between sections.
          */
         actions: MaybeThunk<MenuActions>;
 
         /**
-         * Where should the menu overlay be placed relative to the target element?
-         * Defaults to `bottom-start`.
+         * Where should the menu overlay be placed relative to the target element? Defaults
+         * to `bottom-start`.
          */
         placement?: OverlayPlacement;
 
@@ -439,30 +435,29 @@ const Menu = forwardRef(function Menu(
 
         /**
          * Should the menu close after an action is pressed? By default the menu closes
-         * after an action is pressed but you may set this to true to stop that
-         * behavior.
+         * after an action is pressed but you may set this to true to stop that behavior.
          */
         shouldNotCloseAfterActionPress?: boolean;
 
         /**
-         * Some extra DOM to put at the top of the menu overlay. Useful if you
-         * need some particularly custom in your menu.
+         * Some extra DOM to put at the top of the menu overlay. Useful if you need some
+         * particularly custom in your menu.
          */
         extraTop?: ReactNode;
 
         /**
-         * Some extra DOM to put at the bottom of the menu overlay. Useful if you
-         * need some particularly custom in your menu.
+         * Some extra DOM to put at the bottom of the menu overlay. Useful if you need some
+         * particularly custom in your menu.
          */
         extraBottom?: ReactNode;
 
         /**
-         * Whenever an item within this menu is focused then `isFocusWithin` will be
-         * set to true.
+         * Whenever an item within this menu is focused then `isFocusWithin` will be set to
+         * true.
          *
-         * If you provide a handler for this event, you should also consider watching
-         * when the menu closes and setting this to `false`. Since the blur isn't
-         * called on an unmounted element.
+         * If you provide a handler for this event, you should also consider watching when
+         * the menu closes and setting this to `false`. Since the blur isn't called on an
+         * unmounted element.
          */
         onFocusWithinChange?: (isFocusWithin: boolean) => void;
 
@@ -573,14 +568,15 @@ const Menu = forwardRef(function Menu(
         return {menuItemRefs: refs, keyboardShortcutMap};
     }, [flattenedActions]);
 
-    // Track which menu item is being pressed via keyboard shortcut for visual feedback.
+    // Track which menu item is being pressed via keyboard shortcut for visual
+    // feedback.
     const [keyboardPressedMenuItemRef, setKeyboardPressedMenuItemRef] =
         useState<RefObject<MenuItemRef | null> | null>(null);
 
     const [searchText, setSearchText] = useState("");
 
-    // We want to reset the search text back to an empty string after some period
-    // of time whenever it changes.
+    // We want to reset the search text back to an empty string after some period of
+    // time whenever it changes.
     useEffect(() => {
         if (searchText === "") return;
 
@@ -616,9 +612,9 @@ const Menu = forwardRef(function Menu(
             menuElement.removeAttribute("aria-activedescendant");
         }
 
-        // If a direct descendant was focused then close any open submenu we may have.
-        // This will happen if you open a submenu with the keyboard then hover over a
-        // different menu item.
+        // If a direct descendant was focused then close any open submenu we may have. This
+        // will happen if you open a submenu with the keyboard then hover over a different
+        // menu item.
         if (event.type === "focus" && event.currentTarget.contains(event.target)) {
             const focusedAction = activeIndex !== null ? flattenedActions[activeIndex] : undefined;
             setOpenedActionKey(openedActionKey =>
@@ -668,8 +664,8 @@ const Menu = forwardRef(function Menu(
             {...(!isNotFocusable
                 ? {
                       role: "menu",
-                      // The menu container has `tabindex` set to -1 or 0 and
-                      // `aria-activedescendant` set to the ID of the focused item.
+                      // The menu container has `tabindex` set to -1 or 0 and `aria-activedescendant` set
+                      // to the ID of the focused item.
                       //
                       // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                       tabIndex: -1,
@@ -707,8 +703,8 @@ const Menu = forwardRef(function Menu(
             }}
             onKeyDown={event => {
                 switch (event.key) {
-                    // When focus is in a menu, moves focus to the next item, optionally
-                    // wrapping from the last to the first.
+                    // When focus is in a menu, moves focus to the next item, optionally wrapping from
+                    // the last to the first.
                     //
                     // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                     case "ArrowDown": {
@@ -732,8 +728,8 @@ const Menu = forwardRef(function Menu(
                             }
                         }
 
-                        // If we did not find a menu item after `currentIndex` then loop back around to
-                        // the first menu item.
+                        // If we did not find a menu item after `currentIndex` then loop back around to the
+                        // first menu item.
                         for (let index = 0; index < menuItemRefs.length; index++) {
                             const menuItemRef = menuItemRefs[index]!;
                             if (menuItemRef) {
@@ -743,8 +739,8 @@ const Menu = forwardRef(function Menu(
                         }
                         return;
                     }
-                    // When focus is in a menu, moves focus to the previous item,
-                    // optionally wrapping from the first to the last.
+                    // When focus is in a menu, moves focus to the previous item, optionally wrapping
+                    // from the first to the last.
                     //
                     // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                     case "ArrowUp": {
@@ -785,9 +781,9 @@ const Menu = forwardRef(function Menu(
                         onArrowRightKeyDown?.(event);
                         return;
                     }
-                    // Moves focus to the first item in the current menu. Technically, the spec
-                    // says only implement if arrow key wrapping is not supported but it's easy
-                    // to support so why not.
+                    // Moves focus to the first item in the current menu. Technically, the spec says
+                    // only implement if arrow key wrapping is not supported but it's easy to support
+                    // so why not.
                     //
                     // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                     case "Home": {
@@ -804,9 +800,9 @@ const Menu = forwardRef(function Menu(
                         }
                         return;
                     }
-                    // Moves focus to the last item in the current menu. Technically, the spec
-                    // says only implement if arrow key wrapping is not supported but it's easy
-                    // to support so why not.
+                    // Moves focus to the last item in the current menu. Technically, the spec says
+                    // only implement if arrow key wrapping is not supported but it's easy to support
+                    // so why not.
                     //
                     // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                     case "End": {
@@ -824,40 +820,22 @@ const Menu = forwardRef(function Menu(
                         return;
                     }
                     default: {
-                        // Check if the key matches a keyboard shortcut. Shortcuts take
-                        // precedence over label-based search.
+                        // Check if the key matches a keyboard shortcut. Shortcuts take precedence over
+                        // label-based search.
                         if (/^[0-9a-zA-Z]$/.test(event.key) && !isModifiedKeyboardEvent(event)) {
                             const menuItemRef = keyboardShortcutMap.get(event.key.toLowerCase());
                             if (menuItemRef !== undefined) {
                                 event.preventDefault();
                                 event.stopPropagation();
 
-                                // If the user presses a shortcut key while a menu item is
-                                // focused and the menu item in focus is not the one that matches
-                                // the shortcut key, then blur the focused menu item.
-                                // If we don't do this, we get into a weird UI state where one
-                                // menu item is focused while another menu item is visually pressed.
-                                const activeMenuItemIndex = getFocusedActionIndexIfExists();
-                                if (activeMenuItemIndex !== null) {
-                                    const activeMenuItemRef =
-                                        menuItemRefs[activeMenuItemIndex]?.current;
-
-                                    if (
-                                        activeMenuItemRef &&
-                                        activeMenuItemRef !== menuItemRef.current
-                                    ) {
-                                        activeMenuItemRef.blur();
-                                    }
-
-                                    setKeyboardPressedMenuItemRef(menuItemRef);
-                                    menuItemRef.current?.press();
-                                    return;
-                                }
+                                assertExists(menuItemRef.current).focus();
+                                setKeyboardPressedMenuItemRef(menuItemRef);
+                                return;
                             }
                         }
 
-                        // Move focus to the next menu item in the current menu whose label
-                        // begins with that printable character.
+                        // Move focus to the next menu item in the current menu whose label begins with
+                        // that printable character.
                         //
                         // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                         if (
@@ -891,8 +869,9 @@ const Menu = forwardRef(function Menu(
                 // Clear the keyboard pressed state when the key is released
                 if (/^[0-9a-zA-Z]$/.test(event.key) && !isModifiedKeyboardEvent(event)) {
                     const menuItemRef = keyboardShortcutMap.get(event.key.toLowerCase());
-                    if (menuItemRef !== undefined && keyboardPressedMenuItemRef === menuItemRef) {
+                    if (menuItemRef && keyboardPressedMenuItemRef === menuItemRef) {
                         setKeyboardPressedMenuItemRef(null);
+                        assertExists(menuItemRef.current).press();
                     }
                 }
             }}
@@ -935,7 +914,7 @@ const Menu = forwardRef(function Menu(
                                 isNotFocusable={isNotFocusable}
                                 shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
                                 openedActionKey={openedActionKey}
-                                isKeyboardPressed={
+                                isPressedFromKeyboard={
                                     keyboardPressedMenuItemRef === menuItemRefs[index]
                                 }
                                 onActionOpen={action => setOpenedActionKey(action.key)}
@@ -976,7 +955,7 @@ export const MenuItem = forwardRef(function MenuItem(
         isFocusRingVisible = false,
         shouldNotCloseAfterPress = false,
         openedActionKey,
-        isKeyboardPressed = false,
+        isPressedFromKeyboard = false,
         onActionOpen,
         onActionClose,
     }: {
@@ -990,7 +969,7 @@ export const MenuItem = forwardRef(function MenuItem(
         isFocusRingVisible?: boolean;
         shouldNotCloseAfterPress?: boolean;
         openedActionKey: Key | null;
-        isKeyboardPressed?: boolean;
+        isPressedFromKeyboard?: boolean;
         onActionOpen: (action: MenuChildrenAction) => void;
         onActionClose: (action: MenuChildrenAction) => void;
     },
@@ -1009,7 +988,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
                 shouldNotCloseAfterPress={shouldNotCloseAfterPress}
-                isKeyboardPressed={isKeyboardPressed}
+                isPressedFromKeyboard={isPressedFromKeyboard}
             />
         );
     }
@@ -1062,7 +1041,7 @@ export const MenuItem = forwardRef(function MenuItem(
                         isNotFocusable={isNotFocusable}
                         isFocusRingVisible={isFocusRingVisible}
                         shouldNotCloseAfterPress={shouldNotCloseAfterPress}
-                        isKeyboardPressed={isKeyboardPressed}
+                        isPressedFromKeyboard={isPressedFromKeyboard}
                     />
                 )}
             </Tooltip>
@@ -1080,7 +1059,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
                 shouldNotCloseAfterPress={shouldNotCloseAfterPress}
-                isKeyboardPressed={isKeyboardPressed}
+                isPressedFromKeyboard={isPressedFromKeyboard}
             />
         );
     }
@@ -1098,7 +1077,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         isNotFocusable,
         isFocusRingVisible,
         shouldNotCloseAfterPress,
-        isKeyboardPressed,
+        isPressedFromKeyboard,
     }: {
         size: MenuSize;
         menuItemId: string;
@@ -1110,7 +1089,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         isNotFocusable: boolean;
         isFocusRingVisible: boolean;
         shouldNotCloseAfterPress: boolean;
-        isKeyboardPressed: boolean;
+        isPressedFromKeyboard: boolean;
     },
     foreignRef: Ref<MenuItemRef>,
 ) {
@@ -1175,11 +1154,11 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     if (result?.withoutClose || shouldNotCloseAfterPress) {
                         setPendingState({isPending: false, shouldShowPendingSpinner: false});
                     } else {
-                        // Our animation principle is to respond to user input immediately
-                        // without animation.
+                        // Our animation principle is to respond to user input immediately without
+                        // animation.
                         //
-                        // If the item had to go into a loading state we consider the click long
-                        // enough ago that it is no longer a direct action.
+                        // If the item had to go into a loading state we consider the click long enough ago
+                        // that it is no longer a direct action.
                         if (
                             new Date().getTime() - promiseStartTime.getTime() >
                             delayLoadingIndicatorLimitMs
@@ -1200,19 +1179,20 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
 
     const {refCallback} = useMenuItemPressRef(onPress, foreignRef);
 
-    const {isPressed: isPressedFromHook, pressProps} = usePress({
+    const {isPressed: isPressedFromState, pressProps} = usePress({
         preventFocusOnPress: isNotFocusable,
-        // We want buttons with a disabled reason to be pressable so they can show
-        // their tooltip with the reason for why they are disabled.
+        // We want buttons with a disabled reason to be pressable so they can show their
+        // tooltip with the reason for why they are disabled.
         isDisabled: isDisabled && action.disabledReason === undefined,
         onPress,
     });
 
     // Combine press state from usePress hook and keyboard shortcut
-    const isPressed = isPressedFromHook || isKeyboardPressed;
+    const isPressed = isPressedFromState || isPressedFromKeyboard;
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    // We wait a bit before showing our pending spinner. Some actions are very fast so
+    // we delay showing a spinner to avoid a loading spinner flicker which can be
+    // jarring.
     useEffect(() => {
         if (!pendingState.isPending || pendingState.shouldShowPendingSpinner) return;
 
@@ -1254,8 +1234,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 {...(!isNotFocusable
                     ? {
                           role: "menuitem",
-                          // Each item in the menu has `tabindex` set to -1. (Even disabled items
-                          // are focusable.)
+                          // Each item in the menu has `tabindex` set to -1. (Even disabled items are
+                          // focusable.)
                           //
                           // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                           tabIndex: -1,
@@ -1271,8 +1251,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 paddingRight={action.icon && action.iconPlacement === "end" ? "1.5" : "2"}
                 paddingY="1.5"
                 borderRadius="1"
-                // NOTE(calebmer): We don't have a red destructive menu item style because it
-                // seems silly to call attention to the destructive action with color.
+                // NOTE(calebmer): We don't have a red destructive menu item style because it seems
+                // silly to call attention to the destructive action with color.
                 color={isDisabled ? "grey-40" : "grey-100"}
                 backgroundColor={
                     isPressed && !isDisabled ? "grey-10" : isHovered ? "grey-5" : undefined
@@ -1358,7 +1338,7 @@ function MenuCustomItem({
     isNotFocusable,
     isFocusRingVisible,
     shouldNotCloseAfterPress,
-    isKeyboardPressed,
+    isPressedFromKeyboard,
 }: {
     menuItemRef: Ref<MenuItemRef>;
     menuItemId: string;
@@ -1368,7 +1348,7 @@ function MenuCustomItem({
     isNotFocusable: boolean;
     isFocusRingVisible: boolean;
     shouldNotCloseAfterPress: boolean;
-    isKeyboardPressed: boolean;
+    isPressedFromKeyboard: boolean;
 }) {
     const reporter = useReporter();
     const [pendingState, setPendingState] = useState<
@@ -1415,11 +1395,11 @@ function MenuCustomItem({
             result.then(
                 result => {
                     if (!result?.withoutClose && !shouldNotCloseAfterPress) {
-                        // Our animation principle is to respond to user input immediately
-                        // without animation.
+                        // Our animation principle is to respond to user input immediately without
+                        // animation.
                         //
-                        // If the item had to go into a loading state we consider the click long
-                        // enough ago that it is no longer a direct action.
+                        // If the item had to go into a loading state we consider the click long enough ago
+                        // that it is no longer a direct action.
                         if (
                             new Date().getTime() - promiseStartTime.getTime() >
                             delayLoadingIndicatorLimitMs
@@ -1447,12 +1427,13 @@ function MenuCustomItem({
     });
 
     // Combine press state from usePress hook and keyboard shortcut
-    const isPressed = isPressedFromHook || isKeyboardPressed;
+    const isPressed = isPressedFromHook || isPressedFromKeyboard;
 
     const {isHovered, hoverProps} = useHover({});
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    // We wait a bit before showing our pending spinner. Some actions are very fast so
+    // we delay showing a spinner to avoid a loading spinner flicker which can be
+    // jarring.
     useEffect(() => {
         if (!pendingState.isPending || pendingState.shouldShowPendingSpinner) return;
 
@@ -1465,13 +1446,13 @@ function MenuCustomItem({
         };
     }, [pendingState]);
 
-    // If this custom menu item is using `renderWithStructure` to wrap the custom
-    // menu item in an `<OverlayTriggerButton>` then we want to listen for
-    // triggered overlay open/close events.
+    // If this custom menu item is using `renderWithStructure` to wrap the custom menu
+    // item in an `<OverlayTriggerButton>` then we want to listen for triggered overlay
+    // open/close events.
     //
     // This is used by `<MessageView>` which renders
-    // `<MessageViewContextMenuReactionButton>` as a custom menu item which opens
-    // an overlay.
+    // `<MessageViewContextMenuReactionButton>` as a custom menu item which opens an
+    // overlay.
     const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
 
     useEffect(() => {
@@ -1507,8 +1488,8 @@ function MenuCustomItem({
                 {...(!isNotFocusable
                     ? {
                           role: "menuitem",
-                          // Each item in the menu has `tabindex` set to -1. (Even disabled items
-                          // are focusable.)
+                          // Each item in the menu has `tabindex` set to -1. (Even disabled items are
+                          // focusable.)
                           //
                           // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                           tabIndex: -1,
@@ -1600,8 +1581,8 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
         onOpenFromProps();
     };
 
-    // Fallback in case the `shouldOpen` prop is set to true without `onOpen()`
-    // having been called.
+    // Fallback in case the `shouldOpen` prop is set to true without `onOpen()` having
+    // been called.
     useEffect(() => {
         if (shouldOpen && actionsPromise === null) {
             setActionsPromise(
@@ -1625,6 +1606,12 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
     const {width} = menuSizeConstants[size][platform];
 
     const [isHovered, setIsHovered] = useState(false);
+
+    const hoverTimeoutRef = useRef<{
+        timeout: Timeout;
+        clientX: number;
+        clientY: number;
+    }>(null);
 
     const [shouldInitiallyFocus, setShouldInitiallyFocus] = useState(false);
     if (shouldInitiallyFocus && !isOpened && !shouldOpen) setShouldInitiallyFocus(false);
@@ -1665,8 +1652,8 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
     const {isPressed, pressProps} = usePress({
         preventFocusOnPress: isNotFocusable,
         onPress: event => {
-            // For `Enter` and `Space` keyboard events: When focus is on a `menuitem` that
-            // has a submenu, opens the submenu and places focus on its first item.
+            // For `Enter` and `Space` keyboard events: When focus is on a `menuitem` that has
+            // a submenu, opens the submenu and places focus on its first item.
             //
             // For touch/pointer events: Open the submenu so mobile devices can access
             // submenus.
@@ -1701,11 +1688,11 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
 
     const onCloseEvent = useEvent(onClose);
 
-    // If we opened the submenu because the mouse hovered over the menu item then
-    // if the mouse moves over anything else we want to close the submenu.
+    // If we opened the submenu because the mouse hovered over the menu item then if
+    // the mouse moves over anything else we want to close the submenu.
     //
-    // `hoverTriangleState` only exists if we opened the submenu when the mouse
-    // hovered over it. If the submenu opened after keyboard interaction then
+    // `hoverTriangleState` only exists if we opened the submenu when the mouse hovered
+    // over it. If the submenu opened after keyboard interaction then
     // `hoverTriangleState` will not be set.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!shouldOpen || !hoverTriangleState) return;
@@ -1724,8 +1711,8 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
             }
 
             if (element.contains(event.target)) {
-                // If the user moves their cursor outside of the hover triangle but still in
-                // the menu item, update the hover triangle.
+                // If the user moves their cursor outside of the hover triangle but still in the
+                // menu item, update the hover triangle.
                 setHoverTriangleState({
                     initialX: event.clientX,
                     initialY: event.clientY,
@@ -1739,23 +1726,24 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
         };
     }, [hoverTriangleState, onCloseEvent, shouldOpen]);
 
-    // Submenu dropdowns, if not implemented properly, can be quite user hostile.
-    // Since when the user hovers over a menu item and tries to move their cursor
-    // to the last item in the submenu they may leave the hit area of the original
-    // menu item which closes the submenu. This requires a user to perfectly move
-    // their mouse horizontally into the submenu then down. This is slow since it
-    // requires precision from the user.
+    // Submenu dropdowns, if not implemented properly, can be quite user hostile. Since
+    // when the user hovers over a menu item and tries to move their cursor to the last
+    // item in the submenu they may leave the hit area of the original menu item which
+    // closes the submenu. This requires a user to perfectly move their mouse
+    // horizontally into the submenu then down. This is slow since it requires
+    // precision from the user.
     //
-    // A more user friendly approach to dropdowns is to render a triangle from
-    // where the user's mouse starts to the top and bottom of the submenu. If the
-    // mouse moves within that area we can keep the submenu open.
+    // A more user friendly approach to dropdowns is to render a triangle from where
+    // the user's mouse starts to the top and bottom of the submenu. If the mouse moves
+    // within that area we can keep the submenu open.
     //
-    // The Smashing Magazine article "[User-Friendly Mega-Dropdowns: When Hover
-    // Menus Fail][1]" describes the issue visually and lists a couple solutions.
-    // We implement the same triangle approach invented by Amazon detailed in
-    // "[Breaking down Amazon's mega dropdown][2]."
+    // The Smashing Magazine article "[User-Friendly Mega-Dropdowns: When Hover Menus
+    // Fail][1]" describes the issue visually and lists a couple solutions. We
+    // implement the same triangle approach invented by Amazon detailed in "[Breaking
+    // down Amazon's mega dropdown][2]."
     //
-    // [1]: https://www.smashingmagazine.com/2021/05/frustrating-design-patterns-mega-dropdown-hover-menus/
+    // [1]:
+    //     https://www.smashingmagazine.com/2021/05/frustrating-design-patterns-mega-dropdown-hover-menus/
     // [2]: https://bjk5.com/post/44698559168/breaking-down-amazons-mega-dropdown
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!isOpened || !hoverTriangleState) return;
@@ -1915,8 +1903,8 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
             fallbackPlacements={emptyArray}
             onActuallyVisibleChange={action.onOpenChange}
             // Make sure we render over the item's `<FocusRing>`. For example when the user
-            // presses the left arrow so the child menu animates closed while the
-            // `<FocusRing>` is visible.
+            // presses the left arrow so the child menu animates closed while the `<FocusRing>`
+            // is visible.
             overlayZIndex="10"
             overlay={
                 <Box ref={overlayRef}>
@@ -1983,12 +1971,51 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
                             }
 
                             setIsHovered(true);
-                            setHoverTriangleState({
-                                initialX: event.clientX,
-                                initialY: event.clientY,
-                            });
-                            event.currentTarget.focus({preventScroll: true});
-                            onOpen();
+
+                            // Immediately start loading our async actions on hover even if we're not going to
+                            // use them for another 200ms.
+                            if (actionsPromise === null) {
+                                setActionsPromise(
+                                    PromiseImmediate.resolve(
+                                        typeof action.actions !== "function"
+                                            ? action.actions
+                                            : action.actions(),
+                                    ),
+                                );
+                            }
+
+                            hoverTimeoutRef.current?.timeout.clear();
+
+                            // Wait 200ms before opening the sub-menu. If the user is quickly moving their
+                            // mouse through the menu immediately opening submenus is distracting. A little
+                            // delay helps the menu not feel janky in the common case while still not being too
+                            // long to feel sluggish.
+                            //
+                            // Opening the hover triangle instantly also makes it harder to tap on menu items
+                            // below the menu with a sub-menu.
+                            hoverTimeoutRef.current = {
+                                clientX: event.clientX,
+                                clientY: event.clientY,
+                                timeout: createTimeout(() => {
+                                    if (!hoverTimeoutRef.current) return;
+
+                                    setHoverTriangleState({
+                                        // `pointermove` may have changed the current `clientX` or `clientY`.
+                                        initialX: hoverTimeoutRef.current.clientX,
+                                        initialY: hoverTimeoutRef.current.clientY,
+                                    });
+
+                                    hoverTimeoutRef.current = null;
+
+                                    onOpen();
+                                }, 200),
+                            };
+                        },
+                        onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+                            if (hoverTimeoutRef.current) {
+                                hoverTimeoutRef.current.clientX = event.clientX;
+                                hoverTimeoutRef.current.clientY = event.clientY;
+                            }
                         },
                         onPointerLeave: (event: React.PointerEvent<HTMLDivElement>) => {
                             if (event.pointerType === "touch" || !isHovered) {
@@ -1996,7 +2023,9 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
                             }
 
                             setIsHovered(false);
-                            event.currentTarget.blur();
+
+                            hoverTimeoutRef.current?.timeout.clear();
+                            hoverTimeoutRef.current = null;
                         },
                         onKeyDown: (event: React.KeyboardEvent) => {
                             // When focus is in a `menu` and on a `menuitem` that has a submenu, opens the
@@ -2034,8 +2063,8 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
                     {...(!isNotFocusable
                         ? {
                               role: "menuitem",
-                              // Each item in the menu has `tabindex` set to -1. (Even disabled items
-                              // are focusable.)
+                              // Each item in the menu has `tabindex` set to -1. (Even disabled items are
+                              // focusable.)
                               //
                               // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                               tabIndex: -1,
@@ -2099,45 +2128,47 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
  * method. This allows the `<Menu>` component to programmatically trigger a menu
  * item's action (e.g., when a keyboard shortcut is pressed).
  *
- * @param onPress - The press handler to call when `press()` is invoked
- * @param foreignRef - The ref to forward the augmented element to (from the parent)
+ * @param onPress - The press handler to call when `press()` is invoked @param
+ * foreignRef - The ref to forward the augmented element to (from the parent)
  * @returns An object with:
- *   - `localRef`: A ref to the DOM element for internal use
- *   - `refCallback`: A ref callback to pass to the element's `ref` prop
+ *
+ * - `localRef`: A ref to the DOM element for internal use
+ * - `refCallback`: A ref callback to pass to the element's `ref` prop
  */
 function useMenuItemPressRef(onPress: () => void, foreignRef: Ref<MenuItemRef>) {
     const localRef = useRef<HTMLDivElement>(null);
 
-    // We need to expose `onPress` via the ref's `press()` method so that the
-    // `<Menu>` component can trigger it when a keyboard shortcut is pressed.
-    // However, `onPress` is recreated on every render since it's defined inside
-    // the component and closes over the current props/state. We use a ref to
-    // always have access to the latest version of `onPress` without needing to
-    // recreate the `press()` method on the DOM element.
+    // We need to expose `onPress` via the ref's `press()` method so that the `<Menu>`
+    // component can trigger it when a keyboard shortcut is pressed. However, `onPress`
+    // is recreated on every render since it's defined inside the component and closes
+    // over the current props/state. We use a ref to always have access to the latest
+    // version of `onPress` without needing to recreate the `press()` method on the DOM
+    // element.
     //
-    // We use `useLayoutEffectWithoutServerSideWarning` instead of direct
-    // assignment (`onPressRef.current = onPress`) because React Compiler forbids
-    // writing to ref.current during render.
+    // We use `useLayoutEffectWithoutServerSideWarning` instead of direct assignment
+    // (`onPressRef.current = onPress`) because React Compiler forbids writing to
+    // ref.current during render.
     const onPressRef = useRef(onPress);
     useLayoutEffectWithoutServerSideWarning(() => {
         onPressRef.current = onPress;
     });
 
-    // This is a ref callback that React calls with the DOM element when mounted
-    // and `null` when unmounted. We use it to augment the DOM element with a
-    // `press()` method that the `<Menu>` component can call to programmatically
-    // trigger this menu item's action.
+    // This is a ref callback that React calls with the DOM element when mounted and
+    // `null` when unmounted. We use it to augment the DOM element with a `press()`
+    // method that the `<Menu>` component can call to programmatically trigger this
+    // menu item's action.
     //
     // The pattern is:
+    //
     // 1. Use `Object.assign` to add a `press()` method directly onto the DOM element
     // 2. The `press()` method calls `onPressRef.current()` to get the latest `onPress`
-    // 3. Store the augmented element in both `localRef` (for internal use) and
-    //    forward it to `foreignRef` (the parent's ref via `assignRef`)
+    // 3. Store the augmented element in both `localRef` (for internal use) and forward
+    //    it to `foreignRef` (the parent's ref via `assignRef`)
     //
     // `assignRef` is a helper that handles both `RefObject` and callback ref styles.
     //
-    // We use this refCallback instead of foreignRef directly so we can augment
-    // the DOM element with the `press()` method before forwarding it to the parent.
+    // We use this refCallback instead of foreignRef directly so we can augment the DOM
+    // element with the `press()` method before forwarding it to the parent.
     const refCallback = useCallback(
         (element: HTMLDivElement | null) => {
             if (element === null) {

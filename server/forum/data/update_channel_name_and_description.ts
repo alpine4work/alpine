@@ -2,7 +2,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeChannelItemAccess} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
@@ -25,9 +25,9 @@ export async function updateChannelNameAndDescription(
         description: MessageContent;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<ChannelModel>>>;
 }> {
     // Give the user a nice error message if there was an error validating the new
     // channel name.
@@ -63,6 +63,6 @@ export async function updateChannelNameAndDescription(
     });
 
     return {
-        getDynamoGeneralRealtimeEventTransaction: async context => [await result.getEvent(context)],
+        getRynamoEvents: async context => [await result.getEvent(context)],
     };
 }

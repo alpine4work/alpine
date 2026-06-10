@@ -28,7 +28,7 @@ describe("backfillSpellCheckIgnoredLints", () => {
         });
 
         assert(result.type === "Available");
-        expect(result.eventTransaction).toEqual([]);
+        expect(result.events).toEqual([]);
     });
 
     test("throws error for unauthorized access", async () => {

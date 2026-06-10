@@ -70,7 +70,10 @@ TODO: add multi-part support to our in-memory Notion export framework and test i
   file is referenced in a document's body content (see
   [Inline vs Full-Page Databases](#inline-vs-full-page-databases)).
 - **Attached files**: Images, videos, audio, and other files referenced in markdown content via
-  `![name](path)` or `[name](path)` links.
+  `[name](path)` links. Notion exports use image syntax (`![name](path)`) but we convert these to
+  link syntax because our markdown parser doesn't support inline images/videos/files directly -- it
+  only recognizes files via URLs matching our alpine.inc format. Link syntax preserves the URL as a
+  Text element with a Link mark, which the conversion phase uses for file resolution.
 
 ### Document Markdown Structure
 
@@ -164,6 +167,29 @@ For example, "Status: Not started" becomes "**Status:** Not started".
 Property lines are identified by consecutive lines at the start of the content that match the
 pattern: one or more words (letters only), then a colon and a value. We rely on Notion's export
 having each property on its own line (separated by single newlines).
+
+#### File Paths in Database Properties and CSV Cells
+
+File paths appear as raw strings in two places within database exports:
+
+1. **Property values** in `.md` database row pages: `Files: image.jpg, video.mp4`
+2. **CSV cells** in database export CSVs: a cell might contain `sunset.png` or
+   `Parent%20Doc/beach.png, Parent%20Doc/mountain.png`
+
+These raw file paths are **not** markdown links (`[text](url)` or `![text](url)`), so the standard
+markdown link scanner doesn't detect them. We handle them separately during reference mapping:
+
+- **Property values**: After scanning markdown links for each `.md` file, we parse consecutive
+  property lines at the top of the content, split values by commas, and check if each part looks
+  like a file path (has a file extension or URL-encoded characters). Resolved paths are added to
+  both `documents[path].files` and `filePathToTeamspaceId`.
+- **CSV cells**: After the markdown scanning loop, we iterate through all CSV files with Notion IDs
+  in their filenames. For each cell that looks like a file path, we resolve it (relative to the
+  CSV's grandparent directory, matching Notion's convention) and add it to `filePathToTeamspaceId`.
+
+The `filePathToTeamspaceId` map is used during file upload to associate each file with the correct
+teamspace. Without this tracking, files referenced only through property values or CSV cells would
+be uploaded with an empty teamspace ID.
 
 #### Skipped Home Files
 
@@ -292,7 +318,7 @@ const notionId = uuid.replace(/-/g, ""); // Remove dashes to get 32-char hex
 
 This normalization happens in:
 
-- `unzip_notion_import_and_map_references.ts` when parsing index.html hierarchy
+- `parse_notion_import_and_map_references.ts` when parsing index.html hierarchy
 - `get_notion_import_teamspaces.ts` when extracting teamspace IDs
 
 Both locations use the same pattern to ensure consistent ID format across the codebase.
@@ -375,6 +401,35 @@ as a table rather than linked.
 
 Then we treat it as inline and remove it from the children list. This prevents duplicate content
 (once as a child link, once as an embedded table).
+
+#### Missing Inline Database CSVs
+
+Notion sometimes **omits the CSV file for an inline database while still writing the markdown link**
+into the parent page. Real workspaces regularly hit this — e.g. one of Josh's exports was missing 10
+inline database CSVs across template pages ("New Project", "New Task") and Home dashboard widgets
+("My tasks", "Home views", etc.).
+
+The missing CSV filenames follow Notion's normal `Title notionId.csv` pattern, so they are
+**indistinguishable from real database CSVs** until you try to read them:
+
+- Not an encoding/normalization issue — checking missing notion IDs against every file in the zip
+  (any extension, any Unicode normalization) returns zero matches. The files are genuinely absent.
+- Not a multi-part zip issue — the missing CSVs don't appear in any part of the export.
+- Not distinguishable from `index.html` — both missing and existing CSVs appear with the same `href`
+  pattern, `(Inline database)` label, and HTML structure.
+- Not correlated with empty databases — many existing CSVs also have zero or very few rows.
+
+**How we handle it:** there are two code paths that discover CSV references.
+
+1. The reference mapping phase (`parseNotionImportAndMapReferences`) builds `allPaths` from files on
+   disk and `findMarkdownLinks` filters against it, so missing CSVs drop out naturally.
+2. `transformCsvLinksToTables` in `convert_extracted_notion_data_to_entities.ts` **re-discovers CSV
+   links from parsed API content independently**. This is the path that crashed before the fix. When
+   `readUnzippedFile` returns null we skip the table conversion and leave the original markdown link
+   as a regular paragraph.
+
+The root `Home.md` case is already filtered upstream by `isHomeFileWithOnlyCsvLinks`, so only inline
+databases embedded inside regular pages reach this fallback.
 
 ### Database CSV Formats (`.csv` vs `_all.csv`)
 
@@ -489,25 +544,45 @@ reproducible seed for ID generation.
 
 ## Import Pipeline
 
-### 1. Start Import (`start_notion_import.ts`)
+### 1. Create Import (`create_notion_import.ts`)
 
-The user uploads a Notion export zip to the file storage and calls `startNotionImport` with the
-space ID and file ID. This:
+The client calls `createNotionImport` with the space ID, file name, content type, and content
+length. This:
 
-- Authorizes Admin access to the space
-- Creates an import record in DynamoDB with status `Waiting`
-- Enqueues a `NotionImport` job for async processing
+- Authorizes Member access to the space
+- Checks that the current user doesn't already have a pre-processing import (UploadPending,
+  ValidateQueued, Validating, or Validated) in this space
+- Generates a `NotionImportId` and an import key (`{spaceId}/{importId}`)
+- Initiates an S3 multipart upload and generates presigned URLs for each part
+- Creates an import record in DynamoDB with status `UploadPending`
+- Returns the `notionImportId`, `uploadId`, `partUploadUrls`, and `importKey` to the client
 
-### 2. Process Import Job (`process_notion_import_job.ts`)
+### 2. Upload File (`notion_import_upload_section.tsx`)
+
+The client uploads the zip file directly to S3 using multipart upload. See
+[Multipart Uploads](#multipart-uploads) for the full details.
+
+### 3. Finish Upload (`finished_notion_import_upload.ts`)
+
+After all parts are uploaded, the client calls `finishedNotionImportUpload` with the `uploadId` and
+the list of `{partNumber, etag}` pairs. This:
+
+- Verifies the import exists and is in `UploadPending` status
+- Completes the S3 multipart upload (assembles all parts into the final object)
+- Verifies the assembled file exists in storage
+- Transitions the import to `ValidateQueued` status
+- Queues the validation job to extract metadata from the uploaded zip
+
+### 4. Process Import Job (`process_start_notion_import_job.ts`)
 
 The job worker picks up the import job and:
 
-- Fetches the uploaded zip from R2 storage
-- Calls `unzipNotionImportAndMapReferences` to parse the export
+- Fetches the uploaded zip from S3 storage
+- Calls `parseNotionImportAndMapReferences` to parse the export
 - Creates Alpine documents from the parsed result (TODO: in progress)
 - Updates the import status to `Success` or `Failed`
 
-### 3. Parse and Map References (`unzip_notion_import_and_map_references.ts`)
+### 5. Parse and Map References (`parse_notion_import_and_map_references.ts`)
 
 This is the core parsing logic. It takes the raw zip bytes and returns a
 `NotionImportMappedReferencesResult`:
@@ -583,9 +658,46 @@ The parser works in four phases:
 - For each markdown document, parses all `[text](url)` and `![text](url)` links
 - Decoded link paths that match known document paths become `references`
 - Decoded link paths that match known file paths become `files`
-- External URLs (http/https) are ignored
+- Additionally detects raw file paths in database property values (e.g.,
+  `Files: image.jpg, video.mp4`) and adds them to `files` and `filePathToTeamspaceId`
+- Scans CSV cells for raw file paths (e.g., file names or URL-encoded paths) and adds them to
+  `filePathToTeamspaceId` so they get proper teamspace association during upload
+- External URLs (http/https) are ignored during link resolution (but see Phase 3b below)
 - Detects `hasChildrenHeader` by checking if content before `---` contains only child links
 - Tracks CSV references in body content (after `---`) to identify inline databases
+
+**Phase 3b - Download external images:**
+
+Notion sometimes exports images as external URLs rather than local files. This happens when images
+are hosted externally (e.g. AI-generated images from ChatGPT). These appear as
+`[Image](https://...)` in the markdown—a regular link with the text "Image".
+
+After file classification, the parser scans all markdown files for external image links:
+
+- `[Image](https://...)` — Notion's convention for externally hosted images
+- `![alt](https://...)` — standard markdown image syntax with external URLs
+
+For each external image URL:
+
+1. A GET request is made (not HEAD, because some CDNs like OpenAI's return 405 for HEAD requests)
+2. The response headers are checked before consuming the body — if the content-type is not a
+   recognized image type, the link is left unchanged
+3. If the content-length is >= 1 GB, the link is left unchanged (too large to import)
+4. The body is downloaded and if it exceeds 1 GB, it's discarded
+5. The image is saved to disk with a deterministic filename based on a hash of the URL (e.g.
+   `_downloaded_a1b2c3d4e5f6g7h8.png`)
+6. The markdown on disk is rewritten to replace the URL with a local path using `[Image](path)` link
+   syntax (not image syntax) because our markdown parser doesn't support inline images/videos/files
+   directly -- it only recognizes files via URLs matching our alpine.inc format. Link syntax
+   preserves the URL so the conversion phase can resolve it as a file attachment
+7. The downloaded file is added to `filesToUpload` with a deterministic file ID
+
+This allows external images to flow through the existing upload and conversion pipeline—they get
+uploaded to R2 and embedded as `FileRow` elements just like locally exported images.
+
+The Fargate task has internet access (public subnet with `assignPublicIp: ENABLED` and the security
+group allows all outbound traffic), so fetching external URLs works without any additional
+networking configuration.
 
 **Phase 4 - Remove inline databases:**
 
@@ -654,7 +766,8 @@ const doc = new ExportedNotionDocument("Project", `Here are the tasks:\n\n${db.t
 
 Represents an attached file (image, video, or audio). Reads real binary data from test fixtures to
 produce realistic exports. Use `file.toReference()` in document content to create a placeholder that
-resolves to the correct markdown link.
+resolves to a `[name](path)` link. We use link syntax (not image syntax) because our markdown parser
+doesn't support inline images/videos/files directly.
 
 ```typescript
 const img = new ExportedNotionFile("photo.png", "image");
@@ -672,7 +785,7 @@ const zip = createTestNotionImportZip([page, db], {
     createFoldersForSubpages: true,
     workspaceName: "My Workspace",
 });
-const result = unzipNotionImportAndMapReferences(zip);
+const result = await parseNotionImportWithTestContext(zip, notionImportItem);
 ```
 
 #### Cross-references
@@ -691,7 +804,8 @@ b.content = `Link to ${a.toReference()}`;
 #### Testing Inline vs Full-Page Databases
 
 ```typescript
-// Full-page database: added as a child, referenced via toReference() in children header
+// Full-page database: added as a child, referenced via toReference() in children
+// header
 const fullPageDb = new ExportedNotionDatabase("Tasks", [["Task"], ["Do stuff"]]);
 const docWithChild = new ExportedNotionDocument("Project", "content", [fullPageDb]);
 // Result: fullPageDb.md exists as a document, Project has it in children
@@ -738,7 +852,7 @@ cross-references.
 
 ```bash
 # Run just the parser tests
-bazel test //server/importer/notion:internal/unzip_notion_import_and_map_references_test
+bazel test //server/importer/notion:internal/parse_notion_import_and_map_references_test
 
 # Run all tests in the notion importer
 bazel test //server/importer/notion/...
@@ -746,3 +860,159 @@ bazel test //server/importer/notion/...
 # Run type checking and linting
 bazel test //server/importer/notion:notion_typecheck_test //server/importer/notion:notion_lint_test
 ```
+
+## File Processing and Concurrency
+
+The importer uploads and processes files (images, videos, audio, documents) from the Notion export.
+This section documents the concurrency model used for file operations.
+
+### Architecture Overview
+
+File processing happens in these stages:
+
+1. **Upload to R2**: Read file from disk, upload to Cloudflare R2 storage
+2. **File processing**: Generate thumbnails (images), transcode (video/audio), etc.
+3. **Database updates**: Update file records with processing results
+
+### Why We Don't Use Worker Threads
+
+Worker threads wouldn't help here because the CPU-intensive work happens in external native tools,
+not in our JavaScript code:
+
+- **Sharp** (image processing): Uses libuv thread pool internally, already parallelized
+- **FFmpeg** (video/audio): Uses all available CPU cores via `-threads`
+- **PDF tools**: Similar pattern
+
+Our TypeScript code just orchestrates I/O: read file from disk, upload to R2, call external tool,
+update database. This is all async I/O that Node.js handles efficiently in a single thread. Worker
+threads would add complexity without improving performance.
+
+### Concurrency Model
+
+We use a **rotating pool** pattern instead of worker threads:
+
+```typescript
+// Create N workers (N = available parallelism)
+const workers = [];
+for (let i = 0; i < availableParallelism(); i++) {
+    workers.push(runWorker());
+}
+
+// Each worker pulls from a shared queue until empty
+async function runWorker() {
+    while (true) {
+        const file = getNextFile();
+        if (!file) return;
+        await processFile(file);
+    }
+}
+
+// Wait for all workers to finish
+await runAllPromises(workers);
+```
+
+This approach:
+
+- Maintains `availableParallelism()` concurrent operations
+- When one completes, the worker immediately picks up the next file
+- More efficient than batching (no waiting for slowest file in batch)
+- Files are sorted by size (smallest first) so small files complete quickly
+
+### Why availableParallelism()
+
+We use `availableParallelism()` as the concurrency limit. This isn't because the upload work is
+CPU-bound - it's mostly I/O (disk reads, network uploads, database writes). The parallelism count is
+simply a **convenient proxy for system capacity** that scales with machine size.
+
+A fixed number like 10 or 20 would work equally well. We chose `availableParallelism()` because:
+
+1. **Scales with machine**: Larger instances get more concurrency automatically
+2. **Memory constraints**: Each file in flight consumes memory (file content buffer). Limiting
+   concurrency prevents memory exhaustion on large imports
+3. **Good enough estimate**: For I/O-bound work, the exact number matters less than having _some_
+   reasonable limit
+
+### Progress Tracking
+
+The `NotionImporterProgressState` tracks progress:
+
+- **Counter increments**: Each completed upload increments a counter (by file type)
+- **Periodic persistence**: Every ~1 second, changed counters are persisted to DynamoDB
+- **Final persistence**: When import completes, final counts are persisted with the success/failure
+  status
+
+This allows the UI to show real-time progress without overwhelming the database with writes.
+
+### Error Handling
+
+If any file upload fails:
+
+1. The first error is captured
+2. Other in-flight workers continue to completion (to avoid leaving orphaned files)
+3. After all workers finish, the first error is thrown
+4. The import is marked as failed with the error message
+
+Failed files don't have previews, but this doesn't affect document content. Users can re-upload
+files manually if needed.
+
+## Multipart Uploads
+
+Notion export zips can be very large (multi-GB), so we use S3 multipart uploads to upload them
+directly from the client. This avoids loading the entire file through our servers and lets us upload
+chunks in parallel for better throughput.
+
+### How It Works
+
+The upload flow has three phases:
+
+1. **Initiate**: The server calls `CreateMultipartUpload` on S3 and returns an `uploadId` plus
+   presigned URLs for each part. The part count is calculated from the file size divided by the part
+   size (100 MB, defined in `shared/files/file_constants.ts` as `importMultipartUploadPartSize`).
+
+2. **Upload parts**: The client slices the file into chunks and PUTs each chunk to its presigned
+   URL. Up to 3 parts are uploaded concurrently using a simple semaphore pattern. Each successful
+   part upload returns an `ETag` header that the client collects.
+
+3. **Complete**: The client sends the list of `{partNumber, etag}` pairs to
+   `finishedNotionImportUpload`, which calls `CompleteMultipartUpload` on S3 to assemble all parts
+   into the final object.
+
+### Progress Tracking
+
+Each part upload uses `XMLHttpRequest` (not `fetch`) so we can listen to `xhr.upload.progress`
+events. A `partProgress` map tracks bytes uploaded per part, and the total progress is the sum of
+all part progress divided by the total file size.
+
+### Error Handling
+
+If any part upload fails, the error is captured and no further parts are started. The multipart
+upload ID is stored on the `NotionImportItem` (`multipartUploadId` field) while the import is in
+`UploadPending` status so it can be aborted to clean up orphaned parts if needed. When the upload
+completes successfully, `multipartUploadId` is set to `null`.
+
+### Abstraction Layer (`ImporterContextModuleBase`)
+
+The multipart upload API is abstracted behind `ImporterContextModuleBase` with four methods:
+
+- `createMultipartUpload` — initiates the upload
+- `createPresignedPartUploadUrls` — generates presigned URLs for each part
+- `completeMultipartUpload` — assembles parts into the final object
+- `abortMultipartUpload` — cleans up if the upload is abandoned
+
+### Development vs Production
+
+**Production (`ImporterContextModule`)**: Uses the AWS S3 SDK directly.
+`CreateMultipartUploadCommand`, `UploadPartCommand` (presigned), and
+`CompleteMultipartUploadCommand` interact with the `cyberworlds-import-uploads` S3 bucket.
+
+**Development (`ImporterDevelopmentContextModule`)**: Simulates multipart uploads on the local
+filesystem. Parts are saved to `{importKey}.parts/{partNumber}` via the dev upload endpoint
+(`app/routes/dev.import-upload.$.tsx`). The dev endpoint generates an MD5-based `ETag` for each part
+to match S3 behavior. On completion, parts are concatenated into the final file and the parts
+directory is cleaned up.
+
+### RPC Changes
+
+The `createNotionImport` RPC now returns `uploadId` and `partUploadUrls` (instead of a single
+`presignedUploadUrl`). The `finishedNotionImportUpload` RPC now accepts `uploadId` and `parts` so
+the server can complete the multipart upload before transitioning to validation.

@@ -43,7 +43,7 @@ export async function getPostDraftIfExists(
         getContentReferencesForNode(
             context,
             spaceId,
-            FilePostAuthorizer.bind({type: "PostDraft", accountId, draftId}),
+            FilePostAuthorizer.bind({type: "PostDraft", spaceId, accountId, draftId}),
             draftItem.content,
         ),
     ]);

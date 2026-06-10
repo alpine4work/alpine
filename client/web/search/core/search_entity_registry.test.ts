@@ -19,69 +19,76 @@ test("updates search entity models with a friend store as expected", () => {
 
     const snapshotB = new Uint8Array([...snapshotA]) as TaskTitleSnapshot;
 
+    const displayStatus = {
+        value: "OpenActive",
+        version: [1752681042095, 1],
+    } as const;
     const entity1a = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotA},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "OpenActive",
-            version: [1752681042095, 1],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotA,
+            displayStatus: displayStatus,
         },
     });
 
     const entity1b = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotB},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "OpenActive",
-            version: [1752681042095, 1],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotB,
+            displayStatus: displayStatus,
         },
     });
 
+    const displayStatus2 = {
+        value: "OpenInactive",
+        version: [1752681042095, 2],
+    } as const;
+
     const entity2a = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotA},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "OpenInactive",
-            version: [1752681042095, 2],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotA,
+            displayStatus: displayStatus2,
         },
     });
 
     const entity2b = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotB},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "OpenInactive",
-            version: [1752681042095, 2],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotB,
+            displayStatus: displayStatus2,
         },
     });
 
+    const displayStatus3 = {
+        value: "Closed",
+        version: [1752681042095, 3],
+    } as const;
     const entity3a = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotA},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "Closed",
-            version: [1752681042095, 3],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotA,
+            displayStatus: displayStatus3,
         },
     });
 
     const entity3b = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotB},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "Closed",
-            version: [1752681042095, 3],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotB,
+            displayStatus: displayStatus3,
         },
     });
 
@@ -194,69 +201,75 @@ test("updates search entity models with a friend store as expected when the enti
 
     const snapshotB = new Uint8Array([...snapshotA]) as TaskTitleSnapshot;
 
+    const displayStatus1 = {
+        value: "OpenActive",
+        version: [1752681042095, 1],
+    } as const;
     const entity1a = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems (a)",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotA},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "OpenActive",
-            version: [1752681042095, 1],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotA,
+            displayStatus: displayStatus1,
         },
     });
 
     const entity1b = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems (b)",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotB},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "OpenActive",
-            version: [1752681042095, 1],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotB,
+            displayStatus: displayStatus1,
         },
     });
 
+    const displayStatus2 = {
+        value: "OpenInactive",
+        version: [1752681042095, 2],
+    } as const;
     const entity2a = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems (a)",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotA},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "OpenInactive",
-            version: [1752681042095, 2],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotA,
+            displayStatus: displayStatus2,
         },
     });
 
     const entity2b = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems (b)",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotB},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "OpenInactive",
-            version: [1752681042095, 2],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotB,
+            displayStatus: displayStatus2,
         },
     });
 
+    const displayStatus3 = {
+        value: "Closed",
+        version: [1752681042095, 3],
+    } as const;
     const entity3a = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems (a)",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotA},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "Closed",
-            version: [1752681042095, 3],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotA,
+            displayStatus: displayStatus3,
         },
     });
 
     const entity3b = new SearchEntityModel({
-        id: `Task:${taskId}`,
+        type: "Task",
         title: "Fix realtime privacy bug across forum and messaging systems (b)",
-        titleVersion: {type: "TaskTitle", snapshot: snapshotB},
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: "Closed",
-            version: [1752681042095, 3],
+        task: {
+            id: taskId,
+            titleSnapshot: snapshotB,
+            displayStatus: displayStatus3,
         },
     });
 

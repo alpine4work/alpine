@@ -27,19 +27,16 @@ type FieldWithPosition = {
     readonly position: OrderKey;
 };
 
-// Sentinel IDs for section headers so they participate
-// in dnd-kit's sort layout and shift when items move
-// between sections.
+// Sentinel IDs for section headers so they participate in dnd-kit's sort layout
+// and shift when items move between sections.
 const shownSectionId = "__section_shown__";
 const hiddenSectionId = "__section_hidden__";
 
 /**
- * Uses `Overlay` directly (rather than
- * `OverlayTriggerButton`) so we can pass
- * `withPreviousPosition` to freeze the panel
- * in place after initial positioning. Without
- * this the panel jumps whenever columns are
- * added, removed, or reordered while open.
+ * Uses `Overlay` directly (rather than `OverlayTriggerButton`) so we can pass
+ * `withPreviousPosition` to freeze the panel in place after initial positioning.
+ * Without this the panel jumps whenever columns are added, removed, or reordered
+ * while open.
  */
 export function DatabaseFieldVisibilityMenu({
     shownFields,
@@ -57,9 +54,8 @@ export function DatabaseFieldVisibilityMenu({
     const [isOpen, setIsOpen] = useState(false);
     const [isPositionFrozen, setIsPositionFrozen] = useState(false);
 
-    // After the overlay is initially positioned by Popper,
-    // freeze it so it doesn't reposition when the trigger
-    // button moves due to column changes.
+    // After the overlay is initially positioned by Popper, freeze it so it doesn't
+    // reposition when the trigger button moves due to column changes.
     useEffect(() => {
         if (isOpen) {
             const id = requestAnimationFrame(() => setIsPositionFrozen(true));
@@ -167,8 +163,7 @@ function DatabaseFieldVisibilityPanel({
                     const activeId = active.id as DatabaseFieldId;
                     const activeIsShown = shownIdSet.has(activeId);
 
-                    // The hidden section header sits at the
-                    // boundary. Dropping on it toggles the
+                    // The hidden section header sits at the boundary. Dropping on it toggles the
                     // active item's section.
                     let isHidden: boolean;
                     if (over.id === hiddenSectionId) {
@@ -245,9 +240,8 @@ function DatabaseFieldVisibilityPanel({
 }
 
 /**
- * Computes the order key for a field being dropped at
- * a position within a target section. Uses the global
- * `allIds` ordering to determine whether the item moved
+ * Computes the order key for a field being dropped at a position within a target
+ * section. Uses the global `allIds` ordering to determine whether the item moved
  * up or down relative to the `over` item.
  */
 function computeDropPosition(
@@ -335,9 +329,8 @@ function DatabaseFieldVisibilityDragPortals({
 }
 
 /**
- * A section header that participates in dnd-kit's sort
- * layout so it shifts when items move between sections.
- * Non-draggable but acts as a drop target.
+ * A section header that participates in dnd-kit's sort layout so it shifts when
+ * items move between sections. Non-draggable but acts as a drop target.
  */
 function SortableSectionHeader({
     id,

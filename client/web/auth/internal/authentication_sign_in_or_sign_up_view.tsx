@@ -15,6 +15,7 @@ import {Link} from "~/client/web/design/link.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
+import {generateEmailAddressForDevConsole} from "~/client/web/helpers/generate_email_address_for_dev_console.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -26,20 +27,21 @@ import {
     regenerateOneTimePasswordSignIn,
     signUpAccountWithEmailAddress,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function AuthenticationSignInOrSignUpView({
     state,
     onStateChange,
 }: {
     state: AuthenticationSignInState | AuthenticationSignUpState;
-    onStateChange: (state: AuthenticationState) => void;
+    onStateChange: (state: AuthenticationState, options: {spanData: TracerEventData}) => void;
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Get the initial email address from `searchParams` if available. For example
-    //  the `accountEmailAddressNotFoundErrorDisplayMessage()` error uses this.
+    // Get the initial email address from `searchParams` if available. For example the
+    // `accountEmailAddressNotFoundErrorDisplayMessage()` error uses this.
     const [emailAddress, setEmailAddress] = useState(() => searchParams.get("email") ?? "");
 
     // Delete the `email` search param now that we've used it to initialize state.
@@ -87,32 +89,9 @@ export function AuthenticationSignInOrSignUpView({
     }[state.type];
 
     useDevConsoleTool("auth", () => ({
-        generateEmailAddress: (baseEmailAddress: string = `test@test.cyberworlds.dev`) => {
-            const currentTime = new Date();
-
-            const [emailAddressPart1, emailAddressPart2] = baseEmailAddress.split("@", 2);
-
-            const emailAddressTime =
-                currentTime.getFullYear().toString().padStart(4, "0") +
-                "." +
-                (currentTime.getMonth() + 1).toString().padStart(2, "0") +
-                "." +
-                currentTime.getDate().toString().padStart(2, "0") +
-                "." +
-                // Seconds through the day. We use this format instead of `hh.mm.ss` so the
-                // date clearly reads as a date. Seconds are added on purely to disambiguate.
-                (
-                    currentTime.getHours() * 60 * 60 +
-                    currentTime.getMinutes() * 60 +
-                    currentTime.getSeconds()
-                )
-                    .toString()
-                    .padStart(5, "0");
-
-            const emailAddress = `${emailAddressPart1}+${emailAddressTime}@${emailAddressPart2}`;
-
+        generateEmailAddress: (baseEmailAddress?: string) => {
+            const emailAddress = generateEmailAddressForDevConsole(baseEmailAddress);
             setEmailAddress(emailAddress);
-
             return emailAddress;
         },
     }));
@@ -139,10 +118,10 @@ export function AuthenticationSignInOrSignUpView({
                                         toSearchParam: searchParams.get("to"),
                                     });
 
-                                // If the account hasn't signed up yet then we'll redirect them to the sign
-                                // up flow. We can't use `onStateChange` because we're changing the route
-                                // variant here from `sign-in` to `sign-up`. So we have special handling for
-                                // `sign-up` with an email address.
+                                // If the account hasn't signed up yet then we'll redirect them to the sign up
+                                // flow. We can't use `onStateChange` because we're changing the route variant here
+                                // from `sign-in` to `sign-up`. So we have special handling for `sign-up` with an
+                                // email address.
                                 if (hasNotSignedUp) {
                                     const urlPath = new UrlPath("/auth/sign-up");
 
@@ -161,11 +140,14 @@ export function AuthenticationSignInOrSignUpView({
                                     return;
                                 }
 
-                                onStateChange({
-                                    type: "SignInOneTimePassword",
-                                    accountId,
-                                    emailAddress: validatedEmailAddress,
-                                });
+                                onStateChange(
+                                    {
+                                        type: "SignInOneTimePassword",
+                                        accountId,
+                                        emailAddress: validatedEmailAddress,
+                                    },
+                                    {spanData: {}},
+                                );
                                 break;
                             }
                             case "SignUp": {
@@ -174,11 +156,14 @@ export function AuthenticationSignInOrSignUpView({
                                     toSearchParam: searchParams.get("to"),
                                 });
 
-                                onStateChange({
-                                    type: "SignUpProfile",
-                                    accountId,
-                                    emailAddress: validatedEmailAddress,
-                                });
+                                onStateChange(
+                                    {
+                                        type: "SignUpProfile",
+                                        accountId,
+                                        emailAddress: validatedEmailAddress,
+                                    },
+                                    {spanData: {auth: {signUp: {isEmailAddressPossiblyGeneric}}}},
+                                );
                                 break;
                             }
                             default:

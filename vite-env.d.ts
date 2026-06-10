@@ -1,4 +1,5 @@
 declare const __RESOURCE_SERVICE_URL__: string;
+declare const __GIPHY_SDK_API_KEY__: string | undefined;
 
 /**
  * `import.meta` [env variables provided by Vite][1].

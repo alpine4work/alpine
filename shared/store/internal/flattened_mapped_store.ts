@@ -5,14 +5,12 @@ import {Store} from "~/shared/store/internal/store.js";
 import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
 
 /**
- * A combinator for `Store` which turns `Store<Store<Value>>` into
- * `Store<Value>`.
+ * A combinator for `Store` which turns `Store<Store<Value>>` into `Store<Value>`.
  *
- * Combines both a `flat()` combinator and a `map()` combinator into a
- * `flatMap()` combinator. The `flat()` combinator can be trivially derived by
- * using an identity function for `map()`. Since `flatMap()` is more common
- * than `flat()` we wanted a combinator implementation that's more efficient
- * for `flatMap()`.
+ * Combines both a `flat()` combinator and a `map()` combinator into a `flatMap()`
+ * combinator. The `flat()` combinator can be trivially derived by using an
+ * identity function for `map()`. Since `flatMap()` is more common than `flat()` we
+ * wanted a combinator implementation that's more efficient for `flatMap()`.
  */
 export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
     private readonly _store: Store<OldValue>;
@@ -38,8 +36,8 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
 
     public readonly getSnapshot = () => {
         if (this._nestedStoreResult === null) {
-            // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
-            // partial state.
+            // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad partial
+            // state.
             this._oldValue = this._store.getSnapshot();
             this._nestedStoreResult = captureResult(() => this._map(this._oldValue!));
 
@@ -59,15 +57,15 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
 
         const oldNestedStoreResult = this._nestedStoreResult;
         const oldOldValue = this._oldValue;
-        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
-        // partial state.
+        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad partial
+        // state.
         const newOldValue = (this._oldValue = this._store.getSnapshot());
         const newNestedStoreResult = !Object.is(oldOldValue, newOldValue)
             ? (this._nestedStoreResult = captureResult(() => this._map(newOldValue)))
             : this._nestedStoreResult;
 
-        // If the nested store changed then move our listeners from the old nested
-        // store to the new nested store.
+        // If the nested store changed then move our listeners from the old nested store to
+        // the new nested store.
         if (oldNestedStoreResult.value !== newNestedStoreResult.value) {
             this._weakImmediateListeners?.moveListeners(
                 oldNestedStoreResult.value ?? null,

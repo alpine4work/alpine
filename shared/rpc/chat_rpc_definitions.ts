@@ -1,4 +1,6 @@
-import {ChatMessageModel} from "~/shared/chat/chat_model.js";
+import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
+import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -177,5 +179,93 @@ export const getChatMessageReferences = defineRpc({
     },
     output: {
         references: MessageReferencesSchema,
+    },
+});
+
+export const convertDirectChatToRoomChat = defineRpc({
+    name: "convertDirectChatToRoomChat",
+    isIdempotent: true,
+    input: {
+        chatId: Schema.id<ChatId>(),
+        name: Schema.string,
+    },
+    output: {
+        chat: ChatModel.schema(),
+    },
+});
+
+export const updateRoomChatName = defineRpc({
+    name: "updateRoomChatName",
+    isIdempotent: true,
+    input: {
+        chatId: Schema.id<ChatId>(),
+        name: Schema.string,
+    },
+    output: {
+        chat: ChatModel.schema(),
+    },
+});
+
+export const updateRoomChatAccessPolicy = defineRpc({
+    name: "updateRoomChatAccessPolicy",
+    isIdempotent: true,
+    input: {
+        chatId: Schema.id<ChatId>(),
+        accessPolicy: LocalAccessPolicySchema,
+        notification: ShareNotificationSchema.nullable(),
+    },
+    output: {
+        chat: ChatModel.schema(),
+    },
+});
+
+export const getChat = defineRpc({
+    name: "getChat",
+    isIdempotent: true,
+    input: {
+        chatId: Schema.id<ChatId>(),
+    },
+    output: {
+        chat: ChatModel.schema(),
+    },
+});
+
+export const getChatWithStrongReadConsistency = defineRpc({
+    name: "getChatWithStrongReadConsistency",
+    isIdempotent: true,
+    input: {
+        chatId: Schema.id<ChatId>(),
+    },
+    output: {
+        chat: ChatModel.schema(),
+    },
+});
+
+export const subscribeToRoomChat = defineRpc({
+    name: "subscribeToRoomChat",
+    isIdempotent: true,
+    input: {
+        chatId: Schema.id<ChatId>(),
+    },
+    output: {},
+});
+
+export const unsubscribeFromRoomChat = defineRpc({
+    name: "unsubscribeFromRoomChat",
+    isIdempotent: true,
+    input: {
+        chatId: Schema.id<ChatId>(),
+    },
+    output: {},
+});
+
+export const isSubscribedToRoomChat = defineRpc({
+    name: "isSubscribedToRoomChat",
+    isIdempotent: true,
+    input: {
+        chatId: Schema.id<ChatId>(),
+    },
+    output: {
+        isSubscribed: Schema.boolean,
     },
 });

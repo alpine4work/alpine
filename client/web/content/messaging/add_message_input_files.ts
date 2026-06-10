@@ -67,18 +67,16 @@ export async function addMessageInputFiles(
                         readonly file: FileModel;
                     }>;
 
-                    // If we're trying to attach the file to the same attachment target it's from
-                    // then we don't need to perform another attach mutation. Instead, all we need
-                    // to do is load the file (since it's not in our references).
+                    // If we're trying to attach the file to the same attachment target it's from then
+                    // we don't need to perform another attach mutation. Instead, all we need to do is
+                    // load the file (since it's not in our references).
                     if (!toTarget || isDeepEqual(fromTarget, toTarget)) {
                         if (fromTarget === "Uploader") {
                             promise = getFileAsUploader(context, {
-                                spaceId: fileInfo.spaceId,
                                 fileId: fileInfo.fileId,
                             });
                         } else {
                             promise = getFileFromAttachment(context, {
-                                spaceId: fileInfo.spaceId,
                                 fileId: fileInfo.fileId,
                                 target: fromTarget,
                             });
@@ -87,13 +85,11 @@ export async function addMessageInputFiles(
                     // Otherwise, let's attach the file to its new attachment target.
                     else if (fromTarget === "Uploader") {
                         promise = attachFileAsUploader(context, {
-                            spaceId: fileInfo.spaceId,
                             fileId: fileInfo.fileId,
                             target: toTarget,
                         });
                     } else {
                         promise = attachFileFromAttachment(context, {
-                            spaceId: fileInfo.spaceId,
                             fileId: fileInfo.fileId,
                             fromTarget,
                             toTarget,
@@ -131,9 +127,9 @@ export async function addMessageInputFiles(
                     });
 
                     // While a file is uploading show an "Uploading" loading indicator with the
-                    // progress percentage. If multiple files are uploading at once then the
-                    // global loading indicator implementation is responsible for putting together
-                    // an aggregated summary.
+                    // progress percentage. If multiple files are uploading at once then the global
+                    // loading indicator implementation is responsible for putting together an
+                    // aggregated summary.
                     addGlobalLoadingIndicator(promise, {
                         type: "Uploading",
                         progressStore: promise.progressStore,

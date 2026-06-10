@@ -11,10 +11,10 @@ const SpaceRouteScrollViewForwardRef = forwardRef(SpaceRouteScrollView);
 export {SpaceRouteScrollViewForwardRef as SpaceRouteScrollView};
 
 /**
- * Routes that render under `/s/$spaceId` should may render
- * `<SpaceRouteScrollView>` as their parent since it contains best practices for
- * a space route's content area. Many routes create render their own scroll
- * view like virtualized lists.
+ * Routes that render under the `_space` route should may render
+ * `<SpaceRouteScrollView>` as their parent since it contains best practices for a
+ * space route's content area. Many routes create render their own scroll view like
+ * virtualized lists.
  *
  * The scroll view comes with a navigation bar for mobile.
  */

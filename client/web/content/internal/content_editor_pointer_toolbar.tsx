@@ -55,6 +55,7 @@ import {useOutsidePress} from "~/client/web/design/helpers/use_outside_interacti
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {Overlay, OverlayRef} from "~/client/web/design/overlay.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/web/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
@@ -105,16 +106,15 @@ export function ContentEditorPointerToolbar({
 }) {
     const toolbarRef = useRef<HTMLDivElement>(null);
 
-    // We keep track of our own `localInteractionModality` separate from
-    // `react-aria`'s `interactionModality`. A user is still considered to have a
-    // `pointer` `interactionModality` while they're typing in a text input
-    // (because of a patch we make to `@react-aria/interactions`). It's only when
-    // they explicitly press `Tab` that we switch to keyboard
-    // `interactionModality`.
+    // We keep track of our own `localInteractionModality` separate from `react-aria`'s
+    // `interactionModality`. A user is still considered to have a `pointer`
+    // `interactionModality` while they're typing in a text input (because of a patch
+    // we make to `@react-aria/interactions`). It's only when they explicitly press
+    // `Tab` that we switch to keyboard `interactionModality`.
     //
     // However, for the purposes of hiding/showing the pointer toolbar we want any
-    // typing within the content editor to hide the pointer toolbar. So we have our
-    // own "local" interaction modality state.
+    // typing within the content editor to hide the pointer toolbar. So we have our own
+    // "local" interaction modality state.
     const [localInteractionModality, setLocalInteractionModality] =
         useState<Modality>(getInteractionModality);
 
@@ -123,17 +123,17 @@ export function ContentEditorPointerToolbar({
         const viewElement = view.dom;
 
         const handleFocus = () => {
-            // Whenever our editor is focused, update our local interaction modality to
-            // match whatever the global interaction modality is.
+            // Whenever our editor is focused, update our local interaction modality to match
+            // whatever the global interaction modality is.
             setLocalInteractionModality(getInteractionModality());
         };
 
         const handleKeyDown = (event: KeyboardEvent) => {
             if (
                 // Ignore keyboard shortcut key presses (like Ctrl+P which prints in browsers).
-                // Unless its an arrow key press (like Shift+Alt+ArrowLeft which navigates one
-                // word left on MacOS) which navigates the editor and should be considered the
-                // user entering keyboard input mode.
+                // Unless its an arrow key press (like Shift+Alt+ArrowLeft which navigates one word
+                // left on MacOS) which navigates the editor and should be considered the user
+                // entering keyboard input mode.
                 ((!event.metaKey && !event.ctrlKey && !event.altKey) ||
                     event.key === "ArrowLeft" ||
                     event.key === "ArrowRight" ||
@@ -142,8 +142,8 @@ export function ContentEditorPointerToolbar({
                 event.key !== "Control" &&
                 event.key !== "Meta" &&
                 event.key !== "Alt" &&
-                // Ignore the shift key pressed alone. Pressing Shift+A for a capital "A"
-                // should put us in keyboard input mode.
+                // Ignore the shift key pressed alone. Pressing Shift+A for a capital "A" should
+                // put us in keyboard input mode.
                 event.key !== "Shift"
             ) {
                 setLocalInteractionModality("keyboard");
@@ -155,13 +155,13 @@ export function ContentEditorPointerToolbar({
         };
 
         const handlePointerMove = () => {
-            // Quality of life: If the user selects some text with their keyboard then
-            // moves their mouse then we want to show the toolbar.
+            // Quality of life: If the user selects some text with their keyboard then moves
+            // their mouse then we want to show the toolbar.
             setLocalInteractionModality("pointer");
 
             // Quality of life: If the user moves their pointer then we want to show the
-            // toolbar instead of keeping it hidden. Since the user moving their pointer
-            // may indicate they're looking to make a change.
+            // toolbar instead of keeping it hidden. Since the user moving their pointer may
+            // indicate they're looking to make a change.
             setMountSuppressionState(null);
         };
 
@@ -178,23 +178,21 @@ export function ContentEditorPointerToolbar({
     }, [viewRef]);
 
     // If the pointer has moved while pressing down and the user has some text
-    // selected, the user is probably trying to drag to change their selection. If
-    // they are dragging then we don't want to show the toolbar since it won't have
-    // much use. They can't click anything in the toolbar until they release
-    // anyway.
+    // selected, the user is probably trying to drag to change their selection. If they
+    // are dragging then we don't want to show the toolbar since it won't have much
+    // use. They can't click anything in the toolbar until they release anyway.
     //
     // If we show the toolbar while dragging it jumps around awkwardly and blocks
-    // pointer events from the mouse over content the user is potentially
-    // dragging to.
+    // pointer events from the mouse over content the user is potentially dragging to.
     //
-    // NOTE(calebmer): This state was copied into `<MessagingViewPointerToolbar>`.
-    // If you make a change to this state here, you may want to make the same
-    // change there.
+    // NOTE(calebmer): This state was copied into `<MessagingViewPointerToolbar>`. If
+    // you make a change to this state here, you may want to make the same change
+    // there.
     const [hasPointerMovedWhileDown, setHasPointerMovedWhileDown] = useState(false);
 
-    // NOTE(calebmer): This state was copied into `<MessagingViewPointerToolbar>`.
-    // If you make a change to this state here, you may want to make the same
-    // change there.
+    // NOTE(calebmer): This state was copied into `<MessagingViewPointerToolbar>`. If
+    // you make a change to this state here, you may want to make the same change
+    // there.
     const [isWaitingForTripleClickAfterDoubleClick, setIsWaitingForTripleClickAfterDoubleClick] =
         useState(false);
 
@@ -221,10 +219,11 @@ export function ContentEditorPointerToolbar({
         // select it then after the link's floater closes (because it uses
         // `useOutsidePress(onClose)`) we want the toolbar to open.
         //
-        // However, if you open the highlight selector then close it we don't want to
-        // show the pointer toolbar until your selection moves.
+        // However, if you open the highlight selector then close it we don't want to show
+        // the pointer toolbar until your selection moves.
         if (
             previousState !== null &&
+            "range" in previousState &&
             (previousState.range.from !== selection.$from.pos ||
                 previousState.range.to !== selection.$to.pos)
         ) {
@@ -250,9 +249,9 @@ export function ContentEditorPointerToolbar({
     // Suppress the pointer toolbar while the context menu is open.
     //
     // NOTE(calebmer): Josh and I feel like it's a better experience when resolving
-    // spellcheck errors if the pointer toolbar doesn't open right after you accept
-    // (or ignore) a spellcheck issue. Are there other cases where it would be nice
-    // to show the pointer toolbar after a right click? Maybe this should be scoped
+    // spellcheck errors if the pointer toolbar doesn't open right after you accept (or
+    // ignore) a spellcheck issue. Are there other cases where it would be nice to show
+    // the pointer toolbar after a right click? Maybe this should be scoped
     // specifically to spellcheck right click menus?
     if (
         isContextMenuOpen &&
@@ -289,8 +288,8 @@ export function ContentEditorPointerToolbar({
             (isFocused || (shouldShowCommentOnly && hasSelectionEnteredWhenUnfocused)) &&
             // Don't show while the context menu is open.
             !isContextMenuOpen &&
-            // Don't show while we're suppressed after the context menu has closed and
-            // before the selection has changed.
+            // Don't show while we're suppressed after the context menu has closed and before
+            // the selection has changed.
             contextMenuSuppressionState === null &&
             // Make sure some characters are selected before showing the selection toolbar.
             selection.$from.pos !== selection.$to.pos &&
@@ -298,33 +297,33 @@ export function ContentEditorPointerToolbar({
             // `AllSelection`.
             state.selection instanceof TextSelection &&
             // If the user has only selected a newline, don't show the toolbar for an empty
-            // selection. This happens when the user double-clicks near a newline in
-            // Chrome. The newline is selected. On triple-click the paragraph following the
-            // newline is also selected.
+            // selection. This happens when the user double-clicks near a newline in Chrome.
+            // The newline is selected. On triple-click the paragraph following the newline is
+            // also selected.
             //
-            // Chrome doesn't render a text highlight when only a newline is selected.
-            // Which means we show the toolbar above nothing which doesn't make sense. Also
-            // having the toolbar jump from the right to the left when the user
-            // triple-clicks after a double-click looks weird.
+            // Chrome doesn't render a text highlight when only a newline is selected. Which
+            // means we show the toolbar above nothing which doesn't make sense. Also having
+            // the toolbar jump from the right to the left when the user triple-clicks after a
+            // double-click looks weird.
             //
-            // Styling just a node boundary is kind of ridiculous so since it looks weird
-            // to show the toolbar on a node boundary, disable the toolbar entirely on node
+            // Styling just a node boundary is kind of ridiculous so since it looks weird to
+            // show the toolbar on a node boundary, disable the toolbar entirely on node
             // boundary selections.
             //
             // TODO(calebmer): Do we need this anymore now that we have
             // `trimSelectionInvisibleExtensionIntoAdjacentNodes()`? I'd expect boundary
             // selections to become empty?
             !isNodeBoundarySlice(state.doc.slice(state.selection.from, state.selection.to)) &&
-            // Don't show the toolbar if the selection overlaps with the title. The title
-            // can only be at the beginning of a document so checking whether
-            // `selection.from` is in the title is sufficient for detecting overlap.
+            // Don't show the toolbar if the selection overlaps with the title. The title can
+            // only be at the beginning of a document so checking whether `selection.from` is
+            // in the title is sufficient for detecting overlap.
             selection.$from.parent.type.name !== "title" &&
             // Don't show the toolbar if the user's pointer is dragging to select text.
             !hasPointerMovedWhileDown &&
-            // If the user has double clicked (to select a word) then we wait to see if
-            // they triple click (to select a paragraph) before showing the pointer
-            // toolbar. Otherwise it looks a little glitchy to see the toolbar appear then
-            // immediately jump to the beginning of the paragraph.
+            // If the user has double clicked (to select a word) then we wait to see if they
+            // triple click (to select a paragraph) before showing the pointer toolbar.
+            // Otherwise it looks a little glitchy to see the toolbar appear then immediately
+            // jump to the beginning of the paragraph.
             !isWaitingForTripleClickAfterDoubleClick
         );
     }, [
@@ -349,8 +348,8 @@ export function ContentEditorPointerToolbar({
         localInteractionModality === "pointer" &&
         // Don't show the toolbar until the user has interacted with the editor.
         //
-        // This defends against the case where we had a highlight toolbar opened but
-        // then the user closed it and the regular toolbar wants to immediately open.
+        // This defends against the case where we had a highlight toolbar opened but then
+        // the user closed it and the regular toolbar wants to immediately open.
         mountSuppressionState === null;
 
     useLayoutEffect(() => {
@@ -367,9 +366,9 @@ export function ContentEditorPointerToolbar({
 
             if (
                 event.pointerType === "mouse" &&
-                // Ignore clicks outside of our `EditorView` for triple click detection
-                // purposes. This will happen in integration tests where we click in a document
-                // then the pointer toolbar in rapid succession.
+                // Ignore clicks outside of our `EditorView` for triple click detection purposes.
+                // This will happen in integration tests where we click in a document then the
+                // pointer toolbar in rapid succession.
                 event.target instanceof Node &&
                 viewRef.current?.dom.contains(event.target)
             ) {
@@ -438,9 +437,9 @@ export function ContentEditorPointerToolbar({
     // When `shouldShow` is false, `showState.isShowing` will be true for a couple
     // milliseconds and `showState.selectionPos` will be the last selection position.
     //
-    // NOTE(calebmer): This component was written before `<OverlayAnimated>`. It
-    // has a bit of delay before the animation begins so it isn't quite feature
-    // compatible but consider consolidating someday.
+    // NOTE(calebmer): This component was written before `<OverlayAnimated>`. It has a
+    // bit of delay before the animation begins so it isn't quite feature compatible
+    // but consider consolidating someday.
     const [actualShowState, setShowState] = useState<
         | {
               isShowing: true;
@@ -454,8 +453,7 @@ export function ContentEditorPointerToolbar({
 
     let showState = actualShowState;
 
-    // Update our show state whenever the selection changes while the toolbar
-    // is open.
+    // Update our show state whenever the selection changes while the toolbar is open.
     if (
         shouldShow &&
         showState.isShowing &&
@@ -481,20 +479,20 @@ export function ContentEditorPointerToolbar({
 
     // If we should stop showing then start the fade out animation.
     //
-    // Ignore interaction modality when determining whether to close the toolbar.
-    // If the toolbar opened in pointer interaction modality, we may switch to
-    // keyboard interaction modality when editing a link.
+    // Ignore interaction modality when determining whether to close the toolbar. If
+    // the toolbar opened in pointer interaction modality, we may switch to keyboard
+    // interaction modality when editing a link.
     if (
         !shouldShowIgnoringInteractionModality &&
         showState.isShowing &&
         !showState.animation &&
-        // If the link input is open then our focus moves to the link input. Don't
-        // close the toolbar when this happens.
+        // If the link input is open then our focus moves to the link input. Don't close
+        // the toolbar when this happens.
         showState.extraOverlay !== "LinkInput"
     ) {
-        // If the context menu was opened then immediately hide without fading out.
-        // Since the context menu opens immediately so it looks weird for both to be
-        // onscreen at once.
+        // If the context menu was opened then immediately hide without fading out. Since
+        // the context menu opens immediately so it looks weird for both to be onscreen at
+        // once.
         if (isContextMenuOpen) {
             showState = {isShowing: false};
         } else {
@@ -536,9 +534,9 @@ export function ContentEditorPointerToolbar({
         }
     }, [showState.animation, showState.isShowing]);
 
-    // Keep the toolbar mounted for a bit before unmounting. This way if the user
-    // is quickly clicking around they don't have to wait again for the delay that
-    // shows the toolbar.
+    // Keep the toolbar mounted for a bit before unmounting. This way if the user is
+    // quickly clicking around they don't have to wait again for the delay that shows
+    // the toolbar.
     useEffect(() => {
         if (showState.isShowing && showState.animation === "FadingOut") {
             const timeoutId = setTimeout(() => {
@@ -664,14 +662,14 @@ function ContentEditorPointerToolbarOverlay({
             ref={overlayRef}
             isVisible={true}
             placement="top-start"
-            // The pointer toolbar needs to flip to the bottom if it would otherwise
-            // conflict with the navigation bar. For example, try opening a post view on
-            // desktop then editing the post, then selecting text at the top of the post.
-            // The toolbar needs to flip down.
+            // The pointer toolbar needs to flip to the bottom if it would otherwise conflict
+            // with the navigation bar. For example, try opening a post view on desktop then
+            // editing the post, then selecting text at the top of the post. The toolbar needs
+            // to flip down.
             fallbackPlacements={["bottom-start"]}
             overflowTop={navigationBarHeight}
-            // Selected so when we're in a `<MessageInput>` the toolbar just overlaps the
-            // top border of the input.
+            // Selected so when we're in a `<MessageInput>` the toolbar just overlaps the top
+            // border of the input.
             offset="2.5"
             offsetAlong={shouldShowCommentOnly ? "-1" : "-4"}
             overlay={
@@ -742,8 +740,8 @@ function ContentEditorPointerToolbarOverlay({
                 onUpdatePosition={() => {
                     overlayRef.current?.forceUpdateOverlayPosition();
 
-                    // Update the tooltip position with the overlay position in case there is an
-                    // open tooltip.
+                    // Update the tooltip position with the overlay position in case there is an open
+                    // tooltip.
                     for (const tooltipRef of tooltipRefs.current) {
                         tooltipRef.forceUpdateTooltipPosition();
                     }
@@ -780,15 +778,14 @@ function ContentEditorPointerToolbarButtons({
     onHighlightSelectorOpen: () => void;
     onHighlightSelectorClose: () => void;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
-    // IMPORTANT: Use `toolbarSelection` instead of `state.selection`. If the
-    // selection changes the toolbar may fade out. But we want to continue showing
-    // buttons for the old selection. The old selection will be maintained in
-    // `toolbarSelection`.
+    // IMPORTANT: Use `toolbarSelection` instead of `state.selection`. If the selection
+    // changes the toolbar may fade out. But we want to continue showing buttons for
+    // the old selection. The old selection will be maintained in `toolbarSelection`.
     //
-    // Commands still end up using `state.selection`. But this is fine since
-    // commands shouldn't be run while the toolbar is fading out.
+    // Commands still end up using `state.selection`. But this is fine since commands
+    // shouldn't be run while the toolbar is fading out.
     const toolbarSelection = useMemo(() => {
         return {
             from: selectionFrom,
@@ -880,7 +877,7 @@ function ContentEditorPointerToolbarButtons({
         <>
             <ContentEditorPointerToolbarButton
                 description="Bold"
-                keyboardShortcutHint={isAppleDevice ? "⌘+B" : "Ctrl+B"}
+                keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "b")}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -891,7 +888,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 description="Italic"
-                keyboardShortcutHint={isAppleDevice ? "⌘+I" : "Ctrl+I"}
+                keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "i")}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -902,7 +899,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 description="Strikethrough"
-                keyboardShortcutHint={isAppleDevice ? "⌘+Shift+X" : "Ctrl+Shift+X"}
+                keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "shift", "x")}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -1032,7 +1029,12 @@ function ContentEditorPointerToolbarButtons({
                 <ContentEditorPointerToolbarButton
                     dividerLeft
                     description="Comment"
-                    keyboardShortcutHint={isAppleDevice ? "⌘+Shift+C" : "Ctrl+Shift+C"}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(
+                        clientInfo,
+                        "mod",
+                        "shift",
+                        "c",
+                    )}
                     viewRef={viewRef}
                     isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -1135,11 +1137,11 @@ function ContentEditorPointerToolbarButton({
                 {...mergeProps(pressProps, hoverProps)}
                 ref={localRef}
                 aria-label={description}
-                // Disable the ability to focus this icon button! The icon buttons in the
-                // selection toolbar are only mouse accessible. They are not keyboard
-                // accessible. By being focusable then the button steals focus when you click
-                // on it, so instead make the button not focusable. This also makes it so the
-                // button is not reachable in tab order.
+                // Disable the ability to focus this icon button! The icon buttons in the selection
+                // toolbar are only mouse accessible. They are not keyboard accessible. By being
+                // focusable then the button steals focus when you click on it, so instead make the
+                // button not focusable. This also makes it so the button is not reachable in tab
+                // order.
                 tabIndex={undefined}
                 className={sprinkles({
                     paddingY: "1",
@@ -1150,8 +1152,8 @@ function ContentEditorPointerToolbarButton({
             >
                 <Box
                     // We implement dividers in this funky way so that as the mouse scrubs left and
-                    // right over our toolbar the tooltips immediately disappear/reappear because
-                    // there is no gap in between the hovered elements.
+                    // right over our toolbar the tooltips immediately disappear/reappear because there
+                    // is no gap in between the hovered elements.
                     paddingRight={dividerRight ? "1" : "0.5"}
                     borderRight={dividerRight ? "grey-5" : undefined}
                     paddingLeft={dividerLeft ? "1" : undefined}
@@ -1210,7 +1212,7 @@ function ContentEditorPointerToolbarLinkButton({
     dividerLeft?: boolean;
     dividerRight?: boolean;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     const buttonContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1240,8 +1242,8 @@ function ContentEditorPointerToolbarLinkButton({
                             event.target instanceof Element &&
                             isElementOwnedBy(assertExists(view.dom.parentElement), event.target)
                         ) {
-                            // Flush sync here because we need our `isFocused` state to be true before the
-                            // link input closes. That way the pointer toolbar itself won't disappear.
+                            // Flush sync here because we need our `isFocused` state to be true before the link
+                            // input closes. That way the pointer toolbar itself won't disappear.
                             flushSync(() => {
                                 view.dom.focus({preventScroll: true});
                             });
@@ -1276,7 +1278,7 @@ function ContentEditorPointerToolbarLinkButton({
                     dividerLeft={dividerLeft}
                     dividerRight={dividerRight}
                     description="Link"
-                    keyboardShortcutHint={isAppleDevice ? "⌘+K" : "Ctrl+K"}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "k")}
                     isActive={isLinkInputOpen || !!activeLinkMark}
                     isTooltipDisabledWithoutAnimation={
                         isTooltipDisabledWithoutAnimation || isLinkInputOpen
@@ -1330,7 +1332,7 @@ function ContentEditorPointerToolbarHighlightButton({
     dividerRight?: boolean;
     dividerLeft?: boolean;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     const buttonContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1375,7 +1377,12 @@ function ContentEditorPointerToolbarHighlightButton({
                     dividerRight={dividerRight}
                     dividerLeft={dividerLeft}
                     description="Highlight"
-                    keyboardShortcutHint={isAppleDevice ? "⌘+Shift+H" : "Ctrl+Shift+H"}
+                    keyboardShortcutHint={renderKeyboardShortcutHint(
+                        clientInfo,
+                        "mod",
+                        "shift",
+                        "h",
+                    )}
                     isActive={isHighlightSelectorOpen || !!activeHighlightMark}
                     isTooltipDisabledWithoutAnimation={
                         isTooltipDisabledWithoutAnimation || isHighlightSelectorOpen
@@ -1389,8 +1396,8 @@ function ContentEditorPointerToolbarHighlightButton({
 
                         assert(state.schema.marks.highlight);
 
-                        // Clicking the highlight button when there is an active highlight mark removes
-                        // the highlight. Because the button is rendered in the activated style.
+                        // Clicking the highlight button when there is an active highlight mark removes the
+                        // highlight. Because the button is rendered in the activated style.
                         if (activeHighlightMark) {
                             dispatch(
                                 state.tr.removeMark(
@@ -1426,11 +1433,11 @@ function ContentEditorPointerToolbarHighlightButton({
 }
 
 /**
- * Does this ProseMirror slice exclusively contain the boundary between two
- * nodes? With no content in between?
+ * Does this ProseMirror slice exclusively contain the boundary between two nodes?
+ * With no content in between?
  *
- * In the editor boundaries between block nodes are rendered as a newline. So
- * this returns true when the user has selected a newline.
+ * In the editor boundaries between block nodes are rendered as a newline. So this
+ * returns true when the user has selected a newline.
  */
 function isNodeBoundarySlice(slice: Slice): boolean {
     if (slice.openStart === 0) return false;
@@ -1466,13 +1473,13 @@ function ContentEditorPointerToolbarButtonsCommentOnly({
     viewRef: RefObject<EditorView | null>;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
 }) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     return (
         <ContentEditorPointerToolbarButton
             description="Comment"
             withoutDescriptionTooltip={true}
-            keyboardShortcutHint={isAppleDevice ? "⌘+Shift+C" : "Ctrl+Shift+C"}
+            keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", "shift", "c")}
             viewRef={viewRef}
             isTooltipDisabledWithoutAnimation={false}
             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}

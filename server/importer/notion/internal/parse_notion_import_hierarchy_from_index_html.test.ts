@@ -1,32 +1,23 @@
-/* eslint-disable cyberworlds/string-quotes -- Tests need straight quotes for HTML content */
 import {strToU8} from "fflate";
 
 import {parseNotionImportHierarchyFromIndexHtml} from "~/server/importer/notion/internal/parse_notion_import_hierarchy_from_index_html.js";
 
 describe("parseNotionImportHierarchyFromIndexHtml", () => {
-    function makeFiles(indexHtml: string): Record<string, Uint8Array> {
-        return {
-            "export/index.html": strToU8(indexHtml),
-        };
+    /**
+     * Creates a valid index.html with the required workspace name paragraph. Takes
+     * just the inner content (the ul element structure).
+     */
+    function makeIndexHtml(innerContent: string): Uint8Array {
+        return strToU8(`<html><body>
+            <p>Workspace name: Test Workspace</p>
+            ${innerContent}
+        </body></html>`);
     }
 
-    test("returns empty result when no index.html exists", () => {
-        const result = parseNotionImportHierarchyFromIndexHtml({}, new Map());
-
-        expect(result).toEqual({
-            relationships: [],
-            parentOnlyRelationships: [],
-            teamspaceForPath: new Map(),
-            csvOnlyDatabaseChildren: new Map(),
-            rootLevelCsvDatabases: new Map(),
-        });
-    });
-
     test("returns empty result when no root ul found", () => {
-        const html = `<html><body><div>No ul here</div></body></html>`;
-        const files = makeFiles(html);
+        const indexHtml = strToU8(`<html><body><div>No ul here</div></body></html>`);
 
-        const result = parseNotionImportHierarchyFromIndexHtml(files, new Map());
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, new Map());
 
         expect(result.relationships).toEqual([]);
     });
@@ -35,7 +26,7 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
         const parentId = "aaaabbbbccccddddeeeeffffgggghhh1";
         const childId = "aaaabbbbccccddddeeeeffffgggghhh2";
 
-        const html = `<html><body>
+        const indexHtml = makeIndexHtml(`
             <ul id="id::workspace">
                 <li>
                     <ul id="id::${parentId}">
@@ -48,14 +39,13 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
                     </ul>
                 </li>
             </ul>
-        </body></html>`;
-        const files = makeFiles(html);
+        `);
         const notionIdToPath = new Map([
             [parentId, `Parent ${parentId}.md`],
             [childId, `Child ${childId}.md`],
         ]);
 
-        const result = parseNotionImportHierarchyFromIndexHtml(files, notionIdToPath);
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
 
         expect(result.relationships).toEqual([
             {
@@ -69,7 +59,7 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
         const teamspaceId = "teamspace00000000000000000000001";
         const docId = "aaaabbbbccccddddeeeeffffgggghhh1";
 
-        const html = `<html><body>
+        const indexHtml = makeIndexHtml(`
             <ul id="id::workspace">
                 <li>
                     <ul id="id::${teamspaceId}">
@@ -82,11 +72,10 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
                     </ul>
                 </li>
             </ul>
-        </body></html>`;
-        const files = makeFiles(html);
+        `);
         const notionIdToPath = new Map([[docId, `Doc ${docId}.md`]]);
 
-        const result = parseNotionImportHierarchyFromIndexHtml(files, notionIdToPath);
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
 
         expect(result.teamspaceForPath.get(`Doc ${docId}.md`)).toBe(teamspaceId);
     });
@@ -95,7 +84,7 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
         const csvId = "csvdbcsvdbcsvdbcsvdbcsvdbcsvdb01";
         const childId = "childchildchildchildchildchild01";
 
-        const html = `<html><body>
+        const indexHtml = makeIndexHtml(`
             <ul id="id::workspace">
                 <li>
                     <ul id="id::${csvId}.csv">
@@ -108,14 +97,13 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
                     </ul>
                 </li>
             </ul>
-        </body></html>`;
-        const files = makeFiles(html);
+        `);
         const notionIdToPath = new Map([
             [csvId, `Database ${csvId}.csv`],
             [childId, `Row ${childId}.md`],
         ]);
 
-        const result = parseNotionImportHierarchyFromIndexHtml(files, notionIdToPath);
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
 
         expect(result.csvOnlyDatabaseChildren.get(`Database ${csvId}.csv`)).toEqual([childId]);
     });
@@ -125,7 +113,7 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
         const csvId = "csvdbcsvdbcsvdbcsvdbcsvdbcsvdb02";
         const childId = "childchildchildchildchildchild02";
 
-        const html = `<html><body>
+        const indexHtml = makeIndexHtml(`
             <ul id="id::workspace">
                 <li>
                     <ul id="id::${grandparentId}">
@@ -143,15 +131,14 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
                     </ul>
                 </li>
             </ul>
-        </body></html>`;
-        const files = makeFiles(html);
+        `);
         const notionIdToPath = new Map([
             [grandparentId, `Parent ${grandparentId}.md`],
             [csvId, `Database ${csvId}.csv`],
             [childId, `Row ${childId}.md`],
         ]);
 
-        const result = parseNotionImportHierarchyFromIndexHtml(files, notionIdToPath);
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
 
         // The child should have a parent-only relationship to the grandparent
         expect(result.parentOnlyRelationships).toEqual([
@@ -167,7 +154,7 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
         const csvId = "csvdbcsvdbcsvdbcsvdbcsvdbcsvdb03";
         const childId = "childchildchildchildchildchild03";
 
-        const html = `<html><body>
+        const indexHtml = makeIndexHtml(`
             <ul id="id::workspace">
                 <li>
                     <ul id="id::${teamspaceId}">
@@ -185,14 +172,13 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
                     </ul>
                 </li>
             </ul>
-        </body></html>`;
-        const files = makeFiles(html);
+        `);
         const notionIdToPath = new Map([
             [csvId, `Database ${csvId}.csv`],
             [childId, `Row ${childId}.md`],
         ]);
 
-        const result = parseNotionImportHierarchyFromIndexHtml(files, notionIdToPath);
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
 
         expect(result.rootLevelCsvDatabases.get(`Database ${csvId}.csv`)).toEqual({
             childPaths: [`Row ${childId}.md`],
@@ -200,12 +186,69 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
         });
     });
 
+    test("tracks CSV databases under pages in csvDatabasesRequiringDocuments", () => {
+        const teamspaceId = "teamspace00000000000000000000003";
+        const pageId = "pageparentpageparentpageparentp1";
+        const csvId = "csvdbcsvdbcsvdbcsvdbcsvdbcsvdb04";
+        const childId = "childchildchildchildchildchild04";
+
+        const indexHtml = makeIndexHtml(`
+            <ul id="id::workspace">
+                <li>
+                    <ul id="id::${teamspaceId}">
+                        <li><a>Team A</a></li>
+                        <li>
+                            <ul id="id::${pageId}">
+                                <li><a href="Page.html">Page</a></li>
+                                <li>
+                                    <ul id="id::${csvId}.csv">
+                                        <li><a href="Database.csv">Database</a></li>
+                                        <li>
+                                            <ul id="id::${childId}">
+                                                <li><a href="Row.html">Row</a></li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        `);
+        const notionIdToPath = new Map([
+            [pageId, `Page ${pageId}.md`],
+            [csvId, `Database ${csvId}.csv`],
+            [childId, `Row ${childId}.md`],
+        ]);
+
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
+
+        // The child should have a parent-only relationship to the page (grandparent)
+        expect(result.parentOnlyRelationships).toEqual([
+            {
+                parentPath: `Page ${pageId}.md`,
+                childPath: `Row ${childId}.md`,
+            },
+        ]);
+
+        // The CSV database should be registered for document creation
+        expect(result.csvDatabasesRequiringDocuments.get(`Database ${csvId}.csv`)).toEqual({
+            childPaths: [`Row ${childId}.md`],
+            parentPath: `Page ${pageId}.md`,
+            teamspaceId,
+        });
+
+        // Should NOT be in rootLevelCsvDatabases (it's under a page, not root)
+        expect(result.rootLevelCsvDatabases.has(`Database ${csvId}.csv`)).toBe(false);
+    });
+
     test("handles multiple children under same parent", () => {
         const parentId = "parentparentparentparentparentp1";
         const child1Id = "child1child1child1child1child1c1";
         const child2Id = "child2child2child2child2child2c2";
 
-        const html = `<html><body>
+        const indexHtml = makeIndexHtml(`
             <ul id="id::workspace">
                 <li>
                     <ul id="id::${parentId}">
@@ -223,15 +266,14 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
                     </ul>
                 </li>
             </ul>
-        </body></html>`;
-        const files = makeFiles(html);
+        `);
         const notionIdToPath = new Map([
             [parentId, `Parent ${parentId}.md`],
             [child1Id, `Child 1 ${child1Id}.md`],
             [child2Id, `Child 2 ${child2Id}.md`],
         ]);
 
-        const result = parseNotionImportHierarchyFromIndexHtml(files, notionIdToPath);
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
 
         expect(result.relationships).toEqual([
             {parentPath: `Parent ${parentId}.md`, childPath: `Child 1 ${child1Id}.md`},
@@ -245,7 +287,7 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
         const childId = "3333-4444-5555-6666-7777-8888-9999-0000";
         const childIdNormalized = "33334444555566667777888899990000";
 
-        const html = `<html><body>
+        const indexHtml = makeIndexHtml(`
             <ul id="id::workspace">
                 <li>
                     <ul id="id::${parentId}">
@@ -258,14 +300,13 @@ describe("parseNotionImportHierarchyFromIndexHtml", () => {
                     </ul>
                 </li>
             </ul>
-        </body></html>`;
-        const files = makeFiles(html);
+        `);
         const notionIdToPath = new Map([
             [parentIdNormalized, `Parent ${parentIdNormalized}.md`],
             [childIdNormalized, `Child ${childIdNormalized}.md`],
         ]);
 
-        const result = parseNotionImportHierarchyFromIndexHtml(files, notionIdToPath);
+        const result = parseNotionImportHierarchyFromIndexHtml(indexHtml, notionIdToPath);
 
         expect(result.relationships).toEqual([
             {

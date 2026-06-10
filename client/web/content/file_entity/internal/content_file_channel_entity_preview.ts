@@ -1,46 +1,40 @@
 import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
-import {renderAccountAvatar} from "~/client/web/accounts/account_avatar_html.js";
+import {renderAccountAvatarPile} from "~/client/web/accounts/account_avatar_pile_html.js";
 import {accountAvatarPileSizes} from "~/client/web/accounts/account_avatar_pile_size.js";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
+import {
+    addContentFileEntitySubscribeButtonBehavior,
+    renderContentFileEntitySubscribeButton,
+} from "~/client/web/content/file_entity/internal/content_file_entity_subscribe_button.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
-import {addUnfocusableButtonBehaviorToElement} from "~/client/web/content/state/add_unfocusable_button_behavior_to_element.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {Reporter} from "~/client/web/design/reporter.js";
-import {bellIconSvg} from "~/client/web/icons/bell_icon_svg.js";
-import {bellRingingIconSvg} from "~/client/web/icons/bell_ringing_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
-import {spinnerGapIconSvg} from "~/client/web/icons/spinner_gap_icon_svg.js";
+import {lockBoldFillIconSvg} from "~/client/web/icons/lock_bold_fill_icon_svg.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {
     channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
 } from "~/client/web/styles/forum_shared_styles.js";
-import {
-    backgroundColorVar,
-    contentStyles,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/client/web/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {renderedMaxChannelTopContributorCount} from "~/shared/forum/channel_model.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
@@ -60,6 +54,7 @@ export function renderContentFileChannelEntityPreview(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         transformScale: originalTransformScale,
         platform,
@@ -78,6 +73,7 @@ export function renderContentFileChannelEntityPreview(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
@@ -85,32 +81,38 @@ export function renderContentFileChannelEntityPreview(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         suppressHydrationWarning: () => void;
     },
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
 
-    const {
-        scaledContainerHtml,
-        transformScale,
-        scaledWidthPx,
-        blockMaxWidthPx,
-        isSmallerThanHalfOfBlockMaxWidth,
-    } = setupContentFileEntityPreviewContainer(html, {
-        layout,
-        platform,
-        spacingScale,
-        transformScaleBaseFontSize: "100",
-        scaledContainerClassName: sprinkles({
-            display: "flex",
-            flexDirection: "column",
-            gap: channelViewHeaderSectionGap,
-        }),
-    });
+    const {scaledContainerHtml, transformScale, scaledWidthPx, isSmallerThanHalfOfBlockMaxWidth} =
+        setupContentFileEntityPreviewContainer(html, {
+            layout,
+            platform,
+            spacingScale,
+            transformScaleBaseFontSize: "100",
+            scaledContainerClassName: sprinkles({
+                display: "flex",
+                flexDirection: "column",
+                gap: channelViewHeaderSectionGap,
+            }),
+        });
+
+    // Header group: breadcrumb + name container. Wrapped in a no-gap column so the
+    // parent's `channelViewHeaderSectionGap` flex gap doesn't contribute to the
+    // breadcrumb-to-title spacing — that gap is owned by the breadcrumb's own
+    // `paddingBottom` (see `siteBreadcrumbToTitleSpacing`).
+    const headerGroupHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
+    headerGroupHtml.setAttribute("class", sprinkles({display: "flex", flexDirection: "column"}));
+
+    if (fileEntity.site) {
+        renderContentFileEntitySiteBreadcrumb(get, siteRegistry, headerGroupHtml, fileEntity.site);
+    }
 
     {
-        const nameContainerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
+        const nameContainerHtml = headerGroupHtml.appendChild(new HtmlElementGenerator("div"));
 
         nameContainerHtml.setAttribute(
             "class",
@@ -119,13 +121,35 @@ export function renderContentFileChannelEntityPreview(
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: "3",
-                // Bring the people section a little closer to the channel name.
-                marginBottom: "-1",
+                // Make sure we don't grow beyond the subscribe button height. The 500 font size
+                // name is 2px larger than the subscribe button height.
+                height: contentStyles.fileEntityPreviewSubscribeButtonHeight,
             }),
         );
 
-        const nameHtml = nameContainerHtml.appendChild(new HtmlElementGenerator("div"));
+        const titleContainerHtml = nameContainerHtml.appendChild(new HtmlElementGenerator("div"));
+        titleContainerHtml.setAttribute(
+            "class",
+            sprinkles({
+                display: "flex",
+                alignItems: "center",
+                gap: platform === "mobile" ? "1.5" : "2",
+                minWidth: "0",
+            }),
+        );
 
+        if (fileEntity.isPrivate) {
+            titleContainerHtml.appendChild(
+                createSvgHtmlGenerator(
+                    lockBoldFillIconSvg({
+                        className: sprinkles({flexShrink: "0"}),
+                        size: spacing[platform === "mobile" ? "3" : "4"],
+                    }),
+                ),
+            );
+        }
+
+        const nameHtml = titleContainerHtml.appendChild(new HtmlElementGenerator("div"));
         nameHtml.setAttribute(
             "class",
             sprinkles({
@@ -136,53 +160,10 @@ export function renderContentFileChannelEntityPreview(
 
         nameHtml.appendChild(new HtmlTextGenerator(fileEntity.name));
 
-        const subscribeButtonHtml = nameContainerHtml.appendChild(new HtmlElementGenerator("div"));
-
-        subscribeButtonHtml.setAttribute(
-            "class",
-            contentStyles.fileChannelEntityPreviewSubscribeButtonClassName,
-        );
-
-        subscribeButtonHtml.setAttribute(
-            "style",
-            `display: ${isSmallerThanHalfOfBlockMaxWidth ? "none" : "flex"}`,
-        );
-
-        subscribeButtonHtml.setAttribute(
-            "data-subscribed",
-            JSON.stringify(fileEntity.isSubscribed),
-        );
-
-        subscribeButtonHtml.appendChild(
-            createSvgHtmlGenerator(
-                bellIconSvg({
-                    weight: "bold",
-                    className:
-                        contentStyles.fileChannelEntityPreviewSubscribeButtonBellIconClassName,
-                }),
-            ),
-        );
-
-        subscribeButtonHtml.appendChild(
-            createSvgHtmlGenerator(
-                bellRingingIconSvg({
-                    weight: "regular",
-                    className:
-                        contentStyles.fileChannelEntityPreviewSubscribeButtonBellRingingIconClassName,
-                }),
-            ),
-        );
-
-        subscribeButtonHtml.appendChild(
-            createSvgHtmlGenerator(
-                spinnerGapIconSvg({
-                    className: classNames(
-                        spinAnimationClassName,
-                        contentStyles.fileChannelEntityPreviewSubscribeButtonSpinnerGapIconClassName,
-                    ),
-                }),
-            ),
-        );
+        renderContentFileEntitySubscribeButton(nameContainerHtml, {
+            isVisible: !isSmallerThanHalfOfBlockMaxWidth,
+            isSubscribed: fileEntity.isSubscribed,
+        });
     }
 
     {
@@ -190,8 +171,7 @@ export function renderContentFileChannelEntityPreview(
 
         {
             const avatarSize = "7";
-            const {avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} =
-                accountAvatarPileSizes[avatarSize];
+            const {avatarOverlapWidth} = accountAvatarPileSizes[avatarSize];
 
             const peopleSectionAvatarPileHtml = peopleSection.appendChild(
                 new HtmlElementGenerator("div"),
@@ -207,8 +187,8 @@ export function renderContentFileChannelEntityPreview(
                 }),
             );
 
-            // The max number of accounts we can render in our preview. Calculates the
-            // amount of available space then divides by the avatar overlap width.
+            // The max number of accounts we can render in our preview. Calculates the amount
+            // of available space then divides by the avatar overlap width.
             const maxPreviewAccountCount = Math.floor(
                 (scaledWidthPx - convertRemLengthToPx(avatarSize, spacingScale)) /
                     convertRemLengthToPx(avatarOverlapWidth, spacingScale),
@@ -218,8 +198,8 @@ export function renderContentFileChannelEntityPreview(
 
             const previewAccounts = fileEntity.topContributors
                 .map(account => get(accountRegistry.getAccountStore(account)))
-                // If we have any removed accounts then sort them to the end of the array.
-                // Prefer showing accounts that are still a part of the space.
+                // If we have any removed accounts then sort them to the end of the array. Prefer
+                // showing accounts that are still a part of the space.
                 //
                 // Same sort as in `<ChannelViewContributorsSection>`.
                 .sort((account1, account2) => {
@@ -229,105 +209,14 @@ export function renderContentFileChannelEntityPreview(
                 })
                 .slice(0, Math.min(renderedMaxChannelTopContributorCount, maxPreviewAccountCount));
 
-            for (let index = 0; index < previewAccounts.length; index++) {
-                const account = previewAccounts[index]!;
-
-                const accountAvatarContainerHtml = peopleSectionAvatarPileHtml.appendChild(
-                    new HtmlElementGenerator("div"),
-                );
-
-                accountAvatarContainerHtml.setAttribute(
-                    "class",
-                    sprinkles({
-                        height: avatarSize,
-                        width: avatarOverlapWidth,
-                        position: "relative",
-                    }),
-                );
-
-                accountAvatarContainerHtml.setAttribute("style", `z-index: ${1 + index}`);
-
-                accountAvatarContainerHtml.appendChild(
-                    renderAccountAvatar({
-                        accountData: account,
-                        size: avatarSize,
-                        spacingScale,
-                        backgroundBorderWidth:
-                            previewAccounts.length > 1 || accountCount > previewAccounts.length
-                                ? borderWidth
-                                : undefined,
-                    }),
-                );
-            }
-
-            if (accountCount > previewAccounts.length) {
-                const overflowContainerHtml = peopleSectionAvatarPileHtml.appendChild(
-                    new HtmlElementGenerator("div"),
-                );
-
-                overflowContainerHtml.setAttribute(
-                    "class",
-                    sprinkles({
-                        height: avatarSize,
-                        width: avatarOverlapWidth,
-                        position: "relative",
-                    }),
-                );
-
-                overflowContainerHtml.setAttribute(
-                    "style",
-                    `z-index: ${1 + previewAccounts.length}`,
-                );
-
-                const overflowOuterHtml = overflowContainerHtml.appendChild(
-                    new HtmlElementGenerator("div"),
-                );
-
-                overflowOuterHtml.setAttribute(
-                    "class",
-                    sprinkles({
-                        height: avatarSize,
-                        width: avatarSize,
-                        borderRadius: "full",
-                    }),
-                );
-
-                overflowOuterHtml.setAttribute(
-                    "style",
-                    `box-shadow: 0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
-                );
-
-                const overflowInnerHtml = overflowOuterHtml.appendChild(
-                    new HtmlElementGenerator("div"),
-                );
-
-                overflowInnerHtml.setAttribute(
-                    "class",
-                    sprinkles({
-                        height: avatarSize,
-                        width: avatarSize,
-                        borderRadius: "full",
-                        backgroundColor: "grey-10",
-                        fontSize: overflowFontSize,
-                        color: "grey-70",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                    }),
-                );
-
-                const overflowTextHtml = overflowInnerHtml.appendChild(
-                    new HtmlElementGenerator("span"),
-                );
-
-                if (overflowScale !== undefined) {
-                    overflowTextHtml.setAttribute("style", `transform: scale(${overflowScale})`);
-                }
-
-                overflowTextHtml.appendChild(
-                    new HtmlTextGenerator(`+${accountCount - previewAccounts.length}`),
-                );
-            }
+            peopleSectionAvatarPileHtml.appendChild(
+                renderAccountAvatarPile({
+                    spacingScale,
+                    size: avatarSize,
+                    previewAccounts,
+                    accountCount,
+                }),
+            );
         }
     }
 
@@ -362,6 +251,7 @@ export function renderContentFileChannelEntityPreview(
                     contentStyles.docClassName,
                     contentStyles.narrowRouteLayoutDocClassName,
                     contentStyles.withUserSelectNoneDocClassName,
+                    contentStyles.withoutBlockMaxWidthDocClassName,
                     isContentBodyEmpty(fileEntity.description.doc) &&
                         contentStyles.emptyBodyClassName,
                 ),
@@ -390,12 +280,18 @@ export function renderContentFileChannelEntityPreview(
                     accountRegistry,
                     searchEntityRegistry,
                     fileRegistry,
+                    siteRegistry,
                     currentAccount,
                     // If we render files/tables inside the preview make sure they have an
                     // appropriately scaled block width (important for row of 3 recursive docs use
                     // case). Make sure that block width doesn't exceed the max width, though
                     // (important for row of 1 recursive docs use case).
-                    blockWidth: Math.min(scaledWidthPx, blockMaxWidthPx),
+                    //
+                    // We don't use `Math.min(scaledWidthPx, blockMaxWidthPx)` like we do in documents
+                    // because we turn off max width (`contentStyles.withoutBlockMaxWidthDocClassName`)
+                    // so the post extends end-to-end within the preview. Usually, the file entity
+                    // preview width shouldn't be that much more than the block width.
+                    blockWidth: scaledWidthPx,
                     transformScale: originalTransformScale * transformScale,
                     platform,
                     spacingScale,
@@ -428,78 +324,10 @@ export function addContentFileChannelEntityPreviewBehavior(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
 
-    const subscribeButtonElement = assertExists(
-        element.getElementsByClassName(
-            contentStyles.fileChannelEntityPreviewSubscribeButtonClassName,
-        )[0],
-    ) as HTMLDivElement;
-
-    let cleanupSubscribeButton: (() => void) | undefined;
-    if (!isInert) {
-        cleanupSubscribeButton = addUnfocusableButtonBehaviorToElement(subscribeButtonElement, {
-            pressClassName: contentStyles.fileChannelEntityPreviewSubscribeButtonPressedClassName,
-            onPress: () => {
-                // Only run one async operation at a time...
-                if (subscribeButtonElement.hasAttribute("data-loading")) return;
-
-                const isSubscribed: boolean = JSON.parse(
-                    subscribeButtonElement.getAttribute("data-subscribed-override") ??
-                        subscribeButtonElement.getAttribute("data-subscribed") ??
-                        "false",
-                );
-
-                const setIsSubscribed = (isSubscribed: boolean) => {
-                    // Our local `isSubscribed` state is saved in the DOM as a data attribute. We
-                    // need to pick a name for the data attribute which doesn't conflict with
-                    // `data-subscribed` which is managed by `HtmlGenerator`. If
-                    // `renderContentFileChannelEntityPreview()` reruns then we don't want it to
-                    // override our local `isSubscribed` state when patching nodes.
-                    //
-                    // Behaviors functions like this have to manage state in the DOM since we're not
-                    // a traditional stateful React component.
-                    subscribeButtonElement.setAttribute(
-                        "data-subscribed-override",
-                        JSON.stringify(isSubscribed),
-                    );
-                };
-
-                runPromiseWithoutAwaiting(async () => {
-                    subscribeButtonElement.setAttribute("data-loading", "");
-
-                    const timeout = createTimeout(() => {
-                        subscribeButtonElement.setAttribute("data-loading-indicator", "");
-                    }, delayLoadingIndicatorLimitMs);
-
-                    try {
-                        // Optimistically update the button.
-                        setIsSubscribed(!isSubscribed);
-
-                        if (isSubscribed) {
-                            await unsubscribeFromChannel(getContext(), {channelId: fileEntity.id});
-                        } else {
-                            await subscribeToChannel(getContext(), {channelId: fileEntity.id});
-                        }
-                    } catch (error) {
-                        // If the request failed then revert our button back to the original state.
-                        setIsSubscribed(isSubscribed);
-
-                        getReporter().displayError(
-                            !isSubscribed
-                                ? "Couldn\u2019t subscribe to channel"
-                                : "Couldn\u2019t unsubscribe from channel",
-                            error,
-                        );
-                    } finally {
-                        timeout.clear();
-                        subscribeButtonElement.removeAttribute("data-loading");
-                        subscribeButtonElement.removeAttribute("data-loading-indicator");
-                    }
-                });
-            },
-        });
-    }
-
-    return () => {
-        cleanupSubscribeButton?.();
-    };
+    return addContentFileEntitySubscribeButtonBehavior(element, {
+        getReporter,
+        isInert,
+        subscribe: () => subscribeToChannel(getContext(), {channelId: fileEntity.id}),
+        unsubscribe: () => unsubscribeFromChannel(getContext(), {channelId: fileEntity.id}),
+    });
 }

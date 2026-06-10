@@ -8,8 +8,8 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
  * request is fast we show no spinner and the user perceives the action as
  * happening instantly.
  *
- * This hook returns true `delayLoadingIndicatorLimitMs` after `isLoading` is
- * set to true so you can delay presenting a loading indicator.
+ * This hook returns true `delayLoadingIndicatorLimitMs` after `isLoading` is set
+ * to true so you can delay presenting a loading indicator.
  */
 export function useDelayLoadingIndicator(
     isLoading: boolean,

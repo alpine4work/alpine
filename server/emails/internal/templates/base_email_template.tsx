@@ -13,13 +13,15 @@ export const baseEmailTemplateMaxWidth = 600;
 // eslint-disable-next-line react-refresh/only-export-components
 export const baseEmailTemplateMarginX = emailSpacing["3"];
 
-// NOTE: There's lots of weirdness here that doesn't follow normal CSS/HTML practices because email clients
-// behave in strange ways. Style blocks are broken up so we can ensure we're under 8192 characters per block,
-// otherwise Gmail will ignore the block. They're ordered from the most important to the least as Gmail will
-// stop applying styles after a given block if it encounters something it doesn't like.
-// Email clients like to apply their own styles, so there's lots of !important to force our styles.
-// .match-background and .match-background-border are classes to use for applying cutouts to content that can
-// handle dark mode. Good luck.
+// NOTE: There's lots of weirdness here that doesn't follow normal CSS/HTML
+// practices because email clients behave in strange ways. Style blocks are broken
+// up so we can ensure we're under 8192 characters per block, otherwise Gmail will
+// ignore the block. They're ordered from the most important to the least as Gmail
+// will stop applying styles after a given block if it encounters something it
+// doesn't like. Email clients like to apply their own styles, so there's lots of
+// !important to force our styles. .match-background and .match-background-border
+// are classes to use for applying cutouts to content that can handle dark mode.
+// Good luck.
 export function BaseEmailTemplate({
     subject,
     resourceServiceUrl,

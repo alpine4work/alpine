@@ -42,16 +42,16 @@ export type ContentEditorMentionFloaterState = {
 
     /**
      * The character that triggered the mention floater. We support both `@` (the
-     * standard mention trigger) and `/` (for users coming from Slack or Notion
-     * where `/` is the slash command trigger).
+     * standard mention trigger) and `/` (for users coming from Slack or Notion where
+     * `/` is the slash command trigger).
      */
     readonly triggerCharacter: "@" | "/";
 
     /**
      * `from` should always be the trigger character (`@` or `/`). If it's not we
-     * should clear the floater. `to` should be the end of the mention search
-     * query. The user can move their selection within this range and make edits
-     * to the search query.
+     * should clear the floater. `to` should be the end of the mention search query.
+     * The user can move their selection within this range and make edits to the search
+     * query.
      */
     readonly range: {
         readonly from: number;
@@ -64,12 +64,17 @@ export type ContentEditorMentionFloaterState = {
     readonly searchQuery: string;
 
     /**
-     * The `<ContentEditorMentionFloater>` component will `useImperativeHandle()`
-     * to provide an implementation of this function which the content editor
-     * should call. If `event.preventDefault()` was called then this function has
-     * handled the event.
+     * The `<ContentEditorMentionFloater>` component will `useImperativeHandle()` to
+     * provide an implementation of this function which the content editor should call.
+     * If `event.preventDefault()` was called then this function has handled the event.
      */
     readonly handleKeyDownRef: RefObject<((event: KeyboardEvent) => void) | null>;
+
+    /**
+     * The `<ContentEditorMentionFloater>` component will `useImperativeHandle()` to
+     * provide an implementation of this function which the content editor should call.
+     */
+    readonly handleKeyUpRef: RefObject<((event: KeyboardEvent) => void) | null>;
 
     /**
      * Is the mention floater in the closing animation? Other floaters manage their
@@ -87,10 +92,15 @@ export type ContentEditorCommentInputFloaterState = {
     };
 };
 
+export type ContentEditorGifPickerFloaterState = {
+    readonly type: "GifPicker";
+};
+
 export type ContentEditorFloaterState =
     | ContentEditorPointerToolbarFloaterState
     | ContentEditorKeyboardHighlightFloaterState
     | ContentEditorKeyboardLinkFloaterState
     | ContentEditorPointerLinkFloaterState
     | ContentEditorMentionFloaterState
-    | ContentEditorCommentInputFloaterState;
+    | ContentEditorCommentInputFloaterState
+    | ContentEditorGifPickerFloaterState;

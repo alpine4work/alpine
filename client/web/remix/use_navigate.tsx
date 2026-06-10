@@ -33,22 +33,21 @@ import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.
 /**
  * Function used to navigate to a different URL.
  *
- * The navigation function returns a `SafeFloatingPromise` which you may
- * optionally await. (The eslint rule `@typescript-eslint/no-floating-promises`
- * won't error if you don't await the result of the `navigate()` function.)
+ * The navigation function returns a `SafeFloatingPromise` which you may optionally
+ * await. (The eslint rule `@typescript-eslint/no-floating-promises` won't error if
+ * you don't await the result of the `navigate()` function.)
  *
- * This is because the promise returned by the navigate function will never
- * reject and we'll navigate to the route after
- * `delayScreenTransitionLoadingIndicatorLimitMs` and show a loading shimmer.
- * So there's always a built-in loading indicator for the navigate function.
+ * This is because the promise returned by the navigate function will never reject
+ * and we'll navigate to the route after
+ * `delayScreenTransitionLoadingIndicatorLimitMs` and show a loading shimmer. So
+ * there's always a built-in loading indicator for the navigate function.
  *
  * If you call `navigate()` some place that has built-in support for loading
- * indicators (e.g. an `<IconButton>`) we still recommend awaiting the promise.
- * To show an inline loading indicator before we show a full screen loading
- * indicator.
+ * indicators (e.g. an `<IconButton>`) we still recommend awaiting the promise. To
+ * show an inline loading indicator before we show a full screen loading indicator.
  *
- * We also provide a functional `navigate(location => newLocation)` API that's
- * not available in Remix which is useful in some contexts.
+ * We also provide a functional `navigate(location => newLocation)` API that's not
+ * available in Remix which is useful in some contexts.
  */
 export interface NavigateFunction {
     (to: To, options?: NavigateOptions & {stopPropagation?: boolean}): SafeFloatingPromise<void>;
@@ -76,8 +75,8 @@ function unsupportedNavigateForTest(): never {
     );
 }
 
-// Originally forked from `react-router`'s `useNavigateStable()` hook and then
-// we added our features on top:
+// Originally forked from `react-router`'s `useNavigateStable()` hook and then we
+// added our features on top:
 // https://github.com/remix-run/react-router/blob/aef5c4a617756e6fcc493de17b4be9997a5a19c8/packages/react-router/lib/hooks.tsx#L1064-L1095
 function createNavigateFunction(
     context: NavigationContext | null,
@@ -126,17 +125,17 @@ function createNavigateFunction(
  *
  * - Doesn't throw when used in Jest unit tests
  * - Returns a promise that resolves when the navigation has completed
- * - Provides hooks for hijacking navigation (e.g. the peek stack wants to open
- *   up URLs in a peek)
+ * - Provides hooks for hijacking navigation (e.g. the peek stack wants to open up
+ *   URLs in a peek)
  *
  * [1]: https://reactrouter.com/en/main/hooks/use-navigate
  */
 export function useNavigate(): Memo<NavigateFunction> {
     const context = useContext(NavigationContext);
 
-    // Throw if we don't have our parent context unless we're in tests. In unit
-    // tests we allow the component to render but throw when you try to call the
-    // navigate function.
+    // Throw if we don't have our parent context unless we're in tests. In unit tests
+    // we allow the component to render but throw when you try to call the navigate
+    // function.
     if (context === null && !import.meta.jest) {
         throw new InternalError(
             "Must render in a `<RootNavigationContextProvider>` to use this navigation function",
@@ -148,15 +147,14 @@ export function useNavigate(): Memo<NavigateFunction> {
 
 /**
  * Use the root `navigate()` function. Ignores any
- * `<NavigationEventContextProvider>`s and `<PeekRemixEmbed>` navigation
- * listeners.
+ * `<NavigationEventContextProvider>`s and `<PeekRemixEmbed>` navigation listeners.
  */
 export function useRootNavigate(): Memo<NavigateFunction> {
     const context = useContext(NavigationContext);
 
-    // Throw if we don't have our parent context unless we're in tests. In unit
-    // tests we allow the component to render but throw when you try to call the
-    // navigate function.
+    // Throw if we don't have our parent context unless we're in tests. In unit tests
+    // we allow the component to render but throw when you try to call the navigate
+    // function.
     if (context === null && !import.meta.jest) {
         throw new InternalError(
             "Must render in a `<RootNavigationContextProvider>` to use this navigation function",
@@ -171,8 +169,8 @@ export function useRootNavigate(): Memo<NavigateFunction> {
 
         return createNavigateFunction(
             rootContext,
-            // Don't call `onNavigate`. The root navigation function skips any event
-            // handlers added with `<NavigationEventContextProvider>`.
+            // Don't call `onNavigate`. The root navigation function skips any event handlers
+            // added with `<NavigationEventContextProvider>`.
             true,
         );
     }, [context]);
@@ -191,9 +189,9 @@ const NavigationContext = createContext<NavigationContext | null>(null);
 /**
  * Sets up the navigation context. Primarily resolves the promises returned by
  * `navigate()` by observing the `location` at the position of this context
- * provider in the tree. So should be rendered at the root of a react router
- * route (we render in `root.tsx` and `s.$spaceId.peek.tsx` since peeks create
- * their own react routers).
+ * provider in the tree. So should be rendered at the root of a react router route
+ * (we render in `root.tsx` and `_space.peek.tsx` since peeks create their own
+ * react routers).
  */
 export function NavigationContextProvider({children}: {children?: ReactNode}) {
     const routeContext = useContext(RouteContext);

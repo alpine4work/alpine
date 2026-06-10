@@ -16,8 +16,8 @@ let checkingNextSchemasByLastSchema: Map<
 /**
  * Takes two `SchemaSerializedValueDescription`s and verifies that the second
  * `SchemaSerializedValueDescription` is backwards compatible with the first
- * `SchemaSerializedValueDescription`. If the second is not backwards
- * compatible then we will throw an error.
+ * `SchemaSerializedValueDescription`. If the second is not backwards compatible
+ * then we will throw an error.
  *
  * The second schema is considered "backwards compatible" with the first if every
  * value that is accepted by the first schema can also be accepted by the second
@@ -33,9 +33,9 @@ export function checkSchemaBackwardsCompatibility(
         () => new Set(),
     );
 
-    // If we are already checking `nextSchema` against `lastSchema` then we have
-    // hit a recursive case. Don't bother checking again. An error will be thrown,
-    // if there is one, when we're done checking higher in the stack.
+    // If we are already checking `nextSchema` against `lastSchema` then we have hit a
+    // recursive case. Don't bother checking again. An error will be thrown, if there
+    // is one, when we're done checking higher in the stack.
     if (checkingNextSchemas.has(nextSchema)) return;
 
     checkingNextSchemas.add(nextSchema);
@@ -209,12 +209,12 @@ export function checkSchemaBackwardsCompatibility(
             case "Union": {
                 // Allow evolution from objects to unions. There are two modes:
                 //
-                // - If `defaultTypeValue` is set then old objects need to be backwards
-                //   compatible with the new union variant of that type.
+                // - If `defaultTypeValue` is set then old objects need to be backwards compatible
+                //   with the new union variant of that type.
                 //
                 // - If `defaultTypeValue` is not set then old objects need to be backwards
-                //   compatible with ALL new union variants. (It's probably ok to loosen this.
-                //   I think in reality we only need to be compatible with one union variant.)
+                //   compatible with ALL new union variants. (It's probably ok to loosen this. I
+                //   think in reality we only need to be compatible with one union variant.)
                 if (lastSchema.type === "Object") {
                     if (nextSchema.defaultTypeValue !== undefined) {
                         const nextVariantSchema = assertExists(
@@ -244,8 +244,8 @@ export function checkSchemaBackwardsCompatibility(
                                                               nextSchema.typeKey
                                                           ],
                                                       ),
-                                                      // If `defaultTypeValue` is set then the type key on the old object is
-                                                      // optional. It's fine if it exists but the value must match.
+                                                      // If `defaultTypeValue` is set then the type key on the old object is optional.
+                                                      // It's fine if it exists but the value must match.
                                                       optional: true,
                                                   },
                                               },
@@ -440,8 +440,8 @@ function checkPropertySchemaBackwardsCompatibility(
 }
 
 /**
- * An error thrown while checking whether a schema is backwards compatible
- * with another.
+ * An error thrown while checking whether a schema is backwards compatible with
+ * another.
  */
 export class SchemaBackwardsIncompatibleError extends InternalError {
     constructor(message: string) {

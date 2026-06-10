@@ -12,10 +12,9 @@ import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.
 import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
- * Executes a database action against a database group's durable
- * object via HTTP and returns the typed result along with
- * the pages read during execution, keyed by
- * {@link DatabaseTableId}.
+ * Executes a database action against a database group's durable object via HTTP
+ * and returns the typed result along with the pages read during execution, keyed
+ * by {@link DatabaseTableId}.
  */
 export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     context: ServerActionContext,
@@ -29,7 +28,7 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
     >;
 }> {
     const body = DatabaseActionObjectSchema.serialize(actionObject as DatabaseActionObject);
-    const response = await context.edge.fetchDurableObject(
+    const response = await context.edge.sendRequestToDurableObject(
         `/api/durable-objects/database-groups/${databaseGroupId}/action`,
         {
             serviceName: "DatabaseGroupService",

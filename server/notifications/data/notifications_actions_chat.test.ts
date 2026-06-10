@@ -1,6 +1,7 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
-import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {processSendShareNotificationJob} from "~/server/chat/data/chat_messaging.js";
+import {subscribeToRoomChat} from "~/server/chat/data/subscribe_to_room_chat.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
@@ -11,7 +12,13 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_test_push_context_modules.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
-import {updateInboxEntryAfterExecuteTransactionTestCheckpoint} from "~/server/notifications/data/internal/update_inbox_entry.js";
+import {getInbox} from "~/server/notifications/data/get_inbox.js";
+import {
+    updateInboxEntryAfterExecuteTransactionTestCheckpoint,
+    updateInboxEntryAfterGetAttributesItemTestCheckpoint,
+    updateInboxEntryBeforeExecuteTransactionTestCheckpoint,
+    updateInboxEntryBeforeGetEntryItemTestCheckpoint,
+} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
 import {
@@ -48,7 +55,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateId} from "~/shared/id/id.js";
-import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -130,21 +137,22 @@ const context = createTestContext({
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Document",
                     title: documentResult.value.getTitle(),
-                    titleVersion: {type: "Integer", version: documentResult.value.version},
-                    media: null,
+                    document: {
+                        id: entityIdObject.documentId,
+                        version: documentResult.value.version,
+                    },
                 }),
             };
         },
     },
 });
 
-// Exercise idempotency by running the test suite again with jobs
-// processed twice.
+// Exercise idempotency by running the test suite again with jobs processed twice.
 for (const {type: currentProcessingType, processingMultiple} of testSuites) {
-    // If another suite has `only` set then skip this suite so we only run the
-    // suite with `only` set.
+    // If another suite has `only` set then skip this suite so we only run the suite
+    // with `only` set.
     if (
         testSuites.some(testSuite => !!testSuite.only && testSuite.type !== currentProcessingType)
     ) {
@@ -2918,6 +2926,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     latestMessage: {
                         author: expect.objectContaining({id: session1.account.id}),
                         createdTime: new Date(mockTime1),
+                        index: 2,
                         contentTextSnippet: "message3",
                         clerical: {
                             type: "ShareNotification",
@@ -3088,7 +3097,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
                         return [
                             match[1],
-                            MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(body),
+                            MyAccountBroadcastInboxRealtimeEventsSchema.deserialize(body),
                         ];
                     }),
                 ),
@@ -3097,7 +3106,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     [
                         session2.account.id,
                         {
-                            eventTransaction: [
+                            events: [
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),
@@ -3137,7 +3146,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     [
                         session3.account.id,
                         {
-                            eventTransaction: [
+                            events: [
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),
@@ -3270,8 +3279,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(bot1EventId).not.toEqual(bot2EventId);
 
-            // If a job for some bot account is repeated it should have the same `eventId`
-            // as all other jobs for the bot account.
+            // If a job for some bot account is repeated it should have the same `eventId` as
+            // all other jobs for the bot account.
             expect(
                 new Set(
                     filterMapArray(callBotWebhookJobs, job =>
@@ -3280,8 +3289,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 ),
             ).toEqual(new Set([bot1EventId]));
 
-            // If a job for some bot account is repeated it should have the same `eventId`
-            // as all other jobs for the bot account.
+            // If a job for some bot account is repeated it should have the same `eventId` as
+            // all other jobs for the bot account.
             expect(
                 new Set(
                     filterMapArray(callBotWebhookJobs, job =>
@@ -3360,7 +3369,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3391,7 +3400,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3422,7 +3431,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3465,7 +3474,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3504,7 +3513,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3543,7 +3552,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3596,7 +3605,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             await message3.setReaction(session2);
 
@@ -3604,7 +3613,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3662,7 +3671,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3681,7 +3690,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxChatEntryModel({
                     isArchived: true,
                     session: session2,
@@ -3693,6 +3702,154 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     otherChatAccount: session3,
                 }),
             ]);
+        });
+
+        test("hides chat when account loses access to chat room they have inbox entry for", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.createRoom(session1, {access: "Private"});
+            await chat.roomAccess.grant(session1, session2);
+
+            await subscribeToRoomChat(session2.action(), chat.id);
+
+            const message = await chat.sendMessage(session1, "foo");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
+                    definition: {type: "Room"},
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message,
+                        contentTextSnippet: "foo",
+                    },
+                }),
+            ]);
+
+            await chat.roomAccess.revoke(session1, session2);
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
+                    definition: {type: "Room", isPrivate: true},
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message,
+                        contentTextSnippet: "",
+                    },
+                }),
+            ]);
+        });
+
+        test("hides chat when account loses access to chat room which was previously publicly shared they have inbox entry for", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.createRoom(session1);
+            await chat.roomAccess.grantDefault(session1);
+
+            await subscribeToRoomChat(session2.action(), chat.id);
+
+            const message = await chat.sendMessage(session1, "foo");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
+                    definition: {type: "Room"},
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message,
+                        contentTextSnippet: "foo",
+                    },
+                }),
+            ]);
+
+            await chat.roomAccess.revokeDefault(session1);
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
+                    definition: {type: "Room", isPrivate: true},
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message,
+                        contentTextSnippet: "",
+                    },
+                }),
+            ]);
+        });
+
+        test("race condition: stale inbox attributes item when decrementing loud notification count", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const chat = await TestChat.get(session1, session2, session3);
+
+            expect(await getInbox(session2.action(), {spaceId: space.id})).toMatchObject({
+                model: {loudNotificationCount: 0},
+            });
+
+            const pause1APromise =
+                updateInboxEntryBeforeExecuteTransactionTestCheckpoint.pauseForTest(
+                    session1.account.id,
+                );
+
+            const pause1BPromise =
+                updateInboxEntryAfterExecuteTransactionTestCheckpoint.pauseForTest(
+                    session1.account.id,
+                );
+
+            const pause2APromise =
+                updateInboxEntryAfterGetAttributesItemTestCheckpoint.pauseForTest(
+                    session2.account.id,
+                );
+
+            const pause2BPromise = updateInboxEntryBeforeGetEntryItemTestCheckpoint.pauseForTest(
+                session2.account.id,
+            );
+
+            await chat.sendMessage(session1);
+            await chat.sendMessage(session2);
+
+            const {unpause: unpause1A} = await pause1APromise;
+
+            // `chat.sendMessage(session2)` has captured a stale inbox attributes item with
+            // `loudNotificationCount` of 0 and hasn't loaded the inbox entry yet.
+            const {unpause: unpause2A} = await pause2APromise;
+            const {unpause: unpause2B} = await pause2BPromise;
+
+            unpause1A();
+
+            // `chat.sendMessage(session1)` has finished so now the inbox attributes item AND
+            // inbox entry item has a `loudNotificationCount` of 1.
+            const {unpause: unpause1B} = await pause1BPromise;
+            unpause1B();
+
+            expect(await getInbox(session2.action(), {spaceId: space.id})).toMatchObject({
+                model: {loudNotificationCount: 1},
+            });
+
+            // Now run `chat.sendMessage(session2)` with a stale inbox attributes item with
+            // `loudNotificationCount` of 0 and a new inbox entry item with
+            // `loudNotificationCount` of 1. This will try to set the inbox attributes item to
+            // `loudNotificationCount` of -1 which fails our schema validation.
+            unpause2A();
+            unpause2B();
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await getInbox(session2.action(), {spaceId: space.id})).toMatchObject({
+                model: {loudNotificationCount: 0},
+            });
         });
     });
 }

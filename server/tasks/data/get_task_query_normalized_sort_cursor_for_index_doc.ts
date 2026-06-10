@@ -2,6 +2,7 @@ import {TaskIndexDoc, getTaskIndexDocDisplayStatus} from "~/server/tasks/data/ta
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskDisplayStatusIntegerMapping} from "~/shared/tasks/task_display_status.js";
+import {TaskLayoutIntegerMapping} from "~/shared/tasks/task_layout.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriorityIntegerMapping} from "~/shared/tasks/task_priority.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -37,6 +38,10 @@ function getTaskQueryNormalizedSortCursorValueForIndexDoc(
             return task.priority.value !== null
                 ? TaskPriorityIntegerMapping.into(task.priority.value)
                 : null;
+        }
+        case "Layout": {
+            const layout = task.layout?.value ?? null;
+            return layout !== null ? TaskLayoutIntegerMapping.into(layout) : null;
         }
         case "Assignee": {
             return task.assignee.value?.assignee.workingAccountName ?? null;

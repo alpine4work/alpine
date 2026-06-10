@@ -26,10 +26,12 @@ import {
 import {getMessageContentPayloadModelFile} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
+import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -53,12 +55,20 @@ export default implementRpcs(definitions, {
     createDocument: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const {id, createdTime} = await createDocument(context.actor.authorizeSession(), {
-                id: input.documentId,
-                spaceId: input.spaceId,
-                content: input.content,
-            });
-            return {documentId: id, createdTime};
+            const {id, createdTime, getRynamoEventsForSite} = await createDocument(
+                context.actor.authorizeSession(),
+                {
+                    id: input.documentId,
+                    spaceId: input.spaceId,
+                    content: input.content,
+                    sitePosition: input.sitePosition,
+                },
+            );
+            return {
+                documentId: id,
+                createdTime,
+                eventsForSite: await getRynamoEventsForSite(context),
+            };
         },
     },
 
@@ -81,12 +91,12 @@ export default implementRpcs(definitions, {
     getDocumentContentForCollaborationServiceInitialization: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            const {spaceId, version, content} =
+            const {spaceId, version, content, creatorId} =
                 await getDocumentContentForCollaborationServiceInitialization(
-                    context.actor.authorizeSession(),
+                    context,
                     input.documentId,
                 );
-            return {spaceId, version, content};
+            return {spaceId, version, content, creatorId};
         },
     },
 
@@ -116,9 +126,13 @@ export default implementRpcs(definitions, {
     updateDocumentContent: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input, {callId}) => {
-            const {newVersion, updatedCommentThreads} = await updateDocumentContentIdempotently(
-                context.actor.authorizeSession(),
-                {
+            // We allow bot actors to call this RPC since they may call it indirectly via the
+            // DocumentCollaborationService's Durable Object. Bot actors should never call this
+            // RPC directly, instead they should always use DocumentCollaborationService.
+            const accountContext = context.actor.authorizeAccount();
+
+            const {newVersion, updatedCommentThreads, eventsForSite} =
+                await updateDocumentContentIdempotently(accountContext, {
                     id: input.documentId,
                     version: input.version,
                     steps: input.steps,
@@ -128,10 +142,9 @@ export default implementRpcs(definitions, {
                     intentionallyUpdateAccessPolicy: input.intentionallyUpdateAccessPolicy,
                     resolveCommentThreadIds: input.resolveCommentThreadIds,
                     unresolveCommentThreadIds: input.unresolveCommentThreadIds,
-                },
-            );
+                });
 
-            return {newVersion, updatedCommentThreads};
+            return {newVersion, updatedCommentThreads, eventsForSite};
         },
     },
 
@@ -140,7 +153,7 @@ export default implementRpcs(definitions, {
         execute: async (context, {documentId, referencedIds}) => {
             const {spaceId} = await authorizeDocumentAccess(context, documentId, "View");
 
-            const [references, {commentThreadById, resolvedCommentThreadIds}] =
+            const [references, {commentThreadById, resolvedCommentThreadIds}, siteById] =
                 await runAllPromises([
                     getContentReferences(
                         context,
@@ -157,12 +170,25 @@ export default implementRpcs(definitions, {
                               commentThreadById: new Map<never, never>(),
                               resolvedCommentThreadIds: new Set<never>(),
                           },
+                    referencedIds.siteIds.size === 0
+                        ? emptyMap
+                        : (async () => {
+                              const entries = await runAllPromises(
+                                  mapIterable(
+                                      referencedIds.siteIds,
+                                      async siteId =>
+                                          [siteId, await getSitePreview(context, siteId)] as const,
+                                  ),
+                              );
+                              return new Map(entries);
+                          })(),
                 ]);
 
             return {
                 references: {
                     ...references,
                     commentThreadById,
+                    siteById,
                 },
                 resolvedCommentThreadIds,
             };

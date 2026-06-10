@@ -3,17 +3,16 @@ import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_key
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 /**
- * An icon selected by the user to react to some content. Can be an emotion
- * from any of our characters.
+ * An icon selected by the user to react to some content. Can be an emotion from
+ * any of our characters.
  *
- * Right now each character has each emotion but we may allow characters to
- * have different emotions in the future.
+ * Right now each character has each emotion but we may allow characters to have
+ * different emotions in the future.
  *
  * In the product reactions are referred to as "likes". Normally we strive for
  * names in code to be the same as names in the product. But in this case we're
- * quite unsure about the name "like" in the product. "Reaction" is the
- * standard name for this feature so choosing to use the name "reaction" in
- * code for now.
+ * quite unsure about the name "like" in the product. "Reaction" is the standard
+ * name for this feature so choosing to use the name "reaction" in code for now.
  */
 export type Reaction = {
     readonly character: ReactionCharacter;
@@ -67,8 +66,8 @@ export type ReactionPigeonCharacterVariant = "Plain" | "Brown" | "Grey";
 export type ReactionTulipCharacterVariant = "Yellow" | "Pink" | "Violet";
 
 /**
- * The character used for a reaction icon. We have different character types
- * with some slight variants (basic recolors mostly).
+ * The character used for a reaction icon. We have different character types with
+ * some slight variants (basic recolors mostly).
  */
 export type ReactionCharacter =
     | {readonly type: "Cat"; readonly variant: ReactionCatCharacterVariant}

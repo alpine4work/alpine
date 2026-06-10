@@ -51,9 +51,8 @@ export function mergeKeywordAndSemanticSearchResults({
         const actualScore = actualKeywordScore + additionalScore;
 
         newResults.push({
-            // If we have both a keyword result and a semantic result, then prefer the
-            // keyword result if there was a good keyword match. Otherwise prefer the
-            // semantic result.
+            // If we have both a keyword result and a semantic result, then prefer the keyword
+            // result if there was a good keyword match. Otherwise prefer the semantic result.
             ...(keywordResult.score < options.minKeywordScoreForSemanticResult
                 ? semanticResult
                 : keywordResult),

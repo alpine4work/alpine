@@ -13,8 +13,8 @@ export function formatMessageViewTimestampDividerDate(
     const date = toCalendarDate(parseAbsolute(time.toISOString(), timeZone));
 
     // Normalize times to the start of the day in the provided time zone. A time 23
-    // hours ago should generally be marked as "Yesterday" not "Today" unless the
-    // time was at 1am.
+    // hours ago should generally be marked as "Yesterday" not "Today" unless the time
+    // was at 1am.
     const dayDifference = differenceInDays(currentDate.toDate(timeZone), date.toDate(timeZone));
     if (dayDifference < 7) {
         const formatter = getIntlDateTimeFormat({

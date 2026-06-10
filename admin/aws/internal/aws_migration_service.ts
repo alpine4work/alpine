@@ -1,3 +1,4 @@
+import {Stack} from "aws-cdk-lib";
 import {SecurityGroup} from "aws-cdk-lib/aws-ec2";
 import {
     ContainerImage,
@@ -59,25 +60,26 @@ export class AwsMigrationService extends Construct {
                         : "cyberworlds/server/migration/migration_image_tarball_load/tarball.tar",
                 ),
             ),
-            // Send logs to AWS. Container logs are short-lived and used for debugging
-            // obscure machine-level issues. Our long-lived logs are in Honeycomb.
+            // Send logs to AWS. Container logs are short-lived and used for debugging obscure
+            // machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
-            // For security, use the `www-data` user which exists on our Linux image. It
-            // only has read access and execute access to files on our system.
+            // For security, use the `www-data` user which exists on our Linux image. It only
+            // has read access and execute access to files on our system.
             user: "www-data",
             secrets: {
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
             },
             environment: {
                 NODE_ENV: "production",
+                AWS_REGION: Stack.of(this).region,
             },
             command: [
-                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
-                // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
-                // (e.g. `sh -c`) not our process.
+                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks
+                // ECS process termination. The `SIGTERM` signal is sent to the shell (e.g.
+                // `sh -c`) not our process.
                 //
-                // `runService()` implements env variable substitution which is why we can use
-                // env variable syntax like `$HONEYCOMB_API_KEY`.
+                // `runService()` implements env variable substitution which is why we can use env
+                // variable syntax like `$HONEYCOMB_API_KEY`.
                 "/var/www/server/migration/migration",
                 "--edgeServiceUrl=https://alpine.inc",
                 "--resourceServiceUrl=https://resources.alpine.inc",
@@ -88,9 +90,9 @@ export class AwsMigrationService extends Construct {
                 "--honeycombApiKey=$HONEYCOMB_API_KEY",
                 `--kinesisTracerStreamName=${observability.tracerEventStreamName}`,
                 `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
-                // When you execute the ECS `RunTask` action to start migration service, you
-                // must provide these environment variables in `containerOverrides`. Each run of
-                // the migration service may be for a different task.
+                // When you execute the ECS `RunTask` action to start migration service, you must
+                // provide these environment variables in `containerOverrides`. Each run of the
+                // migration service may be for a different task.
                 "--migration=$MIGRATION",
                 "--segmentIndex=$SEGMENT_INDEX",
                 "--totalSegmentCount=$TOTAL_SEGMENT_COUNT",
@@ -106,15 +108,16 @@ export class AwsMigrationService extends Construct {
         sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
         observability.grantPutToTracerEventStream(taskDefinition.taskRole);
 
-        // Create a security group for migration service. This security group's ID must
-        // be explicitly provided to the [ECS `RunTask`][1] action used to start a
-        // migration service instance under `networkConfiguration`.
+        // Create a security group for migration service. This security group's ID must be
+        // explicitly provided to the [ECS `RunTask`][1] action used to start a migration
+        // service instance under `networkConfiguration`.
         //
         // The name `InstanceSecurityGroup` is based on the [default `AutoScalingGroup`
         // security group name][2].
         //
         // [1]: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_RunTask.html
-        // [2]: https://github.com/aws/aws-cdk/blob/b93b7e3fe30aead82d9cb6458036c62541c493ff/packages/aws-cdk-lib/aws-autoscaling/lib/auto-scaling-group.ts#L1410-L1413
+        // [2]:
+        //     https://github.com/aws/aws-cdk/blob/b93b7e3fe30aead82d9cb6458036c62541c493ff/packages/aws-cdk-lib/aws-autoscaling/lib/auto-scaling-group.ts#L1410-L1413
         const securityGroup = new SecurityGroup(this, "InstanceSecurityGroup", {
             vpc,
             allowAllOutbound: true,

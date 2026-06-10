@@ -43,7 +43,8 @@ function mapRecursiveIterable<Value, NewValue>(
  * Match different new-line formats. [Same newline regex that's in
  * `compromise`][1].
  *
- * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
+ * [1]:
+ *     https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
  */
 export const newLineRegExp = /((?:\r?\n|\r)+)/g;
 
@@ -53,7 +54,8 @@ export const newLineRegExp = /((?:\r?\n|\r)+)/g;
  *
  * Same as `newLineRegExp` but only one line break instead of multiple.
  *
- * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
+ * [1]:
+ *     https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
  */
 export const newLineRegExpWithoutRepetition = /(\r?\n|\r)/g;
 
@@ -61,36 +63,38 @@ export const newLineRegExpWithoutRepetition = /(\r?\n|\r)/g;
  * Match different new-line formats. [Same newline regex that's in
  * `compromise`][1].
  *
- * Same as `newLineRegExp` but only one line break instead of multiple and
- * doesn't capture the newlines in a capture group.
+ * Same as `newLineRegExp` but only one line break instead of multiple and doesn't
+ * capture the newlines in a capture group.
  *
- * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
+ * [1]:
+ *     https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
  */
 export const newLineRegExpWithoutRepetitionOrCapture = /(?:\r?\n|\r)/g;
 
 /**
- * Take arbitrary content and divide it into chunks of the ideal length for our
- * LLM (Cohere). We divide content into chunks along the natural structure of
- * the document. (e.g. Headings create separate chunks.)
+ * Take arbitrary content and divide it into chunks of the ideal length for our LLM
+ * (Cohere). We divide content into chunks along the natural structure of the
+ * document. (e.g. Headings create separate chunks.)
  *
  * Also prints our content to Markdown formatted text which we can index in
- * OpenSearch for keyword search. Refer to the [CommonMark specification][1]
- * for the Markdown syntax we use. The markdown content is able to be parsed
- * back into a ProseMirror node by `parseSearchContent()` (with some acceptable
- * lossiness, see the documentation on that function).
+ * OpenSearch for keyword search. Refer to the [CommonMark specification][1] for
+ * the Markdown syntax we use. The markdown content is able to be parsed back into
+ * a ProseMirror node by `parseSearchContent()` (with some acceptable lossiness,
+ * see the documentation on that function).
  *
- * Picking good chunks for an LLM can be more art than science. For an
- * introduction to chunking strategies see [this blog post from Pinecone][2].
- * Chunks also can't be context-less.
+ * Picking good chunks for an LLM can be more art than science. For an introduction
+ * to chunking strategies see [this blog post from Pinecone][2]. Chunks also can't
+ * be context-less.
  *
- * You should add some preamble to chunks so the LLM can better understand
- * what's in the content. A good discussion on adding context to chunks is in
- * [this reply on the OpenAI forums][3]. To add context to chunks implement the
+ * You should add some preamble to chunks so the LLM can better understand what's
+ * in the content. A good discussion on adding context to chunks is in [this reply
+ * on the OpenAI forums][3]. To add context to chunks implement the
  * `getChunkPreamble` function.
  *
  * [1]: https://spec.commonmark.org/0.30
  * [2]: https://www.pinecone.io/learn/chunking-strategies/
- * [3]: https://community.openai.com/t/the-length-of-the-embedding-contents/111471/7
+ * [3]:
+ *     https://community.openai.com/t/the-length-of-the-embedding-contents/111471/7
  */
 export function chunkSearchContent(
     content: Node,
@@ -141,14 +145,14 @@ export function chunkSearchContent(
 }
 
 /**
- * A search content chunk is some slice of content (printed to Markdown
- * formatted text) following the content's structure.
+ * A search content chunk is some slice of content (printed to Markdown formatted
+ * text) following the content's structure.
  *
- * Chunks are represented as a tree where each level of the tree represents
- * a different level of structure (e.g. headings, paragraphs, list items,
- * sentences). The highest level of the tree represents the highest level of
- * structure (e.g. sections created by headings). While producing our final
- * chunk list we try to keep as much structure intact as possible.
+ * Chunks are represented as a tree where each level of the tree represents a
+ * different level of structure (e.g. headings, paragraphs, list items, sentences).
+ * The highest level of the tree represents the highest level of structure (e.g.
+ * sections created by headings). While producing our final chunk list we try to
+ * keep as much structure intact as possible.
  */
 export type SearchContentChunk =
     | {
@@ -184,9 +188,9 @@ export type SearchContentChunkContext = {
 };
 
 /**
- * Convert arbitrary content into a chunk tree where the leaf nodes are
- * sentences (printed to Markdown formatted text). Each level of the tree
- * represents a different level of structure.
+ * Convert arbitrary content into a chunk tree where the leaf nodes are sentences
+ * (printed to Markdown formatted text). Each level of the tree represents a
+ * different level of structure.
  */
 export function getFullSearchContentChunk(
     content: Node,
@@ -202,14 +206,14 @@ export function getFullSearchContentChunk(
         ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): SearchContentChunk {
-    // Take our content and divide it into structured chunks of any size. We use
-    // the structure of the content to chunk. Headings create sections, child list
-    // items stay with their parent list item, and sentences are chunked together.
+    // Take our content and divide it into structured chunks of any size. We use the
+    // structure of the content to chunk. Headings create sections, child list items
+    // stay with their parent list item, and sentences are chunked together.
     const chunkIterable: RecursiveIterable<SearchContentChunkBase> = mapIterable(
         chunkSearchContentBySections(content.content),
         contentChunk => {
-            // The heading fragment should not get `sectionHeading` context. Only the
-            // content below it.
+            // The heading fragment should not get `sectionHeading` context. Only the content
+            // below it.
             return contentChunk.headingFragment
                 ? concatIterables(
                       next(contentChunk.headingFragment, null),
@@ -363,9 +367,8 @@ function createSearchContentGroupChunk(
 }
 
 /**
- * Split a full search content chunk into chunks no larger than
- * `maxTokenCount`. We follow the structure of the chunk tree. Ideally
- * splitting at the highest level.
+ * Split a full search content chunk into chunks no larger than `maxTokenCount`. We
+ * follow the structure of the chunk tree. Ideally splitting at the highest level.
  *
  * We don't divide smaller than sentences. A sentence with more tokens than
  * `maxTokenCount` will be maintained. This means you may get a chunk with more
@@ -409,9 +412,8 @@ function splitSearchContentChunk(
         body: SearchContentChunk;
     }> = [];
 
-    // Takes our structured chunk and splits it into smaller chunks of appropriate
-    // size for the LLM. In Cohere's case it performs best with <512 tokens at
-    // a time.
+    // Takes our structured chunk and splits it into smaller chunks of appropriate size
+    // for the LLM. In Cohere's case it performs best with <512 tokens at a time.
     const split = (chunk: SearchContentChunk) => {
         nextChunkPreamble ??= getChunkPreamble(chunk.context);
 
@@ -439,8 +441,7 @@ function splitSearchContentChunk(
                             tokenCount: workingGroupTokenCount,
                             context: chunk.context,
                             sentenceChunks: workingGroupSentenceChunks,
-                            // Margin doesn't matter in a split chunk since there's no content before
-                            // or after.
+                            // Margin doesn't matter in a split chunk since there's no content before or after.
                             lineMarginTop: 0,
                             lineMarginBottom: 0,
                         },
@@ -451,9 +452,9 @@ function splitSearchContentChunk(
                     workingGroupSentenceChunks = [];
                 }
 
-                // Unlike what we do for groups, if this one sentence is above `maxTokenCount`
-                // we don't recursively split it since we don't want to split in the middle of
-                // a sentence.
+                // Unlike what we do for groups, if this one sentence is above `maxTokenCount` we
+                // don't recursively split it since we don't want to split in the middle of a
+                // sentence.
                 workingGroupTokenCount += sentenceChunk.tokenCount;
                 workingGroupSentenceChunks.push(sentenceChunk);
             }
@@ -468,8 +469,7 @@ function splitSearchContentChunk(
                         tokenCount: workingGroupTokenCount,
                         context: chunk.context,
                         sentenceChunks: workingGroupSentenceChunks,
-                        // Margin doesn't matter in a split chunk since there's no content before
-                        // or after.
+                        // Margin doesn't matter in a split chunk since there's no content before or after.
                         lineMarginTop: 0,
                         lineMarginBottom: 0,
                     },
@@ -543,8 +543,8 @@ function splitSearchContentChunk(
 }
 
 /**
- * Print a chunk to text. We put spaces in between sentences and add the
- * maximum line margin between two adjacent chunks.
+ * Print a chunk to text. We put spaces in between sentences and add the maximum
+ * line margin between two adjacent chunks.
  */
 export function printSearchContentChunk(chunk: {
     preamble: {text: string; lineMarginBottom: number};
@@ -576,8 +576,8 @@ export function printSearchContentChunk(chunk: {
     for (let i = 0; i < flatChunks.length; i++) {
         const chunk = flatChunks[i]!;
 
-        // If this chunk is empty and the only chunk in `flatChunks` then don't
-        // continue. Since we'll only end up adding trailing newlines.
+        // If this chunk is empty and the only chunk in `flatChunks` then don't continue.
+        // Since we'll only end up adding trailing newlines.
         if (chunk.sentenceChunks.length === 0 && flatChunks.length === 1) {
             break;
         }
@@ -618,8 +618,8 @@ export function printSearchContentChunk(chunk: {
                     : isLineStart &&
                         sentenceChunk.text.startsWith(">  ") &&
                         !/^>  +(?:\d\.|[-*])/.test(sentenceChunk.text)
-                      ? // Make sure leading spaces aren't collapsed at blockquote newlines. (Nested blockquotes are not
-                        // supported here.)
+                      ? // Make sure leading spaces aren't collapsed at blockquote newlines. (Nested
+                        // blockquotes are not supported here.)
                         "> &#x0020;" + sentenceChunk.text.slice(3)
                       : sentenceChunk.text;
         }
@@ -635,9 +635,8 @@ export function printSearchContentChunk(chunk: {
     return {
         preambleEndIndex: Math.min(
             chunk.preamble.text.length + chunk.preamble.lineMarginBottom,
-            // If we just have the preamble and no main content then `lineMarginBottom`
-            // wasn't added to `text`. Make sure we don't return an index larger than
-            // `text.length`.
+            // If we just have the preamble and no main content then `lineMarginBottom` wasn't
+            // added to `text`. Make sure we don't return an index larger than `text.length`.
             text.length,
         ),
         tokenCountWithoutPreamble: chunk.body.tokenCount,
@@ -646,10 +645,9 @@ export function printSearchContentChunk(chunk: {
 }
 
 /**
- * Chunk content into sections inferred by content structure. We use headings
- * and dividers added by the user to determine document sections. A section
- * starts with a heading or divider and spans until the next heading or
- * divider.
+ * Chunk content into sections inferred by content structure. We use headings and
+ * dividers added by the user to determine document sections. A section starts with
+ * a heading or divider and spans until the next heading or divider.
  */
 function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<{
     sectionHeadingNode: Node | null;
@@ -688,7 +686,8 @@ function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<{
         }
     }
 
-    // Don't create a new `Fragment` object if we didn't break the content into sections.
+    // Don't create a new `Fragment` object if we didn't break the content into
+    // sections.
     if (!hasBrokenFragment && previousHeadingNodes.length === 0) {
         yield {
             sectionHeadingNode: null,
@@ -717,8 +716,8 @@ function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<{
 }
 
 /**
- * Runs a series of chunk heuristics on a single content section
- * (from `chunkSearchContentBySections()`).
+ * Runs a series of chunk heuristics on a single content section (from
+ * `chunkSearchContentBySections()`).
  *
  * Includes (among other rules):
  *
@@ -736,8 +735,8 @@ function chunkSearchContentSectionByStructure(fragment: Fragment): RecursiveIter
 /**
  * Chunk content by paragraphs. Each top-level block gets its own chunk
  * (paragraphs, code blocks, quote blocks) with the exception of list items.
- * Adjacent list items are included in their own chunk. Lists are read as a
- * single idea by a human and should also be read as a single idea by an LLM.
+ * Adjacent list items are included in their own chunk. Lists are read as a single
+ * idea by a human and should also be read as a single idea by an LLM.
  */
 function* chunkSearchContentByParagraphs(fragment: Fragment): IterableIterator<Fragment> {
     let previousListItemNodes: Array<Node> = [];
@@ -763,11 +762,11 @@ function* chunkSearchContentByParagraphs(fragment: Fragment): IterableIterator<F
 }
 
 /**
- * If it appears like some content introduces the following piece of content
- * then we put that content in the same chunk. Right now, the logic is quite
- * dumb. If a fragment ends with a text node the ends with the `:` character
- * then we say that fragment introduces the next fragment. A better approach
- * could be to use some simple statistical model to group related paragraphs.
+ * If it appears like some content introduces the following piece of content then
+ * we put that content in the same chunk. Right now, the logic is quite dumb. If a
+ * fragment ends with a text node the ends with the `:` character then we say that
+ * fragment introduces the next fragment. A better approach could be to use some
+ * simple statistical model to group related paragraphs.
  *
  * This should run at the paragraph chunk level.
  */
@@ -1083,10 +1082,10 @@ function chunkSearchContentBySentenceForBlockNode(
                 }
                 case "checkListItem": {
                     // There's a non-standard markdown syntax for check list items where `[ ]`
-                    // represents an unchecked item and `[x]` represents a checked item. Given this
-                    // is not standard and may confuse text analysis (since `x` may be interpreted
-                    // as a word after dropping the brackets) we print check list items as regular
-                    // Markdown unordered list items.
+                    // represents an unchecked item and `[x]` represents a checked item. Given this is
+                    // not standard and may confuse text analysis (since `x` may be interpreted as a
+                    // word after dropping the brackets) we print check list items as regular Markdown
+                    // unordered list items.
                     bullet = "-";
                     break;
                 }
@@ -1102,9 +1101,9 @@ function chunkSearchContentBySentenceForBlockNode(
                         assert(listItemNumber !== undefined);
                     }
 
-                    // Only allow integers from 1-99. Longer integers like 101 would require more
-                    // than four spaces of indentation for child bullets to be considered children
-                    // by the CommonMark markdown specification.
+                    // Only allow integers from 1-99. Longer integers like 101 would require more than
+                    // four spaces of indentation for child bullets to be considered children by the
+                    // CommonMark markdown specification.
                     bullet = `${clamp(1, Math.round(listItemNumber), 99)}.`;
                     break;
                 }
@@ -1214,44 +1213,41 @@ function chunkSearchContentBySentenceForBlockNode(
         }
 
         // We don't currently include anything related to files in the chunked content.
-        // When searching via our search index we don't want the text "https" or a
-        // `FileId` to match any document containing a file. That wouldn't make sense
-        // to the user.
+        // When searching via our search index we don't want the text "https" or a `FileId`
+        // to match any document containing a file. That wouldn't make sense to the user.
         //
-        // However, it may be useful for LLMs to see images. So it may be worth
-        // considering including an image using the Markdown syntax and stripping
-        // images before text indexing. So images aren't available in a text index but
-        // are available to LLMs. Otherwise text like "This image shows..." might not
-        // be interpreted correctly by an LLM. This makes even more sense if the LLM is
-        // smart enough to parse images from the markdown and interpret image
-        // semantics. We could also generate `alt` text for files ourselves and feed
-        // that to LLMs here. But again, the `alt` text shouldn't be available to the
-        // search index.
+        // However, it may be useful for LLMs to see images. So it may be worth considering
+        // including an image using the Markdown syntax and stripping images before text
+        // indexing. So images aren't available in a text index but are available to LLMs.
+        // Otherwise text like "This image shows..." might not be interpreted correctly by
+        // an LLM. This makes even more sense if the LLM is smart enough to parse images
+        // from the markdown and interpret image semantics. We could also generate `alt`
+        // text for files ourselves and feed that to LLMs here. But again, the `alt` text
+        // shouldn't be available to the search index.
         //
-        // Anyway, for now we don't include files at all in the search body but I'm
-        // sure we'll experiment with different approaches over time.
+        // Anyway, for now we don't include files at all in the search body but I'm sure
+        // we'll experiment with different approaches over time.
         case "fileRow":
         case "fileRowTable":
         case "fileFloat": {
             return [];
         }
 
-        // We chunk tables into groups of rows and cells. A table is a group of rows
-        // and a row is a group of cells. We then chunk the content within a table cell
-        // same as normal (e.g. list item children are in the same group as their
-        // parent).
+        // We chunk tables into groups of rows and cells. A table is a group of rows and a
+        // row is a group of cells. We then chunk the content within a table cell same as
+        // normal (e.g. list item children are in the same group as their parent).
         //
         // To represent the table in Markdown we use HTML instead of [GitHub-flavored
         // Markdown (GFM) tables][1]. That's because it's not possible to nest markdown
-        // blocks (e.g. quote block or code block) within a GFM table. The HTML we
-        // generate can be parsed back by `parseSearchContent()`.
+        // blocks (e.g. quote block or code block) within a GFM table. The HTML we generate
+        // can be parsed back by `parseSearchContent()`.
         //
-        // Search content Markdown isn't shown to a user and we don't need to be able
-        // to perfectly parse content back from search content. The `<table>`
-        // formatting is there purely for AI models which will read the content. If [I
-        // give Claude a simple table in this format it's able to understand the
-        // table][2]. (My second question Claude answered incorrectly so Claude does
-        // seem to struggle a little with this.)
+        // Search content Markdown isn't shown to a user and we don't need to be able to
+        // perfectly parse content back from search content. The `<table>` formatting is
+        // there purely for AI models which will read the content. If [I give Claude a
+        // simple table in this format it's able to understand the table][2]. (My second
+        // question Claude answered incorrectly so Claude does seem to struggle a little
+        // with this.)
         //
         // [1]: https://github.com/micromark/micromark-extension-gfm-table
         // [2]: https://claude.ai/share/20e98f2d-9208-4670-874f-4fcb3c3df61e
@@ -1394,10 +1390,10 @@ function chunkSearchContentBySentenceForText(text: string): Array<string> {
  * we'll index in OpenSearch and embed with an LLM.
  *
  * We chunk at sentence boundaries so each individual chunk should carry some
- * semantic meaning. Chunking is important for embedding with LLMs which have
- * an ideal input token length. With too many tokens the embedding will only
- * capture the gist of the text, with too few tokens the embedding will only
- * capture exact semantic meaning ignoring broader context ([source][1]).
+ * semantic meaning. Chunking is important for embedding with LLMs which have an
+ * ideal input token length. With too many tokens the embedding will only capture
+ * the gist of the text, with too few tokens the embedding will only capture exact
+ * semantic meaning ignoring broader context ([source][1]).
  *
  * [1]: https://www.pinecone.io/learn/chunking-strategies/
  */

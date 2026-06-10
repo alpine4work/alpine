@@ -3,15 +3,16 @@ import {assert} from "~/shared/helpers/control/assert.js";
 let elementEventEmitterNames: Set<string> | undefined;
 
 /**
- * Allow producers to emit events on DOM elements to any consumer. Has a
- * similar API to `EventEmitter` but under the hood we're using the [DOM's
- * `dispatchEvent()` method][1]. In theory, if you're dealing with HTML
- * elements then this is more efficient than `EventEmitter`.
+ * Allow producers to emit events on DOM elements to any consumer. Has a similar
+ * API to `EventEmitter` but under the hood we're using the [DOM's
+ * `dispatchEvent()` method][1]. In theory, if you're dealing with HTML elements
+ * then this is more efficient than `EventEmitter`.
  *
- * The convention is to use an all lowercase string with no spaces for the
- * event name. To match DOM event names.
+ * The convention is to use an all lowercase string with no spaces for the event
+ * name. To match DOM event names.
  *
- * [1]: https://developer.mozilla.org/en-US/docs/Web/Events/Creating_and_triggering_events
+ * [1]:
+ *     https://developer.mozilla.org/en-US/docs/Web/Events/Creating_and_triggering_events
  */
 export class ElementEventEmitter<Event = void> {
     private readonly _name: string;

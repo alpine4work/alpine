@@ -3,9 +3,9 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {waitMicrotask} from "~/shared/helpers/async/wait_microtask.js";
 
 /**
- * A write-preferring [read write lock][1]. Writers require exclusive access to
- * a lock but readers may run concurrently. This lock is write-preferring so
- * reads don't starve the lock.
+ * A write-preferring [read write lock][1]. Writers require exclusive access to a
+ * lock but readers may run concurrently. This lock is write-preferring so reads
+ * don't starve the lock.
  *
  * [1]: https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
  */
@@ -49,9 +49,9 @@ export class ReadWriteMutex {
     }
 
     /**
-     * Locks the mutex for a reader. If a writer is locking then we must wait for
-     * it to unlock. Read lockers may run concurrently but stop a write lock from
-     * being acquired.
+     * Locks the mutex for a reader. If a writer is locking then we must wait for it to
+     * unlock. Read lockers may run concurrently but stop a write lock from being
+     * acquired.
      *
      * The `withReadLock()` function is a more convenient function for most cases.
      */
@@ -67,9 +67,9 @@ export class ReadWriteMutex {
             this._unlockReaders = await this._readersMutex.lock();
         } else {
             // Make sure if we call `lockRead()` twice synchronously the first call returns
-            // first and the second call returns second. Since the first call has an
-            // `await` it will be delayed one microtask. So wait a microtask in all other
-            // reads as well to even this delay out.
+            // first and the second call returns second. Since the first call has an `await` it
+            // will be delayed one microtask. So wait a microtask in all other reads as well to
+            // even this delay out.
             await waitMicrotask();
         }
 
@@ -85,10 +85,10 @@ export class ReadWriteMutex {
     }
 
     /**
-     * Locks the mutex for a writer. Must wait for any other writers to unlock.
-     * Must also wait for any active reads to unlock. Readers that call
-     * `lockRead()` after a `lockWrite()` is called are blocked until the write
-     * finishes. This is because our lock is write-preferring.
+     * Locks the mutex for a writer. Must wait for any other writers to unlock. Must
+     * also wait for any active reads to unlock. Readers that call `lockRead()` after a
+     * `lockWrite()` is called are blocked until the write finishes. This is because
+     * our lock is write-preferring.
      *
      * The `withWriteLock()` function is a more convenient function for most cases.
      */

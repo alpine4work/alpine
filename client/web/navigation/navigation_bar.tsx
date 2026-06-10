@@ -22,25 +22,24 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
- * Most content in our product comes with a navigation bar. The navigation bar
- * is a sticky bar at the top of the view which disappears when the user
- * scrolls down and reappears as the user scrolls up. This bar contains
- * navigation controls (like a back button on mobile) and context about the
- * current content (like a document title). It disappears when the user scrolls
- * down so they can focus on the content, if they need its controls they can
- * simply scroll up and it's there for them.
+ * Most content in our product comes with a navigation bar. The navigation bar is a
+ * sticky bar at the top of the view which disappears when the user scrolls down
+ * and reappears as the user scrolls up. This bar contains navigation controls
+ * (like a back button on mobile) and context about the current content (like a
+ * document title). It disappears when the user scrolls down so they can focus on
+ * the content, if they need its controls they can simply scroll up and it's there
+ * for them.
  *
  * When at the top of the scroll view, the navigation bar is displayed but it's
- * flush with other content. So it appears as if there's no sticky bar at all.
- * It's sticky nature is only revealed if the user scrolls down and back up
- * again.
+ * flush with other content. So it appears as if there's no sticky bar at all. It's
+ * sticky nature is only revealed if the user scrolls down and back up again.
  *
- * The UX idea here is that content is king. We don't want to permanently
- * allocate space for navigation which may distract from the user's main task
- * of reading or editing.
+ * The UX idea here is that content is king. We don't want to permanently allocate
+ * space for navigation which may distract from the user's main task of reading or
+ * editing.
  *
- * Our native mobile apps implement tab bar UI which uses the same logic as our
- * web code navigation bar. As the user scrolls down, the tab bar disappears.
+ * Our native mobile apps implement tab bar UI which uses the same logic as our web
+ * code navigation bar. As the user scrolls down, the tab bar disappears.
  */
 export function useNavigationBar({
     ref,
@@ -126,21 +125,19 @@ export function useNavigationBar({
                 // navigation bar. Coincidentally, our native wrapper works the same way. It
                 // doesn't see the initial scroll.
                 //
-                // Test case: On mobile click a document comment thread preview (from a
-                // document comment thread notification) it should open the document scrolled
-                // to the comment (but without the comment thread open) and the navigation bar
-                // should be visible.
+                // Test case: On mobile click a document comment thread preview (from a document
+                // comment thread notification) it should open the document scrolled to the comment
+                // (but without the comment thread open) and the navigation bar should be visible.
                 scheduleMicrotask(() => {
                     if (isCancelled) return;
 
-                    // Call `flushSync()` since if this update was happening inside the layout
-                    // effect it would be synchronously flushed. We need changes from this function
-                    // to be applied before the next browser paint.
+                    // Call `flushSync()` since if this update was happening inside the layout effect
+                    // it would be synchronously flushed. We need changes from this function to be
+                    // applied before the next browser paint.
                     flushSync(() => {
                         assertExists(navigationBarRef.current).initialize(element);
 
-                        // Immediately populate the content rect with our element's dimensions
-                        // on mount.
+                        // Immediately populate the content rect with our element's dimensions on mount.
                         handleResize();
 
                         addResizeListenerForElement(element, handleResize);

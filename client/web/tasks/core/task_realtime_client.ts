@@ -1,5 +1,6 @@
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {AppContext} from "~/client/web/context/app_context.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
@@ -32,23 +33,21 @@ import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 /**
  * How long we should retain queries from the server that we don't know the
  * immediate purpose of. It's expected that UI code will find these queries and
- * take their own reference during this period. If the query was over-fetched
- * and the UI doesn't need it then once the retention period is up we'll
- * unsubscribe.
+ * take their own reference during this period. If the query was over-fetched and
+ * the UI doesn't need it then once the retention period is up we'll unsubscribe.
  *
  * Most commonly preloaded task children queries for grid view fall into this
- * bucket. We preload some children queries on the server in a best effort
- * fashion. We may use stale data and load a query for a task that's not
- * actually visible in the grid view. We unsubscribe from these unused queries
- * at the end of this retention period.
+ * bucket. We preload some children queries on the server in a best effort fashion.
+ * We may use stale data and load a query for a task that's not actually visible in
+ * the grid view. We unsubscribe from these unused queries at the end of this
+ * retention period.
  */
 export const unknownTaskQueryFromServerRetentionPeriodMs = 1000 * 5;
 
 /**
- * Manages the client's realtime connection to `TaskRealtimeService` and owns
- * the `TaskClientDatabase` object. When we connect to the WebSocket we'll
- * subscribe to the queries in our store so we can keep them up-to-date in
- * realtime.
+ * Manages the client's realtime connection to `TaskRealtimeService` and owns the
+ * `TaskClientDatabase` object. When we connect to the WebSocket we'll subscribe to
+ * the queries in our store so we can keep them up-to-date in realtime.
  */
 export class TaskRealtimeClient {
     private readonly _getContext: () => AppContext;
@@ -74,12 +73,14 @@ export class TaskRealtimeClient {
         getContext: () => AppContext,
         {
             accountRegistry,
+            siteRegistry,
             spaceId,
             currentAccountId,
             browserId,
             onDisplayError,
         }: {
             accountRegistry: AccountRegistry;
+            siteRegistry: SiteRegistry;
             spaceId: SpaceId;
             currentAccountId: AccountId | null;
             browserId: BrowserId;
@@ -100,6 +101,7 @@ export class TaskRealtimeClient {
 
         this.store = new TaskClientStore({
             accountRegistry,
+            siteRegistry,
             spaceId,
             currentAccountId,
             onError: options => {
@@ -175,9 +177,9 @@ export class TaskRealtimeClient {
         const unsubscribeFromState = this._client.state.subscribe(() => {
             const clientState = this._client.state.getSnapshot();
 
-            // If our connection closed with an error (e.g. from an authorization failure)
-            // all our subscriptions are now unsubscribed. Add the error to them so any UI
-            // using the subscription can present the error to the user.
+            // If our connection closed with an error (e.g. from an authorization failure) all
+            // our subscriptions are now unsubscribed. Add the error to them so any UI using
+            // the subscription can present the error to the user.
             if (clientState.hasError) {
                 const {hasCaughtError} = clearSubscriptions({
                     hasError: true,
@@ -310,13 +312,63 @@ export class TaskRealtimeClient {
                 const newTaskSubscriptionsArray = Array.from(newTaskSubscriptions);
                 const newCollectionSubscriptionsArray = Array.from(newCollectionSubscriptions);
 
-                const newQueryLimits = newQueriesArray.map(
-                    query =>
-                        // If we're re-subscribing to a query that had many tasks then we want to load
-                        // all those tasks back. If the query requested to load more tasks then add
-                        // those on as well.
+                const newQueryLimits = newQueriesArray.map(query =>
+                    Math.max(
+                        // If we're re-subscribing to a query that had many tasks then we want to load all
+                        // those tasks back. If the query requested to load more tasks then add those on as
+                        // well.
                         query.taskOrderStore.getSnapshot().length +
-                        query.loadMoreTaskCountStore.getSnapshot(),
+                            query.loadMoreTaskCountStore.getSnapshot(),
+
+                        // NOTE(calebmer, 2026-03-20): There's a race condition bug here I don't have a
+                        // great solution for. Let's say you create a task and then immediately add a
+                        // subtask. The task will start as a ghost task then typing in that subtask will
+                        // cause the task (and its subtask) to be created. This will call the `subscribe()`
+                        // procedure for the newly created task's children. But what `limit` should we use?
+                        // We only have 1 task in this query on the client currently. Before 2026-03-20
+                        // we'd send `limit: 1`.
+                        //
+                        // The issue with sending `limit: 1` is let's say while we're waiting on the server
+                        // to return the query and while we're waiting we create two new subtasks. Let's
+                        // say the sequence of events is this:
+                        //
+                        // 1. Client creates subtask A
+                        // 2. Client calls `subscribe({limit: 1})`
+                        // 3. Client creates subtask B
+                        // 4. Client creates subtask C
+                        // 5. `TaskRealtimeService` receives actions for newly created subtask B
+                        // 6. `TaskRealtimeService` receives actions for newly created subtask C
+                        // 7. `TaskRealtimeService` finishes the OpenSearch query for
+                        //    `subscribe({limit: 1})`
+                        // 8. `TaskRealtimeService` returns to the client ONLY subtask A and
+                        //    `loadedState: {type: "Partial"}` (since the client only asked for 1 task)
+                        //
+                        // Now the client re-renders the grid view showing ONLY subtask A and a loading
+                        // indicator (because of `loadedState: {type: "Partial"}`). The client knew
+                        // subtasks B and C existed but not at the time it called `subscribe()`.
+                        //
+                        // The fix is to always ask for at least `limit: 100` when subscribing to a query.
+                        // To account for race conditions where the client task count at `subscribe()`
+                        // request time is less than the task count at `subscribe()` response time. 100 is
+                        // a completely arbitrary number. This bug could still reproduce if somehow the
+                        // user creates 100 tasks before `subscribe()` responds. However, it wouldn't be
+                        // that big of a deal since the screen would at least be filled with data and the
+                        // jank may happen offscreen.
+                        //
+                        // This doesn't feel like a principled fix but I don't know what a principled fix
+                        // would be. I found this bug while writing the `onboarding_desktop.spec.ts` test
+                        // which gave me a reliable reproduction. But I'm pretty sure I've seen this bug
+                        // before I just didn't know how to go about reproducing it at the time.
+                        //
+                        // You can see this bug in action in [this video][1] which is a run of the
+                        // `onboarding_desktop.spec.ts` test. Specifically 0:19-0:20. The bug happens
+                        // really fast. You may need to download the video and step through it
+                        // frame-by-frame to see the bug.
+                        //
+                        // [1]:
+                        //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/p4pmy1kbn8xyvdpwaa141jaarg
+                        100,
+                    ),
                 );
 
                 // When either:
@@ -328,19 +380,19 @@ export class TaskRealtimeClient {
                 // backfill any realtime changes we've missed while the WebSocket was not
                 // connected.
                 //
-                // TODO(calebmer): Currently calling `subscribe` sends the entire
-                // query response to the client a second time. It would be nice if we only sent
-                // changes between the last time the client was up-to-date and now. But given
-                // our CRDT everything-is-unordered backend design it's hard to know what
-                // actions the client has missed. This doesn't really affect perceived
-                // performance for the user so even though it's wasteful we let it happen
-                // for now. Maybe there's cool research around CRDT state vectors we can use
-                // for syncing? A dumb optimization like a `lastModified` timestamp that noops
-                // if the query was not modified since then could also work.
+                // TODO(calebmer): Currently calling `subscribe` sends the entire query response to
+                // the client a second time. It would be nice if we only sent changes between the
+                // last time the client was up-to-date and now. But given our CRDT
+                // everything-is-unordered backend design it's hard to know what actions the client
+                // has missed. This doesn't really affect perceived performance for the user so
+                // even though it's wasteful we let it happen for now. Maybe there's cool research
+                // around CRDT state vectors we can use for syncing? A dumb optimization like a
+                // `lastModified` timestamp that noops if the query was not modified since then
+                // could also work.
                 const subscribePromise = this.store
-                    // Wait for any pending commits to resolve before subscribing. If we just
-                    // created a task, we need to wait for the server to create the task before we
-                    // can subscribe to its children.
+                    // Wait for any pending commits to resolve before subscribing. If we just created a
+                    // task, we need to wait for the server to create the task before we can subscribe
+                    // to its children.
                     .waitForCommitTaskActionTransactions()
                     .then(() =>
                         this._client.procedures.subscribe({
@@ -365,8 +417,8 @@ export class TaskRealtimeClient {
                     .then(output => {
                         const extraQueriesToRelease: Array<TaskClientQuery> = [];
 
-                        // After some period, release our reference to extra queries we received from
-                        // the server. We hope our UI code has taken a reference to these queries.
+                        // After some period, release our reference to extra queries we received from the
+                        // server. We hope our UI code has taken a reference to these queries.
                         setTimeout(() => {
                             batchStoreUpdates(() => {
                                 for (const extraQuery of extraQueriesToRelease) {
@@ -403,16 +455,16 @@ export class TaskRealtimeClient {
                                     }
 
                                     // The server may have subscribed us to some extra queries. Let's create query
-                                    // models for these queries in our store. We retain them for ~5s then
-                                    // unsubscribe from them if UI code doesn't retain the query.
+                                    // models for these queries in our store. We retain them for ~5s then unsubscribe
+                                    // from them if UI code doesn't retain the query.
                                     for (const extraQueryResult of result.extraQueries) {
                                         const extraQuery = this.store.createAndRetainQuery({
                                             filters: extraQueryResult.filters,
                                             sorts: extraQueryResult.sorts,
                                             limit: extraQueryResult.limit,
                                             // The client may, as an optimization, reuse an existing `TaskClientQuery` when
-                                            // `createAndRetainQuery()` is called. However, we can't do that here! The
-                                            // server has setup a fresh subscription for us that we must respect.
+                                            // `createAndRetainQuery()` is called. However, we can't do that here! The server
+                                            // has setup a fresh subscription for us that we must respect.
                                             //
                                             // Two subscriptions for the same query causes problems.
                                             withoutReuse: true,
@@ -425,8 +477,7 @@ export class TaskRealtimeClient {
                                                 extraQueryResult.previouslyBackfilledTaskIds,
                                         });
 
-                                        // Make sure that we don't already have a query subscription for this
-                                        // new query.
+                                        // Make sure that we don't already have a query subscription for this new query.
                                         assert(
                                             iterableEvery(
                                                 subscribedQueries,
@@ -492,8 +543,8 @@ export class TaskRealtimeClient {
                     });
 
                     // Suppress uncaught promise errors. Safe to ignore errors since they're set on
-                    // subscription objects. Errors will be re-thrown and presented to the user if
-                    // they matter.
+                    // subscription objects. Errors will be re-thrown and presented to the user if they
+                    // matter.
                     querySubscriptionIdPromise.catch(() => {});
 
                     subscribedQueries.add(
@@ -516,8 +567,8 @@ export class TaskRealtimeClient {
                     });
 
                     // Suppress uncaught promise errors. Safe to ignore errors since they're set on
-                    // subscription objects. Errors will be re-thrown and presented to the user if
-                    // they matter.
+                    // subscription objects. Errors will be re-thrown and presented to the user if they
+                    // matter.
                     taskSubscriptionIdPromise.catch(() => {});
 
                     subscribedTasks.add({
@@ -537,8 +588,8 @@ export class TaskRealtimeClient {
                     });
 
                     // Suppress uncaught promise errors. Safe to ignore errors since they're set on
-                    // subscription objects. Errors will be re-thrown and presented to the user if
-                    // they matter.
+                    // subscription objects. Errors will be re-thrown and presented to the user if they
+                    // matter.
                     collectionSubscriptionIdPromise.catch(() => {});
 
                     subscribedCollections.add({
@@ -549,9 +600,9 @@ export class TaskRealtimeClient {
                     });
                 }
 
-                // If our subscribe failed, set the error on all subscriptions that were
-                // waiting on a response (and the client is still subscribed to). This will
-                // show the error where we're expecting data.
+                // If our subscribe failed, set the error on all subscriptions that were waiting on
+                // a response (and the client is still subscribed to). This will show the error
+                // where we're expecting data.
                 subscribePromise.catch(error => {
                     batchStoreUpdates(() => {
                         let hasCaughtError = false;
@@ -646,9 +697,9 @@ export class TaskRealtimeClient {
                             taskSubscriptionIdResults,
                             collectionSubscriptionIdResults,
                         ]) => {
-                            // Ignore any errors when resolving `querySubscriptionIdPromise`s. Those
-                            // errors should have been handled above. If a `querySubscriptionIdPromise`
-                            // erred it is not subscribed on the server.
+                            // Ignore any errors when resolving `querySubscriptionIdPromise`s. Those errors
+                            // should have been handled above. If a `querySubscriptionIdPromise` erred it is
+                            // not subscribed on the server.
                             //
                             // Same for `taskSubscriptionIds` and `collectionSubscriptionIds` below.
                             const querySubscriptionIds = filterMapArray(
@@ -695,9 +746,9 @@ export class TaskRealtimeClient {
                             });
                         },
                     )
-                    // Once we've finished unsubscribing, we need to cleanup the subscriptions in
-                    // our store. They'll still hang on to their data, for instance, until we've
-                    // finished unsubscribing.
+                    // Once we've finished unsubscribing, we need to cleanup the subscriptions in our
+                    // store. They'll still hang on to their data, for instance, until we've finished
+                    // unsubscribing.
                     //
                     // If there was an error the server may not have actually unsubscribed us but we
                     // still cleanup our store in case the server partially succeeded.
@@ -707,8 +758,8 @@ export class TaskRealtimeClient {
                                 try {
                                     this.store._onQueryUnsubscribed(query);
                                 } catch (error) {
-                                    // It's most likely a bug if our store cleanup fails. Log the error and
-                                    // continue cleaning up.
+                                    // It's most likely a bug if our store cleanup fails. Log the error and continue
+                                    // cleaning up.
                                     this._getContext()
                                         .tracer.getRoot()
                                         .logException(
@@ -722,8 +773,8 @@ export class TaskRealtimeClient {
                                 try {
                                     this.store._onTaskSubscriptionUnsubscribed(taskSubscription);
                                 } catch (error) {
-                                    // It's most likely a bug if our store cleanup fails. Log the error and
-                                    // continue cleaning up.
+                                    // It's most likely a bug if our store cleanup fails. Log the error and continue
+                                    // cleaning up.
                                     this._getContext()
                                         .tracer.getRoot()
                                         .logException(
@@ -739,8 +790,8 @@ export class TaskRealtimeClient {
                                         collectionSubscription,
                                     );
                                 } catch (error) {
-                                    // It's most likely a bug if our store cleanup fails. Log the error and
-                                    // continue cleaning up.
+                                    // It's most likely a bug if our store cleanup fails. Log the error and continue
+                                    // cleaning up.
                                     this._getContext()
                                         .tracer.getRoot()
                                         .logException(
@@ -752,8 +803,8 @@ export class TaskRealtimeClient {
                         });
                     })
                     .catch(error => {
-                        // All of the subscriptions the client has unsubscribed. So we only log an
-                        // uncaught exception that's not presented to the user.
+                        // All of the subscriptions the client has unsubscribed. So we only log an uncaught
+                        // exception that's not presented to the user.
                         this._getContext()
                             .tracer.getRoot()
                             .logException("Task realtime unsubscribe call failed", error);
@@ -764,9 +815,9 @@ export class TaskRealtimeClient {
         const unsubscribeFromQueriesStore = subscriptionsStore.subscribe(updateSubscribedQueries);
 
         this._disconnect = () => {
-            // Clear the `connectionId` since our state listener won't be called after
-            // this. This will stop an `unsubscribeFromQueries()` call from being made
-            // after disconnection.
+            // Clear the `connectionId` since our state listener won't be called after this.
+            // This will stop an `unsubscribeFromQueries()` call from being made after
+            // disconnection.
             connectionId = null;
 
             unsubscribeFromState();
@@ -789,8 +840,8 @@ export class TaskRealtimeClient {
             const loadMoreTasksMutex = new Mutex();
 
             const loadMoreTasks = () => {
-                // Use a mutex to only let one `loadMoreQueryTasks` call run at a time. A
-                // previous `loadMoreQueryTasks` call may fulfill the next one.
+                // Use a mutex to only let one `loadMoreQueryTasks` call run at a time. A previous
+                // `loadMoreQueryTasks` call may fulfill the next one.
                 const loadMoreTasksPromise = loadMoreTasksMutex.withLock(async () => {
                     // If a query was unsubscribed then don't load more tasks.
                     if (!subscriptionsStore.getSnapshot().queries.has(query)) return;
@@ -829,10 +880,10 @@ export class TaskRealtimeClient {
                 });
 
                 loadMoreTasksPromise.catch(error => {
-                    // If this promise fails after the query unsubscribes then that's expected! Not
-                    // a glitch, don't present to the user. `unsubscribe` will cause any pending
-                    // loads to fail with `CancelledError`. Still log the exception for tracking
-                    // though. Maybe it was a system error?
+                    // If this promise fails after the query unsubscribes then that's expected! Not a
+                    // glitch, don't present to the user. `unsubscribe` will cause any pending loads to
+                    // fail with `CancelledError`. Still log the exception for tracking though. Maybe
+                    // it was a system error?
                     if (!subscriptionsStore.getSnapshot().queries.has(query)) {
                         this._getContext()
                             .tracer.getRoot()
@@ -844,8 +895,8 @@ export class TaskRealtimeClient {
                 });
             };
 
-            // When the query's `loadMoreTask` property changes that triggers a data load
-            // here in our realtime client to...load more tasks.
+            // When the query's `loadMoreTask` property changes that triggers a data load here
+            // in our realtime client to...load more tasks.
             const unsubscribeFromLoadMoreTaskCount =
                 query.loadMoreTaskCountStore.subscribe(loadMoreTasks);
 
@@ -876,12 +927,12 @@ export class TaskRealtimeClient {
      * Should we load the initial `TaskGridViewExpansionState` for this query and
      * preload children queries along with it? If you call this BEFORE our realtime
      * client attempts to subscribe to the query (you'll need to use
-     * `batchStoreUpdates()` to delay the subscription listener firing) then we'll
-     * load the query's initial grid view expansion state.
+     * `batchStoreUpdates()` to delay the subscription listener firing) then we'll load
+     * the query's initial grid view expansion state.
      *
-     * Grid view expansion state is best effort and is not kept up-to-date in
-     * realtime. Because of grid view expansion state's limitations we have you
-     * fetch/retrieve it through these janky methods on `TaskRealtimeClient`.
+     * Grid view expansion state is best effort and is not kept up-to-date in realtime.
+     * Because of grid view expansion state's limitations we have you fetch/retrieve it
+     * through these janky methods on `TaskRealtimeClient`.
      */
     public setShouldLoadGridViewExpansionStateForQuery(query: TaskClientQuery) {
         this._shouldLoadGridViewExpansionStateForQuery.add(query);
@@ -889,13 +940,13 @@ export class TaskRealtimeClient {
 
     /**
      * If you loaded the grid view expansion state for a query (with
-     * `setShouldLoadGridViewExpansionStateForQuery()`) then you may retrieve it
-     * with this function. You may only call this function once, subsequent calls
-     * will return null.
+     * `setShouldLoadGridViewExpansionStateForQuery()`) then you may retrieve it with
+     * this function. You may only call this function once, subsequent calls will
+     * return null.
      *
-     * Grid view expansion state is best effort and is not kept up-to-date in
-     * realtime. Because of grid view expansion state's limitations we have you
-     * fetch/retrieve it through these janky methods on `TaskRealtimeClient`.
+     * Grid view expansion state is best effort and is not kept up-to-date in realtime.
+     * Because of grid view expansion state's limitations we have you fetch/retrieve it
+     * through these janky methods on `TaskRealtimeClient`.
      */
     public takeInitialGridViewExpansionStateForQueryIfExists(query: TaskClientQuery) {
         const gridViewExpansionState = this._initialGridViewExpansionStateByQuery.get(query);

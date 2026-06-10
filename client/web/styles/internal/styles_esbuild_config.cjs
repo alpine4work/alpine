@@ -4,9 +4,8 @@ const {vanillaExtractPlugin} = require("@vanilla-extract/esbuild-plugin");
 const postcss = require("postcss");
 const autoprefixer = require("autoprefixer");
 
-// Extract the compilation mode from the `BAZEL_BINDIR` environment variable.
-// This is a little hacky.
-// https://bazel.build/docs/user-manual#compilation-mode
+// Extract the compilation mode from the `BAZEL_BINDIR` environment variable. This
+// is a little hacky. https://bazel.build/docs/user-manual#compilation-mode
 //
 // IMPORTANT: If you update the code here, you should also update the code in
 // `edge_esbuild_config.cjs` and `aws_lambda_esbuild_config.cjs`.
@@ -39,11 +38,11 @@ module.exports = {
     format: "esm",
     plugins: [
         vanillaExtractPlugin({
-            // Instead of `identifiers: "short"`, in production we need to make sure
-            // generated class names always start with an underscore. If the file hash
-            // starts with a number then `@vanilla-extract` will add an underscore to the
-            // start of the class name but if the file hash starts with a letter then
-            // `@vanilla-extract` won't add an underscore.
+            // Instead of `identifiers: "short"`, in production we need to make sure generated
+            // class names always start with an underscore. If the file hash starts with a
+            // number then `@vanilla-extract` will add an underscore to the start of the class
+            // name but if the file hash starts with a letter then `@vanilla-extract` won't add
+            // an underscore.
             //
             // However, `@vanilla-extract` has a bug that can be worked around by adding an
             // underscore to the start of _every_ class name. See:

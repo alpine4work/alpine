@@ -13,7 +13,7 @@ import {createAgentDocumentPagesAndReturnFirstPage} from "~/server/agents/intern
 import {createAgentLinkNotFoundError} from "~/server/agents/internal/link_references/create_agent_link_not_found_error.js";
 import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {visitAndProduceApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {InternalError} from "~/shared/error/error.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -23,8 +23,8 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * This means that the agent can't go backward to a preious page.
  *
  * For example
- * ```markdown
  *
+ * ```markdown
  * Document page content in the form of a list of elements
  *
  * [Next Page »](/document/my-document?page=3)
@@ -71,13 +71,13 @@ export async function loadAgentDocumentPageLinkContent({
             {elements: pageElements},
             {
                 // Remove comment marks from the document content since there's no way for the
-                // agent to currently read document comments so the comment mark is merely
-                // wasted tokens.
+                // agent to currently read document comments so the comment mark is merely wasted
+                // tokens.
                 //
-                // TODO(calebmer, #ai): Provide agents a way to see all the comments in a
-                // document. We're thinking about implementing this as a separate
-                // `/document/${title}-comments` link that has all the comments in the document
-                // and further links to read each comment thread individually.
+                // TODO(calebmer, #ai): Provide agents a way to see all the comments in a document.
+                // We're thinking about implementing this as a separate
+                // `/document/${title}-comments` link that has all the comments in the document and
+                // further links to read each comment thread individually.
                 visitInlineElement: element => {
                     if (!element.marks) return;
                     const newMarks = element.marks.filter(mark => mark.type !== "Comment");
@@ -86,7 +86,6 @@ export async function loadAgentDocumentPageLinkContent({
                 },
             },
         ),
-        {spaceId: request.spaceId},
     );
 
     const children: Root["children"] = [];

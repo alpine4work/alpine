@@ -124,20 +124,20 @@ export function TaskRowViewDroppable({
 
     const droppableListItemIndent =
         platform === "mobile"
-            ? // Use a lot more space on mobile for the droppable list item hit area. Since the visual
-              // indentation we render is really hard to precisely reach with a finger.
+            ? // Use a lot more space on mobile for the droppable list item hit area. Since the
+              // visual indentation we render is really hard to precisely reach with a finger.
               parseRemLength("20")
             : taskRowViewIndentationRem.desktop;
 
-    // If collections are expanded then make sure our task row renders on top of
-    // all other task rows.
+    // If collections are expanded then make sure our task row renders on top of all
+    // other task rows.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!isOver) return;
 
         // Call `setRowZIndex` after a microtask since our parent effects need to run
-        // before we can update the `z-index` on the correct row DOM node. If we don't
-        // call in a microtask then we only set the `z-index` if this is not the row's
-        // first render.
+        // before we can update the `z-index` on the correct row DOM node. If we don't call
+        // in a microtask then we only set the `z-index` if this is not the row's first
+        // render.
         let isCancelled = false;
         let unsetRowZIndex: (() => void) | null = null;
         scheduleMicrotask(() => {

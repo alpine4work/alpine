@@ -50,10 +50,10 @@ test("can delete an account\u2019s registered apple devices", async () => {
         ),
     ).resolves.toEqual(
         [
-            {type: "Apple", deviceToken: deviceToken1A},
-            {type: "Apple", deviceToken: deviceToken1B},
-            {type: "Apple", deviceToken: deviceToken1C},
-            {type: "Apple", deviceToken: deviceToken1D},
+            {type: "AppleDevice", deviceToken: deviceToken1A},
+            {type: "AppleDevice", deviceToken: deviceToken1B},
+            {type: "AppleDevice", deviceToken: deviceToken1C},
+            {type: "AppleDevice", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -96,10 +96,10 @@ test("can delete an account\u2019s registered apple devices", async () => {
         ),
     ).resolves.toEqual(
         [
-            {type: "Apple", deviceToken: deviceToken1A},
-            {type: "Apple", deviceToken: deviceToken1B},
-            {type: "Apple", deviceToken: deviceToken1C},
-            {type: "Apple", deviceToken: deviceToken1D},
+            {type: "AppleDevice", deviceToken: deviceToken1A},
+            {type: "AppleDevice", deviceToken: deviceToken1B},
+            {type: "AppleDevice", deviceToken: deviceToken1C},
+            {type: "AppleDevice", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -124,9 +124,9 @@ test("can delete an account\u2019s registered apple devices", async () => {
         ),
     ).resolves.toEqual(
         [
-            {type: "Apple", deviceToken: deviceToken1B},
-            {type: "Apple", deviceToken: deviceToken1C},
-            {type: "Apple", deviceToken: deviceToken1D},
+            {type: "AppleDevice", deviceToken: deviceToken1B},
+            {type: "AppleDevice", deviceToken: deviceToken1C},
+            {type: "AppleDevice", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -152,9 +152,9 @@ test("can delete an account\u2019s registered apple devices", async () => {
         ),
     ).resolves.toEqual(
         [
-            {type: "Apple", deviceToken: deviceToken1B},
-            {type: "Apple", deviceToken: deviceToken1C},
-            {type: "Apple", deviceToken: deviceToken1D},
+            {type: "AppleDevice", deviceToken: deviceToken1B},
+            {type: "AppleDevice", deviceToken: deviceToken1C},
+            {type: "AppleDevice", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -178,8 +178,8 @@ test("can delete an account\u2019s registered apple devices", async () => {
         ),
     ).resolves.toEqual(
         [
-            {type: "Apple", deviceToken: deviceToken1C},
-            {type: "Apple", deviceToken: deviceToken1D},
+            {type: "AppleDevice", deviceToken: deviceToken1C},
+            {type: "AppleDevice", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -206,7 +206,7 @@ test("can delete an account\u2019s registered apple devices", async () => {
                 ),
         ),
     ).resolves.toEqual(
-        [{type: "Apple", deviceToken: deviceToken1D}].sort((a, b) =>
+        [{type: "AppleDevice", deviceToken: deviceToken1D}].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
     );

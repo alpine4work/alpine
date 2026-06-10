@@ -34,8 +34,7 @@ export function useCurrentTimeRoundedToNearestTenMinutes(): Date {
     const currentTimeRoundedToNearestTenMinutes = useContext(CurrentTimeRoundedToNearestTenMinutes);
 
     if (currentTimeRoundedToNearestTenMinutes === null) {
-        // In Jest tests use a dummy value instead of requiring a root
-        // context provider.
+        // In Jest tests use a dummy value instead of requiring a root context provider.
         if (import.meta.jest) {
             return assertExists(currentTimeRoundedToNearestTenMinutesForTest);
         }
@@ -49,8 +48,8 @@ export function useCurrentTimeRoundedToNearestTenMinutes(): Date {
 }
 
 /**
- * Return the current time rounded to the start of the current hour. This hook
- * will update and re-render the component every hour.
+ * Return the current time rounded to the start of the current hour. This hook will
+ * update and re-render the component every hour.
  *
  * Works with server-side rendering. The initial time comes from the server.
  */
@@ -58,8 +57,7 @@ export function useCurrentTimeRoundedToHour(): Date {
     const currentTimeRoundedToHour = useContext(CurrentTimeRoundedToHour);
 
     if (currentTimeRoundedToHour === null) {
-        // In Jest tests use a dummy value instead of requiring a root
-        // context provider.
+        // In Jest tests use a dummy value instead of requiring a root context provider.
         if (import.meta.jest) {
             return assertExists(currentTimeRoundedToHourForTest);
         }
@@ -73,8 +71,8 @@ export function useCurrentTimeRoundedToHour(): Date {
 }
 
 /**
- * Return the current date. This hook will update and re-render when the
- * day changes.
+ * Return the current date. This hook will update and re-render when the day
+ * changes.
  *
  * Works with server-side rendering. The initial time comes from the server.
  */
@@ -82,8 +80,7 @@ export function useCurrentDate(): CalendarDate {
     const currentDate = useContext(CurrentDateContext);
 
     if (currentDate === null) {
-        // In Jest tests use a dummy value instead of requiring a root
-        // context provider.
+        // In Jest tests use a dummy value instead of requiring a root context provider.
         if (import.meta.jest) {
             return assertExists(currentDateForTest);
         }
@@ -97,8 +94,8 @@ export function useCurrentDate(): CalendarDate {
 }
 
 /**
- * Get the current time rounded to the nearest hour using a server context
- * (with `LoaderContextModule`). Returns the same value as
+ * Get the current time rounded to the nearest hour using a server context (with
+ * `LoaderContextModule`). Returns the same value as
  * `useCurrentTimeRoundedToHour()`.
  */
 export function getCurrentTimeRoundedToHour(context: {loader: {getInitialTime: () => Date}}) {

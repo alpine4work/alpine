@@ -4,9 +4,14 @@ import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {renderContentMentionToTextForClient} from "~/client/web/content/render_content_mention_to_text_for_client.js";
 import {layoutContentFileParent} from "~/client/web/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/web/helpers/elements/is_node_block_level.js";
-import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {
+    getDynamicSearchEntityPathForFileEntity,
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/client/web/search/core/get_search_entity_path.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {fileRowBlockWidthPxForServerAndClipboard} from "~/shared/content/compute_file_row_widths.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
@@ -21,7 +26,7 @@ import {
     isFileWebSafeAudioContentType,
     isFileWebSafeImageContentType,
 } from "~/shared/files/file_content_type.js";
-import {FileEntityId, printFileEntityIdIntoPath} from "~/shared/files/file_entity_id.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
@@ -48,8 +53,7 @@ declare module "prosemirror-model" {
 }
 
 /**
- * `DOMSerializer` but with better support for serializing nested lists
- * to HTML.
+ * `DOMSerializer` but with better support for serializing nested lists to HTML.
  */
 export class ContentEditorDomClipboardSerializer extends DOMSerializer {
     static fromSchemaWithContentReferences(
@@ -113,13 +117,14 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const mention: ContentMention = node.attrs.mention;
             const spaceId = this._getSpaceId();
 
+            const searchEntityRegistry = getSearchEntityRegistry(spaceId);
             const mentionText = renderContentMentionToTextForClient(
                 store => store.getSnapshot(),
                 node.attrs.mention,
                 this._getContentReferences(),
                 {
                     accountRegistry: getAccountRegistry(spaceId),
-                    searchEntityRegistry: getSearchEntityRegistry(spaceId),
+                    searchEntityRegistry,
                     fileRegistry: getFileRegistry(spaceId),
                 },
             );
@@ -135,22 +140,44 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     return dom;
                 }
 
-                // Serialize mention search entities as `<a>` tags. So when pasted in another
-                // app they link back to the mentioned content in Alpine.
+                // Serialize mention search entities as `<a>` tags. So when pasted in another app
+                // they link back to the mentioned content in Alpine.
                 case "SearchEntity": {
                     const dom = document.createElement("a");
 
-                    dom.setAttribute(
-                        "href",
-                        new URL(
-                            getSearchDynamicEntityPath(
-                                spaceId,
-                                parseSearchDynamicEntityId(mention.entityId),
-                                "wide",
-                            ),
-                            window.location.href,
-                        ).toString(),
+                    const searchEntity = this._getContentReferences().searchEntityById.get(
+                        mention.entityId,
                     );
+
+                    let path: string;
+
+                    if (!searchEntity || searchEntity.isPrivate) {
+                        const idObject = parseSearchDynamicEntityId(mention.entityId);
+                        path = getSearchDynamicEntityPathFromEntityIdObject(
+                            spaceId,
+                            idObject.type !== "Site"
+                                ? idObject
+                                : {...idObject, firstEntityId: null},
+                            "wide",
+                        );
+                    } else {
+                        const entityData = searchEntityRegistry
+                            .getEntityStore(searchEntity.entity)
+                            .getSnapshot();
+
+                        assert(entityData.type !== "Static");
+                        path = getSearchDynamicEntityPath(spaceId, entityData, "wide");
+
+                        if (entityData.type === "Site" && entityData.site.firstEntityId) {
+                            // When a site has a `firstEntityId` the `<a>`'s `href` points to that first entity
+                            // (e.g. a Document URL) for navigation. Set `data-cy-site` to the `SiteId` so we
+                            // can reconstruct the `Site:` mention on paste instead of parsing it back as the
+                            // first entity from the URL.
+                            dom.setAttribute("data-cy-site", entityData.site.id);
+                        }
+                    }
+
+                    dom.setAttribute("href", new URL(path, window.location.href).toString());
 
                     dom.setAttribute("data-cy-mention", "");
 
@@ -182,9 +209,9 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     codeDom.appendChild(document.createTextNode("\n"));
                 }
 
-                // Serialize each `codeBlockLine` directly into our `<code>` element. We don't
-                // want to call `serializeNodeInner()` for `codeBlockLine` since that'll create
-                // a DOM element for each line which we don't want to put on the clipboard.
+                // Serialize each `codeBlockLine` directly into our `<code>` element. We don't want
+                // to call `serializeNodeInner()` for `codeBlockLine` since that'll create a DOM
+                // element for each line which we don't want to put on the clipboard.
                 this.serializeFragment(childNode.content, options, codeDom);
             });
 
@@ -192,12 +219,12 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             return preDom;
         }
 
-        // If we're serializing content within a single `codeBlockLine` then serialize
-        // to a `<code>` element. So when pasted the text gets code styles. This
-        // happens when you copy some text in a single line of a code block.
+        // If we're serializing content within a single `codeBlockLine` then serialize to a
+        // `<code>` element. So when pasted the text gets code styles. This happens when
+        // you copy some text in a single line of a code block.
         //
-        // This branch is not executed when serializing a `codeBlock`. Instead we
-        // serialize `codeBlockLine` children directly in the `codeBlock` serializer.
+        // This branch is not executed when serializing a `codeBlock`. Instead we serialize
+        // `codeBlockLine` children directly in the `codeBlock` serializer.
         if (node.type.name === "codeBlockLine") {
             const codeDom = document.createElement("code");
 
@@ -206,10 +233,10 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             return codeDom;
         }
 
-        // We serialize our file parents with very lightweight CSS for rendering files
-        // the same way they might look in a document. That way compatible applications
-        // can parse the clipboard properly. Also, we use these lightweight styles
-        // within Alpine ourselves to parse content back from generated HTML.
+        // We serialize our file parents with very lightweight CSS for rendering files the
+        // same way they might look in a document. That way compatible applications can
+        // parse the clipboard properly. Also, we use these lightweight styles within
+        // Alpine ourselves to parse content back from generated HTML.
         if (
             node.type.name === "fileRow" ||
             node.type.name === "fileFloat" ||
@@ -224,8 +251,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const spacingScale: SpacingScale = "small";
 
             const layouts = layoutContentFileParent(node, {
-                blockWidth:
-                    contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale],
+                blockWidth: fileRowBlockWidthPxForServerAndClipboard,
                 platform,
                 spacingScale,
                 getFile: fileId => {
@@ -246,9 +272,9 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 fileRowDom.style.float = node.attrs.direction;
                 fileRowDom.style.clear = "both";
 
-                // Intentionally only `marginBottom`. That way the file is flush with the top
-                // of whatever block it's next to but there's a bit of space between the file
-                // and text that flows below.
+                // Intentionally only `marginBottom`. That way the file is flush with the top of
+                // whatever block it's next to but there's a bit of space between the file and text
+                // that flows below.
                 fileRowDom.style.marginBottom = `${gap}px`;
 
                 if (node.attrs.direction === "left") {
@@ -260,9 +286,9 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
 
             this.serializeFragment(node.content, options, fileRowDom);
 
-            // Iterate through our children and set our layout dimensions on each one. That
-            // way the clipboard HTML will end up rendering a gallery that looks close to
-            // what's in Alpine.
+            // Iterate through our children and set our layout dimensions on each one. That way
+            // the clipboard HTML will end up rendering a gallery that looks close to what's in
+            // Alpine.
             let index = 0;
             let fileRowChildDom = fileRowDom.firstElementChild;
             while (fileRowChildDom) {
@@ -303,11 +329,15 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 fileDom.setAttribute(
                     "src",
                     new URL(
-                        printFileEntityIdIntoPath(this._getSpaceId(), fileId),
-                        // NOTE(calebmer): This must be `window.location.origin` not
-                        // `resourceServiceUrl`. Since the URL is something like
-                        // `/s/:spaceId/documents/:documentId`. It's a URL into our app since we're
-                        // dealing with a file entity here.
+                        getDynamicSearchEntityPathForFileEntity({
+                            spaceId: this._getSpaceId(),
+                            fileEntityId: fileId,
+                            fileEntityResult:
+                                this._getContentReferences().fileEntityById?.get(fileId) ?? null,
+                        }),
+                        // NOTE(calebmer): This must be `window.location.origin` not `resourceServiceUrl`.
+                        // Since the URL is something like `/doc/:documentId`. It's a URL into our app
+                        // since we're dealing with a file entity here.
                         window.location.origin,
                     ).toString(),
                 );
@@ -320,13 +350,17 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 : undefined;
 
             // If the file is a web safe image then let's use an `<img>` element in our
-            // generated HTML. If an application is able to process pasted HTML it should
-            // be able to interpret our `<img>` element correctly.
+            // generated HTML. If an application is able to process pasted HTML it should be
+            // able to interpret our `<img>` element correctly.
             //
             // We use the file itself as the `<img>`'s `src` instead of a processed preview
             // file or resized file.
             if (fileReference && isFileWebSafeImageContentType(fileReference.file.contentType)) {
                 const fileDom = document.createElement("img");
+
+                // Needed to get a proper CORS response from the resource service where our files
+                // are hosted. This _must_ be set before setting the `src` attribute.
+                fileDom.setAttribute("crossorigin", "anonymous");
 
                 fileDom.setAttribute(
                     "src",
@@ -335,10 +369,6 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                         resourceServiceUrl,
                     ).toString(),
                 );
-
-                // Needed to get a proper CORS response from the resource service where our
-                // files are hosted.
-                fileDom.setAttribute("crossorigin", "anonymous");
 
                 const fileAttachmentTarget = this._getFileAttachmentTarget();
                 if (fileAttachmentTarget === "Uploader") {
@@ -355,9 +385,9 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
 
             // If the file is web safe video then let's use a `<video>` element in our
             // generated HTML. `video/webm` has broad compatibility across browsers. Some
-            // `video/mp4` codecs have broad compatibility across browsers and others
-            // don't. We treat `video/mp4` as web safe video because it's a common format
-            // for sharing video on the web even if it's not 100% web safe.
+            // `video/mp4` codecs have broad compatibility across browsers and others don't. We
+            // treat `video/mp4` as web safe video because it's a common format for sharing
+            // video on the web even if it's not 100% web safe.
             //
             // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
             else if (
@@ -394,10 +424,9 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             }
 
             // If the file is web safe audio then let's use an `<audio>` element in our
-            // generated HTML. Some `audio/mp4` codecs have broad compatibility across
-            // browsers and others don't. We treat `audio/mp4` as web safe audio because
-            // it's a common format for sharing audio on the web even if it's not 100% web
-            // safe.
+            // generated HTML. Some `audio/mp4` codecs have broad compatibility across browsers
+            // and others don't. We treat `audio/mp4` as web safe audio because it's a common
+            // format for sharing audio on the web even if it's not 100% web safe.
             //
             // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
             else if (
@@ -430,8 +459,8 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 return fileDom;
             }
 
-            // Otherwise, fallback to an `<object>` element. `<object>` elements are the
-            // way you get the browser to use its native PDF renderer.
+            // Otherwise, fallback to an `<object>` element. `<object>` elements are the way
+            // you get the browser to use its native PDF renderer.
             //
             // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/object
             else {
@@ -516,8 +545,8 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
     }
 
     /**
-     * When serializing a list item node, created nested `<ul>` and `<ol>` elements
-     * to the list item's level of indentation.
+     * When serializing a list item node, created nested `<ul>` and `<ol>` elements to
+     * the list item's level of indentation.
      */
     private _serializeListItemNode(
         listTagName: "ul" | "ol",
@@ -581,9 +610,9 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 (childDom.tagName === "UL" || childDom.tagName === "OL") &&
                 childDom.nextSibling instanceof HTMLElement &&
                 (childDom.nextSibling.tagName === "UL" || childDom.nextSibling.tagName === "OL") &&
-                // We can merge if the list type is the same or if there are not any direct
-                // `<li>` children. If there's a direct `<li>` child then we need to
-                // preserve the list type.
+                // We can merge if the list type is the same or if there are not any direct `<li>`
+                // children. If there's a direct `<li>` child then we need to preserve the list
+                // type.
                 (childDom.nextSibling.tagName === childDom.tagName ||
                     iterableEvery(
                         childDom.nextSibling.childNodes,

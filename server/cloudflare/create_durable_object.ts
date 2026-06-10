@@ -16,6 +16,7 @@ import {
     ActorContextModule,
     AnonymousActorContextModule,
     BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -51,6 +52,7 @@ import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketProtocolBase} from "~/shared/web_socket/web_socket_protocol.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
 
@@ -65,6 +67,7 @@ export type DurableObjectEnv = {
     FILE_PROCESSOR_SERVICE_PUBLIC_KEY?: string;
     RESOURCE_SERVICE_PUBLIC_KEY?: string;
     API_SERVICE_PUBLIC_KEY?: string;
+    IMPORTER_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     TOKEN_AGENT_SECRET?: string;
     HONEYCOMB_API_KEY?: string;
@@ -78,17 +81,22 @@ export type DurableObjectEnv = {
 /**
  * Create a Durable Object class for our system. Features:
  *
- * - Setting up `Context` objects. We have a `EdgeProcessContext` for the
- *   lifetime of the Durable Object and `EdgeActionContext`s for each individual
- *   request to the Durable Object.
+ * - Setting up `Context` objects. We have a `EdgeProcessContext` for the lifetime
+ *   of the Durable Object and `EdgeActionContext`s for each individual request to
+ *   the Durable Object.
  *
- * - Session authorization. Standardized protocol for sending user
- *   authorization credentials to the Durable Object.
+ * - Session authorization. Standardized protocol for sending user authorization
+ *   credentials to the Durable Object.
  */
 export function createDurableObject<
     Route,
     DurableObject extends {
-        fetch(context: WorkerActionContext, request: Request, route: Route): MaybePromise<Response>;
+        fetch(
+            context: WorkerActionContext,
+            request: Request,
+            route: Route,
+            span: TracerSpan,
+        ): MaybePromise<Response>;
         connectForTest?(
             context: WorkerSessionActionContext,
             options?: object,
@@ -185,6 +193,10 @@ export function createDurableObject<
             if (!apiServicePublicKey)
                 throw new InternalError("Missing `API_SERVICE_PUBLIC_KEY` env variable");
 
+            const importerServicePublicKey = env.IMPORTER_SERVICE_PUBLIC_KEY;
+            if (!importerServicePublicKey)
+                throw new InternalError("Missing `IMPORTER_SERVICE_PUBLIC_KEY` env variable");
+
             const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
             if (!edgeServiceFamilyPrivateKey)
                 throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable");
@@ -193,8 +205,8 @@ export function createDurableObject<
             if (!tokenAgentSecret)
                 throw new InternalError("Missing `TOKEN_AGENT_SECRET` env variable");
 
-            // Cookie jar for sharing cookies across requests made from this Durable
-            // Object instance.
+            // Cookie jar for sharing cookies across requests made from this Durable Object
+            // instance.
             this._cookieJar = new CookieJar();
 
             const tokenAgentPromise = runAllPromises([
@@ -207,6 +219,7 @@ export function createDurableObject<
                     fileProcessorServicePublicKey,
                     resourceServicePublicKey,
                     apiServicePublicKey,
+                    importerServicePublicKey,
                     secret: tokenAgentSecret,
                 }),
                 TokenAgentPrivateSide.new({
@@ -281,10 +294,10 @@ export function createDurableObject<
                             "Expected Durable Object ID name to be included in header",
                         );
 
-                    // Clients may make requests conditional on the Durable Object being
-                    // initialized. Ideally this logic would happen at the Cloudflare level instead
-                    // of our application code but it's still useful here as it prevents network
-                    // requests made while initializing.
+                    // Clients may make requests conditional on the Durable Object being initialized.
+                    // Ideally this logic would happen at the Cloudflare level instead of our
+                    // application code but it's still useful here as it prevents network requests made
+                    // while initializing.
                     if (
                         request.headers.get("cyberworlds-durable-object-if-initialized") ===
                             "true" &&
@@ -336,8 +349,7 @@ export function createDurableObject<
                         Response
                     >(
                         {
-                            // Replace the tracer context module with one that uses our span for
-                            // this request.
+                            // Replace the tracer context module with one that uses our span for this request.
                             tracer: new TracerContextModule(span),
                             cache: CacheContextModule.new(),
                             batch: BatchContextModule.new(),
@@ -376,19 +388,18 @@ export function createDurableObject<
 
                             const object = await this._object.promise;
 
-                            return object.fetch(actionContext, request, routeObject);
+                            return await object.fetch(actionContext, request, routeObject, span);
                         },
                     );
                     return response;
                 } catch (error) {
                     span.addException(error);
 
-                    // If there was an error and the client was trying to connect to a WebSocket
-                    // then temporarily connect so we can send an error message over the WebSocket
-                    // protocol then immediately close.
+                    // If there was an error and the client was trying to connect to a WebSocket then
+                    // temporarily connect so we can send an error message over the WebSocket protocol
+                    // then immediately close.
                     //
-                    // e.g. If there was an authorization error during durable object
-                    // initialization.
+                    // e.g. If there was an authorization error during durable object initialization.
                     if (request.headers.get("upgrade") !== "websocket") {
                         return createSimpleErrorResponse(error);
                     } else {
@@ -421,9 +432,9 @@ export function createDurableObject<
         }
 
         /**
-         * Creates a durable object environment for use in Jest tests. Whenever you
-         * call `connectForTest()` on the returned object with the same `idName` you
-         * will get the same underlying durable object instance.
+         * Creates a durable object environment for use in Jest tests. Whenever you call
+         * `connectForTest()` on the returned object with the same `idName` you will get
+         * the same underlying durable object instance.
          */
         public static test(processContext: WorkerProcessContext): {
             fetchForTest: (
@@ -456,7 +467,7 @@ export function createDurableObject<
                 fetchForTest: async (actionContext, idName, request) => {
                     const url = new URL(request.url);
 
-                    const [, route] = parseRoute(url);
+                    const [routeString, route] = parseRoute(url);
 
                     const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
                         initialize({
@@ -468,7 +479,14 @@ export function createDurableObject<
                         }),
                     );
 
-                    return object.fetch(actionContext, request, route);
+                    return await traceServerResponse(
+                        actionContext.tracer.getRoot(),
+                        request,
+                        url,
+                        routeString,
+                        async (span, request) =>
+                            await object.fetch(actionContext, request, route, span),
+                    );
                 },
                 connectForTest: async (actionContext, idName, options) => {
                     const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
@@ -501,8 +519,7 @@ export function createDurableObject<
 }
 
 /**
- * Verify the token and return an actor context module corresponding to
- * the token.
+ * Verify the token and return an actor context module corresponding to the token.
  */
 async function createDurableObjectActorContextModule(
     tokenAgent: TokenAgent,
@@ -512,12 +529,11 @@ async function createDurableObjectActorContextModule(
 
     switch (payload.type) {
         case "Session": {
-            // The tokens provided to Durable Objects are short lived. So we don't check if
-            // the session was revoked. If the session was valid when the token was signed
-            // we trust it's still valid now.
+            // The tokens provided to Durable Objects are short lived. So we don't check if the
+            // session was revoked. If the session was valid when the token was signed we trust
+            // it's still valid now.
             //
-            // If we make an RPC call then `AppService` will check it the session was
-            // revoked.
+            // If we make an RPC call then `AppService` will check it the session was revoked.
             return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
                 serviceName,
                 payload.sessionId,
@@ -526,6 +542,12 @@ async function createDurableObjectActorContextModule(
         }
         case "System": {
             return SystemActorContextModule.dangerouslyNew(serviceName, payload.spaceId);
+        }
+        case "ImpersonatedAccount": {
+            return ImpersonatedAccountActorContextModule.dangerouslyNew(
+                SystemActorContextModule.dangerouslyNew(serviceName, payload.spaceId),
+                payload.accountId,
+            );
         }
         case "Anonymous": {
             return AnonymousActorContextModule.dangerouslyNew(serviceName);

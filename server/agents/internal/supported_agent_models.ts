@@ -12,21 +12,20 @@ type ProviderTokenUsage = {
     };
 };
 
-// If this type is erroring, it likely means you need to add
-// a mapping for a new provider/model in agentDollarsPerMillionTokens
+// If this type is erroring, it likely means you need to add a mapping for a new
+// provider/model in agentDollarsPerMillionTokens
 type AgentTokenUsageToMillicents = {
     [K in SupportedAgentProviders]: Record<SupportedAgentModels[K], ProviderTokenUsage[K]>;
 };
 
-// Local configuration for the cost of each agent model.
-// Values are in millicents per token. You can derive this number from the
-// pricing docs of each provider by dividing dollars per million tokens by 10.
+// Local configuration for the cost of each agent model. Values are in millicents
+// per token. You can derive this number from the pricing docs of each provider by
+// dividing dollars per million tokens by 10.
 //
-// To convert dollarsPerMillionTokens to millicentsPerToken:
-//     dollarsPerToken = (dollarsPerMillionTokens / 1,000,000)
-//     centsPerToken = dollarsPerToken * 100
-//     millicentsPerToken = centsPerToken * 1000
-// Therefore, millicentsPerToken is just dollarsPerMillionTokens / 10
+// To convert dollarsPerMillionTokens to millicentsPerToken: dollarsPerToken =
+// (dollarsPerMillionTokens / 1,000,000) centsPerToken = dollarsPerToken _ 100
+// millicentsPerToken = centsPerToken _ 1000 Therefore, millicentsPerToken is just
+// dollarsPerMillionTokens / 10
 export const agentMillicentsPerToken: AgentTokenUsageToMillicents = {
     // https://platform.openai.com/docs/pricing
     openai: {

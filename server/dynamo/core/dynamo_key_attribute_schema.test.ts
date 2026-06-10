@@ -13,6 +13,7 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assert} from "~/shared/helpers/control/assert.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
@@ -168,9 +169,9 @@ test("can serialize and deserialize a reversed key attribute", () => {
     );
 });
 
-// Make sure our assumptions about how string reversal works are correct.
-// This is not testing any of our logic, but is an artifact for how and why
-// we implemented labelString serialization.
+// Make sure our assumptions about how string reversal works are correct. This is
+// not testing any of our logic, but is an artifact for how and why we implemented
+// labelString serialization.
 test("UTF-8 and UTF-16 sort differently", () => {
     const a = String.fromCharCode(0xffff);
     const b = "😍";
@@ -190,6 +191,51 @@ test("UTF-8 and UTF-16 sort differently", () => {
 
     expect(Array.from(new TextEncoder().encode(a))).toEqual([239, 191, 191]);
     expect(Array.from(new TextEncoder().encode(b))).toEqual([240, 159, 152, 141]);
+});
+
+test("order key binary serialization escapes null and escape bytes", () => {
+    const schema = DynamoKeyAttributeSchema.orderKey;
+    const testCases = [
+        {
+            orderKey: assertOrderKey("aF0"),
+            serializedBytes: [0x95, 0x01, 0x01, 0x40, 0x00],
+        },
+        {
+            orderKey: assertOrderKey("aF3"),
+            serializedBytes: [0x95, 0x01, 0x02, 0x01, 0x01, 0x00],
+        },
+    ];
+
+    for (const {orderKey, serializedBytes} of testCases) {
+        const bytes = new Uint8Array([
+            0xff,
+            0xff,
+            ...createArrayWithLength(serializedBytes.length, () => 0),
+            0xff,
+        ]);
+
+        expect(schema.binary!.getByteCount(orderKey)).toEqual(serializedBytes.length);
+        schema.binary!.serializeBytes(orderKey, bytes, 2);
+
+        expect(Array.from(bytes.slice(2, 2 + serializedBytes.length))).toEqual(serializedBytes);
+        expect(schema.binary!.deserializeBytes(bytes, 2)).toEqual(orderKey);
+    }
+});
+
+test("order key binary serialization escapes bytes in the right order", () => {
+    const schema = DynamoKeyAttributeSchema.orderKey;
+    const orderKeys = [assertOrderKey("aF0"), assertOrderKey("aF3"), assertOrderKey("aG0")];
+
+    expect(Array.from(orderKeys).sort(defaultCompareStrings)).toEqual(
+        orderKeys
+            .map(orderKey => {
+                const bytes = new Uint8Array(schema.binary!.getByteCount(orderKey));
+                schema.binary!.serializeBytes(orderKey, bytes, 0);
+                return bytes;
+            })
+            .sort((a, b) => compareArrays(a, b, (a, b) => a - b))
+            .map(bytes => schema.binary!.deserializeBytes(bytes, 0)),
+    );
 });
 
 describe("`labelString`", () => {

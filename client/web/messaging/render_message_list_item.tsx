@@ -29,12 +29,12 @@ import {MessageModel} from "~/shared/messaging/message_model.js";
 
 /**
  * If you are manually implementing a `<VirtualizedScrollView>` for your
- * `MessageList` (not recommended) then you may call this function to render
- * a `MessageListItem`.
+ * `MessageList` (not recommended) then you may call this function to render a
+ * `MessageListItem`.
  */
 // NOTE(calebmer): Ideally `<PostListView>` would reuse some code with this
-// function but `<PostListView>` was written before `<MessagingView>` so it'll
-// take some work to migrate.
+// function but `<PostListView>` was written before `<MessagingView>` so it'll take
+// some work to migrate.
 export function renderMessageListItem<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
@@ -60,6 +60,7 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     shouldAddMarginBottom = false,
+    isReadOnly,
     render: customRender,
 }: {
     spacingScale: SpacingScale;
@@ -83,8 +84,9 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean | Spacing;
     shouldAddMarginBottom?: boolean | string;
+    isReadOnly?: boolean;
     render?: (node: ReactNode) => ReactElement;
-}): VirtualizedScrollViewItem {
+}): VirtualizedScrollViewItem & {renderAdditionalItemIndexes?: readonly []} {
     switch (item.type) {
         case "Loaded":
         case "Unloaded":
@@ -136,6 +138,7 @@ export function renderMessageListItem<
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         getMessageUrl={getMessageUrl}
                         roomDisplayedCreatedTime={roomDisplayedCreatedTime}
+                        isReadOnly={isReadOnly}
                     />
                 ) : (
                     <MessageListMessageShimmer
@@ -159,8 +162,8 @@ export function renderMessageListItem<
             // stuff I'm going to leave alone. Ideally this code would use the helper.
             const render = (isScrolling: boolean) => {
                 // If we already rendered the node without expensive features disabled, don't
-                // render a new version since that will cause a frame drop right at the start
-                // of the scroll as React re-renders every message.
+                // render a new version since that will cause a frame drop right at the start of
+                // the scroll as React re-renders every message.
                 if (elementWithoutExpensiveFeaturesDisabled !== null)
                     return elementWithoutExpensiveFeaturesDisabled;
 

@@ -11,7 +11,7 @@ import {emptySimpleContent} from "~/shared/content/simple_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
+const context = createTestContext();
 
 const server = createTestApiServer(context, apiSpacesPaths);
 

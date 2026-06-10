@@ -3,7 +3,6 @@ import {getSessionIfExists} from "~/server/accounts/get_session_if_exists.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {SessionId} from "~/shared/id/types/id_types.js";
@@ -12,41 +11,35 @@ export class TestSession {
     public readonly context: TestContext;
     public readonly account: TestAccount;
     public readonly id: SessionId;
-    public readonly createdTime: Date;
 
-    protected constructor(account: TestAccount, id: SessionId, createdTime: Date) {
+    protected constructor(account: TestAccount, id: SessionId) {
         this.context = account.context;
         this.account = account;
         this.id = id;
-        this.createdTime = createdTime;
     }
 
     public withContext(context: TestContext) {
-        return new TestSession(this.account.withContext(context), this.id, this.createdTime);
+        return new TestSession(this.account.withContext(context), this.id);
     }
 
     public static async create(account: TestAccount) {
         const id = generateId<SessionId>();
 
-        const {createdTime} = await createSessionForTest(account.context, {
+        await createSessionForTest(account.context, {
             id,
             accountId: account.id,
         });
 
-        return new TestSession(account, id, createdTime);
+        return new TestSession(account, id);
     }
 
     public static async get(context: TestContext, sessionId: SessionId) {
-        const session = await getSessionIfExists(
-            context.clone({cache: CacheContextModule.new()}),
-            sessionId,
-            null,
-        );
-        assert(session);
+        const sessionAccountId = await getSessionIfExists(context, sessionId);
+        assert(sessionAccountId);
 
-        const account = await TestAccount.get(context, session.accountId);
+        const account = await TestAccount.get(context, sessionAccountId);
 
-        return new TestSession(account, session.id, session.createdTime);
+        return new TestSession(account, sessionId);
     }
 
     public getTokenPayload(): SessionTokenPayload {

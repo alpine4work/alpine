@@ -12,7 +12,7 @@ import {
     decodePossiblyDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.js";
@@ -23,7 +23,7 @@ export function InboxContextProvider({
     navigation = null,
     children,
 }: {
-    entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    entry: RynamoItem<InboxEntryModel> | null;
     navigation?: Memo<InboxContextNavigation> | null;
     children?: ReactNode;
 }) {

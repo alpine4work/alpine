@@ -2,12 +2,13 @@ import {BotWebhookContextModule} from "~/server/bots/bot_webhook_context_module.
 import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
 import {SchedulerContextModuleBase} from "~/server/deploy/data/scheduler_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {LoopsContextModuleBase} from "~/server/spaces/loops_context_module.js";
 import {Context} from "~/shared/context/context.js";
 
 type JobQueueServiceExtraContextModules = {
@@ -18,7 +19,8 @@ type JobQueueServiceExtraContextModules = {
     email: EmailContextModuleBase;
     botWebhook: BotWebhookContextModule;
     webPush: WebPushContextModule;
-    importer: ImporterContextModuleBase;
+    slack: SlackContextModuleBase;
+    loops: LoopsContextModuleBase;
 };
 
 export type JobQueueServiceProcessContextModules = ServerProcessContextModules &

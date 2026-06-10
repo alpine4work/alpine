@@ -1,7 +1,8 @@
 import {AvatarThemeSchema} from "~/shared/avatar/avatar_schema.js";
 import {selectableSpaceThemeColors} from "~/shared/design/core/theme_colors.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -18,6 +19,7 @@ export const expensivelyGetAllSpaceAccounts = defineRpc({
     },
     output: {
         accounts: Schema.array(AccountModel.schema),
+        affinityPoints: Schema.array(Schema.float).default(emptyArray),
     },
 });
 
@@ -69,7 +71,7 @@ export const getOurAccountSpaces = defineRpc({
         spaces: Schema.array(
             Schema.object({
                 space: SpaceModel.schema(),
-                inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()).nullable(),
+                inbox: createRynamoItemSchema(InboxModel.schema()).nullable(),
             }),
         ),
     },
@@ -122,8 +124,8 @@ export const updateSpaceAccountRole = defineRpc({
 
 export const moveSpaceOwner = defineRpc({
     name: "moveSpaceOwner",
-    // Can only move owner as the space owner. Once you've moved ownership you
-    // can't move ownership again.
+    // Can only move owner as the space owner. Once you've moved ownership you can't
+    // move ownership again.
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
@@ -147,10 +149,12 @@ export const inviteEmailAddressesToSpace = defineRpc({
     },
     output: {
         accounts: Schema.array(AccountModel.schema),
+        affinityPoints: Schema.array(Schema.float).default(emptyArray),
         errors: Schema.object({
             invalidEmailAddresses: Schema.array(Schema.string),
             rejectedAsSpamEmailAddresses: Schema.array(Schema.string),
             alreadyMemberEmailAddresses: Schema.array(Schema.string),
+            requiresAdminAccessEmailAddresses: Schema.array(Schema.string).default(emptyArray),
             unexpectedFailureEmailAddresses: Schema.map(Schema.string, ErrorSchema),
         }),
     },

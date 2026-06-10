@@ -5,8 +5,10 @@ import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 import {
     deserializedValueSymbol,
     propagateEventDataKey,
+    siteLoaderDataKey,
     taskStoreLoaderDataKey,
 } from "~/shared/remix/json_with_schema_shared.js";
+import {SiteLoaderData, SiteLoaderDataSchema} from "~/shared/remix/site_loader_data.js";
 import {
     TaskStoreLoaderData,
     TaskStoreLoaderDataSchema,
@@ -23,6 +25,7 @@ export function jsonWithSchema<Value>(
     {
         propagateEventData,
         taskStoreLoaderData,
+        siteLoaderData,
         ...responseInit
     }: ResponseInit & {
         /**
@@ -34,25 +37,36 @@ export function jsonWithSchema<Value>(
         /**
          * You might ask: Task data in a generic helper? What is this?
          *
-         * We have a shared loader data property for tasks because we want all task
-         * data to go into a normalized store which lives at the `/s/:spaceId` route
-         * but that data can be loaded from any route's loader function.
+         * We have a shared loader data property for tasks because we want all task data to
+         * go into a normalized store which lives in the `_space` route but that data can
+         * be loaded from any route's loader function.
          *
-         * The `/s/:spaceId` route knows to look for this shared property on all loader
-         * data and will incorporate it into the store.
+         * The `_space` route knows to look for this shared property on all loader data and
+         * will incorporate it into the store.
          *
-         * This does mean shared logic code in `~/shared/tasks` is always included in
-         * the JavaScript bundle for `/s/:spaceId` routes. We accept this since we do
-         * want normalized task data to be accessible everywhere throughout the
-         * product.
+         * This does mean shared logic code in `~/shared/tasks` is always included in the
+         * JavaScript bundle for `_space` routes. We accept this since we do want
+         * normalized task data to be accessible everywhere throughout the product.
          */
         taskStoreLoaderData?: TaskStoreLoaderData;
+
+        /**
+         * Data for a site that contains the entity rendered by this route. Stashed on the
+         * response under `siteLoaderDataKey` so the space-level `SiteProvider` (mounted
+         * under `_space`) can read it synchronously via `useMatches` on its first render —
+         * letting site chrome paint immediately without a `useEffect` round-trip.
+         *
+         * Entity routes that should render inside a site (documents, channels, tasks,
+         * etc.) populate this from their loader; routes that don't belong to a site leave
+         * it unset.
+         */
+        siteLoaderData?: SiteLoaderData;
     } = {},
 ): Response {
     const serializedValue = schema.serialize(value as Value);
 
-    // The serialized value must be an object so we can add properties to it. Like
-    // the original, deserialized, value and the propagated event data.
+    // The serialized value must be an object so we can add properties to it. Like the
+    // original, deserialized, value and the propagated event data.
     assert(isPlainObject(serializedValue));
 
     // When we render our component on the server, it's wasteful of CPU time to
@@ -67,14 +81,21 @@ export function jsonWithSchema<Value>(
     }
 
     // If we have task data to load in our shared store, stash it on the serialized
-    // result. Our `/s/:spaceId` route knows to look for this property and will add
-    // the data to our shared store.
+    // result. Our `_space` route knows to look for this property and will add the data
+    // to our shared store.
     if (taskStoreLoaderData) {
         const taskStoreLoaderDataSerializedValue =
             TaskStoreLoaderDataSchema.serialize(taskStoreLoaderData);
         (taskStoreLoaderDataSerializedValue as any)[deserializedValueSymbol] = taskStoreLoaderData;
 
         (serializedValue as any)[taskStoreLoaderDataKey] = taskStoreLoaderDataSerializedValue;
+    }
+
+    if (siteLoaderData) {
+        const siteLoaderDataSerializedValue = SiteLoaderDataSchema.serialize(siteLoaderData);
+        (siteLoaderDataSerializedValue as any)[deserializedValueSymbol] = siteLoaderData;
+
+        (serializedValue as any)[siteLoaderDataKey] = siteLoaderDataSerializedValue;
     }
 
     return json(serializedValue, responseInit);

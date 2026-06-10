@@ -16,8 +16,8 @@ export function useRouteLayout(): RouteLayout {
 }
 
 /**
- * Get the default `RouteLayout` for the platform. Assuming we're not rendering
- * in a peek.
+ * Get the default `RouteLayout` for the platform. Assuming we're not rendering in
+ * a peek.
  */
 export function getDefaultRouteLayoutForPlatform(platform: Platform): RouteLayout {
     return platform === "mobile" ? "narrow" : "wide";
@@ -26,8 +26,8 @@ export function getDefaultRouteLayoutForPlatform(platform: Platform): RouteLayou
 export type PlatformRouteLayout = "mobileNarrow" | "desktopNarrow" | "desktopWide";
 
 /**
- * Combines `Platform` and `RouteLayout` with knowledge in the type system that
- * we can never have a `wide` `RouteLayout` on a `mobile` platform.
+ * Combines `Platform` and `RouteLayout` with knowledge in the type system that we
+ * can never have a `wide` `RouteLayout` on a `mobile` platform.
  */
 export function getPlatformRouteLayout(
     platform: Platform,

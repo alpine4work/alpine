@@ -22,26 +22,23 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 
 export function InboxMobileView({
     filter,
     initialEntriesResult,
 }: {
-    filter: "New" | "Archive";
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
 }) {
     // This component only supports rendering on mobile platforms. Unlike
-    // `<SearchMobileView>` where the `/s/:spaceId/search` route also renders the
-    // mobile UI on desktop. On desktop the `/s/:spaceId/inbox` route renders
-    // `<InboxView>`.
+    // `<SearchMobileView>` where the `/search/:spaceId` route also renders the mobile
+    // UI on desktop. On desktop the `/inbox/:spaceId` route renders `<InboxView>`.
     assert(usePlatform() === "mobile");
 
     const navigate = useNavigate();
@@ -60,11 +57,11 @@ export function InboxMobileView({
     });
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        title: filter === "New" ? "Inbox" : "Inbox (old)",
+        title: filter === "New" ? "Inbox" : "Inbox (done)",
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
-        // This is a route for a root tab in our mobile app so don't show the back
-        // button. It wouldn't work.
+        // This is a route for a root tab in our mobile app so don't show the back button.
+        // It wouldn't work.
         withoutMobileBackButton: true,
         menuActions: [
             [
@@ -74,16 +71,16 @@ export function InboxMobileView({
                     pressErrorTitle: "Can\u2019t open new notifications",
                     onPress: async () => {
                         if (filter === "New") return;
-                        await navigate(`/s/${space.id}/inbox`, {replace: true});
+                        await navigate(`/inbox/${space.id}`, {replace: true});
                     },
                 },
                 {
-                    label: "Old notifications",
-                    isSelected: filter === "Archive",
-                    pressErrorTitle: "Can\u2019t open old notifications",
+                    label: "Done notifications",
+                    isSelected: filter === "Done",
+                    pressErrorTitle: "Can\u2019t open done notifications",
                     onPress: async () => {
-                        if (filter === "Archive") return;
-                        await navigate(`/s/${space.id}/inbox?tab=old`, {replace: true});
+                        if (filter === "Done") return;
+                        await navigate(`/inbox/${space.id}?tab=done`, {replace: true});
                     },
                 },
             ],
@@ -247,18 +244,17 @@ export function InboxMobileView({
                 tryLoadingMore(view.getHeight(), shiftedRenderedRange);
             }}
             extraChildrenOutsideContentElement={({contentHeight}) => (
-                // Our items all have a bottom border. This is good when there's less content
-                // than room to scroll since it creates a clear shape for the last item in the
-                // list.
+                // Our items all have a bottom border. This is good when there's less content than
+                // room to scroll since it creates a clear shape for the last item in the list.
                 //
                 // However, if there are enough items to scroll then when the user has fully
-                // scrolled we want the last item to *not* have a border bottom since the
-                // bottom of the screen creates that boundary. We don't need to render an extra
-                // line in the margins.
+                // scrolled we want the last item to _not_ have a border bottom since the bottom of
+                // the screen creates that boundary. We don't need to render an extra line in the
+                // margins.
                 //
-                // This div covers the bottom border of the last item but only when there's
-                // enough content to scroll. Otherwise the bottom border needs to be visible to
-                // visually contain the last item. To debug this it's helpful to switch the
+                // This div covers the bottom border of the last item but only when there's enough
+                // content to scroll. Otherwise the bottom border needs to be visible to visually
+                // contain the last item. To debug this it's helpful to switch the
                 // `backgroundColor` to `red-30` or something similar.
                 <Box
                     position="absolute"
@@ -288,13 +284,13 @@ function InboxMobileEntryView({
     isLastItem,
     deletedItemAnimation,
 }: {
-    filter: "New" | "Archive";
-    entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    entry: RynamoItem<InboxEntryModel>;
     isFirstItem: boolean;
     isLastItem: boolean;
     deletedItemAnimation: {
         offset: number;
-        deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
+        deletedItem: {item: RynamoItem<InboxEntryModel>};
     } | null;
 }) {
     const navigate = useNavigate();

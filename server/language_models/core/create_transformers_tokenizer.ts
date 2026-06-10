@@ -13,8 +13,8 @@ export async function createTransformersTokenizer(basePath: string) {
     // We dynamically import this models at runtime to avoid bundling
     // `@xenova/transformers`'s native libraries in an `aws_lambda()`.
     //
-    // We do the funky `string + cast(string)` syntax so the import path can't
-    // be statically analyzed by esbuild.
+    // We do the funky `string + cast(string)` syntax so the import path can't be
+    // statically analyzed by esbuild.
     const {BertTokenizer}: typeof import("@xenova/transformers") = await import(
         /* @vite-ignore */ "@xenova/" + cast("transformers")
     );
@@ -27,8 +27,8 @@ export async function createTransformersTokenizer(basePath: string) {
     const config = JSON.parse(configContents);
     const json = JSON.parse(jsonContents);
 
-    // Used by `AutoTokenizer` to figure out the right tokenizer class.
-    // The models we use currently all use `BertTokenizer` so we hardcode it.
+    // Used by `AutoTokenizer` to figure out the right tokenizer class. The models we
+    // use currently all use `BertTokenizer` so we hardcode it.
     // https://github.com/xenova/transformers.js/blob/83dfa4718ec99c4566ec89954a0b0544a5a25d78/src/tokenizers.js#L3881-L3908
     assert(config.tokenizer_class === "BertTokenizer");
 

@@ -79,9 +79,8 @@ export function setMessageReactionWithOptimisticUpdate<
     });
 
     // Adding a reaction archives the inbox entry for the messaging room.
-    // Optimistically archive these entries so we don't need to wait for
-    // realtime. The latency of which may be long since notification events are
-    // processed by a queue.
+    // Optimistically archive these entries so we don't need to wait for realtime. The
+    // latency of which may be long since notification events are processed by a queue.
     inboxContext?.onSetMessageReactionOptimistically(promise, roomKey);
 
     onUpdateMessagesOptimistically(roomKey, promise, (messages, promiseValue) => {
@@ -94,9 +93,9 @@ export function setMessageReactionWithOptimisticUpdate<
             if (originalPos === "Files") {
                 if (message.payload.type !== "Content") return message;
 
-                // If the reaction is already set, don't update the message. This'll happen
-                // after we get the realtime message from the server adding the reaction. Which
-                // will happen before `promise` resolves.
+                // If the reaction is already set, don't update the message. This'll happen after
+                // we get the realtime message from the server adding the reaction. Which will
+                // happen before `promise` resolves.
                 if (
                     areReactionsEqual(
                         message.payload.filesReactions.get().get(currentAccountId),
@@ -110,11 +109,11 @@ export function setMessageReactionWithOptimisticUpdate<
                 newFilesReactions.set(currentAccountId, reaction);
 
                 return message.clone({
-                    // In the optimistic update code path we increment the version to simulate
-                    // what the server will do. When the promise resolves this function will
-                    // re-run with a `promiseValue` that's not undefined and we'll NOT run this
-                    // optimistic code path since we will have received a message from the
-                    // WebSocket with the correct message at the correct version.
+                    // In the optimistic update code path we increment the version to simulate what the
+                    // server will do. When the promise resolves this function will re-run with a
+                    // `promiseValue` that's not undefined and we'll NOT run this optimistic code path
+                    // since we will have received a message from the WebSocket with the correct
+                    // message at the correct version.
                     version: message.version + 1,
 
                     payload: {
@@ -137,9 +136,9 @@ export function setMessageReactionWithOptimisticUpdate<
             const {payload, pos} = result.value;
             assert(message.payload.type === payload.type);
 
-            // If the reaction is already set, don't update the message. This'll happen
-            // after we get the realtime message from the server adding the reaction. Which
-            // will happen before `promise` resolves.
+            // If the reaction is already set, don't update the message. This'll happen after
+            // we get the realtime message from the server adding the reaction. Which will
+            // happen before `promise` resolves.
             if (
                 areReactionsEqual(
                     payload.reactionsByPos.get(pos)?.get().get(currentAccountId),
@@ -155,11 +154,11 @@ export function setMessageReactionWithOptimisticUpdate<
             newReactionsByPos.set(pos, new ReactionSet(newReactions));
 
             return message.clone({
-                // In the optimistic update code path we increment the version to simulate
-                // what the server will do. When the promise resolves this function will
-                // re-run with a `promiseValue` that's not undefined and we'll NOT run this
-                // optimistic code path since we will have received a message from the
-                // WebSocket with the correct message at the correct version.
+                // In the optimistic update code path we increment the version to simulate what the
+                // server will do. When the promise resolves this function will re-run with a
+                // `promiseValue` that's not undefined and we'll NOT run this optimistic code path
+                // since we will have received a message from the WebSocket with the correct
+                // message at the correct version.
                 version: message.version + 1,
 
                 payload: {
@@ -216,8 +215,8 @@ export function deleteMessageReactionWithOptimisticUpdate<
                 if (message.payload.type !== "Content") return message;
 
                 // If the reaction is already deleted, don't update the message. This'll happen
-                // after we get the realtime message from the server deleting the reaction.
-                // Which will happen before `promise` resolves.
+                // after we get the realtime message from the server deleting the reaction. Which
+                // will happen before `promise` resolves.
                 if (!message.payload.filesReactions.get().has(currentAccountId)) {
                     return message;
                 }
@@ -226,11 +225,11 @@ export function deleteMessageReactionWithOptimisticUpdate<
                 newFilesReactions.delete(currentAccountId);
 
                 return message.clone({
-                    // In the optimistic update code path we increment the version to simulate
-                    // what the server will do. When the promise resolves this function will
-                    // re-run with a `promiseValue` that's not undefined and we'll NOT run this
-                    // optimistic code path since we will have received a message from the
-                    // WebSocket with the correct message at the correct version.
+                    // In the optimistic update code path we increment the version to simulate what the
+                    // server will do. When the promise resolves this function will re-run with a
+                    // `promiseValue` that's not undefined and we'll NOT run this optimistic code path
+                    // since we will have received a message from the WebSocket with the correct
+                    // message at the correct version.
                     version: message.version + 1,
 
                     payload: {
@@ -254,8 +253,8 @@ export function deleteMessageReactionWithOptimisticUpdate<
             assert(message.payload.type === payload.type);
 
             // If the reaction is already deleted, don't update the message. This'll happen
-            // after we get the realtime message from the server deleting the reaction.
-            // Which will happen before `promise` resolves.
+            // after we get the realtime message from the server deleting the reaction. Which
+            // will happen before `promise` resolves.
             if (!payload.reactionsByPos.get(pos)?.get().has(currentAccountId)) {
                 return message;
             }
@@ -264,8 +263,7 @@ export function deleteMessageReactionWithOptimisticUpdate<
             const newReactions = new Map(newReactionsByPos.get(pos)?.get());
             newReactions.delete(currentAccountId);
 
-            // If there are no reactions left then remove the full `ReactionSet`
-            // itself.
+            // If there are no reactions left then remove the full `ReactionSet` itself.
             if (newReactions.size === 0) {
                 newReactionsByPos.delete(pos);
             } else {
@@ -273,11 +271,11 @@ export function deleteMessageReactionWithOptimisticUpdate<
             }
 
             return message.clone({
-                // In the optimistic update code path we increment the version to simulate
-                // what the server will do. When the promise resolves this function will
-                // re-run with a `promiseValue` that's not undefined and we'll NOT run this
-                // optimistic code path since we will have received a message from the
-                // WebSocket with the correct message at the correct version.
+                // In the optimistic update code path we increment the version to simulate what the
+                // server will do. When the promise resolves this function will re-run with a
+                // `promiseValue` that's not undefined and we'll NOT run this optimistic code path
+                // since we will have received a message from the WebSocket with the correct
+                // message at the correct version.
                 version: message.version + 1,
 
                 payload: {

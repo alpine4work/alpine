@@ -35,9 +35,9 @@ function TextAreaWithAutoGrowingHeight(
 
         const element = assertExists(internalRef.current);
 
-        // Set the height to 0px so `scrollHeight` recomputes to fit the content
-        // instead of retaining the previous height. This makes sure when you delete
-        // content the `<textarea>` shrinks.
+        // Set the height to 0px so `scrollHeight` recomputes to fit the content instead of
+        // retaining the previous height. This makes sure when you delete content the
+        // `<textarea>` shrinks.
         element.style.height = "0px";
 
         element.style.height = `${element.scrollHeight}px`;
@@ -50,8 +50,8 @@ function TextAreaWithAutoGrowingHeight(
     useLayoutEffectWithoutServerSideWarning(() => {
         const element = assertExists(internalRef.current);
 
-        // we also set up a resize observer for the element because external factors
-        // can cause the width to change, which needs to cascade to a height change too.
+        // we also set up a resize observer for the element because external factors can
+        // cause the width to change, which needs to cascade to a height change too.
         let lastWidth = element.offsetWidth;
         const listener = () => {
             if (lastWidth === element.offsetWidth) return;
@@ -79,8 +79,8 @@ function TextAreaWithAutoGrowingHeight(
                     // The `<textarea>` will resize on its own. Don't render resize handles.
                     resize: "none",
                 }}
-                // Suppress hydration warning since `<ScriptBeforeAppInitialRender>` will set
-                // the `height` inline style which disagrees with the initial React render.
+                // Suppress hydration warning since `<ScriptBeforeAppInitialRender>` will set the
+                // `height` inline style which disagrees with the initial React render.
                 suppressHydrationWarning={true}
             />
             <ScriptBeforeAppInitialRender

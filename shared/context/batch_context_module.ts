@@ -8,8 +8,8 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 
 /**
  * Context module for batching requests to some backend service like DynamoDB
- * associated with some context. So that two actions don't share IO, we create
- * a new batch context module for each action.
+ * associated with some context. So that two actions don't share IO, we create a
+ * new batch context module for each action.
  *
  * Conceptually the [same as `dataloader`][1].
  *
@@ -53,16 +53,15 @@ export class BatchContextModule extends ContextModuleBase implements ForkableCon
     }
 
     public fork() {
-        // Create a new batch context for our fork. Do not share IO with the
-        // parent action.
+        // Create a new batch context for our fork. Do not share IO with the parent action.
         return new BatchContextModule(null);
     }
 
     /**
      * Create a new `BatchContextModule` and share any batches that set
-     * `whenActorChanges: "DangerouslyShare"` between this batch context module and
-     * the new batch context module. See the documentation on `whenActorChanges`
-     * for more info.
+     * `whenActorChanges: "DangerouslyShare"` between this batch context module and the
+     * new batch context module. See the documentation on `whenActorChanges` for more
+     * info.
      */
     public forkForChangedActor() {
         return new BatchContextModule(this._sharedBatches ?? this._batches);
@@ -76,22 +75,21 @@ export abstract class ContextBatcherBase<
     Output,
 > {
     /**
-     * What should happen to the batcher when the actor changes? Should we share
-     * IO across different actors or have separate batches? The actor may change
-     * within an action through a `dangerouslyEscalateToSystemContext()` call or an
+     * What should happen to the batcher when the actor changes? Should we share IO
+     * across different actors or have separate batches? The actor may change within an
+     * action through a `dangerouslyEscalateToSystemContext()` call or an
      * `impersonateAccountAsSystemContext()` call.
      *
      * If the value is `DangerouslyShare` then batched IO will be shared between the
-     * action context for the old actor and new actor. If we add to the batch as
-     * the old actor the same batch can be added to by the new actor and vice
-     * versa. You should only use `DangerouslyShare` if batch loading doesn't
-     * depend on the actor! This option is the most performant since we batch more
-     * stuff.
+     * action context for the old actor and new actor. If we add to the batch as the
+     * old actor the same batch can be added to by the new actor and vice versa. You
+     * should only use `DangerouslyShare` if batch loading doesn't depend on the actor!
+     * This option is the most performant since we batch more stuff.
      *
-     * If the value is `SafelyReset` then we keep batches separate and if we add
-     * to this new actor's batch it won't be shared with the old actor. This option
-     * is safer since if we execute a batch with a system actor then a session
-     * actor won't accidentally have system permissions.
+     * If the value is `SafelyReset` then we keep batches separate and if we add to
+     * this new actor's batch it won't be shared with the old actor. This option is
+     * safer since if we execute a batch with a system actor then a session actor won't
+     * accidentally have system permissions.
      */
     public abstract readonly whenActorChanges: "DangerouslyShare" | "SafelyReset";
 
@@ -101,10 +99,10 @@ export abstract class ContextBatcherBase<
 }
 
 /**
- * Create a batcher for use with `BatchContextModule`. Once a batch is
- * finished, we call `execute` with the batched inputs and we expect an outputs
- * array of the exact same length. If the outputs array is a different length
- * than the inputs array then an error will be thrown.
+ * Create a batcher for use with `BatchContextModule`. Once a batch is finished, we
+ * call `execute` with the batched inputs and we expect an outputs array of the
+ * exact same length. If the outputs array is a different length than the inputs
+ * array then an error will be thrown.
  *
  * Has basically the [same API as `dataloader`][1].
  *

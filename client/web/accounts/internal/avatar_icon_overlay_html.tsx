@@ -21,9 +21,9 @@ export function renderAvatarIconOverlay({
         "position: absolute",
         `width: ${iconSize}px`,
         `height: ${iconSize}px`,
-        // Position the SVG container just past the bounding box so that the ghost icon itself is
-        // drawn almost exactly at the bottom right corner of the box. This looks correct at all
-        // (tested) scales
+        // Position the SVG container just past the bounding box so that the ghost icon
+        // itself is drawn almost exactly at the bottom right corner of the box. This looks
+        // correct at all (tested) scales
         `bottom: -1px`,
         `right: -1px`,
     ];

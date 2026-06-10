@@ -1,10 +1,13 @@
 import {
+    FileContentType,
     canonicalizeFileContentTypeIfExists,
     fileContentTypeByCodeBlockLanguageId,
     fileContentTypes,
     getFileAdditionalContentTypesAndExtensionsByContentTypeForTest,
     getFileContentTypePreferredExtension,
     getPathFileContentTypeIfExists,
+    isFileWebSafeAudioContentType,
+    isFileWebSafeVideoContentType,
     normalizeContentType,
 } from "~/shared/files/file_content_type.js";
 
@@ -137,6 +140,40 @@ test("file code block language content types are unique", () => {
     }
 
     expect(Array.from(new Set(contentTypes))).toEqual(contentTypes);
+});
+
+describe("isFileWebSafeAudioContentType", () => {
+    const cases: Array<[FileContentType, boolean]> = [
+        ["audio/mpeg", true],
+        ["audio/wav", true],
+        ["audio/webm", true],
+        ["audio/mp4", false],
+        ["audio/ogg", false],
+        ["image/png", false],
+    ];
+
+    for (const [contentType, expected] of cases) {
+        test(`${contentType} is ${expected ? "" : "not "}web safe`, () => {
+            expect(isFileWebSafeAudioContentType(contentType)).toBe(expected);
+        });
+    }
+});
+
+describe("isFileWebSafeVideoContentType", () => {
+    const cases: Array<[FileContentType, boolean]> = [
+        ["video/webm", true],
+        ["video/mp4", false],
+        ["video/quicktime", false],
+        ["video/mpeg", false],
+        ["video/x-matroska", false],
+        ["image/png", false],
+    ];
+
+    for (const [contentType, expected] of cases) {
+        test(`${contentType} is ${expected ? "" : "not "}web safe`, () => {
+            expect(isFileWebSafeVideoContentType(contentType)).toBe(expected);
+        });
+    }
 });
 
 test("can get content type based on a file extension", () => {

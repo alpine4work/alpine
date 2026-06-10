@@ -46,7 +46,10 @@ ts_project(
             "size": "medium",
         },
     },
-    visibility = ["//server/files/processor:__subpackages__"],
+    visibility = [
+        "//server/files/processor:__subpackages__",
+        "//server/importer:__subpackages__",
+    ],
     deps = [
         "//:node_modules/@lezer/common",
         "//:node_modules/@lezer/highlight",

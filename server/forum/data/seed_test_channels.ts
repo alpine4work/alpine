@@ -26,13 +26,14 @@ export async function seedTestChannels(
             name: "Test",
             description: emptyMessageContent,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: emptyMap,
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
             },
-            // We haven't actually added a feed candidate entry for this channel but we
-            // think it'd be weird if you unshared then re-shared this initial channel for
-            // the space to get a feed entry.
+            // We haven't actually added a feed candidate entry for this channel but we think
+            // it'd be weird if you unshared then re-shared this initial channel for the space
+            // to get a feed entry.
             hasAddedFeedCandidateEntry: true,
         },
     );
@@ -44,8 +45,8 @@ export async function seedTestChannels(
             update: {
                 type: "Channel",
                 channelId: testChannelId,
-                // Nothing depends on this entity when it's created. Don't bother trying to
-                // reindex dependencies.
+                // Nothing depends on this entity when it's created. Don't bother trying to reindex
+                // dependencies.
                 updatedTraits: {type: "None"},
             },
         });

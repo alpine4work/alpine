@@ -10,6 +10,7 @@ export const ServerSecretsSchema = Schema.object({
     fileProcessorServicePublicKey: Schema.string,
     apiServicePublicKey: Schema.string,
     resourceServicePublicKey: Schema.string,
+    importerServicePublicKey: Schema.string,
     servicePrivateKey: Schema.string,
     tokenAgentSecret: Schema.string,
     honeycombApiKey: Schema.string,

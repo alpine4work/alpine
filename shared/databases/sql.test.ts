@@ -23,10 +23,9 @@ afterEach(() => {
     db.close();
 });
 
-// The SQL-tag formatter rewrites `sql` template bodies into
-// multi-line, indented SQL, and the template no longer
-// collapses whitespace. Assert on structure (whitespace
-// flattened) rather than the formatter's exact text.
+// The SQL-tag formatter rewrites `sql` template bodies into multi-line, indented
+// SQL, and the template no longer collapses whitespace. Assert on structure
+// (whitespace flattened) rather than the formatter's exact text.
 function structure(query: string): string {
     return query.replace(/\s+/g, " ").trim();
 }

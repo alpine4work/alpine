@@ -8,7 +8,7 @@ import {
 } from "~/server/context/task_context_module_base.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
+import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/after_commit_task_action_transaction_event_emitter_for_test.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -25,6 +25,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
@@ -42,14 +43,14 @@ import {
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 /**
- * Helps perform work related to tasks that needs to interact with other
- * systems. Notably:
+ * Helps perform work related to tasks that needs to interact with other systems.
+ * Notably:
  *
  * - Escalating to system permission level when indexing a task action
  * - Communicating with the task realtime service
  */
 export class TaskContextModule extends TaskContextModuleBase {
-    private readonly _tokenAgent: TokenAgent;
+    private readonly _tokenAgent: MaybeThunk<TokenAgent>;
     public readonly router: TaskRealtimeServiceRouterBase;
 
     constructor({
@@ -57,7 +58,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         router,
         dangerouslyEscalateToSystemContext,
     }: {
-        tokenAgent: TokenAgent;
+        tokenAgent: MaybeThunk<TokenAgent>;
         router: TaskRealtimeServiceRouterBase;
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
@@ -77,13 +78,16 @@ export class TaskContextModule extends TaskContextModuleBase {
 
     /**
      * Apply an action transaction in all the `TaskRealtimeService` servers that
-     * provide realtime task data for `SpaceId`. `TaskRealtimeService` then sends
-     * the action to connected WebSockets as well.
+     * provide realtime task data for `SpaceId`. `TaskRealtimeService` then sends the
+     * action to connected WebSockets as well.
      */
     public override applyActionTransactionInRealtimeService(
         this: TaskContextModule & ContextModuleBase<Omit<ServerActionContextModules, "actor">>,
         actionTransaction: TaskContextModuleActionTransaction,
     ) {
+        const tokenAgent =
+            typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
+
         return this._context.tracer.withSpan(
             "Apply task action transaction",
             async (context, span) => {
@@ -97,10 +101,10 @@ export class TaskContextModule extends TaskContextModuleBase {
 
                 const [hosts, token] = await runAllPromises([
                     this.router.getHosts(this._context, actionTransaction.spaceId),
-                    this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                        "TaskRealtimeService",
-                        {type: "System", spaceId: actionTransaction.spaceId},
-                    ),
+                    tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
+                        type: "System",
+                        spaceId: actionTransaction.spaceId,
+                    }),
                 ]);
 
                 const requestBody = JSON.stringify(
@@ -115,11 +119,11 @@ export class TaskContextModule extends TaskContextModuleBase {
                     // Apply the action transaction in every host from our router since every host
                     // needs to be kept up-to-date in realtime.
                     //
-                    // We apply the action whether or not the host is healthy! The host will be in
-                    // an unhealthy state for a couple minutes after it starts up. That way all
-                    // processes can discover the host and start sending it action transactions
-                    // (through this very call). That way when a host is healthy we know it's
-                    // already been receiving all new committed action transactions.
+                    // We apply the action whether or not the host is healthy! The host will be in an
+                    // unhealthy state for a couple minutes after it starts up. That way all processes
+                    // can discover the host and start sending it action transactions (through this
+                    // very call). That way when a host is healthy we know it's already been receiving
+                    // all new committed action transactions.
                     hosts.map(async ({host}) => {
                         await retryWithExponentialBackoff(async retry => {
                             try {
@@ -172,9 +176,9 @@ export class TaskContextModule extends TaskContextModuleBase {
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
      * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms up
+     * `TaskRealtimeService` so when our client connects via WebSocket the data it
+     * needs is already loaded.
      */
     public override async loadQueries(
         this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
@@ -182,6 +186,9 @@ export class TaskContextModule extends TaskContextModuleBase {
         input: TaskRealtimeLoadQueriesInput,
         {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
+        const tokenAgent =
+            typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
+
         const [host, token] = await runAllPromises([
             this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
                 ? this.router.getStickyAccountHost(
@@ -190,10 +197,10 @@ export class TaskContextModule extends TaskContextModuleBase {
                       this._context.actor.getPossiblyBotAccountId(),
                   )
                 : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
-                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
-                  // to simplify code.
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
+                  // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),
             ),
@@ -202,7 +209,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         const url = new URL(`http://${host}/${spaceId}/loadQueries`);
         if (consistency !== "Eventual") url.searchParams.set("consistency", consistency);
 
-        return fetchWithTracer(
+        return await fetchWithTracer(
             this._context.tracer.getTracer(),
             url.toString(),
             {
@@ -234,6 +241,9 @@ export class TaskContextModule extends TaskContextModuleBase {
         taskId: TaskId,
         {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<Result<TaskModel> | null> {
+        const tokenAgent =
+            typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
+
         const [host, token] = await runAllPromises([
             this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
                 ? this.router.getStickyAccountHost(
@@ -242,10 +252,10 @@ export class TaskContextModule extends TaskContextModuleBase {
                       this._context.actor.getPossiblyBotAccountId(),
                   )
                 : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
-                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
-                  // to simplify code.
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
+                  // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),
             ),
@@ -283,6 +293,9 @@ export class TaskContextModule extends TaskContextModuleBase {
         collectionId: TaskCollectionId,
         {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<Result<TaskCollectionModel> | null> {
+        const tokenAgent =
+            typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
+
         const [host, token] = await runAllPromises([
             this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
                 ? this.router.getStickyAccountHost(
@@ -291,10 +304,10 @@ export class TaskContextModule extends TaskContextModuleBase {
                       this._context.actor.getPossiblyBotAccountId(),
                   )
                 : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
-                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
-                  // to simplify code.
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually to
+                  // simplify code.
                   this.router.getRandomHost(this._context, spaceId),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),
             ),
@@ -348,8 +361,8 @@ export async function waitForProcessTaskActionTransactionsForTest() {
 
     const errors: Array<unknown> = [];
 
-    // Wait for all promises to resolve. If there's an error, don't throw it until
-    // all promises have resolved.
+    // Wait for all promises to resolve. If there's an error, don't throw it until all
+    // promises have resolved.
     while (processTaskActionTransactionPromisesForTest.size > 0) {
         try {
             await runAllPromises(processTaskActionTransactionPromisesForTest);

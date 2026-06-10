@@ -7,11 +7,11 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * finishes the temporary directory and all of its contents will be deleted.
  *
  * If the Node.js process exits abnormally (e.g. `process.exit()` is called or
- * there's an out-of-memory exception that immediately crashes the process)
- * then the temporary directory won't be cleaned up. It's recommended that
+ * there's an out-of-memory exception that immediately crashes the process) then
+ * the temporary directory won't be cleaned up. It's recommended that
  * `parentDirectoryPath` is within the operating system's temporary directory
- * (`os.tmpdir()`) so it'll be occasionally cleaned by the operating system
- * itself in case we've left some files around in failure scenarios.
+ * (`os.tmpdir()`) so it'll be occasionally cleaned by the operating system itself
+ * in case we've left some files around in failure scenarios.
  */
 export async function withTemporaryDirectory<Value>(
     parentDirectoryPath: string,

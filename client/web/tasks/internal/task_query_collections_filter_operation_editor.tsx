@@ -18,11 +18,13 @@ import {TaskQueryFilterOperatorEditor} from "~/client/web/tasks/internal/task_qu
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/web/tasks/internal/use_search_task_collections_by_affinity.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {splitGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -65,8 +67,8 @@ export function TaskQueryCollectionsFilterOperationEditor({
         new Map<TaskCollectionId, TaskClientCollectionSubscription>(),
     );
 
-    // Subscribe to all `TaskCollectionId`s in the filter so they're kept
-    // up-to-date in realtime.
+    // Subscribe to all `TaskCollectionId`s in the filter so they're kept up-to-date in
+    // realtime.
     useEffect(() => {
         const addCollectionIds = new Set(getTaskQueryFilterReferencedIds(filter).collectionIds);
 
@@ -112,8 +114,8 @@ export function TaskQueryCollectionsFilterOperationEditor({
 
     const collectionResults = useStore(collectionResultsStore);
 
-    // Simplify operator label if there is just one collection and the operators do
-    // the same thing.
+    // Simplify operator label if there is just one collection and the operators do the
+    // same thing.
     const includesOneOfOperatorLabel =
         filter.operation.type !== "IsEmpty" && filter.operation.collectionIds.size <= 1
             ? "has"
@@ -405,9 +407,8 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
     }
 
     // Remember the initial collections for a search. If the user selects a new
-    // collection then we don't want to immediately move that collection to the top
-    // of the search list and re-execute a search RPC with new
-    // `excludeCollectionIds`.
+    // collection then we don't want to immediately move that collection to the top of
+    // the search list and re-execute a search RPC with new `excludeCollectionIds`.
     const [initialCollectionResults] = useState(collectionResults);
 
     const initialCollectionIds = useMemo(
@@ -456,15 +457,14 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
     );
 
     const searchedItems = useMemo(() => {
-        // We use `items.nameQuery` instead of `searchInputValue` in case we are
-        // showing the user stale `items` while we load fresh items.
+        // We use `items.nameQuery` instead of `searchInputValue` in case we are showing
+        // the user stale `items` while we load fresh items.
         const isEmptyNameQuery = !items || items.nameQuery.length === 0;
 
         const searchedItems: Array<TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem> =
             [];
 
-        // If the user is not searching, add the selected collections results to
-        // the top.
+        // If the user is not searching, add the selected collections results to the top.
         if (isEmptyNameQuery) {
             for (const collectionResult of initialCollectionResults) {
                 searchedItems.push({
@@ -478,19 +478,40 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
 
         if (searchedCollectionsForUrlGrant) {
             for (const collection of searchedCollectionsForUrlGrant) {
-                // If the collection also appears in our search items, ignore it since it's
-                // already been included in our selected items above.
+                // If the collection also appears in our search items, ignore it since it's already
+                // been included in our selected items above.
                 if (isEmptyNameQuery && initialCollectionIds.has(collection.id)) {
                     continue;
                 }
 
-                // The collection model doesn't include the open task count. To avoid an
-                // additional network request we decide to not show task count collections
-                // referenced by the query for a URL granted view.
+                const referencedAccessPolicySiteData =
+                    collection.rawData.accessPolicy.value.type === "Site"
+                        ? (assertExists(queryReferencesForUrlGrant).siteById.get(
+                              collection.rawData.accessPolicy.value.siteId,
+                          ) ?? null)
+                        : null;
+
+                // The collection model doesn't include the open task count. To avoid an additional
+                // network request we decide to not show task count collections referenced by the
+                // query for a URL granted view.
                 const collectionResult: TaskCollectionModelSearchResult = {
                     openTaskCount: 0,
                     lastTaskAddedTime: null,
                     collection,
+                    // TODO(#sites): Integration test this code path. The following steps should be
+                    // sufficient:
+                    //
+                    // 1. Create a site with two task collections (collection A and collection B).
+                    // 2. Create some tasks. Two that are only in collection A, two that are only in
+                    //    collection B, and two that are in collection A and collection B.
+                    // 3. Share the site via URL.
+                    // 4. With an anonymous actor, open collection A in the site.
+                    // 5. Add a filter for tasks with collection B.
+                    //
+                    // If that all works, this code is good!
+                    referencedAccessPolicySite: referencedAccessPolicySiteData
+                        ? new SitePreviewModel(referencedAccessPolicySiteData)
+                        : null,
                 };
 
                 searchedItems.push({
@@ -507,8 +528,8 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
                 // Can't create a collection from our filter editor
                 if (item.type === "CreateCollection") continue;
 
-                // If the collection also appears in our search items, ignore it since it's
-                // already been included in our selected items above.
+                // If the collection also appears in our search items, ignore it since it's already
+                // been included in our selected items above.
                 if (
                     isEmptyNameQuery &&
                     initialCollectionIds.has(item.collectionResult.collection.id)
@@ -525,8 +546,8 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
             }
         }
 
-        // If we are searching then sort collections in our initial collection set at
-        // the top of the search. Regardless of their natural position in the search.
+        // If we are searching then sort collections in our initial collection set at the
+        // top of the search. Regardless of their natural position in the search.
         if (!isEmptyNameQuery) {
             searchedItems.sort((item1, item2) => {
                 const isInitialCollection1 = initialCollectionIds.has(
@@ -556,7 +577,13 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
         }
 
         return searchedItems;
-    }, [initialCollectionIds, initialCollectionResults, items, searchedCollectionsForUrlGrant]);
+    }, [
+        initialCollectionIds,
+        initialCollectionResults,
+        items,
+        queryReferencesForUrlGrant,
+        searchedCollectionsForUrlGrant,
+    ]);
 
     return shouldLoadItems && items === null
         ? {isLoading: true as const}

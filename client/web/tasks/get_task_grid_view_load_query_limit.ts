@@ -7,9 +7,9 @@ import {ClientInfo} from "~/shared/remix/client_info.js";
  * Get the number of tasks to load when fetching a query.
  *
  * We load two times the virtualization height to give more room to scroll. The
- * initial virtualized scroll view rendered item count assumes you
- * underestimate the height of your items. In the case of tasks we know the
- * exact height. So the underestimated item count is lower than we'd like.
+ * initial virtualized scroll view rendered item count assumes you underestimate
+ * the height of your items. In the case of tasks we know the exact height. So the
+ * underestimated item count is lower than we'd like.
  */
 export function getTaskGridViewLoadQueryLimit(clientInfo: ClientInfo) {
     return (

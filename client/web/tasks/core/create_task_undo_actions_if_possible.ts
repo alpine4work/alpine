@@ -16,7 +16,7 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {
@@ -29,8 +29,8 @@ import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {upcastTaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
 import {TaskTitleUpdateModel, emptyTaskTitleUpdateModel} from "~/shared/tasks/title/task_title.js";
 
-// We use an interface to prevent you from calling methods that mutate the
-// store or accessing `store.clock`.
+// We use an interface to prevent you from calling methods that mutate the store or
+// accessing `store.clock`.
 interface TaskClientStoreInterface {
     readonly clock: HybridLogicalClock;
     readonly spaceId: SpaceId;
@@ -57,9 +57,9 @@ type TaskUndoAction =
       };
 
 /**
- * Class that holds some actions we can apply to undo a previous set of
- * actions. In this class wrapper since we need to generate the task times on
- * the fly. When you call `get()` we will return actions with the current time.
+ * Class that holds some actions we can apply to undo a previous set of actions. In
+ * this class wrapper since we need to generate the task times on the fly. When you
+ * call `get()` we will return actions with the current time.
  */
 export class TaskUndoActions {
     private readonly _actions: ReadonlyArray<TaskUndoAction>;
@@ -86,12 +86,12 @@ export class TaskUndoActions {
                     if (time1 > time2) return 1;
                     return 0;
                 })
-                // Reverse the times. In a drag-and-drop action we have `RemoveCollection` at
-                // t1 and `AddCollection` at t2. t1 < t2 to make sure the `AddCollection` wins.
+                // Reverse the times. In a drag-and-drop action we have `RemoveCollection` at t1
+                // and `AddCollection` at t2. t1 < t2 to make sure the `AddCollection` wins.
                 //
                 // Then we invert the actions so we get `AddCollection` at t1' and
-                // `RemoveCollection` at t2'. Here t2' < t1' to make sure the remove
-                // collection wins.
+                // `RemoveCollection` at t2'. Here t2' < t1' to make sure the remove collection
+                // wins.
                 .reverse()
                 .map(time => [time, store.clock.now()]),
         );
@@ -121,9 +121,8 @@ export class TaskUndoActions {
         >();
 
         // To generate undo actions we need to know the old task value. Including any
-        // actions made during this transaction. Importantly, if a task was created in
-        // this transaction we still need the `TaskModel` when generating an undo
-        // action.
+        // actions made during this transaction. Importantly, if a task was created in this
+        // transaction we still need the `TaskModel` when generating an undo action.
         const getTask = (taskId: TaskId): TaskModel | null => {
             return getOrSetDefaultMapValue(workingTaskEntryById, taskId, () => {
                 const task = store.getTaskEntrySnapshot(taskId)?.task;
@@ -250,12 +249,12 @@ export class TaskUndoActions {
 }
 
 /**
- * Get actions that undo changes made by the provided actions. When the user
- * hits Cmd-Z we will apply these actions.
+ * Get actions that undo changes made by the provided actions. When the user hits
+ * Cmd-Z we will apply these actions.
  *
- * Undo is best effort. We don't have a clever universal solution. When undoing
- * we revert values back to what the client thinks the current value is (the
- * server may think something different) ignoring intermediate updates.
+ * Undo is best effort. We don't have a clever universal solution. When undoing we
+ * revert values back to what the client thinks the current value is (the server
+ * may think something different) ignoring intermediate updates.
  *
  * Sometimes, it's not possible to generate undo actions.
  *
@@ -266,16 +265,20 @@ export function createTaskUndoActionsIfPossible(
     store: TaskClientStoreInterface,
     actions: Iterable<TaskActionModel>,
     undoableSlice: {startIndex: number | null; endIndex: number | null} | null = null,
-): TaskUndoActions | null {
-    // Currently, accounts without space access can't edit tasks. The max
-    // permission level of `urlGrant` is `View`.
+): {
+    undoActions: TaskUndoActions;
+    retainTaskIds: Set<TaskId>;
+    retainCollectionIds: Set<TaskCollectionId>;
+} | null {
+    // Currently, accounts without space access can't edit tasks. The max permission
+    // level of `urlGrant` is `View`.
     assert(store.currentAccountId);
 
-    // The new actions that are returned will have identical `time`s to the
-    // `action`s you passed in. Before applying the undo actions you must replace
-    // all action times with new ones. The new times you generate must preserve the
-    // relative order of old times but reversed. If two actions have the same old
-    // time then they must get the same new time.
+    // The new actions that are returned will have identical `time`s to the `action`s
+    // you passed in. Before applying the undo actions you must replace all action
+    // times with new ones. The new times you generate must preserve the relative order
+    // of old times but reversed. If two actions have the same old time then they must
+    // get the same new time.
     //
     // This is managed by `TaskUndoActions`.
     const undoActions: Array<TaskUndoAction> = [];
@@ -292,15 +295,17 @@ export function createTaskUndoActionsIfPossible(
           }
     >();
 
+    const retainTaskIds = new Set<TaskId>();
+    const retainCollectionIds = new Set<TaskCollectionId>();
+
     let nextIndex = 0;
     for (const action of actions) {
         const index = nextIndex;
         nextIndex++;
 
         // To generate undo actions we need to know the old task value. Including any
-        // actions made during this transaction. Importantly, if a task was created in
-        // this transaction we still need the `TaskModel` when generating an undo
-        // action.
+        // actions made during this transaction. Importantly, if a task was created in this
+        // transaction we still need the `TaskModel` when generating an undo action.
         const getTask = (taskId: TaskId): TaskModel | null => {
             return getOrSetDefaultMapValue(workingTaskEntryById, taskId, () => {
                 const task = store.getTaskEntrySnapshot(taskId)?.task;
@@ -313,13 +318,12 @@ export function createTaskUndoActionsIfPossible(
             case "UpdateAccountName":
                 return null;
 
-            // Collection updates are not undo-able but if the user creates a collection in
-            // the same action in which they add the collection to a task we want to
-            // generate an undo transaction that removes the collection but does not delete
-            // the collection.
+            // Collection updates are not undo-able but if the user creates a collection in the
+            // same action in which they add the collection to a task we want to generate an
+            // undo transaction that removes the collection but does not delete the collection.
             //
-            // TODO(calebmer): Deleting the collection too is probably a good idea but
-            // right now undo actions must be of the `TaskUpdateTaskAction` type.
+            // TODO(calebmer): Deleting the collection too is probably a good idea but right
+            // now undo actions must be of the `TaskUpdateTaskAction` type.
             case "UpdateCollection": {
                 if (
                     action.collectionAction.type === "Create" &&
@@ -338,8 +342,8 @@ export function createTaskUndoActionsIfPossible(
             }
 
             case "UpdateTask": {
-                // Only generate `undoActions` for actions in the undoable slice. However, we
-                // want to locally apply all the actions.
+                // Only generate `undoActions` for actions in the undoable slice. However, we want
+                // to locally apply all the actions.
                 if (
                     undoableSlice === null ||
                     ((undoableSlice.startIndex === null || undoableSlice.startIndex <= index) &&
@@ -350,6 +354,8 @@ export function createTaskUndoActionsIfPossible(
                         getTask,
                         action,
                         undoActions,
+                        retainTaskIds,
+                        retainCollectionIds,
                     );
 
                     if (result?.abort) {
@@ -419,17 +425,17 @@ export function createTaskUndoActionsIfPossible(
     if (undoActions.length === 0) return null;
 
     // Reverse our actions from the undo. Actions are ordered to not trip any
-    // authorization errors when committed on the server. So for instance a move
-    // action transaction from a parent task to a collection query will have
-    // `UpdateParentTaskId` before `RemoveCollection`. If we applied
-    // `RemoveCollection` first then we'd get an authorization error when we try to
-    // apply `UpdateParentTaskId`.
+    // authorization errors when committed on the server. So for instance a move action
+    // transaction from a parent task to a collection query will have
+    // `UpdateParentTaskId` before `RemoveCollection`. If we applied `RemoveCollection`
+    // first then we'd get an authorization error when we try to apply
+    // `UpdateParentTaskId`.
     //
-    // For undo actions we apply in reverse. We want to apply `AddCollection`
-    // before setting `UpdateParentTaskId` to null.
+    // For undo actions we apply in reverse. We want to apply `AddCollection` before
+    // setting `UpdateParentTaskId` to null.
     undoActions.reverse();
 
-    return new TaskUndoActions(undoActions);
+    return {undoActions: new TaskUndoActions(undoActions), retainTaskIds, retainCollectionIds};
 }
 
 function pushTaskUndoAction(
@@ -437,7 +443,18 @@ function pushTaskUndoAction(
     getTask: (taskId: TaskId) => TaskModel | null,
     action: TaskUpdateTaskActionModel,
     undoActions: Array<TaskUndoAction>,
+    retainTaskIds: Set<TaskId>,
+    retainCollectionIds: Set<TaskCollectionId>,
 ): {abort: boolean} | undefined {
+    // Retain the task so if it leaves the query when the user hits undo we still have
+    // the task's data and can immediately restore it.
+    //
+    // e.g. If you have a query sorted by priority and only "High" priority tasks are
+    // visible. Then you switch a task to "Low" and hit undo. The task leaves the query
+    // bounds but on undo we should add it back to the query. We need the `TaskModel`
+    // to be retained in our store to do that.
+    retainTaskIds.add(action.taskId);
+
     switch (action.taskAction.type) {
         case "Create":
         case "Undelete": {
@@ -452,6 +469,10 @@ function pushTaskUndoAction(
             break;
         }
         case "Delete": {
+            // Retain this deleted task. When we undelete we'll need the deleted `TaskModel`
+            // and all its data to restore the task.
+            retainTaskIds.add(action.taskId);
+
             undoActions.push({
                 type: "UpdateTask",
                 time: action.time,
@@ -465,6 +486,11 @@ function pushTaskUndoAction(
         case "UpdateParentTaskId": {
             const task = getTask(action.taskId);
             if (!task) return {abort: true};
+
+            // Make sure we retain the old parent task so if we undo this action then the old
+            // parent task is still available in the store.
+            if (task.rawData.parent.taskId.value)
+                retainTaskIds.add(task.rawData.parent.taskId.value);
 
             undoActions.push({
                 type: "UpdateTask",
@@ -494,8 +520,8 @@ function pushTaskUndoAction(
             break;
         }
         case "UpdateChildrenCounts": {
-            // Children counts only increment. They don't revert back. The server will tell
-            // us the correct value through `extraActions`.
+            // Children counts only increment. They don't revert back. The server will tell us
+            // the correct value through `extraActions`.
             break;
         }
         case "AddCollection": {
@@ -517,6 +543,10 @@ function pushTaskUndoAction(
             // If there is no order key, collection was not added in the first place.
             const orderKey = task.rawData.collections.getOrderKey(action.taskAction.collectionId);
             if (!orderKey) return {abort: true};
+
+            // Make sure we retain the old collection so if we undo this action then the old
+            // collection is still available in the store.
+            retainCollectionIds.add(action.taskAction.collectionId);
 
             undoActions.push({
                 type: "UpdateTask",
@@ -545,8 +575,8 @@ function pushTaskUndoAction(
                 taskAction: {
                     type: "UpdateCollectionPosition",
                     collectionId: action.taskAction.collectionId,
-                    // If a position is not set, we default to using the collection's version from
-                    // the collection set.
+                    // If a position is not set, we default to using the collection's version from the
+                    // collection set.
                     position: task.rawData.positionByCollectionId.get(
                         action.taskAction.collectionId,
                     ) ?? {
@@ -586,37 +616,35 @@ function pushTaskUndoAction(
                     assignee: task.rawData.assignee.value
                         ? {
                               ...upcastTaskAssigneeWithSortableAccount(task.rawData.assignee.value),
-                              // NOTE(calebmer): You may only set `assignerId` to your current account.
-                              // Otherwise there's a `PermissionDeniedError` as you're taking an action on
-                              // another account's behalf. So if you change the assignee then hit undo you
-                              // become the new assigner.
+                              // NOTE(calebmer): You may only set `assignerId` to your current account. Otherwise
+                              // there's a `PermissionDeniedError` as you're taking an action on another
+                              // account's behalf. So if you change the assignee then hit undo you become the new
+                              // assigner.
                               //
-                              // However, this is an unintuitive user experience. So do we sacrifice security
-                              // or usability? Some thoughts on solutions:
+                              // However, this is an unintuitive user experience. So do we sacrifice security or
+                              // usability? Some thoughts on solutions:
                               //
                               // - Maybe we determine the attack vector of an attacker setting an arbitrary
-                              //   account as `assignerId` isn't that bad and remove the
-                              //   `PermissionDeniedError`. We'd have to thoroughly think through
-                              //   all the implications before doing this.
+                              //   account as `assignerId` isn't that bad and remove the `PermissionDeniedError`.
+                              //   We'd have to thoroughly think through all the implications before doing this.
                               //
-                              // - We have a lease system (look around for `TaskActionTransactionLeaseId`)
-                              //   that will let you commit actions that would have caused a
-                              //   `PermissionDeniedError` when you're undoing a change you made recently.
-                              //   Right now we only create leases if your change causes you to fully lose
-                              //   access. Maybe we should extend the lease system to handle this case? So
-                              //   a lease is created when you update the assignee allowing you to put the
-                              //   old assigner back with an undo.
+                              // - We have a lease system (look around for `TaskActionTransactionLeaseId`) that
+                              //   will let you commit actions that would have caused a `PermissionDeniedError`
+                              //   when you're undoing a change you made recently. Right now we only create
+                              //   leases if your change causes you to fully lose access. Maybe we should extend
+                              //   the lease system to handle this case? So a lease is created when you update
+                              //   the assignee allowing you to put the old assigner back with an undo.
                               //
-                              // TODO(calebmer): Related, currently if you undo an assignee update it resets
-                              // the `AssigneePosition` instead of putting the task back into its old
-                              // assignee position. Ideally we'd put the task back into its old assignee
-                              // position. We can do this by either:
+                              // TODO(calebmer): Related, currently if you undo an assignee update it resets the
+                              // `AssigneePosition` instead of putting the task back into its old assignee
+                              // position. Ideally we'd put the task back into its old assignee position. We can
+                              // do this by either:
                               //
                               // - Extending the lease system (as described above) to allow resetting the
                               //   assignee position to its previous value.
                               //
-                              // - Keep a map of assignee position by `AccountId` so if the task moves back
-                              //   to an old assignee at any point then we'll maintain the task's position.
+                              // - Keep a map of assignee position by `AccountId` so if the task moves back to an
+                              //   old assignee at any point then we'll maintain the task's position.
                               assignerId: currentAccountId,
                           }
                         : null,
@@ -649,8 +677,8 @@ function pushTaskUndoAction(
                 task.rawData.assignee.value?.assignee.accountId;
 
             // If the task has neither `assigneePosition` or `assignee` then updating the
-            // assignee position will fail since you may only update the assignee position
-            // if your current user is assigned to a task.
+            // assignee position will fail since you may only update the assignee position if
+            // your current user is assigned to a task.
             if (!accountId) return {abort: true};
 
             undoActions.push({
@@ -679,8 +707,8 @@ function pushTaskUndoAction(
                     type: "UpdateTitle",
                     withoutUndoMerge: action.taskAction.withoutUndoMerge ?? false,
                     getTitleUpdate: getTask => {
-                        // The task must still exist in our store to be able to undo title changes!
-                        // Since we need the latest title to figure out the right IDs.
+                        // The task must still exist in our store to be able to undo title changes! Since
+                        // we need the latest title to figure out the right IDs.
                         const task = getTask(action.taskId);
                         if (!task) return emptyTaskTitleUpdateModel.get();
 
@@ -720,6 +748,27 @@ function pushTaskUndoAction(
                     priority: task.rawData.priority.value,
                 },
             });
+            break;
+        }
+        case "UpdateLayout": {
+            const task = getTask(action.taskId);
+            if (!task) return {abort: true};
+
+            undoActions.push({
+                type: "UpdateTask",
+                time: action.time,
+                taskId: action.taskId,
+                taskAction: {
+                    type: "UpdateLayout",
+                    layout: task.getLayout(),
+                },
+            });
+            break;
+        }
+        case "UpdateAccessPolicy": {
+            // We don't let you undo (with cmd-z) access policy changes. Similar to how we
+            // don't allow you to undo access policy changes in documents or task collections
+            // with cmd-z.
             break;
         }
         case "UpdateNotepadPagePosition":

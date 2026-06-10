@@ -34,13 +34,12 @@ export type AccountModelDataForAvatarDesign = {
     };
 } & (
     | {readonly botId: BotId; readonly id?: AccountId}
-    // If `botId` is undefined then `id` is required since we need it to figure out
-    // the avatar's default design.
+    // If `botId` is undefined then `id` is required since we need it to figure out the
+    // avatar's default design.
     | {readonly botId?: BotId; readonly id: AccountId}
 );
 
-// Should be able to pass in `AccountModelData` for the `AccountAvatarData`
-// type.
+// Should be able to pass in `AccountModelData` for the `AccountAvatarData` type.
 assertAssignableTypes<AccountModelData, AccountModelDataForAvatarDesign>();
 
 export function getAccountAvatarDesign(
@@ -86,14 +85,14 @@ function getAccountAvatarIconOverlayType(
     accountData: AccountModelDataForAvatarDesign,
     shouldShowRemovedAvatar: boolean,
 ) {
-    // If the account is a bot, we should ALWAYS show the bot icon, even if the bot account was
-    // removed from the space.
+    // If the account is a bot, we should ALWAYS show the bot icon, even if the bot
+    // account was removed from the space.
     if (accountData.botId) {
         return "bot";
     }
 
-    // If the account is a regular account and it was removed from the space, we should show the
-    // ghost icon.
+    // If the account is a regular account and it was removed from the space, we should
+    // show the ghost icon.
     if (shouldShowRemovedAvatar) {
         return "ghost";
     }
@@ -110,9 +109,9 @@ function getImageContent(accountData: AccountModelDataForAvatarDesign) {
         accountData.space.state.type === "InvitePending" &&
         !accountData.space.state.wasPreviouslyRemoved
     ) {
-        // TODO(ifitzsimmons, #account-avatar-override): We should never get here. If the account
-        // was never in the space and they've been invited, they should not have an avatar.
-        // We should log a warning here to notify us of data loss / corruption
+        // TODO(ifitzsimmons, #account-avatar-override): We should never get here. If the
+        // account was never in the space and they've been invited, they should not have an
+        // avatar. We should log a warning here to notify us of data loss / corruption
         return null;
     }
 
@@ -120,9 +119,10 @@ function getImageContent(accountData: AccountModelDataForAvatarDesign) {
 }
 
 function wasAccountRemoved(accountState: AccountModelDataForAvatarDesign["space"]["state"]) {
-    // If the account is pending an invite and it was never a member of the space, we should render
-    // the default account avatar (their initials with a themed background) WITHOUT the removed
-    // account UX – they should appear active until they reject the invite.
+    // If the account is pending an invite and it was never a member of the space, we
+    // should render the default account avatar (their initials with a themed
+    // background) WITHOUT the removed account UX – they should appear active until
+    // they reject the invite.
     return (
         accountState.type === "Removed" ||
         (accountState.type === "InvitePending" && accountState.wasPreviouslyRemoved)

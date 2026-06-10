@@ -2,6 +2,7 @@ import {TestApnsContextModule} from "~/server/context/apns_context_module_base.j
 import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
@@ -20,12 +21,12 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * An implementation of `JobSenderBase` that runs in the current
- * process in test environments instead of going through SQS. This trades the
- * delivery and retry guarantees of SQS for convenience.
+ * An implementation of `JobSenderBase` that runs in the current process in test
+ * environments instead of going through SQS. This trades the delivery and retry
+ * guarantees of SQS for convenience.
  *
- * With this context module you don't need to run a local copy of SQS in tests
- * to execute jobs. By default `createTestContext()` ignores all jobs. You must
+ * With this context module you don't need to run a local copy of SQS in tests to
+ * execute jobs. By default `createTestContext()` ignores all jobs. You must
  * provide a `processJob` implementation ot `createTestContext()`.
  */
 export class TestLocalJobSender implements JobSenderBase {
@@ -144,6 +145,7 @@ export class TestLocalJobSender implements JobSenderBase {
                             tracer: new TracerContextModule(span),
                             apns: new TestApnsContextModule(),
                             webPush: new TestWebPushContextModule(),
+                            slack: new NoopSlackContextModule(),
                         },
                         async context => {
                             await this._processJob(context, job, jobStartTime, span);

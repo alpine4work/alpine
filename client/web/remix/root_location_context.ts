@@ -7,8 +7,8 @@ import {useLocation} from "react-router-dom";
  *
  * When code runs inside a peek (which uses its own memory router), `useLocation()`
  * returns the peek's memory router location. But sometimes we need access to the
- * main browser router's location - for example, to know what document/task the user
- * was viewing when they opened a chat in a peek.
+ * main browser router's location - for example, to know what document/task the
+ * user was viewing when they opened a chat in a peek.
  *
  * This context is set at the `PeekStackContextProvider` level and provides access
  * to the main browser router's location from anywhere, including inside peeks.

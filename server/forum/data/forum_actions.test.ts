@@ -1,19 +1,20 @@
 // IMPORTANT: Don't add tests to this file! This is leftover from the
 // `forum_actions.ts` refactor. Everything, and I mean everything, in
 // `server/forum/data` used to be in a single `forum_actions.ts` file. And this
-// test tested everything in that file. Now we want to move tests into
-// individual files that live next to the implementation of those tests. We
-// haven't performed that refactor yet for this test file. New tests should go
-// into files next to their implementation. For example tests for
-// `createPost()` should go into `create_post.test.ts`.
+// test tested everything in that file. Now we want to move tests into individual
+// files that live next to the implementation of those tests. We haven't performed
+// that refactor yet for this test file. New tests should go into files next to
+// their implementation. For example tests for `createPost()` should go into
+// `create_post.test.ts`.
 
 import {addMinutes} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {SitesInjection} from "~/server/context/injection_context_module.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
-import {dynamoGeneralRealtimeBackfillSafetyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
@@ -67,14 +68,18 @@ import {
     getPostCommentsFromStart,
 } from "~/server/forum/data/post_messaging.js";
 import {sendChannelShareNotification} from "~/server/forum/data/send_channel_share_notification.js";
-import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
-import {unsubscribeFromChannel} from "~/server/forum/data/unsubscribe_from_channel.js";
+import {
+    subscribeToChannel,
+    unsubscribeFromChannel,
+} from "~/server/forum/data/subscribe_to_channel.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {updateChannelDescription} from "~/server/forum/data/update_channel_description.js";
 import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
 import {updateChannelNameAndDescription} from "~/server/forum/data/update_channel_name_and_description.js";
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {rynamoBackfillSafetyWindowMinutes} from "~/server/rynamo/rynamo_table_schema.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {addSpaceAccount} from "~/server/spaces/add_space_account.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
@@ -82,6 +87,8 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
@@ -116,16 +123,63 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    PostDraftId,
+    PostId,
+    SiteId,
+    SiteSideBarId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
+import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {
     ServerSynchronizationCheckpoint,
     generateServerSynchronizationCheckpoint,
 } from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
-const context = createTestContext();
+// Mutable map that tests can configure for site access policies
+const siteAccessPolicies = new Map<SiteId, LocalAccessPolicy>();
+
+const sitesInjection: SitesInjection = {
+    dangerouslyGetSiteAccessPolicyWithoutAuthorization: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return policy;
+    },
+    getSitePreview: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return new SitePreviewModel({
+            id: siteId,
+            spaceId: generateId<SpaceId>(),
+            name: "Test Site",
+            firstEntityId: null,
+            createdTime: new Date(),
+            accessPolicy: policy,
+            version: 1,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: generateId<AccountId>(),
+        });
+    },
+    // These tests don't exercise site membership writes — mock them as empty.
+    dangerouslyGetAddToSiteTransactionEntries: async () => [],
+    dangerouslyGetRemoveFromSiteTransactionEntries: async () => [],
+};
+
+const context = createTestContext({sitesInjection});
 
 const testContent1 = createSimplePostContent("test1");
 const testContent2 = createSimplePostContent("test2");
@@ -138,6 +192,10 @@ function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
     return new Slice(Fragment.from(PostContentProsemirrorSchema.text(text)), 0, 0);
 }
+
+beforeEach(() => {
+    siteAccessPolicies.clear();
+});
 
 test("can\u2019t create a channel for a different space", async () => {
     const space = await TestSpace.create(context);
@@ -161,6 +219,7 @@ test("can\u2019t create a channel if the actor doesn\u2019t have manage access",
             spaceId: space.id,
             name: "Test",
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session2.account.id, {level: "Manage", generation: 0}],
                 ]),
@@ -174,6 +233,7 @@ test("can\u2019t create a channel if the actor doesn\u2019t have manage access",
         spaceId: space.id,
         name: "Test",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[session2.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -181,33 +241,23 @@ test("can\u2019t create a channel if the actor doesn\u2019t have manage access",
     });
 });
 
-test("can\u2019t create a channel with URL grant", async () => {
+test("can create a channel with URL grant", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    await expect(
-        createChannel(session1.action(), {
-            spaceId: space.id,
-            name: "Test",
-            accessPolicy: {
-                accountGrantById: new Map([
-                    [session2.account.id, {level: "Manage", generation: 0}],
-                ]),
-                defaultGrant: {level: "Manage", generation: 1},
-                urlGrant: {level: "View"},
-            },
-        }),
-    ).rejects.toThrow("Channels don\u2019t currently support `urlGrant`s");
-
-    await createChannel(session1.action(), {
+    const channel = await createChannel(session1.action(), {
         spaceId: space.id,
         name: "Test",
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([[session2.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
-            urlGrant: null,
+            urlGrant: {level: "View"},
         },
     });
+
+    const channelPreview = await getChannelPreview(session1.action(), channel.id);
+    expect(channelPreview.accessPolicy.data).toMatchObject({urlGrant: {level: "View"}});
 });
 
 test("can create a channel", async () => {
@@ -237,6 +287,40 @@ test("can create a channel with a description", async () => {
     expect((await getChannel(session.action(), channel.id)).model.description.doc.toJSON()).toEqual(
         createSimpleMessageContent("This is a description").toJSON(),
     );
+});
+
+describe("createChannel in a site", () => {
+    test("creates a channel with a Site access policy when site data matches", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const siteId = generateId<SiteId>();
+        siteAccessPolicies.set(siteId, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        const {id: channelId} = await createChannel(session.action(), {
+            spaceId: space.id,
+            name: "Site channel",
+            accessPolicy: {
+                type: "Site",
+                siteId,
+                position: {
+                    parentId: printSiteContainerId({
+                        type: "SideBar",
+                        id: generateId<SiteSideBarId>(),
+                    }),
+                    orderKey: assertOrderKey("a0"),
+                },
+            },
+        });
+
+        const {model} = await getChannel(session.action(), channelId);
+        expect(model.accessPolicy.intoAccessPolicy()).toEqual({type: "Site", siteId});
+    });
 });
 
 test("can\u2019t get a channel that does not exist", async () => {
@@ -1045,6 +1129,7 @@ test("can\u2019t update channel access policy without manage access", async () =
         updateChannelAccessPolicy(session2.action(), {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 2}],
@@ -1063,6 +1148,7 @@ test("can\u2019t update channel access policy without manage access", async () =
         updateChannelAccessPolicy(session2.action(), {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 2}],
@@ -1081,6 +1167,7 @@ test("can\u2019t update channel access policy without manage access", async () =
         updateChannelAccessPolicy(session2.action(), {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 2}],
@@ -1099,6 +1186,7 @@ test("can\u2019t update channel access policy without manage access", async () =
         updateChannelAccessPolicy(session2.action(), {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 2}],
@@ -1114,6 +1202,7 @@ test("can\u2019t update channel access policy without manage access", async () =
     await channel.access.grantDefault(session1, "Manage");
 
     expect(await channel.access.get()).toEqual({
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Manage", generation: 1},
         urlGrant: null,
@@ -1122,24 +1211,26 @@ test("can\u2019t update channel access policy without manage access", async () =
     await updateChannelAccessPolicy(session2.action(), {
         channelId: channel.id,
         accessPolicy: {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session2.account.id, {level: "Manage", generation: 2}],
                 [session3.account.id, {level: "Manage", generation: 3}],
             ]),
-            defaultGrant: null,
+            defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
         },
         notification: null,
     });
 
     expect(await channel.access.get()).toEqual({
+        type: "Local",
         accountGrantById: new Map([
             [session1.account.id, {level: "Manage", generation: 0}],
             [session2.account.id, {level: "Manage", generation: 2}],
             [session3.account.id, {level: "Manage", generation: 3}],
         ]),
-        defaultGrant: null,
+        defaultGrant: {level: "Manage", generation: 1},
         urlGrant: null,
     });
 });
@@ -1204,6 +1295,7 @@ test("can\u2019t update channel access policy (with add account grants function)
     await channel.access.grantDefault(session1, "Manage");
 
     expect(await channel.access.get()).toEqual({
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Manage", generation: 1},
         urlGrant: null,
@@ -1219,6 +1311,7 @@ test("can\u2019t update channel access policy (with add account grants function)
     });
 
     expect(await channel.access.get()).toEqual({
+        type: "Local",
         accountGrantById: new Map([
             [session1.account.id, {level: "Manage", generation: 0}],
             [session2.account.id, {level: "Manage", generation: 2}],
@@ -1238,6 +1331,7 @@ test("can\u2019t update channel access policy with invalid update", async () => 
         updateChannelAccessPolicy(session2.action(), {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 0}],
@@ -1255,6 +1349,7 @@ test("can\u2019t update channel access policy with invalid update", async () => 
         updateChannelAccessPolicy(session2.action(), {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session2.account.id, {level: "Manage", generation: 2}],
                 ]),
@@ -1271,6 +1366,7 @@ test("can\u2019t update channel access policy with invalid update", async () => 
         updateChannelAccessPolicy(session2.action(), {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session1.account.id, {level: "Manage", generation: 0}],
                     [session2.account.id, {level: "Manage", generation: 2}],
@@ -1280,7 +1376,9 @@ test("can\u2019t update channel access policy with invalid update", async () => 
             },
             notification: null,
         }),
-    ).rejects.toThrow("Can\u2019t change default grant manage generation");
+    ).rejects.toThrow(
+        "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
+    );
 });
 
 test("can\u2019t create channel shared with bot account", async () => {
@@ -1295,6 +1393,7 @@ test("can\u2019t create channel shared with bot account", async () => {
     await expect(
         TestChannel.create(session, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session.account.id, {level: "Manage", generation: 0}],
                     [botAccountId, {level: "Manage", generation: 1}],
@@ -1320,6 +1419,7 @@ test("can\u2019t update channel access policy with bot account", async () => {
         updateChannelAccessPolicy(session.action(), {
             channelId: channel.id,
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map([
                     [session.account.id, {level: "Manage", generation: 0}],
                     [botAccountId, {level: "Manage", generation: 1}],
@@ -1332,24 +1432,24 @@ test("can\u2019t update channel access policy with bot account", async () => {
     ).rejects.toThrow("Can\u2019t grant access to a bot account");
 });
 
-test("can\u2019t update channel access policy with `urlGrant``", async () => {
+test("can update channel access policy with `urlGrant`", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const channel = await TestChannel.create(session);
 
-    await expect(
-        updateChannelAccessPolicy(session.action(), {
-            channelId: channel.id,
-            accessPolicy: {
-                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
-                defaultGrant: {level: "Manage", generation: 1},
-                urlGrant: {level: "View"},
-            },
-            notification: null,
-        }),
-    ).rejects.toThrow("Channels don\u2019t currently support `urlGrant`s");
+    await updateChannelAccessPolicy(session.action(), {
+        channelId: channel.id,
+        accessPolicy: {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: {level: "View"},
+        },
+        notification: null,
+    });
 
-    expect((await channel.access.get()).urlGrant).toEqual(null);
+    const accessPolicy = await channel.access.get();
+    expect(accessPolicy.type === "Local" && accessPolicy.urlGrant).toEqual({level: "View"});
 });
 
 test("can create a post", async () => {
@@ -2920,7 +3020,7 @@ test("can backfill realtime updates in a channel", async () => {
 
     const checkpoint2: ServerSynchronizationCheckpoint = addMinutes(
         new Date(),
-        dynamoGeneralRealtimeBackfillSafetyWindowMinutes,
+        rynamoBackfillSafetyWindowMinutes,
     );
 
     const channel1PostsResult = await getChannelPosts(session.action(), {
@@ -2955,7 +3055,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3001,7 +3101,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3047,7 +3147,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     expect(
@@ -3058,7 +3158,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await updatePostContent(session.action(), {
@@ -3077,7 +3177,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3123,7 +3223,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3169,7 +3269,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3198,7 +3298,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await updatePostContent(session.action(), {
@@ -3217,7 +3317,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3263,7 +3363,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3309,7 +3409,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3338,7 +3438,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3371,7 +3471,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3431,7 +3531,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3477,7 +3577,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3520,7 +3620,7 @@ test("can backfill realtime updates in a channel", async () => {
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3568,7 +3668,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3594,7 +3694,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     const comment1 = await post.createComment(session, "comment1");
@@ -3612,7 +3712,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3638,7 +3738,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     const comment2 = await post.createComment(session, "comment2");
@@ -3656,7 +3756,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await comment2.updateContent(session, "comment2 (updated)");
@@ -3674,7 +3774,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await deletePostComment(session.action(), {
@@ -3695,7 +3795,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await post.createComment(session, "comment3");
@@ -3713,7 +3813,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await updatePostContent(session.action(), {
@@ -3726,7 +3826,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
 
     const checkpoint3: ServerSynchronizationCheckpoint = addMinutes(
         new Date(),
-        dynamoGeneralRealtimeBackfillSafetyWindowMinutes,
+        rynamoBackfillSafetyWindowMinutes,
     );
 
     const post1g = (await getPost(session.action(), post.id)).model;
@@ -3742,7 +3842,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [
+        events: [
             {
                 type: "PutItem",
                 indexes: new Map([
@@ -3768,7 +3868,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 
     await post.createComment(session, "comment4");
@@ -3787,7 +3887,7 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
     ).toEqual({
         type: "Available",
         checkpoint: expect.any(Date),
-        eventTransaction: [],
+        events: [],
     });
 });
 
@@ -4156,7 +4256,10 @@ test("can\u2019t update a post after losing channel access", async () => {
                 version: 0,
                 createdTime: channel.createdTime,
                 name: channel.initialName,
-                accessPolicy: await channel.access.get(),
+                accessPolicy: await intoAccessPolicyModel(
+                    session1.action(),
+                    await channel.access.get(),
+                ),
             },
             createdTime: expect.any(Date),
             author: await session2.get(),
@@ -4185,7 +4288,10 @@ test("can\u2019t update a post after losing channel access", async () => {
                 version: 0,
                 createdTime: channel.createdTime,
                 name: channel.initialName,
-                accessPolicy: await channel.access.get(),
+                accessPolicy: await intoAccessPolicyModel(
+                    session1.action(),
+                    await channel.access.get(),
+                ),
             },
             createdTime: expect.any(Date),
             author: await session2.get(),
@@ -4218,7 +4324,10 @@ test("can\u2019t update a post after losing channel access", async () => {
                 version: 1,
                 createdTime: channel.createdTime,
                 name: channel.initialName,
-                accessPolicy: await channel.access.get(),
+                accessPolicy: await intoAccessPolicyModel(
+                    session1.action(),
+                    await channel.access.get(),
+                ),
             },
             createdTime: expect.any(Date),
             author: await session2.get(),
@@ -4251,7 +4360,10 @@ test("can\u2019t update a post after losing channel access", async () => {
                 version: 2,
                 createdTime: channel.createdTime,
                 name: channel.initialName,
-                accessPolicy: await channel.access.get(),
+                accessPolicy: await intoAccessPolicyModel(
+                    session1.action(),
+                    await channel.access.get(),
+                ),
             },
             createdTime: expect.any(Date),
             author: await session2.get(),
@@ -4282,7 +4394,10 @@ test("can\u2019t update a post after losing channel access", async () => {
                 version: 3,
                 createdTime: channel.createdTime,
                 name: channel.initialName,
-                accessPolicy: await channel.access.get(),
+                accessPolicy: await intoAccessPolicyModel(
+                    session1.action(),
+                    await channel.access.get(),
+                ),
             },
             createdTime: expect.any(Date),
             author: await session2.get(),
@@ -6784,9 +6899,13 @@ test("will attach referenced files to post when creating from draft", async () =
 
     await attachFileAsUploader(
         session.action(),
-        space.id,
         file.id,
-        FilePostAuthorizer.bind({type: "PostDraft", accountId: session.account.id, draftId}),
+        FilePostAuthorizer.bind({
+            type: "PostDraft",
+            spaceId: space.id,
+            accountId: session.account.id,
+            draftId,
+        }),
     );
 
     const post = await createPost(session.action(), {
@@ -6799,13 +6918,13 @@ test("will attach referenced files to post when creating from draft", async () =
     expect(
         await getFileFromAttachment(
             session.action(),
-            space.id,
             file.id,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
     ).toEqual(
         new FileModel({
             id: file.id,
+            spaceId: space.id,
             contentType: "image/png",
             contentLength: 5232,
             isUploading: false,
@@ -7829,13 +7948,14 @@ test("creating a post with files adds to the channel\u2019s post files", async (
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -7878,13 +7998,14 @@ test("creating a post with files adds to the channel\u2019s post files", async (
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -7931,13 +8052,14 @@ test("creating a post with files adds to the channel\u2019s post files", async (
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -7997,13 +8119,14 @@ test("creating a post with files adds to the channel\u2019s post files", async (
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -8074,13 +8197,14 @@ test("creating a post with files adds to the channel\u2019s post files", async (
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -8207,13 +8331,14 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -8256,13 +8381,14 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -8310,13 +8436,14 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -8374,13 +8501,14 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -8438,13 +8566,14 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -8499,13 +8628,14 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -8552,13 +8682,14 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
-                    accessPolicy: {
+                    accessPolicy: new AccessPolicyModel({
+                        type: "Local",
                         accountGrantById: new Map([
                             [session.account.id, {level: "Manage", generation: 0}],
                         ]),
                         defaultGrant: {level: "Manage", generation: 1},
                         urlGrant: null,
-                    },
+                    }),
                 }),
             },
             {
@@ -9502,8 +9633,8 @@ describe("getChannelAndMetadata", () => {
                 const primarySession = assertExists(activeSessions[0]);
                 const channel = await TestChannel.create(primarySession);
 
-                // Alternate our active/removed sessions so we don't have a block of
-                // active then a block of removed.
+                // Alternate our active/removed sessions so we don't have a block of active then a
+                // block of removed.
                 const alternatedSessions: Array<TestSpaceSession> = [];
                 for (let i = 0; i < activeSessions.length + removedSessions.length; i++) {
                     if (i < activeSessions.length) {
@@ -9646,5 +9777,127 @@ describe("`getPostAccessPolicyForBotScope()`", () => {
         await expect(
             getPostAccessPolicyForBotScope(botAccount.action({type: "Post", postId}), postId),
         ).rejects.toThrow("Post not found");
+    });
+});
+
+// =============================================================================
+// Site access policy contributor tests
+// =============================================================================
+
+describe("site access policy contributors", () => {
+    test("channel contributors list updates correctly when adding channel to site", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2, session3] = await space.createSessions(3);
+
+        const site = await TestSite.create(session1, {access: "Private"});
+
+        // Create a private channel with session1 as contributor
+        const channel = await TestChannel.create(session1, {access: "Private"});
+        await ProcessContextModule.waitForTestTasks();
+
+        const getContributors = async () => {
+            const accounts = await getChannelContributors(session1.action(), channel.id, {
+                limit: 100,
+            });
+            return accounts.map(account => account.id);
+        };
+
+        // Initially only session1 is a contributor
+        expect(await getContributors()).toEqual([session1.account.id]);
+
+        // Create public site with both users as managers
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Manage", generation: 1}],
+                [session3.account.id, {level: "Manage", generation: 2}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 2},
+            urlGrant: null,
+        });
+
+        // Add channel to site
+        await channel.access.set(session1, {
+            type: "Site",
+            siteId: site.id,
+            position: {parentId: site.initialRootContainerId, orderKey: assertOrderKey("a0")},
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        // Contributor list should still only contain session1 (the actual contributor)
+        // Site managers are not automatically added as contributors
+        expect(await getContributors()).toEqual([session1.account.id]);
+
+        // When session2 posts, they become a contributor
+        await channel.createPost(session2);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getContributors()).toEqual([session1.account.id, session2.account.id]);
+
+        await channel.createPost(session3);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getContributors()).toEqual([
+            session1.account.id,
+            session2.account.id,
+            session3.account.id,
+        ]);
+    });
+
+    test("channel in site allows site managers to post and become contributors", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2, session3] = await space.createSessions(3);
+
+        // Create public site with session1 as owner, session2 as manager
+        const site = await TestSite.create(session1, {access: "Private"});
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 2},
+            urlGrant: null,
+        });
+
+        // Create channel in site
+        const channel = await TestChannel.create(session1, {
+            access: {
+                type: "Site",
+                siteId: site.id,
+                position: {
+                    parentId: site.initialRootContainerId,
+                    orderKey: assertOrderKey("a0"),
+                },
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const getContributors = async () => {
+            const accounts = await getChannelContributors(session1.action(), channel.id, {
+                limit: 100,
+            });
+            return accounts.map(account => account.id);
+        };
+
+        // Initially only session1 (creator) is a contributor
+        expect(await getContributors()).toEqual([session1.account.id]);
+
+        // Session2 (site manager) can post and becomes a contributor
+        await channel.createPost(session2);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getContributors()).toEqual([session1.account.id, session2.account.id]);
+
+        // Session3 (space member via default grant) can also post
+        await channel.createPost(session3);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getContributors()).toEqual([
+            session1.account.id,
+            session2.account.id,
+            session3.account.id,
+        ]);
     });
 });

@@ -1,6 +1,6 @@
 import classNames from "classnames";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
@@ -32,6 +32,7 @@ export interface ContentFileEntityPreviewContainerResult {
     blockMaxWidthPx: number;
     isSmallerThanHalfOfBlockMaxWidth: boolean;
     isSmallerThanThirdOfBlockMaxWidth: boolean;
+    containerPaddingPx: number;
 }
 
 export function setupContentFileEntityPreviewContainer(
@@ -72,7 +73,8 @@ export function setupContentFileEntityPreviewContainer(
               ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
 
     const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
-    // To Discuss: Making an assumption here about why document only used paddingX vs. padding
+    // To Discuss: Making an assumption here about why document only used paddingX vs.
+    // padding
     const containerPaddingClass = config.withoutContainerPaddingY
         ? sprinkles({paddingX: containerPadding})
         : sprinkles({padding: containerPadding});
@@ -81,8 +83,8 @@ export function setupContentFileEntityPreviewContainer(
         classNames(containerHtml.getAttribute("class"), containerPaddingClass),
     );
 
-    const paddingPx = parseRemLength(containerPadding) * remPx;
-    const scaledWidthPx = (layout.width - paddingPx * 2) / transformScale;
+    const containerPaddingPx = parseRemLength(containerPadding) * remPx;
+    const scaledWidthPx = (layout.width - containerPaddingPx * 2) / transformScale;
 
     const scaledContainerHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
     {
@@ -97,7 +99,7 @@ export function setupContentFileEntityPreviewContainer(
         const transform = config.calculateScaledContainerTransformStyle
             ? config.calculateScaledContainerTransformStyle({
                   transformScale,
-                  paddingPx,
+                  paddingPx: containerPaddingPx,
                   scaledWidthPx,
                   blockMaxWidthPx,
               })
@@ -124,5 +126,6 @@ export function setupContentFileEntityPreviewContainer(
         blockMaxWidthPx,
         isSmallerThanHalfOfBlockMaxWidth,
         isSmallerThanThirdOfBlockMaxWidth,
+        containerPaddingPx,
     };
 }

@@ -92,7 +92,7 @@ export class CursorClient {
         assert(path.startsWith("/"));
 
         // Cursor recommends retrying with exponential backoff on 429s.
-        return retryWithExponentialBackoff(retry => {
+        return await retryWithExponentialBackoff(retry => {
             const requestHeaders = new Headers(requestInit?.headers);
             requestHeaders.set("authorization", `basic ${btoa(`${this._cloudAgentApiKey}:`)}`);
 
@@ -114,7 +114,7 @@ export class CursorClient {
                         }
                         case 401: {
                             throw new UnauthenticatedError("Cursor authentication failed", {
-                                displayMessage: errorDisplayMessage`Cursor didn\u2019t accept your API key. Make sure you have a valid Cloud Agents API key in ${errorDisplayMessage.link("settings", `${this._edgeServiceUrl}/s/${this._spaceId}/settings/bots/${this._botId}`)}.`,
+                                displayMessage: errorDisplayMessage`Cursor didn\u2019t accept your API key. Make sure you have a valid Cloud Agents API key in ${errorDisplayMessage.link("settings", `${this._edgeServiceUrl}/settings/${this._spaceId}/bots/${this._botId}`)}.`,
                             });
                         }
                         case 403: {
@@ -131,12 +131,12 @@ export class CursorClient {
 
                                 let displayMessage: ErrorDisplayMessage | undefined;
 
-                                // When Cursor requires usage based pricing to be turned on they return status
-                                // code 400 with the message:
+                                // When Cursor requires usage based pricing to be turned on they return status code
+                                // 400 with the message:
                                 //
-                                // > Usage-based pricing required. Background Agent requires at least $2
-                                // > remaining until your hard limit. Enable usage-based pricing and set a
-                                // > Spend Limit at https://www.cursor.com/dashboard?tab=settings.
+                                // > Usage-based pricing required. Background Agent requires at least $2 remaining
+                                // > until your hard limit. Enable usage-based pricing and set a Spend Limit at
+                                // > https://www.cursor.com/dashboard?tab=settings.
                                 //
                                 // Look for a string `error` property from Cursor and linkify it.
                                 if (isObject(body) && typeof body.error === "string") {
@@ -183,8 +183,8 @@ export class CursorClient {
                                 }
 
                                 throw new UnknownError(
-                                    // In Cursor's documentation they have a `body.error.code` property (look at
-                                    // their OpenAPI types) but we haven't seen an error with this in practice.
+                                    // In Cursor's documentation they have a `body.error.code` property (look at their
+                                    // OpenAPI types) but we haven't seen an error with this in practice.
                                     `Cursor unknown error (HTTP status: ${response.status}${isObject(body) && isObject(body.error) && typeof body.error.code === "string" ? `, code: ${body.error.code}` : ""})`,
                                     {displayMessage},
                                 );
@@ -193,7 +193,7 @@ export class CursorClient {
                         }
                     }
 
-                    return response.json();
+                    return await response.json();
                 },
             );
         });

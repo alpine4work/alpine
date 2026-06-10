@@ -1,5 +1,5 @@
 import {isFocusVisible} from "@react-aria/interactions";
-import classNames from "classnames";
+import {AnimationPlaybackControls, animate} from "motion";
 import {
     ReactElement,
     ReactNode,
@@ -33,25 +33,28 @@ import {useCanPrimaryInputHover} from "~/client/web/remix/platform_context.js";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
-    overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
+    overlayFadeInOutTimingFunction,
     overlayFadeOutAnimationDurationMs,
 } from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
-import {Spacing} from "~/shared/design/core/spacing.js";
+import {parseCubicBezier} from "~/shared/design/core/easing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
- * Time it takes before we present a tooltip to the user if the user has
- * not taken another action.
+ * Time it takes before we present a tooltip to the user if the user has not taken
+ * another action.
  *
- * If the user hovers over a button for this amount of time, we present a
- * tooltip. If the user's mouse is quickly moving around then we don't present
- * a tooltip because the user is taking quick action and doesn't appear to need
- * extra context.
+ * If the user hovers over a button for this amount of time, we present a tooltip.
+ * If the user's mouse is quickly moving around then we don't present a tooltip
+ * because the user is taking quick action and doesn't appear to need extra
+ * context.
  */
 export const tooltipDelayMs = 1000;
 
@@ -74,8 +77,8 @@ export type TooltipState =
           readonly isDisabled: true;
           readonly hadHidingPointerDownWhileHovered: false;
       }
-    // Tooltip is fading in but we no longer have hover/focus so once the fade in
-    // is done we will immediately transition to fading out.
+    // Tooltip is fading in but we no longer have hover/focus so once the fade in is
+    // done we will immediately transition to fading out.
     | {
           readonly isHovered: false;
           readonly isFocused: false;
@@ -183,8 +186,8 @@ export type TooltipState =
           readonly isDisabled: false;
           readonly hadHidingPointerDownWhileHovered: false;
       }
-    // Tooltip is hovered and fading out.
-    // Can only fade out while hovered when disabled.
+    // Tooltip is hovered and fading out. Can only fade out while hovered when
+    // disabled.
     | {
           readonly isHovered: true;
           readonly isFocused: false;
@@ -193,8 +196,8 @@ export type TooltipState =
           readonly isDisabled: true;
           readonly hadHidingPointerDownWhileHovered: false;
       }
-    // Tooltip is focused and fading out.
-    // Can only fade out while focused when disabled.
+    // Tooltip is focused and fading out. Can only fade out while focused when
+    // disabled.
     | {
           readonly isHovered: false;
           readonly isFocused: true;
@@ -203,8 +206,8 @@ export type TooltipState =
           readonly isDisabled: true;
           readonly hadHidingPointerDownWhileHovered: false;
       }
-    // Tooltip is hovered and focused and fading out.
-    // Can only fade out while hovered and focused when disabled.
+    // Tooltip is hovered and focused and fading out. Can only fade out while hovered
+    // and focused when disabled.
     | {
           readonly isHovered: true;
           readonly isFocused: true;
@@ -213,8 +216,8 @@ export type TooltipState =
           readonly isDisabled: true;
           readonly hadHidingPointerDownWhileHovered: false;
       }
-    // Tooltip has been clicked while hovered.
-    // This will hide the tooltip without animating it.
+    // Tooltip has been clicked while hovered. This will hide the tooltip without
+    // animating it.
     | {
           readonly isHovered: true;
           readonly isFocused: false;
@@ -223,8 +226,8 @@ export type TooltipState =
           readonly isDisabled: false;
           readonly hadHidingPointerDownWhileHovered: true;
       }
-    // Tooltip has been clicked while hovered and focused.
-    // This will hide the tooltip without animating it.
+    // Tooltip has been clicked while hovered and focused. This will hide the tooltip
+    // without animating it.
     | {
           readonly isHovered: true;
           readonly isFocused: true;
@@ -233,8 +236,8 @@ export type TooltipState =
           readonly isDisabled: false;
           readonly hadHidingPointerDownWhileHovered: true;
       }
-    // Tooltip has been clicked while hovered and disabled.
-    // This will hide the tooltip without animating it.
+    // Tooltip has been clicked while hovered and disabled. This will hide the tooltip
+    // without animating it.
     | {
           readonly isHovered: true;
           readonly isFocused: false;
@@ -243,8 +246,8 @@ export type TooltipState =
           readonly isDisabled: true;
           readonly hadHidingPointerDownWhileHovered: true;
       }
-    // Tooltip has been clicked while hovered, focused, and disabled.
-    // This will hide the tooltip without animating it.
+    // Tooltip has been clicked while hovered, focused, and disabled. This will hide
+    // the tooltip without animating it.
     | {
           readonly isHovered: true;
           readonly isFocused: true;
@@ -256,15 +259,15 @@ export type TooltipState =
 
 type TooltipChildrenProps = {
     /**
-     * Is the tooltip currently visible? True even when the tooltip is fading in
-     * and out of visibility.
+     * Is the tooltip currently visible? True even when the tooltip is fading in and
+     * out of visibility.
      */
     isVisible: boolean;
 
     /**
-     * When hovering over a tooltip, we have a delay before the tooltip becomes
-     * visible to make sure the user's mouse wasn't quickly moving over the
-     * tooltip. Calling this function skips that delay.
+     * When hovering over a tooltip, we have a delay before the tooltip becomes visible
+     * to make sure the user's mouse wasn't quickly moving over the tooltip. Calling
+     * this function skips that delay.
      */
     skipHoverDelay: () => void;
 };
@@ -296,17 +299,16 @@ export type TooltipProps = {
     content: ReactNode;
 
     /**
-     * If true the tooltip won't open even if the target element is hovered or
-     * focused.
+     * If true the tooltip won't open even if the target element is hovered or focused.
      *
-     * If the tooltip is opened and `disabled` changes to true then we will
-     * immediately hide the tooltip without animation.
+     * If the tooltip is opened and `disabled` changes to true then we will immediately
+     * hide the tooltip without animation.
      */
     isDisabled?: boolean;
 
     /**
-     * Same as `isDisabled` but when we set this to `true` if a tooltip already
-     * exists it will disappear immediately instead of animating out.
+     * Same as `isDisabled` but when we set this to `true` if a tooltip already exists
+     * it will disappear immediately instead of animating out.
      */
     isDisabledWithoutAnimation?: boolean;
 
@@ -317,8 +319,8 @@ export type TooltipProps = {
     placement?: OverlayPlacement;
 
     /**
-     * Placements to try if `placement` would put the overlay out of bounds. If
-     * it's an empty array then the overlay will never flip from `placement`.
+     * Placements to try if `placement` would put the overlay out of bounds. If it's an
+     * empty array then the overlay will never flip from `placement`.
      *
      * If undefined the overlay can flip anywhere.
      *
@@ -332,6 +334,13 @@ export type TooltipProps = {
      * Defaults to `1.5`.
      */
     offset?: Spacing;
+
+    /**
+     * How far the tooltip should move along the reference.
+     *
+     * Defaults to `0`.
+     */
+    offsetAlong?: Spacing | `-${Spacing}`;
 
     /**
      * Do we show the tooltip if our target is focused?
@@ -358,8 +367,7 @@ export type TooltipProps = {
 
     /**
      * Is the target element considered to be hovered when the tooltip component
-     * mounts? The mouse must move off the target element for the tooltip to
-     * disappear.
+     * mounts? The mouse must move off the target element for the tooltip to disappear.
      *
      * Useful when using `targetElement` nad you've mounted this component after a
      * hover event.
@@ -367,15 +375,15 @@ export type TooltipProps = {
     isInitiallyHovered?: boolean;
 
     /**
-     * The element our tooltip content will be rendered to point to. Must provide
-     * a ref to an HTML element or we will throw an error.
+     * The element our tooltip content will be rendered to point to. Must provide a ref
+     * to an HTML element or we will throw an error.
      */
     children?: ReactElement | ((props: TooltipChildrenProps) => ReactElement);
 
     /**
-     * The element our tooltip will be rendered to point to. Use this if your
-     * target element is not managed by React. Otherwise prefer `children`. Can not
-     * provide both `children` and `targetElement`.
+     * The element our tooltip will be rendered to point to. Use this if your target
+     * element is not managed by React. Otherwise prefer `children`. Can not provide
+     * both `children` and `targetElement`.
      */
     targetElement?: HTMLElement;
 
@@ -393,8 +401,8 @@ export const defaultTooltipOffset: Spacing = "1.5";
  *
  * Only one tooltip across the entire application may be visible at a time.
  *
- * Avoid using this component for critical information as tooltips don't work
- * for our mobile site.
+ * Avoid using this component for critical information as tooltips don't work for
+ * our mobile site.
  */
 function Tooltip(
     {
@@ -404,6 +412,7 @@ function Tooltip(
         placement = "top",
         fallbackPlacements,
         offset = defaultTooltipOffset,
+        offsetAlong = "0",
         isVisibleWhenFocused = true,
         isVisibleWhenFocusWithin = false,
         isVisibleAfterPress = false,
@@ -421,6 +430,7 @@ function Tooltip(
 
     const tooltipId = useId();
     const tooltipRef = useRef<HTMLDivElement>(null);
+    const tooltipContentRef = useRef<HTMLDivElement>(null);
     const tooltipSymbol = useConstant(() =>
         Symbol(`tooltip${tooltipId.startsWith(":") ? tooltipId : `:${tooltipId}`}`),
     );
@@ -453,9 +463,9 @@ function Tooltip(
         [skipTooltipHoverDelay],
     );
 
-    // Controls whether the tooltip is actually visible or not. Only one tooltip
-    // can be visible on screen at once and that is managed by our tooltip
-    // coordination context.
+    // Controls whether the tooltip is actually visible or not. Only one tooltip can be
+    // visible on screen at once and that is managed by our tooltip coordination
+    // context.
     const isVisible = !isDisabledWithoutAnimation && tooltipSymbol === activeTooltipSymbol;
     const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
     const getHasActiveTooltipSymbol = useEvent(() => hasActiveTooltipSymbol);
@@ -544,8 +554,8 @@ function Tooltip(
             state.isDisabled ||
             state.hadHidingPointerDownWhileHovered
         ) {
-            // We don't want to release our tooltip from the coordination context
-            // until both its fade-in and fade-out animation have finished.
+            // We don't want to release our tooltip from the coordination context until both
+            // its fade-in and fade-out animation have finished.
             if (!state.isFadingIn && !state.isFadingOut)
                 coordinationContext.deleteHoveredAndDeleteFocusedTooltipSymbol(tooltipSymbol);
         } else if (!state.isHovered && state.isFocused) {
@@ -562,65 +572,171 @@ function Tooltip(
         };
     }, [coordinationContext, isDisabled, isMounted, state, tooltipSymbol]);
 
-    // If we are fading in then setup a timeout to update our state when the
-    // animation ends.
-    useEffect(() => {
-        if (state.isFadingIn) {
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!state.isFadingIn || !isVisible) return;
+
+        const tooltipContentElement = assertExists(tooltipContentRef.current);
+
+        tooltipContentElement.classList.add(overlayAnimateFadeInClassName);
+
+        const timeout = createTimeout(() => {
+            setState(state => {
+                if (!state.isFadingIn) {
+                    return state;
+                } else if (!state.isHovered && !state.isFocused) {
+                    // If we are neither hovered nor focused then immediately transition to fading out.
+                    return {
+                        ...state,
+                        isFadingIn: false,
+                        isFadingOut: true,
+                    };
+                } else if (state.isHovered || state.isFocused) {
+                    return {...state, isFadingIn: false};
+                } else {
+                    throw exhaustive(state);
+                }
+            });
+        }, overlayFadeInAnimationDurationMs);
+
+        return () => {
+            tooltipContentElement.classList.remove(overlayAnimateFadeInClassName);
+            timeout.clear();
+        };
+    }, [isVisible, state.isFadingIn]);
+
+    const fadeOutAnimationRef = useRef<AnimationPlaybackControls | null>(null);
+
+    // NOTE(calebmer, #mobile-webkit-weirdness): Implement fade out animation with the
+    // `motion` package. I've observed CSS class based animations randomly stop working
+    // on mobile WebKit after ~3min of app use. Implementing the animation with
+    // `motion` fixes the issue. I have no idea why it fixes the issue, but it does.
+    //
+    // Adding `allowWebkitAcceleration: true` breaks the animation again. Interestingly
+    // translation will work but the opacity change won't work.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!state.isFadingOut || !isVisible) {
             if (isVisible) {
-                const timeout = createTimeout(() => {
-                    setState(state => {
-                        if (!state.isFadingIn) {
-                            return state;
-                        } else if (!state.isHovered && !state.isFocused) {
-                            // If we are neither hovered nor focused then immediately transition
-                            // to fading out.
-                            return {
-                                ...state,
-                                isFadingIn: false,
-                                isFadingOut: true,
-                            };
-                        } else if (state.isHovered || state.isFocused) {
-                            return {...state, isFadingIn: false};
-                        } else {
-                            throw exhaustive(state);
-                        }
-                    });
-                }, overlayFadeInAnimationDurationMs);
-
-                return () => {
-                    timeout.clear();
-                };
+                fadeOutAnimationRef.current?.cancel();
             } else {
-                // If we aren't visible then we're waiting to see if our coordination
-                // context tells us we are the only visible tooltip.
-            }
-        }
-    }, [state.isFadingIn, isVisible]);
+                fadeOutAnimationRef.current?.complete();
 
-    // If we are fading out then setup a timeout to update our state when the
-    // animation ends.
-    useEffect(() => {
-        if (state.isFadingOut) {
-            if (isVisible) {
-                const timeout = createTimeout(() => {
-                    setState(state => {
-                        if (!state.isFadingOut) {
-                            return state;
-                        } else {
-                            return {...state, isFadingOut: false};
-                        }
-                    });
-                }, overlayFadeOutAnimationDurationMs);
-
-                return () => {
-                    timeout.clear();
-                };
-            } else {
                 // If we aren't visible there is no animation happening, so don't wait.
-                setState(state => ({...state, isFadingOut: false}));
+                setState(state => {
+                    if (!state.isFadingOut) {
+                        return state;
+                    } else {
+                        return {...state, isFadingOut: false};
+                    }
+                });
             }
+            fadeOutAnimationRef.current = null;
+            return;
         }
-    }, [state.isFadingOut, isVisible]);
+
+        if (fadeOutAnimationRef.current !== null) {
+            let isCancelled = false;
+
+            void fadeOutAnimationRef.current.finished.finally(() => {
+                if (isCancelled) return;
+                fadeOutAnimationRef.current = null;
+                setState(state => {
+                    if (!state.isFadingOut) {
+                        return state;
+                    } else {
+                        return {...state, isFadingOut: false};
+                    }
+                });
+            });
+
+            return () => {
+                isCancelled = true;
+            };
+        }
+
+        const tooltipElement = assertExists(tooltipRef.current);
+        const tooltipContentElement = assertExists(tooltipContentRef.current);
+
+        const popperPlacement = tooltipElement.dataset.popperPlacement;
+
+        let animationKeyframes: {
+            opacity: [number, number];
+            x?: [string, string];
+            y?: [string, string];
+        };
+
+        if (popperPlacement?.startsWith("top")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                y: ["0rem", `-${spacing["1"]}`],
+            };
+        } else if (popperPlacement?.startsWith("bottom")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                y: ["0rem", spacing["1"]],
+            };
+        } else if (popperPlacement?.startsWith("left")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                x: ["0rem", `-${spacing["1"]}`],
+            };
+        } else if (popperPlacement?.startsWith("right")) {
+            animationKeyframes = {
+                opacity: [1, 0],
+                x: ["0rem", spacing["1"]],
+            };
+        } else {
+            // eslint-disable-next-line no-console
+            console.warn(
+                quote`Unexpected \`data-popper-placement\` attribute: ${popperPlacement ?? null}`,
+            );
+
+            const timeout = createTimeout(() => {
+                setState(state => {
+                    if (!state.isFadingOut) {
+                        return state;
+                    } else {
+                        return {...state, isFadingOut: false};
+                    }
+                });
+            }, overlayFadeOutAnimationDurationMs);
+
+            return () => {
+                timeout.clear();
+            };
+        }
+
+        let isCancelled = false;
+
+        // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is [quite
+        // choppy on iOS Safari][1]. I have no idea why adding this helps. My best guess is
+        // the animation is being blocked by some JavaScript code?
+        //
+        // [1]: https://gist.github.com/calebmer/ab71d37aa8ebf3866043882ad17d32ca
+        requestAnimationFrame(() => {
+            if (isCancelled) return;
+
+            fadeOutAnimationRef.current = animate(tooltipContentElement, animationKeyframes, {
+                duration: overlayFadeOutAnimationDurationMs / 1000,
+                ease: parseCubicBezier(overlayFadeInOutTimingFunction),
+            });
+
+            void fadeOutAnimationRef.current.finished.finally(() => {
+                if (isCancelled) return;
+                fadeOutAnimationRef.current = null;
+                setState(state => {
+                    if (!state.isFadingOut) {
+                        return state;
+                    } else {
+                        return {...state, isFadingOut: false};
+                    }
+                });
+            });
+        });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [isVisible, state.isFadingOut]);
 
     const onStateChange = useEvent(_onStateChange);
     useEffect(() => {
@@ -629,8 +745,7 @@ function Tooltip(
 
     const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(isVisible);
 
-    // Register event handlers on our target element that control our tooltip's
-    // state.
+    // Register event handlers on our target element that control our tooltip's state.
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
             assert(
@@ -649,11 +764,10 @@ function Tooltip(
 
                 if (event.target !== targetElement) return;
 
-                // If there is a visible tooltip that will fade out soon, cancel the fade out
-                // and immediately show our tooltip.
+                // If there is a visible tooltip that will fade out soon, cancel the fade out and
+                // immediately show our tooltip.
                 const isFadingIn = tooltipSymbolAboutToFadeOutRef.current === null;
                 tooltipSymbolAboutToFadeOutRef.current?.immediatelyHide();
-                // eslint-disable-next-line react-compiler/react-compiler
                 tooltipSymbolAboutToFadeOutRef.current = null;
 
                 setState((state): TooltipState => {
@@ -721,9 +835,8 @@ function Tooltip(
                     });
                 };
 
-                // Record that we are going to fade out this tooltip soon. If another tooltip
-                // wants to be visible before our timeout finishes we want to skip our
-                // animation.
+                // Record that we are going to fade out this tooltip soon. If another tooltip wants
+                // to be visible before our timeout finishes we want to skip our animation.
                 if (
                     getHasActiveTooltipSymbol() &&
                     tooltipSymbolAboutToFadeOutRef.current === null
@@ -746,8 +859,8 @@ function Tooltip(
                 }
             }
 
-            // If the user clicks on the target, dismiss the tooltip without animation
-            // until the mouse moves off the target element and back.
+            // If the user clicks on the target, dismiss the tooltip without animation until
+            // the mouse moves off the target element and back.
             function handlePointerDown() {
                 if (isVisibleAfterPress) return;
 
@@ -770,8 +883,8 @@ function Tooltip(
                 if (!isVisibleWhenFocusWithin && event.target !== targetElement) return;
 
                 if (isFocusVisible()) {
-                    // If there is a visible tooltip that will fade out soon, cancel the fade out
-                    // and immediately show our tooltip.
+                    // If there is a visible tooltip that will fade out soon, cancel the fade out and
+                    // immediately show our tooltip.
                     const isFadingIn = tooltipSymbolAboutToFadeOutRef.current === null;
                     tooltipSymbolAboutToFadeOutRef.current?.immediatelyHide();
                     tooltipSymbolAboutToFadeOutRef.current = null;
@@ -829,9 +942,8 @@ function Tooltip(
                     });
                 };
 
-                // Record that we are going to fade out this tooltip soon. If another tooltip
-                // wants to be visible before our timeout finishes we want to skip our
-                // animation.
+                // Record that we are going to fade out this tooltip soon. If another tooltip wants
+                // to be visible before our timeout finishes we want to skip our animation.
                 //
                 // For focus changes we only wait one animation frame to see if another tooltip
                 // will pop in. Mouse movements are a little more imprecise.
@@ -865,8 +977,8 @@ function Tooltip(
             targetElement.addEventListener("mouseleave", handleMouseLeave);
             targetElement.addEventListener("pointerdown", handlePointerDown, true);
 
-            // We use `focusin`/`focusout` instead of `focus`/`blur` because the latter
-            // events don't bubble.
+            // We use `focusin`/`focusout` instead of `focus`/`blur` because the latter events
+            // don't bubble.
             targetElement.addEventListener("focusin", handleFocusIn);
             targetElement.addEventListener("focusout", handleFocusOut);
 
@@ -880,9 +992,9 @@ function Tooltip(
                 targetElement.removeEventListener("focusout", handleFocusOut);
             };
         },
-        // IMPORTANT: Be careful what you put in this dependency array. Other
-        // components which wrap this one (like `<MenuButton>`) and modify the ref will
-        // need to rerun whenever this ref changes.
+        // IMPORTANT: Be careful what you put in this dependency array. Other components
+        // which wrap this one (like `<MenuButton>`) and modify the ref will need to rerun
+        // whenever this ref changes.
         [
             isVisible,
             isWaitingForOverlayPortalElement,
@@ -915,9 +1027,9 @@ function Tooltip(
         return targetLifecycleRef(targetElement);
     }, [targetElement, targetLifecycleRef]);
 
-    // Memoizing here because `TooltipCoordinationContext` forces us to re-render
-    // all tooltips on the page whenever one tooltip is focused or hovered. We
-    // want to minimize re-renders when that happens.
+    // Memoizing here because `TooltipCoordinationContext` forces us to re-render all
+    // tooltips on the page whenever one tooltip is focused or hovered. We want to
+    // minimize re-renders when that happens.
     //
     // Ideally, there would be a way for us to "select" state from
     // `TooltipCoordinationContext`. We only need to re-render a tooltip if we are
@@ -930,6 +1042,7 @@ function Tooltip(
                 placement={placement}
                 fallbackPlacements={fallbackPlacements}
                 offset={offset}
+                offsetAlong={offsetAlong}
                 overlay={
                     <Box
                         ref={tooltipRef}
@@ -938,26 +1051,7 @@ function Tooltip(
                         pointerEvents="none"
                         className={overlayAnimateContainerClassName}
                     >
-                        <Box
-                            maxWidth="64"
-                            paddingX="1.5"
-                            paddingY="1"
-                            fontSize="50"
-                            color="grey-100"
-                            backgroundColor="grey-0"
-                            borderRadius="0.5"
-                            boxShadow="elevation-20"
-                            className={classNames(
-                                greyElevated2ClassName,
-                                state.isFadingOut
-                                    ? overlayAnimateFadeOutClassName
-                                    : state.isFadingIn
-                                      ? overlayAnimateFadeInClassName
-                                      : undefined,
-                            )}
-                        >
-                            {content}
-                        </Box>
+                        <TooltipContent ref={tooltipContentRef}>{content}</TooltipContent>
                     </Box>
                 }
                 children={children}
@@ -969,11 +1063,30 @@ function Tooltip(
         placement,
         fallbackPlacements,
         offset,
+        offsetAlong,
         tooltipId,
-        state.isFadingOut,
-        state.isFadingIn,
         content,
         children,
         targetElement,
     ]);
+}
+
+export function TooltipContent({ref, children}: {ref?: Ref<HTMLDivElement>; children?: ReactNode}) {
+    return (
+        <Box
+            ref={ref}
+            maxWidth="64"
+            paddingX="1.5"
+            paddingY="1"
+            fontSize="50"
+            color="grey-100"
+            backgroundColor="grey-0"
+            borderRadius="0.5"
+            boxShadow="elevation-20"
+            pointerEvents="none"
+            className={greyElevated2ClassName}
+        >
+            {children}
+        </Box>
+    );
 }

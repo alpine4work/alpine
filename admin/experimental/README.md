@@ -32,7 +32,7 @@ own experimental tools:
 #### 📋 Setup Process
 
 1. **Create your script** in your personal folder (e.g., `experimental/ifitzsimmons/`)
-2. **Bundle with Bazel** using the appropriate build rules
+2. **Build with Bazel** using the appropriate build rules
 3. **Register your command** by adding it to `~/admin/experimental/experimental_commands.bzl`
 
 #### 📝 Example Implementation
@@ -46,16 +46,14 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 
 ts_project(
-    name = "generate_build_file_lib",
-    visibility = ["//admin:__subpackages__"],
+    name = "ifitzsimmons",
     deps = ["//:node_modules/@types/node"],
 )
 
 js_binary(
     name = "generate_build_file",
-    entry_point = "generate_build_file.js",
-    data = [":generate_build_file_lib"],
-    visibility = ["//visibility:public"],
+    entry_point = "generate_build_file_main.js",
+    data = [":ifitzsimmons"],
 )
 ```
 

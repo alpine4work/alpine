@@ -5,11 +5,10 @@
  * file paths provided by `//app/static` which excludes Remix build assets.
  *
  * This is a generated file which must always have at least the file paths in
- * `//app/static`. However, we may have more paths! When you delete a file
- * from `//app/static` it stays in this set. Since an old client in
- * production may need the deleted file. Our deploy script keeps old static
- * files around in Cloudflare R2 for 30 days after they've been removed for old
- * clients.
+ * `//app/static`. However, we may have more paths! When you delete a file from
+ * `//app/static` it stays in this set. Since an old client in production may need
+ * the deleted file. Our deploy script keeps old static files around in Cloudflare
+ * R2 for 30 days after they've been removed for old clients.
  *
  * You may manually delete old paths from this set and commit if you need to
  * reclaim a route that was previously served by a static file.
@@ -34,16 +33,34 @@ export const appStaticManifestPaths: ReadonlySet<string> = new Set<string>([
     "/icons/all_brand_icons_minus_2_light.png",
     "/icons/all_brand_icons_minus_3_dark.png",
     "/icons/all_brand_icons_minus_3_light.png",
+    "/icons/bots_brand_big_icon_dark.png",
+    "/icons/bots_brand_big_icon_light.png",
+    "/icons/chat_brand_big_icon_dark.png",
+    "/icons/chat_brand_big_icon_light.png",
     "/icons/chat_brand_icon_dark.png",
     "/icons/chat_brand_icon_light.png",
+    "/icons/document_brand_big_icon_dark.png",
+    "/icons/document_brand_big_icon_light.png",
     "/icons/document_brand_icon_dark.png",
     "/icons/document_brand_icon_light.png",
+    "/icons/feed_brand_big_icon_dark.png",
+    "/icons/feed_brand_big_icon_light.png",
+    "/icons/inbox_brand_big_icon_dark.png",
+    "/icons/inbox_brand_big_icon_light.png",
     "/icons/logo_wordmark_dark.png",
     "/icons/logo_wordmark_light.png",
+    "/icons/post_brand_big_icon_dark.png",
+    "/icons/post_brand_big_icon_light.png",
     "/icons/post_brand_icon_dark.png",
     "/icons/post_brand_icon_light.png",
+    "/icons/search_brand_big_icon_dark.png",
+    "/icons/search_brand_big_icon_light.png",
+    "/icons/task_brand_big_icon_dark.png",
+    "/icons/task_brand_big_icon_light.png",
     "/icons/task_brand_icon_dark.png",
     "/icons/task_brand_icon_light.png",
+    "/images/integrations/import/notion/notion_export.gif",
+    "/images/og.jpg",
     "/manifest.json",
     "/notes/file-data-transfer-readme.md",
     "/service-worker.js",

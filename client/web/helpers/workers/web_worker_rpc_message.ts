@@ -20,8 +20,8 @@ const WebWorkerRpcErrorMessageSchema = Schema.object({
 });
 
 /**
- * Schema for messages sent between {@link WebWorkerRpc} instances.
- * Discriminated by `type`:
+ * Schema for messages sent between {@link WebWorkerRpc} instances. Discriminated
+ * by `type`:
  *
  * - `"request"` — a method call from caller to callee.
  * - `"response"` — a successful return value from callee to caller.

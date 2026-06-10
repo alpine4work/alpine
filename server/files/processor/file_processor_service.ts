@@ -58,8 +58,8 @@ export async function run({
         "Missing `fileProcessorJobQueueUrl` option",
     );
 
-    // In development, wait for our local SQS server to start before starting
-    // the `JobQueueService`.
+    // In development, wait for our local SQS server to start before starting the
+    // `JobQueueService`.
     {
         const parsedJobQueueUrl = new URL(jobQueueUrl);
         if (parsedJobQueueUrl.hostname === "localhost") {
@@ -105,13 +105,13 @@ export async function run({
         queueName: "FileProcessor",
         queueUrl: jobQueueUrl,
 
-        // Allow processing at most 1 file per machine core at a time. Our processors
-        // are CPU-bound and will use at least 1 CPU at a time. Some processors may use
-        // more (for example FFmpeg video transcoding, see `-threads` option for
-        // FFmpeg's maximum thread usage).
+        // Allow processing at most 1 file per machine core at a time. Our processors are
+        // CPU-bound and will use at least 1 CPU at a time. Some processors may use more
+        // (for example FFmpeg video transcoding, see `-threads` option for FFmpeg's
+        // maximum thread usage).
         //
-        // `FileProcessorService` only runs one Node.js process (`withoutCluster: true`
-        // is set on our `runService()` call). Since we don't do CPU intensive work in
+        // `FileProcessorService` only runs one Node.js process (`withoutCluster: true` is
+        // set on our `runService()` call). Since we don't do CPU intensive work in
         // Node.js. Instead Node.js orchestrates other tools for processing files.
         maxFiberCount: process.env.NODE_ENV !== "production" ? 1 : os.cpus().length,
         maxFiberMessageCount: 1,

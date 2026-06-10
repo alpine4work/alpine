@@ -5,10 +5,14 @@ ts_project(
     test_deps = [
         "//server/bots/test_helpers",
         "//server/chat/data",
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
+        "//server/files/test_helpers",
         "//server/forum/data",
         "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
+        "//server/tasks/data",
+        "//server/tasks/data/test_helpers",
     ],
     visibility = [
         "//admin/crawl:__pkg__",
@@ -16,11 +20,13 @@ ts_project(
     ],
     deps = [
         "//:node_modules/pretty-bytes",
+        "//server/access",
         "//server/cloudflare/r2",
         "//server/context",
         "//server/dynamo/core",
-        "//server/dynamo/core/general_realtime",
+        "//server/rynamo",
         "//server/helpers",
+        "//server/sites/data",
         "//server/spaces",
         "//shared/context",
         "//shared/error",
@@ -28,5 +34,6 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/schema",
+        "//shared/sites",
     ],
 )

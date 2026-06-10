@@ -21,11 +21,11 @@ const simpleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
 });
 
 /**
- * Simple content is the most basic content schema available. It doesn't
- * support any references (no mentions, no files) only basic rich text content.
+ * Simple content is the most basic content schema available. It doesn't support
+ * any references (no mentions, no files) only basic rich text content.
  *
- * Useful when we want to provide a rich text editor but don't want the rich
- * text to be tied to a specific space.
+ * Useful when we want to provide a rich text editor but don't want the rich text
+ * to be tied to a specific space.
  */
 export type SimpleContent = Node & {_SimpleContent: never};
 
@@ -54,8 +54,8 @@ export const SimpleContentProsemirrorSchema = new ProsemirrorSchema(
     simpleContentProsemirrorSchemaSpec,
 );
 
-// Property `isSimpleContentSchema()` looks for to tell if a ProseMirror
-// schema is the `SimpleContent` schema.
+// Property `isSimpleContentSchema()` looks for to tell if a ProseMirror schema is
+// the `SimpleContent` schema.
 (SimpleContentProsemirrorSchema as any)._isSimpleContent = true;
 
 const simpleContentSchemas = createSchemaForProsemirrorSchema(SimpleContentProsemirrorSchema);

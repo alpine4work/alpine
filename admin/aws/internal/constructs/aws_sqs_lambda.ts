@@ -19,9 +19,10 @@ export interface AwsSqsLambdaSubscriberOptions extends Omit<
     "deploymentType" | "honeycombApiKey"
 > {
     /**
-     * AWS Secrets Manager secret containing application secrets (API keys, database credentials, etc.)
-     * The secret ARN will be passed to the Lambda via SECRETS_ARN environment variable.
-     * Your Lambda code should use the AWS Secrets Manager client to retrieve secret values.
+     * AWS Secrets Manager secret containing application secrets (API keys, database
+     * credentials, etc.) The secret ARN will be passed to the Lambda via SECRETS_ARN
+     * environment variable. Your Lambda code should use the AWS Secrets Manager client
+     * to retrieve secret values.
      */
     readonly secret: ISecret;
 
@@ -30,13 +31,14 @@ export interface AwsSqsLambdaSubscriberOptions extends Omit<
 
     readonly eventSourceOptions?: SqsEventSourceProps;
     /**
-     * Number of concurrent Lambda instances to keep "warm" to reduce cold start latency.
-     * For async jobs (all SQS lambda functions are technically async jobs), this property should
-     * be undefined. However, there are some async jobs that impact the user experience.
+     * Number of concurrent Lambda instances to keep "warm" to reduce cold start
+     * latency. For async jobs (all SQS lambda functions are technically async jobs),
+     * this property should be undefined. However, there are some async jobs that
+     * impact the user experience.
      *
-     * For instance, when a user uploads a file, the file upload will not complete until the Lambda
-     * SQS subscribers process the file -- from the user's perspective, these Lambda's are
-     * synchronous.
+     * For instance, when a user uploads a file, the file upload will not complete
+     * until the Lambda SQS subscribers process the file -- from the user's
+     * perspective, these Lambda's are synchronous.
      *
      * Note: Provisioned concurrency incurs additional costs even when not in use.
      */
@@ -46,10 +48,9 @@ export interface AwsSqsLambdaSubscriberOptions extends Omit<
 /**
  * A specialized Lambda construct for subscribing to an SQS queue.
  *
- * Required Lambda Code Pattern:
- * Your Lambda function MUST be built using `createLambdaSqsSubscriptionHandler()` from
- * server/lambda helpers. This ensures proper integration with the secrets management
- * and SQS subscription.
+ * Required Lambda Code Pattern: Your Lambda function MUST be built using
+ * `createLambdaSqsSubscriptionHandler()` from server/lambda helpers. This ensures
+ * proper integration with the secrets management and SQS subscription.
  */
 export class AwsSqsLambdaSubscriber extends AwsLambdaBase {
     constructor(scope: Construct, id: string, options: AwsSqsLambdaSubscriberOptions) {
@@ -69,10 +70,11 @@ export class AwsSqsLambdaSubscriber extends AwsLambdaBase {
               })
             : this._lambdaFunction;
 
-        // NOTE(ifitzsimmons, 2025-09-04): I can't think of a way to ensure that the queue has
-        // a DLQ set up. In the future, maybe we can make an AwsSqs construct that takes in a
-        // queue name and creates a DLQ. We can then pass our custom AwsSqs construct as the
-        // `queue` to this construct. For now, we'll just trust that the queue has a DLQ set up.
+        // NOTE(ifitzsimmons, 2025-09-04): I can't think of a way to ensure that the queue
+        // has a DLQ set up. In the future, maybe we can make an AwsSqs construct that
+        // takes in a queue name and creates a DLQ. We can then pass our custom AwsSqs
+        // construct as the `queue` to this construct. For now, we'll just trust that the
+        // queue has a DLQ set up.
         eventHandler.addEventSource(
             new SqsEventSource(
                 options.queue,

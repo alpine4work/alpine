@@ -6,6 +6,7 @@ import {Button} from "~/client/web/design/button.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/web/design/scrollbar.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
@@ -20,7 +21,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {inputPlaceholderStyles, tasksStyles} from "~/client/web/styles/styles.js";
+import {inputPlaceholderStyles} from "~/client/web/styles/styles.js";
 import {
     defaultTaskQueryViewName,
     taskQueryViewCustomizationMobileLayoutMarginTop,
@@ -52,7 +53,6 @@ import {
     TaskQueryViewDesktopHeaderName,
     TaskQueryViewDesktopHeaderNameRef,
 } from "~/client/web/tasks/internal/task_query_view_desktop_header_name.js";
-import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskQueryState} from "~/client/web/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
@@ -103,7 +103,7 @@ export function TaskQueryView({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const spacingScale = useSpacingScale();
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
     const currentDate = useCurrentDate();
     const {space, currentAccount} = useSpaceContext();
 
@@ -128,8 +128,8 @@ export function TaskQueryView({
         shouldOpenFirstCollectionsFilterOperationValueRef: {current: false},
     });
 
-    // After a render that asks for the first collection filter to be opened, go
-    // ahead and attempt to open.
+    // After a render that asks for the first collection filter to be opened, go ahead
+    // and attempt to open.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!shouldOpenFirstCollectionsFilterOperationValueRef.current) return;
         // eslint-disable-next-line react-compiler/react-compiler
@@ -209,8 +209,8 @@ export function TaskQueryView({
     });
 
     // If the actor doesn't have space access then we need to keep track of any
-    // accounts/collections referenced by the query. This is expensive (O(tasks))
-    // so it's important to only run this when `currentAccount` is null.
+    // accounts/collections referenced by the query. This is expensive (O(tasks)) so
+    // it's important to only run this when `currentAccount` is null.
     const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
         !currentAccount ? (queryState.activeQuery.query?.query ?? null) : null,
     );
@@ -227,7 +227,7 @@ export function TaskQueryView({
                 iconPlacement: "end",
                 pressErrorTitle: "Couldn\u2019t copy view link",
                 onPress: async () => {
-                    const url = new URL(`/s/${space.id}/tasks/view`, window.location.href);
+                    const url = new URL(`/task-view/new/${space.id}`, window.location.href);
 
                     if (name !== defaultTaskQueryViewName) {
                         url.searchParams.set("name", name);
@@ -267,28 +267,18 @@ export function TaskQueryView({
         menuActions.push([
             {
                 label: "Undo",
-                keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "z"),
                 onPress: undoEvent,
             },
             {
                 label: "Redo",
-                keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "y"),
                 onPress: redoEvent,
             },
         ]);
 
         return menuActions;
-    }, [
-        filters,
-        isAppleDevice,
-        name,
-        platform,
-        redoEvent,
-        routeLayout,
-        sorts,
-        space.id,
-        undoEvent,
-    ]);
+    }, [clientInfo, filters, name, platform, redoEvent, routeLayout, sorts, space.id, undoEvent]);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -315,8 +305,8 @@ export function TaskQueryView({
         [itemCountBeforeGridView],
     );
 
-    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
-    // items which precede our children grid view.
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of items
+    // which precede our children grid view.
     useImperativeHandle(
         gridViewRef,
         () => ({
@@ -372,7 +362,6 @@ export function TaskQueryView({
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
-        focusEnd: focusGridViewEnd,
         undo,
         redo,
     } = useTaskGridViewVirtualizedList({
@@ -385,6 +374,12 @@ export function TaskQueryView({
                     hasDenseFields: false,
                     hasColumns: true,
                     withoutAssigneeField: false,
+                    withoutDueDateField: false,
+                    withoutCollectionsField: false,
+                    // TODO(calebmer): We could check if the filters mean we're looking at only private
+                    // tasks or not but that's some complicated code to write and if this flag is the
+                    // only use case it's not worth it.
+                    isCreatedCollectionFromGhostTaskPrivate: true,
                 };
             } else {
                 return {
@@ -394,6 +389,12 @@ export function TaskQueryView({
                     hasDenseFields: true,
                     hasColumns: false,
                     withoutAssigneeField: false,
+                    withoutDueDateField: false,
+                    withoutCollectionsField: false,
+                    // TODO(calebmer): We could check if the filters mean we're looking at only private
+                    // tasks or not but that's some complicated code to write and if this flag is the
+                    // only use case it's not worth it.
+                    isCreatedCollectionFromGhostTaskPrivate: true,
                 };
             }
         }, [routeLayout]),
@@ -402,14 +403,16 @@ export function TaskQueryView({
         affinityManager,
         query: queryState.activeQuery.query,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow",
-        // Don't render the three decorative ghost rows on mobile when we're rendering
-        // the instructional view component. This allows us to visually center the new
-        // view instructions.
-        withoutDecorativeGhostRowsIfEmpty:
+        // Don't render the three decorative ghost rows on mobile when we're rendering the
+        // instructional view component. This allows us to visually center the new view
+        // instructions.
+        decorativeGhostRows:
             routeLayout === "narrow" &&
             platform === "mobile" &&
             !queryState.activeQuery.isAvailable &&
-            queryState.activeQuery.isMissingRequiredFilters,
+            queryState.activeQuery.isMissingRequiredFilters
+                ? "BackgroundIfNotEmpty"
+                : "BackgroundOrSomeIfEmpty",
         // NOTE(calebmer): Currently, all updates which use this are disabled in
         // auto-sorted views:
         //
@@ -418,42 +421,42 @@ export function TaskQueryView({
         // - Drag/drop to move task
         // - Type in ghost row to create task
         //
-        // Some of these make sense to disable in auto-sorted views like drag/drop to
-        // move task. However, it would be nice to get some behaviors like "Enter to
-        // create task" working. Right now, you can't create tasks inline in an
-        // auto-sorted view which is unfortunate.
+        // Some of these make sense to disable in auto-sorted views like drag/drop to move
+        // task. However, it would be nice to get some behaviors like "Enter to create
+        // task" working. Right now, you can't create tasks inline in an auto-sorted view
+        // which is unfortunate.
         //
         // At Airtable, when you had focus in a row that was either filtered out of the
-        // view or moved we gave it a "pinned" row treatment. Rendered an orange box
-        // around it and maintained the row in its old position. This behavior...wasn't
+        // view or moved we gave it a "pinned" row treatment. Rendered an orange box around
+        // it and maintained the row in its old position. This behavior...wasn't
         // universally loved so there's probably room for improvement. But something
         // similar where you hit enter and it gives you a pinned row you can fill out
-        // before unfocusing seems nice. Though maybe creating a task through a detail
-        // view is actually a better experience?
+        // before unfocusing seems nice. Though maybe creating a task through a detail view
+        // is actually a better experience?
         //
         // Another thought is when adding a task to a query we need to make sure it has
-        // values that match our filters. For some filters like `priority = High`,
-        // that's easy. For other filters like `priority = High || priority = Low` we
-        // could initially set a reasonable value like `Low` even though it's ambiguous.
+        // values that match our filters. For some filters like `priority = High`, that's
+        // easy. For other filters like `priority = High || priority = Low` we could
+        // initially set a reasonable value like `Low` even though it's ambiguous.
         //
-        // I'm not implementing a solution here, for now, because pinned rows are
-        // tricky (though not impossible) to implement. (You need to setup a separate
-        // task subscription for the pinned row.) And because it's not clear to me what
-        // the best UX here is. Disabling a bunch of behavior doesn't feel right though.
-        getMoveTaskToQueryActions: () => null,
-        // Can't remove task from custom view query. That would require updating
-        // filtered fields in potentially unexpected ways. For instance if it's filter
-        // to `priority = null` then what do we do? Assign the `Low` priority? This
-        // would be surprising to users.
+        // I'm not implementing a solution here, for now, because pinned rows are tricky
+        // (though not impossible) to implement. (You need to setup a separate task
+        // subscription for the pinned row.) And because it's not clear to me what the best
+        // UX here is. Disabling a bunch of behavior doesn't feel right though.
+        getMoveTasksToQueryActions: () => null,
+        // Can't remove task from custom view query. That would require updating filtered
+        // fields in potentially unexpected ways. For instance if it's filter to
+        // `priority = null` then what do we do? Assign the `Low` priority? This would be
+        // surprising to users.
         //
         // Features which depend on this should be disabled by
         // `isTaskQueryManuallySorted()` checks. Namely drag-and-drop at the root query
         // level (subtasks are fine) and tab/shift-tab to indent.
         getMaybeRemoveTaskFromQueryActions: () => [],
         columnHeaderControls: useMemo(() => {
-            // We don't have sticky column header controls when rendering in a mobile
-            // layout. Instead we render a navigation bar and render filters/sorts at the
-            // top of the view in a non-sticky manner.
+            // We don't have sticky column header controls when rendering in a mobile layout.
+            // Instead we render a navigation bar and render filters/sorts at the top of the
+            // view in a non-sticky manner.
             //
             // We do this for peeks too.
             if (routeLayout === "narrow") return;
@@ -506,6 +509,7 @@ export function TaskQueryView({
                 />
             ),
         menuActions,
+        defaultPreviousRoute: `/home/${space.id}`,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -584,19 +588,6 @@ export function TaskQueryView({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            className={
-                queryState.activeQuery ? tasksStyles.textCursorNotInherited2ClassName : undefined
-            }
-            {...useOutOfBoundsClickSelection({
-                isDisabled: !queryState.activeQuery,
-                // Accept clicks on our `<VirtualizedScrollView>` child too.
-                accept: event =>
-                    event.target === event.currentTarget ||
-                    (event.target instanceof Element &&
-                        event.target.parentElement === event.currentTarget),
-                onSelect: () => focusGridViewEnd(),
-                onSelectAll: () => focusGridViewEnd(),
-            })}
         >
             {gridViewModals}
             <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
@@ -610,9 +601,8 @@ export function TaskQueryView({
                         () =>
                             routeLayout === "narrow"
                                 ? [
-                                      // Always render `<TaskQueryViewCustomizationMobileSection>`
-                                      // regardless of where we've scrolled. We can return focus there at
-                                      // any moment.
+                                      // Always render `<TaskQueryViewCustomizationMobileSection>` regardless of where
+                                      // we've scrolled. We can return focus there at any moment.
                                       0,
                                       ...alwaysRenderAdditionalGridViewItemIndexes.map(
                                           index => index + itemCountBeforeGridView,
@@ -727,8 +717,8 @@ function TaskQueryViewInstructionalPlaceholder({
             }}
         >
             <Box
-                // TODO(calebmer): Eventually I'd like a real graphic designer to take a look
-                // at this state. We could use a nice illustration here.
+                // TODO(calebmer): Eventually I'd like a real graphic designer to take a look at
+                // this state. We could use a nice illustration here.
                 fontSize="300"
                 fontStyle="bold"
                 userSelect="text"
@@ -749,9 +739,9 @@ function TaskQueryViewInstructionalPlaceholder({
                 }}
             >
                 {currentAccount && (
-                    // TODO(calebmer): If we ever allow anonymous users to view this route we may
-                    // want to consider updating the design of this. Just showing the collections
-                    // filter might not look good?
+                    // TODO(calebmer): If we ever allow anonymous users to view this route we may want
+                    // to consider updating the design of this. Just showing the collections filter
+                    // might not look good?
                     <>
                         <Box display="flex">
                             <Box
@@ -876,9 +866,8 @@ function TaskQueryViewInstructionalPlaceholder({
                     iconPlacement={platform === "mobile" ? "end" : "start"}
                     height="6"
                     paddingX="2"
-                    // The collection add button doesn't immediately give the user access to the
-                    // view. So disable if we have an empty collection filter the user needs to
-                    // configure.
+                    // The collection add button doesn't immediately give the user access to the view.
+                    // So disable if we have an empty collection filter the user needs to configure.
                     isDisabled={filters.some(
                         filter =>
                             filter.type === "Collections" &&
@@ -898,8 +887,8 @@ function TaskQueryViewInstructionalPlaceholder({
                                 },
                             ],
                             {
-                                // Open the collection combobox to let the user know they still need to pick
-                                // a collection.
+                                // Open the collection combobox to let the user know they still need to pick a
+                                // collection.
                                 shouldOpenFirstCollectionsFilterOperationValue: true,
                             },
                         );

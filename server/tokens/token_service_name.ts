@@ -11,6 +11,7 @@ const tokenEdgeServiceFamilyNames = [
     "ChatRealtimeService",
     "MyAccountService",
     "TaskNotesCollaborationService",
+    "SiteRealtimeService",
     "DatabaseGroupService",
 ] as const;
 
@@ -22,6 +23,7 @@ const tokenServiceNames = [
     "FileProcessorService",
     "ApiService",
     "ResourceService",
+    "ImporterService",
     ...tokenEdgeServiceFamilyNames,
 ] as const;
 
@@ -35,6 +37,7 @@ export const tokenServiceShortNameByName: {[Key in TokenServiceName]: string} = 
     FileProcessorService: "flp",
     ApiService: "api",
     ResourceService: "rsr",
+    ImporterService: "imp",
     EdgeService: "edg",
     DocumentCollaborationService: "doc",
     PostRealtimeService: "pst",
@@ -42,6 +45,7 @@ export const tokenServiceShortNameByName: {[Key in TokenServiceName]: string} = 
     ChatRealtimeService: "cht",
     MyAccountService: "acc",
     TaskNotesCollaborationService: "tkn",
+    SiteRealtimeService: "ste",
     DatabaseGroupService: "dbg",
 };
 

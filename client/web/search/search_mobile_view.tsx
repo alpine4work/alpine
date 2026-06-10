@@ -11,6 +11,7 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {getSearchEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
+import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {SearchEntityView} from "~/client/web/search/search_entity_view.js";
 import {useSearchState} from "~/client/web/search/use_search_state.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -84,8 +85,8 @@ export function SearchMobileView({
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
         desktopMaxWidth: maxWidth,
-        // This is a route for a root tab in our mobile app so don't show the back
-        // button. It wouldn't work.
+        // This is a route for a root tab in our mobile app so don't show the back button.
+        // It wouldn't work.
         withoutMobileBackButton: true,
     });
 
@@ -140,9 +141,9 @@ export function SearchMobileView({
                                             height="4"
                                             right="2.5"
                                             top="2.5"
-                                            // Cover clear button while loading with loading indicator. If we are on two
-                                            // lines then the loading indicator will show at the top and the clear button
-                                            // will show at the bottom.
+                                            // Cover clear button while loading with loading indicator. If we are on two lines
+                                            // then the loading indicator will show at the top and the clear button will show
+                                            // at the bottom.
                                             backgroundColor="grey-0"
                                             display="flex"
                                             justifyContent="center"
@@ -225,11 +226,11 @@ export function SearchMobileView({
                             >
                                 Favorites
                                 {hasMoreFavoriteResults && (
-                                    // Intentionally using [U+2219 (bullet operator)][1] instead of
-                                    // [U+2022 (bullet)][2] since the former is thinner.
+                                    // Intentionally using [U+2219 (bullet operator)][1] instead of [U+2022
+                                    // (bullet)][2] since the former is thinner.
                                     //
-                                    // A bullet separator here is nicer than parentheses like "(see all)"
-                                    // since the parentheses draw a lot of attention.
+                                    // A bullet separator here is nicer than parentheses like "(see all)" since the
+                                    // parentheses draw a lot of attention.
                                     //
                                     // [1]: https://graphemica.com/%E2%88%99
                                     // [2]: https://graphemica.com/%E2%80%A2
@@ -237,7 +238,7 @@ export function SearchMobileView({
                                         {"\u2009\u2219\u2009"}
                                         <SearchMobileViewFavoritesHeaderSeeMoreButton
                                             onPress={() => {
-                                                navigate(`/s/${space.id}/favorites`);
+                                                navigate(`/favorites/${space.id}`);
                                             }}
                                         />
                                     </>
@@ -350,18 +351,17 @@ export function SearchMobileView({
             bufferedItemHeight={searchEntityViewMinHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
-                // Our items all have a bottom border. This is good when there's less content
-                // than room to scroll since it creates a clear shape for the last item in the
-                // list.
+                // Our items all have a bottom border. This is good when there's less content than
+                // room to scroll since it creates a clear shape for the last item in the list.
                 //
                 // However, if there are enough items to scroll then when the user has fully
-                // scrolled we want the last item to *not* have a border bottom since the
-                // bottom of the screen creates that boundary. We don't need to render an extra
-                // line in the margins.
+                // scrolled we want the last item to _not_ have a border bottom since the bottom of
+                // the screen creates that boundary. We don't need to render an extra line in the
+                // margins.
                 //
-                // This div covers the bottom border of the last item but only when there's
-                // enough content to scroll. Otherwise the bottom border needs to be visible to
-                // visually contain the last item. To debug this it's helpful to switch the
+                // This div covers the bottom border of the last item but only when there's enough
+                // content to scroll. Otherwise the bottom border needs to be visible to visually
+                // contain the last item. To debug this it's helpful to switch the
                 // `backgroundColor` to `red-30` or something similar.
                 <Box
                     position="absolute"
@@ -400,13 +400,14 @@ function SearchMobileEntityView({
     isLastItem: boolean;
 }) {
     const navigate = useNavigate();
+    const entityData = useSearchEntityModel(result.model);
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
             navigate(
                 getSearchEntityPath({
                     spaceId: spaceId,
-                    entityId: result.id,
+                    entityData,
                     randomSeed: searchKey,
                     currentTime: searchTime,
                     routeLayout: "narrow",
@@ -436,8 +437,8 @@ function SearchMobileViewFavoritesHeaderSeeMoreButton({onPress}: {onPress: () =>
         <Box
             {...pressProps}
             display="inline"
-            // We don't usually use a pointer cursor for pressable things but in this case
-            // it's not obvious this text is interactive without it.
+            // We don't usually use a pointer cursor for pressable things but in this case it's
+            // not obvious this text is interactive without it.
             cursor="pointer"
             // Additional padding Y to get to 44px in height of touch slop.
             paddingY="3"

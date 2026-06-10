@@ -19,17 +19,16 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 /**
  * Accounts which don't have access to the space aren't allowed to connect to a
- * `TaskRealtimeService` WebSocket. So instead of using `TaskRealtimeClient`
- * which keeps task data up to date in realtime and manages subscriptions with
- * our backend we use this function which doesn't connect to realtime and
- * instead issues `loadQueries` requests whenever `TaskClientStore` needs new
- * data.
+ * `TaskRealtimeService` WebSocket. So instead of using `TaskRealtimeClient` which
+ * keeps task data up to date in realtime and manages subscriptions with our
+ * backend we use this function which doesn't connect to realtime and instead
+ * issues `loadQueries` requests whenever `TaskClientStore` needs new data.
  *
  * This function is used for anonymous users accessing a task collection with a
  * `urlGrant`. This function:
  *
- * - Makes sure to load queries when new query subscriptions are created (e.g.
- *   when expanding a tasks children or changing filters/sorts).
+ * - Makes sure to load queries when new query subscriptions are created (e.g. when
+ *   expanding a tasks children or changing filters/sorts).
  *
  * - Loads more tasks when scrolling to the bottom of a long task collection.
  */
@@ -67,8 +66,8 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                         subscribedQueries.set(query, {
                             unsubscribeFromLoadMoreTaskCount:
                                 // IMPORTANT: When `loadMoreTaskCount` updates then we reload the entire query!
-                                // This is the easiest way to soundly implement infinite scrolling when
-                                // realtime is unavailable.
+                                // This is the easiest way to soundly implement infinite scrolling when realtime is
+                                // unavailable.
                                 //
                                 // To understand why this is sound, consider the following list of tasks:
                                 //
@@ -79,46 +78,46 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                                 // - e
                                 // - f
                                 //
-                                // Let's say the client has loaded a, b, c, and d. If the client wants the next
-                                // 5 tasks after d then obviously we return e and f. However, say another user
-                                // edited the task collection so that the new order of tasks is:
+                                // Let's say the client has loaded a, b, c, and d. If the client wants the next 5
+                                // tasks after d then obviously we return e and f. However, say another user edited
+                                // the task collection so that the new order of tasks is:
                                 //
                                 // - a
-                                // - *e*
-                                // - *f*
+                                // - _e_
+                                // - _f_
                                 // - b
                                 // - c
                                 // - d
                                 //
                                 // Now if first the client asks for the next 5 tasks after d what do we do?
-                                // Remember because the client hasn't received realtime updates it still thinks
-                                // the task list is a, b, c, and d. Do we return zero tasks and say the task
-                                // list is complete? Then we'd be presenting the client with a task list state
-                                // that never existed. Another example is this:
+                                // Remember because the client hasn't received realtime updates it still thinks the
+                                // task list is a, b, c, and d. Do we return zero tasks and say the task list is
+                                // complete? Then we'd be presenting the client with a task list state that never
+                                // existed. Another example is this:
                                 //
                                 // - a
-                                // - *e*
+                                // - _e_
                                 // - b
                                 // - c
                                 // - d
                                 // - f
                                 //
-                                // If the client has a, b, c, and d and they ask for the next 5 tasks returning
-                                // f then saying the list is done would result in a final task list of a, b, c,
-                                // d, f which likewise doesn't represent any real state the task list was in.
+                                // If the client has a, b, c, and d and they ask for the next 5 tasks returning f
+                                // then saying the list is done would result in a final task list of a, b, c, d, f
+                                // which likewise doesn't represent any real state the task list was in.
                                 //
                                 // So for now, to show the user an accurate list of tasks we refetch the entire
                                 // query. The new tasks will be merged with the client's current tasks so the
                                 // client sees an accurate representation of the task view.
                                 //
                                 // Since this isn't very efficient we may need a better long term solution. I
-                                // (@calebmer) think the ideal solution is to get to a place where we're
-                                // confident enough in our realtime infrastructure that we let anonymous users
-                                // connect to realtime.
+                                // (@calebmer) think the ideal solution is to get to a place where we're confident
+                                // enough in our realtime infrastructure that we let anonymous users connect to
+                                // realtime.
                                 //
-                                // TODO(calebmer): There's a bug here where if a task is removed then it
-                                // doesn't disappear from our task query after we reload the entire task query.
-                                // Since we're merging in new tasks.
+                                // TODO(calebmer): There's a bug here where if a task is removed then it doesn't
+                                // disappear from our task query after we reload the entire task query. Since we're
+                                // merging in new tasks.
                                 query.loadMoreTaskCountStore.subscribe(loadSubscriptions),
                         });
                     }
@@ -126,8 +125,8 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                     try {
                         store._onQueryUnsubscribed(query);
                     } catch (error) {
-                        // It's most likely a bug if our store cleanup fails. Log the error and
-                        // continue cleaning up.
+                        // It's most likely a bug if our store cleanup fails. Log the error and continue
+                        // cleaning up.
                         getContext()
                             .tracer.getRoot()
                             .logException(
@@ -148,8 +147,8 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                         try {
                             store._onTaskSubscriptionUnsubscribed(taskSubscription);
                         } catch (error) {
-                            // It's most likely a bug if our store cleanup fails. Log the error and
-                            // continue cleaning up.
+                            // It's most likely a bug if our store cleanup fails. Log the error and continue
+                            // cleaning up.
                             getContext()
                                 .tracer.getRoot()
                                 .logException(
@@ -171,8 +170,8 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                         try {
                             store._onCollectionSubscriptionUnsubscribed(collectionSubscription);
                         } catch (error) {
-                            // It's most likely a bug if our store cleanup fails. Log the error and
-                            // continue cleaning up.
+                            // It's most likely a bug if our store cleanup fails. Log the error and continue
+                            // cleaning up.
                             getContext()
                                 .tracer.getRoot()
                                 .logException(
@@ -247,9 +246,9 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
 
                 const loadQueryLimits = loadQueries.map(
                     loadQuery =>
-                        // If we're re-subscribing to a query that had many tasks then we want to load
-                        // all those tasks back. If the query requested to load more tasks then add
-                        // those on as well.
+                        // If we're re-subscribing to a query that had many tasks then we want to load all
+                        // those tasks back. If the query requested to load more tasks then add those on as
+                        // well.
                         loadQuery.taskOrderStore.getSnapshot().length +
                         loadQuery.loadMoreTaskCountStore.getSnapshot(),
                 );

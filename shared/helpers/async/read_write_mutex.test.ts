@@ -1,5 +1,5 @@
-// Tests adapted from gist comment we adapted our `ReadWriteMutex`
-// implementation from:
+// Tests adapted from gist comment we adapted our `ReadWriteMutex` implementation
+// from:
 // https://gist.github.com/CMCDragonkai/4de5c1526fc58dac259e321db8cf5331?permalink_comment_id=4030688#gistcomment-4030688
 
 import {ReadWriteMutex} from "~/shared/helpers/async/read_write_mutex.js";

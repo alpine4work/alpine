@@ -1,5 +1,6 @@
 import {UserPlus} from "phosphor-react";
 import {useCallback, useMemo, useState} from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {AccountAvatarPile} from "~/client/web/accounts/account_avatar_pile.js";
 import {accountAvatarPileSizes} from "~/client/web/accounts/account_avatar_pile_size.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
@@ -13,6 +14,7 @@ import {ShareNotificationButton} from "~/client/web/navigation/share_notificatio
 import {ShareNotificationMobileModal} from "~/client/web/navigation/share_notification_mobile_modal.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewMetadataSectionTitleColor,
@@ -57,16 +59,18 @@ export function ChannelViewContributorsSection({
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
+    const siteRegistry = useSiteRegistry();
+    const accessPolicy = useStore(createAccessPolicyStore(channel.accessPolicy, siteRegistry));
 
     const accessLevel = useMemo(
-        () => getAccountAccessLevelAssumingSpaceAccess(channel.accessPolicy, currentAccount?.id),
-        [channel.accessPolicy, currentAccount?.id],
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
     );
 
-    // When we open the `<ShareNotificationOverlay>` we immediately focus the
-    // account input. Preload the account list so we don't need to show a loading
-    // spinner after focusing the account input.
-    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id});
+    // When we open the `<ShareNotificationOverlay>` we immediately focus the account
+    // input. Preload the account list so we don't need to show a loading spinner after
+    // focusing the account input.
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
     const [showShareMobileModal, setShowShareMobileModal] = useState(false);
     if (platform !== "mobile" && showShareMobileModal) setShowShareMobileModal(false);
@@ -94,9 +98,8 @@ export function ChannelViewContributorsSection({
         [previewAccounts],
     );
 
-    // Exclude previewed accounts from the share dialog. Since clearly those
-    // accounts already know about the channel. We want the user to share with new
-    // people!
+    // Exclude previewed accounts from the share dialog. Since clearly those accounts
+    // already know about the channel. We want the user to share with new people!
     const excludeAccountId = useCallback(
         (accountId: AccountId) => previewAccountIds.has(accountId),
         [previewAccountIds],
@@ -109,11 +112,11 @@ export function ChannelViewContributorsSection({
         assert(currentAccount);
 
         // If the user didn't change the access level then all we do is send a
-        // notification. If the user did change the access level then we need to update
-        // the channel's access policy with the new accounts.
+        // notification. If the user did change the access level then we need to update the
+        // channel's access policy with the new accounts.
         if (
-            channel.accessPolicy.defaultGrant &&
-            hasAccessLevel(channel.accessPolicy.defaultGrant.level, accessLevel)
+            accessPolicy.defaultGrant &&
+            hasAccessLevel(accessPolicy.defaultGrant.level, accessLevel)
         ) {
             await sendChannelShareNotification(context, {
                 channelId: channel.id,
@@ -149,15 +152,15 @@ export function ChannelViewContributorsSection({
                 topPreviewAccount="Last"
                 previewAccounts={previewAccounts}
                 lastAvatar={
-                    // You can't invite people unless there's a default grant (so you can reliably
-                    // send people a link) or you have manage access.
-                    !channel.accessPolicy.defaultGrant &&
+                    // You can't invite people unless there's a default grant (so you can reliably send
+                    // people a link) or you have manage access.
+                    !accessPolicy.defaultGrant &&
                     !hasAccessLevel(accessLevel, "Manage") ? null : platform === "mobile" ? (
                         <IconButton
                             variant="quiet-darken"
                             size="base"
-                            // This button doesn't look interactive enough on its own. So use a pointer
-                            // cursor to make clear it's interactive.
+                            // This button doesn't look interactive enough on its own. So use a pointer cursor
+                            // to make clear it's interactive.
                             cursor="pointer"
                             description="Invite"
                             onPress={() => setShowShareMobileModal(true)}
@@ -167,7 +170,7 @@ export function ChannelViewContributorsSection({
                     ) : (
                         <ShareNotificationButton
                             accessLevelText={channelAccessLevelText}
-                            accessPolicy={channel.accessPolicy}
+                            accessPolicy={accessPolicy}
                             excludeAccountId={excludeAccountId}
                             overlayOffsetAlong={`-${
                                 parseRemLength(
@@ -179,8 +182,8 @@ export function ChannelViewContributorsSection({
                             <IconButton
                                 variant="quiet-darken"
                                 size="base"
-                                // This button doesn't look interactive enough on its own. So use a pointer
-                                // cursor to make clear it's interactive.
+                                // This button doesn't look interactive enough on its own. So use a pointer cursor
+                                // to make clear it's interactive.
                                 cursor="pointer"
                                 description="Invite"
                             >
@@ -195,7 +198,7 @@ export function ChannelViewContributorsSection({
                     {({onCloseWithAnimation}) => (
                         <ShareNotificationMobileModal
                             accessLevelText={channelAccessLevelText}
-                            accessPolicy={channel.accessPolicy}
+                            accessPolicy={accessPolicy}
                             onCloseWithAnimation={onCloseWithAnimation}
                             excludeAccountId={excludeAccountId}
                             onShare={handleShare}

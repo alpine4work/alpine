@@ -22,8 +22,8 @@ export type ApiServiceSystemActionContext = Context<ApiServiceSystemActionContex
 
 type ApiServiceBotActionContextModules = ServerBotActionContextModules & {
     /**
-     * A language model is optional in unit tests. But must be provided in
-     * production and local developer environments.
+     * A language model is optional in unit tests. But must be provided in production
+     * and local developer environments.
      */
     languageModel?: LanguageModelContextModule;
 };

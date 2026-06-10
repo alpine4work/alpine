@@ -13,24 +13,24 @@ import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
- * The maximum number of keyword search results we look for. These search
- * results form the base of the list we present to the user. We mix semantic
- * search results on top and boost any results the user has an affinity for.
+ * The maximum number of keyword search results we look for. These search results
+ * form the base of the list we present to the user. We mix semantic search results
+ * on top and boost any results the user has an affinity for.
  *
- * Keyword search also performs natural language parsing on the query and
- * searches with any filters parsed from the user's query.
+ * Keyword search also performs natural language parsing on the query and searches
+ * with any filters parsed from the user's query.
  */
 // TODO(calebmer): Should consider implementing keyword search result infinite
 // loading someday. Not implementing now since I ran out of time in the cycle.
 const searchByKeywordLimit = 30;
 
 /**
- * The maximum number of semantic search results we look for. These search
- * results are mixed with our keyword search results. Semantic search results
- * can be expensive to compute so we don't load too many.
+ * The maximum number of semantic search results we look for. These search results
+ * are mixed with our keyword search results. Semantic search results can be
+ * expensive to compute so we don't load too many.
  *
- * Picked 14 since it's two times 7 which is a lucky number. Working with
- * leading AI models requires a bit of superstition.
+ * Picked 14 since it's two times 7 which is a lucky number. Working with leading
+ * AI models requires a bit of superstition.
  *
  * When paginating, we only load more keyword search results. Not new semantic
  * search results.
@@ -65,8 +65,8 @@ export const pendingExecuteSearchOutput: ExecuteSearchOutput = {
 };
 
 /**
- * Constant output `executeSearch()` returns when it receives an empty
- * search query.
+ * Constant output `executeSearch()` returns when it receives an empty search
+ * query.
  */
 export const emptyExecuteSearchOutput: ExecuteSearchOutput = {
     isPending: false,
@@ -75,27 +75,27 @@ export const emptyExecuteSearchOutput: ExecuteSearchOutput = {
 };
 
 /**
- * Execute a search request. Instead of returning a `Promise` we return a
- * `Store` since our search output may change a few times before it stabilizes.
+ * Execute a search request. Instead of returning a `Promise` we return a `Store`
+ * since our search output may change a few times before it stabilizes.
  *
- * Returning `null` for `results` means we've loaded no search results yet. We
- * may return `isPending: true` when `results` is non-null. This means we've
- * received the search execution base but may still be waiting to mix in other
- * search results.
+ * Returning `null` for `results` means we've loaded no search results yet. We may
+ * return `isPending: true` when `results` is non-null. This means we've received
+ * the search execution base but may still be waiting to mix in other search
+ * results.
  *
  * A search request is made of two RPC calls: `searchByKeywords()` and
- * `searchBySemantics()`. Our RPC client will end up batching these requests
- * but they're returned separately. `searchByKeywords()` forms the base of our
- * search results. Then semantic search results from `searchBySemantics()` are
- * mixed in on top. We expect semantic search to take longer than keyword
- * search since we both need to embed the query then search in vector space. So
- * we present keyword search results to the user as soon as we have them then
- * mix in semantic search results once we get them.
+ * `searchBySemantics()`. Our RPC client will end up batching these requests but
+ * they're returned separately. `searchByKeywords()` forms the base of our search
+ * results. Then semantic search results from `searchBySemantics()` are mixed in on
+ * top. We expect semantic search to take longer than keyword search since we both
+ * need to embed the query then search in vector space. So we present keyword
+ * search results to the user as soon as we have them then mix in semantic search
+ * results once we get them.
  *
  * You control when `searchBySemantics()` is called. You must call
- * `executeSearchBySemantics()` at some point otherwise this function will
- * return a pending store forever. This capability is provided so we can delay
- * calling `executeSearchBySemantics()` while the user is actively typing.
+ * `executeSearchBySemantics()` at some point otherwise this function will return a
+ * pending store forever. This capability is provided so we can delay calling
+ * `executeSearchBySemantics()` while the user is actively typing.
  */
 export function executeSearch(
     context: AppContext,
@@ -190,8 +190,8 @@ export function executeSearch(
                 };
             }
 
-            // Now that we have both keyword search results and semantic search results,
-            // let's merge them together...
+            // Now that we have both keyword search results and semantic search results, let's
+            // merge them together...
             const newResults = mergeKeywordAndSemanticSearchResults({
                 keywordSearchResults: keywordSearchState.value.results,
                 semanticSearchResults: semanticSearchState.value.results,

@@ -64,8 +64,8 @@ export function createContentEditorLinkMarkViewConstructor({
             );
 
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-            // modifier. Unless the click was meant to open the link in a separate tab. We
-            // need to implement that manually here given the text is editable.
+            // modifier. Unless the click was meant to open the link in a separate tab. We need
+            // to implement that manually here given the text is editable.
             if (
                 (event.button !== 0 || isModifiedPointerEvent(event)) &&
                 !isOpenLinkInSeparateTabEvent
@@ -93,8 +93,8 @@ export function createContentEditorLinkMarkViewConstructor({
             if (isInert()) return;
 
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-            // modifier. Unless the click was meant to open the link in a separate tab. We
-            // need to implement that manually here given the text is editable.
+            // modifier. Unless the click was meant to open the link in a separate tab. We need
+            // to implement that manually here given the text is editable.
             if (
                 (event.button !== 0 || isModifiedPointerEvent(event)) &&
                 !isOpenLinkInSeparateTabPointerEvent(event, getClientInfo())
@@ -133,8 +133,8 @@ export function createContentEditorLinkMarkViewConstructor({
 
             const $pos = view.state.doc.resolve(posResult.pos);
 
-            // We do this form instead of `$pos.node()` to find the inline text
-            // node the mark is on.
+            // We do this form instead of `$pos.node()` to find the inline text node the mark
+            // is on.
             let index = $pos.index();
             let node = $pos.parent.maybeChild(index);
 
@@ -164,16 +164,16 @@ export function createContentEditorLinkMarkViewConstructor({
             onPointerEnter(mark);
 
             // We check `event.buttons` since it tells us if the pointer was down prior to
-            // entering the link. The `pointerdown` won't tell us if the user started
-            // pressing on one element then dragged over our link (which the user does when
-            // making a selection).
+            // entering the link. The `pointerdown` won't tell us if the user started pressing
+            // on one element then dragged over our link (which the user does when making a
+            // selection).
             //
             // https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
             const isPointerDown = event.buttons !== 0;
 
             pointerEnterDelayTimeout = createTimeout(() => {
-                // If the node was removed from the DOM, don't proceed with the timeout. We
-                // don't get a destroy callback for the mark so we have to be defensive here.
+                // If the node was removed from the DOM, don't proceed with the timeout. We don't
+                // get a destroy callback for the mark so we have to be defensive here.
                 if (!document.body.contains(dom)) return;
 
                 onPointerEnterAfterDelay({

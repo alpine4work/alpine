@@ -8,8 +8,8 @@ import {
 import {tooltipDelayMs} from "~/client/web/design/tooltip.js";
 
 /**
- * Coordinates any tooltips rendered under this context so that only one tooltip
- * is visible at once.
+ * Coordinates any tooltips rendered under this context so that only one tooltip is
+ * visible at once.
  */
 export function TooltipCoordinationContextProvider({children}: {children: ReactNode}) {
     const [state, setState] = useState<TooltipCoordinationContextState>(
@@ -30,8 +30,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
             }
         }
 
-        // Hovered tooltips can only be active after tooltip hovering has been
-        // warmed up.
+        // Hovered tooltips can only be active after tooltip hovering has been warmed up.
         if (activeTooltipSymbol === null && state.hoveredTooltipsStatus === "WarmedUp") {
             for (const tooltipSymbol of state.hoveredTooltipSymbols) {
                 activeTooltipSymbol = tooltipSymbol;
@@ -46,8 +45,7 @@ export function TooltipCoordinationContextProvider({children}: {children: ReactN
         !(state.disableTooltipSymbols.size > 0) && state.hoveredTooltipSymbols.size > 0;
 
     // If our state transitioned to `WarmingUp` let's run our warm up timeout and
-    // switch the state to `WarmedUp`. We don't show tooltips while we are
-    // warming up.
+    // switch the state to `WarmedUp`. We don't show tooltips while we are warming up.
     useEffect(() => {
         if (state.hoveredTooltipsStatus === "WarmingUp" && hasHoveredTooltipSymbols) {
             const timeoutId = setTimeout(() => {

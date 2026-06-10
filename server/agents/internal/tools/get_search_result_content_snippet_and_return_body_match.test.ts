@@ -1,6 +1,6 @@
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
-import {ApiSearchResultBodyMatch} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiSearchResultBodyMatch} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 
@@ -69,8 +69,8 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
         const result = getSearchResultContentSnippetAndReturnBodyMatch(
             createTestSearchResult(bodyMatch),
         );
-        // "John: " is 6 graphemes, leaving 44 graphemes for content
-        // Word boundary expansion can add up to 14 more chars, so 64 total (6 + 44 + 14)
+        // "John: " is 6 graphemes, leaving 44 graphemes for content Word boundary
+        // expansion can add up to 14 more chars, so 64 total (6 + 44 + 14)
         expect(result).toEqual({
             preview: [{text: "John: "}, {text: "a".repeat(64)}],
             newBodyMatch: [{text: "a".repeat(11)}],
@@ -173,8 +173,8 @@ describe("getSearchResultContentSnippetAndReturnBodyMatch", () => {
             const result = getSearchResultContentSnippetAndReturnBodyMatch(
                 createTestSearchResult(bodyMatch),
             );
-            // With "John: " prefix (6 chars), only 44 chars fit within 50 limit
-            // But word boundary expansion adds up to 6 more
+            // With "John: " prefix (6 chars), only 44 chars fit within 50 limit But word
+            // boundary expansion adds up to 6 more
             expect(result).toEqual({
                 preview: [{text: "John: "}, {text: "a".repeat(50)}],
                 newBodyMatch: [],

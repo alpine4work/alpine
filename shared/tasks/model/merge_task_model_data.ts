@@ -1,12 +1,12 @@
 import {InternalError} from "~/shared/error/error.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {mergeTaskSortableAccounts} from "~/shared/tasks/task_sortable_account.js";
 
 /**
- * Merge two tasks together. Tasks are CRDTs and this is the CRDT merge
- * function. So this function is commutative and idempotent.
+ * Merge two tasks together. Tasks are CRDTs and this is the CRDT merge function.
+ * So this function is commutative and idempotent.
  *
  * If the returned task is identical to `task1` then we return `task1` so
  * optimizations can detect the task didn't change.
@@ -21,6 +21,9 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
     if (task1.creator.accountId !== task2.creator.accountId)
         throw new InternalError("Incompatible task `creator` when merging");
 
+    if (!isDeepEqualForUnknownValues(task1.creator.from, task2.creator.from))
+        throw new InternalError("Incompatible task `creator.from` when merging");
+
     if (!task1.createdTime.isEqual(task2.createdTime))
         throw new InternalError("Incompatible task `createdTime` when merging");
 
@@ -28,7 +31,21 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
         id: task1.id,
         spaceId: task1.spaceId,
 
-        creator: mergeTaskSortableAccounts(task1.creator, task2.creator),
+        creator: {
+            ...mergeTaskSortableAccounts(
+                {
+                    accountId: task1.creator.accountId,
+                    workingAccountName: task1.creator.workingAccountName,
+                    workingAccountNameVersion: task1.creator.workingAccountNameVersion,
+                },
+                {
+                    accountId: task2.creator.accountId,
+                    workingAccountName: task2.creator.workingAccountName,
+                    workingAccountNameVersion: task2.creator.workingAccountNameVersion,
+                },
+            ),
+            from: task1.creator.from,
+        },
         createdTime: task1.createdTime,
         deletedTime:
             task1.deletedTime !== null && task2.deletedTime !== null
@@ -55,6 +72,10 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
             task2.removedClosedChildTaskCount,
         ),
 
+        accessPolicy:
+            task1.accessPolicy && task2.accessPolicy
+                ? task1.accessPolicy.merge(task2.accessPolicy)
+                : (task1.accessPolicy ?? task2.accessPolicy),
         collections: task1.collections.merge(task2.collections),
         positionByCollectionId: task1.positionByCollectionId.merge(task2.positionByCollectionId),
 
@@ -66,11 +87,15 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
         title: task1.title.isEqual(task2.title) ? task1.title : task1.title.apply(task2.title),
         dueDate: task1.dueDate.merge(task2.dueDate),
         priority: task1.priority.merge(task2.priority),
+        layout:
+            task1.layout && task2.layout
+                ? task1.layout.merge(task2.layout)
+                : (task1.layout ?? task2.layout),
     };
 
-    // Optimization: If nothing changed between `task1` and the merged task then
-    // return `task1` so the new task is referentially equal to the old one.
-    if (isDeepEqual(task1, newTask)) return task1;
+    // Optimization: If nothing changed between `task1` and the merged task then return
+    // `task1` so the new task is referentially equal to the old one.
+    if (isDeepEqualForUnknownValues(task1, newTask)) return task1;
 
     return newTask;
 }

@@ -44,8 +44,8 @@ const zeroBottomBarHeight = {visibleMobileKeyboard: 0, hiddenMobileKeyboard: 0};
 /**
  * Get the current bottom bar height.
  *
- * The returned function reads mutable state so you may not call it
- * during React renders.
+ * The returned function reads mutable state so you may not call it during React
+ * renders.
  */
 export function useGetCurrentBottomBarHeight(): Memo<
     () => {
@@ -56,8 +56,8 @@ export function useGetCurrentBottomBarHeight(): Memo<
     const context = useContext(BottomBarFrameContext);
 
     return useCallback(() => {
-        // We read mutable state (`context.currentBottomBarHeight`) so this function
-        // can't be called during a React render.
+        // We read mutable state (`context.currentBottomBarHeight`) so this function can't
+        // be called during a React render.
         throwIfRendering();
 
         if (context === null) return zeroBottomBarHeight;
@@ -129,9 +129,9 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
         let hasCalledHandleResizeDuringEffectSetup = false;
         let isMounting = !isReplacingOtherBottomBar;
 
-        // Emit change after a microtask so it doesn't run as part of React's
-        // mounting phase which may have not finished setting up refs that may be used
-        // by event emitter listeners.
+        // Emit change after a microtask so it doesn't run as part of React's mounting
+        // phase which may have not finished setting up refs that may be used by event
+        // emitter listeners.
         scheduleMicrotask(() => {
             if (isCancelled) return;
 
@@ -162,14 +162,14 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
                 });
                 isMounting = false;
 
-                // Make sure to unregister AFTER registering the new height. That way if the
-                // height didn't change there will be no update notifications.
+                // Make sure to unregister AFTER registering the new height. That way if the height
+                // didn't change there will be no update notifications.
                 oldUnregister?.({isUnmounting: false});
             }
         };
 
-        // We appear to have no visual issues when this resizes. Mainly adding a
-        // resize element listener to this element causes a suppressed warning from
+        // We appear to have no visual issues when this resizes. Mainly adding a resize
+        // element listener to this element causes a suppressed warning from
         // `<VirtualizedScrollView>` to be logged.
         addSuppressResizeLoopErrorNotificationForElement(element);
 
@@ -181,14 +181,14 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
             removeResizeListenerForElement(element, handleResize);
             removeSuppressResizeLoopErrorNotificationForElement(element);
 
-            // Emit change after a microtask so it doesn't run as part of React's
-            // unmounting phase. If React immediately remounts and we re-register with the
-            // same height it means we'll end up emitting no events. If React remounts with
-            // a different height then we'll only end up emitting one event.
+            // Emit change after a microtask so it doesn't run as part of React's unmounting
+            // phase. If React immediately remounts and we re-register with the same height it
+            // means we'll end up emitting no events. If React remounts with a different height
+            // then we'll only end up emitting one event.
             //
-            // Double microtask so microtasks scheduled by effect React mount handlers
-            // (like the one in this effect) can run before we finish unmounting and we can
-            // skip sending an event if a remount doesn't change the height.
+            // Double microtask so microtasks scheduled by effect React mount handlers (like
+            // the one in this effect) can run before we finish unmounting and we can skip
+            // sending an event if a remount doesn't change the height.
             scheduleMicrotask(() => {
                 scheduleMicrotask(() => {
                     unregister?.({isUnmounting: true});
@@ -224,10 +224,10 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
         let isCancelled = false;
         let unregister: ((options: {isUnmounting: boolean}) => void) | null = null;
 
-        // Emit change after a microtask so it doesn't run as part of React's
-        // unmounting phase. If React immediately remounts and we re-register with the
-        // same height it means we'll end up emitting no events. If React remounts with
-        // a different height then we'll only end up emitting one event.
+        // Emit change after a microtask so it doesn't run as part of React's unmounting
+        // phase. If React immediately remounts and we re-register with the same height it
+        // means we'll end up emitting no events. If React remounts with a different height
+        // then we'll only end up emitting one event.
         scheduleMicrotask(() => {
             if (isCancelled) return;
 
@@ -242,14 +242,14 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
         return () => {
             isCancelled = true;
 
-            // Emit change after a microtask so it doesn't run as part of React's
-            // unmounting phase. If React immediately remounts and we re-register with the
-            // same height it means we'll end up emitting no events. If React remounts with
-            // a different height then we'll only end up emitting one event.
+            // Emit change after a microtask so it doesn't run as part of React's unmounting
+            // phase. If React immediately remounts and we re-register with the same height it
+            // means we'll end up emitting no events. If React remounts with a different height
+            // then we'll only end up emitting one event.
             //
-            // Double microtask so microtasks scheduled by effect React mount handlers can
-            // run before we finish unmounting and we can skip sending an event if a
-            // remount doesn't change the height.
+            // Double microtask so microtasks scheduled by effect React mount handlers can run
+            // before we finish unmounting and we can skip sending an event if a remount
+            // doesn't change the height.
             scheduleMicrotask(() => {
                 scheduleMicrotask(() => {
                     unregister?.({isUnmounting: true});
@@ -262,12 +262,11 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
 let webMobileKeyboardToolbarSafeAreaInsetBottomCount = 0;
 
 /**
- * If we're in the web mobile app, we want to add safe area inset bottom when
- * we've animated our mobile keyboard toolbar up so it doesn't cover content.
+ * If we're in the web mobile app, we want to add safe area inset bottom when we've
+ * animated our mobile keyboard toolbar up so it doesn't cover content.
  *
- * If on mobile web you're animating a keyboard toolbar up/down then you must
- * call this hook in addition to
- * `useRegisterBottomBarMobileKeyboardToolbarFrame()` or
+ * If on mobile web you're animating a keyboard toolbar up/down then you must call
+ * this hook in addition to `useRegisterBottomBarMobileKeyboardToolbarFrame()` or
  * `useRegisterBottomBarFrame()` with the state boolean you use to tell if the
  * keyboard toolbar is visible or not.
  */

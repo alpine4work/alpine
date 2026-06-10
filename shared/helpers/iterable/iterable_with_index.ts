@@ -1,6 +1,6 @@
 /**
- * An iterable that includes the index of each item as the second element
- * in the tuple.
+ * An iterable that includes the index of each item as the second element in the
+ * tuple.
  */
 export function iterableWithIndex<Value>(iterable: Iterable<Value>): Iterable<[Value, number]> {
     return {

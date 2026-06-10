@@ -1,6 +1,6 @@
 /**
- * For each individual value of an async iterator, decide if we should remove
- * it from the iterable. Same as `Array.filter()` but for async iterators.
+ * For each individual value of an async iterator, decide if we should remove it
+ * from the iterable. Same as `Array.filter()` but for async iterators.
  */
 export async function* filterAsyncIterableIterator<Value>(
     iterator: AsyncIterableIterator<Value>,

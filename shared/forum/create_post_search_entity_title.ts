@@ -24,9 +24,9 @@ export function getPostSearchEntityTitleContentSnippet(content: PostContent): Po
     return assertPostContent(
         getContentSnippet(content.resolve(0), 1, {
             maxLineGraphemeCount: contentMentionTextHardMaxGraphemeCount,
-            // This snippet will be printed with `printContentSingleLineTextSnippet()`
-            // which collapses newlines. So also consider newlines to be collapsed when
-            // generating a snippet.
+            // This snippet will be printed with `printContentSingleLineTextSnippet()` which
+            // collapses newlines. So also consider newlines to be collapsed when generating a
+            // snippet.
             ignoreLineBreaks: true,
         }),
     );
@@ -96,8 +96,8 @@ export function createPostSearchEntityTitleWithAlreadySnippedContent(
                 title += sentence;
                 titleGraphemeCount += sentenceGraphemeCount;
 
-                // If the first sentence was short (less than a fourth of our max grapheme
-                // count), try fitting a second sentence. Otherwise we're done.
+                // If the first sentence was short (less than a fourth of our max grapheme count),
+                // try fitting a second sentence. Otherwise we're done.
                 if (titleGraphemeCount > contentMentionTextSoftMaxGraphemeCount / 4) {
                     isTitleDone = true;
                 }
@@ -145,12 +145,12 @@ export function createPostSearchEntityTitleWithAlreadySnippedContent(
 
     title = title.trim();
 
-    // If the title ends with a `.` then remove it from the title. To match how
-    // other titles look.
+    // If the title ends with a `.` then remove it from the title. To match how other
+    // titles look.
     if (title.endsWith(".")) title = title.slice(0, -1);
 
-    // Make sure `truncateContentMentionText()` doesn't change the title. We don't
-    // want to double truncate when rendering the title in a mention.
+    // Make sure `truncateContentMentionText()` doesn't change the title. We don't want
+    // to double truncate when rendering the title in a mention.
     if (process.env.NODE_ENV !== "production") {
         assert(title === truncateContentMentionText(title));
     }

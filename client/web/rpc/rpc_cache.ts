@@ -9,12 +9,12 @@ export function getRpcCacheKey<Input, Output extends {}>(
     rpc: RpcDefinition<Input, Output>,
     input: Input,
 ) {
-    // NOTE(calebmer): `JSON.stringify()` preserves the order of keys. So if object
-    // key order changes then we re-create the value. However if we checked
-    // `isDeepEqual()` on two objects with different key orders then the key order
-    // wouldn't matter. Given the browser heavily optimizes `JSON.stringify()` this
-    // is an acceptable tradeoff. If we determine key order does matter we can use
-    // a package like `json-stable-stringify`.
+    // NOTE(calebmer): `JSON.stringify()` preserves the order of keys. So if object key
+    // order changes then we re-create the value. However if we checked `isDeepEqual()`
+    // on two objects with different key orders then the key order wouldn't matter.
+    // Given the browser heavily optimizes `JSON.stringify()` this is an acceptable
+    // tradeoff. If we determine key order does matter we can use a package like
+    // `json-stable-stringify`.
     const inputString = JSON.stringify(rpc.inputSchema.serialize(input));
 
     return `${rpc.name}:${inputString}`;
@@ -75,6 +75,19 @@ export class RpcCache {
         return this._cache.forceRevalidateEntry(key, fetcher, options) as SafeFloatingPromiseLike<
             Replace<Output, {readonly input: Input}>
         >;
+    }
+
+    public addOptimisticUpdate<Input, Output extends {}>(
+        rpc: RpcDefinition<Input, Output>,
+        input: Input,
+        promise: Promise<unknown>,
+        update: (output: Output) => Output,
+    ): void {
+        const key = getRpcCacheKey(rpc, input);
+
+        return this._cache.addOptimisticUpdate(key, promise, (output: any) =>
+            Object.assign(update(output), {input: output.input}),
+        );
     }
 }
 

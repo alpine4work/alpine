@@ -118,8 +118,8 @@ export function testFileProcessorContentTypes(
 
     context.setProcessJob(async (actionContext, job, jobStartTime, span) => {
         if (
-            // TODO(ifitzsimmons, 2025-09-18): Remove this once we've migrated to the new job queue
-            // system.
+            // TODO(ifitzsimmons, 2025-09-18): Remove this once we've migrated to the new job
+            // queue system.
             job.type === "ProcessFile" ||
             job.type === "ProcessFileLight" ||
             job.type === "ProcessFileHeavy"
@@ -142,9 +142,9 @@ export function testFileProcessorContentTypes(
                     break;
                 }
                 case "TwiceConcurrently": {
-                    // 5% of the time run processing twice serially instead of twice concurrently.
-                    // Just to make sure we exercise both code paths. Running processing twice
-                    // serially can be expensive for some formats.
+                    // 5% of the time run processing twice serially instead of twice concurrently. Just
+                    // to make sure we exercise both code paths. Running processing twice serially can
+                    // be expensive for some formats.
                     if (Math.random() < 0.05) {
                         await process();
                         await process();
@@ -243,19 +243,19 @@ export function testFileProcessorContentTypes(
 
         // Wait for the file to be processed...
         //
-        // Don't log a `DeadlineExceededError` for long running tasks. It genuinely
-        // takes a while for some files to process.
+        // Don't log a `DeadlineExceededError` for long running tasks. It genuinely takes a
+        // while for some files to process.
         await ProcessContextModule.waitForTestTasks({withoutDeadlineExceededLog: true});
 
-        return getFileAsUploader(session.action(), session.space.id, fileId);
+        return await getFileAsUploader(session.action(), fileId);
     }
 
-    // Make sure file processing is idempotent by running each twice. The first
-    // time the file is processed only once. The second time the file is processed
-    // twice concurrently.
+    // Make sure file processing is idempotent by running each twice. The first time
+    // the file is processed only once. The second time the file is processed twice
+    // concurrently.
     for (const currentProcessingType of ["Once", "TwiceConcurrently"] as const) {
-        // If `only` has been set on one of our tests, then let's only run the `Once`
-        // test suite.
+        // If `only` has been set on one of our tests, then let's only run the `Once` test
+        // suite.
         const describeFn = Object.values(testCases).some(contentTypeTestCases =>
             contentTypeTestCases.some(testCase => !!testCase.only),
         )
@@ -309,6 +309,7 @@ export function testFileProcessorContentTypes(
 
                             expect(file).toEqual(
                                 new FileModel({
+                                    spaceId: space.id,
                                     id: file.id,
                                     contentType: contentType as FileContentType,
                                     contentLength: expect.any(Number),
@@ -398,8 +399,8 @@ export function testFileProcessorContentTypes(
                                 }),
                             );
 
-                            // Test to make sure the object we stored in Cloudflare R2 is exactly equal to
-                            // the input object.
+                            // Test to make sure the object we stored in Cloudflare R2 is exactly equal to the
+                            // input object.
                             {
                                 const object = await r2Bucket.get(`${space.id}/${file.id}`);
                                 if (!object) throw new NotFoundError("File not found");
@@ -429,9 +430,9 @@ export function testFileProcessorContentTypes(
                             if (!expectedImagePreviewPlaceholder) {
                                 expect(imagePreviewPlaceholder).toEqual(undefined);
                             } else {
-                                // Compare placeholders. Sharp's placeholder generation isn't deterministic
-                                // across platforms. So check that placeholders are close to each other if not
-                                // exactly equal.
+                                // Compare placeholders. Sharp's placeholder generation isn't deterministic across
+                                // platforms. So check that placeholders are close to each other if not exactly
+                                // equal.
                                 compareFileImagePreviewPlaceholders(
                                     assertExists(imagePreviewPlaceholder),
                                     expectedImagePreviewPlaceholder,
@@ -451,8 +452,7 @@ export function testFileProcessorContentTypes(
                                         item.type === "Newline"
                                             ? "\n"
                                             : item.classes
-                                              ? // eslint-disable-next-line cyberworlds/string-quotes
-                                                `<span class="${item.classes}">${escapeHtml(
+                                              ? `<span class="${item.classes}">${escapeHtml(
                                                     item.string,
                                                 )}</span>`
                                               : escapeHtml(item.string),
@@ -656,8 +656,8 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                         );
 
                         // NOTE(calebmer, 2024-11-21): We're experiencing some test flakiness where
-                        // occasionally `ffmpeg` returns an empty string for metadata. Let's try
-                        // retrying when this happens.
+                        // occasionally `ffmpeg` returns an empty string for metadata. Let's try retrying
+                        // when this happens.
                         if (actualMetadataString === "")
                             retry(new InternalError("Metadata string is empty"));
 
@@ -677,8 +677,8 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                         );
 
                         // NOTE(calebmer, 2024-11-21): We're experiencing some test flakiness where
-                        // occasionally `ffmpeg` returns an empty string for metadata. Let's try
-                        // retrying when this happens.
+                        // occasionally `ffmpeg` returns an empty string for metadata. Let's try retrying
+                        // when this happens.
                         if (expectedMetadataString === "")
                             retry(new InternalError("Metadata string is empty"));
 
@@ -706,8 +706,8 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                 }
 
                 // If we generated a `.webm` file without metadata (which is the case when
-                // outputting to a stream) then let's repackage the `.webm` file so `ffprobe`
-                // adds duration metadata then compare that against our expected metadata.
+                // outputting to a stream) then let's repackage the `.webm` file so `ffprobe` adds
+                // duration metadata then compare that against our expected metadata.
                 //
                 // https://stackoverflow.com/a/40117749/1568890
                 if (!actualMetadata.format.duration) {
@@ -757,8 +757,8 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                 }
 
                 // Delete metadata that we don't care if it's equal or not. This metadata could
-                // differ slightly across platforms, differ based on input mechanism (seekable
-                // file vs piped file), or could reasonably differ based on the input format.
+                // differ slightly across platforms, differ based on input mechanism (seekable file
+                // vs piped file), or could reasonably differ based on the input format.
                 const cleanMetadata = (metadata: any) => {
                     delete metadata.format.filename;
                     delete metadata.format.size;
@@ -816,13 +816,13 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                 cleanMetadata(actualMetadata);
                 cleanMetadata(expectedMetadata);
 
-                // Make sure metadatas are the same between our actual video and expected
-                // video. If this fails then the actual/expected files are saved to
-                // `bazel-testlogs` for further debugging. (See the try/catch.)
+                // Make sure metadatas are the same between our actual video and expected video. If
+                // this fails then the actual/expected files are saved to `bazel-testlogs` for
+                // further debugging. (See the try/catch.)
                 expect(actualMetadata).toEqual(expectedMetadata);
 
-                // Take a screenshot every second of the video and we'll compare these
-                // screenshots with the `looks-same` utility.
+                // Take a screenshot every second of the video and we'll compare these screenshots
+                // with the `looks-same` utility.
                 await runAllPromises([
                     runProcess(
                         ffmpegExecutablePath,
@@ -939,11 +939,18 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                 }
                 break;
             }
-            case "audio/webm": {
+            case "audio/webm":
+            case "audio/mp4":
+            case "video/mp4": {
                 assert(!expectedAlternative.similarPath);
 
-                // We don't have a readily available audio similarity test so assume the
-                // generated file is good.
+                // We don't have a readily available audio similarity test so assume the generated
+                // file is good.
+                //
+                // We also don't test `video/mp4` similarity. There's just one test case and the
+                // `video/mp4` alternative is generated using
+                // `ffmpeg -i input.mp4 -c copy -movflags +faststart output.mp4` which should
+                // reliably produce a good output.
                 break;
             }
             default:

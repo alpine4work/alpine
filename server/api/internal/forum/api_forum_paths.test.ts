@@ -1,7 +1,10 @@
 import {apiForumPaths} from "~/server/api/internal/forum/api_forum_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
@@ -13,9 +16,10 @@ import {
 } from "~/shared/forum/post_content_schema.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
+import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext({
+    documentsInjection,
     forumInjection,
 });
 
@@ -144,7 +148,7 @@ describe("/channels/{id}/mention", () => {
         });
     });
 
-    test("can’t read channel mention without access", async () => {
+    test("can\u2019t read channel mention without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -164,14 +168,14 @@ describe("/channels/{id}/mention", () => {
             body: {
                 error: expect.objectContaining({
                     message: expect.stringMatching(
-                        "You aren’t allowed to access this channel. Ask someone with access to share it with you.",
+                        "You aren\u2019t allowed to access this channel.",
                     ),
                 }),
             },
         });
     });
 
-    test("can’t read channel mention for non-existent channel", async () => {
+    test("can\u2019t read channel mention for non-existent channel", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -187,7 +191,7 @@ describe("/channels/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("This channel doesn’t exist"),
+                    message: expect.stringMatching("This channel doesn\u2019t exist"),
                 }),
             },
         });
@@ -295,7 +299,7 @@ test("can\u2019t read post information for non-existent post", async () => {
 describe("/posts/{id}/mention", () => {
     test("can read post mention", async () => {
         const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Post Author", role: "Admin"});
+        const session = await space.createSession({name: "Bob", role: "Admin"});
 
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
@@ -320,13 +324,13 @@ describe("/posts/{id}/mention", () => {
                         type: "Post",
                         id: post.id,
                     },
-                    title: "in Test Channel: This is post content for mention",
+                    title: "Bob in Test Channel: This is post content for mention",
                 },
             },
         });
     });
 
-    test("can’t read post mention without access", async () => {
+    test("can\u2019t read post mention without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -345,7 +349,7 @@ describe("/posts/{id}/mention", () => {
         expect(response.body.error.message).toMatch(/You aren.t allowed/);
     });
 
-    test("can’t read post mention for non-existent post", async () => {
+    test("can\u2019t read post mention for non-existent post", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -362,7 +366,7 @@ describe("/posts/{id}/mention", () => {
 
     test("can read post mention with post scope", async () => {
         const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Post Author", role: "Admin"});
+        const session = await space.createSession({name: "Bob", role: "Admin"});
 
         const bot = await TestBot.createAndInstantiate(session);
         const channel = await TestChannel.create(session, {
@@ -386,7 +390,7 @@ describe("/posts/{id}/mention", () => {
                         type: "Post",
                         id: post.id,
                     },
-                    title: "in Scoped Channel: Scoped post content",
+                    title: "Bob in Scoped Channel: Scoped post content",
                 },
             },
         });
@@ -985,4 +989,315 @@ describe("post comment parents", () => {
             author: expect.objectContaining({id: session.account.id}),
         });
     });
+});
+
+test("can create post with file attachment", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session, {access: "Public"});
+
+    // Upload a file and attach it to a public document so the bot can access it.
+    const file = await TestFile.create(session);
+    const document = await TestDocument.create(session, {
+        title: "Source",
+        access: "Public",
+    });
+    await document.attachFile(session, file);
+
+    const response = await server.POST("/posts", {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            channelId: channel.id,
+            content: {
+                elements: [
+                    {
+                        type: "File",
+                        id: file.id,
+                    },
+                ],
+            },
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            post: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "File",
+                            id: file.id,
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
+});
+
+test("can read post with file attachment", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session);
+
+    const file = await TestFile.create(session);
+    const post = await channel.createPost(session, "Post with file", {
+        files: [file],
+    });
+
+    const response = await server.GET(`/posts/${post.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            post: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "File",
+                            id: file.id,
+                            contentType: "image/png",
+                            contentLength: 5232,
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
+});
+
+test("can create post comment with file attachments", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "Post for comments");
+
+    // Upload and attach the file to a public document so the bot can access it through
+    // the attachment authorizer.
+    const file = await TestFile.create(session);
+    const document = await TestDocument.create(session, {
+        title: "Doc with file",
+        access: "Public",
+    });
+    await document.attachFile(session, file);
+
+    const response = await server.POST(`/posts/${post.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [
+                    {type: "Paragraph", elements: [{type: "Text", text: "Comment with file"}]},
+                ],
+            },
+            files: [{element: {type: "File", id: file.id}}],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: expect.objectContaining({
+                payload: expect.objectContaining({
+                    type: "Content",
+                    files: [
+                        expect.objectContaining({
+                            rowIndex: 0,
+                            width: 1,
+                            element: {
+                                type: "File",
+                                id: file.id,
+                                contentType: expect.any(String),
+                                contentLength: expect.any(Number),
+                            },
+                        }),
+                    ],
+                }),
+            }),
+        },
+    });
+});
+
+test("post comment with no files returns empty files array", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "Post for comments");
+
+    const response = await server.POST(`/posts/${post.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [{type: "Paragraph", elements: [{type: "Text", text: "No files here"}]}],
+            },
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: expect.objectContaining({
+                payload: expect.objectContaining({
+                    type: "Content",
+                    files: [],
+                }),
+            }),
+        },
+    });
+});
+
+test("post comment with preview entity returns Preview in files", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "Post for comments");
+
+    const documentId = generateId<DocumentId>();
+
+    const response = await server.POST(`/posts/${post.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [
+                    {type: "Paragraph", elements: [{type: "Text", text: "Comment with preview"}]},
+                ],
+            },
+            files: [{element: {type: "Preview", target: {type: "Document", id: documentId}}}],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: expect.objectContaining({
+                payload: expect.objectContaining({
+                    type: "Content",
+                    files: [
+                        expect.objectContaining({
+                            rowIndex: 0,
+                            width: 1,
+                            element: {
+                                type: "Preview",
+                                target: {type: "Document", id: documentId},
+                                title: "Document",
+                            },
+                        }),
+                    ],
+                }),
+            }),
+        },
+    });
+});
+
+test("post comment with files and previews returns both", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "Post for comments");
+    const file = await TestFile.create(session);
+    const fileDoc = await TestDocument.create(session, {
+        title: "Doc with file",
+        access: "Public",
+    });
+    await fileDoc.attachFile(session, file);
+
+    const documentId = generateId<DocumentId>();
+
+    const response = await server.POST(`/posts/${post.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [
+                    {type: "Paragraph", elements: [{type: "Text", text: "Comment with both"}]},
+                ],
+            },
+            files: [
+                {element: {type: "File", id: file.id}},
+                {
+                    element: {type: "Preview", target: {type: "Document", id: documentId}},
+                },
+            ],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: expect.objectContaining({
+                payload: expect.objectContaining({
+                    type: "Content",
+                    files: [
+                        expect.objectContaining({
+                            rowIndex: 0,
+                            width: 0.380763,
+                            element: {
+                                type: "File",
+                                id: file.id,
+                                contentType: expect.any(String),
+                                contentLength: expect.any(Number),
+                            },
+                        }),
+                        expect.objectContaining({
+                            rowIndex: 0,
+                            width: 0.619237,
+                            element: {
+                                type: "Preview",
+                                target: {type: "Document", id: documentId},
+                                title: "Document",
+                            },
+                        }),
+                    ],
+                }),
+            }),
+        },
+    });
+});
+
+test("post comment with invalid file object returns 400", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "Post for comments");
+
+    const response = await server.POST(`/posts/${post.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [{type: "Paragraph", elements: [{type: "Text", text: "Bad file"}]}],
+            },
+            files: [{element: {type: "File", id: "not-a-valid-id"}}],
+        },
+    });
+
+    expect(response).toMatchObject({status: 400});
 });

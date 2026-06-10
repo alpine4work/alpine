@@ -65,7 +65,7 @@ describe("DatabaseFieldConfigSqlSchema", () => {
     });
 });
 
-describe("each provider’s getDefaultConfig is valid against DatabaseFieldConfigSchema", () => {
+describe("each provider\u2019s getDefaultConfig is valid against DatabaseFieldConfigSchema", () => {
     for (const provider of databaseFieldProviders.values()) {
         test(`provider type ${provider.type}`, () => {
             const config = provider.getDefaultConfig();

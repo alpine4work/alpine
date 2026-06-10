@@ -6,11 +6,12 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {useAlignFontBaselines} from "~/client/web/design/use_align_font_baselines.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {ShareButton} from "~/client/web/navigation/share_button.js";
-import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {backgroundFontSizePercentage} from "~/client/web/styles/styles.js";
 import {taskQueryViewCustomizationBarDesktopMarginY} from "~/client/web/styles/tasks_shared_styles.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {
@@ -23,14 +24,13 @@ import {
 } from "~/client/web/tasks/internal/task_collection_view_desktop_header_name.js";
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQueryViewCustomizationBar} from "~/client/web/tasks/internal/task_query_view_customization_bar.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
-import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {AccessLevel, ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {ConstStore} from "~/shared/store/const_store.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
@@ -65,8 +65,8 @@ function TaskCollectionViewDesktopHeader(
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
         collectionId: TaskCollectionId;
-        // If `collectionSubscription` is null, that means we are creating a
-        // new collection.
+        // If `collectionSubscription` is null, that means we are creating a new
+        // collection.
         collectionSubscription: TaskClientCollectionSubscription | null;
         shouldInitiallyFocusEditableCollectionName: boolean;
         affinityManager: TaskClientStoreSearchAffinityManager;
@@ -87,8 +87,8 @@ function TaskCollectionViewDesktopHeader(
     ref: Ref<TaskCollectionViewDesktopHeaderRef>,
 ) {
     const context = useAppContext();
-    const spacingScale = useSpacingScale();
     const {currentAccount} = useSpaceContext();
+    const siteContext = useSiteContextIfExists();
 
     const nameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
 
@@ -104,53 +104,39 @@ function TaskCollectionViewDesktopHeader(
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
     const collection = collectionEntry?.collection ?? null;
 
-    // We want to baseline align our `fontSize="200"` collection name with our
-    // centered `fontSize="75"` customization bar (filters and sort). Calculate
-    // the offset for center aligned `fontSize="200"` using font metrics.
-    const nameBaselineAlignmentMarginTop = useMemo(() => {
-        const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
+    const accessPolicy = useStore(
+        useMemo(
+            () =>
+                collectionSubscription?.store && collection
+                    ? collectionSubscription.store.getCollectionResolvedAccessPolicy(collection)
+                    : new ConstStore<ResolvedAccessPolicyWithGenerations>({
+                          type: "Local",
+                          accountGrantById: currentAccount
+                              ? new Map([[currentAccount.id, {level: "Manage", generation: 0}]])
+                              : emptyMap,
+                          defaultGrant: null,
+                          urlGrant: null,
+                      }),
 
-        const fontSize75Descender =
-            fontSize75.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
-
-        const fontSize200 = fontSizesBySpacingScale["200"][spacingScale];
-
-        const fontSize200Descender =
-            fontSize200.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize200BottomHalfHeight = fontSize200Descender + fontSize200.fontSize / 2;
-
-        return -fontSize200BottomHalfHeight + fontSize75BottomHalfHeight;
-    }, [spacingScale]);
-
-    const accessPolicy: AccessPolicy = useMemo(
-        () =>
-            collection?.getAccessPolicy() ?? {
-                accountGrantById: currentAccount
-                    ? new Map([[currentAccount.id, {level: "Manage", generation: 0}]])
-                    : emptyMap,
-                defaultGrant: null,
-                urlGrant: null,
-            },
-        [collection, currentAccount],
+            [currentAccount, collectionSubscription?.store, collection],
+        ),
     );
 
     return (
-        <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>
+        <Box
+            flexShrink="0"
+            minHeight={navigationBarHeight}
+            display="flex"
+            paddingX={screenPaddingX}
+        >
             <Box
                 height={navigationBarHeight}
                 display="flex"
                 alignItems="center"
                 maxWidth="1/3"
-                style={{marginTop: nameBaselineAlignmentMarginTop}}
-                // Align the left edge of the desktop header name text with the left edge of
-                // the "Name" column header.
+                style={{marginTop: useAlignFontBaselines("200", "75")}}
+                // Align the left edge of the desktop header name text with the left edge of the
+                // "Name" column header.
                 paddingLeft="1"
             >
                 <TaskCollectionViewDesktopHeaderName
@@ -208,10 +194,21 @@ function TaskCollectionViewDesktopHeader(
                 {currentAccount && (
                     <Box paddingRight="3">
                         <ShareButton
+                            isReadOnly={!collectionSubscription}
                             entityNoun="task collection"
                             entityId={`TaskCollection:${collectionId}`}
                             accessPolicy={accessPolicy}
-                            onAccessPolicyChange={(notification, accessPolicy) => {
+                            onAccessPolicyChange={async (notification, accessPolicy) => {
+                                if (accessPolicy.type === "Site") {
+                                    await applySiteAccessPolicyChange({
+                                        context,
+                                        accessPolicy,
+                                        handleEventForSite:
+                                            assertExists(siteContext).handleEventForSite,
+                                    });
+                                    return;
+                                }
+
                                 store.commitTaskActionTransaction(
                                     context,
                                     [

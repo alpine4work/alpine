@@ -37,8 +37,9 @@ import {
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
+import {getExpectedAccessLevelForUpdateDocumentContentSteps} from "~/shared/documents/get_expected_access_level_for_update_document_content_steps.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -127,10 +128,8 @@ export type DocumentCollaborationEventStub =
           readonly event: MessagingRealtimeEventStub;
       }
     | {
-          readonly type: "SpellCheckRealtimeEventTransaction";
-          readonly eventTransaction: ReadonlyArray<
-              DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>
-          >;
+          readonly type: "SpellCheckRealtimeEvents";
+          readonly events: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>;
       };
 
 export class DocumentCollaborationConnection {
@@ -232,8 +231,8 @@ export class DocumentCollaborationConnection {
         typeof DocumentCollaborationProtocol
     > = {
         backfill: (context, input, span) =>
-            // Handle procedures for this connection in sequence as a defense against
-            // race conditions.
+            // Handle procedures for this connection in sequence as a defense against race
+            // conditions.
             //
             // Example race condition: Two `updateOurPresenceState` in fast succession. The
             // second finishes before the first because of some async race condition. A
@@ -268,12 +267,12 @@ export class DocumentCollaborationConnection {
                 const clientVersion = input.version;
 
                 if (clientVersion > version) {
-                    // Sometimes, if the version in our backfill request appears to be in the
-                    // future it's because the client loaded a version of the document from the
-                    // database that is ahead of the version of the document in the durable object.
+                    // Sometimes, if the version in our backfill request appears to be in the future
+                    // it's because the client loaded a version of the document from the database that
+                    // is ahead of the version of the document in the durable object.
                     //
-                    // So load the document from our database and if its version is ahead of the
-                    // one in our durable object then we want to destroy the entire durable object.
+                    // So load the document from our database and if its version is ahead of the one in
+                    // our durable object then we want to destroy the entire durable object.
                     const {documentPreview} = await getDocumentPreviewIfExists(context, {
                         documentId: this._contentManager.id,
                     });
@@ -294,8 +293,8 @@ export class DocumentCollaborationConnection {
                         throw error;
                     }
 
-                    // If the client detects this specific error message it will revert any
-                    // confirmed but not persisted steps and try backfilling again.
+                    // If the client detects this specific error message it will revert any confirmed
+                    // but not persisted steps and try backfilling again.
                     throw new FailedPreconditionError(documentBackfillFutureVersionErrorMessage);
                 }
 
@@ -355,9 +354,9 @@ export class DocumentCollaborationConnection {
                         },
                     );
 
-                // Safety check: By this point if the user doesn't have comment access we
-                // shouldn't have any comment thread references because we stripped out all
-                // comment marks. Double check before returning just to make sure.
+                // Safety check: By this point if the user doesn't have comment access we shouldn't
+                // have any comment thread references because we stripped out all comment marks.
+                // Double check before returning just to make sure.
                 if (!hasAccessLevel(this.accessLevel, "Comment")) {
                     assert(stepsContentReferences.commentThreadById.size === 0);
                 }
@@ -373,17 +372,21 @@ export class DocumentCollaborationConnection {
             }),
 
         updateContent: (context, input) => {
-            // TODO(calebmer, #document-collaboration-access-level-refactor): Should switch
-            // this to `Edit` once we have clients connecting with the right access level.
-            if (!hasAccessLevel(this.accessLevel, "Comment")) {
+            const expectedAccessLevel = getExpectedAccessLevelForUpdateDocumentContentSteps(
+                input.steps,
+            );
+
+            if (!hasAccessLevel(this.accessLevel, expectedAccessLevel)) {
                 throw new PermissionDeniedError("Can\u2019t update document", {
                     displayMessage:
-                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Edit,
+                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+                            expectedAccessLevel
+                        ],
                 });
             }
 
-            // Handle procedures for this connection in sequence as a defense against
-            // race conditions.
+            // Handle procedures for this connection in sequence as a defense against race
+            // conditions.
             //
             // Example race condition: Two `updateOurPresenceState` in fast succession. The
             // second finishes before the first because of some async race condition. A
@@ -391,11 +394,8 @@ export class DocumentCollaborationConnection {
             //
             // The client mostly sends messages in sequence anyway.
             return this._state.withLock(async stateRef => {
-                const {presenceState, hasSentPresenceState} = await this._contentManager.update(
-                    context,
-                    this.connectionId,
-                    input,
-                );
+                const {presenceState, hasSentPresenceState, newVersion} =
+                    await this._contentManager.update(context, this.connectionId, input);
 
                 if (!hasSentPresenceState) {
                     this._sendEventToOthers(context, {
@@ -406,13 +406,51 @@ export class DocumentCollaborationConnection {
                 }
 
                 stateRef.current.presenceState = presenceState;
-                return {};
+                return {newVersion};
+            });
+        },
+
+        updateContentWithoutOptimisticBroadcast: (context, input) => {
+            const expectedAccessLevel = getExpectedAccessLevelForUpdateDocumentContentSteps(
+                input.steps,
+            );
+
+            if (!hasAccessLevel(this.accessLevel, expectedAccessLevel)) {
+                throw new PermissionDeniedError("Can\u2019t update document", {
+                    displayMessage:
+                        documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+                            expectedAccessLevel
+                        ],
+                });
+            }
+
+            return this._state.withLock(async stateRef => {
+                const {presenceState, hasSentPresenceState, newVersion, getRynamoEventsForSite} =
+                    await this._contentManager.updateAndWaitForPersistence(
+                        context,
+                        this.connectionId,
+                        input,
+                    );
+
+                if (!hasSentPresenceState) {
+                    this._sendEventToOthers(context, {
+                        type: "UpdateOtherPresenceState",
+                        connectionId: this.connectionId,
+                        state: presenceState,
+                    });
+                }
+
+                stateRef.current.presenceState = presenceState;
+
+                const eventsForSite = await getRynamoEventsForSite();
+
+                return {newVersion, eventsForSite};
             });
         },
 
         updateOurPresenceState: (context, input) =>
-            // Handle procedures for this connection in sequence as a defense against
-            // race conditions.
+            // Handle procedures for this connection in sequence as a defense against race
+            // conditions.
             //
             // Example race condition: Two `updateOurPresenceState` in fast succession. The
             // second finishes before the first because of some async race condition. A
@@ -420,8 +458,8 @@ export class DocumentCollaborationConnection {
             //
             // The client mostly sends messages in sequence anyway.
             this._state.withLock(async stateRef => {
-                // Make sure the new presence state is valid before we broadcast it to our
-                // other clients.
+                // Make sure the new presence state is valid before we broadcast it to our other
+                // clients.
                 let presenceState: DocumentCollaborationPresenceState | null;
                 if (!input.state) {
                     presenceState = null;
@@ -500,7 +538,12 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.createMessage(context, {parent, content, fileIds, createdTimeZone});
+            return await connection.createMessage(context, {
+                parent,
+                content,
+                fileIds,
+                createdTimeZone,
+            });
         },
 
         updateCommentContent: async (
@@ -510,7 +553,7 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.updateMessageContent(context, {
+            return await connection.updateMessageContent(context, {
                 messageIndex,
                 steps,
                 contentVersion,
@@ -521,7 +564,7 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.deleteMessage(context, {messageIndex});
+            return await connection.deleteMessage(context, {messageIndex});
         },
 
         setCommentReaction: async (
@@ -531,7 +574,7 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.setMessageReaction(context, {
+            return await connection.setMessageReaction(context, {
                 messageIndex,
                 contentVersion,
                 pos,
@@ -546,37 +589,40 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.deleteMessageReaction(context, {messageIndex, contentVersion, pos});
+            return await connection.deleteMessageReaction(context, {
+                messageIndex,
+                contentVersion,
+                pos,
+            });
         },
 
         startTypingInCommentInput: async (context, input) => {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(input.commentThreadId);
-            return connection.startTypingInMessageInput(context, input);
+            return await connection.startTypingInMessageInput(context, input);
         },
 
         stopTypingInCommentInput: async (context, input) => {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(input.commentThreadId);
-            return connection.stopTypingInMessageInput(context, input);
+            return await connection.stopTypingInMessageInput(context, input);
         },
 
         getCommentThreadAndInitialCommentsIfExists: async (context, input) => {
             this._authorizeCommentAccess();
 
             // Wait for any pending messages related to document comments before handling
-            // comment messages. This way if we are processing an `UpdateContent` that
-            // creates the comment thread we are trying to access we will wait until it
-            // is ready.
+            // comment messages. This way if we are processing an `UpdateContent` that creates
+            // the comment thread we are trying to access we will wait until it is ready.
             //
             // However, we do not want to block other document content messages with our
             // comments processing! Which is why we don't use `withLock()`.
             await this._state.waitForUnlock();
 
-            // Generate checkpoint before we start loading data. So when we backfill we
-            // include any realtime events that happened while loading data.
+            // Generate checkpoint before we start loading data. So when we backfill we include
+            // any realtime events that happened while loading data.
             const checkpoint = generateServerSynchronizationCheckpoint();
 
             const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
@@ -609,9 +655,8 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             // Wait for any pending messages related to document comments before handling
-            // comment messages. This way if we are processing an `UpdateContent` that
-            // creates the comment thread we are trying to access we will wait until it
-            // is ready.
+            // comment messages. This way if we are processing an `UpdateContent` that creates
+            // the comment thread we are trying to access we will wait until it is ready.
             //
             // However, we do not want to block other document content messages with our
             // comments processing! Which is why we don't use `withLock()`.
@@ -622,7 +667,7 @@ export class DocumentCollaborationConnection {
             );
 
             if (!optimisticCommentThread) {
-                return getDocumentCommentsFromStart(context, {
+                return await getDocumentCommentsFromStart(context, {
                     documentId: this._contentManager.id,
                     ...input,
                 });
@@ -650,9 +695,8 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             // Wait for any pending messages related to document comments before handling
-            // comment messages. This way if we are processing an `UpdateContent` that
-            // creates the comment thread we are trying to access we will wait until it
-            // is ready.
+            // comment messages. This way if we are processing an `UpdateContent` that creates
+            // the comment thread we are trying to access we will wait until it is ready.
             //
             // However, we do not want to block other document content messages with our
             // comments processing! Which is why we don't use `withLock()`.
@@ -663,7 +707,7 @@ export class DocumentCollaborationConnection {
             );
 
             if (!optimisticCommentThread) {
-                return getDocumentCommentsFromEnd(context, {
+                return await getDocumentCommentsFromEnd(context, {
                     documentId: this._contentManager.id,
                     ...input,
                 });
@@ -691,18 +735,17 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             // Wait for any pending messages related to document comments before handling
-            // comment messages. This way if we are processing an `UpdateContent` that
-            // creates the comment thread we are trying to access we will wait until it
-            // is ready.
+            // comment messages. This way if we are processing an `UpdateContent` that creates
+            // the comment thread we are trying to access we will wait until it is ready.
             //
             // However, we do not want to block other document content messages with our
             // comments processing! Which is why we don't use `withLock()`.
             await this._state.waitForUnlock();
 
-            // We use a `null` `connectionId` and generate a new `clientId` because the
-            // client doesn't know about these update steps. It needs to apply the realtime
-            // update for the `RemoveAllMarksStep` along with all other clients. We also
-            // don't update the client's presence state along with these updates.
+            // We use a `null` `connectionId` and generate a new `clientId` because the client
+            // doesn't know about these update steps. It needs to apply the realtime update for
+            // the `RemoveAllMarksStep` along with all other clients. We also don't update the
+            // client's presence state along with these updates.
             await this._contentManager.update(context, null, {
                 version: this._contentManager.getCurrentVersion(),
                 steps: [
@@ -726,43 +769,42 @@ export class DocumentCollaborationConnection {
             this._authorizeCommentAccess();
 
             // Wait for any pending messages related to document comments before handling
-            // comment messages. This way if we are processing an `UpdateContent` that
-            // creates the comment thread we are trying to access we will wait until it
-            // is ready.
+            // comment messages. This way if we are processing an `UpdateContent` that creates
+            // the comment thread we are trying to access we will wait until it is ready.
             //
             // However, we do not want to block other document content messages with our
             // comments processing! Which is why we don't use `withLock()`.
             await this._state.waitForUnlock();
 
-            // NOTE(calebmer): Warning! Calling an RPC here creates a network waterfall
-            // which can be slow. The network flow is:
+            // NOTE(calebmer): Warning! Calling an RPC here creates a network waterfall which
+            // can be slow. The network flow is:
             //
             // 1. RPC `getResolvedDocumentCommentThreadRanges`
-            //    - Cloudflare `DocumentCollaborationService` → AWS `AppService`
-            //    - AWS `AppService` → Cloudflare `DocumentCollaborationService`
+            //     - Cloudflare `DocumentCollaborationService` → AWS `AppService`
+            //     - AWS `AppService` → Cloudflare `DocumentCollaborationService`
             // 2. RPC `updateDocumentContent`
-            //    - Cloudflare `DocumentCollaborationService` → AWS `AppService`
-            //    - AWS `AppService` → Cloudflare `DocumentCollaborationService`
+            //     - Cloudflare `DocumentCollaborationService` → AWS `AppService`
+            //     - AWS `AppService` → Cloudflare `DocumentCollaborationService`
             //
             // Given this Durable Object runs on the edge this doubles the network latency
-            // penalty from Cloudflare to AWS. Ideally we'd only make one network request
-            // to app service per procedure.
+            // penalty from Cloudflare to AWS. Ideally we'd only make one network request to
+            // app service per procedure.
             //
             // Since this procedure is relatively uncommon and our document collaboration
-            // service needs to know which steps to commit before calling back to app
-            // service, we tolerate this.
+            // service needs to know which steps to commit before calling back to app service,
+            // we tolerate this.
             const {version, ranges} = await getResolvedDocumentCommentThreadRanges(context, {
                 documentId: this._contentManager.id,
                 commentThreadId,
             });
 
-            // We use a `null` `connectionId` and generate a new `clientId` because the
-            // client doesn't know about these update steps. It needs to apply the realtime
-            // update for the `AddMarksAfterRemoveAllStep` along with all other clients. We
-            // also don't update the client's presence state along with these updates.
+            // We use a `null` `connectionId` and generate a new `clientId` because the client
+            // doesn't know about these update steps. It needs to apply the realtime update for
+            // the `AddMarksAfterRemoveAllStep` along with all other clients. We also don't
+            // update the client's presence state along with these updates.
             await this._contentManager.update(context, null, {
-                // This update runs at an old version. The ranges will need to be rebased with
-                // all updates that have happened since that old version.
+                // This update runs at an old version. The ranges will need to be rebased with all
+                // updates that have happened since that old version.
                 version,
                 steps: [
                     new AddMarksAfterRemoveAllStep(
@@ -839,13 +881,12 @@ export class DocumentCollaborationConnection {
                     // Double check there aren't any comments if this connection doesn't support
                     // comments. We shouldn't have comments here because:
                     //
-                    // 1. `stripDocumentCollaborationEventComments()` strips out any comment marks
-                    //    from our steps before the event stub is sent to `transformEvent()`.
+                    // 1. `stripDocumentCollaborationEventComments()` strips out any comment marks from
+                    //    our steps before the event stub is sent to `transformEvent()`.
                     //
-                    // 2. If there were comment marks then when we try to load the associated
-                    //    comment threads in `AppService` with our actor's credentials,
-                    //    `AppService` should either throw an error or silently not return the
-                    //    comment threads.
+                    // 2. If there were comment marks then when we try to load the associated comment
+                    //    threads in `AppService` with our actor's credentials, `AppService` should
+                    //    either throw an error or silently not return the comment threads.
                     assert(stepReferences.referencedIds.commentThreadIds.size === 0);
                     assert(stepReferences.references.commentThreadById.size === 0);
                 }
@@ -863,7 +904,7 @@ export class DocumentCollaborationConnection {
             }
             case "PersistedContent":
             case "UpdateOtherPresenceState":
-            case "SpellCheckRealtimeEventTransaction":
+            case "SpellCheckRealtimeEvents":
             case "Error": {
                 return eventStub;
             }
@@ -886,11 +927,9 @@ export class DocumentCollaborationConnection {
     public handleClose(context: WorkerProcessContext) {
         context.process.waitUntil(
             // Make sure we run in the queue in case we're wrapping up message handling. We
-            // want to send our null presence state after we send any other
-            // presence states.
+            // want to send our null presence state after we send any other presence states.
             this._state.withLock(async stateRef => {
-                // When the connection closes, clear the presence state in our other
-                // connections.
+                // When the connection closes, clear the presence state in our other connections.
                 if (stateRef.current.presenceState !== null) {
                     this._sendEventToOthers(context, {
                         type: "UpdateOtherPresenceState",
@@ -930,13 +969,12 @@ export class DocumentCollaborationConnection {
 
     private async _getCommentThreadConnection(commentThreadId: DocumentCommentThreadId) {
         // Wait for any pending messages related to document comments before handling
-        // comment messages. This way if we are processing an `UpdateContent` that
-        // creates the comment thread we are trying to access we will wait until it
-        // is ready.
+        // comment messages. This way if we are processing an `UpdateContent` that creates
+        // the comment thread we are trying to access we will wait until it is ready.
         //
         // However, we do not want to block other document content messages with our
-        // comments processing! Which is why we don't wrap the `handleMessage()` call
-        // with `withLock()`.
+        // comments processing! Which is why we don't wrap the `handleMessage()` call with
+        // `withLock()`.
         await this._state.waitForUnlock();
 
         return this._commentThreadConnectionById.getOrSetDefault(commentThreadId);
@@ -973,8 +1011,8 @@ export class DocumentCollaborationConnection {
             ) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-                // Wait for our optimistic comment thread to persist before talking to
-                // the database.
+                // Wait for our optimistic comment thread to persist before talking to the
+                // database.
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
@@ -984,7 +1022,7 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return createDocumentComment(context, {
+                return await createDocumentComment(context, {
                     documentId,
                     commentThreadId,
                     parent,
@@ -999,8 +1037,8 @@ export class DocumentCollaborationConnection {
             ) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-                // Wait for our optimistic comment thread to persist before talking to
-                // the database.
+                // Wait for our optimistic comment thread to persist before talking to the
+                // database.
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
@@ -1010,7 +1048,7 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return updateDocumentCommentContent(context, {
+                return await updateDocumentCommentContent(context, {
                     documentId,
                     commentThreadId,
                     commentIndex,
@@ -1021,8 +1059,8 @@ export class DocumentCollaborationConnection {
             deleteMessage: async (context, {roomKey, messageIndex: commentIndex}) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-                // Wait for our optimistic comment thread to persist before talking to
-                // the database.
+                // Wait for our optimistic comment thread to persist before talking to the
+                // database.
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
@@ -1032,7 +1070,11 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
+                return await deleteDocumentComment(context, {
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                });
             },
             setMessageReaction: async (
                 context,
@@ -1040,8 +1082,8 @@ export class DocumentCollaborationConnection {
             ) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-                // Wait for our optimistic comment thread to persist before talking to
-                // the database.
+                // Wait for our optimistic comment thread to persist before talking to the
+                // database.
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
@@ -1051,7 +1093,7 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return setDocumentCommentReaction(context, {
+                return await setDocumentCommentReaction(context, {
                     documentId,
                     commentThreadId,
                     commentIndex,
@@ -1066,8 +1108,8 @@ export class DocumentCollaborationConnection {
             ) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-                // Wait for our optimistic comment thread to persist before talking to
-                // the database.
+                // Wait for our optimistic comment thread to persist before talking to the
+                // database.
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
@@ -1077,7 +1119,7 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                return deleteDocumentCommentReaction(context, {
+                return await deleteDocumentCommentReaction(context, {
                     documentId,
                     commentThreadId,
                     commentIndex,
@@ -1097,12 +1139,12 @@ export class DocumentCollaborationConnection {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
                 // We manually implement `backfillMessages` when we have an optimistic comment
-                // thread since going to the database would throw an error. That way the user
-                // can immediately open a comment thread even if it's not persisted.
+                // thread since going to the database would throw an error. That way the user can
+                // immediately open a comment thread even if it's not persisted.
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
-                    return context.tracer.withSpan(
+                    return await context.tracer.withSpan(
                         "Comment thread hasn\u2019t persisted so returning optimistic backfill",
                         async context => {
                             const checkpoint = generateServerSynchronizationCheckpoint();
@@ -1157,7 +1199,7 @@ export class DocumentCollaborationConnection {
                 const optimisticCommentThread =
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread && version <= 0) {
-                    return this._getOptimisticCommentThreadComment(
+                    return await this._getOptimisticCommentThreadComment(
                         context,
                         commentThreadId,
                         optimisticCommentThread,

@@ -29,6 +29,7 @@ ts_project(
         "//client/web/shimmer",
         "//client/web/spaces",
         "//client/web/styles",
+        "//client/web/tasks",
         "//client/web/virtualized",
         "//shared/design",
         "//shared/dynamo",

@@ -23,8 +23,8 @@ test("generates correct IDs", () => {
 
         expect(getMinId() <= id).toEqual(true);
 
-        // We want to make sure ids are less than the maximum id to ensure ids only
-        // store 128 bits of information. That way we can easily store ids in binary.
+        // We want to make sure ids are less than the maximum id to ensure ids only store
+        // 128 bits of information. That way we can easily store ids in binary.
         expect(id <= getMaxId()).toEqual(true);
 
         expect(isId(id)).toEqual(true);

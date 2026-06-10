@@ -27,7 +27,7 @@ export async function createSpace(
 ): Promise<SpaceModel> {
     const accountId = context.actor.getAccountId();
 
-    return actuallyCreateSpace(context, {
+    return await actuallyCreateSpace(context, {
         name,
         ownerAccountId: accountId,
     });
@@ -47,7 +47,7 @@ export async function createSpaceForAccountAsAdmin(
 ): Promise<SpaceModel> {
     await authorizeInternalAccess(context);
 
-    return actuallyCreateSpace(context, {
+    return await actuallyCreateSpace(context, {
         name,
         ownerAccountId,
         spaceId,
@@ -55,11 +55,11 @@ export async function createSpaceForAccountAsAdmin(
 }
 
 /**
- * Creates a space and adds the given user as the `Owner` of the space.
- * This creates all resources associated with a new account, including:
+ * Creates a space and adds the given user as the `Owner` of the space. This
+ * creates all resources associated with a new account, including:
  *
- * - A Welcome channel
- * - Starter tasks for the user
+ * - A "General" and "Random" channel
+ * - Pre-installed ChatGPT and Cursor bots
  */
 async function actuallyCreateSpace(
     context: ServerActionContext,
@@ -94,6 +94,7 @@ async function actuallyCreateSpace(
                 space: {type: "New", id: spaceId},
                 account: {type: "Existing", id: ownerAccountId},
                 role: "Owner",
+                inviterAccountId: null,
             }),
             createSpaceWelcomePackageTransactionEntries(context, {
                 currentTime,
@@ -123,14 +124,15 @@ async function actuallyCreateSpace(
                 ...welcomePackageTransactionEntries,
             ]),
 
-            // Faster to add affinity points separately from our create space transaction.
-            // We don't care if there are some affinity point items floating around for a
-            // space that doesn't exist.
+            // Faster to add affinity points separately from our create space transaction. We
+            // don't care if there are some affinity point items floating around for a space
+            // that doesn't exist.
             dangerouslyApplySpaceWelcomePackage(context, {
                 accountId: ownerAccountId,
                 welcomePackageItem,
                 // New space so there are no suggested accounts.
                 suggestedAccountIds: [],
+                invitedAccountIds: [],
             }),
         ]);
 

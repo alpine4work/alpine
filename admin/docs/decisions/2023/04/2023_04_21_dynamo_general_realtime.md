@@ -1,4 +1,6 @@
-# \[2023-04-21\] DynamoDB General Realtime
+# \[2023-04-21\] DynamoDB General Realtime (known now as "Rynamo")
+
+See also: [Rynamo (formerly known as Dynamo General Realtime)](../../2026/05/2026_05_21_rynamo.md)
 
 ## Context
 

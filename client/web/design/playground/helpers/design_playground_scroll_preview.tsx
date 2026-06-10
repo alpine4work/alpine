@@ -20,8 +20,8 @@ export function DesignPlaygroundScrollPreview({
 
     // On mount, center the scroller such that the content element is centered.
     //
-    // Safe because we also have a `<script>` that executes this logic before
-    // React hydrates.
+    // Safe because we also have a `<script>` that executes this logic before React
+    // hydrates.
     useLayoutEffectWithoutServerSideWarning(() => {
         assert(scrollerRef.current);
         assert(contentRef.current);
@@ -40,8 +40,8 @@ export function DesignPlaygroundScrollPreview({
     const content = (
         <div ref={contentRef}>
             <ScriptBeforeAppInitialRender
-                // Center the scrollable element so that the content element is centered on
-                // initial render.
+                // Center the scrollable element so that the content element is centered on initial
+                // render.
                 script={safe`var content = document.currentScript.parentNode; var scroller = content.parentNode.parentNode; scroller.scrollTop = content.offsetTop - scroller.clientHeight / 2 + content.clientHeight / 2; scroller.scrollLeft = content.offsetLeft - scroller.clientWidth / 2 + content.clientWidth / 2;`}
             />
             {children}

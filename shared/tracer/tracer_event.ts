@@ -7,13 +7,13 @@ import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * An in-memory tracer event. Events are structured so they can be cheaply
- * constructed and modified to avoid slowing down performance critical code.
- * Then when we send tracer events to the server we convert them into their
- * final format.
+ * constructed and modified to avoid slowing down performance critical code. Then
+ * when we send tracer events to the server we convert them into their final
+ * format.
  *
- * Event data is represented as a linked list. Every time we call
- * `span.addData()` it adds to the linked list instead of doing an O(data)
- * merge. Then we merge data before sending it to the server.
+ * Event data is represented as a linked list. Every time we call `span.addData()`
+ * it adds to the linked list instead of doing an O(data) merge. Then we merge data
+ * before sending it to the server.
  */
 export class TracerEvent {
     public readonly time: number;
@@ -33,8 +33,8 @@ export class TracerEvent {
     }
 
     /**
-     * Gets the flattened data for this tracer event which we can send over the
-     * wire. We lazily flatten data the first time this function is called.
+     * Gets the flattened data for this tracer event which we can send over the wire.
+     * We lazily flatten data the first time this function is called.
      */
     public getFlatData(): TracerEventFlatData {
         if (this._flatEventData === null) {

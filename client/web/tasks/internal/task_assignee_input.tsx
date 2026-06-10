@@ -201,8 +201,8 @@ function TaskAssigneeInput(
                         if (item1.accountData.id === currentAccount?.id) return -1;
                         if (item2.accountData.id === currentAccount?.id) return 1;
 
-                        // Use the sort order from the server. The server returns accounts in
-                        // affinity order.
+                        // Use the sort order from the server. The server returns accounts in affinity
+                        // order.
                         return 0;
                     });
 
@@ -230,10 +230,10 @@ function TaskAssigneeInput(
             inputValue === "" || inputState.type === "Selection" || !inputState.hasChanged
                 ? // Don't include removed accounts in the initial rendered account list.
                   //
-                  // TODO(calebmer): When searching, removed accounts should rank lower. How do
-                  // we give them a lower score while still allowing users to find them?
+                  // TODO(calebmer): When searching, removed accounts should rank lower. How do we
+                  // give them a lower score while still allowing users to find them?
                   allItems.filter(
-                      item => !item.accountData || item.accountData.space.state.type === "Active",
+                      item => !item.accountData || item.accountData.space.state.type !== "Removed",
                   )
                 : itemsSearchIndex.search(inputValue).map(({item}) => item),
 
@@ -278,15 +278,15 @@ function TaskAssigneeInput(
             // Select all text when the combobox opens.
             //
             // Except on mobile. Since on mobile devices like iOS selecting a range of text
-            // will open a hovering edit menu (with copy/paste/etc. actions) which
-            // conflicts with our overlay. So instead we clear out the text. The old text
-            // will still be visible in a placeholder.
+            // will open a hovering edit menu (with copy/paste/etc. actions) which conflicts
+            // with our overlay. So instead we clear out the text. The old text will still be
+            // visible in a placeholder.
             if (isOpen && platform !== "mobile") {
                 inputElement.select();
             }
 
-            // We need to know whether the combobox is open or not to decide whether we
-            // should load accounts.
+            // We need to know whether the combobox is open or not to decide whether we should
+            // load accounts.
             setShouldLoadAccounts(isOpen);
         },
 
@@ -311,10 +311,10 @@ function TaskAssigneeInput(
         },
 
         onBlur: event => {
-            // Chrome dispatches a "fake" blur event when the user has an element focused
-            // but then clicks on another window, focusing that window but leaving our
-            // current window visible. `blur` is dispatched but `document.activeElement`
-            // doesn't change!
+            // Chrome dispatches a "fake" blur event when the user has an element focused but
+            // then clicks on another window, focusing that window but leaving our current
+            // window visible. `blur` is dispatched but `document.activeElement` doesn't
+            // change!
             //
             // Detect this case. If we receive a `blur` event but `document.activeElement`
             // hasn't changed then escalate to a real blur.
@@ -323,13 +323,14 @@ function TaskAssigneeInput(
             }
 
             // If we're focusing an element with a popup (`role="combobox"` [implicitly has
-            // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly
-            // focused element will probably open its popup.
+            // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly focused
+            // element will probably open its popup.
             //
             // This happens when you have this input open then switch to another input by
             // tapping in `<TaskGridViewMobileKeyboardToolbar>`.
             //
-            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+            // [1]:
+            //     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
             const disableAnimationOut =
                 event.relatedTarget instanceof HTMLElement
                     ? (event.relatedTarget.ariaHasPopup ??
@@ -479,8 +480,8 @@ function TaskAssigneeInput(
 
     const comboBoxState = useComboBoxState(comboBoxProps);
 
-    // If the assignee changed while the user was focused and typing, reset the
-    // input to the new selection.
+    // If the assignee changed while the user was focused and typing, reset the input
+    // to the new selection.
     //
     // This commonly happens when the user makes a selection then hits cmd-z.
     if (
@@ -553,10 +554,11 @@ function TaskAssigneeInput(
         <div
             data-testid={process.env.NODE_ENV !== "production" ? "TaskAssigneeInput" : undefined}
             className={sprinkles({
-                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
-                // target size][1].
+                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit target
+                // size][1].
                 //
-                // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
+                // [1]:
+                //     https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
                 height: platform === "mobile" ? "9" : avatarSize,
                 marginY: insetMarginY ? `-${insetMarginY}` : undefined,
                 marginLeft: avatarSize === "5" ? "-0.5" : undefined,
@@ -577,13 +579,13 @@ function TaskAssigneeInput(
                 offsetAlong={avatarSize === "5" ? "-2.5" : "-3"}
                 disableAnimationIn={true}
                 disableAnimationOut={inputState.disableAnimationOut}
-                // Prefer rendering the overlay above the input on mobile since the keyboard
-                // will open below the input causing an overlay rendered below to jump up.
+                // Prefer rendering the overlay above the input on mobile since the keyboard will
+                // open below the input causing an overlay rendered below to jump up.
                 placement={platform === "mobile" ? "top-start" : "bottom-start"}
-                // The overlay blocks interaction with everything outside the overlay. Except
-                // the combobox input. We still want to render the overlay in our current
-                // overlay scope so that it animates smoothly with scroll animations (important
-                // on mobile when we need to avoid the keyboard).
+                // The overlay blocks interaction with everything outside the overlay. Except the
+                // combobox input. We still want to render the overlay in our current overlay scope
+                // so that it animates smoothly with scroll animations (important on mobile when we
+                // need to avoid the keyboard).
                 isBlocking={true}
                 withoutRootBlockingScope={true}
                 withoutBlockingTarget={true}
@@ -591,12 +593,12 @@ function TaskAssigneeInput(
                     if (document.activeElement instanceof HTMLElement)
                         document.activeElement.blur();
                 }}
-                // Set a constant `overflowBottom` value instead of relying on the current
-                // keyboard height (which will be updated asynchronously after `isEditing` is
-                // true). This stops the overlay placement from jumping around while the
-                // keyboard opens. The value was calculated based on the keyboard height in
-                // iOS. We may need to change this constant if the keyboard height for iOS
-                // changes or the Android keyboard height is bigger.
+                // Set a constant `overflowBottom` value instead of relying on the current keyboard
+                // height (which will be updated asynchronously after `isEditing` is true). This
+                // stops the overlay placement from jumping around while the keyboard opens. The
+                // value was calculated based on the keyboard height in iOS. We may need to change
+                // this constant if the keyboard height for iOS changes or the Android keyboard
+                // height is bigger.
                 overflowBottom={platform === "mobile" ? "18rem" : undefined}
                 overflowTop={navigationBarHeight}
                 overlay={
@@ -626,8 +628,8 @@ function TaskAssigneeInput(
                             gap: avatarSize === "5" ? "1.5" : "1",
                         })}
                         style={{
-                            // `display: inline-flex` creates an inline layout which adds extra space
-                            // below the element. Adding `vertical-align` stops the space from being added.
+                            // `display: inline-flex` creates an inline layout which adds extra space below the
+                            // element. Adding `vertical-align` stops the space from being added.
                             // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                             verticalAlign: "top",
                         }}
@@ -670,22 +672,21 @@ function TaskAssigneeInput(
                                 cursor: inputValue.length > 0 ? "text" : undefined,
                             }}
                             containerStyle={{
-                                // Don't allow selecting the input text if touch drag is supported and the
-                                // input is unfocused. We know `!canPrimaryInputHover` is the main precondition
-                                // to supporting touch dragging.
+                                // Don't allow selecting the input text if touch drag is supported and the input is
+                                // unfocused. We know `!canPrimaryInputHover` is the main precondition to
+                                // supporting touch dragging.
                                 //
-                                // Otherwise if you long press on this text input the browser will try to
-                                // select text and go into drag state at the same time! We only want to engage
-                                // drag state.
+                                // Otherwise if you long press on this text input the browser will try to select
+                                // text and go into drag state at the same time! We only want to engage drag state.
                                 pointerEvents:
                                     !canPrimaryInputHover && inputState.type === "Selection"
                                         ? "none"
                                         : undefined,
                             }}
                             // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
-                            // disables these capabilities because the user has combobox suggestions.
-                            // However, fixing typos at the OS level when typos are common (like on iOS)
-                            // is really useful.
+                            // disables these capabilities because the user has combobox suggestions. However,
+                            // fixing typos at the OS level when typos are common (like on iOS) is really
+                            // useful.
                             autoCorrect={undefined}
                             spellCheck={undefined}
                             onKeyDown={event => {
@@ -695,23 +696,24 @@ function TaskAssigneeInput(
                                 ) {
                                     // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
                                     // whenever `Enter` is pressed][1] whether or not an option is focused. If an
-                                    // option isn't focused this just closes the combobox and leaves the user
-                                    // confused. Is what they typed the new value or not? It's not, you can tell
-                                    // since the avatar doesn't change. This is particularly confusing on mobile
-                                    // where the user may hit the return key expecting the first value in the menu
-                                    // to be selected. But that won't happen, the menu will just close.
+                                    // option isn't focused this just closes the combobox and leaves the user confused.
+                                    // Is what they typed the new value or not? It's not, you can tell since the avatar
+                                    // doesn't change. This is particularly confusing on mobile where the user may hit
+                                    // the return key expecting the first value in the menu to be selected. But that
+                                    // won't happen, the menu will just close.
                                     //
                                     // So intercept this case and don't call into `@react-aria/combobox`.
                                     //
-                                    // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                    // [1]:
+                                    //     https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
                                 } else {
                                     inputProps.onKeyDown?.(event);
                                 }
                             }}
                             onPointerDown={event => {
-                                // As a convenience, if you tap on this element while it's already focused but
-                                // the combobox isn't open then open the combobox. After you select an option
-                                // the combobox closes but the user may want to select another account.
+                                // As a convenience, if you tap on this element while it's already focused but the
+                                // combobox isn't open then open the combobox. After you select an option the
+                                // combobox closes but the user may want to select another account.
                                 //
                                 // We have to be a little careful and make sure this doesn't break the default
                                 // browser behavior of focusing the input if it's unfocused.
@@ -723,12 +725,12 @@ function TaskAssigneeInput(
                                     comboBoxState.open();
                                 }
 
-                                // When using the mouse, if the user clicks the input and the input isn't
-                                // focused then prevent default and open the combobox. We `preventDefault()`
-                                // since the browser default is to focus on `pointerdown` then set the
-                                // selection on `pointerup`. However, on initial tap we want to focus
-                                // everything (we call `inputElement.select()` in `onOpenChange`) so the
-                                // browser changing the selection in `pointerup` breaks that.
+                                // When using the mouse, if the user clicks the input and the input isn't focused
+                                // then prevent default and open the combobox. We `preventDefault()` since the
+                                // browser default is to focus on `pointerdown` then set the selection on
+                                // `pointerup`. However, on initial tap we want to focus everything (we call
+                                // `inputElement.select()` in `onOpenChange`) so the browser changing the selection
+                                // in `pointerup` breaks that.
                                 if (
                                     !isReadOnly &&
                                     event.pointerType === "mouse" &&

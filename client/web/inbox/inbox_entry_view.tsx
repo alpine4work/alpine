@@ -8,6 +8,7 @@ import {AccountShortName} from "~/client/web/accounts/account_short_name.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
@@ -35,13 +36,14 @@ import {
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 export const inboxEntryWidth = "96";
@@ -67,13 +69,14 @@ export function InboxEntryView({
     withMarginBottom,
     withBorderTop,
     withBackgroundIfPressed = false,
+    withEntryTime = true,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
     deletedItemAnimation = null,
     onArchive,
     onUnarchive,
 }: {
-    filter: "New" | "Archive";
+    filter: InboxEntryStatus;
     entry: InboxEntryModel;
     isSelected?: boolean;
     onPressStart?: () => void;
@@ -84,21 +87,21 @@ export function InboxEntryView({
     withMarginBottom?: boolean;
     withBorderTop?: boolean;
     withBackgroundIfPressed?: boolean;
+    withEntryTime?: boolean;
     // Because entries are virtualized, we need to set these properties so screen
-    // readers can correctly announce what position the user is in no matter
-    // what's in the DOM.
-    // https://w3c.github.io/aria/#aria-setsize
+    // readers can correctly announce what position the user is in no matter what's in
+    // the DOM. https://w3c.github.io/aria/#aria-setsize
     "aria-setsize"?: number;
     "aria-posinset"?: number;
     deletedItemAnimation?: {
         offset: number;
-        deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
+        deletedItem: {item: RynamoItem<InboxEntryModel>};
     } | null;
     onArchive: (options: {withAnimation: boolean}) => MaybePromise<void>;
     onUnarchive: () => MaybePromise<void>;
 }) {
-    const currentTime = useCurrentTimeRoundedToHour();
-    const {isAppleDevice, timeZone, locale} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {locale} = clientInfo;
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {currentAccount} = useSpaceContext();
 
@@ -111,7 +114,7 @@ export function InboxEntryView({
     const [archiveFilterMoreMenuButtonState, setArchiveFilterMoreMenuButtonState] = useState<
         {isExpanded: false} | {isExpanded: true; isAnimatingOut: boolean}
     >({isExpanded: false});
-    if (filter !== "Archive" && archiveFilterMoreMenuButtonState.isExpanded)
+    if (filter !== "Done" && archiveFilterMoreMenuButtonState.isExpanded)
         setArchiveFilterMoreMenuButtonState({isExpanded: false});
 
     useEffect(() => {
@@ -127,8 +130,8 @@ export function InboxEntryView({
                 setArchiveFilterMoreMenuButtonState({isExpanded: false});
             },
             overlayFadeOutAnimationDurationMs +
-                // Wait a bit before setting `isExpanded` to false so `isHovered` state can
-                // become true and actions don't temporarily blink out of existence.
+                // Wait a bit before setting `isExpanded` to false so `isHovered` state can become
+                // true and actions don't temporarily blink out of existence.
                 perceivedAsInstantLimitMs,
         );
 
@@ -172,15 +175,15 @@ export function InboxEntryView({
         }
     }, [deletedItemAnimation, entry]);
 
-    // Watch all parent elements of our content editor for scroll events. When a
-    // scroll event occurs we call `setIsPressed(false)`.
+    // Watch all parent elements of our content editor for scroll events. When a scroll
+    // event occurs we call `setIsPressed(false)`.
     //
     // This replicates the behavior in `@react-aria/interactions` where a press is
-    // cancelled when a parent element scrolls. This behavior is important for
-    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // cancelled when a parent element scrolls. This behavior is important for mobile
+    // since the user must press somewhere on the screen to scroll. Normally
     // `pointercancel` should be dispatched when the user scrolls while pressing on
-    // some element but when the CSS `touch-action: manipulation` is set the press
-    // is not cancelled.
+    // some element but when the CSS `touch-action: manipulation` is set the press is
+    // not cancelled.
     useEffect(() => {
         if (!isPressed) return;
 
@@ -234,8 +237,8 @@ export function InboxEntryView({
     useEffect(() => {
         if (filter !== "New") return;
 
-        // If the user can hover then we'll show a "Done" button when the user hovers
-        // over the entry.
+        // If the user can hover then we'll show a "Done" button when the user hovers over
+        // the entry.
         if (canPrimaryInputHover) return;
 
         const entryElement = assertExists(entryRef.current);
@@ -331,8 +334,8 @@ export function InboxEntryView({
                             touchSwipeStateRef.current = null;
                         });
                     }
-                    // The user swiped enough to archive the inbox entry. Animate the entry
-                    // offscreen and perform archival with an animation.
+                    // The user swiped enough to archive the inbox entry. Animate the entry offscreen
+                    // and perform archival with an animation.
                     else {
                         const animation = animate(
                             entryContentElement,
@@ -356,11 +359,11 @@ export function InboxEntryView({
                 const translateX =
                     (touch.clientX - touchState.initialClientX - horizontalActivationDistance) *
                     // We slow the drag animation down to make it feel like the user is dragging
-                    // something heavy. But also this ends up smoothing out the animation! We only
-                    // get `touchmove` events every whole pixel. But on devices like iPhone every
-                    // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
-                    // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
-                    // across multiple hardware pixels per move.
+                    // something heavy. But also this ends up smoothing out the animation! We only get
+                    // `touchmove` events every whole pixel. But on devices like iPhone every virtual
+                    // pixel is actually rendered by 2 to 3 hardware pixels. So animating 1:1 with
+                    // `touchmove` events can looking subtly coarse since we're jumping across multiple
+                    // hardware pixels per move.
                     (1 / 2);
 
                 const touchSwipeIconElement = touchSwipeIconRef.current;
@@ -452,8 +455,8 @@ export function InboxEntryView({
                 return;
             }
 
-            // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
-            // shown on hover).
+            // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>` shown
+            // on hover).
             if (event.target instanceof Node && !entryElement.contains(event.target)) {
                 setIsPressed(false);
                 return;
@@ -516,13 +519,13 @@ export function InboxEntryView({
             paddingBottom={withMarginBottom ? "1" : undefined}
             style={{minHeight: inboxEntryViewMinHeight}}
             // NOTE(calebmer): Not using `usePress()` here because that hook does something
-            // weird with `event.preventDefault()` that causes the listbox in `<InboxView>`
-            // to not be focused after a click.
+            // weird with `event.preventDefault()` that causes the listbox in `<InboxView>` to
+            // not be focused after a click.
             onPointerDown={event => {
                 if (touchSwipeState !== null) return;
 
-                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>`
-                // shown on hover).
+                // Ignore pointer events from portals (e.g. menu opened by the `<MenuButton>` shown
+                // on hover).
                 if (event.target instanceof Node && !event.currentTarget.contains(event.target))
                     return;
 
@@ -537,8 +540,8 @@ export function InboxEntryView({
                 zIndex="0"
                 style={
                     // We use `backgroundColorVar` to draw an outline around avatars. Even though we
-                    // use an absolutely positioned element to set the background color we still
-                    // want `backgroundColorVar` to reflect the right value.
+                    // use an absolutely positioned element to set the background color we still want
+                    // `backgroundColorVar` to reflect the right value.
                     backgroundColor
                         ? assignInlineVars({[backgroundColorVar]: colorSchemeVars[backgroundColor]})
                         : undefined
@@ -546,9 +549,9 @@ export function InboxEntryView({
             >
                 {!canPrimaryInputHover && (
                     // Render this background on touch devices when the swipe to archive gesture is
-                    // enabled. When we archive an entry, the entries below it animate up to cover
-                    // the deleted entry. Those entries need a background color to actually obscure
-                    // the deleted entry.
+                    // enabled. When we archive an entry, the entries below it animate up to cover the
+                    // deleted entry. Those entries need a background color to actually obscure the
+                    // deleted entry.
                     <Box
                         position="absolute"
                         inset="0"
@@ -578,9 +581,9 @@ export function InboxEntryView({
                         right="2.5"
                         zIndex="-10"
                         style={{
-                            // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
-                            // 1px to layout. Layout needs to be precise since this is rendered in a
-                            // virtualized list.
+                            // Draw border with a `box-shadow` instead of `border` so it doesn't contribute 1px
+                            // to layout. Layout needs to be precise since this is rendered in a virtualized
+                            // list.
                             boxShadow: [
                                 `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                                 ...(withBorderTop
@@ -682,13 +685,13 @@ export function InboxEntryView({
                             alignItems="center"
                             justifyContent="center"
                         >
-                            {!entryDisplay.secondAccount ? (
-                                <AccountAvatar account={entryDisplay.firstAccount} size="9" />
+                            {!entryDisplay.otherAccount ? (
+                                <AccountAvatar account={entryDisplay.featuredAccount} size="9" />
                             ) : (
                                 <>
                                     <Box position="absolute" top="0" left="0">
                                         <AccountAvatar
-                                            account={entryDisplay.firstAccount}
+                                            account={entryDisplay.featuredAccount}
                                             size="7"
                                         />
                                     </Box>
@@ -699,7 +702,7 @@ export function InboxEntryView({
                                         borderRadius="full"
                                     >
                                         <AccountAvatar
-                                            account={entryDisplay.secondAccount}
+                                            account={entryDisplay.otherAccount}
                                             size="7"
                                             backgroundBorderWidth={2}
                                         />
@@ -740,12 +743,12 @@ export function InboxEntryView({
                     </Box>
                     <Box paddingY="4" flexGrow="1" fontSize="75" overflow="hidden">
                         <Box>
-                            {entryDisplay.summary.map((summaryItem, i) =>
-                                typeof summaryItem === "string" ? (
-                                    summaryItem
+                            {entryDisplay.title.map((titleItem, i) =>
+                                typeof titleItem === "string" ? (
+                                    titleItem
                                 ) : (
                                     <span key={i} className={sprinkles({fontStyle: "bold"})}>
-                                        <AccountShortName account={summaryItem} />
+                                        <AccountShortName account={titleItem} />
                                     </span>
                                 ),
                             )}
@@ -787,38 +790,12 @@ export function InboxEntryView({
                                     ),
                                 [entryDisplay.latestMessage, showLatestMessage],
                             )}
-                            <Box flexShrink="0">
-                                {showLatestMessage && <>&nbsp;∙&nbsp;</>}
-                                {useMemo(() => {
-                                    if (differenceInHours(currentTime, entryDisplay.time) < 24) {
-                                        const formatter = getIntlDateTimeFormat({
-                                            locale,
-                                            timeZone,
-                                            hour: "numeric",
-                                            minute: "2-digit",
-                                        });
-
-                                        return formatter
-                                            .format(entryDisplay.time)
-                                            .replaceAll(/\s*(AM|PM)/g, string =>
-                                                string.trim().toLowerCase(),
-                                            );
-                                    } else {
-                                        const formatter = getIntlDateTimeFormat({
-                                            locale,
-                                            timeZone,
-                                            month: "short",
-                                            day: "numeric",
-                                        });
-
-                                        return formatter
-                                            .format(entryDisplay.time)
-                                            .replaceAll(/\s*(AM|PM)/g, string =>
-                                                string.trim().toLowerCase(),
-                                            );
-                                    }
-                                }, [currentTime, entryDisplay.time, locale, timeZone])}
-                            </Box>
+                            {withEntryTime && (
+                                <Box flexShrink="0">
+                                    {showLatestMessage && <>&nbsp;∙&nbsp;</>}
+                                    <InboxEntryViewTime time={entryDisplay.time} />
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                 </Box>
@@ -865,7 +842,9 @@ export function InboxEntryView({
                                 description="Done"
                                 tooltipPlacement="bottom"
                                 keyboardShortcutHint={
-                                    isSelected ? (isAppleDevice ? "⌘+D" : "Ctrl+D") : undefined
+                                    isSelected
+                                        ? renderKeyboardShortcutHint(clientInfo, "mod", "d")
+                                        : undefined
                                 }
                                 pressErrorTitle="Couldn&#x2019;t mark as done"
                                 onPress={() => onArchive({withAnimation: false})}
@@ -933,8 +912,7 @@ function getPrimaryBrandIconByType(
         case "Document":
             return (
                 // Scooch document icon right a little to balance it visually with other icons.
-                // Given the document icon has a vertical orientation vs horizontal
-                // orientation.
+                // Given the document icon has a vertical orientation vs horizontal orientation.
                 <Box position="relative" style={{right: "-0.0625rem"}}>
                     <DocumentBrandIcon />
                 </Box>
@@ -942,4 +920,35 @@ function getPrimaryBrandIconByType(
         case "Post":
             return <PostBrandIcon />;
     }
+}
+
+function InboxEntryViewTime({time}: {time: Date}) {
+    const {locale, timeZone} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
+
+    return useMemo(() => {
+        if (differenceInHours(currentTime, time) < 24) {
+            const formatter = getIntlDateTimeFormat({
+                locale,
+                timeZone,
+                hour: "numeric",
+                minute: "2-digit",
+            });
+
+            return formatter
+                .format(time)
+                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+        } else {
+            const formatter = getIntlDateTimeFormat({
+                locale,
+                timeZone,
+                month: "short",
+                day: "numeric",
+            });
+
+            return formatter
+                .format(time)
+                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+        }
+    }, [currentTime, locale, time, timeZone]);
 }

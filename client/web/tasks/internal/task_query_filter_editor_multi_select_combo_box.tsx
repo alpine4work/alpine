@@ -73,8 +73,8 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
             ref={triggerButtonRef}
             aria-haspopup="listbox"
             placement="bottom-start"
-            // Allow flipping vertically but not horizontally on mobile. Flipping
-            // horizontally on mobile can happen easily and be disruptive.
+            // Allow flipping vertically but not horizontally on mobile. Flipping horizontally
+            // on mobile can happen easily and be disruptive.
             fallbackPlacements={platform === "mobile" ? ["top-start"] : undefined}
             overlay={({onCloseWithoutAnimation}) => (
                 <Box
@@ -122,8 +122,8 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
                                 paddingX: "1",
                                 display: "flex",
                                 alignItems: "center",
-                                // The hit radius for this button extends within the entire filter editor but
-                                // the background color style has some inset.
+                                // The hit radius for this button extends within the entire filter editor but the
+                                // background color style has some inset.
                                 backgroundColor: isPressed
                                     ? "grey-10"
                                     : isHovered || isVisible
@@ -196,8 +196,8 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
         }),
     });
 
-    // Memoized list state object we can use to avoid re-renders if list
-    // doesn't change.
+    // Memoized list state object we can use to avoid re-renders if list doesn't
+    // change.
     const listState = useMemo(
         (): ListState<TaskQueryFilterEditorMultiSelectComboBoxItemBase> => ({
             collection,
@@ -298,9 +298,9 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                         })}
                         placeholder={inputLabel}
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
-                        // disables these capabilities because the user has combobox suggestions.
-                        // However, fixing typos at the OS level when typos are common (like on iOS)
-                        // is really useful.
+                        // disables these capabilities because the user has combobox suggestions. However,
+                        // fixing typos at the OS level when typos are common (like on iOS) is really
+                        // useful.
                         autoCorrect={undefined}
                         spellCheck={undefined}
                         onKeyDown={event => {
@@ -314,15 +314,16 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                             ) {
                                 // NOTE(calebmer): By default, `@react-aria/combobox` [calls `state.commit()`
                                 // whenever `Enter` is pressed][1] whether or not an option is focused. If an
-                                // option isn't focused this just closes the combobox and leaves the user
-                                // confused. Is what they typed the new value or not? It's not, you can tell
-                                // since the avatar doesn't change. This is particularly confusing on mobile
-                                // where the user may hit the return key expecting the first value in the menu
-                                // to be selected. But that won't happen, the menu will just close.
+                                // option isn't focused this just closes the combobox and leaves the user confused.
+                                // Is what they typed the new value or not? It's not, you can tell since the avatar
+                                // doesn't change. This is particularly confusing on mobile where the user may hit
+                                // the return key expecting the first value in the menu to be selected. But that
+                                // won't happen, the menu will just close.
                                 //
                                 // So intercept this case and don't call into `@react-aria/combobox`.
                                 //
-                                // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                // [1]:
+                                //     https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
                             } else {
                                 inputProps.onKeyDown?.(event);
                             }
@@ -389,10 +390,9 @@ function TaskQueryFilterEditorMultiSelectListBox({
 
     return (
         <div
-            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
-            // doesn't need to add a resize listener to every child. This means we need to
-            // provide `useListBox()` a `scrollRef` if we want to scroll to the
-            // focused option.
+            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()` doesn't
+            // need to add a resize listener to every child. This means we need to provide
+            // `useListBox()` a `scrollRef` if we want to scroll to the focused option.
             ref={useMergedRefs(useScrollbar(), scrollRef)}
             className={sprinkles({
                 position: "relative",
@@ -404,8 +404,8 @@ function TaskQueryFilterEditorMultiSelectListBox({
         >
             <ul {...listBoxProps} ref={listBoxRef}>
                 {useMemo(() => {
-                    // The list of collection items shouldn't need to re-render whenever the
-                    // combobox opens, closes, or animates. Hence the `useMemo()`.
+                    // The list of collection items shouldn't need to re-render whenever the combobox
+                    // opens, closes, or animates. Hence the `useMemo()`.
                     return listState.collection.size === 0 ? (
                         <Box
                             padding="1.5"
@@ -446,12 +446,11 @@ function TaskQueryFilterEditorMultiSelectListBoxOption({
         {
             key: item.key,
             // By default `@react-aria/listbox` allows you to press on the combobox trigger
-            // then drag up and release to select an item. This is not a common interaction
-            // and not something we want to support (our `<MenuButton>` doesn't support
-            // this). Furthermore, on mobile it means if you press an option in a combobox
-            // then scroll and release that option will be selected! Instead the scroll
-            // should cancel the press. We really want to disable that behavior since it
-            // feels broken.
+            // then drag up and release to select an item. This is not a common interaction and
+            // not something we want to support (our `<MenuButton>` doesn't support this).
+            // Furthermore, on mobile it means if you press an option in a combobox then scroll
+            // and release that option will be selected! Instead the scroll should cancel the
+            // press. We really want to disable that behavior since it feels broken.
             disallowsDifferentPressOrigin: true,
         },
         listState,

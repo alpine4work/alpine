@@ -12,10 +12,10 @@ let htmlImageElementLoadedAndDecodedPromiseByElement:
  * loading and decoding. Once this promise is resolved the image is ready to be
  * rendered in the DOM.
  *
- * If the image fails to load then the promise rejects. If you call this
- * function multiple times for the same element then we'll return the same
- * promise. We return a `PromiseImmediate` so you can figure out synchronously
- * whether the image has loaded.
+ * If the image fails to load then the promise rejects. If you call this function
+ * multiple times for the same element then we'll return the same promise. We
+ * return a `PromiseImmediate` so you can figure out synchronously whether the
+ * image has loaded.
  */
 export function isHtmlImageElementLoadedAndDecoded(
     element: HTMLImageElement,
@@ -31,8 +31,8 @@ export function isHtmlImageElementLoadedAndDecoded(
                     element.removeEventListener("load", handleLoad);
                     element.removeEventListener("error", handleLoad);
 
-                    // If there was a problem while loading the image then it'll have a natural
-                    // width and height of 0. In this case we never resolve the promise.
+                    // If there was a problem while loading the image then it'll have a natural width
+                    // and height of 0. In this case we never resolve the promise.
                     if (element.naturalWidth === 0 && element.naturalHeight === 0) {
                         reject(
                             new UnknownError(quote`Error loading image with source ${element.src}`),
@@ -46,9 +46,9 @@ export function isHtmlImageElementLoadedAndDecoded(
                     } else {
                         element.decode().then(
                             resolve,
-                            // NOTE(calebmer, 2024-10-17): Sometimes when decoding fails it's actually fine
-                            // and the browser can render the image. Don't know why but fine I'll ignore
-                            // errors for now.
+                            // NOTE(calebmer, 2024-10-17): Sometimes when decoding fails it's actually fine and
+                            // the browser can render the image. Don't know why but fine I'll ignore errors for
+                            // now.
                             resolve,
                         );
                     }

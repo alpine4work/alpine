@@ -8,7 +8,8 @@ export const jobQueueNameByType = {
     IndexSearchEntityDependents: "Default",
     IndexSearchEntityEmbeddingChunks: "Default",
     NotificationEvent: "Default",
-    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue
+    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+    // original job queue
     ProcessFile: "FileProcessor",
     ProcessFileHeavy: "FileProcessorHeavy",
     ProcessFileLight: "FileProcessorLight",
@@ -19,8 +20,7 @@ export const jobQueueNameByType = {
     AddFeedAccountCandidateEntry: "Default",
     CallBotWebhook: "Default",
     SendPendingSubtleNotificationsForInbox: "Default",
-    ValidateNotionImportAndExtractMetadata: "Default",
-    StartNotionImport: "Default",
+    SendNotificationToSlackIntegration: "Default",
 } as const satisfies Record<JobDescription["type"], string>;
 
 export type JobTypeByQueueName = {

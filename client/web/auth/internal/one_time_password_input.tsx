@@ -80,8 +80,8 @@ export function OneTimePasswordInput({
         inputElement.scrollLeft = 0;
 
         // Seems like the `scroll` event happens after our layout effect. Schedule an
-        // animation frame to reset scroll works. This is kind of a hack. Ideally
-        // there'd be some way to tell the browser not to scroll in the first place.
+        // animation frame to reset scroll works. This is kind of a hack. Ideally there'd
+        // be some way to tell the browser not to scroll in the first place.
         requestAnimationFrame(() => {
             inputElement.scrollLeft = 0;
         });
@@ -105,8 +105,8 @@ export function OneTimePasswordInput({
                     onOneTimePasswordChange(oneTimePassword);
                 }}
                 onScroll={event => {
-                    // If the input scrolls make sure to always scroll the input back to the left.
-                    // For example, if the selection moves around the sixth character.
+                    // If the input scrolls make sure to always scroll the input back to the left. For
+                    // example, if the selection moves around the sixth character.
                     event.currentTarget.scrollLeft = 0;
                 }}
                 className={sprinkles({
@@ -114,8 +114,8 @@ export function OneTimePasswordInput({
                     position: "absolute",
                     inset: "0",
                     fontSize,
-                    // Hide if `measurements` is null since we haven't computed the right
-                    // letter spacing yet.
+                    // Hide if `measurements` is null since we haven't computed the right letter
+                    // spacing yet.
                     opacity: measurements ? "100" : "0",
                 })}
                 style={{

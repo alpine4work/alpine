@@ -72,14 +72,14 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     ),
                     iconPlacement: "end",
                     onPress: () => {
-                        // Currently, accounts without space access can't edit tasks. The max
-                        // permission level of `urlGrant` is `View`.
+                        // Currently, accounts without space access can't edit tasks. The max permission
+                        // level of `urlGrant` is `View`.
                         assert(currentAccount);
 
                         const currentAssigneeAccountId = getAssigneeAccountIdSnapshot();
 
-                        // If we are marking a task as active and there's not currently an assignee,
-                        // then set ourselves as the assignee.
+                        // If we are marking a task as active and there's not currently an assignee, then
+                        // set ourselves as the assignee.
                         commitActionTransaction(taskId => {
                             const time1 = store.clock.now();
                             const time2 = store.clock.now();
@@ -135,8 +135,8 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     ),
                     iconPlacement: "end",
                     onPress: () => {
-                        // Currently, accounts without space access can't edit tasks. The max
-                        // permission level of `urlGrant` is `View`.
+                        // Currently, accounts without space access can't edit tasks. The max permission
+                        // level of `urlGrant` is `View`.
                         assert(currentAccount);
 
                         const runCommitTaskActionTransaction = () => {
@@ -213,8 +213,8 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                     ),
                     iconPlacement: "end",
                     onPress: () => {
-                        // Currently, accounts without space access can't edit tasks. The max
-                        // permission level of `urlGrant` is `View`.
+                        // Currently, accounts without space access can't edit tasks. The max permission
+                        // level of `urlGrant` is `View`.
                         assert(currentAccount);
 
                         const runCommitTaskActionTransaction = () => {
@@ -263,7 +263,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
             return [
                 {
                     label: "Mark open",
-                    icon: <TaskDisplayStatusCircle displayStatus="OpenInactive" size="3" />,
+                    icon: ({size}) => (
+                        <TaskDisplayStatusCircle displayStatus="OpenInactive" size={size} />
+                    ),
                     iconPlacement: "end",
                     onPress: () => {
                         commitActionTransaction(taskId => [
@@ -284,17 +286,19 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                 },
                 {
                     label: "Mark active",
-                    icon: <TaskDisplayStatusCircle displayStatus="OpenActive" size="3" />,
+                    icon: ({size}) => (
+                        <TaskDisplayStatusCircle displayStatus="OpenActive" size={size} />
+                    ),
                     iconPlacement: "end",
                     onPress: () => {
-                        // Currently, accounts without space access can't edit tasks. The max
-                        // permission level of `urlGrant` is `View`.
+                        // Currently, accounts without space access can't edit tasks. The max permission
+                        // level of `urlGrant` is `View`.
                         assert(currentAccount);
 
                         const currentAssigneeAccountId = getAssigneeAccountIdSnapshot();
 
-                        // If we are marking a task as active and there's not currently an assignee,
-                        // then set ourselves as the assignee.
+                        // If we are marking a task as active and there's not currently an assignee, then
+                        // set ourselves as the assignee.
                         commitActionTransaction(taskId => {
                             const time1 = store.clock.now();
                             const time2 = store.clock.now();

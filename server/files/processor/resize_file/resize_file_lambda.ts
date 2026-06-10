@@ -6,8 +6,8 @@ import {createHttpLambdaHandler} from "~/server/lambda/create_http_lambda_handle
 const route = "/:spaceId/resize/:fileId";
 
 /**
- * Lambda handler for file resizing.
- * Converts HTTP requests to the same resize logic used in ECS.
+ * Lambda handler for file resizing. Converts HTTP requests to the same resize
+ * logic used in ECS.
  */
 export const handler = createHttpLambdaHandler({
     handleRequest: handleResizeFileRequest,

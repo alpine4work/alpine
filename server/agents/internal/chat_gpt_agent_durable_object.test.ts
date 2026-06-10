@@ -23,7 +23,7 @@ import {
 } from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {AgentUsageDatabaseInterface} from "~/server/agents/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/internal/open_ai_client.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
@@ -267,8 +267,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         const durableObject = createChatGptAgentDurableObject();
         mockAgentUsageForAccount(authorId);
 
-        // create the bot's response message, needs to be mocked because we
-        // need the index
+        // create the bot's response message, needs to be mocked because we need the index
         apiClient.mockPost("/chats/{id}/messages", {
             data: {
                 spaceId,
@@ -277,7 +276,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -311,6 +310,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
                                 ],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -419,9 +419,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             }),
         );
 
-        // Verify clearInterval was called
-        // Cleared once after first content part is received and sent
-        // cleared once again after the second content part is sent
+        // Verify clearInterval was called Cleared once after first content part is
+        // received and sent cleared once again after the second content part is sent
         // cleared after the complete is sent
         expect(clearIntervalSpy).toHaveBeenCalledTimes(3);
     });
@@ -467,7 +466,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -496,6 +495,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
                                 ],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -531,7 +531,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 return null;
             },
         );
-        // First calls succeed (for isAgentUsageLimitExceeded), then throw (for shouldDowngradeModelForAgentUsageLimit)
+        // First calls succeed (for isAgentUsageLimitExceeded), then throw (for
+        // shouldDowngradeModelForAgentUsageLimit)
         mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
             .mockResolvedValueOnce(0) // Weekly limit check
             .mockResolvedValueOnce(0) // Dynamic limit check
@@ -594,11 +595,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             }),
         ]);
 
-        // Verify clearInterval was called
-        // Content was sent and stream was completed at same time
-        // `update` is throttled so that it happens 100ms later via timeout
-        // before update runs, `finally` runs and clears the interval
-        // when update runs, there is no interval to clear!
+        // Verify clearInterval was called Content was sent and stream was completed at
+        // same time `update` is throttled so that it happens 100ms later via timeout
+        // before update runs, `finally` runs and clears the interval when update runs,
+        // there is no interval to clear!
         expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -645,7 +645,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -672,14 +672,14 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
                                 ],
                             },
+                            files: [],
                         },
                     },
                 ],
             },
         });
 
-        // ===== ACT =====
-        // The webhook should throw due to the OpenAI error
+        // ===== ACT ===== The webhook should throw due to the OpenAI error
         await expect(durableObject.webhook(span, request)).rejects.toThrow(
             "OpenAI connection lost",
         );
@@ -770,8 +770,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         ]);
 
         // Verify clearInterval was called even though an error occurred
-        // - content comes in and `update()` runs 100ms later, clearing the interval and starting
-        //   a new one after update completes
+        //
+        // - content comes in and `update()` runs 100ms later, clearing the interval and
+        //   starting a new one after update completes
         // - 2 seconds later, stream fails, `finally` runs and clears the current interval
         expect(clearIntervalSpy).toHaveBeenCalledTimes(2);
     });
@@ -844,7 +845,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -871,6 +872,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
                                 ],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -960,8 +962,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         ]);
 
         // Verify clearInterval was called
-        // - reasoning tool call immediately clears updateTimeout and sends the reasoning summary
-        //   this clears the interval and starts a new one
+        //
+        // - reasoning tool call immediately clears updateTimeout and sends the reasoning
+        //   summary this clears the interval and starts a new one
         // - content comes in and `update()` is scheduled to run 100ms later
         // - stream is completed, `finally` runs and clears the current interval
         // - `update()` runs but there is no interval to clear!
@@ -1089,7 +1092,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -1121,6 +1124,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     },
                                 ],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -1149,6 +1153,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 document: {
                     id: documentId,
                     title: "AI Overview",
+                    version: 1,
                     content: {
                         elements: [
                             {
@@ -1276,10 +1281,10 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             }),
         ]);
 
-        // Verify usage was aggregated correctly across all 3 OpenAI calls
-        // Call 1: (100-0)*0.125 + 0*0.0125 + 15*1 = 12.5 + 0 + 15 = 27.5 millicents
-        // Call 2: (200-80)*0.125 + 80*0.0125 + 20*1 = 15 + 1 + 20 = 36 millicents
-        // Call 3: (300-150)*0.125 + 150*0.0125 + 25*1 = 18.75 + 1.875 + 25 = 45.625 millicents
+        // Verify usage was aggregated correctly across all 3 OpenAI calls Call 1:
+        // (100-0)*0.125 + 0*0.0125 + 15*1 = 12.5 + 0 + 15 = 27.5 millicents Call 2:
+        // (200-80)*0.125 + 80*0.0125 + 20*1 = 15 + 1 + 20 = 36 millicents Call 3:
+        // (300-150)*0.125 + 150*0.0125 + 25\*1 = 18.75 + 1.875 + 25 = 45.625 millicents
         // Total: Math.floor(27.5 + 36 + 45.625) = Math.floor(109.125) = 109 millicents
         expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith(
             expect.anything(),
@@ -1293,10 +1298,11 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         );
 
         // Verify clearInterval was called
+        //
         // - search tool call immediately clears updateTimeout and sends the search results
         //   this clears the interval and starts a new one
-        // - next comes a read tool call which also bypasses any update throttling and sends
-        //   the read results. Clears interval and starts a new one
+        // - next comes a read tool call which also bypasses any update throttling and
+        //   sends the read results. Clears interval and starts a new one
         // - content comes in and `update()` is scheduled to run 100ms later
         // - 100ms later, `update()` runs and clears the interval. Then resets it
         // - stream is completed, `finally` runs and clears the current interval
@@ -1336,7 +1342,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -1443,6 +1449,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         // Verify no usage was recorded (no OpenAI call = no usage)
         expect(mockAgentUsageDatabase.createAgentRequest).not.toHaveBeenCalled();
         // Verify clearInterval was called
+        //
         // - should only be called once after sending the last message stream part
         expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
     });
@@ -1503,7 +1510,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -1530,6 +1537,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
                                 ],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -1543,8 +1551,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
         weekStartDate.setUTCDate(weekStartDate.getUTCDate() - weekStartDate.getUTCDay());
         const weekStart = weekStartDate.getTime();
 
-        // Dynamic limit: $1.00 = 100,000 millicents
-        // 80% of that = 80,000 millicents (downgrade threshold)
+        // Dynamic limit: $1.00 = 100,000 millicents 80% of that = 80,000 millicents
+        // (downgrade threshold)
         const dynamicLimitMillicents = 100000;
 
         mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValue(null);
@@ -1755,7 +1763,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -1790,6 +1798,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         },
                                     ],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -1912,7 +1921,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -1947,6 +1956,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         },
                                     ],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2043,8 +2053,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 {type: "response.completed"},
             ]);
 
-            // Second request to OpenAI is the tool call, the output
-            // of which pushes the agent past the context length limit
+            // Second request to OpenAI is the tool call, the output of which pushes the agent
+            // past the context length limit
             mockOpenAiStreamingResponse([
                 {type: "Wait", delayMs: 6000},
                 {
@@ -2062,8 +2072,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 },
             ]);
 
-            // NOTE: This will actually fail because the link references no longer exist.
-            // We won't see a read call to the API!!
+            // NOTE: This will actually fail because the link references no longer exist. We
+            // won't see a read call to the API!!
             mockOpenAiStreamingResponse([
                 {type: "Wait", delayMs: 6000},
                 {
@@ -2125,7 +2135,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -2174,6 +2184,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         },
                                     ],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2378,7 +2389,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -2413,6 +2424,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         },
                                     ],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2548,7 +2560,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -2578,6 +2590,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         },
                                     ],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2710,8 +2723,8 @@ describe("ChatGptAgentDurableObject.webhook", () => {
             weekStartDate.setUTCDate(weekStartDate.getUTCDate() - weekStartDate.getUTCDay());
             const weekStart = weekStartDate.getTime();
 
-            // Dynamic limit: $1.00 = 100,000 millicents
-            // 80% of that = 80,000 millicents (downgrade threshold)
+            // Dynamic limit: $1.00 = 100,000 millicents 80% of that = 80,000 millicents
+            // (downgrade threshold)
             const dynamicLimitMillicents = 100000;
 
             mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValue(null);
@@ -2751,7 +2764,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         author: createApiAccountMock({name: "Bot", botId}),
                         createdTime: assertDateString(new Date().toISOString()),
                         createdTimeZone: defaultTimeZone,
-                        payload: {type: "Content", content: {elements: []}},
+                        payload: {type: "Content", content: {elements: []}, files: []},
                     },
                 },
             });
@@ -2786,6 +2799,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         },
                                     ],
                                 },
+                                files: [],
                             },
                         },
                     ],
@@ -2987,8 +3001,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
 
         const messageIndex = 1;
 
-        // create the bot's response message, needs to be mocked because we
-        // need the index
+        // create the bot's response message, needs to be mocked because we need the index
         apiClient.mockPost("/chats/{id}/messages", {
             data: {
                 spaceId,
@@ -2997,7 +3010,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     author: createApiAccountMock({name: "Bot", botId}),
                     createdTime: assertDateString(new Date().toISOString()),
                     createdTimeZone: defaultTimeZone,
-                    payload: {type: "Content", content: {elements: []}},
+                    payload: {type: "Content", content: {elements: []}, files: []},
                 },
             },
         });
@@ -3031,6 +3044,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
                                 ],
                             },
+                            files: [],
                         },
                     },
                 ],
@@ -3288,7 +3302,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
     });
 
-    test("injects ‘is looking at’ message when user starts viewing a new entity", async () => {
+    test("injects \u2018is looking at\u2019 message when user starts viewing a new entity", async () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         const request = createBaseRequest({
@@ -3358,7 +3372,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
     });
 
-    test("injects ‘is no longer looking at’ message when user stops viewing an entity", async () => {
+    test("injects \u2018is no longer looking at\u2019 message when user stops viewing an entity", async () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         // First, set up initial state with a previous entity
@@ -3492,7 +3506,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
     });
 
-    test("injects ‘is still looking at’ message if user is viewing the same entity after 10 minutes", async () => {
+    test("injects \u2018is still looking at\u2019 message if user is viewing the same entity after 10 minutes", async () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         const viewingTarget = {
@@ -3570,7 +3584,7 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
         });
     });
 
-    test("injects ‘is now looking at’ message when user switches from one entity to another", async () => {
+    test("injects \u2018is now looking at\u2019 message when user switches from one entity to another", async () => {
         const {span} = testTracer.getRoot().startSpan("test-span");
 
         const previousDocumentId = generateId<DocumentId>();
@@ -3660,6 +3674,41 @@ describe("injectCurrentlyViewedEntityIntoContextIfNeeded", () => {
                 },
                 previousTarget: previousTarget,
             });
+        });
+    });
+
+    test("skips injection without throwing when the mention API returns 404", async () => {
+        const {span} = testTracer.getRoot().startSpan("test-span");
+
+        const unresolvableChatId = generateId<ChatId>();
+        const request = createBaseRequest({
+            event: {
+                type: "NewMessage",
+                room: {type: "Chat", id: chatId},
+                index: 0,
+                authorId,
+                createdTimeZone: defaultTimeZone,
+                wasMentioned: true,
+                viewingTarget: {type: "Chat", id: unresolvableChatId},
+            },
+        });
+
+        jest.spyOn(apiClient, "get").mockRejectedValueOnce(new NotFoundError("API request failed"));
+
+        await testStorage.transaction(async (transaction: any) => {
+            const conversation = await ChatGptAgentConversationStore.new(transaction, {
+                initialTimeZone: defaultTimeZone,
+            });
+
+            await injectCurrentlyViewedEntityIntoContextIfNeededForTest(
+                span,
+                request,
+                transaction,
+                conversation,
+            );
+
+            const items = await ChatGptAgentConversationItemCollection.list(transaction);
+            expect(items.size).toBe(0);
         });
     });
 });

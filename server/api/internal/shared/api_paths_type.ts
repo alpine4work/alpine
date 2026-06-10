@@ -1,5 +1,5 @@
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
-import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -18,14 +18,14 @@ export type ApiPaths = {
                 requestBody: ApiOperationJsonRequestType<Path, Method>;
                 span: TracerSpan;
             },
-        ) => Promise<{content: ApiOperation200JsonResponseType<Path, Method>}>;
+        ) => Promise<ApiOperationResultType<Path, Method>>;
     };
 };
 
 /**
- * The base type of our API implementation. `ApiPaths` is assignable to this
- * type. Can be easier to use since this type has dynamic string keys and
- * doesn't bother itself with generic types.
+ * The base type of our API implementation. `ApiPaths` is assignable to this type.
+ * Can be easier to use since this type has dynamic string keys and doesn't bother
+ * itself with generic types.
  */
 export type ApiPathsBase = {
     readonly [path: string]: {
@@ -39,7 +39,7 @@ export type ApiPathsBase = {
                 requestBody: any;
                 span: TracerSpan;
             },
-        ) => Promise<{content: any}>;
+        ) => Promise<{content: any} | {response: Response}>;
     };
 };
 
@@ -69,6 +69,20 @@ export type ApiOperation200JsonResponseType<
 }
     ? JsonResponse
     : {};
+
+/**
+ * Resolves the return type for an API operation handler. Binary response endpoints
+ * (e.g. `application/octet-stream`) return `{response: Response}`, while JSON
+ * endpoints return `{content: ...}`.
+ */
+type ApiOperationResultType<
+    Path extends keyof ApiSpecification.paths,
+    Method extends OpenApiMethod,
+> = ApiSpecification.paths[Path][Method] extends {
+    responses: {200: {content: {"application/json": infer JsonResponse}}};
+}
+    ? {content: JsonResponse}
+    : {response: Response};
 
 type ApiOperationJsonRequestType<
     Path extends keyof ApiSpecification.paths,

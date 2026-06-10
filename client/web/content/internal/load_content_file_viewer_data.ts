@@ -14,19 +14,18 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * The maximum number of pixels in a preview image we'll render on mobile. If
- * `preview.width * preview.height` is greater than this we won't render the
- * image.
+ * `preview.width * preview.height` is greater than this we won't render the image.
  */
-// This variable is here instead of `content_file_image_viewer_mobile.tsx` to
-// avoid a cyclic import.
+// This variable is here instead of `content_file_image_viewer_mobile.tsx` to avoid
+// a cyclic import.
 export const maxContentFileImageViewerMobilePreviewSize = 35e6;
 
 /**
- * Must import `hammerjs` lazily since it references `window` so it's not
- * available on the server.
+ * Must import `hammerjs` lazily since it references `window` so it's not available
+ * on the server.
  */
-// This variable is here instead of `content_file_image_viewer_mobile.tsx` to
-// avoid a cyclic import.
+// This variable is here instead of `content_file_image_viewer_mobile.tsx` to avoid
+// a cyclic import.
 export const hammerModulePromise = new Lazy(() => PromiseImmediate.resolve(import("hammerjs")));
 
 export type ContentFileViewerLoaderData =
@@ -49,10 +48,10 @@ export type ContentFileViewerLoaderData =
       };
 
 /**
- * Load the data needed to render `<ContentFileViewerModal>`. We will wait for
- * a short period of time for this data to load before opening our
- * `<ContentFileViewerModal>`. That way we won't show any loading spinners to
- * the user if data loads quickly.
+ * Load the data needed to render `<ContentFileViewerModal>`. We will wait for a
+ * short period of time for this data to load before opening our
+ * `<ContentFileViewerModal>`. That way we won't show any loading spinners to the
+ * user if data loads quickly.
  *
  * We use the same "loader data" naming convention as Remix routes since it's
  * conceptually similar but this has nothing to do with Remix's loader data
@@ -82,7 +81,7 @@ export async function loadContentFileViewerData({
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return loadContentFileImageViewer({spaceId, file, platform});
+            return await loadContentFileImageViewer({spaceId, file, platform});
         }
         case "application/pdf":
         case "application/msword":
@@ -91,10 +90,9 @@ export async function loadContentFileViewerData({
         case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         case "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-            // We don't currently preload anything regarding PDFs. Since we can't
-            // accurately tell when an `<iframe>` has finished loading. It's not just when
-            // the `load` event fires since the browser will continue to load behind the
-            // scenes.
+            // We don't currently preload anything regarding PDFs. Since we can't accurately
+            // tell when an `<iframe>` has finished loading. It's not just when the `load`
+            // event fires since the browser will continue to load behind the scenes.
             return null;
         }
         case "video/webm":
@@ -103,14 +101,14 @@ export async function loadContentFileViewerData({
         case "video/mpeg":
         case "video/x-matroska": {
             if (platform === "mobile") {
-                return loadContentFileVideoViewerMobile({spaceId, file});
+                return await loadContentFileVideoViewerMobile({spaceId, file});
             } else {
-                return loadContentFileImageViewer({
+                return await loadContentFileImageViewer({
                     spaceId,
                     file,
                     platform,
-                    // Load the preview image when loading videos. We don't load the video itself
-                    // until the user presses play.
+                    // Load the preview image when loading videos. We don't load the video itself until
+                    // the user presses play.
                     asPreview: true,
                 });
             }
@@ -122,7 +120,7 @@ export async function loadContentFileViewerData({
         case "audio/mp4": {
             if (platform !== "mobile") return null;
 
-            return loadContentFileAudioViewerMobile({spaceId, file});
+            return await loadContentFileAudioViewerMobile({spaceId, file});
         }
         case "text/plain":
         case "text/javascript":
@@ -161,7 +159,7 @@ export async function loadContentFileViewerData({
         case "text/x-clojure":
         case "text/x-erlang":
         case "text/x-ocaml": {
-            return loadContentFileCodeViewer({spaceId, file});
+            return await loadContentFileCodeViewer({spaceId, file});
         }
         default:
             throw exhaustive(file.contentType);
@@ -208,8 +206,8 @@ async function loadContentFileImageViewer({
     platform: Platform;
     asPreview?: boolean;
 }): Promise<ContentFileViewerLoaderData> {
-    // Don't load images that exceed the maximum size we support on mobile. We
-    // won't render them so don't bother loading them.
+    // Don't load images that exceed the maximum size we support on mobile. We won't
+    // render them so don't bother loading them.
     if (
         platform === "mobile" &&
         file.preview?.type === "Image" &&
@@ -227,15 +225,14 @@ async function loadContentFileImageViewer({
     image.decoding = "async";
     image.src = src;
 
-    // Needed to get a proper CORS response from the resource service where our
-    // files are hosted.
+    // Needed to get a proper CORS response from the resource service where our files
+    // are hosted.
     image.crossOrigin = "anonymous";
 
     await runAllPromises([
         isHtmlImageElementLoadedAndDecoded(image),
 
-        // Make sure `hammerjs` is imported as well. We only need it for zoomable
-        // images.
+        // Make sure `hammerjs` is imported as well. We only need it for zoomable images.
         platform === "mobile" ? hammerModulePromise.get() : null,
     ]);
 
@@ -259,7 +256,8 @@ async function loadContentFileVideoViewerMobile({
     });
 
     const videoElement = document.createElement("video");
-    // Needed to get a proper CORS response from the resource service where our files are hosted.
+    // Needed to get a proper CORS response from the resource service where our files
+    // are hosted.
     videoElement.crossOrigin = "anonymous";
     videoElement.preload = "metadata";
     videoElement.controls = true;
@@ -332,7 +330,7 @@ async function loadContentFileCodeViewer({
                 );
             }
 
-            return response.text();
+            return await response.text();
         })(),
     ]);
 

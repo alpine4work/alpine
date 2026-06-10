@@ -17,6 +17,7 @@ ts_project(
         "//:node_modules/react-router",
         "//client/web/accounts",
         "//client/web/context",
+        "//client/web/sites/context",
         "//client/web/design",
         "//client/web/helpers",
         "//client/web/remix",

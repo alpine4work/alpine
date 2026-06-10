@@ -1,6 +1,6 @@
 /**
- * A [linked list][1] is an inefficient immutable list representation. It has
- * O(1) inserts but that's about all its good for.
+ * A [linked list][1] is an inefficient immutable list representation. It has O(1)
+ * inserts but that's about all its good for.
  *
  * Prefer `ReadonlyArray<Item>` in most cases. Eventually we may add an
  * `ImmutableList<Item>` implementation using something like [RRB-Trees][2].
@@ -19,6 +19,20 @@ export type NonEmptyLinkedList<Item> = {
 };
 
 /**
+ * Turn a linked list into an array.
+ */
+export function fromLinkedList<Item>(list: LinkedList<Item>): Array<Item> {
+    const array: Array<Item> = [];
+
+    while (list !== null) {
+        array.push(list.value);
+        list = list.next;
+    }
+
+    return array;
+}
+
+/**
  * Reverse a linked list. Same as `Array.reverse()` but for linked lists.
  */
 export function reverseLinkedList<Item>(list: LinkedList<Item>): LinkedList<Item> {
@@ -33,8 +47,8 @@ export function reverseLinkedList<Item>(list: LinkedList<Item>): LinkedList<Item
 }
 
 /**
- * Iterate through each item in a linked list. Same as `Array.forEach()` but
- * for linked lists.
+ * Iterate through each item in a linked list. Same as `Array.forEach()` but for
+ * linked lists.
  */
 export function forEachLinkedList<Item>(
     list: LinkedList<Item>,

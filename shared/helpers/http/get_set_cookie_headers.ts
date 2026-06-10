@@ -11,14 +11,15 @@ declare global {
 }
 
 /**
- * The `Set-Cookie` header may be listed [multiple times][1] in HTTP headers
- * but the `Headers` object acts as a simple key/value store.
+ * The `Set-Cookie` header may be listed [multiple times][1] in HTTP headers but
+ * the `Headers` object acts as a simple key/value store.
  *
- * A standardized [`getSetCookie()`][2] function was added but `node-fetch`
- * also has an [unstandardized `raw()`][3] function. Use whatever means
- * available to get the multiple `Set-Cookie` headers.
+ * A standardized [`getSetCookie()`][2] function was added but `node-fetch` also
+ * has an [unstandardized `raw()`][3] function. Use whatever means available to get
+ * the multiple `Set-Cookie` headers.
  *
- * [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#see_also
+ * [1]:
+ *     https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#see_also
  * [2]: https://developer.mozilla.org/en-US/docs/Web/API/Headers/getSetCookie
  * [3]: https://www.npmjs.com/package/node-fetch#extract-set-cookie-header
  */

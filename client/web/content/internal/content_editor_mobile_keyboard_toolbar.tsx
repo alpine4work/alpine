@@ -59,6 +59,7 @@ export function ContentEditorMobileKeyboardToolbar({
     openCommentThread,
     onLinkModalOpen,
     onCommentInputOpen,
+    onOpenGifPicker,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<
@@ -71,6 +72,7 @@ export function ContentEditorMobileKeyboardToolbar({
     openCommentThread: ((commentThreadId: DocumentCommentThreadId) => Promise<void>) | undefined;
     onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
     onCommentInputOpen: (setSelection?: TextSelection | null) => void;
+    onOpenGifPicker?: () => void;
 }) {
     const {schema} = state;
 
@@ -91,8 +93,8 @@ export function ContentEditorMobileKeyboardToolbar({
 
     const isAnimatingToolbarShowRef = useRef(false);
     useEffect(() => {
-        // In our native mobile app, the native mobile wrapper is responsible for
-        // making this toolbar visible.
+        // In our native mobile app, the native mobile wrapper is responsible for making
+        // this toolbar visible.
         if (NativeMobileBridge) return;
 
         if (!isFocused) {
@@ -212,23 +214,22 @@ export function ContentEditorMobileKeyboardToolbar({
                         id={isNativeMobile ? `nmbb-kt-${id}` : id}
                         data-testid="ContentEditorMobileKeyboardToolbar"
                         // NOTE(calebmer): This is a little strange, we have a wrapper `<div>` with
-                        // `spacing["2"]` padding height on our keyboard toolbar. I've observed this
-                        // makes the animation when the iOS keyboard opens more consistent. Before
-                        // adding this slop sometimes when animating the keyboard open the toolbar
-                        // wouldn't be visible until half way through the animation then pop in. This
-                        // looks janky. You can observe it in [this video][1] if you go frame by frame
-                        // either time the keyboard opens. The toolbar pops in during the animation.
-                        // This doesn't happen all the time. It's sporadic, mostly happening when the
-                        // keyboard opens without needing to scroll the view.
+                        // `spacing["2"]` padding height on our keyboard toolbar. I've observed this makes
+                        // the animation when the iOS keyboard opens more consistent. Before adding this
+                        // slop sometimes when animating the keyboard open the toolbar wouldn't be visible
+                        // until half way through the animation then pop in. This looks janky. You can
+                        // observe it in [this video][1] if you go frame by frame either time the keyboard
+                        // opens. The toolbar pops in during the animation. This doesn't happen all the
+                        // time. It's sporadic, mostly happening when the keyboard opens without needing to
+                        // scroll the view.
                         //
-                        // My theory is that somewhere iOS or Safari is un-rendering the element while
-                        // it's offscreen and since we start the animation through non-traditional
-                        // means (directly writing to Safari's `CALayer` transform property in native
-                        // code) it gets rendered during the animation not before it. I've found adding
-                        // this slop fixes the bug and makes the animation much more consistent. I
-                        // don't have a proven reason as to why but my theory is the slop tricks iOS or
-                        // Safari into thinking the toolbar is visible onscreen so needs to always be
-                        // rendered.
+                        // My theory is that somewhere iOS or Safari is un-rendering the element while it's
+                        // offscreen and since we start the animation through non-traditional means
+                        // (directly writing to Safari's `CALayer` transform property in native code) it
+                        // gets rendered during the animation not before it. I've found adding this slop
+                        // fixes the bug and makes the animation much more consistent. I don't have a
+                        // proven reason as to why but my theory is the slop tricks iOS or Safari into
+                        // thinking the toolbar is visible onscreen so needs to always be rendered.
                         //
                         // [1]: https://gist.github.com/calebmer/167a4853a187b44ed0621e2d667e7873
                         pointerEvents="none"
@@ -242,35 +243,37 @@ export function ContentEditorMobileKeyboardToolbar({
                         style={{
                             top: `var(--space-outlet-height, 100svh)`,
                             transition:
-                                // Animate after `--space-outlet-height` changes when the keyboard opens in
-                                // mobile Safari (not our native app). This is a little hacky. Ideally we'd run
-                                // the animation in our effect again but this is simple and we don't care too
-                                // much about mobile Safari (we care a lot about our native app).
+                                // Animate after `--space-outlet-height` changes when the keyboard opens in mobile
+                                // Safari (not our native app). This is a little hacky. Ideally we'd run the
+                                // animation in our effect again but this is simple and we don't care too much
+                                // about mobile Safari (we care a lot about our native app).
                                 isFocused && isMobileWebKit && !isNativeMobile
                                     ? `top 250ms ease`
                                     : undefined,
-                            // Our native mobile wrapper looks for compositing layers created from an
-                            // element with an ID that starts with `nmbb-` and ties their position to
-                            // the tab bar and software keyboard. So we get smooth animations while the
-                            // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                            // layer we need to set `will-change: transform`. It's not specified that
-                            // `will-change: transform` MUST create a compositing layer, instead some
-                            // browser engines implement this hint themselves as an optimization.
+                            // Our native mobile wrapper looks for compositing layers created from an element
+                            // with an ID that starts with `nmbb-` and ties their position to the tab bar and
+                            // software keyboard. So we get smooth animations while the keyboard opens or the
+                            // tab bar shifts offscreen. To create a compositing layer we need to set
+                            // `will-change: transform`. It's not specified that `will-change: transform` MUST
+                            // create a compositing layer, instead some browser engines implement this hint
+                            // themselves as an optimization.
                             //
-                            // It so happens that WebKit is one of those browsers. Here's the code in
-                            // WebKit that does this: [part 1][1], [part 2][2].
+                            // It so happens that WebKit is one of those browsers. Here's the code in WebKit
+                            // that does this: [part 1][1], [part 2][2].
                             //
-                            // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                            // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                            // [1]:
+                            //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                            // [2]:
+                            //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                             willChange: isNativeMobile ? "transform" : undefined,
-                            // Set `transform` to its initial value assuming the tab bar is up. Since this
-                            // is a keyboard toolbar (configured with `kt-` in the ID) it doesn't move with
-                            // the tab bar.
+                            // Set `transform` to its initial value assuming the tab bar is up. Since this is a
+                            // keyboard toolbar (configured with `kt-` in the ID) it doesn't move with the tab
+                            // bar.
                             transform: isNativeMobile ? "translateY(0px)" : undefined,
                         }}
-                        // Suppress React hydration warnings in our native mobile app. The native
-                        // mobile app sets the `transform` property on this element. Sometimes before
-                        // React finishes hydrating. This is expected, React can ignore the difference.
+                        // Suppress React hydration warnings in our native mobile app. The native mobile
+                        // app sets the `transform` property on this element. Sometimes before React
+                        // finishes hydrating. This is expected, React can ignore the difference.
                         suppressHydrationWarning={isNativeMobile ? true : undefined}
                     >
                         <Box
@@ -417,8 +420,8 @@ export function ContentEditorMobileKeyboardToolbar({
                             </ContentEditorMobileKeyboardToolbarButton>
                         </Box>
                     </Box>,
-                    // Portal into the root element so we aren't affected by whatever scroll view
-                    // this is rendered in.
+                    // Portal into the root element so we aren't affected by whatever scroll view this
+                    // is rendered in.
                     portalElement,
                 )}
             {isSubstituteOpen && (
@@ -431,6 +434,7 @@ export function ContentEditorMobileKeyboardToolbar({
                         void NativeMobileBridge?.keyboard.cleanupAfterSubstitute();
                     }}
                     onLinkModalOpen={onLinkModalOpen}
+                    onOpenGifPicker={onOpenGifPicker}
                 />
             )}
         </>
@@ -456,8 +460,8 @@ function ContentEditorMobileKeyboardToolbarButton({
 }) {
     const {isHovered, hoverProps} = useHover({});
     const {isPressed, pressProps} = usePress({
-        // Toolbar buttons should not be focusable since we don't want the content
-        // editor to lose focus.
+        // Toolbar buttons should not be focusable since we don't want the content editor
+        // to lose focus.
         preventFocusOnPress: true,
         isDisabled,
         onPress,
@@ -476,8 +480,8 @@ function ContentEditorMobileKeyboardToolbarButton({
         <>
             {dividerLeft && (
                 <Box
-                    // We want all space on the toolbar to be touchable so the user doesn't touch
-                    // and nothing happens (which can feel like a bug).
+                    // We want all space on the toolbar to be touchable so the user doesn't touch and
+                    // nothing happens (which can feel like a bug).
                     {...pressAndHoverProps}
                     // In case `pressAndHoverProps` had a `ref`, unset it.
                     ref={null}
@@ -486,8 +490,8 @@ function ContentEditorMobileKeyboardToolbarButton({
                 />
             )}
             <Box
-                // None of this is focusable since it's used on mobile where there's no
-                // keyboard navigation.
+                // None of this is focusable since it's used on mobile where there's no keyboard
+                // navigation.
                 {...pressAndHoverProps}
                 aria-label={label}
                 flexGrow="1"
@@ -590,8 +594,8 @@ function ContentEditorMobileKeyboardToolbarCommentButton({
                 }
 
                 onCommentInputOpen(
-                    // Set the selection after the comment input opens so the mobile selection
-                    // renderer doesn't flash in/out.
+                    // Set the selection after the comment input opens so the mobile selection renderer
+                    // doesn't flash in/out.
                     wordSelectionIfEmpty,
                 );
             }}

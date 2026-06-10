@@ -87,11 +87,11 @@ export class TestBot {
         {accountId, name}: {accountId?: AccountId; name?: string} = {},
     ) {
         const bot = await TestBot.create(session.context, {name});
-        return bot.instantiate(session, {id: accountId});
+        return await bot.instantiate(session, {id: accountId});
     }
 
-    public createUnscopedApiKey(): Promise<ApiKey> {
-        return createUnscopedApiKeyForTest(this.context, this.id);
+    public createUnscopedApiKey(apiKey?: ApiKey): Promise<ApiKey> {
+        return createUnscopedApiKeyForTest(this.context, this.id, apiKey);
     }
 }
 

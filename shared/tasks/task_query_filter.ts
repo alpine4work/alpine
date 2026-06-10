@@ -2,28 +2,31 @@ import {CalendarDate, GregorianCalendar, toCalendar} from "@internationalized/da
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
+import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 /**
  * A filter that determines whether a task is visible in a task query. The UI
  * allows users to edit filters which are represented by this type.
  *
- * These filters are redundant, unoptimized, contain dynamic placeholders, and
- * are hard to work with when actually implementing filter evaluation. So
- * before any meaningful work with filters we normalize a list of filters to
+ * These filters are redundant, unoptimized, contain dynamic placeholders, and are
+ * hard to work with when actually implementing filter evaluation. So before any
+ * meaningful work with filters we normalize a list of filters to
  * `TaskQueryNormalizedFilters`.
  *
- * Normalized filters also include some internal filters we don't expose to
- * the UI.
+ * Normalized filters also include some internal filters we don't expose to the UI.
  */
 export type TaskQueryFilter =
     | TaskQueryDisplayStatusFilter
     | TaskQueryCollectionsFilter
     | TaskQueryPriorityFilter
+    | TaskQueryLayoutFilter
     | TaskQueryTitleFilter
     | TaskQueryAssigneeFilter
     | TaskQueryCreatorFilter
@@ -49,18 +52,17 @@ export function deserializeTaskQueryFiltersSearchParam(
 }
 
 /**
- * Serialize a list of task query filters to binary data. This binary data can
- * then be encoded in the URL. We use a binary format to make sure filters in
- * the URL are as small as possible and opaque to end users.
+ * Serialize a list of task query filters to binary data. This binary data can then
+ * be encoded in the URL. We use a binary format to make sure filters in the URL
+ * are as small as possible and opaque to end users.
  *
- * We may introduce a plain text format for filters in the future so that end
- * users can generate view URLs.
+ * We may introduce a plain text format for filters in the future so that end users
+ * can generate view URLs.
  */
 export function serializeTaskQueryFilters(filters: ReadonlyArray<TaskQueryFilter>): ArrayBuffer {
-    // Make sure the filter length can fit in 7 bits. We always set the first bit
-    // to 1 as a version marker. If we introduce a new binary format in the future
-    // the first bit will be 0 which will tell our deserializer to use a different
-    // format.
+    // Make sure the filter length can fit in 7 bits. We always set the first bit to 1
+    // as a version marker. If we introduce a new binary format in the future the first
+    // bit will be 0 which will tell our deserializer to use a different format.
     if (filters.length > 2 ** 7 - 1) throw new InvalidArgumentError("Too many filters");
 
     const filterByteLengths = filters.map(filter => getTaskQueryFilterByteLength(filter));
@@ -155,6 +157,9 @@ function serializeTaskQueryFilter(filter: TaskQueryFilter, view: DataView): void
         case "Title":
             typeId = 12;
             break;
+        case "Layout":
+            typeId = 13;
+            break;
         default:
             throw exhaustive(filter);
     }
@@ -216,6 +221,8 @@ function deserializeTaskQueryFilterWithoutIncrementingByteLength(viewWithType: D
             return deserializeTaskQueryActivatedDateFilter(view);
         case 12:
             return deserializeTaskQueryTitleFilter(view);
+        case 13:
+            return deserializeTaskQueryLayoutFilter(view);
         default:
             throw new InvalidArgumentError(`Unrecognized filter type ${typeId}`);
     }
@@ -247,6 +254,8 @@ function getTaskQueryFilterWithoutTypeByteLength(filter: TaskQueryFilter) {
             return getTaskQueryActivatedDateFilterByteLength(filter);
         case "Title":
             return getTaskQueryTitleFilterByteLength(filter);
+        case "Layout":
+            return getTaskQueryLayoutFilterByteLength(filter);
         default:
             throw exhaustive(filter);
     }
@@ -278,6 +287,8 @@ function serializeTaskQueryFilterWithoutType(filter: TaskQueryFilter, view: Data
             return serializeTaskQueryActivatedDateFilter(filter, view);
         case "Title":
             return serializeTaskQueryTitleFilter(filter, view);
+        case "Layout":
+            return serializeTaskQueryLayoutFilter(filter, view);
         default:
             throw exhaustive(filter);
     }
@@ -480,6 +491,27 @@ export type TaskQueryPriorityFilter = {
           };
 };
 
+export type TaskQueryLayoutFilter = {
+    readonly type: "Layout";
+    readonly operation:
+        | {
+              readonly type: "OneOf";
+              // NOTE(calebmer): Eventually we should evolve this to
+              // `ReadonlySet<TaskLayout | null>` but right now our UI only supports filtering
+              // "is project" and "is not project". We don't want the data model to support
+              // filters our UI won't render.
+              readonly layouts: readonly [TaskLayout];
+          }
+        | {
+              readonly type: "NoneOf";
+              // NOTE(calebmer): Eventually we should evolve this to
+              // `ReadonlySet<TaskLayout | null>` but right now our UI only supports filtering
+              // "is project" and "is not project". We don't want the data model to support
+              // filters our UI won't render.
+              readonly layouts: readonly [TaskLayout];
+          };
+};
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getTaskQueryPriorityFilterByteLength(filter: TaskQueryPriorityFilter) {
     return 1;
@@ -532,24 +564,81 @@ function deserializeTaskQueryPriorityFilter(view: DataView): {
     };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function getTaskQueryLayoutFilterByteLength(filter: TaskQueryLayoutFilter) {
+    return 1;
+}
+
+function serializeTaskQueryLayoutFilter(filter: TaskQueryLayoutFilter, view: DataView) {
+    // NOTE(calebmer): Eventually we should evolve this to
+    // `ReadonlySet<TaskLayout | null>` but right now our UI only supports filtering
+    // "is project" and "is not project". We don't want the data model to support
+    // filters our UI won't render.
+    const layouts = cast<ReadonlyArray<TaskLayout | null>>(filter.operation.layouts);
+
+    const byte =
+        // Operation type is stored in the first 3 bits.
+        ((filter.operation.type === "OneOf" ? 1 : 2) << 5) |
+        // Layouts are stored in the last 2 bits as a bitset.
+        (layouts.includes(null) ? 0b00000001 : 0b00000000) |
+        (layouts.includes("Project") ? 0b00000010 : 0b00000000);
+
+    view.setUint8(0, byte);
+}
+
+function deserializeTaskQueryLayoutFilter(view: DataView): {
+    filter: TaskQueryLayoutFilter;
+    byteLength: number;
+} {
+    const byte = view.getUint8(0);
+
+    const typeBits = byte >> 5;
+    let type: "OneOf" | "NoneOf";
+    switch (typeBits) {
+        case 1:
+            type = "OneOf";
+            break;
+        case 2:
+            type = "NoneOf";
+            break;
+        default:
+            throw new InvalidArgumentError(`Unrecognized operation type ${typeBits}`);
+    }
+
+    const layouts = new Set<TaskLayout | null>();
+
+    if (byte & 0b00000001) layouts.add(null);
+    if (byte & 0b00000010) layouts.add("Project");
+
+    if (!isDeepEqual(Array.from(layouts), ["Project"])) {
+        throw new InvalidArgumentError("`Project` is the only supported layout filter for now");
+    }
+
+    return {
+        filter: {type: "Layout", operation: {type, layouts: ["Project"]}},
+        byteLength: 1,
+    };
+}
+
 /**
- * Filters the title of a task based on whether the task title has a phrase
- * that matches the query. Phrases are tested based on full word matches in the
- * correct order. For example "foobar buz" is matched by "foobar", "buz", or
- * "foobar buz". It is not matched by "foo", "bar", or "buz foobar".
+ * Filters the title of a task based on whether the task title has a phrase that
+ * matches the query. Phrases are tested based on full word matches in the correct
+ * order. For example "foobar buz" is matched by "foobar", "buz", or "foobar buz".
+ * It is not matched by "foo", "bar", or "buz foobar".
  *
- * We use the [OpenSearch standard analyzer][1] with no modifications. The
- * standard analyzer splits words into tokens using the [Unicode default word
- * boundary specification][2] and lowercasing the words. We have a JavaScript
- * implementation of the title filter that does the same since filtering needs
- * to run both in OpenSearch and in JavaScript.
+ * We use the [OpenSearch standard analyzer][1] with no modifications. The standard
+ * analyzer splits words into tokens using the [Unicode default word boundary
+ * specification][2] and lowercasing the words. We have a JavaScript implementation
+ * of the title filter that does the same since filtering needs to run both in
+ * OpenSearch and in JavaScript.
  *
- * The OpenSearch [standard analyzer implementation lives in Apache Lucene][3].
- * We refer to their implementation when building ours.
+ * The OpenSearch [standard analyzer implementation lives in Apache Lucene][3]. We
+ * refer to their implementation when building ours.
  *
  * [1]: https://opensearch.org/docs/latest/analyzers/text-analyzers/
  * [2]: https://unicode.org/reports/tr29/#Default_Word_Boundaries
- * [3]: https://github.com/apache/lucene/blob/dd4e66dad6726c53f2d89c5b7bcf74216949e4d3/lucene/core/src/java/org/apache/lucene/analysis/standard/StandardAnalyzer.java#L34
+ * [3]:
+ *     https://github.com/apache/lucene/blob/dd4e66dad6726c53f2d89c5b7bcf74216949e4d3/lucene/core/src/java/org/apache/lucene/analysis/standard/StandardAnalyzer.java#L34
  */
 export type TaskQueryTitleFilter = {
     readonly type: "Title";
@@ -578,8 +667,8 @@ function serializeTaskQueryTitleFilter(filter: TaskQueryTitleFilter, view: DataV
 
     const titleQueryBytes = new TextEncoder().encode(filter.operation.titleQuery);
 
-    // Make sure the title string byte length is a valid 32-bit integer since we
-    // store it in 32 bits.
+    // Make sure the title string byte length is a valid 32-bit integer since we store
+    // it in 32 bits.
     assert(titleQueryBytes.length >>> 0 === titleQueryBytes.length);
     view.setUint32(byteOffset, titleQueryBytes.length);
     byteOffset += 4;
@@ -653,8 +742,8 @@ function serializeTaskQueryFilterAccountOperation(
     operation: TaskQueryFilterAccountOperation,
     view: DataView,
 ) {
-    // We use the first two bits of our `accounts` length byte to encode the
-    // operation type. We reserve 0 for null.
+    // We use the first two bits of our `accounts` length byte to encode the operation
+    // type. We reserve 0 for null.
     if (operation.accounts.length > 2 ** 6 - 1) throw new InvalidArgumentError("Too many accounts");
 
     const typeAndAccountsLengthByte =

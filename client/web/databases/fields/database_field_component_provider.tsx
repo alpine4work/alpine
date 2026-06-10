@@ -12,8 +12,7 @@ import {
 // -- Grid view cell props -----------------------------------------------------
 
 /**
- * Props passed by the grid view to a field type's
- * cell content component.
+ * Props passed by the grid view to a field type's cell content component.
  */
 export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
@@ -24,8 +23,7 @@ export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
 };
 
 /**
- * Props passed by the grid view to a field type's
- * editor overlay component.
+ * Props passed by the grid view to a field type's editor overlay component.
  */
 export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
@@ -33,12 +31,10 @@ export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldTyp
     /** The current typed value of the cell. */
     initialValue: DatabaseCellValue<Type>;
     /**
-     * Optional string seed when the editor was opened by
-     * typing a character or pressing delete/backspace.
-     * Takes precedence over `initialValue` for the
-     * editor's initial content. The editor decides how
-     * (or whether) to use this — e.g. a number editor
-     * may ignore non-numeric seeds.
+     * Optional string seed when the editor was opened by typing a character or
+     * pressing delete/backspace. Takes precedence over `initialValue` for the editor's
+     * initial content. The editor decides how (or whether) to use this — e.g. a number
+     * editor may ignore non-numeric seeds.
      */
     initialEditString: string | null;
     commitValue: (value: DatabaseCellValue<Type>) => void;
@@ -48,9 +44,8 @@ export type DatabaseGridViewCellEditorOverlayProps<Type extends DatabaseFieldTyp
 };
 
 /**
- * Args passed by the grid view header to a field type's
- * config menu action builder. The returned actions are
- * appended to the field's editor menu.
+ * Args passed by the grid view header to a field type's config menu action
+ * builder. The returned actions are appended to the field's editor menu.
  */
 export type DatabaseFieldConfigMenuActionsArgs<Type extends DatabaseFieldType> = {
     config: DatabaseFieldConfig<Type>;
@@ -60,14 +55,12 @@ export type DatabaseFieldConfigMenuActionsArgs<Type extends DatabaseFieldType> =
 // -- Base type ----------------------------------------------------------------
 
 /**
- * Non-generic base type for dynamic contexts where the
- * field type is not statically known (e.g. the component
- * provider registry, grid view cell rendering). Component
- * types use `any` so JSX elements are instantiable.
+ * Non-generic base type for dynamic contexts where the field type is not
+ * statically known (e.g. the component provider registry, grid view cell
+ * rendering). Component types use `any` so JSX elements are instantiable.
  *
- * For statically typed per-field-type usage, use
- * `DatabaseFieldComponentProvider` from
- * `database_field_component_providers.ts` instead.
+ * For statically typed per-field-type usage, use `DatabaseFieldComponentProvider`
+ * from `database_field_component_providers.ts` instead.
  */
 export type DatabaseFieldComponentProviderBase = {
     readonly type: DatabaseFieldType;
@@ -87,9 +80,8 @@ export type DatabaseFieldComponentProviderBase = {
 // -- Factory ------------------------------------------------------------------
 
 /**
- * Define a field component provider. `Type` is inferred
- * from the shared field provider so `type` preserves the
- * literal discriminant.
+ * Define a field component provider. `Type` is inferred from the shared field
+ * provider so `type` preserves the literal discriminant.
  */
 export function defineDatabaseFieldComponentProvider<const Type extends DatabaseFieldType>(
     provider: DatabaseFieldProvider<Type>,

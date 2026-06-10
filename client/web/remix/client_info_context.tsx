@@ -35,34 +35,33 @@ const clientInfo = new Lazy((): ClientInfo => {
     return {
         screenWidth: window.screen.width,
         screenHeight: window.screen.height,
-        // In integration tests, always use the default time zone. To help avoid time
-        // zone issues.
+        // In integration tests, always use the default time zone. To help avoid time zone
+        // issues.
         timeZone: process.env.NODE_ENV === "test" ? defaultTimeZone : getCurrentTimeZone(),
         locale: defaultLocale,
         renderingEngine: getRenderingEngineFromUserAgent(navigator.userAgent),
-        // On the client, use `navigator.platform` to test if this is an Apple device
-        // in case the user agent header is spoofed.
+        // On the client, use `navigator.platform` to test if this is an Apple device in
+        // case the user agent header is spoofed.
         isAppleDevice:
             isAppleDeviceUserAgent(navigator.userAgent) || /Mac/.test(navigator.platform),
-        // We can safely look for `CyberworldsNativeMobile` in the user agent since
-        // it's a unique string that should only be used by our native app shells.
+        // We can safely look for `CyberworldsNativeMobile` in the user agent since it's a
+        // unique string that should only be used by our native app shells.
         isNativeMobile: /CyberworldsNativeMobile/.test(navigator.userAgent),
-        // Unlike other information in `ClientInfo`, the window spacing scale may
-        // change over time as the user resizes their window. However, this value
-        // stays constant in `ClientInfo` and represents the spacing scale at initial
-        // render.
+        // Unlike other information in `ClientInfo`, the window spacing scale may change
+        // over time as the user resizes their window. However, this value stays constant
+        // in `ClientInfo` and represents the spacing scale at initial render.
         initialWindowSpacingScale: getSpacingScaleWithoutListening(),
     };
 });
 
 /**
- * Get the current client info without listening for changes. Can only be
- * called on the client otherwise will throw an error. Prefer
- * `useClientInfo()` which works on both the client and server.
+ * Get the current client info without listening for changes. Can only be called on
+ * the client otherwise will throw an error. Prefer `useClientInfo()` which works
+ * on both the client and server.
  *
  * `ClientInfo` never changes after the page's initial load. All data in
- * `ClientInfo` should be immutable facts about the current device. Which is
- * why we don't have a `WithoutListening` suffix like other functions such as
+ * `ClientInfo` should be immutable facts about the current device. Which is why we
+ * don't have a `WithoutListening` suffix like other functions such as
  * `getPlatformWithoutListening()`.
  */
 export function getClientInfo(): ClientInfo {
@@ -76,8 +75,8 @@ const BrowserIdContext = createContext<BrowserId | null>(null);
 const ClientInfoContext = createContext<ClientInfo | null>(null);
 
 /**
- * We give web browsers an identifier that persists across page reloads. You
- * may use this hook to access it.
+ * We give web browsers an identifier that persists across page reloads. You may
+ * use this hook to access it.
  */
 export function useBrowserId(): BrowserId {
     const browserId = useContext(BrowserIdContext);
@@ -98,11 +97,11 @@ export function useBrowserId(): BrowserId {
 
 /**
  * We include client information (like time zone) in React context. When server
- * side rendering we get this information from a cookie. Then when the client
- * loads we re-render the app with the real values.
+ * side rendering we get this information from a cookie. Then when the client loads
+ * we re-render the app with the real values.
  *
- * Client info is currently only computed when the app loads. We do not listen
- * for changes and re-render the app.
+ * Client info is currently only computed when the app loads. We do not listen for
+ * changes and re-render the app.
  */
 export function useClientInfo(): ClientInfo {
     const clientInfo = useContext(ClientInfoContext);

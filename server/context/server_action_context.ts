@@ -1,8 +1,12 @@
+import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {
+    AccountActorContextModule,
     ActorContextModule,
     AnonymousActorContextModule,
+    AuthenticatedActorContextModule,
     BotActorContextModule,
     ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
@@ -12,29 +16,41 @@ import {
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 
 /**
- * Generic context for handling actions against our system that doesn't know
- * which actor is operating our system.
+ * Generic context for handling actions against our system that doesn't know which
+ * actor is operating our system.
  */
 export type ServerActionContextBase = Context<ServerActionContextModulesBase>;
 
 export type ServerActionContextModulesBase = ServerProcessContextModules & {
     /**
-     * Action-level caching. Cached values only live for the span of the action and
-     * are not shared across actions.
+     * Action-level caching. Cached values only live for the span of the action and are
+     * not shared across actions.
      */
     cache: CacheContextModule;
 
     /**
-     * Action-level batching. We batch at the action level so that unrelated
-     * requests do not share IO.
+     * Action-level batching. We batch at the action level so that unrelated requests
+     * do not share IO.
      *
-     * For example, any calls to DynamoDB's `getItem()`, `createOrReplaceItem()`,
-     * or `deleteItem()` in short succession on the context are batched.
+     * For example, any calls to DynamoDB's `getItem()`, `createOrReplaceItem()`, or
+     * `deleteItem()` in short succession on the context are batched.
      */
     batch: BatchContextModule;
+
+    /**
+     * Optional context module our parent context provides when it wants to immediately
+     * know about certain pieces of information that's only discovered deep within the
+     * call stack.
+     *
+     * For example, to immediately figure out the `SpaceId` for a document when loading
+     * the `/doc/:documentId` route once we've initially loaded the document.
+     */
+    discovery?: DiscoveryContextModule;
 };
 
 /**
@@ -88,8 +104,7 @@ export type ServerAnonymousActionContextModules = MergeObjectIntersection<
 >;
 
 /**
- * Context for actions where we know the actor is an impersonated account
- * actor.
+ * Context for actions where we know the actor is an impersonated account actor.
  */
 export type ServerImpersonatedAccountActionContext =
     Context<ServerImpersonatedAccountActionContextModules>;
@@ -119,7 +134,12 @@ export type ServerUnknownActionContext = Context<ServerUnknownActionContextModul
 
 export type ServerUnknownActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: UnknownActorContextModule;
+        actor: UnknownActorContextModule<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            cache: CacheContextModule;
+            dynamo: DynamoContextModule;
+        }>;
     }
 >;
 
@@ -131,9 +151,19 @@ export type ServerAccountActionContext = Context<ServerAccountActionContextModul
 
 export type ServerAccountActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor:
-            | SessionActorContextModule
-            | ImpersonatedAccountActorContextModule
-            | BotActorContextModule;
+        actor: AccountActorContextModule;
+    }
+>;
+
+/**
+ * Context for actions where the actor is expected to be authenticated and known
+ * (i.e. _not_ anonymous or unknown). Either a session actor, impersonated account
+ * actor, bot actor, or system actor.
+ */
+export type ServerAuthenticatedActionContext = Context<ServerAuthenticatedActionContextModules>;
+
+export type ServerAuthenticatedActionContextModules = MergeObjectIntersection<
+    ServerActionContextModulesBase & {
+        actor: AuthenticatedActorContextModule;
     }
 >;

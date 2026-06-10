@@ -1,15 +1,10 @@
 import {addDays, differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
-import {
-    AddMarkStep,
-    AddNodeMarkStep,
-    RemoveMarkStep,
-    RemoveNodeMarkStep,
-    Step,
-} from "prosemirror-transform";
+import {Step} from "prosemirror-transform";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
@@ -18,17 +13,13 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
-    ServerBotActionContext,
     ServerSessionActionContext,
-    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {
-    ServerMinimalActionContext,
-    ServerMinimalBotActionContext,
-} from "~/server/context/server_minimal_action_context.js";
+import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {
     DocumentIndexSearchEntityJob,
@@ -36,7 +27,7 @@ import {
     InternalDocumentStepCountByAccountId,
     InternalFileDocumentAuthorizer,
 } from "~/server/documents/data/internal/documents_table.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {
     DynamoCacheReadConsistency,
@@ -46,11 +37,15 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
-import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/server/files/data/files_actions.js";
+import {
+    ActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {
@@ -74,6 +69,7 @@ import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {
     markSearchAffinityCreateDocumentEntityInteraction,
     markSearchAffinityEntityInteraction,
@@ -82,9 +78,11 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     ContentDuplicationVariableValues,
     applyContentDuplicationVariableValues,
@@ -99,6 +97,8 @@ import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {
     DocumentCommentThreadReference,
@@ -113,10 +113,7 @@ import {
     createEmptyDocumentContent,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {
-    DocumentCreatorFrom,
-    DocumentCreatorFromImporterType,
-} from "~/shared/documents/document_creator_from.js";
+import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {
     createDocumentCommentNotFoundError,
     createDocumentCommentThreadNotFoundError,
@@ -131,7 +128,9 @@ import {
     getDocumentContentTitle,
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/documents/document_model.js";
+import {getExpectedAccessLevelForUpdateDocumentContentSteps} from "~/shared/documents/get_expected_access_level_for_update_document_content_steps.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {
     DataLossError,
     ErrorBase,
@@ -149,6 +148,7 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -171,8 +171,11 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
@@ -182,6 +185,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     FileId,
+    SiteId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
@@ -210,10 +214,13 @@ import {
 } from "~/shared/prosemirror/remove_all_marks_step.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
- * NOTE: this file is currently being split up. We do not anticipate adding more methods here.
+ * NOTE: this file is currently being split up. We do not anticipate adding more
+ * methods here.
  */
 
 // Authorizers must be declared next to their respective Tables, so we must
@@ -224,8 +231,8 @@ const DocumentStepCountByAccountId = InternalDocumentStepCountByAccountId;
 export type DocumentStepCountByAccountId = InstanceType<typeof DocumentStepCountByAccountId>;
 
 /**
- * We are not allowed to export our DynamoDB tables so instead export a
- * function that can only be used in test environments.
+ * We are not allowed to export our DynamoDB tables so instead export a function
+ * that can only be used in test environments.
  */
 export function getDocumentsTableForTest() {
     assert(process.env.NODE_ENV === "test");
@@ -269,8 +276,8 @@ type DocumentArchivedCommentThreadItem = DynamoTableItemType<
 >;
 
 /**
- * Scan every document and document comment in our database. Use when
- * migrating data.
+ * Scan every document and document comment in our database. Use when migrating
+ * data.
  */
 export async function* expensiveScanEveryDocumentAndDocumentCommentForMigration(
     context: DynamoContext,
@@ -331,33 +338,34 @@ const documentIndexSearchEntityJobFastMaxGeneration = 60;
 const documentIndexSearchEntityJobRegularDelaySeconds = 60;
 
 /**
- * If you've been editing the document for more than ~3 consecutive minutes
- * before sharing the document then we want to immediately add the document as
- * a feed candidate instead of waiting 15 minutes to add the feed candidate.
+ * If you've been editing the document for more than ~2 consecutive minutes
+ * (`(documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration * documentIndexSearchEntityJobFastDelaySeconds) / 60`)
+ * before sharing the document then we want to immediately add the document as a
+ * feed candidate instead of waiting 5 minutes to add the feed candidate.
  */
-const documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration = 20;
+const documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration = 14;
 
 /**
- * The throttle interval for document indexing jobs in seconds. Indexing a
- * document requires reading the entire thing and saving it to OpenSearch which
- * can be expensive. Given how frequently users update documents, we throttle
- * how frequently a document is indexed.
+ * The throttle interval for document indexing jobs in seconds. Indexing a document
+ * requires reading the entire thing and saving it to OpenSearch which can be
+ * expensive. Given how frequently users update documents, we throttle how
+ * frequently a document is indexed.
  *
- * When the user first makes an edit to a document we queue an indexing job
- * with this delay. If the user makes an update to the document before the
- * delay has passed then we don't index again. Since when the indexing job
- * finally runs, the update will be picked up. If the user makes an update after
- * the delay has passed then we schedule another indexing job with a new delay.
+ * When the user first makes an edit to a document we queue an indexing job with
+ * this delay. If the user makes an update to the document before the delay has
+ * passed then we don't index again. Since when the indexing job finally runs, the
+ * update will be picked up. If the user makes an update after the delay has passed
+ * then we schedule another indexing job with a new delay.
  *
- * We throttle updates to every 10 seconds for the first ~10 minutes of
- * continuous editing to a document (the first 60 indexes). Then after that we
- * throttle updates to once every 60 seconds. Reindexing large documents can be
- * expensive so we use the number of prior indexes as a proxy for how large a
- * documents is and slow down indexing once it reaches a certain threshold.
+ * We throttle updates to every 10 seconds for the first ~10 minutes of continuous
+ * editing to a document (the first 60 indexes). Then after that we throttle
+ * updates to once every 60 seconds. Reindexing large documents can be expensive so
+ * we use the number of prior indexes as a proxy for how large a documents is and
+ * slow down indexing once it reaches a certain threshold.
  */
 function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
-    // For the first 10 minutes (`fastMaxGeneration * fastDelaySeconds / 60`)
-    // update every 10 seconds.
+    // For the first 10 minutes (`fastMaxGeneration * fastDelaySeconds / 60`) update
+    // every 10 seconds.
     if (generation <= documentIndexSearchEntityJobFastMaxGeneration)
         return documentIndexSearchEntityJobFastDelaySeconds;
 
@@ -375,41 +383,7 @@ function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
  * useful for bulk operations like imports.
  */
 export async function createDocument(
-    context: ServerSystemActionContext,
-    options: {
-        id?: DocumentId;
-        spaceId: SpaceId;
-        creatorId: AccountId;
-        content: DocumentContent;
-        consistency?: DynamoCacheReadConsistency;
-        createFeedEntry?: boolean;
-        from: DocumentCreatorFromImporterType;
-    },
-): Promise<{
-    id: DocumentId;
-    createdTime: Date;
-    version: number;
-    creator: {id: AccountId; from: DocumentCreatorFrom | null};
-}>;
-export async function createDocument(
     context: ServerAccountActionContext,
-    options: {
-        id?: DocumentId;
-        spaceId: SpaceId;
-        creatorId?: AccountId;
-        content?: DocumentContent;
-        consistency?: DynamoCacheReadConsistency;
-        createFeedEntry?: boolean;
-        from?: never;
-    },
-): Promise<{
-    id: DocumentId;
-    createdTime: Date;
-    version: number;
-    creator: {id: AccountId; from: DocumentCreatorFrom | null};
-}>;
-export async function createDocument(
-    context: ServerAccountActionContext | ServerSystemActionContext,
     {
         id: documentId = generateId<DocumentId>(),
         spaceId,
@@ -417,7 +391,9 @@ export async function createDocument(
         content,
         consistency,
         createFeedEntry = true,
+        skipAffinityPointAssignment = false,
         from,
+        sitePosition,
     }: {
         id?: DocumentId;
         spaceId: SpaceId;
@@ -425,65 +401,76 @@ export async function createDocument(
         content?: DocumentContent;
         consistency?: DynamoCacheReadConsistency;
         createFeedEntry?: boolean;
+        skipAffinityPointAssignment?: boolean;
         from?: DocumentCreatorFrom;
+        sitePosition?: {siteId: SiteId; parentId: SiteContainerId; orderKey: OrderKey};
     },
 ): Promise<{
     id: DocumentId;
     createdTime: Date;
     version: number;
     creator: {id: AccountId; from: DocumentCreatorFrom | null};
+    getRynamoEventsForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
-    if (context.actor.type !== "System") {
-        const accountContext = context as Exclude<typeof context, ServerSystemActionContext>;
-
-        if (from != null) {
-            throw new PermissionDeniedError(
-                "Only system actors can specify the \u2018from\u2019 field when creating documents",
-            );
-        }
-
-        if (
-            creatorId &&
-            context.actor.type !== "Bot" &&
-            creatorId !== context.actor.getPossiblyBotAccountId()
-        ) {
-            throw new PermissionDeniedError(
-                "Only bots can create documents on behalf of other accounts",
-            );
-        }
-
-        creatorId ??= context.actor.getPossiblyBotAccountId();
-
-        if (!content && context.actor.type === "Bot") {
-            // We need a special function for creating documents that were
-            // created by bots. A document created by a non-bot always gives
-            // manage access to the human that created the document. Bots are
-            // different. If we gave access only to account that created the
-            // document (the bot) no other users would be able to read the
-            // document.
-            content = await createEmptyDocumentContentForBot(
-                context as ServerBotActionContext,
-                spaceId,
-            );
-        }
-
-        content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId());
-
-        await authorizeSpaceAccess(context, spaceId);
-
-        await validateAccessPolicyUpdateForServer(
-            accountContext,
-            spaceId,
-            null,
-            content.attrs.accessPolicy,
-            {consistency},
+    // If we have an `ImpersonatedAccount` actor we know the "parent" actor is a system
+    // actor. Only allow system actors to set the `from` field.
+    if (from && context.actor.type !== "ImpersonatedAccount") {
+        throw new PermissionDeniedError(
+            "Only system actors can specify the \u2018from\u2019 field when creating documents",
         );
     }
 
-    assert(creatorId != null, "creatorId is required for system actors");
-    assert(content != null, "content is required for system actors");
+    if (
+        creatorId &&
+        context.actor.type !== "Bot" &&
+        creatorId !== context.actor.getPossiblyBotAccountId()
+    ) {
+        throw new PermissionDeniedError(
+            "Only bots can create documents on behalf of other accounts",
+        );
+    }
+
+    creatorId ??= context.actor.getPossiblyBotAccountId();
+
+    if (!content && context.actor.type === "Bot") {
+        // We need a special function for creating documents that were created by bots. A
+        // document created by a non-bot always gives manage access to the human that
+        // created the document. Bots are different. If we gave access only to account that
+        // created the document (the bot) no other users would be able to read the
+        // document.
+        content = await createEmptyDocumentContentForBot(
+            context as ServerMinimalBotActionContext,
+            spaceId,
+        );
+    }
+
+    validateEntityCreationInSiteIfNeeded(content?.attrs.accessPolicy, sitePosition);
+
+    content ??= createEmptyDocumentContent(context.actor.getPossiblyBotAccountId(), sitePosition);
+
+    await authorizeSpaceAccess(context, spaceId);
 
     const accessPolicy: AccessPolicy = content.attrs.accessPolicy;
+    const {resolvedAccessPolicy, transactionEntries} = await validateAccessPolicyUpdateForServer(
+        context,
+        spaceId,
+        `Document:${documentId}`,
+        null,
+        accessPolicy.type === "Local"
+            ? accessPolicy
+            : ({
+                  ...accessPolicy,
+                  position: {
+                      orderKey: assertExists(sitePosition?.orderKey),
+                      parentId: assertExists(sitePosition?.parentId),
+                  },
+              } as const),
+        {
+            consistency,
+        },
+    );
 
     const createdTime = new Date();
     const version = 0;
@@ -495,15 +482,14 @@ export async function createDocument(
         updatedTraits: {type: "Any"},
     };
 
-    // Even though we mark this document as hasAddedFeedCandidateEntry if
-    // it's shared, imports only create feed entries for the top level item.
-    // This avoids a wall of thousands of documents. While
-    // hasAddedFeedCandidateEntry: true is not technically the truth, we
-    // don't want to recreate the feed entry if a user unshares and reshares
-    // an imported document. This means if you import a section of documents
-    // as private, and choose to share them publicly later, it WILL create
+    // Even though we mark this document as hasAddedFeedCandidateEntry if it's shared,
+    // imports only create feed entries for the top level item. This avoids a wall of
+    // thousands of documents. While hasAddedFeedCandidateEntry: true is not
+    // technically the truth, we don't want to recreate the feed entry if a user
+    // unshares and reshares an imported document. This means if you import a section
+    // of documents as private, and choose to share them publicly later, it WILL create
     // feed entries.
-    const hasAddedFeedCandidateEntry = !!accessPolicy.defaultGrant;
+    const hasAddedFeedCandidateEntry = !!resolvedAccessPolicy.defaultGrant;
 
     const creator = {
         id: creatorId,
@@ -514,7 +500,7 @@ export async function createDocument(
                 : null),
     };
 
-    await DynamoTableSchema.executeTransaction(context, [
+    await RynamoTableSchema.executeTransaction(context, [
         DocumentsTable.transactionCreateItem({
             partitionType: "Document",
             sortRangeType: "Attributes",
@@ -536,6 +522,7 @@ export async function createDocument(
             version,
             content,
         }),
+        ...transactionEntries.map(entry => entry.transactionEntry),
     ]);
 
     if (createFeedEntry) {
@@ -548,37 +535,36 @@ export async function createDocument(
             event: "Created",
         };
 
-        // If we created a public document then we immediately add it to
-        // the feed.
-        //
-        // We wait 15min before adding to the feed so the user has time to
-        // type in the document. That way if the user opens their feed they
-        // don't see an empty document. Also, we have to wait a bit for the
-        // document content preview to be generated anyway or else we'll
-        // only have the document's title.
+        // Immediately add the document to the creator's feed. Whether the document is
+        // private or public. If the document is public we will add it to everyone else's
+        // feed below. This way the creator can quickly find the document they created
+        // again by opening their feed.
+        context.process.waitUntil(
+            addFeedAccountCandidateEntry(
+                // NOTE(calebmer, #2026-03-16): This is an `async` operation that runs after
+                // `createDocument()` returns. We don't need to enforce strong read consistency
+                // here.
+                context.dynamo.unexpectStrongReadConsistency(),
+                spaceId,
+                creatorId,
+                entry,
+            ),
+        );
+
+        // We wait 5min before adding to the feed so the user has time to type in the
+        // document. That way if the user opens their feed they don't see an empty
+        // document. Also, we have to wait a bit for the document content preview to be
+        // generated anyway or else we'll only have the document's title.
         if (hasAddedFeedCandidateEntry) {
             context.jobs.send(
                 {
                     type: "AddFeedCandidateEntry",
                     jobId: generateId(),
                     spaceId,
-                    entry,
+                    // We already added this document to the creator's feed. Don't add it again.
+                    entry: {...entry, excludeFromCreatorFeed: true},
                 },
-                {delaySeconds: 15 * 60},
-            );
-        }
-        // If we're creating a private document then only add an entry to
-        // the creator account's personal feed.
-        else {
-            context.jobs.send(
-                {
-                    type: "AddFeedAccountCandidateEntry",
-                    jobId: generateId(),
-                    spaceId,
-                    accountId: creatorId,
-                    entry,
-                },
-                {delaySeconds: 15 * 60},
+                {delaySeconds: 5 * 60},
             );
         }
     }
@@ -596,22 +582,21 @@ export async function createDocument(
         {delaySeconds: newIndexSearchEntityJob.delaySeconds},
     );
 
-    if (context.actor.type !== "System") {
-        const accountContext = context as Exclude<typeof context, ServerSystemActionContext>;
-
+    if (!skipAffinityPointAssignment) {
         context.process.waitUntil(
-            // Special interaction that adds a bunch more points then normal
-            // interactions. So newly created documents are always easily
-            // accessible in the search affinity list.
+            // Special interaction that adds a bunch more points then normal interactions. So
+            // newly created documents are always easily accessible in the search affinity
+            // list.
             markSearchAffinityCreateDocumentEntityInteraction(
-                // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job
-                // that runs after `createDocument()` returns. We don't need
-                // to expect strong read consistency here.
-                accountContext.dynamo.unexpectStrongReadConsistency(),
+                // NOTE(ifitzsimmons, #2026-01-30): This is an `async` job that runs after
+                // `createDocument()` returns. We don't need to expect strong read consistency
+                // here.
+                context.dynamo.unexpectStrongReadConsistency(),
                 {
                     spaceId,
                     documentId,
                     creatorId,
+                    siteId: getSiteIdFromAccessPolicyIfExists(accessPolicy),
                 },
             ),
         );
@@ -622,11 +607,14 @@ export async function createDocument(
         createdTime,
         version,
         creator,
+        getRynamoEventsForSite: async (context: ServerActionContext) =>
+            await runAllPromises(transactionEntries?.map(entry => entry.getEvent(context)) ?? []),
     };
 }
 
 /**
- * Duplicate a document, optionally replacing template variables with provided values.
+ * Duplicate a document, optionally replacing template variables with provided
+ * values.
  *
  * Template variables are text patterns in the format `{{Variable name}}`. When
  * `values` is provided, these patterns are replaced with the corresponding values.
@@ -664,6 +652,7 @@ export async function duplicateDocument(
     // Build the new document content with the new title and fresh access policy
     const creatorId = context.actor.getAccountId();
     const newAccessPolicy: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[creatorId, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
@@ -672,8 +661,7 @@ export async function duplicateDocument(
     const processedContentTitle = getDocumentContentTitle(processedContent);
 
     // Generate the new title with "(copy)" suffix but only if the title hasn't
-    // changed. If there was a template variable in the title we don't
-    // need "(copy)".
+    // changed. If there was a template variable in the title we don't need "(copy)".
     const newTitleText =
         processedContentTitle === getDocumentContentTitle(sourceContent)
             ? generateDuplicateContentTitle(processedContentTitle)
@@ -702,23 +690,23 @@ export async function duplicateDocument(
         ),
     );
 
-    // Generate the document ID before creating the document. We need this ID to
-    // attach files BEFORE the document exists. This prevents a race condition where
-    // a user opens the document before file attachments complete.
+    // Generate the document ID before creating the document. We need this ID to attach
+    // files BEFORE the document exists. This prevents a race condition where a user
+    // opens the document before file attachments complete.
     const newDocumentId = generateId<DocumentId>();
 
     // Extract file IDs from the new content
     const {fileIds} = getContentReferencedIdsForNode(newContent);
 
-    // If there are files to attach, we need to pre-populate the authorization cache
-    // so that file attachment authorization succeeds for the not-yet-created document.
+    // If there are files to attach, we need to pre-populate the authorization cache so
+    // that file attachment authorization succeeds for the not-yet-created document.
     if (fileIds.size > 0) {
-        // Attach files from the source document to the new document BEFORE creating
-        // the document. This prevents a race condition where a user opens the document
-        // before file attachments complete.
+        // Attach files from the source document to the new document BEFORE creating the
+        // document. This prevents a race condition where a user opens the document before
+        // file attachments complete.
         await runAllPromises(
             mapIterable(fileIds, fileId =>
-                attachFileFromAttachment(context, spaceId, fileId, {
+                attachFileFromAttachment(context, fileId, {
                     from: FileDocumentAuthorizer.bind({
                         type: "Document",
                         documentId: sourceDocumentId,
@@ -729,8 +717,8 @@ export async function duplicateDocument(
                     }),
 
                     // The new document hasn't been created yet. So don't authorize we have access
-                    // since doing so will throw a `NotFoundError`. We definitely have access to
-                    // the new document since our actor is about to create it.
+                    // since doing so will throw a `NotFoundError`. We definitely have access to the
+                    // new document since our actor is about to create it.
                     dangerouslySkipToAuthorizeTargetAccess: true,
                 }),
             ),
@@ -738,7 +726,7 @@ export async function duplicateDocument(
     }
 
     // Create the new document with the pre-generated ID
-    return createDocument(context, {
+    return await createDocument(context, {
         id: newDocumentId,
         spaceId,
         content: newContent,
@@ -750,13 +738,12 @@ export async function duplicateDocument(
  *
  * Cheaper than `getDocument()` since we don't return the full content.
  *
- * The result is cached. If you call this for the same `DocumentId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `DocumentId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  *
- * This function is somewhat strongly consistent. If null is returned that
- * means the document does not exist with strong consistency. (Since we retry
- * reading null results with strong consistency.)
+ * This function is somewhat strongly consistent. If null is returned that means
+ * the document does not exist with strong consistency. (Since we retry reading
+ * null results with strong consistency.)
  */
 export async function getDocumentPreviewIfPossible(
     context: ServerActionContext,
@@ -787,13 +774,12 @@ export async function getDocumentPreviewIfPossible(
  *
  * Cheaper than `getDocument()` since we don't return the full content.
  *
- * The result is cached. If you call this for the same `DocumentId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `DocumentId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  *
- * This function is somewhat strongly consistent. If null is returned that
- * means the document does not exist with strong consistency. (Since we retry
- * reading null results with strong consistency.)
+ * This function is somewhat strongly consistent. If null is returned that means
+ * the document does not exist with strong consistency. (Since we retry reading
+ * null results with strong consistency.)
  */
 export async function getDocumentPreviewIfExists(
     context: ServerActionContext,
@@ -810,9 +796,8 @@ export async function getDocumentPreviewIfExists(
  *
  * Cheaper than `getDocument()` since we don't return the full content.
  *
- * The result is cached. If you call this for the same `DocumentId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `DocumentId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  */
 export async function getDocumentPreview(
     context: ServerActionContext,
@@ -863,6 +848,7 @@ export async function authorizeDocumentAccessIfPossible(
         context,
         documentItem,
         expectedAccessLevel,
+        options,
     );
     if (!result.ok) return result;
 
@@ -923,13 +909,18 @@ const DocumentItemAuthorizationCache = new DynamoContextCache<
     DocumentId,
     DocumentAttributesItem | null
 >({
-    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
-    // on who the actor is.
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend on who
+    // the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
 async function getDocumentItemForAuthorization(
-    context: ServerMinimalActionContext,
+    context: Context<
+        DynamoContextModules & {
+            actor: ActorContextModule;
+            cache: CacheContextModule;
+        }
+    >,
     documentId: DocumentId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentAttributesItem> {
@@ -939,11 +930,16 @@ async function getDocumentItemForAuthorization(
 }
 
 async function getDocumentItemForAuthorizationIfExists(
-    context: ServerMinimalActionContext,
+    context: Context<
+        DynamoContextModules & {
+            actor: ActorContextModule;
+            cache: CacheContextModule;
+        }
+    >,
     documentId: DocumentId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<DocumentAttributesItem | null> {
-    return DocumentItemAuthorizationCache.get(context, consistency, documentId, consistency =>
+    return await DocumentItemAuthorizationCache.get(context, consistency, documentId, consistency =>
         DocumentsTable.getItemIfExists(
             context,
             {
@@ -954,6 +950,28 @@ async function getDocumentItemForAuthorizationIfExists(
             {consistency},
         ),
     );
+}
+
+/**
+ * Check if a document with the given ID exists.
+ *
+ * This function bypasses authorization checks and is intended for system
+ * operations like imports where we need to check if a document already exists
+ * before creating it.
+ */
+export async function doesDocumentExist(
+    context: Context<
+        DynamoContextModules & {
+            actor: SystemActorContextModule;
+            cache: CacheContextModule;
+        }
+    >,
+    documentId: DocumentId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<boolean> {
+    context.actor.authorizeSystem();
+    const item = await getDocumentItemForAuthorizationIfExists(context, documentId, options);
+    return !!item;
 }
 
 type InternalDocument = {
@@ -974,13 +992,13 @@ async function getInternalDocumentIfExists(
         forCollaborationServiceInitialization = false,
         consistency = "Eventual",
     }: {
-        // If true then you can read the document content with the "View" access level
-        // but comments will be stripped from the document's content. Similar to
+        // If true then you can read the document content with the "View" access level but
+        // comments will be stripped from the document's content. Similar to
         // `getDocumentWithOptionalComments()`.
         withOptionalComments?: boolean;
 
-        // Allow reading a document's comment marks even if the actor only has the
-        // "View" access level but only if the actor is coming from
+        // Allow reading a document's comment marks even if the actor only has the "View"
+        // access level but only if the actor is coming from
         // `DocumentCollaborationService`.
         forCollaborationServiceInitialization?: boolean;
 
@@ -1007,10 +1025,10 @@ async function getInternalDocumentIfExists(
             sortRangeType: "Snapshot",
         },
         limit: "All",
-        // NOTE(calebmer): An optimization may be to do a strong read on the
-        // `Attributes` item and if it disagrees with our eventually consistent
-        // read then do a strongly consistent read of missing steps. That way the
-        // entire query doesn't need to be strongly consistent.
+        // NOTE(calebmer): An optimization may be to do a strong read on the `Attributes`
+        // item and if it disagrees with our eventually consistent read then do a strongly
+        // consistent read of missing steps. That way the entire query doesn't need to be
+        // strongly consistent.
         consistency,
     })) {
         switch (item.sortRangeType) {
@@ -1038,11 +1056,11 @@ async function getInternalDocumentIfExists(
                         forCollaborationServiceInitialization &&
                         context.actor.serviceName === "DocumentCollaborationService"
                     ) {
-                        // Dangerous privilege escalation! If we're initializing the document
-                        // collaboration service then allow reading comments even if the actor
-                        // initializing the collaboration service is a viewer. We trust the
-                        // collaboration service to implement its own permission checks to make sure
-                        // viewers can't see comment marks in document content.
+                        // Dangerous privilege escalation! If we're initializing the document collaboration
+                        // service then allow reading comments even if the actor initializing the
+                        // collaboration service is a viewer. We trust the collaboration service to
+                        // implement its own permission checks to make sure viewers can't see comment marks
+                        // in document content.
                         isCommentAccessAuthorized = true;
                     } else if (!withOptionalComments) {
                         throw commentAuthorizationResult.error;
@@ -1080,16 +1098,16 @@ async function getInternalDocumentIfExists(
     if (snapshot.version > attributes.version)
         throw new DataLossError("Document snapshot version is ahead of version attribute");
 
-    // If we have some steps before the snapshot in
-    // `stepTransactionsAfterSnapshot`, that's fine. We may be in the middle of
-    // moving steps into the `StepTransactionsBeforeSnapshot` sort range.
+    // If we have some steps before the snapshot in `stepTransactionsAfterSnapshot`,
+    // that's fine. We may be in the middle of moving steps into the
+    // `StepTransactionsBeforeSnapshot` sort range.
     //
     // Drop any steps before the snapshot.
     stepTransactionsAfterSnapshot = stepTransactionsAfterSnapshot.filter(stepTransaction => {
         if (stepTransaction.startVersion < snapshot.version) {
             // We assume step transactions are applied to the snapshot atomically. We don't
-            // support some steps in a transaction being before the snapshot and some steps
-            // in a transaction being after the snapshot. It's all or nothing for now.
+            // support some steps in a transaction being before the snapshot and some steps in
+            // a transaction being after the snapshot. It's all or nothing for now.
             if (stepTransaction.startVersion + stepTransaction.steps.length > snapshot.version)
                 throw new DataLossError(
                     "Document snapshot version is in the middle of a step transaction",
@@ -1138,12 +1156,11 @@ async function getInternalDocumentIfExists(
 }
 
 /**
- * Get the full document with the provided id. Throw an error if it doesn't
- * exist.
+ * Get the full document with the provided id. Throw an error if it doesn't exist.
  *
- * This requires the "Comment" access level. Will throw an error if the actor
- * only has the "View" access level. Use `getDocumentWithOptionalComments()` if
- * you want a `DocumentModel` even when the access level is "View".
+ * This requires the "Comment" access level. Will throw an error if the actor only
+ * has the "View" access level. Use `getDocumentWithOptionalComments()` if you want
+ * a `DocumentModel` even when the access level is "View".
  */
 export async function getDocument(
     context: ServerActionContext,
@@ -1152,20 +1169,19 @@ export async function getDocument(
     return (
         await getDocumentWithOptionalCommentsAndCommentThreads(context, {
             documentId,
-            // Setting this to something other than undefined forces this function to throw
-            // a `PermissionDeniedError` if the actor doesn't have comment access.
+            // Setting this to something other than undefined forces this function to throw a
+            // `PermissionDeniedError` if the actor doesn't have comment access.
             commentThreadIds: [],
         })
     ).document;
 }
 
 /**
- * Get the full document with the provided id. Throw an error if it doesn't
- * exist.
+ * Get the full document with the provided id. Throw an error if it doesn't exist.
  *
- * If the actor has view access to the document but not comment access then
- * we'll return a document with no comment thread references and all comment
- * marks stripped instead of throwing an error.
+ * If the actor has view access to the document but not comment access then we'll
+ * return a document with no comment thread references and all comment marks
+ * stripped instead of throwing an error.
  */
 export async function getDocumentWithOptionalComments(
     context: ServerActionContext,
@@ -1177,45 +1193,50 @@ export async function getDocumentWithOptionalComments(
 /**
  * Get the full document with the provided id. Return null if it doesn't exist.
  *
- * If the actor has view access to the document but not comment access then
- * we'll return a document with no comment thread references and all comment
- * marks stripped instead of throwing an error.
+ * If the actor has view access to the document but not comment access then we'll
+ * return a document with no comment thread references and all comment marks
+ * stripped instead of throwing an error.
  */
 export async function getDocumentWithOptionalCommentsIfExists(
     context: ServerActionContext,
     documentId: DocumentId,
+    options: {
+        onSiteId?: (siteId: SiteId) => void;
+    } = {},
 ): Promise<DocumentModel | null> {
     return (
-        (await getDocumentWithOptionalCommentsAndCommentThreadsIfExists(context, {documentId}))
-            ?.document ?? null
+        (
+            await getDocumentWithOptionalCommentsAndCommentThreadsIfExists(context, {
+                documentId,
+                onSiteId: options.onSiteId,
+            })
+        )?.document ?? null
     );
 }
 
 /**
  * Get the document with the provided id and all the requested comment threads.
  *
- * The returned document model includes all referenced comment threads already,
- * so if you request any archived comment threads they are returned out of band
- * in the `commentThreads` array.
+ * The returned document model includes all referenced comment threads already, so
+ * if you request any archived comment threads they are returned out of band in the
+ * `commentThreads` array.
  *
  * If the actor has view access to the document but doesn't have comment access
  * then we don't return any comment data and strip the document content of all
- * comment marks. If `commentThreadIds` is set to something other than
- * `undefined` then we'll throw an error if the user doesn't have comment
- * access instead of silently stripping all comment data from the result.
+ * comment marks. If `commentThreadIds` is set to something other than `undefined`
+ * then we'll throw an error if the user doesn't have comment access instead of
+ * silently stripping all comment data from the result.
  */
 async function getDocumentWithOptionalCommentsAndCommentThreads(
     context: ServerActionContext,
     options: {
         documentId: DocumentId;
-        // Allow `commentThreadIds` to be a promise so we can execute document loading
-        // in parallel with code that loads which `commentThreadIds`.
-        commentThreadIds?:
-            | Iterable<DocumentCommentThreadId>
-            | Promise<Iterable<DocumentCommentThreadId>>;
+        // Allow `commentThreadIds` to be a promise so we can execute document loading in
+        // parallel with code that loads which `commentThreadIds`.
+        commentThreadIds?: MaybePromise<Iterable<DocumentCommentThreadId>>;
         // If you pass this in, we will call once we've loaded the `SpaceId` for the
-        // document which may be before the function as a whole returns. This function
-        // will not be called in error cases.
+        // document which may be before the function as a whole returns. This function will
+        // not be called in error cases.
         onSpaceId?: (spaceId: SpaceId) => void;
     },
 ): Promise<{
@@ -1233,17 +1254,17 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         documentId,
         commentThreadIds: requestedCommentThreadIdsPromise,
         onSpaceId,
+        onSiteId,
     }: {
         documentId: DocumentId;
-        // Allow `commentThreadIds` to be a promise so we can execute document loading
-        // in parallel with code that loads which `commentThreadIds`.
-        commentThreadIds?:
-            | Iterable<DocumentCommentThreadId>
-            | Promise<Iterable<DocumentCommentThreadId>>;
+        // Allow `commentThreadIds` to be a promise so we can execute document loading in
+        // parallel with code that loads which `commentThreadIds`.
+        commentThreadIds?: MaybePromise<Iterable<DocumentCommentThreadId>>;
         // If you pass this in, we will call once we've loaded the `SpaceId` for the
-        // document which may be before the function as a whole returns. This function
-        // will not be called in error cases.
+        // document which may be before the function as a whole returns. This function will
+        // not be called in error cases.
         onSpaceId?: (spaceId: SpaceId) => void;
+        onSiteId?: (siteId: SiteId) => void;
     },
 ): Promise<{
     document: DocumentModel;
@@ -1275,9 +1296,9 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             commentThreadId: getMaxId<DocumentCommentThreadId>(),
         },
     })) {
-        // If we've found the snapshot item and the user doesn't have comment access
-        // then stop looping. We don't want to read comment thread items since the user
-        // doesn't have access to them anyway.
+        // If we've found the snapshot item and the user doesn't have comment access then
+        // stop looping. We don't want to read comment thread items since the user doesn't
+        // have access to them anyway.
         if (
             maybeSnapshot !== null &&
             maybeCommentAuthorizationResult !== null &&
@@ -1291,6 +1312,10 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                 maybeAttributes = item;
                 onSpaceId?.(item.spaceId);
 
+                if (item.accessPolicy.type === "Site") {
+                    onSiteId?.(item.accessPolicy.siteId);
+                }
+
                 // Save the document attributes item to our context cache so if
                 // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
                 // references) the document preview is already available and can be used to
@@ -1300,8 +1325,8 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                 // Must have the view access level to read a document.
                 await authorizeDocumentItemAccess(context, item, "View");
 
-                // We'll only return comment threads from this function if the actor is allowed
-                // to read comments.
+                // We'll only return comment threads from this function if the actor is allowed to
+                // read comments.
                 maybeCommentAuthorizationResult = await authorizeDocumentItemAccessIfPossible(
                     context,
                     item,
@@ -1309,8 +1334,8 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                 );
 
                 // Throw an error if we requested to load some comment thread IDs and the user
-                // doesn't have comment access. This option must be undefined if the user only
-                // has view access.
+                // doesn't have comment access. This option must be undefined if the user only has
+                // view access.
                 if (requestedCommentThreadIdsPromise && !maybeCommentAuthorizationResult.ok) {
                     throw maybeCommentAuthorizationResult.error;
                 }
@@ -1352,16 +1377,16 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
     if (snapshot.version > attributes.version)
         throw new DataLossError("Document snapshot version is ahead of version attribute");
 
-    // If we have some steps before the snapshot in
-    // `stepTransactionsAfterSnapshot`, that's fine. We may be in the middle of
-    // moving steps into the `StepTransactionsBeforeSnapshot` sort range.
+    // If we have some steps before the snapshot in `stepTransactionsAfterSnapshot`,
+    // that's fine. We may be in the middle of moving steps into the
+    // `StepTransactionsBeforeSnapshot` sort range.
     //
     // Drop any steps before the snapshot.
     stepTransactionsAfterSnapshot = stepTransactionsAfterSnapshot.filter(stepTransaction => {
         if (stepTransaction.startVersion < snapshot.version) {
             // We assume step transactions are applied to the snapshot atomically. We don't
-            // support some steps in a transaction being before the snapshot and some steps
-            // in a transaction being after the snapshot. It's all or nothing for now.
+            // support some steps in a transaction being before the snapshot and some steps in
+            // a transaction being after the snapshot. It's all or nothing for now.
             if (stepTransaction.startVersion + stepTransaction.steps.length > snapshot.version)
                 throw new DataLossError(
                     "Document snapshot version is in the middle of a step transaction",
@@ -1406,14 +1431,14 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         const commentThread =
             staleReferencedCommentThreadById.get(commentThreadId) ??
             // If our query didn't find the comment thread, it must be because our snapshot
-            // update process hasn't moved it from the archive range back into the
-            // referenced range. Try reading it from the archive range. Eventually the
-            // comment thread should be in our referenced range.
+            // update process hasn't moved it from the archive range back into the referenced
+            // range. Try reading it from the archive range. Eventually the comment thread
+            // should be in our referenced range.
             (await getDocumentCommentThreadItemIfExists(context, {
                 documentId,
                 commentThreadId,
-                // Try reading from the archive range first because we already queried the
-                // entire referenced comment thread range.
+                // Try reading from the archive range first because we already queried the entire
+                // referenced comment thread range.
                 shouldTryArchiveFirst: true,
             }));
 
@@ -1422,10 +1447,15 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         return [commentThread.commentThreadId, commentThread];
     };
 
+    // Fetch the site if the document's access policy is a Site type.
+    const accessPolicy = content.attrs.accessPolicy;
+    const siteId = accessPolicy.type === "Site" ? accessPolicy.siteId : null;
+
     const [
         contentReferences,
         referencedCommentThreadById,
         {requestedCommentThreadIds, archivedCommentThreadById},
+        siteById,
     ] = await runAllPromises([
         getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
             context,
@@ -1433,9 +1463,9 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             FileDocumentAuthorizer.bind({type: "Document", documentId}),
             content,
             // Preload small files so we don't have to show a placeholder for them. This
-            // improves UX at the cost slowing the initial load. Right now we preload
-            // <100kb files up to 400kb. We'll have to tune this to find the right balance
-            // between UX and the performance hit.
+            // improves UX at the cost slowing the initial load. Right now we preload <100kb
+            // files up to 400kb. We'll have to tune this to find the right balance between UX
+            // and the performance hit.
             {withPreloadedFiles: true},
         ),
         runAllPromises(mapIterable(referencedCommentThreadIds, getCommentThread)).then(
@@ -1463,6 +1493,9 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                 archivedCommentThreadById,
             };
         })(),
+        siteId
+            ? context.sitesInjection.getSitePreview(siteId).then(site => new Map([[siteId, site]]))
+            : new Map(),
     ]);
 
     const [actualReferencedCommentThreadById, actualRequestedCommentThreads] = await runAllPromises(
@@ -1501,10 +1534,10 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         ],
     );
 
-    // Extra security: Double check that if the user doesn't have comment access
-    // then we haven't loaded any comment threads. We should have already stopped
-    // any comment threads from loading at this point in the function but we double
-    // check with asserts to be safe.
+    // Extra security: Double check that if the user doesn't have comment access then
+    // we haven't loaded any comment threads. We should have already stopped any
+    // comment threads from loading at this point in the function but we double check
+    // with asserts to be safe.
     if (!commentAuthorizationResult.ok) {
         assert(referencedCommentThreadById.size === 0);
         assert(archivedCommentThreadById.size === 0);
@@ -1520,33 +1553,34 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             version: attributes.version,
             creator: {from: attributes.creator.from},
             content: {
-                // If the user doesn't have comment access then we need to strip all comment
-                // marks from the document's content. Since it's a security policy violation if
-                // the user can inspect the DOM and see ranges of text with comments even if the
-                // user can't read the comment. The mere presence of a comment on a range of
-                // text may tell the user something they're not allowed to know.
+                // If the user doesn't have comment access then we need to strip all comment marks
+                // from the document's content. Since it's a security policy violation if the user
+                // can inspect the DOM and see ranges of text with comments even if the user can't
+                // read the comment. The mere presence of a comment on a range of text may tell the
+                // user something they're not allowed to know.
                 doc: commentAuthorizationResult.ok
                     ? content
                     : assertDocumentContent(stripDocumentContentCommentMarks(content)),
                 references: {
                     ...contentReferences,
-                    // Extra security: Absolutely make sure we don't return comment threads if the
-                    // user doesn't have comment access.
+                    // Extra security: Absolutely make sure we don't return comment threads if the user
+                    // doesn't have comment access.
                     commentThreadById: commentAuthorizationResult.ok
                         ? new Map(actualReferencedCommentThreadById)
                         : emptyMap,
+                    siteById,
                 },
             },
         }),
-        // Extra security: Absolutely make sure we don't return comment threads if the
-        // user doesn't have comment access.
+        // Extra security: Absolutely make sure we don't return comment threads if the user
+        // doesn't have comment access.
         commentThreads: commentAuthorizationResult.ok ? actualRequestedCommentThreads : emptyArray,
     };
 }
 
 /**
- * Get only the document's title and access policy. Very fast since this does
- * not load the document's full content.
+ * Get only the document's title and access policy. Very fast since this does not
+ * load the document's full content.
  */
 export async function getDocumentTitleIfExists(
     context: ServerActionContext,
@@ -1555,12 +1589,15 @@ export async function getDocumentTitleIfExists(
 ): Promise<{title: string; accessPolicy: AccessPolicy} | null> {
     const documentPreview = await getDocumentPreviewIfExists(context, documentId, options);
     if (!documentPreview) return null;
-    return {title: documentPreview.getTitle(), accessPolicy: documentPreview.accessPolicy};
+    return {
+        title: documentPreview.getTitle(),
+        accessPolicy: documentPreview.accessPolicy,
+    };
 }
 
 /**
- * Get only the document's content. Does not load any references or comment
- * threads or anything else needed to construct a full `DocumentModel`.
+ * Get only the document's content. Does not load any references or comment threads
+ * or anything else needed to construct a full `DocumentModel`.
  */
 export async function getDocumentContent(
     context: ServerActionContext,
@@ -1593,8 +1630,8 @@ export async function getDocumentContent(
         //
         // We don't return this from `getDocumentContentWithOptionalComments()` because
         // currently viewers can't call `getDocumentContentSteps()`. Because historical
-        // steps might include comment marks. We might allow viewers to call this
-        // function in the future.
+        // steps might include comment marks. We might allow viewers to call this function
+        // in the future.
         stepCountByNonCreatorAccountId: internalDocument.attributes.stepCountByAccountId,
 
         updateContentPreview: context =>
@@ -1604,6 +1641,19 @@ export async function getDocumentContent(
                 content: internalDocument.content,
             }),
     };
+}
+
+function getDocumentContentPreviewSnippet(content: DocumentContent): DocumentContent {
+    // We want enough lines that we can render a letter-sized paper preview for
+    // documents. See [this task][1] for images of the documents we used to figure out
+    // how many lines of text fill a letter sized paper. We count 37 lines then we add
+    // 1 for safety giving us 38 lines.
+    //
+    // [1]:
+    //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
+    return assertDocumentContent(
+        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 38}),
+    );
 }
 
 async function updateDocumentContentPreviewAfterGetDocumentContent(
@@ -1619,20 +1669,11 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
     },
 ) {
     // Double check the new context has document access. We don't authorize that
-    // `version` or `content` match what's in the document because we know
-    // `version` and `content` come from `getDocumentContent()`.
+    // `version` or `content` match what's in the document because we know `version`
+    // and `content` come from `getDocumentContent()`.
     await authorizeDocumentAccess(context, documentId, "View");
 
-    // Get the first 30 lines of the document for the preview. We want enough lines
-    // that we can render a letter-sized paper preview for documents. See [this
-    // task][1] for images of the documents we used to figure out how many lines of
-    // text fill a letter sized paper. We count 37 lines then we add 1 for safety
-    // giving us 38 lines.
-    //
-    // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
-    const previewContent = assertDocumentContent(
-        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 38}),
-    );
+    const contentSnippet = getDocumentContentPreviewSnippet(content);
 
     await DocumentsTable.updateItem(
         context,
@@ -1651,74 +1692,76 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
             // There is a race condition bug here:
             //
             // 1. Document is at version `n`
-            // 2. Document is updated to version `n + 1` which has different
-            //    `previewContent` than version `n`
-            // 3. Document is updated to version `n + 2` which has the same
-            //    `previewContent` as version `n`
+            // 2. Document is updated to version `n + 1` which has different `contentSnippet`
+            //    than version `n`
+            // 3. Document is updated to version `n + 2` which has the same `contentSnippet` as
+            //    version `n`
             // 4. We run this content preview update for version `n + 2` _before_ version
-            //    `n + 1` so we skip updating `version` because `previewContent` is the
-            //    same
+            //    `n + 1` so we skip updating `version` because `contentSnippet` is the same
             // 5. Now we run this content preview update for version `n + 1` which updates
-            //    `version` and `previewContent`
+            //    `version` and `contentSnippet`
             //
             // Now we have a stale content preview version!
             //
             // We don't expect this to be a big issue in practice since we only run
-            // `IndexSearchEntity` for the document every 10 seconds minimum. Since updates
-            // are spaced apart by 10-60 seconds, race conditions shouldn't be an issue in
+            // `IndexSearchEntity` for the document every 10 seconds minimum. Since updates are
+            // spaced apart by 10-60 seconds, race conditions shouldn't be an issue in
             // practice.
             //
             // Even if this race condition were to occur and we have stale data in
-            // `previewContent`, likely the reason for the stale data is the user added a
-            // bit of text then immediately deleted it (or deleted a bit of text then
-            // immediately re-added it). Given the difference between the actual doc and
-            // the stale doc is likely fairly minor in practice we further don't mind this
-            // race condition.
+            // `contentSnippet`, likely the reason for the stale data is the user added a bit
+            // of text then immediately deleted it (or deleted a bit of text then immediately
+            // re-added it). Given the difference between the actual doc and the stale doc is
+            // likely fairly minor in practice we further don't mind this race condition.
             //
-            // We expect this to be a meaningful optimization for large, frequently
-            // updated, documents. Since we don't need to pay write capacity units to
-            // update the content on every document change. So we accept this potentially
-            // benign race condition bug. In the future, we could choose to remove this
-            // optimization if we find the write cost acceptable to fix race condition bugs
-            // we're seeing.
-            if (item && item.content.eq(previewContent)) return item;
+            // We expect this to be a meaningful optimization for large, frequently updated,
+            // documents. Since we don't need to pay write capacity units to update the content
+            // on every document change. So we accept this potentially benign race condition
+            // bug. In the future, we could choose to remove this optimization if we find the
+            // write cost acceptable to fix race condition bugs we're seeing.
+            if (item && item.content.eq(contentSnippet)) return item;
 
             return {
                 partitionType: "Document",
                 sortRangeType: "ContentPreview",
                 documentId,
                 version,
-                content: previewContent,
+                content: contentSnippet,
             };
         },
     );
 }
 
 /**
- * Gets a content preview for the document. If the document doesn't exist then
- * we return null. If we haven't generated the content preview for the document
- * yet we also return null. If you don't have access to the document we return
- * a result with `ok: false`.
+ * Gets a content preview for the document. If the document doesn't exist then we
+ * return null. If we haven't generated the content preview for the document yet we
+ * also return null. If you don't have access to the document we return a result
+ * with `ok: false`.
  *
  * The content preview is cheaper to load than the full document (with
- * `getDocument()` or `getDocumentContent()`) and more expensive to load than
- * the document preview which only contains the title (with
- * `getDocumentPreview()`). However, the tradeoff is the content preview will be
- * 10-60 seconds stale. We only update the content preview every 10-60 seconds
- * as a part of the `IndexSearchEntity` job.
+ * `getDocument()` or `getDocumentContent()`) and more expensive to load than the
+ * document preview which only contains the title (with `getDocumentPreview()`).
+ * However, the tradeoff is the content preview will be 10-60 seconds stale. We
+ * only update the content preview every 10-60 seconds as a part of the
+ * `IndexSearchEntity` job.
  *
- * This function is useful for rendering a preview of the document in other
- * parts of the product. e.g. When hovering over a document mention or in a
- * file preview.
+ * This function is useful for rendering a preview of the document in other parts
+ * of the product. e.g. When hovering over a document mention or in a file preview.
  *
- * We strip comment marks from the content preview since they aren't
- * interesting in a preview. Also, if you only have view access to the document
- * you aren't allowed to see comment marks anyway.
+ * We strip comment marks from the content preview since they aren't interesting in
+ * a preview. Also, if you only have view access to the document you aren't allowed
+ * to see comment marks anyway.
  */
 export async function getDocumentContentPreviewIfPossible(
     context: ServerActionContext,
     documentId: DocumentId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    {
+        consistency = "Eventual",
+        onSiteId,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    } = emptyObject,
 ): Promise<Result<
     {
         version: number;
@@ -1726,7 +1769,7 @@ export async function getDocumentContentPreviewIfPossible(
         preview: {
             version: number;
             content: DocumentContentWithReferences;
-        } | null;
+        };
     },
     ErrorBase
 > | null> {
@@ -1769,27 +1812,41 @@ export async function getDocumentContentPreviewIfPossible(
     const {attributesItem, contentPreviewItem} = await itemsPromise;
     if (!attributesItem) return null;
 
+    if (attributesItem.accessPolicy.type === "Site") {
+        onSiteId?.(attributesItem.accessPolicy.siteId);
+    }
+
     // Must have the view access level to read a document.
     const result = await authorizeDocumentItemAccessIfPossible(context, attributesItem, "View");
     if (!result.ok) return result;
 
-    if (!contentPreviewItem)
-        return {
-            ok: true,
-            value: {
-                version: attributesItem.version,
-                titleWithoutFallback: attributesItem.titleWithoutFallback,
-                preview: null,
-            },
-        };
+    let contentSnippetVersion: number;
+    let contentSnippet: DocumentContent;
 
-    // Remove comment marks from document preview. Since actor may only have the
-    // `View` permission level. But also since comment marks in a preview are
-    // distracting. We want the preview to be focused on the content. Must open the
-    // document to see comments.
-    const previewContent = assertDocumentContent(
-        stripDocumentContentCommentMarks(contentPreviewItem.content),
-    );
+    if (contentPreviewItem) {
+        contentSnippetVersion = contentPreviewItem.version;
+        contentSnippet = contentPreviewItem.content;
+    } else {
+        // If there is no content preview item (because the first `IndexSearchEntity`
+        // hasn't run yet) then we fallback to reading the full document.
+        const document = await getInternalDocumentIfExists(context, documentId, {
+            consistency,
+            // We always strip comments. Allow viewers to read this content.
+            withOptionalComments: true,
+        });
+
+        // We know the document exists because we found its attributes earlier.
+        assert(document);
+
+        contentSnippetVersion = document.version;
+        contentSnippet = getDocumentContentPreviewSnippet(document.content);
+    }
+
+    // Remove comment marks from document preview. Since actor may only have the `View`
+    // permission level. But also since comment marks in a preview are distracting. We
+    // want the preview to be focused on the content. Must open the document to see
+    // comments.
+    contentSnippet = assertDocumentContent(stripDocumentContentCommentMarks(contentSnippet));
 
     return {
         ok: true,
@@ -1797,17 +1854,20 @@ export async function getDocumentContentPreviewIfPossible(
             version: attributesItem.version,
             titleWithoutFallback: attributesItem.titleWithoutFallback,
             preview: {
-                version: contentPreviewItem.version,
+                version: contentSnippetVersion,
                 content: {
-                    doc: previewContent,
+                    doc: contentSnippet,
                     references: {
                         ...(await getContentReferencesForNode(
                             context,
                             attributesItem.spaceId,
                             FileDocumentAuthorizer.bind({type: "Document", documentId}),
-                            previewContent,
+                            contentSnippet,
                         )),
                         commentThreadById: emptyMap,
+                        // Content previews don't need sites - they're used for search indexing and
+                        // previews where the full access policy isn't needed.
+                        siteById: emptyMap,
                     },
                 },
             },
@@ -1816,25 +1876,23 @@ export async function getDocumentContentPreviewIfPossible(
 }
 
 /**
- * Gets a content preview for the document. If the document doesn't exist then
- * we return null. If we haven't generated the content preview for the document
- * yet we also return null. If you don't have access to the document we throw
- * an error.
+ * Gets a content preview for the document. If the document doesn't exist then we
+ * return null. If we haven't generated the content preview for the document yet we
+ * also return null. If you don't have access to the document we throw an error.
  *
  * The content preview is cheaper to load than the full document (with
- * `getDocument()` or `getDocumentContent()`) and more expensive to load than
- * the document preview which only contains the title (with
- * `getDocumentPreview()`). However, the tradeoff is the content preview will be
- * 10-60 seconds stale. We only update the content preview every 10-60 seconds
- * as a part of the `IndexSearchEntity` job.
+ * `getDocument()` or `getDocumentContent()`) and more expensive to load than the
+ * document preview which only contains the title (with `getDocumentPreview()`).
+ * However, the tradeoff is the content preview will be 10-60 seconds stale. We
+ * only update the content preview every 10-60 seconds as a part of the
+ * `IndexSearchEntity` job.
  *
- * This function is useful for rendering a preview of the document in other
- * parts of the product. e.g. When hovering over a document mention or in a
- * file preview.
+ * This function is useful for rendering a preview of the document in other parts
+ * of the product. e.g. When hovering over a document mention or in a file preview.
  *
- * We strip comment marks from the content preview since they aren't
- * interesting in a preview. Also, if you only have view access to the document
- * you aren't allowed to see comment marks anyway.
+ * We strip comment marks from the content preview since they aren't interesting in
+ * a preview. Also, if you only have view access to the document you aren't allowed
+ * to see comment marks anyway.
  */
 export async function getDocumentContentPreviewIfExists(
     context: ServerActionContext,
@@ -1846,7 +1904,7 @@ export async function getDocumentContentPreviewIfExists(
     preview: {
         version: number;
         content: DocumentContentWithReferences;
-    } | null;
+    };
 } | null> {
     const result = await getDocumentContentPreviewIfPossible(context, documentId, options);
     if (result === null) return null;
@@ -1854,12 +1912,12 @@ export async function getDocumentContentPreviewIfExists(
 }
 
 /**
- * Get only the document's content. Does not load any references or comment
- * threads or anything else needed to construct a full `DocumentModel`.
+ * Get only the document's content. Does not load any references or comment threads
+ * or anything else needed to construct a full `DocumentModel`.
  *
- * If the actor has view access to the document but not comment access then
- * we'll return a document with no comment thread references and all comment
- * marks stripped instead of throwing an error.
+ * If the actor has view access to the document but not comment access then we'll
+ * return a document with no comment thread references and all comment marks
+ * stripped instead of throwing an error.
  */
 export async function getDocumentContentWithOptionalComments(
     context: ServerActionContext,
@@ -1888,13 +1946,13 @@ export async function getDocumentContentWithOptionalComments(
 }
 
 /**
- * Get only the document's content. Does not load any references or comment
- * threads or anything else needed to construct a full `DocumentModel`.
+ * Get only the document's content. Does not load any references or comment threads
+ * or anything else needed to construct a full `DocumentModel`.
  *
- * If an actor from `DocumentCollaborationService` is calling this function
- * then we'll return comments in the document content even if the actor only
- * has the "View" access level. We trust the document collaboration service to
- * make sure viewers can't see comment marks in a document.
+ * If an actor from `DocumentCollaborationService` is calling this function then
+ * we'll return comments in the document content even if the actor only has the
+ * "View" access level. We trust the document collaboration service to make sure
+ * viewers can't see comment marks in a document.
  */
 export async function getDocumentContentForCollaborationServiceInitialization(
     context: ServerActionContext,
@@ -1923,14 +1981,14 @@ export async function getDocumentContentForCollaborationServiceInitialization(
 }
 
 /**
- * Load the document's access policy for a bot scoped to the document. Used
- * when evaluating whether a bot has permissions to certain resources.
+ * Load the document's access policy for a bot scoped to the document. Used when
+ * evaluating whether a bot has permissions to certain resources.
  */
 export async function getDocumentAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,
     documentId: DocumentId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<AccessPolicy> {
+): Promise<EffectiveAccessPolicy> {
     const scope = context.actor.getScope();
     if (scope.type !== "Document" || scope.documentId !== documentId) {
         throw new PermissionDeniedError("Can only get access policy for the scoped document");
@@ -1938,9 +1996,12 @@ export async function getDocumentAccessPolicyForBotScope(
 
     const item = await getDocumentItemForAuthorization(context, documentId, options);
 
-    await authorizeSpaceAccess(context, item.spaceId);
+    const [, accessPolicy] = await runAllPromises([
+        authorizeSpaceAccess(context, item.spaceId),
+        intoEffectiveAccessPolicy(context, item.accessPolicy),
+    ]);
 
-    return item.accessPolicy;
+    return accessPolicy;
 }
 
 /**
@@ -1962,7 +2023,7 @@ export async function getDocumentCommentThread(
         getDocumentCommentThreadItem(context, {documentId, commentThreadId, consistency}),
     ]);
 
-    return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+    return await createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
 }
 
 export async function getDocumentCommentThreadContent(
@@ -2005,8 +2066,8 @@ export async function getDocumentCommentThreadContent(
 }
 
 /**
- * Find all the `DocumentCommentThreadId`s currently referenced in the
- * provided `DocumentContent`.
+ * Find all the `DocumentCommentThreadId`s currently referenced in the provided
+ * `DocumentContent`.
  */
 function getReferencedDocumentCommentThreadIds(content: Node): Set<DocumentCommentThreadId> {
     const commentThreadIds = new Set<DocumentCommentThreadId>();
@@ -2023,9 +2084,9 @@ function getReferencedDocumentCommentThreadIds(content: Node): Set<DocumentComme
 }
 
 /**
- * `DocumentCommentThreadModel` is used to render a full comment thread.
- * Including a comment preview, its resolved state, and all the individual
- * comments underneath the thread.
+ * `DocumentCommentThreadModel` is used to render a full comment thread. Including
+ * a comment preview, its resolved state, and all the individual comments
+ * underneath the thread.
  */
 async function createDocumentCommentThreadModelFromItem(
     context: ServerActionContext,
@@ -2064,9 +2125,12 @@ async function createDocumentCommentThreadModelFromItem(
                   doc: fallbackContentSnippetNode,
                   references: {
                       ...(fallbackContentSnippetReferences ?? emptyContentReferences),
-                      // We strip all comment thread marks except for our own it's
-                      // redundant to include a comment thread reference object for ourselves.
+                      // We strip all comment thread marks except for our own it's redundant to include a
+                      // comment thread reference object for ourselves.
                       commentThreadById: new Map(),
+                      // Fallback content snippets don't need sites - they're used for rendering comment
+                      // thread previews where the full access policy isn't needed.
+                      siteById: new Map(),
                   },
               }
             : null,
@@ -2078,8 +2142,7 @@ async function createDocumentCommentThreadModelFromItem(
 
 /**
  * `DocumentCommentThreadReference` is used to render a comment thread in the
- * besides a document. It shows the number of comments and some comment
- * authors.
+ * besides a document. It shows the number of comments and some comment authors.
  */
 async function createDocumentCommentThreadReferenceFromItem(
     context: ServerActionContext,
@@ -2101,13 +2164,13 @@ async function createDocumentCommentThreadReferenceFromItem(
 /**
  * Get many comment threads in a document at once.
  *
- * This is not the most efficient of functions. We need to load each comment
- * thread separately instead of querying many comment threads at once. Use it
- * when you need to fetch a small subset of comment threads.
+ * This is not the most efficient of functions. We need to load each comment thread
+ * separately instead of querying many comment threads at once. Use it when you
+ * need to fetch a small subset of comment threads.
  *
- * Also returns a list of the resolved comment threads should the caller find
- * that useful. Remember the list of resolved comment threads is read with
- * eventual consistency.
+ * Also returns a list of the resolved comment threads should the caller find that
+ * useful. Remember the list of resolved comment threads is read with eventual
+ * consistency.
  */
 export async function batchGetDocumentCommentThreadReferencesIfExists(
     context: ServerActionContext,
@@ -2183,29 +2246,29 @@ export async function confirmDocumentResolvedCommentThreadIdsWithStrongReadConsi
 }
 
 /**
- * How long before we removed document content from our cache. This is a
- * debounce timer. Whenever a user updates the document, we cancel any pending
- * timer and start a new one with this expiration time. So if the user is
- * continuously editing then we keep the content cached the entire time.
+ * How long before we removed document content from our cache. This is a debounce
+ * timer. Whenever a user updates the document, we cancel any pending timer and
+ * start a new one with this expiration time. So if the user is continuously
+ * editing then we keep the content cached the entire time.
  */
 export const documentContentCacheEvictionTimeoutMs = 1000 * 60 * 5;
 
 /**
- * We have an in-memory cache for document content that we use ONLY when
- * updating document content.
+ * We have an in-memory cache for document content that we use ONLY when updating
+ * document content.
  *
- * (We only use this cache for updates since it makes the cache easier to
- * reason about.)
+ * (We only use this cache for updates since it makes the cache easier to reason
+ * about.)
  *
  * Document content updates happen many times per second so it's important that
  * document content updates are fast. This cache allows us to avoid reading
- * document content from the database when we update it. If the document
- * content is in-memory we can read it from this cache.
+ * document content from the database when we update it. If the document content is
+ * in-memory we can read it from this cache.
  *
- * When we read a document from the cache, we double check with the database
- * to make sure the cached content version is equal to the content version in
- * the database. If there is another process updating our document content then
- * the cache may not be up-to-date!
+ * When we read a document from the cache, we double check with the database to
+ * make sure the cached content version is equal to the content version in the
+ * database. If there is another process updating our document content then the
+ * cache may not be up-to-date!
  */
 export class DocumentContentCacheForUpdate {
     private readonly _entries = new DocumentContentCacheForUpdateEntries();
@@ -2213,6 +2276,7 @@ export class DocumentContentCacheForUpdate {
     public async getAndCacheDocument(
         context: ServerActionContext,
         id: DocumentId,
+        {clientVersion}: {clientVersion: number},
     ): Promise<{
         readonly createdTime: Date;
         readonly spaceId: SpaceId;
@@ -2230,8 +2294,8 @@ export class DocumentContentCacheForUpdate {
         /**
          * Steps after the snapshot the content was loaded at.
          *
-         * Some of these steps may be before the current document snapshot if the
-         * document snapshot was updated after our cache loaded the document.
+         * Some of these steps may be before the current document snapshot if the document
+         * snapshot was updated after our cache loaded the document.
          */
         readonly stepsAfterInitialSnapshot: PushOnlyArraySlice<{
             readonly step: Step;
@@ -2240,9 +2304,8 @@ export class DocumentContentCacheForUpdate {
         }>;
 
         /**
-         * Update the cache with the provided content object and steps. We do not
-         * validate that the new content or steps are correct and trust the caller to
-         * do that!
+         * Update the cache with the provided content object and steps. We do not validate
+         * that the new content or steps are correct and trust the caller to do that!
          */
         updateCache(options: {
             newContent: DocumentContent;
@@ -2254,7 +2317,7 @@ export class DocumentContentCacheForUpdate {
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
-        return context.tracer.withSpan("Get and cache document", async (context, span) => {
+        return await context.tracer.withSpan("Get and cache document", async (context, span) => {
             let wasEntryCached = true;
 
             const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
@@ -2296,23 +2359,37 @@ export class DocumentContentCacheForUpdate {
             if (!nullableEntry) return null;
             let entry = nullableEntry;
 
-            // If our content was already cached, then we want to verify that the cached
-            // content version is the same as the content version in the database.
-            //
-            // Another process may have written to the database in which case the cache in
-            // this process wouldn't know. If another process wrote to the database we
-            // can't use our cached entry so should update our cache appropriately.
-            if (wasEntryCached) {
+            if (
+                // If our content was already cached, then we want to verify that the cached
+                // content version is the same as the content version in the database.
+                //
+                // Another process may have written to the database in which case the cache in this
+                // process wouldn't know. If another process wrote to the database we can't use our
+                // cached entry so should update our cache appropriately.
+                wasEntryCached ||
+                // If the client has a newer version of the document than us (and the entry was NOT
+                // cached), that may mean our eventually consistent `getInternalDocumentIfExists()`
+                // returned stale data. So re-read the document `Attributes` again to see if the
+                // client is wrong or if we have stale data and need to load more steps.
+                clientVersion > entry.version
+            ) {
                 let nullableAttributes = await DocumentsTable.getItemIfExists(context, {
                     partitionType: "Document",
                     documentId: id,
                     sortRangeType: "Attributes",
                 });
 
-                if (!nullableAttributes || entry.version > nullableAttributes.version) {
+                if (
                     // If we read a past version of the document that might be because we're using
-                    // DynamoDB eventual consistency and we can't yet read the latest write. So try
-                    // to load the document one more time but with strong consistency instead.
+                    // DynamoDB eventual consistency and we can't yet read the latest write. So try to
+                    // load the document one more time but with strong consistency instead.
+                    !nullableAttributes ||
+                    entry.version > nullableAttributes.version ||
+                    // If the client has a newer version of the document than what we got from an
+                    // eventually consistent read of `Attributes` then the item we read might be stale.
+                    // So try reading again but with strong consistency.
+                    clientVersion > nullableAttributes.version
+                ) {
                     nullableAttributes = await DocumentsTable.getItem(
                         context,
                         {
@@ -2328,19 +2405,26 @@ export class DocumentContentCacheForUpdate {
                             "We\u2019ve cached document content that has a version number ahead of what\u2019s in the database",
                         );
                     }
+
+                    if (clientVersion > nullableAttributes.version) {
+                        // If the client version is STILL higher than what we have in the database, now we
+                        // know the client's version is incorrect. We don't throw an error here. An error
+                        // will be thrown later by `getCollaborativelyUpdateContentResult()` (which will
+                        // also include some useful span data for debugging).
+                    }
                 }
 
                 // `const` reference so TypeScript doesn't think this is nullable.
                 const attributes = nullableAttributes;
 
-                // If the version in our cache is less than what's in the database, then let's
-                // load the steps we are missing and apply them to our content.
+                // If the version in our cache is less than what's in the database, then let's load
+                // the steps we are missing and apply them to our content.
                 if (entry.version < attributes.version) {
                     const nullableEntry = await this._entries.updateEntry(id, async entry => {
                         if (!entry) return null;
 
-                        // A concurrent updater may have moved our entry version all the way
-                        // forward already.
+                        // A concurrent updater may have moved our entry version all the way forward
+                        // already.
                         if (entry.version >= attributes.version) return entry;
 
                         const steps = await getDocumentContentStepsBetweenValidatedVersionRange(
@@ -2395,9 +2479,9 @@ export class DocumentContentCacheForUpdate {
                 version: entry.version,
                 content: entry.content,
                 accessPolicy: entry.content.attrs.accessPolicy,
-                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
-                // array from within this function, other code with a reference to the array
-                // won't see the new values.
+                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the array
+                // from within this function, other code with a reference to the array won't see
+                // the new values.
                 stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
 
                 updateCache: async ({
@@ -2463,12 +2547,12 @@ type DocumentContentCacheForUpdateEntry = {
      *
      * Every new step applied to the document content will be pushed to this array.
      *
-     * We never remove steps from this array which is why the name specifies
-     * "initial snapshot". The snapshot may be different from when we loaded this
-     * content but we won't evict steps from this list.
+     * We never remove steps from this array which is why the name specifies "initial
+     * snapshot". The snapshot may be different from when we loaded this content but we
+     * won't evict steps from this list.
      *
-     * By only pushing to this array it also means we can efficiently create
-     * immutable slices in O(1) time instead of an O(n) time clone.
+     * By only pushing to this array it also means we can efficiently create immutable
+     * slices in O(1) time instead of an O(n) time clone.
      */
     readonly stepsAfterInitialSnapshot: PushOnlyArray<{
         readonly step: Step;
@@ -2489,8 +2573,8 @@ type ReadonlyDocumentContentCacheForUpdateEntry = Replace<
 >;
 
 /**
- * Small helper for managing `DocumentContentCacheForUpdate` that handles
- * cache eviction.
+ * Small helper for managing `DocumentContentCacheForUpdate` that handles cache
+ * eviction.
  *
  * You shouldn't have to worry about cache eviction outside of this class.
  */
@@ -2505,9 +2589,8 @@ class DocumentContentCacheForUpdateEntries {
     >();
 
     constructor() {
-        // In our test environment, add a hook to evict all cached content at the end
-        // of every test. That way we don't have timeouts sitting around and firing
-        // randomly.
+        // In our test environment, add a hook to evict all cached content at the end of
+        // every test. That way we don't have timeouts sitting around and firing randomly.
         if (typeof afterEach !== "undefined") {
             assert(import.meta.jest);
 
@@ -2526,8 +2609,8 @@ class DocumentContentCacheForUpdateEntries {
     }
 
     /**
-     * Either get an existing entry for the provided document id or set an entry
-     * using the provided function.
+     * Either get an existing entry for the provided document id or set an entry using
+     * the provided function.
      */
     public getOrSetEntry(
         id: DocumentId,
@@ -2540,9 +2623,9 @@ class DocumentContentCacheForUpdateEntries {
             if (!entry) return null;
             return {
                 ...entry,
-                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
-                // array from within this function, other code with a reference to the array
-                // won't see the new values.
+                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the array
+                // from within this function, other code with a reference to the array won't see
+                // the new values.
                 //
                 // You can only push new values in the update callback.
                 stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
@@ -2551,10 +2634,10 @@ class DocumentContentCacheForUpdateEntries {
     }
 
     /**
-     * Set the entry in our map for the provided id. If there is already an entry
-     * for the provided id then we will evict that entry. Calling this method will
-     * start an eviction timer at which point the entry you added will be evicted
-     * from the cache.
+     * Set the entry in our map for the provided id. If there is already an entry for
+     * the provided id then we will evict that entry. Calling this method will start an
+     * eviction timer at which point the entry you added will be evicted from the
+     * cache.
      *
      * The update callback is queued behind previous concurrent updates.
      */
@@ -2602,9 +2685,9 @@ class DocumentContentCacheForUpdateEntries {
             if (!entry) return null;
             return {
                 ...entry,
-                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
-                // array from within this function, other code with a reference to the array
-                // won't see the new values.
+                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the array
+                // from within this function, other code with a reference to the array won't see
+                // the new values.
                 //
                 // You can only push new values in the update callback.
                 stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
@@ -2614,16 +2697,15 @@ class DocumentContentCacheForUpdateEntries {
 }
 
 /**
- * Small helper which allows us to create a slice of an append-only array
- * without cloning the array. A naive implementation of the native
- * `Array.slice()` method will clone the entire array.
+ * Small helper which allows us to create a slice of an append-only array without
+ * cloning the array. A naive implementation of the native `Array.slice()` method
+ * will clone the entire array.
  */
 class PushOnlyArray<Item> implements Iterable<Item> {
     private readonly _array: Array<Item>;
 
     constructor(iterable: Iterable<Item>) {
-        // Create a new array so we can make sure nothing else can mutate
-        // the array.
+        // Create a new array so we can make sure nothing else can mutate the array.
         this._array = Array.from(iterable);
     }
 
@@ -2693,43 +2775,43 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
 /**
  * Updates our document by applying some steps.
  *
- * The version number must be less than or equal to the current document
- * version. If the version is less than we will rebase the steps you provided
- * against the new document steps.
+ * The version number must be less than or equal to the current document version.
+ * If the version is less than we will rebase the steps you provided against the
+ * new document steps.
  *
  * ### Comments
  *
  * You may use this method to atomically create a comment thread along with
- * updating the document's content. You will do this by adding a `comment` mark
- * to some text and creating a comment thread with the same
- * `DocumentCommentThreadId` as what is in your mark.
+ * updating the document's content. You will do this by adding a `comment` mark to
+ * some text and creating a comment thread with the same `DocumentCommentThreadId`
+ * as what is in your mark.
  *
- * You MAY NOT create a comment thread (with the `createCommentThread` option)
- * if the comment thread is not somehow represented in the update steps.
+ * You MAY NOT create a comment thread (with the `createCommentThread` option) if
+ * the comment thread is not somehow represented in the update steps.
  *
  * You MAY use the `comment` mark in steps with a comment thread that was
  * previously created (maybe you are copy/pasting or undoing a change).
  *
- * We do not validate that `comment` marks you use correspond to a comment
- * thread in the database. To do this we'd have to fetch all referenced comment
- * threads in your steps which could get expensive if you were pasting a large
- * amount of content.
+ * We do not validate that `comment` marks you use correspond to a comment thread
+ * in the database. To do this we'd have to fetch all referenced comment threads in
+ * your steps which could get expensive if you were pasting a large amount of
+ * content.
  *
  * ### Performance
  *
- * This function will be called a lot while a user is updating a document. So
- * we've tried to carefully optimize this function to have O(steps) performance
- * and not O(contentSize) performance.
+ * This function will be called a lot while a user is updating a document. So we've
+ * tried to carefully optimize this function to have O(steps) performance and not
+ * O(contentSize) performance.
  *
  * We do this by:
  *
  * - Caching the current content in memory so we don't need to load it from the
  *   database on every update.
- * - Only saving the full content back to the database every 20-100 steps. For
- *   the majority of updates we only save the steps.
+ * - Only saving the full content back to the database every 20-100 steps. For the
+ *   majority of updates we only save the steps.
  */
 export async function updateDocumentContent(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         id: documentId,
         version: clientVersion,
@@ -2748,7 +2830,7 @@ export async function updateDocumentContent(
         clientId: ContentEditorClientId;
         clientRequestToken?: Id;
         intentionallyUpdateAccessPolicy?: {
-            accessPolicy: AccessPolicy;
+            accessPolicy: CreateOrUpdateAccessPolicy;
             notification: ShareNotification | null;
         };
         createCommentThreads?: ReadonlyArray<{
@@ -2756,12 +2838,14 @@ export async function updateDocumentContent(
             initialCommentContent: MessageContent;
             initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone: TimeZone;
+
             /**
-             * Optionally allow the caller to specify the time at which we report the
-             * thread was created. Used by our document collaboration service to use the
-             * optimistic creation time of the comment thread.
+             * Optionally allow the caller to specify the time at which we report the thread
+             * was created. Used by our document collaboration service to use the optimistic
+             * creation time of the comment thread.
              */
             createdTime?: Date;
+            overrideCreatedTimeForTest?: Date;
         }>;
         resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
         unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
@@ -2771,10 +2855,14 @@ export async function updateDocumentContent(
     /**
      * The new version of the document after applying our update.
      *
-     * If there are no `conflictingSteps` then this should be
-     * `version + steps.length`.
+     * If there are no `conflictingSteps` then this should be `version + steps.length`.
      */
     newVersion: number;
+
+    /**
+     * The document content after the update.
+     */
+    newContent: DocumentContent;
 
     /**
      * The `steps` array we passed in but transformed with a rebase against
@@ -2790,51 +2878,61 @@ export async function updateDocumentContent(
     newInvertedSteps: ReadonlyArray<Step>;
 
     /**
-     * If the client passed in a `version` that was not equal to the actual version
-     * of the document, then this function will have loaded steps between the
-     * client provided `version` and the actual document version and used those
-     * steps to rebase the client provided `steps`. The steps between the client
-     * `version` and actual version are the conflicting steps and are
-     * returned here.
+     * If the client passed in a `version` that was not equal to the actual version of
+     * the document, then this function will have loaded steps between the client
+     * provided `version` and the actual document version and used those steps to
+     * rebase the client provided `steps`. The steps between the client `version` and
+     * actual version are the conflicting steps and are returned here.
      *
-     * Since these steps come from other clients making collaborative edits
-     * `clientId` is included.
+     * Since these steps come from other clients making collaborative edits `clientId`
+     * is included.
      */
     conflictingSteps: ReadonlyArray<{step: Step; clientId: ContentEditorClientId}>;
 
     /**
-     * Comment thread model objects for threads that were updated during this
-     * content update. So comments updated with `resolveCommentThreadIds` or
+     * Comment thread model objects for threads that were updated during this content
+     * update. So comments updated with `resolveCommentThreadIds` or
      * `unresolveCommentThreadIds`.
      *
      * Doesn't include comments created with `createCommentThreads` since those
      * comments were created not updated.
      */
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
+
+    /**
+     * Realtime events for any site item / site preview writes that happened in the
+     * same dynamo transaction as the document update (i.e. when the new access policy
+     * switched the document into or out of a site). Document content events flow
+     * through the document collaboration WebSocket protocol, so only site events are
+     * surfaced here.
+     */
+    getRynamoEventsForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const result = await context.dynamo.retryTransaction(async context => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");
 
-        // NOTE(calebmer, 2023-09-19): Do we really need the cache anymore now that
-        // we're using Durable Objects for updating documents? For now, probably yes?
-        // The Durable Object sends updates to `AppService` so in theory the cache
-        // helps persist updates faster. The problem is `AppService` is behind a load
-        // balancer so Durable Objects would need [sticky sessions][1] to make sure it
-        // goes to the same `AppService` with the right cache. Though who knows, maybe
-        // the cache only helps a marginal amount even when configured properly.
+        // NOTE(calebmer, 2023-09-19): Do we really need the cache anymore now that we're
+        // using Durable Objects for updating documents? For now, probably yes? The Durable
+        // Object sends updates to `AppService` so in theory the cache helps persist
+        // updates faster. The problem is `AppService` is behind a load balancer so Durable
+        // Objects would need [sticky sessions][1] to make sure it goes to the same
+        // `AppService` with the right cache. Though who knows, maybe the cache only helps
+        // a marginal amount even when configured properly.
         //
-        // NOTE(calebmer, 2024-09-19): Added the span "Get and cache document" to help
-        // make this decision. Check how many cache hits we have and what performance
-        // difference it makes. To determine if the cache is a good idea I want to know
-        // the performance difference between cache hits and misses. Then if there's a
-        // low cache hit rate I suspect that's because of a sticky session bug where
-        // AWS ALB routes sticky sessions to the same `AppService` but within the
-        // Node.js server we don't route sticky sessions to the same Node.js process.
-        // Also, ideally I'd like members of the same space to route to the same
-        // Node.js process in AWS.
+        // NOTE(calebmer, 2024-09-19): Added the span "Get and cache document" to help make
+        // this decision. Check how many cache hits we have and what performance difference
+        // it makes. To determine if the cache is a good idea I want to know the
+        // performance difference between cache hits and misses. Then if there's a low
+        // cache hit rate I suspect that's because of a sticky session bug where AWS ALB
+        // routes sticky sessions to the same `AppService` but within the Node.js server we
+        // don't route sticky sessions to the same Node.js process. Also, ideally I'd like
+        // members of the same space to route to the same Node.js process in AWS.
         //
-        // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
+        // [1]:
+        //     https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
         const cache = cacheOverrideForTest ?? globalDocumentContentCacheForUpdate;
         assert(
             cache === globalDocumentContentCacheForUpdate || import.meta.jest,
@@ -2863,9 +2961,9 @@ export async function updateDocumentContent(
                     );
                 }
 
-                // `createdTime` shouldn't be wholly inaccurate but allow for some clock drift.
-                // In some cases `createdTime` may be set a couple minutes before when
-                // optimistically creating comment threads.
+                // `createdTime` shouldn't be wholly inaccurate but allow for some clock drift. In
+                // some cases `createdTime` may be set a couple minutes before when optimistically
+                // creating comment threads.
                 if (
                     createCommentThread.createdTime &&
                     Math.abs(differenceInMinutes(currentTime, createCommentThread.createdTime)) > 20
@@ -2877,10 +2975,9 @@ export async function updateDocumentContent(
             }
         }
 
-        // We don't require an `AddMarksAfterRemoveAllStep` for
-        // `unresolveCommentThreadIds` because when rebasing
-        // `AddMarksAfterRemoveAllStep` ranges with old steps, we may end up with no
-        // ranges and remove the `AddMarksAfterRemoveAllStep`.
+        // We don't require an `AddMarksAfterRemoveAllStep` for `unresolveCommentThreadIds`
+        // because when rebasing `AddMarksAfterRemoveAllStep` ranges with old steps, we may
+        // end up with no ranges and remove the `AddMarksAfterRemoveAllStep`.
         for (const commentThreadId of resolveCommentThreadIds) {
             const removeAllMarksStep = clientSteps.find(
                 step =>
@@ -2895,9 +2992,9 @@ export async function updateDocumentContent(
                 );
             }
 
-            // Important: We depend on positions being the same at the start and end of
-            // this update when resolving comment threads. So we can only allow steps that
-            // don't move positions. e.g. `RemoveAllMarksStep` or `AddMarkStep`.
+            // Important: We depend on positions being the same at the start and end of this
+            // update when resolving comment threads. So we can only allow steps that don't
+            // move positions. e.g. `RemoveAllMarksStep` or `AddMarkStep`.
             if (!clientSteps.every(step => step instanceof RemoveAllMarksStep)) {
                 throw new InvalidArgumentError(
                     "When resolving a comment thread only `removeAllMarks` steps can be used",
@@ -2905,32 +3002,18 @@ export async function updateDocumentContent(
             }
         }
 
-        const internalDocument = await cache.getAndCacheDocument(context, documentId);
+        const internalDocument = await cache.getAndCacheDocument(context, documentId, {
+            clientVersion,
+        });
         if (!internalDocument)
             throw new NotFoundError("Can not update document that doesn\u2019t exist");
 
-        let expectedAccessLevel: AccessLevel = "Edit";
+        const expectedAccessLevel =
+            getExpectedAccessLevelForUpdateDocumentContentSteps(clientSteps);
 
-        // If the client is ONLY adding or removing comment marks then its ok if they
-        // have the comment access level instead of the edit access level.
-        if (
-            clientSteps.every(
-                step =>
-                    (step instanceof AddMarkStep && step.mark.type.name === "comment") ||
-                    (step instanceof RemoveMarkStep && step.mark.type.name === "comment") ||
-                    (step instanceof AddNodeMarkStep && step.mark.type.name === "comment") ||
-                    (step instanceof RemoveNodeMarkStep && step.mark.type.name === "comment") ||
-                    (step instanceof AddMarksAfterRemoveAllStep &&
-                        step.mark.type.name === "comment") ||
-                    (step instanceof RemoveAllMarksStep && step.mark.type.name === "comment"),
-            )
-        ) {
-            expectedAccessLevel = "Comment";
-        }
-
-        // Make sure we have edit access to the document before continuing. Another
-        // user with access may have cached the document so it's important we check
-        // permissions here.
+        // Make sure we have edit access to the document before continuing. Another user
+        // with access may have cached the document so it's important we check permissions
+        // here.
         await authorizeDocumentItemAccess(context, internalDocument, expectedAccessLevel);
 
         const [{newContent, steps, invertedSteps, conflictingSteps}] = await runAllPromises([
@@ -2940,18 +3023,18 @@ export async function updateDocumentContent(
                 clientVersion,
                 clientSteps,
                 getSteps: async (startVersion, endVersion) => {
-                    // As an optimization, we assume implementation details about which range of
-                    // steps this function is requesting and use our internal data structures to
-                    // attempt at efficiently returning a value for this function.
+                    // As an optimization, we assume implementation details about which range of steps
+                    // this function is requesting and use our internal data structures to attempt at
+                    // efficiently returning a value for this function.
                     assert(startVersion === clientVersion);
                     assert(endVersion === internalDocument.version);
 
-                    // Get the steps that were applied to bring our document from the provided
-                    // version to the document's current version.
+                    // Get the steps that were applied to bring our document from the provided version
+                    // to the document's current version.
                     //
-                    // If we're lucky then the version we're trying to update is after our snapshot
-                    // so we've already loaded all the steps after the snapshot. Otherwise we need
-                    // to read new steps.
+                    // If we're lucky then the version we're trying to update is after our snapshot so
+                    // we've already loaded all the steps after the snapshot. Otherwise we need to read
+                    // new steps.
                     if (
                         clientVersion >=
                         internalDocument.version - internalDocument.stepsAfterInitialSnapshot.length
@@ -2983,7 +3066,6 @@ export async function updateDocumentContent(
                         isId<FileId>(fileId)
                             ? getFileFromAttachment(
                                   context,
-                                  internalDocument.spaceId,
                                   fileId,
                                   FileDocumentAuthorizer.bind({
                                       type: "DocumentComments",
@@ -3005,26 +3087,29 @@ export async function updateDocumentContent(
 
         // We don't allow the access policy to be updated unless
         // `intentionallyUpdateAccessPolicy` is defined. This is a protection which
-        // prevents the access policy from being updated accidentally by ProseMirror.
-        // It would be absolutely horrible if while editing a document ProseMirror
-        // accidentally clears the `accessPolicy` attr causing it to reset to the
-        // default which is public to everyone in the space.
+        // prevents the access policy from being updated accidentally by ProseMirror. It
+        // would be absolutely horrible if while editing a document ProseMirror
+        // accidentally clears the `accessPolicy` attr causing it to reset to the default
+        // which is public to everyone in the space.
         //
-        // By forcing developers to set `intentionallyUpdateAccessPolicy` we
-        // know this update intended to update the access policy.
+        // By forcing developers to set `intentionallyUpdateAccessPolicy` we know this
+        // update intended to update the access policy.
         if (!intentionallyUpdateAccessPolicy && hasAccessPolicyChanged) {
             throw new PermissionDeniedError(
                 "Can\u2019t update the document\u2019s access policy unless `intentionallyUpdateAccessPolicy` is provided",
             );
         }
 
-        // `intentionallyUpdateAccessPolicy` must exactly match the access policy we
-        // update the document to. This is a protection to prevent ProseMirror from
-        // accidentally updating the access policy in a way the developer didn't
-        // intend.
+        const inentionallyUpdatedAccessPolicyWithoutSitePosition =
+            intentionallyUpdateAccessPolicy?.accessPolicy?.type === "Site"
+                ? omitObject(intentionallyUpdateAccessPolicy.accessPolicy, ["position"])
+                : intentionallyUpdateAccessPolicy?.accessPolicy;
+        // `intentionallyUpdateAccessPolicy` must exactly match the access policy we update
+        // the document to. This is a protection to prevent ProseMirror from accidentally
+        // updating the access policy in a way the developer didn't intend.
         if (
             intentionallyUpdateAccessPolicy &&
-            !isDeepEqual(intentionallyUpdateAccessPolicy.accessPolicy, newAccessPolicy)
+            !isDeepEqual(inentionallyUpdatedAccessPolicyWithoutSitePosition, newAccessPolicy)
         ) {
             throw new PermissionDeniedError(
                 "The document\u2019s new access policy doesn\u2019t match `intentionallyUpdateAccessPolicy`",
@@ -3036,22 +3121,47 @@ export async function updateDocumentContent(
             await authorizeDocumentItemAccess(context, internalDocument, "Manage");
         }
 
-        // Make sure the access policy update is valid and the actor isn't removing
-        // access from accounts with a lower manage generation.
+        let newEffectiveAccessPolicy: EffectiveAccessPolicy | null = null;
+        const intentionallyUpdatedAccessPolicyTransactionEntries: Array<{
+            transactionEntry: RynamoTransactionEntry;
+            getEvent: (
+                context: ServerActionContext,
+            ) => Promise<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
+        }> = [];
+        // Make sure the access policy update is valid and the actor isn't removing access
+        // from accounts with a lower manage generation.
         if (hasAccessPolicyChanged) {
-            await validateAccessPolicyUpdateForServer(
-                context,
-                internalDocument.spaceId,
-                oldAccessPolicy,
-                newAccessPolicy,
+            const intentionalAccessPolicy = assertExists(
+                intentionallyUpdateAccessPolicy?.accessPolicy,
             );
-        }
 
-        // Add a feed candidate entry when the document is given a default grant for
-        // the first time.
+            const {resolvedAccessPolicy, transactionEntries} =
+                await validateAccessPolicyUpdateForServer(
+                    context,
+                    internalDocument.spaceId,
+                    `Document:${documentId}`,
+                    oldAccessPolicy,
+                    intentionalAccessPolicy,
+                );
+            newEffectiveAccessPolicy = resolvedAccessPolicy;
+
+            // Each entry in `add` / `remove` is `{transactionEntry, getEvent}`. The entries
+            // are `RynamoTransactionEntry` instances; we cast via `unknown` to
+            // `DynamoTransactionEntry` so we can push them onto the shared transaction array.
+            // The commit below switches to `RynamoTableSchema.executeTransaction` when any
+            // site entries are present — that variant accepts both entry types and broadcasts
+            // realtime events for the site entries.
+            for (const entry of transactionEntries) {
+                intentionallyUpdatedAccessPolicyTransactionEntries.push(entry);
+            }
+        }
+        newEffectiveAccessPolicy ??= await intoEffectiveAccessPolicy(context, newAccessPolicy);
+
+        // Add a feed candidate entry when the document is given a default grant for the
+        // first time.
         const oldHasAddedFeedCandidateEntry = internalDocument.hasAddedFeedCandidateEntry;
         const newHasAddedFeedCandidateEntry =
-            oldHasAddedFeedCandidateEntry || !!newAccessPolicy.defaultGrant;
+            oldHasAddedFeedCandidateEntry || !!newEffectiveAccessPolicy.defaultGrant;
 
         const commentThreadItemPromiseById = new Map<
             DocumentCommentThreadId,
@@ -3059,27 +3169,27 @@ export async function updateDocumentContent(
         >();
 
         // When a comment mark is being removed from a document, if that's the last
-        // instance of the comment mark then we want to save a snippet of content
-        // around that mark at the time it was removed that we can render alongside the
-        // comment thread in a preview so the user doesn't lose context about what the
-        // comment thread was about.
+        // instance of the comment mark then we want to save a snippet of content around
+        // that mark at the time it was removed that we can render alongside the comment
+        // thread in a preview so the user doesn't lose context about what the comment
+        // thread was about.
         //
         // Cases when a comment thread could be completely removed from a document:
         //
-        // - The user is resolving a comment thread and so updating the document with
-        //   a `removeAllMarks` step.
+        // - The user is resolving a comment thread and so updating the document with a
+        //   `removeAllMarks` step.
         //
         // - The user deleted content including the only reference to a comment.
         //
-        // We do all of this before actually updating the document in the database.
-        // This means we may save content snippets for referenced comment threads. We
-        // don't include these updates in our document update transaction since many
-        // comment threads can be deleted from the document at once.
+        // We do all of this before actually updating the document in the database. This
+        // means we may save content snippets for referenced comment threads. We don't
+        // include these updates in our document update transaction since many comment
+        // threads can be deleted from the document at once.
         {
             const removedCommentThreadIds = new Set<DocumentCommentThreadId>();
 
-            // 1. Find all comment marks removed from the document this update by checking
-            //    if an inverted step would add the mark back.
+            // 1. Find all comment marks removed from the document this update by checking if
+            //    an inverted step would add the mark back.
             for (const invertedStep of invertedSteps) {
                 visitProsemirrorStep(invertedStep, {
                     visitMark: mark => {
@@ -3090,9 +3200,9 @@ export async function updateDocumentContent(
                 });
             }
 
-            // 2. Check if any removed comment marks appear somewhere else in the document.
-            //    If the mark doesn't appear elsewhere then we consider the comment thread
-            //    to be totally removed.
+            // 2. Check if any removed comment marks appear somewhere else in the document. If
+            //    the mark doesn't appear elsewhere then we consider the comment thread to be
+            //    totally removed.
             if (removedCommentThreadIds.size > 0) {
                 visitProsemirrorNode(newContent, {
                     visitMark: mark => {
@@ -3191,14 +3301,13 @@ export async function updateDocumentContent(
             }
         }
 
-        // This checkpoint allows us to write a test against our transaction's
-        // condition.
+        // This checkpoint allows us to write a test against our transaction's condition.
         await updateDocumentContentBeforeExecuteTransactionTestCheckpoint.waitForTest({
             id: documentId,
             clientId,
         });
 
-        const transaction: Array<DynamoTransactionEntry> = [];
+        const transaction: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
 
         let newLastIndexSearchEntityJob = internalDocument.lastIndexSearchEntityJob;
         let newStepCountByAccountId = internalDocument.stepCountByAccountId;
@@ -3211,8 +3320,8 @@ export async function updateDocumentContent(
             if (
                 getDocumentContentTitleWithoutFallback(internalDocument.content) !==
                     newTitleWithoutFallback ||
-                // If the access policy updates then the title also implicitly updates since
-                // access to the title depends on the access policy.
+                // If the access policy updates then the title also implicitly updates since access
+                // to the title depends on the access policy.
                 oldAccessPolicy !== newAccessPolicy
             ) {
                 updatedTraits.push("Title");
@@ -3239,8 +3348,8 @@ export async function updateDocumentContent(
             // Don't add another document index job until after the first one's delay has
             // finished. When the delayed indexing job runs it will pick up this update.
             //
-            // Or add another document index job if a trait changed which isn't covered by
-            // the last index job.
+            // Or add another document index job if a trait changed which isn't covered by the
+            // last index job.
             if (
                 !areUpdatedTraitsInLastIndexSearchEntityJob ||
                 isDatePossiblyLessThanWithUncertaintyWindow(
@@ -3261,14 +3370,14 @@ export async function updateDocumentContent(
             }
 
             // Keep track of how much each account contributed to the document.
-            if (context.actor.getAccountId() !== internalDocument.creator.id) {
+            if (context.actor.getPossiblyBotAccountId() !== internalDocument.creator.id) {
                 const actualNewStepCountByAccountId = new Map(newStepCountByAccountId.get());
 
                 const stepCount =
-                    actualNewStepCountByAccountId.get(context.actor.getAccountId()) ?? 0;
+                    actualNewStepCountByAccountId.get(context.actor.getPossiblyBotAccountId()) ?? 0;
 
                 actualNewStepCountByAccountId.set(
-                    context.actor.getAccountId(),
+                    context.actor.getPossiblyBotAccountId(),
                     stepCount + steps.length,
                 );
 
@@ -3306,15 +3415,13 @@ export async function updateDocumentContent(
                             //
                             // Same with task notes.
                             //
-                            // This feels correct since writing in a document is a continuous flow. A
-                            // user may have accidentally typed in an account or mentioned in account then
-                            // decided to delete it. Sending notifications while a user is still typing
-                            // doesn't make sense either since the receiver sees a document in a partially
-                            // finished state.
+                            // This feels correct since writing in a document is a continuous flow. A user may
+                            // have accidentally typed in an account or mentioned in account then decided to
+                            // delete it. Sending notifications while a user is still typing doesn't make sense
+                            // either since the receiver sees a document in a partially finished state.
                             //
-                            // So we treat notifications in document content or task notes content
-                            // basically as styling options with no other effect. Hence no notification or
-                            // affinity boost.
+                            // So we treat notifications in document content or task notes content basically as
+                            // styling options with no other effect. Hence no notification or affinity boost.
                             if (shouldSendIndexSearchEntityJob) {
                                 context.jobs.send(
                                     {
@@ -3331,83 +3438,69 @@ export async function updateDocumentContent(
                             }
 
                             // Send a notification, via chat, on behalf of the actor saying "so and so has
-                            // shared this entity with you". We put this on the job queue since we don't
-                            // need to execute this job immediately.
+                            // shared this entity with you". We put this on the job queue since we don't need
+                            // to execute this job immediately.
                             if (intentionallyUpdateAccessPolicy?.notification) {
                                 context.jobs.send({
                                     type: "SendShareNotification",
                                     jobId: clientRequestToken ?? generateId(),
                                     spaceId: internalDocument.spaceId,
-                                    actorAccountId: context.actor.getAccountId(),
+                                    actorAccountId: context.actor.getPossiblyBotAccountId(),
                                     entityId: `Document:${documentId}`,
                                     notification: intentionallyUpdateAccessPolicy.notification,
                                 });
                             }
 
-                            // If we just updated `hasAddedFeedCandidateEntry` to true this update then
-                            // make sure to actually add the feed candidate entry. We add the feed
-                            // candidate entry 15min after the document is shared (if the document
-                            // doesn't have much content). In case the user shared the document before
-                            // writing the document's title or any text. 15min gives the user time to
-                            // write the document's introduction and gives our backend time to generate
-                            // the document `ContentPreview` item (which is generated by the
-                            // `IndexSearchEntity` job) we need to render the document in the home
-                            // feed.
-                            //
-                            // We picked 15min since that's the max SQS message delay. Arguably the delay
-                            // should be longer since it often takes a human more than 15min to write a
-                            // doc. Though at least some of the time, if the user is sharing a doc maybe
-                            // they've finished writing it?
+                            // If we just updated `hasAddedFeedCandidateEntry` to true this update then make
+                            // sure to actually add the feed candidate entry. We add the feed candidate entry
+                            // 5min after the document is shared (if the document doesn't have much content).
+                            // In case the user shared the document before writing the document's title or any
+                            // text. 5min gives the user time to write the document's introduction.
                             //
                             // ### Deciding when to immediately add the feed candidate
                             //
                             // We decide whether the document has "enough content" by looking at
-                            // `lastIndexSearchEntityJob.generation`. Why do we use this instead of looking
-                            // at the document's `version` or `content.nodeSize`? Well,
-                            // `lastIndexSearchEntityJob.generation` can give us a very rough approximation
-                            // of how much _time_ has been spent editing the document.
+                            // `lastIndexSearchEntityJob.generation` or `newContent.nodeSize`.
+                            //
+                            // `lastIndexSearchEntityJob.generation` can give us a very rough approximation of
+                            // how much _time_ has been spent editing the document.
                             // `lastIndexSearchEntityJob.generation` is incremented at least once every 10
-                            // seconds (`documentIndexSearchEntityJobFastDelaySeconds`) of editing. So if
-                            // we wait for the generation to be 20 then we know there have been 20 10
-                            // second time periods where the user has made at least one edit (~3 minutes
-                            // total).
+                            // seconds (`documentIndexSearchEntityJobFastDelaySeconds`) of editing. So if we
+                            // wait for the generation to be 14 then we know there have been 14 10 second time
+                            // periods where the user has made at least one edit (~2 minutes total).
                             //
-                            // Why is it better to wait for a certain amount of time to pass instead of
-                            // looking at `content.nodeSize` which directly determines how much content is
-                            // visible in a preview? Well, document content previews are only updated
-                            // during an `IndexSearchEntity` action. So if the user creates a document,
-                            // pastes a lot of content, and shares the document publicly if we checked that
-                            // `content.nodeSize` was above a certain threshold and added a feed candidate
-                            // then when users view the document in their feed it would have no content
-                            // because we haven't run the `IndexSearchEntity` job yet! Waiting for some
-                            // amount of time to pass therefore gives us some assurance that the user has
-                            // typed enough content for the start of the document to be filled and for
-                            // `IndexSearchEntity` to have run a couple times.
-                            //
-                            // Another approach could be to read the document content preview item here and
-                            // check the content preview size to make a decision about whether to
-                            // immediately add the document feed candidate. This seems pretty reasonable.
+                            // `content.nodeSize` detects if the user pasted in a bunch of content (or had a
+                            // bot like ChatGPT write the content) and then shared the document without making
+                            // many more updates.
                             if (newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry) {
                                 const entry: FeedEntry = {
                                     type: "Document",
                                     documentId,
                                     sharedTime: currentTime,
-                                    sharerId: context.actor.getAccountId(),
+                                    sharerId: context.actor.getPossiblyBotAccountId(),
                                     creator: internalDocument.creator,
                                     event: "SharedWithAccessPolicyDefaultGrant",
                                 };
 
                                 if (
                                     newLastIndexSearchEntityJob.generation >=
-                                    documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration
+                                        documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration ||
+                                    // We want enough text that we can render a letter-sized paper preview for
+                                    // documents. See [this task][1] for images of the documents we used to figure out
+                                    // how much text fills a letter sized paper. We count ~3300 characters and we round
+                                    // up to 3500 for some margin of error.
+                                    //
+                                    // [1]:
+                                    //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
+                                    newContent.nodeSize > 3500
                                 ) {
-                                    context.process.waitUntil(async () => {
-                                        await addFeedCandidateEntry(
+                                    context.process.waitUntil(
+                                        addFeedCandidateEntry(
                                             context,
                                             internalDocument.spaceId,
                                             entry,
-                                        );
-                                    });
+                                        ),
+                                    );
                                 } else {
                                     context.jobs.send(
                                         {
@@ -3416,7 +3509,7 @@ export async function updateDocumentContent(
                                             spaceId: internalDocument.spaceId,
                                             entry,
                                         },
-                                        {delaySeconds: 15 * 60},
+                                        {delaySeconds: 5 * 60},
                                     );
                                 }
                             }
@@ -3432,6 +3525,12 @@ export async function updateDocumentContent(
                     invertedSteps,
                     clientId,
                     createdTime: currentTime,
+                    // TODO: When the actor is a bot, resolve the human account that triggered the bot
+                    // action. Currently bot-applied steps will attribute both fields to the bot's
+                    // account.
+                    accountId: context.actor.getPossiblyBotAccountId(),
+                    fromBotAccountId:
+                        context.actor.type === "Bot" ? context.actor.getBotAccountId() : null,
                 }),
             );
         }
@@ -3440,16 +3539,23 @@ export async function updateDocumentContent(
         // with entries that will atomically create a new comment thread within the
         // transaction.
         //
-        // NOTE(calebmer): There is a limit to how many entries you can have in a
-        // DynamoDB transaction. Currently it's 100. This means there's a limit on how
-        // many comment threads you can create in an `updateDocumentContent()` call.
-        // Reasonable clients should send one at a time. If a client is a bit behind it
-        // might send multiple. If a client was offline and comes online and syncs
-        // changes, that's when we might hit this limit. It may be reasonable to create
-        // comment threads asynchronously instead of in the same transaction to get
-        // around this limit should we find users hitting it.
+        // NOTE(calebmer): There is a limit to how many entries you can have in a DynamoDB
+        // transaction. Currently it's 100. This means there's a limit on how many comment
+        // threads you can create in an `updateDocumentContent()` call. Reasonable clients
+        // should send one at a time. If a client is a bit behind it might send multiple.
+        // If a client was offline and comes online and syncs changes, that's when we might
+        // hit this limit. It may be reasonable to create comment threads asynchronously
+        // instead of in the same transaction to get around this limit should we find users
+        // hitting it.
         for (const createCommentThread of createCommentThreads) {
-            const createdTime = createCommentThread.createdTime ?? currentTime;
+            if (createCommentThread.overrideCreatedTimeForTest) {
+                assert(isTestNodeEnvOrAdminScenariosScript);
+            }
+
+            const createdTime =
+                createCommentThread.overrideCreatedTimeForTest ??
+                createCommentThread.createdTime ??
+                currentTime;
 
             transaction.push(
                 DocumentsTable.transactionCreateItem({
@@ -3463,7 +3569,9 @@ export async function updateDocumentContent(
                     fallbackContentSnippet: null,
                     commentsSummary: {
                         nextCommentIndex: 1,
-                        commentCountByAuthorId: new Map([[context.actor.getAccountId(), 1]]),
+                        commentCountByAuthorId: new Map([
+                            [context.actor.getPossiblyBotAccountId(), 1],
+                        ]),
                         mentionCountByAccountId: getMentionCountByAccountIdInContent(
                             createCommentThread.initialCommentContent,
                         ),
@@ -3486,7 +3594,7 @@ export async function updateDocumentContent(
                         documentId: documentId,
                         commentThreadId: createCommentThread.commentThreadId,
                         commentIndex: 0,
-                        authorId: context.actor.getAccountId(),
+                        authorId: context.actor.getPossiblyBotAccountId(),
                         createdTime,
                         createdTimeZone: createCommentThread.createdTimeZone,
                         payload: {
@@ -3517,9 +3625,9 @@ export async function updateDocumentContent(
                                     documentId: documentId,
                                     commentThreadId: createCommentThread.commentThreadId,
                                     commentIndex: 0,
-                                    createdTime: createCommentThread.createdTime ?? currentTime,
+                                    createdTime,
                                     createdTimeZone: createCommentThread.createdTimeZone,
-                                    authorId: context.actor.getAccountId(),
+                                    authorId: context.actor.getPossiblyBotAccountId(),
                                     mentionedAccountIds,
                                     parent: null,
                                     isContentSnippetComplete:
@@ -3580,8 +3688,8 @@ export async function updateDocumentContent(
                         throw new NotFoundError("Couldn\u2019t find document comment thread");
 
                     // If the comment thread is already resolved, then we don't want to remove the
-                    // `ranges` in the resolution state. So leave the comment thread alone. We do
-                    // need a condition check to avoid concurrent update issues.
+                    // `ranges` in the resolution state. So leave the comment thread alone. We do need
+                    // a condition check to avoid concurrent update issues.
                     if (commentThreadItem.resolutionState.type === "Resolved") {
                         transaction.push(
                             DocumentsTable.transactionUpdateLockVersionConditionCheck(
@@ -3598,8 +3706,8 @@ export async function updateDocumentContent(
                                 type: "Resolved",
                                 // Because we only allow `RemoveAllMarksStep` steps (or other steps that don't
                                 // affect positions) when resolving comments we know our `ranges` are valid for
-                                // this version since positions in the document will be the same at the start
-                                // and end of this update.
+                                // this version since positions in the document will be the same at the start and
+                                // end of this update.
                                 version: internalDocument.version + steps.length,
                                 ranges,
                             },
@@ -3665,16 +3773,24 @@ export async function updateDocumentContent(
             );
         }
 
+        // Append any site transaction entries produced by
+        // `validateAccessPolicyUpdateForServer` above. They must be committed in the same
+        // dynamo transaction as the document update so the site membership stays
+        // consistent with the document's access policy.
+        for (const siteEntry of intentionallyUpdatedAccessPolicyTransactionEntries) {
+            transaction.push(siteEntry.transactionEntry);
+        }
+
         const execute = async () => {
             if (transaction.length > 0) {
-                await DynamoTableSchema.executeTransaction(context, transaction, {
+                await RynamoTableSchema.executeTransaction(context, transaction, {
                     clientRequestToken,
                 });
             }
 
             if (steps.length > 0) {
-                // Update our cache so that the next update from this process doesn't need to
-                // read content from the database.
+                // Update our cache so that the next update from this process doesn't need to read
+                // content from the database.
                 await internalDocument.updateCache({
                     newContent,
                     newSteps: steps,
@@ -3713,6 +3829,9 @@ export async function updateDocumentContent(
             newInvertedSteps: invertedSteps,
             conflictingSteps,
             updatedCommentThreads,
+            siteEventCallbacks: intentionallyUpdatedAccessPolicyTransactionEntries.map(
+                entry => entry.getEvent,
+            ),
         };
     });
 
@@ -3724,14 +3843,15 @@ export async function updateDocumentContent(
         newInvertedSteps,
         conflictingSteps,
         updatedCommentThreads,
+        siteEventCallbacks,
     } = result;
 
     const lastVersionToTriggerSnapshot =
         Math.floor(newVersion / updateDocumentSnapshotAfterStepCount) *
         updateDocumentSnapshotAfterStepCount;
 
-    // Run a snapshot update task about every
-    // `updateDocumentSnapshotAfterStepCount` steps.
+    // Run a snapshot update task about every `updateDocumentSnapshotAfterStepCount`
+    // steps.
     if (oldVersion < lastVersionToTriggerSnapshot) {
         context.process.waitUntil(
             updateDocumentSnapshotAfterUpdatingContent(context, {
@@ -3744,31 +3864,44 @@ export async function updateDocumentContent(
 
     return {
         newVersion,
+        newContent,
         newSteps,
         newInvertedSteps,
         conflictingSteps,
         updatedCommentThreads,
+        /**
+         * Realtime events for any site item / site preview writes that happened in the
+         * same dynamo transaction as the document update. Returned as a callback the
+         * caller must invoke with a `ServerActionContext` once the transaction has
+         * committed — used by the `addEntityToSite` RPC to surface site sidebar events
+         * back to the client.
+         */
+        getRynamoEventsForSite: (
+            eventContext: ServerActionContext,
+        ): Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>> =>
+            runAllPromises(siteEventCallbacks.map(getEvent => getEvent(eventContext))),
     };
 }
 
 /**
- * Same as `updateDocumentContent()` but idempotent. If you call this function multiple
- * times with the same input then you'll get the same response.
+ * Same as `updateDocumentContent()` but idempotent. If you call this function
+ * multiple times with the same input then you'll get the same response.
  */
 export async function updateDocumentContentIdempotently(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     options: Parameters<typeof updateDocumentContent>[1] & {clientRequestToken: string},
 ): Promise<{
     newVersion: number;
     updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
+    eventsForSite: ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>;
 }> {
     try {
-        const {newVersion, updatedCommentThreads} = await updateDocumentContent(
-            context.actor.authorizeSession(),
-            options,
-        );
+        const {newVersion, updatedCommentThreads, getRynamoEventsForSite} =
+            await updateDocumentContent(context, options);
 
-        return {newVersion, updatedCommentThreads};
+        const eventsForSite = await getRynamoEventsForSite(context);
+
+        return {newVersion, updatedCommentThreads, eventsForSite};
     } catch (error) {
         if (!isDynamoIdempotentParameterMismatchError(error)) throw error;
 
@@ -3810,19 +3943,27 @@ export async function updateDocumentContentIdempotently(
             ),
         );
 
-        return {newVersion: documentItem.version, updatedCommentThreads};
+        // The site transaction entries were committed by the original call — on this
+        // idempotent retry we have no way to reconstruct the events, so we return an empty
+        // array. The sites RPC caller will still get a usable response; the realtime
+        // broadcast for the original call already happened.
+        return {
+            newVersion: documentItem.version,
+            updatedCommentThreads,
+            eventsForSite: emptyArray,
+        };
     }
 }
 
 /**
  * The number of steps between document content snapshots.
  *
- * This isn't the exact number of steps between document content snapshots
- * because we may update the document with more than one step at a time. If we
- * update the document with, say, 10 steps then all 10 new steps will be
- * included in the snapshot regardless of whether we only needed 1 more step
- * for the next snapshot. The next snapshot will also then include fewer steps
- * if we included some extra steps in a given snapshot.
+ * This isn't the exact number of steps between document content snapshots because
+ * we may update the document with more than one step at a time. If we update the
+ * document with, say, 10 steps then all 10 new steps will be included in the
+ * snapshot regardless of whether we only needed 1 more step for the next snapshot.
+ * The next snapshot will also then include fewer steps if we included some extra
+ * steps in a given snapshot.
  */
 const updateDocumentSnapshotAfterStepCount = 100;
 
@@ -3869,8 +4010,8 @@ async function updateDocumentSnapshotAfterUpdatingContent(
             },
         );
 
-        // If there is no snapshot, maybe the document was deleted? Ignore. When we try
-        // to read the document there will be an error then.
+        // If there is no snapshot, maybe the document was deleted? Ignore. When we try to
+        // read the document there will be an error then.
         if (!snapshot) return;
 
         try {
@@ -3892,20 +4033,20 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                 },
             );
         } catch (error) {
-            // If some other process concurrently updated the snapshot, then we don't need
-            // two processes updating the snapshot at once so we can bail out.
+            // If some other process concurrently updated the snapshot, then we don't need two
+            // processes updating the snapshot at once so we can bail out.
             if (isDynamoConditionCheckError(error)) return;
             throw error;
         }
 
         await runAllPromises([
             // Move steps from the `StepTransactionsBeforeSnapshot` range to the
-            // `StepTransactionsAfterSnapshot` range. So we don't query unnecessary steps
-            // when loading our document.
+            // `StepTransactionsAfterSnapshot` range. So we don't query unnecessary steps when
+            // loading our document.
             context.tracer.withSpan("Moving step transactions", async context => {
                 // Then, for all steps before our new snapshot version, move them into the
-                // `StepTransactionsBeforeSnapshot` range so in the future when we read the
-                // full document we don't read those steps.
+                // `StepTransactionsBeforeSnapshot` range so in the future when we read the full
+                // document we don't read those steps.
                 const stepTransactions = await arrayFromAsyncIterable(
                     DocumentsTable.query(context, {
                         partitionKey: {
@@ -3924,8 +4065,8 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                     }),
                 );
 
-                // Our writes should be batched under the hood if we dispatch them
-                // in parallel like this.
+                // Our writes should be batched under the hood if we dispatch them in parallel like
+                // this.
                 await runAllPromises(
                     stepTransactions.map(async stepTransaction => {
                         await DocumentsTable.createOrReplaceItem(context, {
@@ -3937,8 +4078,8 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                             id,
                         );
 
-                        // It's important that we wait for our put in the
-                        // `StepTransactionsBeforeSnapshot` to successfully complete before we delete.
+                        // It's important that we wait for our put in the `StepTransactionsBeforeSnapshot`
+                        // to successfully complete before we delete.
                         await DocumentsTable.deleteItemWithKeyIfExists(context, stepTransaction);
                     }),
                 );
@@ -4004,8 +4145,8 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                           expectedReferencedCommentThreadItem,
                                       );
 
-                                // If we can't find the referenced comment thread when retrying then a
-                                // concurrent writer probably moved it.
+                                // If we can't find the referenced comment thread when retrying then a concurrent
+                                // writer probably moved it.
                                 if (!referencedCommentThreadItem) return;
 
                                 await updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint.waitForTest(
@@ -4013,10 +4154,9 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                 );
 
                                 // We move the comment thread in a transaction so only one version of the item
-                                // exists at any given time. Since we need to make updates to the item it would
-                                // be weird of two versions of the item exist at once and one has an update
-                                // applied. How do we make sure that update is not lost? Or the history
-                                // doesn't fork?
+                                // exists at any given time. Since we need to make updates to the item it would be
+                                // weird of two versions of the item exist at once and one has an update applied.
+                                // How do we make sure that update is not lost? Or the history doesn't fork?
                                 await DynamoTableSchema.executeTransaction(context, [
                                     DocumentsTable.transactionDeleteItem(
                                         referencedCommentThreadItem,
@@ -4062,10 +4202,9 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                 );
 
                                 // We move the comment thread in a transaction so only one version of the item
-                                // exists at any given time. Since we need to make updates to the item it would
-                                // be weird of two versions of the item exist at once and one has an update
-                                // applied. How do we make sure that update is not lost? Or the history
-                                // doesn't fork?
+                                // exists at any given time. Since we need to make updates to the item it would be
+                                // weird of two versions of the item exist at once and one has an update applied.
+                                // How do we make sure that update is not lost? Or the history doesn't fork?
                                 await DynamoTableSchema.executeTransaction(context, [
                                     DocumentsTable.transactionDeleteItem(archivedCommentThreadItem),
                                     DocumentsTable.transactionCreateOrReplaceItem({
@@ -4108,8 +4247,7 @@ export const getDocumentContentStepsTestCounter = new TestCounter<{
 }>();
 
 /**
- * Reads all steps between `startVersion` (inclusive) and `endVersion`
- * (exclusive).
+ * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
  */
 export async function getDocumentContentSteps(
     context: ServerActionContext,
@@ -4126,14 +4264,13 @@ export async function getDocumentContentSteps(
     const documentItem = await getDocumentItemForAuthorizationIfExists(context, id);
     if (!documentItem) throw new NotFoundError("Document does not exist");
 
-    // This function requires comment access level since we may return steps that
-    // add comments to the document and viewers can't see comment ranges on a
-    // document.
+    // This function requires comment access level since we may return steps that add
+    // comments to the document and viewers can't see comment ranges on a document.
     await authorizeDocumentItemAccess(context, documentItem, "Comment");
 
     if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
     if (startVersion > endVersion)
-        throw new InvalidArgumentError("End version is greater than start version");
+        throw new InvalidArgumentError("Start version is greater than end version");
     if (startVersion === endVersion)
         throw new InvalidArgumentError("Start version is equal to end version");
     if (endVersion > documentItem.version)
@@ -4143,7 +4280,7 @@ export async function getDocumentContentSteps(
 
     getDocumentContentStepsTestCounter.incrementForTest({id, startVersion, endVersion});
 
-    return getDocumentContentStepsBetweenValidatedVersionRange(context, {
+    return await getDocumentContentStepsBetweenValidatedVersionRange(context, {
         id,
         startVersion,
         endVersion,
@@ -4153,11 +4290,11 @@ export async function getDocumentContentSteps(
 /**
  * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
  *
- * We assume you have checked that `endVersion` is a version that exists! We
- * will throw a `DataLossError` if we don't find steps up to `endVersion`.
+ * We assume you have checked that `endVersion` is a version that exists! We will
+ * throw a `DataLossError` if we don't find steps up to `endVersion`.
  *
- * We also assert that `versionStart` is less than `endVersion` and
- * `versionStart` is greater than zero.
+ * We also assert that `versionStart` is less than `endVersion` and `versionStart`
+ * is greater than zero.
  *
  * We call this function "for validated version range" because we assume
  * `versionStart` and `endVersion` are valid.
@@ -4174,7 +4311,7 @@ async function getDocumentContentStepsBetweenValidatedVersionRange(
         endVersion: number;
     },
 ): Promise<Array<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>> {
-    return context.tracer.withSpan("Get document content steps", async (context, span) => {
+    return await context.tracer.withSpan("Get document content steps", async (context, span) => {
         span.addData({
             content: {
                 collaborative: {
@@ -4188,8 +4325,8 @@ async function getDocumentContentStepsBetweenValidatedVersionRange(
             await getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(context, options);
 
         // This function has a couple different code branches that handle various edge
-        // cases. It's useful for debugging to know exactly which branch the function
-        // took. So record the executed branch in our span.
+        // cases. It's useful for debugging to know exactly which branch the function took.
+        // So record the executed branch in our span.
         span.addData({common: {branch}});
 
         return steps;
@@ -4235,9 +4372,8 @@ async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
             const invertedStep = stepTransaction.invertedSteps[i];
             if (!invertedStep) throw new DataLossError("Missing inverted document step");
 
-            // We may get steps outside of the version range because they are in a
-            // transaction that intersects with our version range. Don't set those steps to
-            // our map.
+            // We may get steps outside of the version range because they are in a transaction
+            // that intersects with our version range. Don't set those steps to our map.
             if (startVersion <= version && version < endVersion) {
                 stepByVersion.set(version, {
                     step,
@@ -4265,14 +4401,14 @@ async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
 
     processStepTransaction(stepTransactionContainingStartVersion);
 
-    // If the transaction containing our start version also contains our end
-    // version then we're done!
+    // If the transaction containing our start version also contains our end version
+    // then we're done!
     //
     // As an optimization, we could start the request to get
     // `stepTransactionContainingEndVersion` AFTER this short circuit so that if we
-    // only need one transaction we don't need to make the extra requests. However,
-    // we expect most of the time when you call this function you need more than
-    // one transaction.
+    // only need one transaction we don't need to make the extra requests. However, we
+    // expect most of the time when you call this function you need more than one
+    // transaction.
     if (
         endVersion <=
         stepTransactionContainingStartVersion.startVersion +
@@ -4324,17 +4460,17 @@ async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
                 if (steps) return {branch: "StepsAfterSnapshot", steps};
             }
 
-            // If we couldn't find all the request steps then try querying again with
-            // strong read consistency. Given this range has been validated we know the
-            // version range MUST exist in the document. So if we don't have all the steps
-            // it's probably due to an eventual consistency lag.
+            // If we couldn't find all the request steps then try querying again with strong
+            // read consistency. Given this range has been validated we know the version range
+            // MUST exist in the document. So if we don't have all the steps it's probably due
+            // to an eventual consistency lag.
             //
-            // We find eventual consistency lag is rare enough in practice that it's
-            // cheaper to retry with strong consistency after a failed eventually
-            // consistent read then to always make strong consistency reads.
+            // We find eventual consistency lag is rare enough in practice that it's cheaper to
+            // retry with strong consistency after a failed eventually consistent read then to
+            // always make strong consistency reads.
             //
-            // It's ok to call `processStepTransaction()` twice for step transactions
-            // we've already seen.
+            // It's ok to call `processStepTransaction()` twice for step transactions we've
+            // already seen.
             await queryStepTransactions("Strong");
 
             {
@@ -4342,14 +4478,14 @@ async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
                 if (steps) return {branch: "StepsAfterSnapshotWithStrongConsistency", steps};
             }
 
-            // If we still can't find the steps in the `StepTransactionsBeforeSnapshot`
-            // sort range when reading with strong consistency then it's possible we're
-            // updating the document snapshot and we read the first step transaction item
-            // BEFORE the snapshot moved all steps from the `StepTransactionsAfterSnapshot`
-            // sort range to the `StepTransactionsBeforeSnapshot` sort range. Therefore,
-            // querying `StepTransactionsAfterSnapshot` will never produce results since
-            // all the steps have been deleted. So try one last strong consistency query in
-            // the `StepTransactionsBeforeSnapshot` sort range.
+            // If we still can't find the steps in the `StepTransactionsBeforeSnapshot` sort
+            // range when reading with strong consistency then it's possible we're updating the
+            // document snapshot and we read the first step transaction item BEFORE the
+            // snapshot moved all steps from the `StepTransactionsAfterSnapshot` sort range to
+            // the `StepTransactionsBeforeSnapshot` sort range. Therefore, querying
+            // `StepTransactionsAfterSnapshot` will never produce results since all the steps
+            // have been deleted. So try one last strong consistency query in the
+            // `StepTransactionsBeforeSnapshot` sort range.
             for await (const stepTransaction of DocumentsTable.query(context, {
                 consistency: "Strong",
                 partitionKey: {
@@ -4377,9 +4513,9 @@ async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
                 return {branch: "StepsAfterSnapshotMovedBeforeSnapshot", steps};
             }
         }
-        // If we start in the before snapshot range then we might not have all the
-        // steps we need in the before snapshot range. So query the before snapshot
-        // range and then determine if we also need to query the after snapshot range.
+        // If we start in the before snapshot range then we might not have all the steps we
+        // need in the before snapshot range. So query the before snapshot range and then
+        // determine if we also need to query the after snapshot range.
         case "StepTransactionsBeforeSnapshot": {
             const queryStepTransactions = async (consistency: DynamoReadConsistency) => {
                 const stepTransactionBeforeSnapshotIterator = DocumentsTable.query(context, {
@@ -4408,9 +4544,9 @@ async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
                     processStepTransaction(stepTransaction);
                 }
 
-                // If the last step transaction we found in the before snapshot range contains
-                // the end version then we're done! Otherwise we need to continue querying in
-                // the after snapshot range.
+                // If the last step transaction we found in the before snapshot range contains the
+                // end version then we're done! Otherwise we need to continue querying in the after
+                // snapshot range.
                 if (
                     lastStepTransactionBeforeSnapshot &&
                     endVersion <=
@@ -4451,17 +4587,17 @@ async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
                 if (steps) return {branch: "StepsBeforeSnapshot", steps};
             }
 
-            // If we couldn't find all the request steps then try querying again with
-            // strong read consistency. Given this range has been validated we know the
-            // version range MUST exist in the document. So if we don't have all the steps
-            // it's probably due to an eventual consistency lag.
+            // If we couldn't find all the request steps then try querying again with strong
+            // read consistency. Given this range has been validated we know the version range
+            // MUST exist in the document. So if we don't have all the steps it's probably due
+            // to an eventual consistency lag.
             //
-            // We find eventual consistency lag is rare enough in practice that it's
-            // cheaper to retry with strong consistency after a failed eventually
-            // consistent read then to always make strong consistency reads.
+            // We find eventual consistency lag is rare enough in practice that it's cheaper to
+            // retry with strong consistency after a failed eventually consistent read then to
+            // always make strong consistency reads.
             //
-            // It's ok to call `processStepTransaction()` twice for step transactions
-            // we've already seen.
+            // It's ok to call `processStepTransaction()` twice for step transactions we've
+            // already seen.
             await queryStepTransactions("Strong");
 
             {
@@ -4478,30 +4614,30 @@ async function getDocumentContentStepsBetweenValidatedVersionRangeWithoutSpan(
 /**
  * Get the step transaction which contains `version` in the provided document.
  *
- * Throws a `DataLossError` if the `version` does not exist in the document.
- * You're responsible for validating that `version` exists in the document
- * before calling this function. Hence why the name says "validated" version.
+ * Throws a `DataLossError` if the `version` does not exist in the document. You're
+ * responsible for validating that `version` exists in the document before calling
+ * this function. Hence why the name says "validated" version.
  */
 // Given the way we layout our documents table, we can't query
-// `transaction.startVersion = version`. Since a transaction may contain
-// multiple steps and hence multiple versions. We don't know where the
-// transaction boundaries lie without querying the table.
+// `transaction.startVersion = version`. Since a transaction may contain multiple
+// steps and hence multiple versions. We don't know where the transaction
+// boundaries lie without querying the table.
 //
 // Given the way DynamoDB works we also can't query
 // `transaction.startVersion >= version AND version < transaction.startVersion + transaction.steps.length`
-// since we have to query on sort keys (of which `transaction.steps` is not a
-// part of).
+// since we have to query on sort keys (of which `transaction.steps` is not a part
+// of).
 //
 // So the way this function is implemented is:
 //
-// 1. We query the `StepTransactionsBeforeSnapshot` sort range for the
-//    transaction containing this version.
-// 2. We query the `StepTransactionsAfterSnapshot` sort range for the
-//    transaction containing this version.
+// 1. We query the `StepTransactionsBeforeSnapshot` sort range for the transaction
+//    containing this version.
+// 2. We query the `StepTransactionsAfterSnapshot` sort range for the transaction
+//    containing this version.
 //
-// To query those sort ranges, we use `transaction.startVersion BETWEEN 0 AND version`
-// in reverse with a limit of one. The first transaction in that range should
-// contain our version.
+// To query those sort ranges, we use
+// `transaction.startVersion BETWEEN 0 AND version` in reverse with a limit of one.
+// The first transaction in that range should contain our version.
 async function getDocumentStepTransactionContainingValidatedVersion(
     context: DynamoContext,
     id: DocumentId,
@@ -4511,13 +4647,13 @@ async function getDocumentStepTransactionContainingValidatedVersion(
 
     const queryStepTransactionsBeforeSnapshot = async (consistency: DynamoReadConsistency) => {
         // Find the transaction which contains `version`. To do this, we need to query
-        // `transaction.startVersion BETWEEN 0 AND version` in descending order and
-        // return the first transaction we find.
+        // `transaction.startVersion BETWEEN 0 AND version` in descending order and return
+        // the first transaction we find.
         //
         // To understand why this works consider two cases:
         //
-        // 1. The step for `version` is the first step of a transaction (the
-        //    transaction's `startVersion`).
+        // 1. The step for `version` is the first step of a transaction (the transaction's
+        //    `startVersion`).
         // 2. The step for `version` is in the middle of some transaction.
         //
         // Now consider the following four transactions in the
@@ -4530,15 +4666,15 @@ async function getDocumentStepTransactionContainingValidatedVersion(
         // transaction4: startVersion = 9
         // ```
         //
-        // For case 1: We want to get a range of steps starting at version 6. So we
-        // query `transaction.startVersion BETWEEN 0 AND 6` in descending order. The
-        // last transaction in this range is `transaction3` which contains version 6 so
-        // we're good.
+        // For case 1: We want to get a range of steps starting at version 6. So we query
+        // `transaction.startVersion BETWEEN 0 AND 6` in descending order. The last
+        // transaction in this range is `transaction3` which contains version 6 so we're
+        // good.
         //
-        // For case 2: We want to get a range of steps starting at version 8. So we
-        // query `transaction.startVersion BETWEEN 0 AND 8` in descending order. The
-        // last transaction in this range is `transaction3` which contains version 8 so
-        // we're good.
+        // For case 2: We want to get a range of steps starting at version 8. So we query
+        // `transaction.startVersion BETWEEN 0 AND 8` in descending order. The last
+        // transaction in this range is `transaction3` which contains version 8 so we're
+        // good.
         const stepTransactionBeforeSnapshotContainingVersionArray = await arrayFromAsyncIterable(
             DocumentsTable.query(context, {
                 consistency,
@@ -4577,17 +4713,17 @@ async function getDocumentStepTransactionContainingValidatedVersion(
         // This will happen if `version` is after the snapshot version.
         //
         // Since in our `StepTransactionsBeforeSnapshot` sort range we will have
-        // transactions from version 0 to the snapshot version. So if `version` is
-        // after the snapshot version then we will return the first transaction after
-        // the snapshot version.
+        // transactions from version 0 to the snapshot version. So if `version` is after
+        // the snapshot version then we will return the first transaction after the
+        // snapshot version.
         if (!actuallyContainsVersion) return null;
 
         return stepTransactionBeforeSnapshotContainingVersion;
     };
 
     const queryStepTransactionsAfterSnapshot = async (consistency: DynamoReadConsistency) => {
-        // Same as the query above but on the `StepTransactionsAfterSnapshot` sort
-        // range instead of the `StepTransactionsBeforeSnapshot` sort range.
+        // Same as the query above but on the `StepTransactionsAfterSnapshot` sort range
+        // instead of the `StepTransactionsBeforeSnapshot` sort range.
         const stepTransactionAfterSnapshotContainingVersionArray = await arrayFromAsyncIterable(
             DocumentsTable.query(context, {
                 consistency,
@@ -4625,17 +4761,16 @@ async function getDocumentStepTransactionContainingValidatedVersion(
         // This will happen while we are updating the snapshot.
         //
         // Consider two adjacent transactions, `transaction1` and `transaction2`.
-        // `transaction1` comes before `transaction2`. The version we are looking for
-        // is in `transaction2`. But our query will give us `transaction1` if we are in
-        // the following state:
+        // `transaction1` comes before `transaction2`. The version we are looking for is in
+        // `transaction2`. But our query will give us `transaction1` if we are in the
+        // following state:
         //
-        // 1. We deleted `transaction2` from `StepTransactionsAfterSnapshot` and moved
-        //    it to `StepTransactionsBeforeSnapshot`.
-        // 2. We have not yet deleted `transaction1` from
-        //    `StepTransactionsAfterSnapshot`.
+        // 1. We deleted `transaction2` from `StepTransactionsAfterSnapshot` and moved it
+        //    to `StepTransactionsBeforeSnapshot`.
+        // 2. We have not yet deleted `transaction1` from `StepTransactionsAfterSnapshot`.
         //
-        // In this case we need to scan `StepTransactionsBeforeSnapshot` for
-        // `transaction2` which.
+        // In this case we need to scan `StepTransactionsBeforeSnapshot` for `transaction2`
+        // which.
         if (!actuallyContainsVersion) return null;
 
         return stepTransactionAfterSnapshotContainingVersion;
@@ -4649,20 +4784,19 @@ async function getDocumentStepTransactionContainingValidatedVersion(
 
         // If we have both `stepTransactionBeforeSnapshot` and
         // `stepTransactionAfterSnapshot` then return the transaction from before the
-        // snapshot since that's the new canonical transaction and we'll soon
-        // delete the step transaction after the snapshot.
+        // snapshot since that's the new canonical transaction and we'll soon delete the
+        // step transaction after the snapshot.
         if (stepTransactionBeforeSnapshot) return stepTransactionBeforeSnapshot;
         if (stepTransactionAfterSnapshot) return stepTransactionAfterSnapshot;
     }
 
-    // Given this is a validated document version we know a step transaction
-    // containing the step MUST exist. So try reading again but with strong
-    // consistency since we might not have found the step transaction due to
-    // eventual consistency lag.
+    // Given this is a validated document version we know a step transaction containing
+    // the step MUST exist. So try reading again but with strong consistency since we
+    // might not have found the step transaction due to eventual consistency lag.
     //
-    // Retrying with strong consistency is cheaper than always using strong
-    // consistency because we've found in practice eventually consistency lags
-    // are pretty rare (1 in 10,000).
+    // Retrying with strong consistency is cheaper than always using strong consistency
+    // because we've found in practice eventually consistency lags are pretty rare (1
+    // in 10,000).
     {
         const [stepTransactionBeforeSnapshot, stepTransactionAfterSnapshot] = await runAllPromises([
             queryStepTransactionsBeforeSnapshot("Strong"),
@@ -4671,8 +4805,8 @@ async function getDocumentStepTransactionContainingValidatedVersion(
 
         // If we have both `stepTransactionBeforeSnapshot` and
         // `stepTransactionAfterSnapshot` then return the transaction from before the
-        // snapshot since that's the new canonical transaction and we'll soon
-        // delete the step transaction after the snapshot.
+        // snapshot since that's the new canonical transaction and we'll soon delete the
+        // step transaction after the snapshot.
         if (stepTransactionBeforeSnapshot) return stepTransactionBeforeSnapshot;
         if (stepTransactionAfterSnapshot) return stepTransactionAfterSnapshot;
     }
@@ -4684,8 +4818,8 @@ export const getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
 /**
- * A document comment thread could either be in the referenced or archived
- * sort range.
+ * A document comment thread could either be in the referenced or archived sort
+ * range.
  *
  * This function should not be exported! It does not implement authorization.
  */
@@ -4700,9 +4834,8 @@ async function getDocumentCommentThreadItemIfExists(
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         /**
-         * Performance optimization hint to try reading from the
-         * `ArchivedCommentThread` range before the `ReferencedCommentThread`
-         * range.
+         * Performance optimization hint to try reading from the `ArchivedCommentThread`
+         * range before the `ReferencedCommentThread` range.
          */
         shouldTryArchiveFirst?: boolean;
         consistency?: DynamoCacheReadConsistency;
@@ -4742,10 +4875,10 @@ async function getDocumentCommentThreadItemIfExists(
         if (commentThreadItem) return commentThreadItem;
     }
 
-    // If we could not find the comment thread in two separate `getItem()`s, then
-    // try a transaction that reads both at once. This way we support the case
-    // where a transaction was committed between our two `getItem()` requests
-    // moving the thread from one range to another.
+    // If we could not find the comment thread in two separate `getItem()`s, then try a
+    // transaction that reads both at once. This way we support the case where a
+    // transaction was committed between our two `getItem()` requests moving the thread
+    // from one range to another.
     {
         const [commentThreadItem1, commentThreadItem2] =
             await DocumentsTable.executeGetItemsTransaction(context, [
@@ -4803,6 +4936,7 @@ export async function createDocumentComment(
         parent,
         content,
         createdTimeZone,
+        overrideCreatedTimeForTest,
         fileIds,
         isStream,
         consistency,
@@ -4812,6 +4946,7 @@ export async function createDocumentComment(
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
         createdTimeZone: TimeZone;
+        overrideCreatedTimeForTest?: Date;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
@@ -4821,108 +4956,115 @@ export async function createDocumentComment(
     index: number;
     createdTime: Date;
 }> {
-    return context.dynamo.retryTransaction(async context => {
-        const [spaceId, commentThreadItem, parentForEvent] = await runAllPromises([
-            (async () => {
-                const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment", {
+    if (overrideCreatedTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
+    return await context.dynamo.retryTransaction(async context => {
+        const [{spaceId, documentAccessPolicy}, commentThreadItem, parentForEvent] =
+            await runAllPromises([
+                (async () => {
+                    const {spaceId, accessPolicy: documentAccessPolicy} =
+                        await authorizeDocumentAccess(context, documentId, "Comment", {
+                            consistency,
+                        });
+
+                    // Make sure all the provided files exist.
+                    await runAllPromises(
+                        fileIds.map(fileId =>
+                            isId<FileId>(fileId)
+                                ? getFileFromAttachment(
+                                      context,
+                                      fileId,
+                                      FileDocumentAuthorizer.bind({
+                                          type: "DocumentComments",
+                                          documentId,
+                                      }),
+                                      {consistency},
+                                  )
+                                : null,
+                        ),
+                    );
+
+                    return {spaceId, documentAccessPolicy};
+                })(),
+                getDocumentCommentThreadItemIfExists(context, {
+                    documentId,
+                    commentThreadId,
                     consistency,
-                });
+                }),
+                (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                    if (!parent) return null;
 
-                // Make sure all the provided files exist.
-                await runAllPromises(
-                    fileIds.map(fileId =>
-                        isId<FileId>(fileId)
-                            ? getFileFromAttachment(
-                                  context,
-                                  spaceId,
-                                  fileId,
-                                  FileDocumentAuthorizer.bind({
-                                      type: "DocumentComments",
-                                      documentId,
-                                  }),
-                                  {consistency},
-                              )
-                            : null,
-                    ),
-                );
+                    switch (parent.type) {
+                        case "Message": {
+                            const commentItem = await DocumentsTable.getItem(
+                                context,
+                                {
+                                    partitionType: "DocumentCommentThread",
+                                    sortRangeType: "Comments",
+                                    documentId,
+                                    commentThreadId,
+                                    commentIndex: parent.index,
+                                },
+                                {consistency},
+                            );
+                            return {
+                                type: "Message",
+                                index: parent.index,
+                                author: {id: commentItem.authorId},
+                            };
+                        }
+                        case "MessagesRange": {
+                            const commentItems = await arrayFromAsyncIterable(
+                                runCommentsQuery(context, {
+                                    cache: DocumentCommentItemContextCache,
+                                    cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+                                    consistency,
+                                    startIndex: parent.startIndex,
+                                    endIndex: parent.endIndex,
+                                    query: ({consistency, limit, startSortKey, endSortKey}) =>
+                                        DocumentsTable.query(context, {
+                                            consistency,
+                                            limit,
+                                            partitionKey: {
+                                                partitionType: "DocumentCommentThread",
+                                                documentId,
+                                                commentThreadId,
+                                            },
+                                            startSortKey,
+                                            endSortKey,
+                                        }),
+                                }),
+                            );
 
-                return spaceId;
-            })(),
-            getDocumentCommentThreadItemIfExists(context, {
-                documentId,
-                commentThreadId,
-                consistency,
-            }),
-            (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
-                if (!parent) return null;
+                            validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
 
-                switch (parent.type) {
-                    case "Message": {
-                        const commentItem = await DocumentsTable.getItem(
-                            context,
-                            {
-                                partitionType: "DocumentCommentThread",
-                                sortRangeType: "Comments",
-                                documentId,
-                                commentThreadId,
-                                commentIndex: parent.index,
-                            },
-                            {consistency},
-                        );
-                        return {
-                            type: "Message",
-                            index: parent.index,
-                            author: {id: commentItem.authorId},
-                        };
+                            return {
+                                type: "Message",
+                                index: parent.startIndex,
+                                author: {id: commentItems[0]!.authorId},
+                            };
+                        }
+                        case "PostRange": {
+                            throw new InvalidArgumentError(
+                                "Post range parent can only be used with post comments",
+                            );
+                        }
+                        default:
+                            throw exhaustive(parent);
                     }
-                    case "MessagesRange": {
-                        const commentItems = await arrayFromAsyncIterable(
-                            runCommentsQuery(context, {
-                                cache: DocumentCommentItemContextCache,
-                                cacheKeyPrefix: `${documentId}-${commentThreadId}`,
-                                consistency,
-                                startIndex: parent.startIndex,
-                                endIndex: parent.endIndex,
-                                query: ({consistency, limit, startSortKey, endSortKey}) =>
-                                    DocumentsTable.query(context, {
-                                        consistency,
-                                        limit,
-                                        partitionKey: {
-                                            partitionType: "DocumentCommentThread",
-                                            documentId,
-                                            commentThreadId,
-                                        },
-                                        startSortKey,
-                                        endSortKey,
-                                    }),
-                            }),
-                        );
-
-                        validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
-
-                        return {
-                            type: "Message",
-                            index: parent.startIndex,
-                            author: {id: commentItems[0]!.authorId},
-                        };
-                    }
-                    case "PostRange": {
-                        throw new InvalidArgumentError(
-                            "Post range parent can only be used with post comments",
-                        );
-                    }
-                    default:
-                        throw exhaustive(parent);
-                }
-            })(),
-        ]);
+                })(),
+            ]);
 
         if (!commentThreadItem)
             throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
-        const createdTime = new Date(Date.now());
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
+        const currentTime = new Date(Date.now());
+
+        const createdTime = overrideCreatedTimeForTest ?? currentTime;
 
         // If this is a stream message and we have empty content then we only send a
         // notification event after the first content part has finished.
@@ -4983,9 +5125,9 @@ export async function createDocumentComment(
                 {updateLockVersion: commentThreadItem.updateLockVersion},
             ),
 
-            // If this is a stream comment then create the stream state item.
-            // Create-or-replace is safe since we know the comment index doesn't exist from
-            // our other condition checks.
+            // If this is a stream comment then create the stream state item. Create-or-replace
+            // is safe since we know the comment index doesn't exist from our other condition
+            // checks.
             ...(isStream
                 ? [
                       DocumentsTable.transactionCreateOrReplaceItem({
@@ -5003,7 +5145,7 @@ export async function createDocumentComment(
                           lastPartCreatedTime: null,
                           lastPingTime: null,
                           lastIndexSearchEntityJob: {
-                              sendTime: createdTime,
+                              sendTime: currentTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
                           },
                           pendingNotificationEvent: !willSendNotificationEvent
@@ -5053,9 +5195,8 @@ export async function createDocumentComment(
             {delaySeconds: isStream ? messageStreamIndexSearchEntityDelaySeconds : 0},
         );
 
-        // Only increase affinity score if we have a session actor. Don't increase
-        // affinity score if this is a system actor sending a message on behalf of an
-        // account.
+        // Only increase affinity score if we have a session actor. Don't increase affinity
+        // score if this is a system actor sending a message on behalf of an account.
         if (context.actor.type === "Session") {
             const sessionContext = context.actor.authorizeSession();
 
@@ -5064,15 +5205,16 @@ export async function createDocumentComment(
                     spaceId,
                     entityId: `Document:${documentId}`,
                     interaction: {type: "MediumIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(documentAccessPolicy),
                 }),
             );
 
-            // Increase affinity points for all mentioned accounts with a high intent
-            // update since the user clearly wants the attention of the mentioned accounts.
+            // Increase affinity points for all mentioned accounts with a high intent update
+            // since the user clearly wants the attention of the mentioned accounts.
             //
-            // (If a mentioned account doesn't have access to this message should that
-            // still be a high intent update? For now we say yes since the user is
-            // explicitly choosing to reference them.)
+            // (If a mentioned account doesn't have access to this message should that still be
+            // a high intent update? For now we say yes since the user is explicitly choosing
+            // to reference them.)
             for (const mentionedAccountId of mentionedAccountIds) {
                 context.process.waitUntil(async () => {
                     if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
@@ -5080,6 +5222,8 @@ export async function createDocumentComment(
                             spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         });
                     }
                 });
@@ -5098,11 +5242,11 @@ export async function createDocumentComment(
  * Update a part of the comment stream.
  *
  * Comment streams are made up of multiple parts. Only the bot that created a
- * stream can update the stream. A bot can only create new parts or update the
- * last part of the stream.
+ * stream can update the stream. A bot can only create new parts or update the last
+ * part of the stream.
  *
- * Currently, you completely replace a part when you update it. We may allow
- * more granular part updates in the future.
+ * Currently, you completely replace a part when you update it. We may allow more
+ * granular part updates in the future.
  */
 export function putDocumentCommentStreamPart(
     context: ServerActionContext,
@@ -5324,13 +5468,13 @@ export function putDocumentCommentStreamPart(
         }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their
-        // message in realtime.
+        // sending this realtime event the user might not see an update to their message in
+        // realtime.
         //
-        // Should we send this broadcast event in a DynamoDB Streams listener that
-        // reacts to the update? We plan to move `NotificationEvent`,
-        // `IndexSearchEntity`, and other processing that needs to reliably run after
-        // an updates to DynamoDB Streams.
+        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+        // other processing that needs to reliably run after an updates to DynamoDB
+        // Streams.
         context.process.waitUntil(
             context.edge.broadcastToDurableObject(
                 `/api/durable-objects/documents/${documentId}/broadcast-put-message-stream-part/${commentThreadId}`,
@@ -5351,16 +5495,16 @@ export function putDocumentCommentStreamPart(
 }
 
 /**
- * We send a notification event for a message stream once the first content
- * stream part is finished. A stream part is considered finished when a new
- * part is created after. Only the last stream part can be updated, all other
- * stream parts are frozen.
+ * We send a notification event for a message stream once the first content stream
+ * part is finished. A stream part is considered finished when a new part is
+ * created after. Only the last stream part can be updated, all other stream parts
+ * are frozen.
  *
- * So practically this means for most streams the notification is sent once we
- * put the second part (`partIndex === 1`) not the first part.
+ * So practically this means for most streams the notification is sent once we put
+ * the second part (`partIndex === 1`) not the first part.
  *
- * Unless this is a timeout error completion, in that case we send the
- * notification immediately since there will be no more parts.
+ * Unless this is a timeout error completion, in that case we send the notification
+ * immediately since there will be no more parts.
  */
 async function getNotificationEventForPutDocumentCommentStreamPart(
     context: DynamoContext,
@@ -5395,9 +5539,9 @@ async function getNotificationEventForPutDocumentCommentStreamPart(
     } else if (partIndex === 0) {
         return null;
     } else {
-        // If we're creating a new part then read the previous part we're finishing. If
-        // the previous part is a content part then send a notification using the
-        // content from that part.
+        // If we're creating a new part then read the previous part we're finishing. If the
+        // previous part is a content part then send a notification using the content from
+        // that part.
 
         const previousPartItem = await DocumentsTable.getItem(
             context,
@@ -5441,8 +5585,8 @@ async function getNotificationEventForPutDocumentCommentStreamPart(
 /**
  * Completes a comment stream. After this parts can't be added or updated.
  *
- * This function is idempotent. If the stream is already completed this method
- * does nothing.
+ * This function is idempotent. If the stream is already completed this method does
+ * nothing.
  */
 export function completeDocumentCommentStream(
     context: ServerActionContext,
@@ -5500,8 +5644,8 @@ export function completeDocumentCommentStream(
 
         let notificationEvent: NotificationEvent | null = null;
 
-        // If we haven't sent a notification event for this message stream yet then
-        // send one now!
+        // If we haven't sent a notification event for this message stream yet then send
+        // one now!
         if (item.pendingNotificationEvent) {
             const previousPartItem =
                 item.partCount > 0
@@ -5544,8 +5688,8 @@ export function completeDocumentCommentStream(
             };
         }
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const completedTime = new Date(Date.now());
 
         await DocumentsTable.directlyUpdateItem(context, {
@@ -5562,13 +5706,13 @@ export function completeDocumentCommentStream(
         }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their
-        // message in realtime.
+        // sending this realtime event the user might not see an update to their message in
+        // realtime.
         //
-        // Should we send this broadcast event in a DynamoDB Streams listener that
-        // reacts to the update? We plan to move `NotificationEvent`,
-        // `IndexSearchEntity`, and other processing that needs to reliably run after
-        // an updates to DynamoDB Streams.
+        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+        // other processing that needs to reliably run after an updates to DynamoDB
+        // Streams.
         context.process.waitUntil(
             context.edge.broadcastToDurableObject(
                 `/api/durable-objects/documents/${documentId}/broadcast-complete-message-stream/${commentThreadId}`,
@@ -5590,8 +5734,8 @@ export function completeDocumentCommentStream(
 /**
  * Pings a comment stream and updates its `lastPingTime`.
  *
- * This function is idempotent. If the stream hasn't been pinged in a while this method
- * will update its `lastPingTime`.
+ * This function is idempotent. If the stream hasn't been pinged in a while this
+ * method will update its `lastPingTime`.
  */
 export function pingDocumentCommentStream(
     context: ServerActionContext,
@@ -5646,8 +5790,8 @@ export function pingDocumentCommentStream(
             throw createCantPingStaleMessageStreamError();
         }
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const currentTime = new Date(Date.now());
 
         const lastPingTime =
@@ -5722,7 +5866,7 @@ export async function getDocumentComment(
         commentIndex,
     });
 
-    return createDocumentCommentModelFromItem(
+    return await createDocumentCommentModelFromItem(
         context,
         spaceId,
         documentId,
@@ -5732,8 +5876,8 @@ export async function getDocumentComment(
 }
 
 /**
- * Get a document comment with a version that's either equal to or greater than
- * the provided version.
+ * Get a document comment with a version that's either equal to or greater than the
+ * provided version.
  */
 export async function getDocumentCommentAtVersion(
     context: ServerActionContext,
@@ -5783,7 +5927,13 @@ export async function getDocumentCommentAtVersion(
         })(),
     ]);
 
-    return createDocumentCommentModelFromItem(context, spaceId, documentId, commentThreadId, item);
+    return await createDocumentCommentModelFromItem(
+        context,
+        spaceId,
+        documentId,
+        commentThreadId,
+        item,
+    );
 }
 
 /**
@@ -5850,8 +6000,7 @@ const DocumentCommentItemContextCache = new DynamoContextCache<
     `${DocumentId}-${DocumentCommentThreadId}:${number}`,
     MessageItem | null
 >({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -6042,8 +6191,8 @@ export function updateDocumentCommentContent(
                 {updateLockVersion: commentThreadItem.updateLockVersion},
             ),
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "DocumentCommentThread",
                 sortRangeType: "MessageUpdates",
@@ -6150,8 +6299,8 @@ export function deleteDocumentComment(
                 {updateLockVersion: commentThreadItem.updateLockVersion},
             ),
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "DocumentCommentThread",
                 sortRangeType: "MessageUpdates",
@@ -6241,8 +6390,8 @@ export function setDocumentCommentReaction(
         await DynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "DocumentCommentThread",
                 sortRangeType: "MessageUpdates",
@@ -6324,8 +6473,8 @@ export function deleteDocumentCommentReaction(
         await DynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "DocumentCommentThread",
                 sortRangeType: "MessageUpdates",
@@ -6375,7 +6524,11 @@ export async function getDocumentCommentThreadAndInitialCommentsIfExists(
             if (!commentThreadItem) return null;
 
             const {spaceId} = await documentAuthorizationPromise;
-            return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+            return await createDocumentCommentThreadModelFromItem(
+                context,
+                spaceId,
+                commentThreadItem,
+            );
         })(),
         getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
             documentId,
@@ -6437,16 +6590,14 @@ export async function getDocumentCommentThreadAndInitialComments(
 }
 
 /**
- * Get a document, some comment threads in the document, and initial comments
- * for these threads as if we are rendering the list of comment threads
- * in order.
+ * Get a document, some comment threads in the document, and initial comments for
+ * these threads as if we are rendering the list of comment threads in order.
  *
  * For instance, if we have a limit of 20 and the first comment thread has 15
  * comments and the second comment thread has 30 comments then we'd load 15
- * comments from the first thread and 5 comments from the second thread to meet
- * our 20 comment limit. We may load more comments than our limit since we load
- * some comment threads in parallel before we know how many comments they
- * contain.
+ * comments from the first thread and 5 comments from the second thread to meet our
+ * 20 comment limit. We may load more comments than our limit since we load some
+ * comment threads in parallel before we know how many comments they contain.
  */
 export async function getDocumentAndCommentThreadsWithInitialComments(
     context: ServerActionContext,
@@ -6455,24 +6606,29 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
         commentThreadIds,
         commentLimit,
         commentThreadCountAgainstLimit,
+        onSpaceId,
     }: {
         documentId: DocumentId;
         commentThreadIds:
             | Iterable<DocumentCommentThreadId>
             | Promise<Iterable<DocumentCommentThreadId>>;
         commentLimit: number;
-        // Comment threads take some space in our rendered list of comment threads.
-        // This number specifies how much we should decrease our limit for every
-        // comment thread we load.
+        // Comment threads take some space in our rendered list of comment threads. This
+        // number specifies how much we should decrease our limit for every comment thread
+        // we load.
         //
         // For example, if this is set to 5 then we decrease the limit by 5 for every
-        // comment thread between comments. So if we have a comment thread with 10
-        // comments and a comment thread of 20 comments and we run this function with a
-        // limit of 12 then we only load comments from the first thread because the
-        // thread itself counts for 5 comments.
+        // comment thread between comments. So if we have a comment thread with 10 comments
+        // and a comment thread of 20 comments and we run this function with a limit of 12
+        // then we only load comments from the first thread because the thread itself
+        // counts for 5 comments.
         //
         // This number can be fractional like 5.8.
         commentThreadCountAgainstLimit: number;
+        // If you pass this in, we will call once we've loaded the `SpaceId` for the
+        // document which may be before the function as a whole returns. This function will
+        // not be called in error cases.
+        onSpaceId?: (spaceId: SpaceId) => void;
     },
 ): Promise<{
     document: DocumentModel;
@@ -6489,11 +6645,14 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
 
     const documentPromise = getDocumentWithOptionalCommentsAndCommentThreads(context, {
         documentId,
-        // Setting this to something other than undefined forces us to throw an error
-        // if we don't have comment access to the document. Instead of returning the
-        // document without comment marks.
+        // Setting this to something other than undefined forces us to throw an error if we
+        // don't have comment access to the document. Instead of returning the document
+        // without comment marks.
         commentThreadIds,
-        onSpaceId: spaceIdPromiseResolver.resolve,
+        onSpaceId: spaceId => {
+            spaceIdPromiseResolver.resolve(spaceId);
+            onSpaceId?.(spaceId);
+        },
     }).then(
         result => {
             spaceIdPromiseResolver.resolve(result.document.spaceId);
@@ -6705,8 +6864,8 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
     };
 
     const loadOtherReferencedComment = (commentIndex: number) => {
-        // If this message is already in our loaded messages range then we don't need
-        // to load it again.
+        // If this message is already in our loaded messages range then we don't need to
+        // load it again.
         if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
 
         const promise = getOrSetDefaultMapValue(
@@ -6749,8 +6908,8 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
                 loadOtherReferencedCommentFromParent(item.payload.parent);
             }
 
-            // Don't propagate `consistency` when loading model references. We
-            // accept references can have eventual consistency.
+            // Don't propagate `consistency` when loading model references. We accept
+            // references can have eventual consistency.
             return createDocumentCommentModelFromItem(
                 context,
                 spaceId,
@@ -6761,8 +6920,8 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
         }),
     );
 
-    // Keep loading other referenced comments until we have all of them. A
-    // referenced comment may itself reference more comments.
+    // Keep loading other referenced comments until we have all of them. A referenced
+    // comment may itself reference more comments.
     while (otherReferencedCommentPromiseByIndex.size > 0) {
         const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
         otherReferencedCommentPromiseByIndex = new Map();
@@ -6946,10 +7105,10 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
     const queryStartCommentIndex = Math.max(
         typeof beforeCommentIndex === "number"
             ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
-              // was a message stream then query again with `limit: "All"` and a proper query start
-              // index. Instead right now we wait for chat access to authorize before starting our
-              // query which is slower than authorizing + querying in parallel.
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if
+              // there was a message stream then query again with `limit: "All"` and a proper
+              // query start index. Instead right now we wait for chat access to authorize before
+              // starting our query which is slower than authorizing + querying in parallel.
               getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - limit,
         typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
     );
@@ -6998,8 +7157,8 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
     };
 
     const loadOtherReferencedComment = (commentIndex: number) => {
-        // If this message is already in our loaded messages range then we don't need
-        // to load it again.
+        // If this message is already in our loaded messages range then we don't need to
+        // load it again.
         if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
 
         const promise = getOrSetDefaultMapValue(
@@ -7050,8 +7209,8 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
         }),
     );
 
-    // Keep loading other referenced comments until we have all of them. A
-    // referenced comment may itself reference more comments.
+    // Keep loading other referenced comments until we have all of them. A referenced
+    // comment may itself reference more comments.
     while (otherReferencedCommentPromiseByIndex.size > 0) {
         const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
         otherReferencedCommentPromiseByIndex = new Map();
@@ -7100,10 +7259,10 @@ export async function getDocumentCommentPayloadsFromEnd(
     const queryStartCommentIndex = Math.max(
         typeof beforeCommentIndex === "number"
             ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
-              // was a message stream then query again with `limit: "All"` and a proper query start
-              // index. Instead right now we wait for chat access to authorize before starting our
-              // query which is slower than authorizing + querying in parallel.
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if
+              // there was a message stream then query again with `limit: "All"` and a proper
+              // query start index. Instead right now we wait for chat access to authorize before
+              // starting our query which is slower than authorizing + querying in parallel.
               getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - limit,
         typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
     );
@@ -7159,17 +7318,17 @@ export async function getDocumentCommentPayloadsFromEnd(
  * provides what it knows to be the comment count and last change time then we
  * return any new comments or changes since then.
  *
- * We run this when the client establishes a new realtime connection to catch
- * the client up between their last data load and the time the realtime
- * connection was established.
+ * We run this when the client establishes a new realtime connection to catch the
+ * client up between their last data load and the time the realtime connection was
+ * established.
  *
- * `newCommentLimit` allows you to load some new comments that the client
- * may be missing but only up to the limit.
+ * `newCommentLimit` allows you to load some new comments that the client may be
+ * missing but only up to the limit.
  *
  * We do not keep a log of document comment changes around forever, so it's
- * possible that you get an `Unavailable` result for
- * `commentChangesResult`. When this happens you should throw away all data
- * your client has loaded and try loading the data again.
+ * possible that you get an `Unavailable` result for `commentChangesResult`. When
+ * this happens you should throw away all data your client has loaded and try
+ * loading the data again.
  */
 export async function backfillDocumentComments(
     context: ServerActionContext,
@@ -7188,9 +7347,9 @@ export async function backfillDocumentComments(
     },
 ): Promise<{
     // We also backfill the full comment thread object in case it changed. Other
-    // messaging backfill implementations don't do this. It's important here
-    // because we need to know whether the comment thread is resolved and the
-    // latest fallback content snippet.
+    // messaging backfill implementations don't do this. It's important here because we
+    // need to know whether the comment thread is resolved and the latest fallback
+    // content snippet.
     commentThread: DocumentCommentThreadModel;
 
     commentCount: number;
@@ -7230,10 +7389,10 @@ export async function backfillDocumentComments(
             limit: newCommentLimit,
             afterCommentIndex: clientCommentCount - 1,
             beforeCommentIndex: null,
-            // Use a strong read consistency when backfilling. This guarantees the caller
-            // will observe all realtime events before this function call. Realtime events
-            // that happen during the function call may be missed. You should be subscribed
-            // to new realtime events before starting to backfill.
+            // Use a strong read consistency when backfilling. This guarantees the caller will
+            // observe all realtime events before this function call. Realtime events that
+            // happen during the function call may be missed. You should be subscribed to new
+            // realtime events before starting to backfill.
             consistency: "Strong",
         }),
         runBackfillMessageUpdates(context, {
@@ -7257,7 +7416,7 @@ export async function backfillDocumentComments(
                 ),
             createMessageModelFromItem: async (context, item) => {
                 const {spaceId} = await documentAuthorizationPromise;
-                return createDocumentCommentModelFromItem(
+                return await createDocumentCommentModelFromItem(
                     context,
                     spaceId,
                     documentId,
@@ -7286,8 +7445,8 @@ export async function backfillDocumentComments(
 
 /**
  * Get accounts subscribed to notifications for the provided document comment
- * thread. For the first comment in a comment thread, the document owner is
- * also considered a subscriber.
+ * thread. For the first comment in a comment thread, the document owner is also
+ * considered a subscriber.
  */
 export async function getDocumentCommentThreadNotificationSubscribers(
     context: ServerActionContext,
@@ -7329,10 +7488,10 @@ export async function getDocumentCommentThreadNotificationSubscribers(
  * For a resolved comment thread, get the ranges of text the comment was
  * highlighting so we can add the comment back to the document.
  *
- * This function is partially strongly consistent. If a comment thread was
- * recently marked as resolved you'll get the ranges back with strong
- * consistency. If a comment thread was recently marked as unresolved this
- * function may still report it as resolved.
+ * This function is partially strongly consistent. If a comment thread was recently
+ * marked as resolved you'll get the ranges back with strong consistency. If a
+ * comment thread was recently marked as unresolved this function may still report
+ * it as resolved.
  */
 export async function getResolvedDocumentCommentThreadRanges(
     context: ServerActionContext,
@@ -7352,15 +7511,15 @@ export async function getResolvedDocumentCommentThreadRanges(
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
-            // Since this is a resolved comment thread, we should try reading from the
-            // archive since the comment shouldn't be referenced in the document.
+            // Since this is a resolved comment thread, we should try reading from the archive
+            // since the comment shouldn't be referenced in the document.
             shouldTryArchiveFirst: true,
         }),
     ]);
 
-    // This function pre-supposes the comment thread is resolved. So if we don't
-    // read a resolved comment thread that may be because we read with eventual
-    // consistency. Try again with strong consistency before throwing an error.
+    // This function pre-supposes the comment thread is resolved. So if we don't read a
+    // resolved comment thread that may be because we read with eventual consistency.
+    // Try again with strong consistency before throwing an error.
     if (commentThreadItem.resolutionState.type !== "Resolved") {
         commentThreadItem = await getDocumentCommentThreadItem(context, {
             documentId,
@@ -7441,8 +7600,8 @@ export async function getDocumentCommentParentContent(
             });
 
             return {
-                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all messages
-                // have the same author and the list is not empty.
+                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all
+                // messages have the same author and the list is not empty.
                 authorId: messageItems[0]!.authorId,
                 content: getTruncatedParentMessagesRangeContentWithoutReferences({
                     messages: messageItems,
@@ -7463,13 +7622,16 @@ export async function getDocumentCommentParentContent(
 }
 
 /**
- * We need a special function for creating documents that were created by
- * bots. A document created by a non-bot always gives manage access to the
- * human that created the document. Bots are different. If we gave access
- * only to account that created the document (the bot) no other users would
- * be able to read the document.
+ * We need a special function for creating documents that were created by bots. A
+ * document created by a non-bot always gives manage access to the human that
+ * created the document. Bots are different. If we gave access only to account that
+ * created the document (the bot) no other users would be able to read the
+ * document.
  */
-async function createEmptyDocumentContentForBot(context: ServerBotActionContext, spaceId: SpaceId) {
+async function createEmptyDocumentContentForBot(
+    context: ServerMinimalBotActionContext,
+    spaceId: SpaceId,
+) {
     const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
         consistency: "StrongWithinCache",
     });
@@ -7480,4 +7642,47 @@ async function createEmptyDocumentContentForBot(context: ServerBotActionContext,
             DocumentContentProsemirrorSchema.node("paragraph"),
         ]),
     );
+}
+
+function validateEntityCreationInSiteIfNeeded(
+    initialAccessPolicyIfExists: AccessPolicy | undefined,
+    sitePosition: {siteId: SiteId; parentId: SiteContainerId; orderKey: OrderKey} | undefined,
+) {
+    if (sitePosition) {
+        // If site position is provided without an initial access policy, we'll create a
+        // site access policy for the document using the `siteId` from `sitePosition`
+        if (!initialAccessPolicyIfExists) {
+            return;
+        } else {
+            if (
+                initialAccessPolicyIfExists.type === "Site" &&
+                initialAccessPolicyIfExists.siteId !== sitePosition.siteId
+            ) {
+                throw new InvalidArgumentError(
+                    "Can\u2019t create a document in a site with a different site ID",
+                );
+            }
+
+            if (initialAccessPolicyIfExists.type !== "Site") {
+                throw new InvalidArgumentError(
+                    "Can\u2019t create a document with a non-site access policy in a site",
+                );
+            }
+        }
+    }
+    // Site position was not provided
+    else {
+        // If neither the sitePosition or initialAccessPolicyIfExists are provided, we'll
+        // create a default local access policy for the document.
+        if (!initialAccessPolicyIfExists) {
+            return;
+        }
+        // If the initial access policy is a site and the client didn't provide the site
+        // position, throw an error.
+        else if (initialAccessPolicyIfExists.type === "Site") {
+            throw new InvalidArgumentError(
+                "Can\u2019t create a document in a site without specifying the site position",
+            );
+        }
+    }
 }

@@ -11,9 +11,9 @@ import {BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
- * Update a single property in the bot's space settings. Only admins can update
- * the bot settings for their space and they must update the bot space settings
- * in accordance with the bot settings schema.
+ * Update a single property in the bot's space settings. Only admins can update the
+ * bot settings for their space and they must update the bot space settings in
+ * accordance with the bot settings schema.
  */
 export async function updateBotSpaceSettingsPropertyValue(
     context: ServerSessionActionContext,
@@ -58,9 +58,9 @@ export async function updateBotSpaceSettingsPropertyValue(
         throw new FailedPreconditionError("Property is not a space-level bot setting");
     }
 
-    // The only supported property type right now is `String`. TypeScript will
-    // complain when we add a new property type at which point we'll need to make
-    // this an exhaustive switch that validates each property type separately.
+    // The only supported property type right now is `String`. TypeScript will complain
+    // when we add a new property type at which point we'll need to make this an
+    // exhaustive switch that validates each property type separately.
     cast<"String">(propertySchema.type);
 
     if (typeof propertyValue !== "string") {
@@ -71,7 +71,7 @@ export async function updateBotSpaceSettingsPropertyValue(
 
     let hasAlreadyAttempted = false;
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const isInitialAttempt = !hasAlreadyAttempted;
         hasAlreadyAttempted = true;
 

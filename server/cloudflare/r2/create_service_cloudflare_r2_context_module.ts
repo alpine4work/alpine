@@ -31,12 +31,12 @@ export type ServiceCloudflareR2Options = {
 };
 
 /**
- * Create a Cloudflare R2 context module. You should run this at the root of
- * your service. Probably in a `runService()` call.
+ * Create a Cloudflare R2 context module. You should run this at the root of your
+ * service. Probably in a `runService()` call.
  *
  * Requires some parameters we expect to come from the command line.
- * `serviceCloudflareR2Options` is an object defining the args you can
- * pass into `parseArgs()`.
+ * `serviceCloudflareR2Options` is an object defining the args you can pass into
+ * `parseArgs()`.
  */
 export function createServiceCloudflareR2ContextModule(options: ServiceCloudflareR2Options) {
     if (process.env.NODE_ENV === "production") {

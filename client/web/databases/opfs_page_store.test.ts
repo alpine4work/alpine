@@ -95,8 +95,8 @@ describe("OpfsPageStore.deletePages", () => {
         // Server says the canonical file is 10 pages.
         store.setServerFileSizeInPages(10);
         store.deletePages(new Set([1]));
-        // deletePages must not silently shrink the size —
-        // the server size remains the source of truth.
+        // deletePages must not silently shrink the size — the server size remains the
+        // source of truth.
         expect(store.getFileSize()).toBe(10 * sqlitePageSize);
     });
 });
@@ -173,8 +173,8 @@ describe("OpfsPageStore persistence", () => {
         const store = await OpfsPageStore.create(dir);
         store.writePageIfNewer(0, 1, makePage(0xaa));
         store.sync();
-        // A write that never reaches sync() leaves the dirty sentinel
-        // set, standing in for a crash mid-write.
+        // A write that never reaches sync() leaves the dirty sentinel set, standing in for
+        // a crash mid-write.
         store.writePageIfNewer(0, 2, makePage(0xbb));
 
         const reopened = await OpfsPageStore.create(dir);

@@ -118,8 +118,7 @@ describe("pageAccessHook", () => {
         expect(pagesForT1.has(1)).toBe(true);
         expect(pagesForT2.has(1)).toBe(true);
 
-        // But they should differ on at least one page (the
-        // root page of each table).
+        // But they should differ on at least one page (the root page of each table).
         const onlyT1 = [...pagesForT1].filter(p => !pagesForT2.has(p));
         const onlyT2 = [...pagesForT2].filter(p => !pagesForT1.has(p));
         expect(onlyT1.length + onlyT2.length).toBeGreaterThan(0);
@@ -161,8 +160,7 @@ describe("pageAccessHook", () => {
         const countWithHook = pages.length;
         expect(countWithHook).toBeGreaterThan(0);
 
-        // Disable the hook — subsequent queries should not
-        // add entries.
+        // Disable the hook — subsequent queries should not add entries.
         db.pageAccessHook(null);
         db.exec("SELECT * FROM t");
         expect(pages.length).toBe(countWithHook);
@@ -231,8 +229,8 @@ describe("pageAccessHook", () => {
         main.exec("CREATE TABLE t1(a INTEGER)");
         main.exec("INSERT INTO t1 VALUES(1)");
 
-        // ATTACH must happen BEFORE pageAccessHook so the
-        // new pager exists when we install the hook.
+        // ATTACH must happen BEFORE pageAccessHook so the new pager exists when we install
+        // the hook.
         main.exec("ATTACH '/test-attached.sqlite3' AS other");
 
         const events: Array<{schema: string; pgno: number}> = [];
@@ -251,9 +249,8 @@ describe("pageAccessHook", () => {
         const fromMain = events.filter(e => e.schema === "main");
 
         expect(fromAttached.length).toBeGreaterThan(0);
-        // Selecting from `other.t2` shouldn't have read main
-        // table pages (other than perhaps ATTACH-related
-        // schema lookups, which we don't strictly assert on).
+        // Selecting from `other.t2` shouldn't have read main table pages (other than
+        // perhaps ATTACH-related schema lookups, which we don't strictly assert on).
         void initialMain;
         expect(fromMain.length).toBeGreaterThan(0);
         // No event should report a schema we didn't open.

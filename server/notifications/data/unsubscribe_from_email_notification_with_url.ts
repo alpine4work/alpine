@@ -6,8 +6,8 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
- * Unsubscribe a space account from an email notification using a signed URL.
- * Will throw an InvalidArgumentError if the signed URL is invalid or expired.
+ * Unsubscribe a space account from an email notification using a signed URL. Will
+ * throw an InvalidArgumentError if the signed URL is invalid or expired.
  */
 export async function unsubscribeFromEmailNotificationWithUrl(
     context: Context<ServerActionContextModules & {email: EmailContextModuleBase}>,
@@ -36,8 +36,8 @@ export async function unsubscribeFromEmailNotificationWithUrl(
                 accountId: urlParts.accountId,
             });
 
-            // If their inbox was deleted or the account doesn't have an inbox for this space, they
-            // won't receive notifications anyway, so there's nothing to unsubscribe from.
+            // If their inbox was deleted or the account doesn't have an inbox for this space,
+            // they won't receive notifications anyway, so there's nothing to unsubscribe from.
             if (!inboxItem) return;
 
             await InboxTable.updateItem(

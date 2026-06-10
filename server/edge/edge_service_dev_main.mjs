@@ -7,8 +7,8 @@ import {parseArgs} from "util";
 // eslint-disable-next-line cyberworlds/sort-imports-by-source
 import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 
-// Make our service easy to find in process managers. We include
-// "cyberworlds" and "node" so you can grep by those strings.
+// Make our service easy to find in process managers. We include "cyberworlds" and
+// "node" so you can grep by those strings.
 process.title = "EdgeServiceFamily dev (cyberworlds, node)";
 
 main().catch(error => {
@@ -35,6 +35,7 @@ async function main() {
             fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
             apiServicePublicKey: apiServicePublicKeyPath,
             resourceServicePublicKey: resourceServicePublicKeyPath,
+            importerServicePublicKey: importerServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             tokenAgentSecret: tokenAgentSecretPath,
             fileProcessorServiceUrl,
@@ -56,6 +57,7 @@ async function main() {
             fileProcessorServicePublicKey: {type: "string"},
             apiServicePublicKey: {type: "string"},
             resourceServicePublicKey: {type: "string"},
+            importerServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
             tokenAgentSecret: {type: "string"},
             fileProcessorServiceUrl: {type: "string"},
@@ -85,6 +87,8 @@ async function main() {
     if (!apiServicePublicKeyPath) throw new Error("Missing `apiServicePublicKeyPath` option");
     if (!resourceServicePublicKeyPath)
         throw new Error("Missing `resourceServicePublicKeyPath` option");
+    if (!importerServicePublicKeyPath)
+        throw new Error("Missing `importerServicePublicKeyPath` option");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` option");
     if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` option");
@@ -103,6 +107,7 @@ async function main() {
         fileProcessorServicePublicKey,
         apiServicePublicKey,
         resourceServicePublicKey,
+        importerServicePublicKey,
         edgeServiceFamilyPrivateKey,
         tokenAgentSecret,
     ] = await Promise.all([
@@ -113,6 +118,7 @@ async function main() {
         fs.readFile(fileProcessorServicePublicKeyPath, "utf8"),
         fs.readFile(apiServicePublicKeyPath, "utf8"),
         fs.readFile(resourceServicePublicKeyPath, "utf8"),
+        fs.readFile(importerServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
         fs.readFile(tokenAgentSecretPath, "utf8"),
     ]);
@@ -129,10 +135,10 @@ async function main() {
 
     const scriptFilePath = joinPath(runfilesPath, "cyberworlds/server/edge/edge_service_bundle.js");
 
-    // Pre-compile the SQLite WASM binary on the host so the sandboxed
-    // bundle can instantiate it without any file/network I/O. This avoids
-    // injecting `process` into the sandbox (which would activate Node.js
-    // code paths in all bundle code). See admin/patches/bazel/sqlite.patch.
+    // Pre-compile the SQLite WASM binary on the host so the sandboxed bundle can
+    // instantiate it without any file/network I/O. This avoids injecting `process`
+    // into the sandbox (which would activate Node.js code paths in all bundle code).
+    // See admin/patches/bazel/sqlite.patch.
     const wasmPath = joinPath(runfilesPath, "sqlite/ext/wasm/jswasm/sqlite3.wasm");
     const sqlite3WasmModule = await WebAssembly.compile(fs.readFileSync(wasmPath));
 
@@ -153,6 +159,7 @@ async function main() {
             FILE_PROCESSOR_SERVICE_PUBLIC_KEY: fileProcessorServicePublicKey,
             API_SERVICE_PUBLIC_KEY: apiServicePublicKey,
             RESOURCE_SERVICE_PUBLIC_KEY: resourceServicePublicKey,
+            IMPORTER_SERVICE_PUBLIC_KEY: importerServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
@@ -161,8 +168,8 @@ async function main() {
         },
         globals: {
             __writeTracerEventToFileInDev: writeTracerEventToFileInDev,
-            // Pre-compiled WASM module for SQLite. Picked up by
-            // sqlite3_wasm_init_worker.ts (side-effect import in the bundle).
+            // Pre-compiled WASM module for SQLite. Picked up by sqlite3_wasm_init_worker.ts
+            // (side-effect import in the bundle).
             __sqlite3WasmModule: sqlite3WasmModule,
         },
     });

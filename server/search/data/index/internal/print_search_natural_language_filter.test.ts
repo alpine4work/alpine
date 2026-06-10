@@ -14,8 +14,8 @@ const accounts = [
 ];
 
 /**
- * As we add more filters, using a defaulted filter allows us to not have to specify
- * every item in a resulting filter.
+ * As we add more filters, using a defaulted filter allows us to not have to
+ * specify every item in a resulting filter.
  */
 function createDefaultedFilter(
     overrides: Partial<SearchNaturalLanguageFilter> = {},

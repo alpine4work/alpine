@@ -20,7 +20,8 @@ const opensearchDomainEndpoint = assertExists(process.env.OPENSEARCH_DOMAIN_ENDP
  * Our OpenSearch deploy script is called by the AWS CDK as a [CloudFormation
  * custom resource][1]. It runs in [AWS Lambda][2].
  *
- * [1]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-custom-resources.html
+ * [1]:
+ *     https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-custom-resources.html
  * [2]: https://aws.amazon.com/lambda/
  */
 export async function handler(
@@ -29,7 +30,7 @@ export async function handler(
 ): Promise<CdkCustomResourceResponse> {
     const abortController = new AbortController();
 
-    return withLambdaTimeout(lambdaContext, abortController, async () => {
+    return await withLambdaTimeout(lambdaContext, abortController, async () => {
         if (event.RequestType === "Delete") {
             return {
                 StackId: event.StackId,
@@ -72,8 +73,8 @@ export async function handler(
         });
 
         await runAllPromises([
-            deployTaskIndexes(tracer, client, abortController),
-            deploySearchEntityIndexes(tracer, client, abortController),
+            deployTaskIndexes(tracer, client, abortController.signal),
+            deploySearchEntityIndexes(tracer, client, abortController.signal),
         ]);
 
         return {

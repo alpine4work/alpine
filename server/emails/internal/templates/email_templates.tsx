@@ -9,8 +9,8 @@ import {TryOnDesktopEmailTemplate} from "~/server/emails/internal/templates/try_
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_readable_stream_string.js";
 
-// To preserve types, we must explicitly set keys and their respective templates / names.
-// If we use maps or other iterables, we'll lose prop type validation.
+// To preserve types, we must explicitly set keys and their respective templates /
+// names. If we use maps or other iterables, we'll lose prop type validation.
 export const emailTemplates = {
     SignInOrSignUp: createEmailTemplate(SignInOrSignUpEmailTemplate, "SignInOrSignUp"),
     SpaceInvite: createEmailTemplate(SpaceInviteEmailTemplate, "SpaceInvite"),
@@ -38,8 +38,8 @@ export type RenderedEmail = {
     readonly plainText: string;
 
     /**
-     * Get the title of the HTML email content. You should use the title as the
-     * email subject.
+     * Get the title of the HTML email content. You should use the title as the email
+     * subject.
      */
     readonly title: string;
 };
@@ -54,13 +54,12 @@ export type EmailTemplateProps<Template extends keyof EmailTemplates> = Omit<
 export function getTitleFromHtml(html: string): string {
     // Forgive me for I employ the [dark art][1] of HTML parsing with a regex.
     //
-    // I believe it's acceptable here. A `<title>` element should have no
-    // attributes and only string contents.
+    // I believe it's acceptable here. A `<title>` element should have no attributes
+    // and only string contents.
     //
     // We are also parsing HTML generated internally by our codebase. Not by an
-    // end-user. So we don't have to deal with weird end-user edge cases. We may
-    // find user generated content in the title but it should be properly escaped
-    // by React.
+    // end-user. So we don't have to deal with weird end-user edge cases. We may find
+    // user generated content in the title but it should be properly escaped by React.
     //
     // A regex here is simple and fast to execute. Moving on.
     //
@@ -120,12 +119,11 @@ export function renderReactEmailTemplate<Template extends keyof EmailTemplates>(
     },
 ): Promise<RenderedEmail> {
     return tracer.withSpan("React email render", async () => {
-        // TS is already validating templateProps assumes the props from
-        // templateName on emailTemplates. Given we don't know which templateName
-        // is going to be passed in here, TS has a hard time finding which props
-        // it expects here. The usage of this function should validate templateProps'
-        // just fine.
-        return emailTemplates[templateName]({
+        // TS is already validating templateProps assumes the props from templateName on
+        // emailTemplates. Given we don't know which templateName is going to be passed in
+        // here, TS has a hard time finding which props it expects here. The usage of this
+        // function should validate templateProps' just fine.
+        return await emailTemplates[templateName]({
             ...templateProps,
             resourceServiceUrl,
         } as any);

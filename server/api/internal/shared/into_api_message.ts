@@ -2,12 +2,13 @@ import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiMessageContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessageStreamPartPayload} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
+import {resolveFilesForApiResponse} from "~/server/files/data/resolve_files_for_api_response.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     ApiMessageContentPayloadParentResponse,
     ApiMessagePayloadResponse,
     ApiMessageResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -48,11 +49,12 @@ export async function intoApiMessage(
     // Only content messages can have a stream.
     assert(payload.type === "Content");
 
+    const firstElement = payload.content.elements[0];
     const contentElements =
         // If the original message has empty content then ignore it.
         payload.content.elements.length === 1 &&
-        payload.content.elements[0]!.type === "Paragraph" &&
-        payload.content.elements[0]!.elements.length === 0
+        firstElement?.type === "Paragraph" &&
+        firstElement.elements.length === 0
             ? []
             : [...payload.content.elements];
 
@@ -60,22 +62,22 @@ export async function intoApiMessage(
         switch (streamPart.type) {
             case "ToolCall": {
                 // TODO(calebmer, #api): Find a way to represent tool calls in the API. I'm
-                // imagining we have a `stream` property on messages with a `parts` array. If
-                // the `parts` array has content we've already added to `content` then we
-                // reference that content with an index.
+                // imagining we have a `stream` property on messages with a `parts` array. If the
+                // `parts` array has content we've already added to `content` then we reference
+                // that content with an index.
                 break;
             }
             case "Reasoning": {
-                // TODO(ifitzsimmons, #api): Don't show Reasoning summaries in the returned
-                // message content. This ultimately will get loaded in Agent Conversation context
-                // and is a bad use of tokens. We should expose a way to fetch a message along
-                // with *all* of its stream parts.
+                // TODO(ifitzsimmons, #api): Don't show Reasoning summaries in the returned message
+                // content. This ultimately will get loaded in Agent Conversation context and is a
+                // bad use of tokens. We should expose a way to fetch a message along with _all_ of
+                // its stream parts.
                 break;
             }
             case "Content": {
-                // Concatenate all the streamed content into the content we return from the
-                // API. That way in rendering code developers don't have to worry about whether
-                // this is a streamed message or not. They can render the content all the same.
+                // Concatenate all the streamed content into the content we return from the API.
+                // That way in rendering code developers don't have to worry about whether this is
+                // a streamed message or not. They can render the content all the same.
                 for (const element of streamPart.content.elements) {
                     contentElements.push(element);
                 }
@@ -115,15 +117,17 @@ async function intoApiMessagePayload(
             return {type: "Deleted"};
         }
         case "Content":
-            const [contentWithReferences, parent] = await runAllPromises([
+            const [contentWithReferences, parent, files] = await runAllPromises([
                 intoApiMessageContentWithReferences(context, spaceId, payload.content),
                 payload.parent ? intoContentPayloadParent(payload.parent) : undefined,
+                resolveFilesForApiResponse(context, spaceId, payload.fileIds),
             ]);
 
             return {
                 type: "Content",
                 parent: parent ?? undefined,
                 content: contentWithReferences,
+                files,
             };
         default:
             throw exhaustive(payload);

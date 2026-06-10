@@ -7,12 +7,11 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {BotId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get the information associated with a bot. Currently, basic information
- * about a bot is public globally (e.g. its name, presence of a webhook URL,
- * and avatar)! Importantly, excludes protected information like the
- * webhook URL and API keys.
+ * Get the information associated with a bot. Currently, basic information about a
+ * bot is public globally (e.g. its name, presence of a webhook URL, and avatar)!
+ * Importantly, excludes protected information like the webhook URL and API keys.
  */
-async function getBotWithAvatarItemIfExists(
+export async function getBotWithAvatarItemIfExists(
     context: DynamoContext,
     botId: BotId,
     {consistency}: {consistency?: DynamoReadConsistency} = {},
@@ -42,16 +41,16 @@ async function getBotWithAvatarItemIfExists(
     return {
         id: attributesItem.botId,
         name: attributesItem.name,
+        createdTime: attributesItem.createdTime,
         hasWebhookUrl: !!attributesItem.webhookUrl,
         avatar: avatarItem ?? null,
     };
 }
 
 /**
- * Get the information associated with a bot. Currently, basic information
- * about a bot is public globally (e.g. its name, presence of a webhook URL,
- * and avatar)! Importantly, excludes protected information like the
- * webhook URL and API keys.
+ * Get the information associated with a bot. Currently, basic information about a
+ * bot is public globally (e.g. its name, presence of a webhook URL, and avatar)!
+ * Importantly, excludes protected information like the webhook URL and API keys.
  */
 export async function getBotWithAvatarItem(
     context: DynamoContext,

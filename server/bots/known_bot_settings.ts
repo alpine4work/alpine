@@ -1,8 +1,8 @@
-import {parseSimpleContentFromMarkdown} from "~/server/api/content/parse_simple_content_from_markdown.js";
 import {
     chatGptKnownBotId,
     cursorKnownBotId,
 } from "~/server/bots/settings_default_known_bot_account_model_data.js";
+import {parseSimpleContentFromMarkdown} from "~/shared/api/content/parse_simple_content_from_markdown.js";
 import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContent} from "~/shared/content/simple_content_schema.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -18,8 +18,8 @@ export type KnownBotSettings = {
 // `UpdateKnownBotSettings` migration in production after the change has been
 // deployed.
 //
-// TODO(calebmer, 2026-01-22): Someday, I'd like to automate migration runs
-// after a successful deploy. We should be able to detect when this changes and
+// TODO(calebmer, 2026-01-22): Someday, I'd like to automate migration runs after a
+// successful deploy. We should be able to detect when this changes and
 // automatically run a migration to update production.
 export const knownBotSettings = new Lazy((): Record<BotId, KnownBotSettings> => {
     return {

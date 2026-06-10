@@ -13,9 +13,8 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 /**
  * CSS box shadows used to simulate elevation in our product.
  *
- * Light mode shadows have a 1px transparent border to increase contrast. See
- * [this thread][1] for explanation on why it looks better than a solid border
- * color.
+ * Light mode shadows have a 1px transparent border to increase contrast. See [this
+ * thread][1] for explanation on why it looks better than a solid border color.
  *
  * [1]: https://twitter.com/jamesm/status/1622702890912456704
  */
@@ -238,9 +237,8 @@ function createElevation({
     const darkElevated1BoxShadows: Array<string> = [];
     const darkElevated2BoxShadows: Array<string> = [];
 
-    // If we are intentionally using a solid border color for our light border then
-    // we want to render the shadow like we would an actual border, inset in
-    // the box.
+    // If we are intentionally using a solid border color for our light border then we
+    // want to render the shadow like we would an actual border, inset in the box.
     const borderInset = lightBorderColor === "grey-10" || inset ? "inset " : "";
 
     if (lightBorderColor !== null) {
@@ -279,8 +277,8 @@ function createElevation({
 }
 
 /**
- * Box shadow variables that change based on whether we're in light mode or
- * dark mode.
+ * Box shadow variables that change based on whether we're in light mode or dark
+ * mode.
  */
 export const elevationVars: {[K in keyof typeof elevation]: CssVarFunction} = createGlobalTheme(
     ":root",

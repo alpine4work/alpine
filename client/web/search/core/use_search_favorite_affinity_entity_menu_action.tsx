@@ -13,8 +13,8 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {favoriteSearchEntity, unfavoriteSearchEntity} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
-// This orange looks much nicer for the favorites color than yellow. It's warm
-// and easier to read on a white background than yellow.
+// This orange looks much nicer for the favorites color than yellow. It's warm and
+// easier to read on a white background than yellow.
 export const searchFavoriteEntityIconColor = "orange-30-const";
 export const searchFavoriteEntityIconPressedColor = {
     light: "orange-40-const",
@@ -28,7 +28,7 @@ let updateSearchFavoriteEntityMenuActionEventEmitter: EventEmitter<
 /**
  * Update the internal `isFavorite` state of all favorite menu actions for the
  * provided `SearchEntityId`. This is very race condition prone but it's good
- * enough for this non-collaborative use case. *Shrug*
+ * enough for this non-collaborative use case. _Shrug_
  */
 export function updateSearchFavoriteEntityMenuAction(
     spaceId: SpaceId,
@@ -39,9 +39,9 @@ export function updateSearchFavoriteEntityMenuAction(
 }
 
 /**
- * Listen to any `updateSearchFavoriteEntityMenuAction()` calls. This is very
- * race condition prone but it's good enough for this non-collaborative use
- * case. *Shrug*
+ * Listen to any `updateSearchFavoriteEntityMenuAction()` calls. This is very race
+ * condition prone but it's good enough for this non-collaborative use case.
+ * _Shrug_
  */
 export function subscribeToUpdateSearchFavoriteEntityMenuAction(
     listener: (spaceId: SpaceId, entityId: SearchAffinityEntityId, isFavorite: boolean) => void,
@@ -76,9 +76,9 @@ export function useSearchFavoriteEntityMenuAction(
     }, [entityId, space.id]);
 
     return useMemo((): MenuAction | null => {
-        // If the actor doesn't have space access then we shouldn't be showing the
-        // favorite menu action. Since the favorite/unfavorite RPCs will throw an
-        // error if you try to call them.
+        // If the actor doesn't have space access then we shouldn't be showing the favorite
+        // menu action. Since the favorite/unfavorite RPCs will throw an error if you try
+        // to call them.
         if (!hasCurrentAccount) return null;
 
         return {
@@ -106,9 +106,8 @@ export function useSearchFavoriteEntityMenuAction(
                 // `isFavorite` React state might start exhibiting buggy behavior.
                 await mutexRef.current.withLock(async () => {
                     if (isFavorite) {
-                        // Optimistically update our `isFavorite` state so the UI changes at the same
-                        // time as `isPressed` becomes false. If the RPC fails then we revert the
-                        // change.
+                        // Optimistically update our `isFavorite` state so the UI changes at the same time
+                        // as `isPressed` becomes false. If the RPC fails then we revert the change.
                         updateSearchFavoriteEntityMenuAction(space.id, entityId, false);
 
                         try {
@@ -123,10 +122,10 @@ export function useSearchFavoriteEntityMenuAction(
 
                         // Force `searchByAffinity()` to revalidate so:
                         //
-                        // 1. When the user opens `<SearchModal>` they'll see the new favorite
-                        //    immediately and it won't flash in
-                        // 2. If the user is already in `<SearchModal>` then they'll see the favorite
-                        //    move automatically in realtime
+                        // 1. When the user opens `<SearchModal>` they'll see the new favorite immediately
+                        //    and it won't flash in
+                        // 2. If the user is already in `<SearchModal>` then they'll see the favorite move
+                        //    automatically in realtime
                         forceRevalidateSearchByAffinity(
                             context,
                             rpcCache,
@@ -136,9 +135,8 @@ export function useSearchFavoriteEntityMenuAction(
                                 output.favoriteResults.every(result => result.id !== entityId),
                         );
                     } else {
-                        // Optimistically update our `isFavorite` state so the UI changes at the same
-                        // time as `isPressed` becomes false. If the RPC fails then we revert the
-                        // change.
+                        // Optimistically update our `isFavorite` state so the UI changes at the same time
+                        // as `isPressed` becomes false. If the RPC fails then we revert the change.
                         updateSearchFavoriteEntityMenuAction(space.id, entityId, true);
 
                         try {
@@ -153,10 +151,10 @@ export function useSearchFavoriteEntityMenuAction(
 
                         // Force `searchByAffinity()` to revalidate so:
                         //
-                        // 1. When the user opens `<SearchModal>` they'll see the new favorite
-                        //    immediately and it won't flash in
-                        // 2. If the user is already in `<SearchModal>` then they'll see the favorite
-                        //    move automatically in realtime
+                        // 1. When the user opens `<SearchModal>` they'll see the new favorite immediately
+                        //    and it won't flash in
+                        // 2. If the user is already in `<SearchModal>` then they'll see the favorite move
+                        //    automatically in realtime
                         forceRevalidateSearchByAffinity(
                             context,
                             rpcCache,

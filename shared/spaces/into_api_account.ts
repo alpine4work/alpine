@@ -1,5 +1,5 @@
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {ApiAccount} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiAccount} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 

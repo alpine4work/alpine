@@ -26,8 +26,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 
 /**
- * To process a safe audio file we only need the file's duration. We'll serve
- * the file to the user as-is.
+ * To process a safe audio file we only need the file's duration. We'll serve the
+ * file to the user as-is.
  */
 export function createFileWebSafeAudioProcessor(
     contentType: FileWebSafeAudioContentType,
@@ -77,9 +77,8 @@ export function processFileWebSafeAudio(
             // NOTE(calebmer, 2024-11-01): Our test fixture file
             // `pokemon_regirock_un_un_un_meme.wav` sometimes outputs the wrong duration to
             // FFprobe and sometimes outputs no duration. I can't find anything online that
-            // explains this so for now it seems like we can't trust FFprobe's duration for
-            // WAV files. Set `durationString` to null so we'll always parse the full WAV
-            // file.
+            // explains this so for now it seems like we can't trust FFprobe's duration for WAV
+            // files. Set `durationString` to null so we'll always parse the full WAV file.
             contentType !== "audio/wav" &&
             isObject(metadata) &&
             isObject(metadata.format) &&
@@ -88,8 +87,8 @@ export function processFileWebSafeAudio(
                 ? metadata.format.duration
                 : null;
 
-        // If the file has duration metadata we can return return that without decoding
-        // the full file. Otherwise, we need to decode the full file...
+        // If the file has duration metadata we can return return that without decoding the
+        // full file. Otherwise, we need to decode the full file...
         if (durationString !== null && durationString !== "N/A") {
             const durationSeconds =
                 typeof durationString === "string" ? parseFloat(durationString) : durationString;
@@ -100,10 +99,10 @@ export function processFileWebSafeAudio(
             return Math.ceil(durationSeconds * 1000);
         }
 
-        // Otherwise we need to decode the full stream to figure out the video
-        // duration. Command from this [Stack Exchange][1] post using the
-        // "With `ffmpeg`" solution. This approach is also recommended by the FFmpeg
-        // docs in the FFprobe tips "[Get duration by decoding][2]" section.
+        // Otherwise we need to decode the full stream to figure out the video duration.
+        // Command from this [Stack Exchange][1] post using the "With `ffmpeg`" solution.
+        // This approach is also recommended by the FFmpeg docs in the FFprobe tips "[Get
+        // duration by decoding][2]" section.
         //
         // [1]: https://superuser.com/a/945604/857823
         // [2]: https://trac.ffmpeg.org/wiki/FFprobeTips#Getdurationbydecoding
@@ -114,12 +113,12 @@ export function processFileWebSafeAudio(
                 // data it needs with HTTP `Range` requests.
                 "-i",
                 inputUrl,
-                // Limit the number of threads for FFmpeg to reduce resource contention
-                // in `FileProcessorService`.
+                // Limit the number of threads for FFmpeg to reduce resource contention in
+                // `FileProcessorService`.
                 "-threads",
                 String(ffmpegThreadCount),
-                // We're only running this to get the `time` output after FFmpeg has
-                // decoded our file.
+                // We're only running this to get the `time` output after FFmpeg has decoded our
+                // file.
                 "-f",
                 "null",
                 "pipe:1",
@@ -145,7 +144,7 @@ export function processFileWebSafeAudio(
             stderr += string;
         });
 
-        return context.tracer.withSpan(
+        return await context.tracer.withSpan(
             `FFmpeg decode ${getFileContentTypeName(contentType)} duration`,
             async (context, span) => {
                 span.addData({
@@ -186,9 +185,9 @@ export function processFileWebSafeAudio(
         );
     })().then(
         duration => {
-            // All of these promise resolvers MUST have either been resolved or rejected by
-            // the end of this promise. So any promise resolvers that haven't been settled
-            // yet reject with an error as a safety mechanism.
+            // All of these promise resolvers MUST have either been resolved or rejected by the
+            // end of this promise. So any promise resolvers that haven't been settled yet
+            // reject with an error as a safety mechanism.
             if (!audioPreviewMetadataPromiseResolver.isSettled()) {
                 audioPreviewMetadataPromiseResolver.reject(
                     new InternalError("Promise resolver wasn\u2019t resolved"),

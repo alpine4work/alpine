@@ -42,8 +42,8 @@ export function addContentViewLinkBehavior(element: HTMLAnchorElement, navigate:
         );
 
         // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-        // modifier. Unless the click was meant to open the link in a separate tab. We
-        // need to implement that manually here given the text is editable.
+        // modifier. Unless the click was meant to open the link in a separate tab. We need
+        // to implement that manually here given the text is editable.
         if (
             (event.button !== 0 || isModifiedPointerEvent(event)) &&
             !isOpenLinkInSeparateTabEvent
@@ -65,8 +65,8 @@ export function addContentViewLinkBehavior(element: HTMLAnchorElement, navigate:
         maybeUpdateStyle();
 
         // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-        // modifier. Unless the click was meant to open the link in a separate tab. We
-        // need to implement that manually here given the text is editable.
+        // modifier. Unless the click was meant to open the link in a separate tab. We need
+        // to implement that manually here given the text is editable.
         if (
             (event.button !== 0 || isModifiedPointerEvent(event)) &&
             !isOpenLinkInSeparateTabPointerEvent(event, getClientInfo())

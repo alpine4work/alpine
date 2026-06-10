@@ -23,9 +23,9 @@ import {
 } from "~/shared/search/search_entity_id.js";
 
 /**
- * Just the IDs we need for loading a `ContentReferences` object. Useful to
- * perform optimizations against. If there are no `ContentReferencedIds` then
- * you don't need to make a network request.
+ * Just the IDs we need for loading a `ContentReferences` object. Useful to perform
+ * optimizations against. If there are no `ContentReferencedIds` then you don't
+ * need to make a network request.
  */
 export type ContentReferencedIds = SchemaType<typeof ContentReferencedIdsSchema>;
 
@@ -56,8 +56,8 @@ assertAssignableTypes<MutableContentReferencedIds, ContentReferencedIds>();
  * Is the provided `ContentReferencedIds` object empty?
  */
 export function isEmptyContentReferencedIds(referencedIds: ContentReferencedIds): boolean {
-    // If you add more data to `ContentReferencedIds` in the future, you'll
-    // need to come back and update this function.
+    // If you add more data to `ContentReferencedIds` in the future, you'll need to
+    // come back and update this function.
     assertEqualTypes<
         keyof ContentReferencedIds,
         "accountIds" | "searchEntityIds" | "fileIds" | "fileEntityIds"
@@ -106,8 +106,8 @@ export function getContentReferencedIdsForSteps(steps: ReadonlyArray<Step>): Con
 }
 
 /**
- * Low-level function for collecting IDs referenced in some ProseMirror
- * object. Generally prefer using `getContentReferencedIdsForNode()` or
+ * Low-level function for collecting IDs referenced in some ProseMirror object.
+ * Generally prefer using `getContentReferencedIdsForNode()` or
  * `getContentReferencedIdsForStep()`.
  *
  * You use the function like this:
@@ -115,7 +115,7 @@ export function getContentReferencedIdsForSteps(steps: ReadonlyArray<Step>): Con
  * ```ts
  * collectContentReferencedIds(visitor => {
  *     visitProsemirrorNode(content, visitor);
- * })
+ * });
  * ```
  *
  * Returns referenced IDs in the order we encounter them. So if there are three

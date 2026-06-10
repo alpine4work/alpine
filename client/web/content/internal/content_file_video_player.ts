@@ -41,8 +41,8 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * video player. See that function's documentation for more information.
  *
  * The provided container HTML must have the class
- * `contentFileVideoPlayerStyles.containerClassName` and
- * `greyElevated2ClassName`. We will append to the container element.
+ * `contentFileVideoPlayerStyles.containerClassName` and `greyElevated2ClassName`.
+ * We will append to the container element.
  */
 export function renderContentFileVideoPlayer(
     containerHtml: HtmlContainerGenerator,
@@ -142,9 +142,8 @@ export function renderContentFileVideoPlayer(
         durationPreviewHtml.appendChild(new HtmlTextGenerator(durationString));
     }
 
-    // Only render the `<video>` element inline if the area is large enough.
-    // Otherwise a press should open our file viewer where you'll be able to watch
-    // the video.
+    // Only render the `<video>` element inline if the area is large enough. Otherwise
+    // a press should open our file viewer where you'll be able to watch the video.
     if (
         withoutInteractivity ||
         platform === "mobile" ||
@@ -159,16 +158,16 @@ export function renderContentFileVideoPlayer(
         videoHtml.setAttribute("class", contentFileVideoPlayerStyles.videoClassName);
         videoHtml.setAttribute("playsinline", "");
 
-        // We already have a poster for the video, the preview image. Don't load the
-        // video just to display the first frame.
+        // We already have a poster for the video, the preview image. Don't load the video
+        // just to display the first frame.
         videoHtml.setAttribute("poster", transparentImageDataUrl);
 
-        // We already have the video's metadata (length) in
-        // `filePreview.videoDuration`. We don't need to load from the server until the
-        // user hits play.
+        // We already have the video's metadata (length) in `filePreview.videoDuration`. We
+        // don't need to load from the server until the user hits play.
         videoHtml.setAttribute("preload", "none");
 
-        // Needed to get a proper CORS response from the resource service where our files are hosted.
+        // Needed to get a proper CORS response from the resource service where our files
+        // are hosted. This _must_ be set before setting the `src` attribute.
         videoHtml.setAttribute("crossorigin", "anonymous");
 
         videoHtml.setAttribute("src", videoSrc);
@@ -209,19 +208,19 @@ let stillPointerTimeoutByContentFileVideoPlayerContainerElement:
 
 /**
  * Add interactions to the content file video player rendered by
- * `renderContentFileVideoPlayer()`. The provided container element must have
- * the class `contentFileVideoPlayerStyles.containerClassName`.
+ * `renderContentFileVideoPlayer()`. The provided container element must have the
+ * class `contentFileVideoPlayerStyles.containerClassName`.
  *
  * IMPORTANT: Read the following implementation notes before making changes.
  *
  * ## Implementation notes
  *
- * The code for our video player is styled after React. We have a functional
- * render function (`renderContentFileVideoPlayer()`) and setup interactivity
- * with an effect (`addContentFileVideoPlayerBehavior()`). We'd love to use
- * React directly but we can't because our video player is rendered in a
- * ProseMirror `contenteditable`. So we need to build the video player's
- * interactivity by directly attaching DOM events.
+ * The code for our video player is styled after React. We have a functional render
+ * function (`renderContentFileVideoPlayer()`) and setup interactivity with an
+ * effect (`addContentFileVideoPlayerBehavior()`). We'd love to use React directly
+ * but we can't because our video player is rendered in a ProseMirror
+ * `contenteditable`. So we need to build the video player's interactivity by
+ * directly attaching DOM events.
  *
  * Our behavior function MUST NOT edit the DOM by adding or removing DOM nodes.
  * This will mess up `HtmlElementGenerator.patchNode()` if ProseMirror needs to
@@ -274,17 +273,16 @@ export function addContentFileVideoPlayerBehavior(
             //   instance)
             // - Don't allow browser drag to start from the control bar
             //
-            // This pointer event is on the control container element instead of the
-            // control element so we disable clicking in the margins below and to the
-            // left/right area as well. Having your cursor change between pointer and
-            // default when moving through that space feels janky so we disable pointer
-            // events there.
+            // This pointer event is on the control container element instead of the control
+            // element so we disable clicking in the margins below and to the left/right area
+            // as well. Having your cursor change between pointer and default when moving
+            // through that space feels janky so we disable pointer events there.
             event.preventDefault();
         };
 
         const handleControlsContainerClick = (event: MouseEvent) => {
-            // When clicking on the control bar prevent default so we don't perform the
-            // default click logic (don't pause/play).
+            // When clicking on the control bar prevent default so we don't perform the default
+            // click logic (don't pause/play).
             event.preventDefault();
         };
 
@@ -350,13 +348,11 @@ export function addContentFileVideoPlayerBehavior(
     /**
      * Update our still pointer timeout state. If we should have a still pointer
      * timeout and one hasn't already started then we'll start the timeout. If we
-     * shouldn't have a still pointer timeout then we'll clear the existing
-     * timeout.
+     * shouldn't have a still pointer timeout then we'll clear the existing timeout.
      */
     const updateStillPointerTimeout = () => {
-        // If the video is paused, the pointer isn't hovering our video, or the pointer
-        // is hovering our controls then we won't ever consider the pointer to be
-        // still.
+        // If the video is paused, the pointer isn't hovering our video, or the pointer is
+        // hovering our controls then we won't ever consider the pointer to be still.
         if (!videoElement || videoElement.paused || !isPointerOver || isPointerOverControls) {
             const stillPointerTimeout =
                 stillPointerTimeoutByContentFileVideoPlayerContainerElement?.get(containerElement);
@@ -404,10 +400,9 @@ export function addContentFileVideoPlayerBehavior(
     };
 
     /**
-     * If there's a running still pointer timeout then clear the timeout and start
-     * a new one. We call this whenever the pointer moves for instance. If we've
-     * added the still pointer class then this will also remove the still pointer
-     * class.
+     * If there's a running still pointer timeout then clear the timeout and start a
+     * new one. We call this whenever the pointer moves for instance. If we've added
+     * the still pointer class then this will also remove the still pointer class.
      */
     const resetStillPointerTimeout = () => {
         if (
@@ -433,8 +428,8 @@ export function addContentFileVideoPlayerBehavior(
         );
     };
 
-    // If this behavior function unmounts/remounts in response to some change,
-    // check our hover state by looking at the DOM.
+    // If this behavior function unmounts/remounts in response to some change, check
+    // our hover state by looking at the DOM.
     let isPointerOver = containerElement.classList.contains(
         contentFileVideoPlayerStyles.hoveredClassName,
     );

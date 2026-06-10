@@ -15,10 +15,9 @@ export type ApiKey = string & {readonly _ApiKey: never};
  * - "e", "E", "3"
  * - "t", "T", "7"
  *
- * This gives 324 possible prefixes when we only need 256. We remove strings
- * that obviously look like a word ("secret", "Secret", "SECRET"), remove
- * strings that have 3 or more numbers, and then removed some strings I just
- * didn't vibe with.
+ * This gives 324 possible prefixes when we only need 256. We remove strings that
+ * obviously look like a word ("secret", "Secret", "SECRET"), remove strings that
+ * have 3 or more numbers, and then removed some strings I just didn't vibe with.
  */
 const apiKeyPrefixByByte: Array<string> = [
     "secRet",
@@ -292,16 +291,15 @@ for (let byte = 0; byte < apiKeyPrefixByByte.length; byte++) {
 }
 
 /**
- * Generate a new random API key. An API key is 128 bits of randomness encoded
- * in 26 base-32 characters with a prefix that's some variant of the word
- * "secret".
+ * Generate a new random API key. An API key is 128 bits of randomness encoded in
+ * 26 base-32 characters with a prefix that's some variant of the word "secret".
  *
  * We prepend a variant of the word "secret" as a cute way to remind developers
- * (and ourselves) that API keys are sensitive. They grant access to our system
- * so they should be carefully protected. A developer shouldn't hard code their
- * API key anywhere and we shouldn't log API keys. By using one of 256 variants
- * of the word "secret" it's impossible to remove the prefix from the API key.
- * The API key is incomplete without it.
+ * (and ourselves) that API keys are sensitive. They grant access to our system so
+ * they should be carefully protected. A developer shouldn't hard code their API
+ * key anywhere and we shouldn't log API keys. By using one of 256 variants of the
+ * word "secret" it's impossible to remove the prefix from the API key. The API key
+ * is incomplete without it.
  */
 export function generateApiKey(): ApiKey {
     const bytes = new Uint8Array(16);
@@ -343,8 +341,8 @@ function encodeApiKeyWithMutation(bytes: Uint8Array): ApiKey {
 
     const prefix = apiKeyPrefixByByte[lastByte]!;
 
-    // The suffix always ends with 00 since we're taking the last byte and using it
-    // as the prefix.
+    // The suffix always ends with 00 since we're taking the last byte and using it as
+    // the prefix.
     let suffix: string = encodeId(bytes);
     assert(suffix.endsWith("00"));
     suffix = suffix.slice(0, -2);

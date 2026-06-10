@@ -64,12 +64,13 @@ export type OpensearchIndexAnalysisFilter =
     | OpensearchIndexAnalysisCustomFilter;
 
 /**
- * Configuration for [OpenSearch token filters][1]. ElasticSearch has
- * better [reference documentation][2] for all the token filters. Refer to that
- * when looking for token filter options.
+ * Configuration for [OpenSearch token filters][1]. ElasticSearch has better
+ * [reference documentation][2] for all the token filters. Refer to that when
+ * looking for token filter options.
  *
  * [1]: https://opensearch.org/docs/latest/analyzers/token-filters/index/
- * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-tokenfilters.html
+ * [2]:
+ *     https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-tokenfilters.html
  */
 type OpensearchIndexAnalysisFilterConfig =
     | {

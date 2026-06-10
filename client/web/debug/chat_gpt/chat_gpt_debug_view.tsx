@@ -48,8 +48,8 @@ function ChatGptConversationItemView({
         <Box ref={itemRef} style={{padding: "0.5lh 0"}}>
             <Box
                 style={{
-                    // Use `box-shadow` so it doesn't contribute to the carefully aligned
-                    // monospace layout.
+                    // Use `box-shadow` so it doesn't contribute to the carefully aligned monospace
+                    // layout.
                     boxShadow: `0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                 }}
             >
@@ -105,8 +105,8 @@ function ChatGptConversationItemView({
                                 <>
                                     {item.tokenCount !== undefined && ", "}
                                     {item.call_id
-                                        // Truncate the `call_id` to 1/4th the actual size. That should be enough
-                                        // entropy to identify different calls within a single conversation.
+                                        // Truncate the `call_id` to 1/4th the actual size. That should be enough entropy
+                                        // to identify different calls within a single conversation.
                                         .slice(0, -18)}
                                 </>
                             )}
@@ -165,8 +165,8 @@ function ChatGptConversationItemViewContent({
             style={{
                 maxHeight: !isShowingAll ? `${maxLineCount + 4}lh` : undefined,
 
-                // Use `box-shadow` so it doesn't contribute to the carefully aligned
-                // monospace layout.
+                // Use `box-shadow` so it doesn't contribute to the carefully aligned monospace
+                // layout.
                 boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-10"]}`,
             }}
         >

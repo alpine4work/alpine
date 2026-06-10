@@ -7,17 +7,17 @@ import {
 import {generateId} from "~/shared/id/id.js";
 
 /**
- * Forked from [ProseMirror's default input rule `stringHandler`][1] with a
- * couple additions.
+ * Forked from [ProseMirror's default input rule `stringHandler`][1] with a couple
+ * additions.
  *
  * - Doesn't apply the input rule in a code block.
  *
- * - If the input rule is applied, then the user deletes it and retypes the
- *   exact same string then we don't apply the input rule again. This is
- *   essential on mobile where the user can't press cmd-z to quick undo the
- *   input rule.
+ * - If the input rule is applied, then the user deletes it and retypes the exact
+ *   same string then we don't apply the input rule again. This is essential on
+ *   mobile where the user can't press cmd-z to quick undo the input rule.
  *
- * [1]: https://github.com/ProseMirror/prosemirror-inputrules/blob/8433778a3ce4e45c0188341b72fd71da3a440b5b/src/inputrules.ts#L53-L68
+ * [1]:
+ *     https://github.com/ProseMirror/prosemirror-inputrules/blob/8433778a3ce4e45c0188341b72fd71da3a440b5b/src/inputrules.ts#L53-L68
  */
 function createStandardStringHandler(string: string) {
     const inputRuleId = generateId();
@@ -70,8 +70,8 @@ function createStandardInputRule(regExp: RegExp, string: string) {
 export function addSharedContentEditorInputRules(rules: Array<InputRule>) {
     // Smart Quotes
     //
-    // We fork these input rules from Prosemirror's prosemirror-inputrules to
-    // add our own custom behavior for smart quotes in code blocks and paragraphs.
+    // We fork these input rules from Prosemirror's prosemirror-inputrules to add our
+    // own custom behavior for smart quotes in code blocks and paragraphs.
     //
     // https://github.com/ProseMirror/prosemirror-inputrules/blob/8433778a3ce4e45c0188341b72fd71da3a440b5b/src/rules.ts#L7-L17
     rules.push(createStandardInputRule(/(?:^|[\s{[(<'"\u2018\u201C])(")$/, "\u201C"));
@@ -106,8 +106,8 @@ export function addSharedContentEditorInputRules(rules: Array<InputRule>) {
         [":100:", "\u{1F4AF}"], // 💯 (https://graphemica.com/1F4AF)
     ];
 
-    // Emojis should be either at the beginning of the block or should come after
-    // a space.
+    // Emojis should be either at the beginning of the block or should come after a
+    // space.
     for (const [match, emoji] of emojiMap) {
         rules.push(createStandardInputRule(new RegExp(`(?:^|\\s)(${match})$`), emoji));
     }

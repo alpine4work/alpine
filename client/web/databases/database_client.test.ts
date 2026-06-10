@@ -43,7 +43,9 @@ function pagesToMap(
 
 // ---------------------------------------------------------------------------
 // Tests
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 describe("DatabaseClient", () => {
     test("SELECT 1 + 1", async () => {
@@ -136,8 +138,8 @@ describe("execute — mutations", () => {
             async executeActionServer(action, options) {
                 capturedAction = action;
                 capturedMutationId = options.mutationId;
-                // Simulate realtime confirmation arriving
-                // before server response (same as production).
+                // Simulate realtime confirmation arriving before server response (same as
+                // production).
                 client.writePageDiffsFromRealtime(
                     new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
                     options.mutationId,
@@ -207,10 +209,9 @@ describe("execute — mutations", () => {
             },
         });
 
-        // The per-db file isn't attached and we hold none of its pages
-        // locally, so ATTACH can't read its header — the action routes to
-        // the server (which would attach + populate it) instead of
-        // attaching locally.
+        // The per-db file isn't attached and we hold none of its pages locally, so ATTACH
+        // can't read its header — the action routes to the server (which would attach +
+        // populate it) instead of attaching locally.
         const ref = `"${databaseTableSchemaName(tableId)}"."_alpine_table"`;
         const rows = await execute(client, conn, `SELECT * FROM ${ref}`);
 
@@ -225,8 +226,7 @@ describe("execute — mutations", () => {
         const conn = makeDatabaseClientConnection({
             async executeActionServer(_action, options) {
                 serverCallCount++;
-                // Simulate realtime confirmation arriving
-                // before server response.
+                // Simulate realtime confirmation arriving before server response.
                 client.writePageDiffsFromRealtime(
                     new Map([[databaseMainTableId, {diffs: new Map(), fileSizeInPages: 0}]]),
                     options.mutationId,
@@ -238,10 +238,8 @@ describe("execute — mutations", () => {
             },
         });
 
-        // Use executeLocallyForTests for DDL so the
-        // authorizer allows it; the store stays empty
-        // because the DB has no user data pages yet
-        // beyond the schema page.
+        // Use executeLocallyForTests for DDL so the authorizer allows it; the store stays
+        // empty because the DB has no user data pages yet beyond the schema page.
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY)");
         client.commitOptimisticPagesForTests();
         const rows = await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
@@ -390,8 +388,7 @@ describe("optimistic mutations", () => {
         await execute(client, conn, "INSERT INTO t (id) VALUES (1)");
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        // Optimistic mutation should be removed — query sees
-        // the base state (empty table).
+        // Optimistic mutation should be removed — query sees the base state (empty table).
         const rows = await execute(client, testConn, "SELECT count(*) AS n FROM t");
         expect(rows).toMatchObject([{n: 0}]);
     });
@@ -404,8 +401,8 @@ describe("optimistic mutations", () => {
         let reportedError: unknown = null;
         const conn = makeDatabaseClientConnection({
             async executeActionServer() {
-                // Return without calling writePageDiffsFromRealtime
-                // — the mutation is still in the queue.
+                // Return without calling writePageDiffsFromRealtime — the mutation is still in the
+                // queue.
                 return {
                     result: {name: "rawSql", output: {rows: []}},
                     readPages: new Map(),
@@ -428,8 +425,7 @@ describe("optimistic mutations", () => {
 
 describe("server fallback", () => {
     test("missing page triggers server fallback", async () => {
-        // Create a "server" DB with enough data to span
-        // multiple pages (4096 bytes each).
+        // Create a "server" DB with enough data to span multiple pages (4096 bytes each).
         const serverDir = createInMemoryOpfsDirectoryHandle();
         const server = await DatabaseClient.create(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, data TEXT)");
@@ -441,9 +437,8 @@ describe("server fallback", () => {
 
         const {fileSizeInPages, pages: allPages} = await extractOpfsPages(serverDir);
 
-        // Pre-populate a local directory with all pages
-        // EXCEPT the last one, then open it. SQLite sees
-        // the existing DB but one page is absent.
+        // Pre-populate a local directory with all pages EXCEPT the last one, then open it.
+        // SQLite sees the existing DB but one page is absent.
         const localDir = createInMemoryOpfsDirectoryHandle();
         await prepopulateOpfsPages(localDir, fileSizeInPages, allPages.slice(0, -1));
         const local = await DatabaseClient.create(localDir);
@@ -495,8 +490,8 @@ describe("server fallback", () => {
         });
         await execute(local, serverConn, "SELECT count(*) AS n FROM t");
 
-        // Second query with a throwing connection — should
-        // succeed locally since all pages are now cached.
+        // Second query with a throwing connection — should succeed locally since all pages
+        // are now cached.
         const rows = await execute(local, testConn, "SELECT count(*) AS n FROM t");
 
         expect(rows).toMatchObject([{n: 20}]);
@@ -548,9 +543,8 @@ describe("executeActionWithTracking", () => {
             input: {sql: "SELECT * FROM t2"},
         });
 
-        // 0-based page indices (SQLite rootpage is 1-based).
-        // These tables live in main (raw DDL), so read pages
-        // are tracked under the main table id.
+        // 0-based page indices (SQLite rootpage is 1-based). These tables live in main
+        // (raw DDL), so read pages are tracked under the main table id.
         expect(pagesT1.get(databaseMainTableId)!.has(t1Root - 1)).toBe(true);
         expect(pagesT2.get(databaseMainTableId)!.has(t2Root - 1)).toBe(true);
     });
@@ -574,8 +568,8 @@ describe("executeActionWithTracking", () => {
             input: {sql: "SELECT * FROM t2"},
         });
 
-        // Both include page 0 (schema page), but differ
-        // on at least one page (each table's root page).
+        // Both include page 0 (schema page), but differ on at least one page (each table's
+        // root page).
         const mainT1 = pagesT1.get(databaseMainTableId) ?? new Set<number>();
         const mainT2 = pagesT2.get(databaseMainTableId) ?? new Set<number>();
         const onlyT1 = [...mainT1].filter(p => !mainT2.has(p));
@@ -650,8 +644,8 @@ describe("executeActionWithTracking", () => {
         });
 
         expect((output as {rows: unknown}).rows).toMatchObject([{n: 20}]);
-        // After server fallback + local retry, should have
-        // an accurate read set covering multiple pages.
+        // After server fallback + local retry, should have an accurate read set covering
+        // multiple pages.
         expect(readPages.size).toBeGreaterThan(0);
     });
 });
@@ -711,9 +705,8 @@ describe("registerReactiveAction", () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
 
-        // Use executeLocallyForTests so data goes to OPFS
-        // base store (not optimistic pages) — extractPages
-        // reads from the base store.
+        // Use executeLocallyForTests so data goes to OPFS base store (not optimistic
+        // pages) — extractPages reads from the base store.
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v1')");
@@ -734,9 +727,8 @@ describe("registerReactiveAction", () => {
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('v2')");
         client.commitOptimisticPagesForTests();
 
-        // Write as realtime with newer versions to
-        // trigger invalidation. Empty diffs since OPFS
-        // already has the current content.
+        // Write as realtime with newer versions to trigger invalidation. Empty diffs since
+        // OPFS already has the current content.
         const {pages} = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
             pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
@@ -760,10 +752,9 @@ describe("registerReactiveAction", () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
 
-        // Use executeLocallyForTests so data goes to OPFS
-        // base store. This lets markWrittenPages filter
-        // page-0 noise correctly (readPage(0) must return
-        // non-null for the noise check to work).
+        // Use executeLocallyForTests so data goes to OPFS base store. This lets
+        // markWrittenPages filter page-0 noise correctly (readPage(0) must return non-null
+        // for the noise check to work).
         client.executeLocallyForTests("CREATE TABLE t1 (id INTEGER PRIMARY KEY)");
         client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("CREATE TABLE t2 (id INTEGER PRIMARY KEY)");
@@ -795,10 +786,8 @@ describe("registerReactiveAction", () => {
         const changedPageDiffs = new Map(
             pagesAfter
                 .filter(after => {
-                    // Skip page 0 — it always changes (SQLite
-                    // file change counter) and is in every
-                    // query's read set, so it would always
-                    // trigger a notification.
+                    // Skip page 0 — it always changes (SQLite file change counter) and is in every
+                    // query's read set, so it would always trigger a notification.
                     if (after.pageIndex === 0) return false;
                     const before = pagesBefore.find(b => b.pageIndex === after.pageIndex);
                     return before === undefined || before.version !== after.version;
@@ -820,8 +809,8 @@ describe("registerReactiveAction", () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
 
-        // Register an action against a table that doesn't
-        // exist yet — initial evaluation will fail.
+        // Register an action against a table that doesn't exist yet — initial evaluation
+        // will fail.
         const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
         const result = await client.registerReactiveAction(
             "q1",
@@ -835,15 +824,15 @@ describe("registerReactiveAction", () => {
 
         expect(result.ok).toBe(false);
 
-        // Now create the table. The write goes to the
-        // base store so extractPages picks it up.
+        // Now create the table. The write goes to the base store so extractPages picks it
+        // up.
         client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
         client.commitOptimisticPagesForTests();
         client.executeLocallyForTests("INSERT INTO t (val) VALUES ('hello')");
         client.commitOptimisticPagesForTests();
 
-        // Trigger invalidation via realtime page writes.
-        // readPages is null so any page write overlaps.
+        // Trigger invalidation via realtime page writes. readPages is null so any page
+        // write overlaps.
         const {pages} = await extractOpfsPages(dir);
         const newerPageDiffs = new Map(
             pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
@@ -898,16 +887,16 @@ describe("registerReactiveAction", () => {
 
 // ---------------------------------------------------------------------------
 // Close / OPFS handle release
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 /**
- * In-memory OPFS directory that enforces OPFS's
- * single-open-sync-access-handle rule: a second
- * `createSyncAccessHandle()` for a file whose handle is
- * still open throws, the way real OPFS does. The shared
- * test mock deliberately does not model this (many helpers
- * open handles without closing), so a handle-leak
- * regression is only observable against this stricter fake.
+ * In-memory OPFS directory that enforces OPFS's single-open-sync-access-handle
+ * rule: a second `createSyncAccessHandle()` for a file whose handle is still open
+ * throws, the way real OPFS does. The shared test mock deliberately does not model
+ * this (many helpers open handles without closing), so a handle-leak regression is
+ * only observable against this stricter fake.
  */
 function createExclusiveOpfsDirectoryHandle(): OpfsDirectoryHandle {
     const dirs = new Map<string, OpfsDirectoryHandle>();
@@ -987,10 +976,9 @@ describe("DatabaseClient handle release", () => {
         const dir = createExclusiveOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
 
-        // The main store's sync-access handles are still open, so
-        // OPFS refuses a second handle on the same files. This both
-        // proves the fake enforces exclusivity and shows that a
-        // leaked client wedges the group until its handles close.
+        // The main store's sync-access handles are still open, so OPFS refuses a second
+        // handle on the same files. This both proves the fake enforces exclusivity and
+        // shows that a leaked client wedges the group until its handles close.
         await expect(DatabaseClient.create(dir)).rejects.toThrow(/already open/);
 
         client.close();
@@ -1002,9 +990,8 @@ describe("DatabaseClient handle release", () => {
         const client = await DatabaseClient.create(dir);
         client.close();
 
-        // Handles released: a fresh open of the same group now
-        // succeeds and is usable. Without DatabaseClient.close()
-        // closing every page store, this would reject with
+        // Handles released: a fresh open of the same group now succeeds and is usable.
+        // Without DatabaseClient.close() closing every page store, this would reject with
         // "access handle already open" (see the test above).
         const reopened = await DatabaseClient.create(dir);
         const rows = await execute(reopened, testConn, "SELECT 1 AS n");

@@ -4,7 +4,6 @@ import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/web/content/internal/content_editor_file_node_view.js";
 import {getContentEditorReferences} from "~/client/web/content/state/content_editor_state.js";
 import {layoutContentFileParent} from "~/client/web/content/state/content_file_layout.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {
     ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
@@ -19,6 +18,7 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -37,8 +37,8 @@ const contentEditorFileRowTableParentUpdateEventEmitter =
     new ElementEventEmitter<ContentEditorTableLayout | null>("tableparentupdate");
 
 /**
- * When we have a `fileRowTable` who's parent `table` updates this function
- * should be called so that we can layout our file row again.
+ * When we have a `fileRowTable` who's parent `table` updates this function should
+ * be called so that we can layout our file row again.
  */
 export function dispatchContentEditorFileRowTableParentUpdatedEvent(
     element: Element,
@@ -64,8 +64,8 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
 
         assert(dom instanceof HTMLElement);
 
-        // Make sure the browser doesn't think it's allowed to select or edit inside a
-        // file row.
+        // Make sure the browser doesn't think it's allowed to select or edit inside a file
+        // row.
         dom.contentEditable = "false";
 
         let isDestroyed = false;
@@ -93,8 +93,8 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             if ($pos.depth > 0) {
                 const parentBlockNode = $pos.node(1);
 
-                // If our file is inside a table then `blockWidth` should be equal to the
-                // column width.
+                // If our file is inside a table then `blockWidth` should be equal to the column
+                // width.
                 if (parentBlockNode.type.name === "table") {
                     const tableMap = ContentTableMap.get(parentBlockNode);
 
@@ -130,8 +130,8 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 lastFileReferences !== null &&
                 isShallowEqual(lastFileReferences, fileReferences) &&
                 // If the optimistic table layout changes we need to forward the new
-                // `optimisticTableLayout` to our child file node views. Which will only happen
-                // if `updateFromState()` returns true.
+                // `optimisticTableLayout` to our child file node views. Which will only happen if
+                // `updateFromState()` returns true.
                 lastOptimisticTableLayout === optimisticTableLayout
             ) {
                 return false;
@@ -219,13 +219,13 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 node = newNode;
 
                 if (updateFromState()) {
-                    // Dispatch child events after a microtask since ProseMirror updates parent
-                    // nodes before child nodes. We want to wait until ProseMirror has finished
-                    // updating before we notify our children they need to change.
+                    // Dispatch child events after a microtask since ProseMirror updates parent nodes
+                    // before child nodes. We want to wait until ProseMirror has finished updating
+                    // before we notify our children they need to change.
                     //
-                    // For example, when deleting a file child if we check `dom.childNodes` here
-                    // the deleted child will still be in the list. But if we wait a microtask the
-                    // deleted child won't be in the list.
+                    // For example, when deleting a file child if we check `dom.childNodes` here the
+                    // deleted child will still be in the list. But if we wait a microtask the deleted
+                    // child won't be in the list.
                     scheduleMicrotask(() => {
                         for (const childNode of dom.childNodes) {
                             if (childNode instanceof Element) {
@@ -252,15 +252,14 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 unsubscribeFromReferencesUpdate();
                 unsubscribeFromTableParentUpdatedEvent();
 
-                // When destroying a `fileRow`, we may be converting to a `fileFloat`! In this
-                // case the `file` node may not be destroyed, just moved into the `fileFloat`.
-                // However, the file's layout will change in the new parent so we need to
-                // dispatch an update so the file node can re-render. Since ProseMirror only
-                // calls `update()` on the `file` node view if the `file` itself changes (which
-                // it doesn't only the parent changes in this case).
+                // When destroying a `fileRow`, we may be converting to a `fileFloat`! In this case
+                // the `file` node may not be destroyed, just moved into the `fileFloat`. However,
+                // the file's layout will change in the new parent so we need to dispatch an update
+                // so the file node can re-render. Since ProseMirror only calls `update()` on the
+                // `file` node view if the `file` itself changes (which it doesn't only the parent
+                // changes in this case).
                 //
-                // Wait a microtask, if any child nodes are still in the DOM, tell them
-                // to update!
+                // Wait a microtask, if any child nodes are still in the DOM, tell them to update!
                 {
                     const oldChildNodes = Array.from(dom.childNodes);
 

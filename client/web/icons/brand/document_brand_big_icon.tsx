@@ -5,19 +5,32 @@ import {
     brandIconSplashColorShade,
 } from "~/client/web/icons/brand/internal/brand_icon_splash_color.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {colors} from "~/shared/design/core/colors.js";
+import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 const DocumentBrandBigIconMemo = memo(DocumentBrandBigIcon);
 export {DocumentBrandBigIconMemo as DocumentBrandBigIcon};
 
-function DocumentBrandBigIcon({size = "12"}: {size?: Spacing}) {
+function DocumentBrandBigIcon({
+    size = "12",
+    withoutStyleSheet,
+}: {
+    size?: Spacing;
+    withoutStyleSheet?: "light" | "dark";
+}) {
     const {color: contextColor} = useContext(IconContext);
 
     const color =
-        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
-            ? contextColor
-            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+        withoutStyleSheet !== undefined
+            ? withoutStyleSheet === "light"
+                ? colors[contentStyles.brandIconDefaultColor]
+                : invertedColorsWithShade[contentStyles.brandIconDefaultColor]
+            : contextColor === colorSchemeVars["grey-90"] ||
+                contextColor === colorSchemeVars["grey-100"]
+              ? contextColor
+              : colorSchemeVars[contentStyles.brandIconDefaultColor];
 
     const splashColorClassName = sprinkles({
         fill: mapObjectValues(brandIconSplashColorShade, shade => `blue-${shade}` as const),
@@ -28,12 +41,19 @@ function DocumentBrandBigIcon({size = "12"}: {size?: Spacing}) {
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 48 48"
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{width: spacing[size], height: spacing[size]}}
         >
             <path
-                className={splashColorClassName}
+                className={withoutStyleSheet === undefined ? splashColorClassName : undefined}
+                fill={
+                    withoutStyleSheet === "light"
+                        ? colors[`blue-${brandIconSplashColorShade.light}`]
+                        : withoutStyleSheet === "dark"
+                          ? invertedColorsWithShade[`blue-${brandIconSplashColorShade.dark}`]
+                          : undefined
+                }
                 opacity={brandIconSplashColorOpacity}
                 d="M14.75 12.75a1 1 0 0 1 1-1h16.586a1 1 0 0 1 .707.293l9.914 9.914a1 1 0 0 1 .293.707V45.25a1 1 0 0 1-1 1h-26.5a1 1 0 0 1-1-1v-32.5Z"
             />

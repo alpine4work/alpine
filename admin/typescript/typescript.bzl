@@ -103,6 +103,14 @@ def ts_project(
         tags = tags,
     )
 
+    test_names = []
+    for test_src in test_srcs:
+        test_names.append(_ts_test_name(test_src))
+
+    for test_name in tests.keys():
+        if not (test_name in test_names):
+            fail("tests contains key `{}` but there's no corresponding test file".format(test_name))
+
     if len(test_srcs) > 0:
         ts_typecheck_test(
             name = "{}_tests_typecheck_test".format(name),
@@ -117,11 +125,8 @@ def ts_project(
         )
 
         for test_src in test_srcs:
-            if not test_src.endswith(".test.ts") and not test_src.endswith(".test.tsx"):
-                fail("test source must end in `.test.{ts,tsx}`")
-
-            test_src_js = "{}.js".format(test_src[:len(test_src) - 4] if test_src.endswith(".test.tsx") else test_src[:len(test_src) - 3])
-            test_name = "{}_test".format(test_src_js[:len(test_src_js) - 8])
+            test_src_js = _ts_test_src_js(test_src)
+            test_name = _ts_test_name(test_src)
 
             swc_compile(
                 name = "{}_src".format(test_name),
@@ -129,10 +134,13 @@ def ts_project(
                 js_outs = [test_src_js],
             )
 
-            extra_kwargs = tests[test_name] if test_name in tests else {}
+            extra_kwargs = dict(tests[test_name]) if test_name in tests else {}
             extra_tags = extra_kwargs.pop("tags", default = [])
             extra_node_options = extra_kwargs.pop("node_options", default = [])
             extra_data = extra_kwargs.pop("data", default = [])
+            extra_cpu_tags = (
+                [] if _has_cpu_tag(extra_tags + tags) or not _has_dynamo_test_helpers(test_deps) else ["cpu:2"]
+            )
 
             jest_bin.jest_test(
                 name = test_name,
@@ -189,9 +197,32 @@ def ts_project(
                 # generating conflicting `test_data` copies.
                 no_copy_to_bin = test_data,
                 size = extra_kwargs.pop("size", default = "small"),
-                tags = ["jest", "dev-test"] + extra_tags + tags,
+                tags = ["jest", "dev-test"] + extra_tags + extra_cpu_tags + tags,
                 **extra_kwargs
             )
+
+def _has_dynamo_test_helpers(test_deps):
+    return (
+        "//server/dynamo/test_helpers" in test_deps or
+        "//server/dynamo/test_helpers:test_helpers" in test_deps
+    )
+
+def _has_cpu_tag(tags):
+    for tag in tags:
+        if tag.startswith("cpu:"):
+            return True
+
+    return False
+
+def _ts_test_src_js(test_src):
+    if not test_src.endswith(".test.ts") and not test_src.endswith(".test.tsx"):
+        fail("test source must end in `.test.{ts,tsx}`")
+
+    return "{}.js".format(test_src[:len(test_src) - 4] if test_src.endswith(".test.tsx") else test_src[:len(test_src) - 3])
+
+def _ts_test_name(test_src):
+    test_src_js = _ts_test_src_js(test_src)
+    return "{}_test".format(test_src_js[:len(test_src_js) - 8])
 
 _SWC_ES6_KWARGS = {
     "swcrc": "//admin/typescript:typescript_swc_es6_config",
@@ -220,6 +251,11 @@ def swc(module = "es6", **kwargs):
     else:
         kwargs.update(**_SWC_ES6_KWARGS)
 
+    plugins = kwargs.pop("plugins", default = [])
+    kwargs["plugins"] = list(_dedupe_labels(
+        plugins + ["//admin/swc/plugin:plugin"],
+    ))
+
     # Always generate source maps
     kwargs["source_maps"] = True
 
@@ -240,6 +276,11 @@ def swc_compile(**kwargs):
     """
 
     kwargs.update(**_SWC_ES6_KWARGS)
+
+    plugins = kwargs.pop("plugins", default = [])
+    kwargs["plugins"] = list(_dedupe_labels(
+        plugins + ["//admin/swc/plugin:plugin"],
+    ))
 
     # Needs to be a string before passing into `swc_compile()`
     kwargs["source_maps"] = "true"
@@ -277,6 +318,8 @@ def ts_lint_and_format_test(
             "**/*.jsx",
             "**/*.ts",
             "**/*.tsx",
+            "**/*.cts",
+            "**/*.mts",
             "**/*.mjs",
             "**/*.cjs",
             "**/*.json",
@@ -293,10 +336,7 @@ def ts_lint_and_format_test(
         args = ["--check", native.package_name()],
         copy_data_to_bin = False,
         data = _dedupe_labels(srcs + [
-            "//:prettier.config.cjs",
-            "//:.prettierignore",
-            "//:node_modules/prettier-plugin-embed",
-            "//:node_modules/prettier-plugin-sql",
+            "//:prettier_config_files",
         ]),
         size = "small",
         tags = ["prettier", "dev-check"] + tags,
@@ -313,6 +353,7 @@ def ts_lint_and_format_test(
         for src in srcs
         if src.endswith(".js") or src.endswith(".jsx") or
            src.endswith(".ts") or src.endswith(".tsx") or
+           src.endswith(".cts") or src.endswith(".mts") or
            src.endswith(".mjs") or src.endswith(".cjs")
     ]
 
@@ -336,6 +377,7 @@ def ts_lint_and_format_test(
             entry_point = "//admin/eslint:eslint_test_file",
             data = _dedupe_labels(lint_srcs + [
                 "//:node_modules/@remix-run/eslint-config",
+                "//:node_modules/@remotion/eslint-plugin",
                 "//:node_modules/@typescript-eslint/eslint-plugin",
                 "//:node_modules/eslint",
                 "//:node_modules/eslint-plugin-cyberworlds",

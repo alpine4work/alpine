@@ -1,4 +1,4 @@
-import {ArrowsLeftRight, Gear, Plug, Plus, Robot, Users} from "phosphor-react";
+import {ArrowsLeftRight, Gear, Plus, Robot, SquaresFour, Users} from "phosphor-react";
 import {useRef} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/web/context/app_context.js";
@@ -13,8 +13,8 @@ import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
 import {buttonStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {neverPromise} from "~/shared/helpers/async/never_promise.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {hasIntegrationsSettingsFeature} from "~/shared/integrations/has_integrations_settings_feature.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export function SpaceLayoutSideBarSpaceButton() {
@@ -54,7 +54,7 @@ export function SpaceLayoutSideBarSpaceButton() {
                     label: "Settings",
                     pressErrorTitle: "Couldn\u2019t open settings",
                     onPress: async () => {
-                        await rootNavigate(`/s/${space.id}/settings/general`);
+                        await rootNavigate(`/settings/${space.id}/general`);
                     },
                 },
                 {
@@ -63,7 +63,7 @@ export function SpaceLayoutSideBarSpaceButton() {
                     label: "People",
                     pressErrorTitle: "Couldn\u2019t open people settings",
                     onPress: async () => {
-                        await rootNavigate(`/s/${space.id}/settings/people`);
+                        await rootNavigate(`/settings/${space.id}/people`);
                     },
                 },
                 {
@@ -72,22 +72,18 @@ export function SpaceLayoutSideBarSpaceButton() {
                     label: "Bots",
                     pressErrorTitle: "Couldn\u2019t open bot settings",
                     onPress: async () => {
-                        await rootNavigate(`/s/${space.id}/settings/bots`);
+                        await rootNavigate(`/settings/${space.id}/bots`);
                     },
                 },
-                ...(hasIntegrationsSettingsFeature(space.id)
-                    ? [
-                          {
-                              icon: <Plug />,
-                              size: cast<MenuSize>("lg"),
-                              label: "Integrations",
-                              pressErrorTitle: "Couldn\u2019t open integrations settings",
-                              onPress: async () => {
-                                  await rootNavigate(`/s/${space.id}/settings/integrations`);
-                              },
-                          },
-                      ]
-                    : []),
+                {
+                    icon: <SquaresFour />,
+                    size: cast<MenuSize>("lg"),
+                    label: "Integrations",
+                    pressErrorTitle: "Couldn\u2019t open integrations settings",
+                    onPress: async () => {
+                        await rootNavigate(`/settings/${space.id}/integrations`);
+                    },
+                },
                 [
                     {
                         hasChildren: true,
@@ -125,7 +121,13 @@ export function SpaceLayoutSideBarSpaceButton() {
                                     onPress: async () => {
                                         if (otherSpace.id === space.id) return;
 
-                                        await rootNavigate(`/s/${otherSpace.id}`);
+                                        // We must perform a full page navigation when switching spaces in order to reload
+                                        // the `_space` route with a new `SpaceId`. We can't currently perform single page
+                                        // navigation to a new space because the `_space` route must run in parallel with
+                                        // some other loaders and currently Remix makes a network request for each
+                                        // individual loader on single page navigation.
+                                        window.location.assign(`/home/${otherSpace.id}`);
+                                        await neverPromise;
                                     },
                                 }),
                             );
@@ -138,8 +140,8 @@ export function SpaceLayoutSideBarSpaceButton() {
                                     <Box paddingY="0.5">
                                         <Box
                                             position="relative"
-                                            // Picked so we get the same margin horizontally and vertically between the
-                                            // icon and hover/press background edge.
+                                            // Picked so we get the same margin horizontally and vertically between the icon
+                                            // and hover/press background edge.
                                             width="8"
                                             height="8"
                                             display="flex"

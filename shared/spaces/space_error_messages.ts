@@ -6,8 +6,8 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 /**
- * Error message we show when the user is signed in but doesn't have access to
- * the space they're trying to view.
+ * Error message we show when the user is signed in but doesn't have access to the
+ * space they're trying to view.
  */
 export const spaceAccessPermissionDeniedErrorDisplayMessage = errorDisplayMessage`You don\u2019t have access to this space. Try ${errorDisplayMessage.switchSpaceLink(
     "switching spaces",
@@ -21,7 +21,7 @@ export const spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole: Recor
     ErrorDisplayMessage
 > = {
     Member: spaceAccessPermissionDeniedErrorDisplayMessage,
-    Admin: errorDisplayMessage`You aren\u2019t an admin for this space. Ask an admin in this space to give you admin access too.`,
+    Admin: errorDisplayMessage`You aren\u2019t an admin for this space. Ask an admin in this space to give you admin access.`,
     Owner: errorDisplayMessage`This action is restricted to the owner. You aren\u2019t an owner for this space.`,
 };
 

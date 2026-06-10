@@ -1,6 +1,6 @@
 import {Memo} from "react";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
 import {isTaskQueryManuallySorted} from "~/client/web/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskRowViewDroppable} from "~/client/web/tasks/internal/task_row_view_droppable.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -34,7 +34,7 @@ export function renderTaskRowViewDroppableIndentations({
     parents,
     nextIndentation,
     areChildTasksExpanded,
-    getMoveTaskToRootQueryActions,
+    getMoveTasksToRootQueryActions,
     setRowZIndex,
 }: {
     query: TaskClientQuery;
@@ -43,12 +43,12 @@ export function renderTaskRowViewDroppableIndentations({
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     nextIndentation: number;
     areChildTasksExpanded: boolean;
-    getMoveTaskToRootQueryActions: (
-        taskId: TaskId,
+    getMoveTasksToRootQueryActions: (
+        taskIds: ReadonlyArray<TaskId>,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => {
         actions: Array<TaskActionModel>;
-        position: TaskPosition;
+        positions: Array<TaskPosition>;
     } | null;
     setRowZIndex: Memo<(zIndex: number) => () => void>;
 }) {
@@ -157,7 +157,7 @@ export function renderTaskRowViewDroppableIndentations({
 
                         if (droppableIndentation === 0) {
                             return (
-                                getMoveTaskToRootQueryActions(taskId, {
+                                getMoveTasksToRootQueryActions([taskId], {
                                     type: "Below",
                                     taskId: getTaskQuerySortCursorTaskId(parentCursor),
                                 })?.actions ?? []

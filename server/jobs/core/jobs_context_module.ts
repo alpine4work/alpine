@@ -44,18 +44,17 @@ export class JobsContextModule
      * Sends a job to our job queue for processing. Will be batched with other jobs
      * sent synchronously.
      *
-     * Doesn't guarantee the job was delivered. If the process unexpectedly ends
-     * you may return a successful result to the user without the job being saved
-     * in our queue. If you want to guarantee message delivery call
-     * `sendAndWait()`.
+     * Doesn't guarantee the job was delivered. If the process unexpectedly ends you
+     * may return a successful result to the user without the job being saved in our
+     * queue. If you want to guarantee message delivery call `sendAndWait()`.
      *
-     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent
-     * during this time window. However, adding this delay hurts jobs where latency
-     * matters (e.g. `NotificationEvent` where the job is responsible for sending
-     * push notifications and bot webhooks). Batching every 100ms was purely a cost
+     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent during
+     * this time window. However, adding this delay hurts jobs where latency matters
+     * (e.g. `NotificationEvent` where the job is responsible for sending push
+     * notifications and bot webhooks). Batching every 100ms was purely a cost
      * optimization. Given SQS is cheap compared to other services we use (like
-     * DynamoDB) our new perspective is we're going to favor speed over cost until
-     * SQS costs become an issue.
+     * DynamoDB) our new perspective is we're going to favor speed over cost until SQS
+     * costs become an issue.
      */
     public send(job: JobDescription, options?: {delaySeconds?: number}): void {
         this._sender.send(this._context, job, options);
@@ -65,26 +64,25 @@ export class JobsContextModule
      * Sends a job to our job queue for processing. Will be batched with other jobs
      * sent synchronously.
      *
-     * Returns a promise that resolves only once the job has been sent to the
-     * queue. When this function resolves, you're guaranteed the message has been
-     * delivered.
+     * Returns a promise that resolves only once the job has been sent to the queue.
+     * When this function resolves, you're guaranteed the message has been delivered.
      *
-     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent
-     * during this time window. However, adding this delay hurts jobs where latency
-     * matters (e.g. `NotificationEvent` where the job is responsible for sending
-     * push notifications and bot webhooks). Batching every 100ms was purely a cost
+     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent during
+     * this time window. However, adding this delay hurts jobs where latency matters
+     * (e.g. `NotificationEvent` where the job is responsible for sending push
+     * notifications and bot webhooks). Batching every 100ms was purely a cost
      * optimization. Given SQS is cheap compared to other services we use (like
-     * DynamoDB) our new perspective is we're going to favor speed over cost until
-     * SQS costs become an issue.
+     * DynamoDB) our new perspective is we're going to favor speed over cost until SQS
+     * costs become an issue.
      */
     public sendAndWait(job: JobDescription, options?: {delaySeconds?: number}): Promise<void> {
         return this._sender.sendAndWait(this._context, job, options);
     }
 
     /**
-     * Send a maintenance job to our job queue. It's dangerous to schedule
-     * maintenance jobs since maintenance jobs have access to all data across our
-     * system! Users should not be able to arbitrarily schedule maintenance jobs.
+     * Send a maintenance job to our job queue. It's dangerous to schedule maintenance
+     * jobs since maintenance jobs have access to all data across our system! Users
+     * should not be able to arbitrarily schedule maintenance jobs.
      */
     public dangerouslySendMaintenance(
         job: MaintenanceJobDescription,
@@ -98,8 +96,8 @@ export class JobsContextModule
     }
 
     /**
-     * Create a jobs context module for tests. You can lazily initialize the
-     * jobs client in a test.
+     * Create a jobs context module for tests. You can lazily initialize the jobs
+     * client in a test.
      *
      * May only run in a test environment.
      */

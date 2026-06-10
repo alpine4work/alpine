@@ -96,9 +96,8 @@ export {OverlayTriggerButtonForwardRef as OverlayTriggerButton};
  * An overlay trigger button opens an overlay when pressed and moves focus into
  * that overlay.
  *
- * The most common implementation of an overlay trigger button is
- * `<MenuButton>`. But we have this lower level component for implementing
- * other menu-like things.
+ * The most common implementation of an overlay trigger button is `<MenuButton>`.
+ * But we have this lower level component for implementing other menu-like things.
  */
 // We quote the pieces of the [WAI-ARIA menu button pattern][1] we implement in
 // this source code.
@@ -128,32 +127,31 @@ function OverlayTriggerButton(
         animateOverlayOut: animateOverlayOutFromProps,
     }: {
         /**
-         * If true then the overlay is closed and won't open when the button
-         * is pressed.
+         * If true then the overlay is closed and won't open when the button is pressed.
          */
         isDisabled?: boolean;
 
         /**
-         * The overlay element the trigger will render. Must provide a ref to an
-         * HTML element or we will throw an error.
+         * The overlay element the trigger will render. Must provide a ref to an HTML
+         * element or we will throw an error.
          */
         overlay: ReactElement | ((props: OverlayTriggerButtonOverlayProps) => ReactElement);
 
         /**
-         * You must specify the kind of popup opened by the trigger based on the
-         * aria specification.
+         * You must specify the kind of popup opened by the trigger based on the aria
+         * specification.
          */
         "aria-haspopup": NonNullable<AriaAttributes["aria-haspopup"]>;
 
         /**
-         * Where should the overlay be placed relative to the target element?
-         * Defaults to `bottom-start`.
+         * Where should the overlay be placed relative to the target element? Defaults to
+         * `bottom-start`.
          */
         placement?: OverlayPlacement;
 
         /**
-         * Placements to try if `placement` would put the overlay out of bounds. If
-         * it's an empty array then the overlay will never flip from `placement`.
+         * Placements to try if `placement` would put the overlay out of bounds. If it's an
+         * empty array then the overlay will never flip from `placement`.
          *
          * If undefined the overlay can flip anywhere.
          *
@@ -179,15 +177,15 @@ function OverlayTriggerButton(
 
         /**
          * The `zIndex` to use for the overlay wrapper `<div>`. Setting `zIndex` on the
-         * element you pass into `overlay` won't work since there's a wrapper `<div>`
-         * added by `<OverlayAnimated>`.
+         * element you pass into `overlay` won't work since there's a wrapper `<div>` added
+         * by `<OverlayAnimated>`.
          */
         overlayZIndex?: Sprinkles["zIndex"];
 
         /**
          * The `pointerEvents` to use for the overlay wrapper `<div>`. Setting
-         * `pointerEvents` on the element you pass into `overlay` won't work since
-         * there's a wrapper `<div>` added by `<OverlayAnimated>`.
+         * `pointerEvents` on the element you pass into `overlay` won't work since there's
+         * a wrapper `<div>` added by `<OverlayAnimated>`.
          */
         overlayPointerEvents?: Sprinkles["pointerEvents"];
 
@@ -197,22 +195,20 @@ function OverlayTriggerButton(
         withoutButtonElementRequirement?: boolean;
 
         /**
-         * The button element which opens and closes the overlay. Must provide a ref to
-         * an HTML `<button>` element or we will throw an error.
+         * The button element which opens and closes the overlay. Must provide a ref to an
+         * HTML `<button>` element or we will throw an error.
          */
         children: ReactElement | ((props: OverlayTriggerButtonChildrenProps) => ReactElement);
 
         /**
-         * Called before the overlay opens. Like when the button is clicked with a
-         * mouse or focused and had "Enter" pressed. You can stop the overlay from
-         * opening by returning `{preventDefault: true}`. For example, if you need to
-         * load some data.
+         * Called before the overlay opens. Like when the button is clicked with a mouse or
+         * focused and had "Enter" pressed. You can stop the overlay from opening by
+         * returning `{preventDefault: true}`. For example, if you need to load some data.
          */
         onOpen?: () => {preventDefault: boolean} | void;
 
         /**
-         * Called before the overlay closes. Like when a click happens outside the
-         * overlay.
+         * Called before the overlay closes. Like when a click happens outside the overlay.
          */
         onClose?: (options: {withoutAnimation: boolean}) => void;
 
@@ -223,22 +219,22 @@ function OverlayTriggerButton(
         onStateChange?: (state: OverlayTriggerButtonState) => void;
 
         /**
-         * Observe when the overlay trigger's internal overlay actually switches
-         * between visible true and visible false. Will only call this with false once
-         * the overlay has finished animating.
+         * Observe when the overlay trigger's internal overlay actually switches between
+         * visible true and visible false. Will only call this with false once the overlay
+         * has finished animating.
          */
         onActuallyVisibleChange?: (isActuallyVisible: boolean) => void;
 
         /**
-         * Called when the `pointerdown` event is dispatched on the overlay trigger
-         * button. Called by a DOM event listener, not a React synthetic event
-         * listener. Called before the overlay opens.
+         * Called when the `pointerdown` event is dispatched on the overlay trigger button.
+         * Called by a DOM event listener, not a React synthetic event listener. Called
+         * before the overlay opens.
          */
         onPointerDown?: (event: PointerEvent) => void;
 
         /**
-         * Called when the escape key is pressed while our overlay is open. Can be used
-         * to prevent the default `<OverlayTriggerButton>` behavior on escape key down.
+         * Called when the escape key is pressed while our overlay is open. Can be used to
+         * prevent the default `<OverlayTriggerButton>` behavior on escape key down.
          */
         onOverlayEscapeGlobalKeyDown?: (event: KeyboardEvent) => void | {allowDefault: boolean};
 
@@ -249,14 +245,14 @@ function OverlayTriggerButton(
         onOverlayTabGlobalKeyDown?: (event: KeyboardEvent) => void | {allowDefault: boolean};
 
         /**
-         * Called when the user presses outside the overlay. Allows you to prevent
-         * closing the overlay on outside press.
+         * Called when the user presses outside the overlay. Allows you to prevent closing
+         * the overlay on outside press.
          */
         onOverlayOutsidePress?: () => void | {preventDefault: boolean};
 
         /**
-         * Custom fade out animation for the overlay. The overlay will actually close
-         * once the animation finishes.
+         * Custom fade out animation for the overlay. The overlay will actually close once
+         * the animation finishes.
          */
         animateOverlayOut?: () => AnimationPlaybackControls;
     },
@@ -296,10 +292,10 @@ function OverlayTriggerButton(
             if (isDisabled) return;
             if (state.isExpanded) return;
 
-            // Borrowing the language of DOM event handling here. `onOpen` may
-            // `preventDefault` stopping expansion from actually happening. But when you
-            // call `open()` you may `stopPropagation` to prevent the `onOpen` callback
-            // (which may `preventDefault`) from being called.
+            // Borrowing the language of DOM event handling here. `onOpen` may `preventDefault`
+            // stopping expansion from actually happening. But when you call `open()` you may
+            // `stopPropagation` to prevent the `onOpen` callback (which may `preventDefault`)
+            // from being called.
             if (stopPropagation) {
                 setState({isExpanded: true, initiallyFocus});
             } else {
@@ -371,9 +367,8 @@ function OverlayTriggerButton(
 
     const overlayTriggerLifecycleRef = useCallback(
         (overlayTriggerElement: HTMLElement) => {
-            // We require an HTML `<button>` element for accessibility. Another option
-            // is allowing arbitrary HTML elements that have the appropriate role and
-            // tab-index.
+            // We require an HTML `<button>` element for accessibility. Another option is
+            // allowing arbitrary HTML elements that have the appropriate role and tab-index.
             if (withoutButtonElementRequirement) {
                 assert(
                     overlayTriggerElement instanceof HTMLElement,
@@ -394,10 +389,11 @@ function OverlayTriggerButton(
             const overlayElement = overlayRef.current;
 
             // - With focus on the button:
-            //   - Enter: opens the menu and places focus on the first menu item.
-            //   - Space: Opens the menu and places focus on the first menu item.
-            //   - (Optional) Down Arrow: opens the menu and moves focus to the first menu item.
-            //   - (Optional) Up Arrow: opens the menu and moves focus to the last menu item.
+            //     - Enter: opens the menu and places focus on the first menu item.
+            //     - Space: Opens the menu and places focus on the first menu item.
+            //     - (Optional) Down Arrow: opens the menu and moves focus to the first menu
+            //       item.
+            //     - (Optional) Up Arrow: opens the menu and moves focus to the last menu item.
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-13
             function handleKeyDown(event: KeyboardEvent) {
@@ -493,9 +489,9 @@ function OverlayTriggerButton(
 
                 onPointerDown?.(event);
 
-                // Expand on `pointerdown` if this is the mouse. Expand on `pointerup` if this
-                // is touch. Because a touch press gesture might actually be a scroll. If the
-                // user starts scrolling that cancels our press.
+                // Expand on `pointerdown` if this is the mouse. Expand on `pointerup` if this is
+                // touch. Because a touch press gesture might actually be a scroll. If the user
+                // starts scrolling that cancels our press.
                 if (event.pointerType === "mouse") {
                     pointerExpand();
                 }
@@ -505,9 +501,9 @@ function OverlayTriggerButton(
                 const wasPointerDown = isPointerDown;
                 isPointerDown = false;
 
-                // Expand on `pointerdown` if this is the mouse. Expand on `pointerup` if this
-                // is touch. Because a touch press gesture might actually be a scroll. If the
-                // user starts scrolling that cancels our press.
+                // Expand on `pointerdown` if this is the mouse. Expand on `pointerup` if this is
+                // touch. Because a touch press gesture might actually be a scroll. If the user
+                // starts scrolling that cancels our press.
                 if (wasPointerDown && event.pointerType !== "mouse") {
                     pointerExpand();
                 }
@@ -529,17 +525,16 @@ function OverlayTriggerButton(
                     // If the button already has an ID, we won't override that.
                     id: overlayTriggerId,
                     // - The element that opens the overlay has role button.
-                    // - The element with role `button` has `aria-haspopup` set to either
-                    //   `"menu"` or `true`.
-                    // - When the menu is displayed, the element with role button has
-                    //   `aria-expanded` set to true. When the menu is hidden, it is
-                    //   recommended that `aria-expanded` is not present. If
-                    //   `aria-expanded` is specified when the menu is hidden, it is set
-                    //   to false.
-                    // - The element that contains the menu items displayed by activating
-                    //   the button has role `menu`.
-                    // - Optionally, the element with role `button` has a value specified
-                    //   for `aria-controls` that refers to the element with role `menu`.
+                    // - The element with role `button` has `aria-haspopup` set to either `"menu"` or
+                    //   `true`.
+                    // - When the menu is displayed, the element with role button has `aria-expanded`
+                    //   set to true. When the menu is hidden, it is recommended that `aria-expanded`
+                    //   is not present. If `aria-expanded` is specified when the menu is hidden, it is
+                    //   set to false.
+                    // - The element that contains the menu items displayed by activating the button
+                    //   has role `menu`.
+                    // - Optionally, the element with role `button` has a value specified for
+                    //   `aria-controls` that refers to the element with role `menu`.
                     //
                     // https://www.w3.org/TR/wai-aria-practices-1.2/#menubutton
                     "aria-haspopup": String(ariaHasPopup),
@@ -550,13 +545,13 @@ function OverlayTriggerButton(
 
             const cleanupOverlayAttributes = overlayElement
                 ? setElementAttributesWithCleanup(overlayElement, {
-                      // An element with role menu has `aria-labelledby` set to a value
-                      // that refers to the button that controls its display.
+                      // An element with role menu has `aria-labelledby` set to a value that refers to
+                      // the button that controls its display.
                       //
                       // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                       //
-                      // We have to set this in our lifecycle ref because we don't have
-                      // the button's ID at render time.
+                      // We have to set this in our lifecycle ref because we don't have the button's ID
+                      // at render time.
                       "aria-labelledby": overlayTriggerId,
                   })
                 : null;
@@ -599,8 +594,8 @@ function OverlayTriggerButton(
         ],
     );
 
-    // Close the overlay if there's a click somewhere else in the document outside
-    // the overlay or overlay button.
+    // Close the overlay if there's a click somewhere else in the document outside the
+    // overlay or overlay button.
     const outsidePressRef = useOutsidePress(event => {
         if (isDisabled) return;
         if (!state.isExpanded) return;
@@ -615,9 +610,9 @@ function OverlayTriggerButton(
         const result = onOverlayOutsidePress?.();
         if (result?.preventDefault) return;
 
-        // Courtesy blur call if the focused element is in the overlay. Useful on
-        // mobile Safari since if the focused element is removed from the DOM there
-        // won't be a `focusout` event.
+        // Courtesy blur call if the focused element is in the overlay. Useful on mobile
+        // Safari since if the focused element is removed from the DOM there won't be a
+        // `focusout` event.
         if (
             overlayElement &&
             document.activeElement instanceof HTMLElement &&
@@ -688,8 +683,8 @@ function OverlayTriggerButton(
                         pendingTriggeredOverlayCloseRef.current = null;
                     }
 
-                    // Overlay trigger buttons may attach custom event listeners to their DOM
-                    // element if they'd like to know if their overlay is open or closed.
+                    // Overlay trigger buttons may attach custom event listeners to their DOM element
+                    // if they'd like to know if their overlay is open or closed.
                     if (isActuallyVisible) {
                         dispatchTriggeredOverlayOpenEvent(overlayTriggerElement);
                     } else {
@@ -701,24 +696,24 @@ function OverlayTriggerButton(
                             };
 
                             // The double `requestAnimationFrame()` is for overlay triggers which use
-                            // `<IconButton variant="quiet">` or `<Button variant="quiet">`. These
-                            // components show a background color when they're either hovered or their
-                            // overlay is open. When their overlay is open, because `isBlocking` is true
-                            // there's a cover element over the DOM to prevent pointer interactions from
-                            // going to the underlying UI. When the overlay closes, this cover element is
-                            // removed and `pointerover` is fired on the button (if the mouse hasn't moved)
-                            // so it considers itself hovered again. However, there's a small delay between
-                            // the cover being removed and `pointerover` being fired. Two animation frames
-                            // of delay in fact. So wait two animation frames so the button's background
-                            // doesn't flicker when the overlay closes.
+                            // `<IconButton variant="quiet">` or `<Button variant="quiet">`. These components
+                            // show a background color when they're either hovered or their overlay is open.
+                            // When their overlay is open, because `isBlocking` is true there's a cover element
+                            // over the DOM to prevent pointer interactions from going to the underlying UI.
+                            // When the overlay closes, this cover element is removed and `pointerover` is
+                            // fired on the button (if the mouse hasn't moved) so it considers itself hovered
+                            // again. However, there's a small delay between the cover being removed and
+                            // `pointerover` being fired. Two animation frames of delay in fact. So wait two
+                            // animation frames so the button's background doesn't flicker when the overlay
+                            // closes.
                             //
                             // Video reproduction of the bug:
                             // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/abaeqqrmkpetc1x1wm0nkzfbbc
                             //
-                            // However, if the overlay was closed without animation then we want to remove
-                            // the background color on our button the same frame the overlay closes. Which
-                            // is why we make sure `state.disableAnimationOut` is false before entering
-                            // this code path.
+                            // However, if the overlay was closed without animation then we want to remove the
+                            // background color on our button the same frame the overlay closes. Which is why
+                            // we make sure `state.disableAnimationOut` is false before entering this code
+                            // path.
                             requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
                                     if (pendingTriggeredOverlayCloseRef.current !== null) {
@@ -785,8 +780,8 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
                     // Intentional fallthrough to next case...
                 }
                 case "FirstFocusableElement": {
-                    // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
-                    // a focused input we need to wait an animation frame before calling `focus()`.
+                    // NOTE(calebmer): For some reason for iOS Safari to render the text caret in a
+                    // focused input we need to wait an animation frame before calling `focus()`.
                     // Otherwise we focus but don't show the cursor. This happens with the task
                     // collection filter editor.
                     if (!isMobileWebKit) {
@@ -803,8 +798,8 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
                     break;
                 }
                 case "LastFocusableElement": {
-                    // NOTE(calebmer): For some reason for iOS Safari to render the text caret in
-                    // a focused input we need to wait an animation frame before calling `focus()`.
+                    // NOTE(calebmer): For some reason for iOS Safari to render the text caret in a
+                    // focused input we need to wait an animation frame before calling `focus()`.
                     // Otherwise we focus but don't show the cursor. This happens with the task
                     // collection filter editor.
                     if (!isMobileWebKit) {
@@ -827,9 +822,9 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
             }
         };
 
-        // Focus after a microtask. This allows any parent layout effects to run. Which
-        // is important since our parent component `<Overlay>`'s layout effects need to
-        // run for the `data-ownedby` attribute to be set and Popper to run its layout.
+        // Focus after a microtask. This allows any parent layout effects to run. Which is
+        // important since our parent component `<Overlay>`'s layout effects need to run
+        // for the `data-ownedby` attribute to be set and Popper to run its layout.
         scheduleMicrotask(run);
     }, [initiallyFocus]);
 
@@ -837,19 +832,19 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
     // application.
     useShouldDisableTooltips();
 
-    // Our overlay opened by an overlay trigger blocks all other UI on the page
-    // with the `isBlocking` prop on `<Overlay>`. It should consume all keyboard
-    // events as well.
+    // Our overlay opened by an overlay trigger blocks all other UI on the page with
+    // the `isBlocking` prop on `<Overlay>`. It should consume all keyboard events as
+    // well.
     //
     // If we can't handle a key event, we dispatch call `dispatchEvent()` on our
     // overlay element so it can handle the event.
-    const handleGlobalKeyDown = useEvent((event: KeyboardEvent) => {
+    const handleGlobalKeyDownCapture = useEvent((event: KeyboardEvent) => {
         // If we're re-dispatching a `keydown` event then don't run our handler again.
         if (isReDispatchingKeyboardEvent) return;
 
         switch (event.key) {
-            // Close the menu that contains focus and return focus to the element
-            // or context, e.g., menu button, from which the menu was opened.
+            // Close the menu that contains focus and return focus to the element or context,
+            // e.g., menu button, from which the menu was opened.
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             case "Escape": {
@@ -862,8 +857,8 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
                 }
                 return;
             }
-            // Moves focus to the next (or previous) element in the tab sequence,
-            // and closes its `menu` and all open parent menu containers.
+            // Moves focus to the next (or previous) element in the tab sequence, and closes
+            // its `menu` and all open parent menu containers.
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             case "Tab": {
@@ -882,14 +877,13 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
             default: {
                 const overlayElement = assertExists(overlayRef.current);
 
-                // If focus is already within the overlay then we don't need to
-                // re-dispatch the event. The event will already be dispatched
-                // properly.
+                // If focus is already within the overlay then we don't need to re-dispatch the
+                // event. The event will already be dispatched properly.
                 //
                 // TODO(calebmer): To be honest, I've forgotten what the purpose of this
-                // re-dispatching code was. Was it to prevent `keydown` events from bubbling up
-                // to `<GlobalKeyDownEvent>` components? Consider removing this code entirely
-                // if we can't figure out how it's used.
+                // re-dispatching code was. Was it to prevent `keydown` events from bubbling up to
+                // `<GlobalKeyDownEvent>` components? Consider removing this code entirely if we
+                // can't figure out how it's used.
                 if (
                     document.activeElement &&
                     isElementOwnedBy(overlayElement, document.activeElement)
@@ -899,14 +893,14 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
 
                 event.stopPropagation();
 
-                // Allow our overlay element to handle the keyboard event but don't let anyone
-                // else handle keyboard events.
+                // Allow our overlay element to handle the keyboard event but don't let anyone else
+                // handle keyboard events.
                 isReDispatchingKeyboardEvent = true;
                 try {
                     const newEvent = new KeyboardEvent("keydown", event);
 
-                    // If focus is within the overlay then dispatch the keyboard event from the
-                    // focused element. Otherwise dispatch it from the overlay root.
+                    // If focus is within the overlay then dispatch the keyboard event from the focused
+                    // element. Otherwise dispatch it from the overlay root.
                     (document.activeElement &&
                     isElementOwnedBy(overlayElement, document.activeElement)
                         ? document.activeElement
@@ -925,15 +919,15 @@ const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOver
     });
 
     useEffect(() => {
-        document.addEventListener("keydown", handleGlobalKeyDown, {capture: true});
+        document.addEventListener("keydown", handleGlobalKeyDownCapture, {capture: true});
         return () => {
-            document.removeEventListener("keydown", handleGlobalKeyDown, {capture: true});
+            document.removeEventListener("keydown", handleGlobalKeyDownCapture, {capture: true});
         };
-    }, [handleGlobalKeyDown]);
+    }, [handleGlobalKeyDownCapture]);
 
     return (
-        // While tooltips are disabled outside our overlay, we still want to allow
-        // tooltips within our overlay.
+        // While tooltips are disabled outside our overlay, we still want to allow tooltips
+        // within our overlay.
         <TooltipCoordinationContextProvider>
             {useElementWithRef(overlay, useMergedRefs(overlayRef, externalRef))}
         </TooltipCoordinationContextProvider>

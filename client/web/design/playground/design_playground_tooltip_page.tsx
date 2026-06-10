@@ -76,8 +76,8 @@ export function DesignPlaygroundTooltipPage() {
                 </label>
             </div>
             <DesignPlaygroundScrollPreview
-                // Recenter the content if we're switching between vertical and
-                // horizontal placements.
+                // Recenter the content if we're switching between vertical and horizontal
+                // placements.
                 key={String(overlayPlacementVertical)}
                 shouldRenderOverlaysInDocumentBody={shouldRenderOverlaysInDocumentBody}
             >

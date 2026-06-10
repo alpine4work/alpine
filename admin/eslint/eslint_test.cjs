@@ -13,9 +13,9 @@ const eslintTypeCheckingRuleIds = new Set(
     Object.keys(typescriptEslint.configs["disable-type-checked"].rules),
 );
 
-// This is a list of rules we want to run in --fix mode (opt-in). These are considered safe.
-// All other rules will be disabled in --fix mode. If you want to run ALL auto-fixable rules,
-// use --fix-all mode.
+// This is a list of rules we want to run in --fix mode (opt-in). These are
+// considered safe. All other rules will be disabled in --fix mode. If you want to
+// run ALL auto-fixable rules, use --fix-all mode.
 const allowedFixRules = [
     "cyberworlds/sort-imports-by-source",
     "sort-imports",
@@ -33,14 +33,14 @@ async function main() {
     // require type checking.
     globalThis.__eslintDisableTypeChecking = true;
 
-    // Since we run ESLint twice with different configurations, there are some
-    // missing rules in this configuration. We don't want to report unused
-    // directive errors unless they're related to the rules we're running in
-    // this configuration (all rules except `@typescript-eslint/eslint-plugin`'s
-    // rules that require type checking).
+    // Since we run ESLint twice with different configurations, there are some missing
+    // rules in this configuration. We don't want to report unused directive errors
+    // unless they're related to the rules we're running in this configuration (all
+    // rules except `@typescript-eslint/eslint-plugin`'s rules that require type
+    // checking).
     //
-    // These globals are added by a patch. There isn't an official ESLint feature
-    // to get this behavior.
+    // These globals are added by a patch. There isn't an official ESLint feature to
+    // get this behavior.
     globalThis.__eslintIgnoreUnusedDirective = ruleId => {
         return eslintTypeCheckingRuleIds.has(ruleId);
     };
@@ -68,8 +68,8 @@ async function main() {
     const ruleOverrides = {};
 
     if (fixMode) {
-        // --fix mode: opt-in only specific rules, disable all others
-        // Get the configuration to see what rules are currently enabled
+        // --fix mode: opt-in only specific rules, disable all others Get the configuration
+        // to see what rules are currently enabled
         const config = await eslintForRules.calculateConfigForFile(inputPaths[0] || "dummy.ts");
 
         // Disable all rules except the allowed ones
@@ -107,8 +107,8 @@ async function main() {
         newResults.push({
             ...result,
             messages: result.messages,
-            // Use a nice, short, relative path instead of a long, obscure, path into a
-            // Bazel test sandbox.
+            // Use a nice, short, relative path instead of a long, obscure, path into a Bazel
+            // test sandbox.
             filePath: process.env.RUNFILES
                 ? path.relative(path.join(runfilesPath, "cyberworlds"), result.filePath)
                 : path.relative(workspacePath, result.filePath),

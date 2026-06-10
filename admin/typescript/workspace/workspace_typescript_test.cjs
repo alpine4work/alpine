@@ -64,21 +64,21 @@ async function main() {
     }
 
     // Create a `parserOptions` object which has removed our existing TypeScript
-    // configuration and add `program`. So we can reuse the type checking work
-    // we've already done.
+    // configuration and add `program`. So we can reuse the type checking work we've
+    // already done.
     const {tsconfigRootDir, project, ...eslintTypeCheckingConfigOverrideParserOptions} =
         eslintTypeCheckingConfigOverride.parserOptions;
 
     eslintTypeCheckingConfigOverrideParserOptions.programs = [program];
 
-    // Since we run ESLint twice with different configurations, there are some
-    // missing rules in this configuration. We don't want to report missing rule
-    // errors or unused directive errors unless they're related to the rules we're
-    // running in this configuration (`@typescript-eslint/eslint-plugin`'s rules
-    // that require type checking).
+    // Since we run ESLint twice with different configurations, there are some missing
+    // rules in this configuration. We don't want to report missing rule errors or
+    // unused directive errors unless they're related to the rules we're running in
+    // this configuration (`@typescript-eslint/eslint-plugin`'s rules that require type
+    // checking).
     //
-    // These globals are added by a patch. There isn't an official ESLint feature
-    // to get this behavior.
+    // These globals are added by a patch. There isn't an official ESLint feature to
+    // get this behavior.
     {
         globalThis.__eslintIgnoreMissingRule = ruleId => {
             return !eslintTypeCheckingRuleIds.has(ruleId);
@@ -115,8 +115,8 @@ async function main() {
 
         newResults.push({
             ...result,
-            // Use a nice, short, relative path instead of a long, obscure, path into a
-            // Bazel test sandbox.
+            // Use a nice, short, relative path instead of a long, obscure, path into a Bazel
+            // test sandbox.
             filePath: path.relative(path.join(runfilesPath, "cyberworlds"), result.filePath),
         });
     }

@@ -2838,7 +2838,7 @@ exports[`account long mention 1`] = `
     class="content_paragraph"
   >
     <a
-      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/chat/with/nyghmwnpt2pwy22qrn9b6j9254"
+      href="/chat/with/nyghmwnpt2pwy22qrn9b6j9254/pv9hmw9x4nkzpnn404ntddmbp0?focus"
     >
       <span>
         <span>
@@ -2857,6 +2857,7 @@ exports[`account long mention 1`] = `
                     <img
                       alt="Pink cat who’s happy"
                       draggable="false"
+                      style="width: 5rem; height: 5rem"
                     />
                   </span>
                 </span>
@@ -2911,7 +2912,7 @@ exports[`account short mention 1`] = `
     class="content_paragraph"
   >
     <a
-      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/chat/with/nyghmwnpt2pwy22qrn9b6j9254"
+      href="/chat/with/nyghmwnpt2pwy22qrn9b6j9254/pv9hmw9x4nkzpnn404ntddmbp0?focus"
     >
       <span>
         <span>
@@ -2930,6 +2931,7 @@ exports[`account short mention 1`] = `
                     <img
                       alt="Pink cat who’s happy"
                       draggable="false"
+                      style="width: 5rem; height: 5rem"
                     />
                   </span>
                 </span>
@@ -4870,7 +4872,7 @@ exports[`file float (left direction) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
       />
     </div>
   </div>
@@ -4921,7 +4923,7 @@ exports[`file float (right direction) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
       />
     </div>
   </div>
@@ -4959,7 +4961,7 @@ exports[`file row (one file) 1`] = `
 >
   <div
     class="content_fileRowLike"
-    style="height: 512px; grid-template-columns: 0.853333fr;"
+    style="height: 512px; grid-template-columns: 1fr;"
   >
     <div
       class="content_file"
@@ -4972,7 +4974,11 @@ exports[`file row (one file) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
+      />
+      <img
+        aria-hidden="true"
+        style="clip-path: path('M 0 0 H 44 V 512 H 0 Z M 556 0 H 600 V 512 H 556 Z')"
       />
     </div>
   </div>
@@ -4990,7 +4996,7 @@ exports[`file row (one file): clipboard 1`] = `
       height="512"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
       style="display: block;"
-      width="512"
+      width="600"
     />
   </div>
 </div>
@@ -5010,7 +5016,7 @@ exports[`file row (one file, audio type) 1`] = `
 >
   <div
     class="content_fileRowLike"
-    style="height: 188.679px; grid-template-columns: 1fr;"
+    style="height: 252px; grid-template-columns: 1fr;"
   >
     <div
       class="content_file"
@@ -5146,7 +5152,7 @@ exports[`file row (one file, audio type): clipboard 1`] = `
       controls=""
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdt0nc1d3zr0vh2j2jrtvg?exp=1727880774&sig=test-audio"
-      style="display: block; width: 600px; height: 189px;"
+      style="display: block; width: 600px; height: 252px;"
     />
   </div>
 </div>
@@ -5170,6 +5176,7 @@ exports[`file row (one file, channel entity) 1`] = `
   >
     <div
       class="content_file"
+      data-testid="ContentFileEntityPreview:Channel"
     >
       <span
         style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
@@ -5191,7 +5198,7 @@ exports[`file row (one file, channel entity): clipboard 1`] = `
   >
     <iframe
       height="192"
-      src="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/channels/xh0gwk1xajfh6s7fat4c1f0hyr"
+      src="http://localhost/channel/xh0gwk1xajfh6s7fat4c1f0hyr"
       style="display: block;"
       width="600"
     />
@@ -5213,7 +5220,7 @@ exports[`file row (one file, image type) 1`] = `
 >
   <div
     class="content_fileRowLike"
-    style="height: 512px; grid-template-columns: 0.853333fr;"
+    style="height: 512px; grid-template-columns: 1fr;"
   >
     <div
       class="content_file"
@@ -5226,7 +5233,11 @@ exports[`file row (one file, image type) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
+      />
+      <img
+        aria-hidden="true"
+        style="clip-path: path('M 0 0 H 44 V 512 H 0 Z M 556 0 H 600 V 512 H 556 Z')"
       />
     </div>
   </div>
@@ -5244,7 +5255,7 @@ exports[`file row (one file, image type): clipboard 1`] = `
       height="512"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vd0kf4fdbwb7f1jqtzgt7g?exp=1727880757&sig=test-image"
       style="display: block;"
-      width="512"
+      width="600"
     />
   </div>
 </div>
@@ -5264,7 +5275,7 @@ exports[`file row (one file, null reference) 1`] = `
 >
   <div
     class="content_fileRowLike"
-    style="height: 133.333px; grid-template-columns: 0.333333fr;"
+    style="height: 133.333px; grid-template-columns: 1fr;"
   >
     <div
       class="content_file"
@@ -5292,7 +5303,7 @@ exports[`file row (one file, null reference): clipboard 1`] = `
     <object
       height="133"
       style="display: block;"
-      width="200"
+      width="600"
     />
   </div>
 </div>
@@ -5312,7 +5323,7 @@ exports[`file row (one file, video type) 1`] = `
 >
   <div
     class="content_fileRowLike"
-    style="height: 512px; grid-template-columns: 0.853333fr;"
+    style="height: 512px; grid-template-columns: 1fr;"
   >
     <div
       class="content_file"
@@ -5325,7 +5336,11 @@ exports[`file row (one file, video type) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
+      />
+      <img
+        aria-hidden="true"
+        style="clip-path: path('M 0 0 H 44 V 512 H 0 Z M 556 0 H 600 V 512 H 556 Z')"
       />
       <div
         class="greyElevated2"
@@ -5460,7 +5475,7 @@ exports[`file row (one file, video type): clipboard 1`] = `
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       height="512"
       style="display: block;"
-      width="512"
+      width="600"
     >
       <source
         src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdm01x4ngm31kmm41wsg3m?exp=1727880767&sig=test-video"
@@ -5497,7 +5512,7 @@ exports[`file row (three files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
       />
     </div>
     <div
@@ -5511,7 +5526,7 @@ exports[`file row (three files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
       />
     </div>
     <div
@@ -5525,7 +5540,7 @@ exports[`file row (three files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
       />
     </div>
   </div>
@@ -5592,7 +5607,7 @@ exports[`file row (two files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
       />
     </div>
     <div
@@ -5606,7 +5621,7 @@ exports[`file row (two files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        style="max-width: 600px; max-height: 600px"
+        style="max-width: 1200px; max-height: 1200px"
       />
     </div>
   </div>
@@ -7026,7 +7041,7 @@ exports[`private search entity mention 1`] = `
     class="content_paragraph"
   >
     <a
-      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+      href="/doc/qkanxhj066jh311428tsr0psp4"
     >
       <span>
         <span>
@@ -7076,7 +7091,7 @@ exports[`private search entity mention: clipboard 1`] = `
   <p>
     <a
       data-cy-mention=""
-      href="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+      href="http://localhost/doc/qkanxhj066jh311428tsr0psp4"
     >
       Private document
     </a>
@@ -7246,7 +7261,7 @@ exports[`search entity mention 1`] = `
     class="content_paragraph"
   >
     <a
-      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+      href="/doc/qkanxhj066jh311428tsr0psp4"
     >
       <span>
         <span>
@@ -7283,7 +7298,7 @@ exports[`search entity mention: clipboard 1`] = `
   <p>
     <a
       data-cy-mention=""
-      href="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+      href="http://localhost/doc/qkanxhj066jh311428tsr0psp4"
     >
       foobar
     </a>
@@ -7292,6 +7307,129 @@ exports[`search entity mention: clipboard 1`] = `
 `;
 
 exports[`search entity mention: clipboard text 1`] = `"foobar"`;
+
+exports[`site mention with null first entity Id 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  style=""
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <a
+      href="/site/qkanxhj066jh311428tsr0psp4"
+    >
+      <span>
+        <span>
+          <span>
+            <svg
+              fill="none"
+              style="width: 1.125em; height: 1.125em"
+              viewBox="0 0 256 256"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </span>
+          <span>
+              
+          </span>
+           
+        </span>
+        <span
+          data-testid="ContentMentionText"
+        >
+          Test Site
+        </span>
+      </span>
+    </a>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`site mention with null first entity Id: clipboard 1`] = `
+<div>
+  <p>
+    <a
+      data-cy-mention=""
+      href="http://localhost/site/qkanxhj066jh311428tsr0psp4"
+    >
+      Test Site
+    </a>
+  </p>
+</div>
+`;
+
+exports[`site mention with null first entity Id: clipboard text 1`] = `"Test Site"`;
+
+exports[`site search entity mention with first entity 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  style=""
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <a
+      href="/doc/qkanxhj066jh311428tsr0psp4"
+    >
+      <span>
+        <span>
+          <span>
+            <svg
+              fill="none"
+              style="width: 1.125em; height: 1.125em"
+              viewBox="0 0 256 256"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </span>
+          <span>
+              
+          </span>
+           
+        </span>
+        <span
+          data-testid="ContentMentionText"
+        >
+          Sales
+        </span>
+      </span>
+    </a>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`site search entity mention with first entity: clipboard 1`] = `
+<div>
+  <p>
+    <a
+      data-cy-mention=""
+      data-cy-site="ehmwjvr0eqz3akrr16xx5tav8r"
+      href="http://localhost/doc/qkanxhj066jh311428tsr0psp4"
+    >
+      Sales
+    </a>
+  </p>
+</div>
+`;
+
+exports[`site search entity mention with first entity: clipboard text 1`] = `"Sales"`;
 
 exports[`strike 1`] = `
 <div
@@ -7378,7 +7516,7 @@ exports[`table with fileRowTable (mixed content) 1`] = `
                     </span>
                     <img
                       aria-hidden="true"
-                      style="max-width: 600px; max-height: 600px"
+                      style="max-width: 1200px; max-height: 1200px"
                     />
                   </div>
                 </div>
@@ -7409,7 +7547,7 @@ exports[`table with fileRowTable (mixed content) 1`] = `
                     </span>
                     <img
                       aria-hidden="true"
-                      style="max-width: 600px; max-height: 600px"
+                      style="max-width: 1200px; max-height: 1200px"
                     />
                   </div>
                 </div>
@@ -7432,7 +7570,7 @@ exports[`table with fileRowTable (mixed content) 1`] = `
                     </span>
                     <img
                       aria-hidden="true"
-                      style="max-width: 600px; max-height: 600px"
+                      style="max-width: 1200px; max-height: 1200px"
                     />
                   </div>
                 </div>
@@ -7474,7 +7612,7 @@ exports[`table with fileRowTable (mixed content): clipboard 1`] = `
               height="512"
               src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
               style="display: block;"
-              width="512"
+              width="600"
             />
           </div>
           <p>
@@ -7494,7 +7632,7 @@ exports[`table with fileRowTable (mixed content): clipboard 1`] = `
               height="512"
               src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
               style="display: block;"
-              width="512"
+              width="600"
             />
           </div>
         </td>
@@ -7510,7 +7648,7 @@ exports[`table with fileRowTable (mixed content): clipboard 1`] = `
               height="512"
               style="display: block;"
               type="image/heif"
-              width="512"
+              width="600"
             />
           </div>
         </td>
@@ -7577,7 +7715,7 @@ exports[`table with fileRowTable (one file) 1`] = `
                     </span>
                     <img
                       aria-hidden="true"
-                      style="max-width: 600px; max-height: 600px"
+                      style="max-width: 1200px; max-height: 1200px"
                     />
                   </div>
                 </div>
@@ -7623,7 +7761,7 @@ exports[`table with fileRowTable (one file): clipboard 1`] = `
               height="512"
               src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
               style="display: block;"
-              width="512"
+              width="600"
             />
           </div>
         </td>
@@ -8484,7 +8622,7 @@ exports[`table(2x2) with fileRowTable (null reference) 1`] = `
               <td>
                 <div
                   class="content_fileRowLike"
-                  style="height: 133.333px; grid-template-columns: 0.724638fr;"
+                  style="height: 133.333px; grid-template-columns: 1fr;"
                 >
                   <div
                     class="content_file"
@@ -8533,7 +8671,7 @@ exports[`table(2x2) with fileRowTable (null reference): clipboard 1`] = `
             <object
               height="133"
               style="display: block;"
-              width="200"
+              width="600"
             />
           </div>
         </td>
@@ -9123,7 +9261,7 @@ exports[`unknown account mention 1`] = `
     class="content_paragraph"
   >
     <a
-      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/chat/with/nyghmwnpt2pwy22qrn9b6j9254"
+      href="/chat/with/nyghmwnpt2pwy22qrn9b6j9254/pv9hmw9x4nkzpnn404ntddmbp0?focus"
     >
       <span>
         <span
@@ -9170,7 +9308,7 @@ exports[`unknown search entity mention 1`] = `
     class="content_paragraph"
   >
     <a
-      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+      href="/doc/qkanxhj066jh311428tsr0psp4"
     >
       <span>
         <span>
@@ -9207,7 +9345,7 @@ exports[`unknown search entity mention: clipboard 1`] = `
   <p>
     <a
       data-cy-mention=""
-      href="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+      href="http://localhost/doc/qkanxhj066jh311428tsr0psp4"
     >
       Unknown document
     </a>

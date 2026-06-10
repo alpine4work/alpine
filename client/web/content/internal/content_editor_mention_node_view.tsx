@@ -17,17 +17,14 @@ import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/i
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
+import {getDynamicSearchEntityPathForFileEntity} from "~/client/web/search/core/get_search_entity_path.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {
-    isFileEntityId,
-    parseFileEntityId,
-    printFileEntityIdIntoPath,
-} from "~/shared/files/file_entity_id.js";
+import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -63,8 +60,8 @@ export function createContentEditorMentionNodeViewConstructor({
         const {references} = getContentEditorReferences(view.state);
         const spacingScale = getSpacingScaleWithoutListening();
 
-        // When rendering account mentions, only allow them to be clicked
-        // if we're currently logged in.
+        // When rendering account mentions, only allow them to be clicked if we're
+        // currently logged in.
         const isInert = mention.type === "Account" && currentAccount === null;
 
         const htmlStore = computeStore(get => {
@@ -84,8 +81,8 @@ export function createContentEditorMentionNodeViewConstructor({
         let previousHtml = htmlStore.getSnapshot();
         const dom = previousHtml.generateNode();
 
-        // Whenever the content mention text changes, we want to update our mention
-        // node with the right value.
+        // Whenever the content mention text changes, we want to update our mention node
+        // with the right value.
         const unsubscribe = htmlStore.subscribe(() => {
             const nextHtml = htmlStore.getSnapshot();
             assert(nextHtml.patchNode(previousHtml, dom));
@@ -198,7 +195,12 @@ export function createContentEditorMentionNodeViewConstructor({
                         iconPlacement: "end",
                         onPress: async () => {
                             const url = new URL(
-                                printFileEntityIdIntoPath(spaceId, mentionEntityId),
+                                getDynamicSearchEntityPathForFileEntity({
+                                    spaceId,
+                                    fileEntityId: mentionEntityId,
+                                    fileEntityResult:
+                                        references.fileEntityById?.get(mentionEntityId) ?? null,
+                                }),
                                 window.location.href,
                             );
                             await writeTextToClipboard(url.toString());
@@ -206,7 +208,7 @@ export function createContentEditorMentionNodeViewConstructor({
                     },
                     {
                         label: `Turn into ${entityNoun} preview`,
-                        pressErrorTitle: `Couldn’t turn into ${entityNoun} preview`,
+                        pressErrorTitle: `Couldn\u2019t turn into ${entityNoun} preview`,
                         icon: <ArrowSquareOut />,
                         iconPlacement: "end",
                         onPress: async () => {
@@ -217,8 +219,8 @@ export function createContentEditorMentionNodeViewConstructor({
                                 fileEntityId: mentionEntityId,
                             });
 
-                            // Get the latest position for this mention node. If the doc changed while we
-                            // were loading the file entity this will be the mapped position.
+                            // Get the latest position for this mention node. If the doc changed while we were
+                            // loading the file entity this will be the mapped position.
                             const pos = getPos();
                             if (pos === undefined) return;
 
@@ -247,10 +249,9 @@ export function createContentEditorMentionNodeViewConstructor({
                             if ($pos.parentOffset === 0) {
                                 from -= 1;
 
-                                // If mention is at the start of all parent nodes going up the tree make sure
-                                // we include the parent node start in the replace. For example, if our mention
-                                // is at the start of an unordered list item in a block quote then we should
-                                // subtract 2.
+                                // If mention is at the start of all parent nodes going up the tree make sure we
+                                // include the parent node start in the replace. For example, if our mention is at
+                                // the start of an unordered list item in a block quote then we should subtract 2.
                                 //
                                 // For example, in this state:
                                 //

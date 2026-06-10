@@ -57,3 +57,16 @@ CLAUDE.local.md
 
 # NOCOMMIT: alex's mobile stuff
 /client/native
+
+# Rust
+target
+
+# Remotion Studio render output
+/out
+
+# Agent skill Outputs
+docs/superpowers
+docs/agents
+admin/docs/agents
+
+admin/marketing/2026_04_scalable_demos/fixtures/

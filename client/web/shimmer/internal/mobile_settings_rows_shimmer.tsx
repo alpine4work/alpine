@@ -16,8 +16,9 @@ import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 // settings rows made out of `<MobileSettingsRow />` components.
 //
 // Pages include:
-// - `/s/$spaceId/more/settings`
-// - `/s/$spaceId/create/more`
+//
+// - `/more/settings/$spaceId`
+// - `/create/$spaceId/more`
 export function MobileSettingsRowsShimmer({
     titleWidth,
     sectionCounts,

@@ -21,8 +21,8 @@ export function getTracerEventExceptionData(
     error: unknown,
     originalResult: ErrorOriginalTracerSpanResult,
 ): TracerEventData["exception"] {
-    // If this is a retry error from `retryWithExponentialBackoff()` then we want
-    // to record the error cause not the retry error itself (which is a boring
+    // If this is a retry error from `retryWithExponentialBackoff()` then we want to
+    // record the error cause not the retry error itself (which is a boring
     // `CancelledError` with the message "Retry"). This way the `exception.message`
     // property of retry errors is interesting.
     if (isRetryError(error)) {
@@ -47,8 +47,8 @@ export function getTracerEventExceptionData(
         }
     }
 
-    // Rank the highest priority errors first. So when we select the first N errors
-    // to show in tracer data we have the worst errors.
+    // Rank the highest priority errors first. So when we select the first N errors to
+    // show in tracer data we have the worst errors.
     aggregateErrors.sort(
         (error1, error2) => getAggregateErrorPriority(error2) - getAggregateErrorPriority(error1),
     );
@@ -92,8 +92,8 @@ function getTracerEventExceptionDataBaseWithCause(
     return {
         ...getTracerEventExceptionDataBase(error),
 
-        // Only include causes that, themselves, are instances of `Error`. Only
-        // serialize causes 3 deep. (Same as `ErrorSchema.serialize()`.)
+        // Only include causes that, themselves, are instances of `Error`. Only serialize
+        // causes 3 deep. (Same as `ErrorSchema.serialize()`.)
         cause:
             error instanceof Error && error.cause && error.cause instanceof Error
                 ? error.cause.cause && error.cause.cause instanceof Error

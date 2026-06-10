@@ -11,6 +11,7 @@ import {
 } from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
+import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {MockAgentRecording} from "~/shared/agents/mock_agent_recording.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -30,19 +31,12 @@ const MockAgentRecordingCollection = new DurableObjectStorageCollection<"", Mock
     "Zz",
 );
 
-export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRoute, never> {
+abstract class MockAgentDurableObjectBase extends AgentDurableObjectBase<MockAgentRoute, never> {
     constructor(state: DurableObjectState, env: AgentServiceEnv) {
         super("MockAgentService", state, env);
 
         // Can only run this durable object in test or development environments.
         assert(process.env.NODE_ENV !== "production");
-    }
-
-    protected override _getApiKey() {
-        return assertExists(
-            this._env.MOCK_CHAT_GPT_API_SERVICE_KEY,
-            "Missing `MOCK_CHAT_GPT_API_SERVICE_KEY` environment variable",
-        );
     }
 
     protected override _parseRoute(url: URL): [string, MockAgentRoute] {
@@ -60,7 +54,7 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
     ): Promise<Response> {
         switch (route) {
             case "Recording": {
-                return this._fetchRecording(context, request);
+                return await this._fetchRecording(context, request);
             }
             case "NotFound": {
                 return new Response("404 Not Found", {
@@ -101,8 +95,10 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
         // May only play a the recording in test and development environments.
         assert(process.env.NODE_ENV !== "production");
 
-        // Only respond with recording if mentioned. Otherwise noop.
-        if (!request.event.wasMentioned) return;
+        // Mirror the real agent's response policy so the mock behaves the same in a 1:1
+        // chat with the bot — where users don't typically @-mention — as the production
+        // ChatGPT agent does.
+        if (!(await shouldAgentRespondToRequest(tracer, request))) return;
 
         let recording =
             (await MockAgentRecordingCollection.get(this._state.storage, "")) ?? emptyArray;
@@ -173,5 +169,23 @@ export class MockAgentDurableObject extends AgentDurableObjectBase<MockAgentRout
         }
 
         await completeApiMessageStream(tracer, request.apiClient, request.room, message.index);
+    }
+}
+
+export class MockChatGptAgentDurableObject extends MockAgentDurableObjectBase {
+    protected override _getApiKey() {
+        return assertExists(
+            this._env.MOCK_CHAT_GPT_API_SERVICE_KEY,
+            "Missing `MOCK_CHAT_GPT_API_SERVICE_KEY` environment variable",
+        );
+    }
+}
+
+export class MockCursorAgentDurableObject extends MockAgentDurableObjectBase {
+    protected override _getApiKey() {
+        return assertExists(
+            this._env.MOCK_CURSOR_API_SERVICE_KEY,
+            "Missing `MOCK_CURSOR_API_SERVICE_KEY` environment variable",
+        );
     }
 }

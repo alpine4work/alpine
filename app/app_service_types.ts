@@ -35,11 +35,19 @@ export type AppServiceConstants = {
             readonly chatGptLocalScopedApiKey?: string;
             readonly cursorLocalUnscopedApiKey?: string;
             readonly mockChatGptLocalUnscopedApiKey?: string;
+            readonly slackClientId?: string;
+            readonly slackClientSecret?: string;
+            readonly slackAuthRedirectOrigin?: string;
             readonly resourceServiceUrl?: string;
             readonly logoDevSecretKey?: string;
             readonly logoDevPublishableKey?: string;
             readonly cookieNameSuffix?: string;
             readonly importUploadsBucketName?: string;
+            readonly importerServiceEcsTaskDefinition?: string;
+            readonly importerServiceSubnets?: string;
+            readonly importerServiceSecurityGroups?: string;
+            readonly importerServiceEbsVolumeRoleArn?: string;
+            readonly importerLocalUploadPathForTest?: string;
         };
 };
 

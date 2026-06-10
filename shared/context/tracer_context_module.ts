@@ -8,8 +8,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
- * A wrapper around either a `Tracer` or `TracerSpan` for instrumenting code
- * using our context abstraction.
+ * A wrapper around either a `Tracer` or `TracerSpan` for instrumenting code using
+ * our context abstraction.
  *
  * `withSpan()` will create a new context object
  */
@@ -46,23 +46,23 @@ export class TracerContextModule extends ContextModuleBase implements ForkableCo
     }
 
     /**
-     * Runs some code with a span around it. Tracks the time the span takes to
-     * execute and exceptions that happen while executing. You can add more data to
-     * the span (including child spans) through the provided `span` argument.
+     * Runs some code with a span around it. Tracks the time the span takes to execute
+     * and exceptions that happen while executing. You can add more data to the span
+     * (including child spans) through the provided `span` argument.
      *
      * The name should be a short, low cardinality, string. You should be able to
-     * easily search the codebase for the code defining a span based on its name
-     * after seeing a span in our observability tool.
+     * easily search the codebase for the code defining a span based on its name after
+     * seeing a span in our observability tool.
      *
-     * The name should be written in present simple tense. So "Update document
-     * content" instead of "Updating document content" (present continuous tense)
-     * or "Updated document content" (past tense).
+     * The name should be written in present simple tense. So "Update document content"
+     * instead of "Updating document content" (present continuous tense) or "Updated
+     * document content" (past tense).
      *
      * The name should not contain IDs or other dynamic content.
      *
-     * We recommend formatting span names as short phrases without punctuation (but
-     * can include spaces between words). For example: "Get admin account" is a
-     * good span name.
+     * We recommend formatting span names as short phrases without punctuation (but can
+     * include spaces between words). For example: "Get admin account" is a good span
+     * name.
      */
     public withSpan<Modules extends {}, Value>(
         this: ContextModuleBase<Modules> & TracerContextModule,
@@ -98,8 +98,8 @@ export class TracerContextModule extends ContextModuleBase implements ForkableCo
     }
 
     /**
-     * Same as `withSpan()` but we call `startSpanAsLinked()` instead of
-     * `startSpan()`. See the documentation of those methods for more information.
+     * Same as `withSpan()` but we call `startSpanAsLinked()` instead of `startSpan()`.
+     * See the documentation of those methods for more information.
      */
     public withSpanAsLinked<Modules extends {}, Value>(
         this: ContextModuleBase<Modules> & TracerContextModule,
@@ -117,9 +117,9 @@ export class TracerContextModule extends ContextModuleBase implements ForkableCo
     }
 
     /**
-     * Returns a context where all spans created by the tracer will include the
-     * data passed into this function. The propagated data will also be sent over
-     * network boundaries.
+     * Returns a context where all spans created by the tracer will include the data
+     * passed into this function. The propagated data will also be sent over network
+     * boundaries.
      */
     public withPropagatedData<Modules extends {tracer: TracerContextModule}>(
         this: ContextModuleBase<Modules> & TracerContextModule,
@@ -133,18 +133,17 @@ export class TracerContextModule extends ContextModuleBase implements ForkableCo
     /**
      * Add a structured log to a span.
      *
-     * The log name should follow the same convention as our span names.
-     * Written below:
+     * The log name should follow the same convention as our span names. Written below:
      *
      * The name should be a short, low cardinality, string. You should be able to
-     * easily search the codebase for the code defining a span based on its name
-     * after seeing a span in our observability tool.
+     * easily search the codebase for the code defining a span based on its name after
+     * seeing a span in our observability tool.
      *
      * The name should not contain IDs or other dynamic content.
      *
-     * We recommend formatting span names as short phrases without punctuation (but
-     * can include spaces between words). For example: "Get admin account" is a
-     * good span name.
+     * We recommend formatting span names as short phrases without punctuation (but can
+     * include spaces between words). For example: "Get admin account" is a good span
+     * name.
      */
     public log(name: string, data?: TracerEventData) {
         this._tracer.log(name, data);

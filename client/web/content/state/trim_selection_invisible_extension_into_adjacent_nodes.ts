@@ -2,14 +2,14 @@ import {ResolvedPos} from "prosemirror-model";
 
 /**
  * When selecting text in Chrome, sometimes the selection appears to only be
- * selecting a single element but in fact the end position (`$to` in
- * ProseMirror parlance) is at the beginning of the next node. Chrome doesn't
- * render this but it's there.
+ * selecting a single element but in fact the end position (`$to` in ProseMirror
+ * parlance) is at the beginning of the next node. Chrome doesn't render this but
+ * it's there.
  *
- * This can lead to very confusing behaviors for users who assume their
- * selection is only within one node when in fact it's in two. We fix this on
- * the ProseMirror side. By detecting selections which invisibly extend into
- * adjacent nodes and trim the selection edges.
+ * This can lead to very confusing behaviors for users who assume their selection
+ * is only within one node when in fact it's in two. We fix this on the ProseMirror
+ * side. By detecting selections which invisibly extend into adjacent nodes and
+ * trim the selection edges.
  *
  * To test this, write a three bullet list with your keyboard in Chrome.
  *
@@ -27,9 +27,8 @@ import {ResolvedPos} from "prosemirror-model";
  * - qux
  * ```
  *
- * Hold shift and press the right arrow three times so you should have all of
- * "bar" selected (`[` indicates selection start and `]` indicates selection
- * end):
+ * Hold shift and press the right arrow three times so you should have all of "bar"
+ * selected (`[` indicates selection start and `]` indicates selection end):
  *
  * ```
  * - foo
@@ -37,8 +36,8 @@ import {ResolvedPos} from "prosemirror-model";
  * - qux
  * ```
  *
- * Hold shift while pressing the right arrow one more time. It will still look
- * like only "bar" is selected in Chrome. But in fact if you call
+ * Hold shift while pressing the right arrow one more time. It will still look like
+ * only "bar" is selected in Chrome. But in fact if you call
  * `window.getSelection()` or look at ProseMirror's `EditorState` selection the
  * underlying selection actually looks like this:
  *
@@ -71,8 +70,8 @@ import {ResolvedPos} from "prosemirror-model";
  * is confusing for the user if they look at the selection Chrome has rendered.
  *
  * What `trimSelectionInvisibleExtensionIntoAdjacentNodes()` does is trims the
- * selection to just "bar" before we run our indent logic so we only indent what
- * is visibly selected. Not what's invisibly selected.
+ * selection to just "bar" before we run our indent logic so we only indent what is
+ * visibly selected. Not what's invisibly selected.
  *
  * Other browsers may behave differently.
  */

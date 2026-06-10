@@ -1,8 +1,8 @@
 import {Node} from "prosemirror-model";
 
 /**
- * Returns the provided range but any space characters at the beginning or end
- * have been removed.
+ * Returns the provided range but any space characters at the beginning or end have
+ * been removed.
  */
 export function trimSpacesFromProsemirrorRange(
     parentNode: Node,

@@ -50,17 +50,19 @@ import {getNotificationMessageContentSnippet} from "~/server/notifications/core/
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {getAccount} from "~/server/spaces/get_account.js";
+
+import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
+import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -142,14 +144,14 @@ export async function createPostComment(
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const postItemPromise = getPostItemForAuthorizationIfExists(context, postId, {consistency});
 
-        const [postItem, parentForEvent] = await runAllPromises([
+        const [{postItem, channelAccessPolicy}, parentForEvent] = await runAllPromises([
             postItemPromise.then(async postItem => {
                 if (!postItem) throw createPostNotFoundError(postId);
 
-                await runAllPromises([
+                const [{accessPolicy: channelAccessPolicy}] = await runAllPromises([
                     authorizeChannelAccess(context, postItem.channelId, "Comment", {consistency}),
 
                     // Make sure all the provided files exist.
@@ -158,7 +160,6 @@ export async function createPostComment(
                             isId<FileId>(fileId)
                                 ? getFileFromAttachment(
                                       context,
-                                      postItem.spaceId,
                                       fileId,
                                       FilePostAuthorizer.bind({type: "PostComments", postId}),
                                       {consistency},
@@ -168,7 +169,7 @@ export async function createPostComment(
                     ),
                 ]);
 
-                return postItem;
+                return {postItem, channelAccessPolicy};
             }),
 
             (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
@@ -240,8 +241,8 @@ export async function createPostComment(
             })(),
         ]);
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const currentTime = new Date(Date.now());
 
         const createdTime = overrideCreatedTimeForTest ?? currentTime;
@@ -307,9 +308,9 @@ export async function createPostComment(
                 {updateLockVersion: postItem.updateLockVersion},
             ),
 
-            // If this is a stream comment then create the stream state item.
-            // Create-or-replace is safe since we know the comment index doesn't exist from
-            // our other condition checks.
+            // If this is a stream comment then create the stream state item. Create-or-replace
+            // is safe since we know the comment index doesn't exist from our other condition
+            // checks.
             ...(isStream
                 ? [
                       ForumTable.transactionCreateOrReplaceItem({
@@ -339,8 +340,8 @@ export async function createPostComment(
 
         // When the account comments on a post they didn't author for the first time,
         // update the contributors map. It's ok to do this in
-        // `context.process.waitUntil()`. It's fine if `AppService` crashes and we
-        // don't record the contribution.
+        // `context.process.waitUntil()`. It's fine if `AppService` crashes and we don't
+        // record the contribution.
         if (postItem.authorId !== authorId && oldCommentCount === 0) {
             context.process.waitUntil(async () => {
                 let oldContributionCount = 0;
@@ -391,9 +392,9 @@ export async function createPostComment(
                     },
                 );
 
-                // Reindex the channel whenever someone contributes for the first time
-                // (making them a minor contributor) or when someone maxes out their
-                // contribution count (making them a major contributor).
+                // Reindex the channel whenever someone contributes for the first time (making them
+                // a minor contributor) or when someone maxes out their contribution count (making
+                // them a major contributor).
                 if (
                     oldContributionCount !== newContributionCount &&
                     (oldContributionCount === 0 ||
@@ -443,28 +444,27 @@ export async function createPostComment(
                     type: "PostComment",
                     postId,
                     commentIndex,
-                    // Nothing depends on this entity when it's created. Don't bother trying to
-                    // reindex dependencies.
+                    // Nothing depends on this entity when it's created. Don't bother trying to reindex
+                    // dependencies.
                     updatedTraits: {type: "None"},
                 },
             },
             {delaySeconds: isStream ? messageStreamIndexSearchEntityDelaySeconds : 0},
         );
 
-        // Only increase affinity score if we have a session actor. Don't increase
-        // affinity score if this is a system actor sending a message on behalf of an
-        // account.
+        // Only increase affinity score if we have a session actor. Don't increase affinity
+        // score if this is a system actor sending a message on behalf of an account.
         if (context.actor.type === "Session") {
             const sessionContext = context.actor.authorizeSession();
 
-            // Creating a comment on a post accrues affinity points to the channel the post
-            // was made in. If you're interacting with a post this probably means the topic
-            // of the post (the channel) is relevant to you as well.
+            // Creating a comment on a post accrues affinity points to the channel the post was
+            // made in. If you're interacting with a post this probably means the topic of the
+            // post (the channel) is relevant to you as well.
             //
-            // We don't give posts themselves affinity points. That's because posts are
-            // fairly short lived (a couple days). However, we give channels affinity
-            // points so you could quickly jump to a channel if you're looking for a
-            // certain post inside the channel.
+            // We don't give posts themselves affinity points. That's because posts are fairly
+            // short lived (a couple days). However, we give channels affinity points so you
+            // could quickly jump to a channel if you're looking for a certain post inside the
+            // channel.
             context.process.waitUntil(
                 markSearchAffinityEntityInteraction(sessionContext, {
                     spaceId: postItem.spaceId,
@@ -473,15 +473,16 @@ export async function createPostComment(
                         content.nodeSize < 50
                             ? {type: "LowIntentUpdate"}
                             : {type: "MediumIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(channelAccessPolicy),
                 }),
             );
 
-            // Increase affinity points for all mentioned accounts with a high intent
-            // update since the user clearly wants the attention of the mentioned accounts.
+            // Increase affinity points for all mentioned accounts with a high intent update
+            // since the user clearly wants the attention of the mentioned accounts.
             //
-            // (If a mentioned account doesn't have access to this message should that
-            // still be a high intent update? For now we say yes since the user is
-            // explicitly choosing to reference them.)
+            // (If a mentioned account doesn't have access to this message should that still be
+            // a high intent update? For now we say yes since the user is explicitly choosing
+            // to reference them.)
             for (const mentionedAccountId of mentionedAccountIds) {
                 context.process.waitUntil(async () => {
                     if (
@@ -491,6 +492,8 @@ export async function createPostComment(
                             spaceId: postItem.spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
+                            // Accounts cannot live in a site.
+                            siteId: null,
                         });
                     }
                 });
@@ -509,11 +512,11 @@ export async function createPostComment(
  * Update a part of the comment stream.
  *
  * Comment streams are made up of multiple parts. Only the bot that created a
- * stream can update the stream. A bot can only create new parts or update the
- * last part of the stream.
+ * stream can update the stream. A bot can only create new parts or update the last
+ * part of the stream.
  *
- * Currently, you completely replace a part when you update it. We may allow
- * more granular part updates in the future.
+ * Currently, you completely replace a part when you update it. We may allow more
+ * granular part updates in the future.
  */
 export function putPostCommentStreamPart(
     context: ServerActionContext,
@@ -728,13 +731,13 @@ export function putPostCommentStreamPart(
         }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their
-        // message in realtime.
+        // sending this realtime event the user might not see an update to their message in
+        // realtime.
         //
-        // Should we send this broadcast event in a DynamoDB Streams listener that
-        // reacts to the update? We plan to move `NotificationEvent`,
-        // `IndexSearchEntity`, and other processing that needs to reliably run after
-        // an updates to DynamoDB Streams.
+        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+        // other processing that needs to reliably run after an updates to DynamoDB
+        // Streams.
         context.process.waitUntil(
             context.edge.broadcastToDurableObject(
                 `/api/durable-objects/posts/${postId}/broadcast-put-message-stream-part`,
@@ -755,16 +758,16 @@ export function putPostCommentStreamPart(
 }
 
 /**
- * We send a notification event for a message stream once the first content
- * stream part is finished. A stream part is considered finished when a new
- * part is created after. Only the last stream part can be updated, all other
- * stream parts are frozen.
+ * We send a notification event for a message stream once the first content stream
+ * part is finished. A stream part is considered finished when a new part is
+ * created after. Only the last stream part can be updated, all other stream parts
+ * are frozen.
  *
- * So practically this means for most streams the notification is sent once we
- * put the second part (`partIndex === 1`) not the first part.
+ * So practically this means for most streams the notification is sent once we put
+ * the second part (`partIndex === 1`) not the first part.
  *
- * Unless this is a timeout error completion, in that case we send the
- * notification immediately since there will be no more parts.
+ * Unless this is a timeout error completion, in that case we send the notification
+ * immediately since there will be no more parts.
  */
 async function getNotificationEventForPutPostCommentStreamPart(
     context: DynamoContext,
@@ -797,9 +800,9 @@ async function getNotificationEventForPutPostCommentStreamPart(
     } else if (partIndex === 0) {
         return null;
     } else {
-        // If we're creating a new part then read the previous part we're finishing. If
-        // the previous part is a content part then send a notification using the
-        // content from that part.
+        // If we're creating a new part then read the previous part we're finishing. If the
+        // previous part is a content part then send a notification using the content from
+        // that part.
 
         const previousPartItem = await ForumTable.getItem(
             context,
@@ -841,8 +844,8 @@ async function getNotificationEventForPutPostCommentStreamPart(
 /**
  * Completes a comment stream. After this parts can't be added or updated.
  *
- * This function is idempotent. If the stream is already completed this method
- * does nothing.
+ * This function is idempotent. If the stream is already completed this method does
+ * nothing.
  */
 export function completePostCommentStream(
     context: ServerActionContext,
@@ -897,8 +900,8 @@ export function completePostCommentStream(
 
         let notificationEvent: NotificationEvent | null = null;
 
-        // If we haven't sent a notification event for this message stream yet then
-        // send one now!
+        // If we haven't sent a notification event for this message stream yet then send
+        // one now!
         if (item.pendingNotificationEvent) {
             const previousPartItem =
                 item.partCount > 0
@@ -939,8 +942,8 @@ export function completePostCommentStream(
             };
         }
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const completedTime = new Date(Date.now());
 
         await ForumTable.directlyUpdateItem(context, {
@@ -957,13 +960,13 @@ export function completePostCommentStream(
         }
 
         // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-        // sending this realtime event the user might not see an update to their
-        // message in realtime.
+        // sending this realtime event the user might not see an update to their message in
+        // realtime.
         //
-        // Should we send this broadcast event in a DynamoDB Streams listener that
-        // reacts to the update? We plan to move `NotificationEvent`,
-        // `IndexSearchEntity`, and other processing that needs to reliably run after
-        // an updates to DynamoDB Streams.
+        // Should we send this broadcast event in a DynamoDB Streams listener that reacts
+        // to the update? We plan to move `NotificationEvent`, `IndexSearchEntity`, and
+        // other processing that needs to reliably run after an updates to DynamoDB
+        // Streams.
         context.process.waitUntil(
             context.edge.broadcastToDurableObject(
                 `/api/durable-objects/posts/${postId}/broadcast-complete-message-stream`,
@@ -986,16 +989,15 @@ const PostCommentItemContextCache = new DynamoContextCache<
     `${PostId}:${number}`,
     MessageItem | null
 >({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
 /**
  * Pings a comment stream and updates its `lastPingTime`.
  *
- * This function is idempotent. If the stream hasn't been pinged in a while this method
- * will update its `lastPingTime`.
+ * This function is idempotent. If the stream hasn't been pinged in a while this
+ * method will update its `lastPingTime`.
  */
 export function pingPostCommentStream(
     context: ServerActionContext,
@@ -1047,8 +1049,8 @@ export function pingPostCommentStream(
             throw createCantPingStaleMessageStreamError();
         }
 
-        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
-        // `Date.now()` and override the time that is returned.
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock `Date.now()`
+        // and override the time that is returned.
         const currentTime = new Date(Date.now());
 
         const lastPingTime =
@@ -1155,7 +1157,7 @@ export async function getPostComment(
 
     if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
 
-    return createPostCommentModelFromItem(context, spaceId, postId, item);
+    return await createPostCommentModelFromItem(context, spaceId, postId, item);
 }
 
 /**
@@ -1191,7 +1193,7 @@ export async function getPostCommentAtVersion(
         })(),
     ]);
 
-    return createPostCommentModelFromItem(context, spaceId, postId, item);
+    return await createPostCommentModelFromItem(context, spaceId, postId, item);
 }
 
 /**
@@ -1237,7 +1239,7 @@ async function createPostCommentModelFromItem(
     item: MessageItem,
 ): Promise<PostCommentModel> {
     const [author, payload] = await runAllPromises([
-        getAccount(context, spaceId, item.authorId),
+        getAccountOrDangerouslyGetStubWithoutAuthorization(context, spaceId, item.authorId),
         createMessagePayloadModel(
             context,
             spaceId,
@@ -1333,8 +1335,8 @@ export function updatePostCommentContent(
                 {updateLockVersion: postItem.updateLockVersion},
             ),
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
                 sortRangeType: "MessageUpdates",
@@ -1432,8 +1434,8 @@ export function deletePostComment(
                 {updateLockVersion: postItem.updateLockVersion},
             ),
 
-            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
                 sortRangeType: "MessageUpdates",
@@ -1512,8 +1514,8 @@ export function setPostCommentReaction(
         await DynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
                 sortRangeType: "MessageUpdates",
@@ -1588,8 +1590,8 @@ export function deletePostCommentReaction(
         await DynamoTableSchema.executeTransaction(context, [
             transactionEntry,
 
-            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
-            // are all in the item key. So we won't be replacing any existing update item.
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version` are
+            // all in the item key. So we won't be replacing any existing update item.
             ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
                 sortRangeType: "MessageUpdates",
@@ -1608,8 +1610,7 @@ export function deletePostCommentReaction(
 }
 
 /**
- * Gets both the post model and the first few comments for the post in
- * one request.
+ * Gets both the post model and the first few comments for the post in one request.
  */
 export async function getPostAndInitialComments(
     context: ServerActionContext,
@@ -1621,12 +1622,12 @@ export async function getPostAndInitialComments(
         commentLimit: number;
     },
 ): Promise<{
-    post: DynamoGeneralRealtimeItem<PostModel>;
+    post: RynamoItem<PostModel>;
     initialComments: Array<PostCommentModel>;
     initialOtherReferencedComments: Array<PostCommentModel>;
 }> {
-    // Start querying before authorization so our query runs in parallel
-    // with authorization.
+    // Start querying before authorization so our query runs in parallel with
+    // authorization.
     const queryIterable = runCommentsQuery(context, {
         cache: PostCommentItemContextCache,
         cacheKeyPrefix: postId,
@@ -1644,6 +1645,12 @@ export async function getPostAndInitialComments(
     });
 
     const postItem = await getPostItemWithContentForAuthorization(context, postId);
+
+    // Optimization: Don't wait until the channel loads (and so we call
+    // `evaluateAccessPolicy()`) to report the post's `SpaceId` as discovered.
+    context.discovery?.discoverSpaceId(postItem.spaceId);
+
+    const authorizationPromise = authorizeChannelAccess(context, postItem.channelId, "View");
 
     const commentPromises: Array<Promise<PostCommentModel>> = [];
 
@@ -1665,7 +1672,7 @@ export async function getPostAndInitialComments(
     }
 
     const [, post, comments, otherReferencedComments] = await runAllPromises([
-        authorizeChannelAccess(context, postItem.channelId, "View"),
+        authorizationPromise,
         ForumRealtimeTable.buildRealtimeItem(context, postItem),
         runAllPromises(commentPromises),
         runAllPromises(
@@ -1680,7 +1687,7 @@ export async function getPostAndInitialComments(
                     );
                     if (!commentItem) throw new InternalError("Parent comment not found");
 
-                    return createPostCommentModelFromItem(
+                    return await createPostCommentModelFromItem(
                         context,
                         postItem.spaceId,
                         postId,
@@ -1833,8 +1840,8 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
     };
 
     const loadOtherReferencedComment = (commentIndex: number) => {
-        // If this message is already in our loaded messages range then we don't need
-        // to load it again.
+        // If this message is already in our loaded messages range then we don't need to
+        // load it again.
         if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
 
         const promise = getOrSetDefaultMapValue(
@@ -1867,14 +1874,14 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
                 loadOtherReferencedCommentFromParent(item.payload.parent);
             }
 
-            // Don't propagate `consistency` when loading model references. We
-            // accept references can have eventual consistency.
+            // Don't propagate `consistency` when loading model references. We accept
+            // references can have eventual consistency.
             return createPostCommentModelFromItem(context, spaceId, postId, item);
         }),
     );
 
-    // Keep loading other referenced comments until we have all of them. A
-    // referenced comment may itself reference more comments.
+    // Keep loading other referenced comments until we have all of them. A referenced
+    // comment may itself reference more comments.
     while (otherReferencedCommentPromiseByIndex.size > 0) {
         const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
         otherReferencedCommentPromiseByIndex = new Map();
@@ -2044,10 +2051,10 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
     const queryStartCommentIndex = Math.max(
         typeof beforeCommentIndex === "number"
             ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
-              // was a message stream then query again with `limit: "All"` and a proper query start
-              // index. Instead right now we wait for chat access to authorize before starting our
-              // query which is slower than authorizing + querying in parallel.
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if
+              // there was a message stream then query again with `limit: "All"` and a proper
+              // query start index. Instead right now we wait for chat access to authorize before
+              // starting our query which is slower than authorizing + querying in parallel.
               getPostCommentCount((await postItemPromise).commentsSummary) - limit,
         typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
     );
@@ -2092,8 +2099,8 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
     };
 
     const loadOtherReferencedComment = (commentIndex: number) => {
-        // If this message is already in our loaded messages range then we don't need
-        // to load it again.
+        // If this message is already in our loaded messages range then we don't need to
+        // load it again.
         if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
 
         const promise = getOrSetDefaultMapValue(
@@ -2127,8 +2134,8 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
         }),
     );
 
-    // Keep loading other referenced comments until we have all of them. A
-    // referenced comment may itself reference more comments.
+    // Keep loading other referenced comments until we have all of them. A referenced
+    // comment may itself reference more comments.
     while (otherReferencedCommentPromiseByIndex.size > 0) {
         const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
         otherReferencedCommentPromiseByIndex = new Map();
@@ -2176,10 +2183,10 @@ export async function getPostCommentPayloadsFromEnd(
     const queryStartCommentIndex = Math.max(
         typeof beforeCommentIndex === "number"
             ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
-              // was a message stream then query again with `limit: "All"` and a proper query start
-              // index. Instead right now we wait for chat access to authorize before starting our
-              // query which is slower than authorizing + querying in parallel.
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if
+              // there was a message stream then query again with `limit: "All"` and a proper
+              // query start index. Instead right now we wait for chat access to authorize before
+              // starting our query which is slower than authorizing + querying in parallel.
               getPostCommentCount((await actualPostItemPromise).commentsSummary) - limit,
         typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
     );
@@ -2230,17 +2237,17 @@ export async function getPostCommentPayloadsFromEnd(
  * provides what it knows to be the comment count and last change time then we
  * return any new comments or changes since then.
  *
- * We run this when the client establishes a new realtime connection to catch
- * the client up between their last data load and the time the realtime
- * connection was established.
+ * We run this when the client establishes a new realtime connection to catch the
+ * client up between their last data load and the time the realtime connection was
+ * established.
  *
- * `newCommentLimit` allows you to load some new comments that the client
- * may be missing but only up to the limit.
+ * `newCommentLimit` allows you to load some new comments that the client may be
+ * missing but only up to the limit.
  *
- * We do not keep a log of post comment changes around forever, so it's
- * possible that you get an `Unavailable` result for
- * `commentChangesResult`. When this happens you should throw away all data
- * your client has loaded and try loading the data again.
+ * We do not keep a log of post comment changes around forever, so it's possible
+ * that you get an `Unavailable` result for `commentChangesResult`. When this
+ * happens you should throw away all data your client has loaded and try loading
+ * the data again.
  */
 export async function backfillPostComments(
     context: ServerActionContext,
@@ -2280,10 +2287,10 @@ export async function backfillPostComments(
                 limit: newCommentLimit,
                 afterCommentIndex: clientCommentCount - 1,
                 beforeCommentIndex: null,
-                // Use a strong read consistency when backfilling. This guarantees the caller
-                // will observe all realtime events before this function call. Realtime events
-                // that happen during the function call may be missed. You should be subscribed
-                // to new realtime events before starting to backfill.
+                // Use a strong read consistency when backfilling. This guarantees the caller will
+                // observe all realtime events before this function call. Realtime events that
+                // happen during the function call may be missed. You should be subscribed to new
+                // realtime events before starting to backfill.
                 consistency: "Strong",
             }),
             runBackfillMessageUpdates(context, {
@@ -2298,7 +2305,12 @@ export async function backfillPostComments(
                 createMessageModelFromItem: async (context, item) => {
                     const postItem = await postItemPromise;
                     if (!postItem) throw createPostNotFoundError(postId);
-                    return createPostCommentModelFromItem(context, postItem.spaceId, postId, item);
+                    return await createPostCommentModelFromItem(
+                        context,
+                        postItem.spaceId,
+                        postId,
+                        item,
+                    );
                 },
             }),
         ]);
@@ -2394,8 +2406,8 @@ export async function getPostCommentParentContent(
             });
 
             return {
-                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all messages
-                // have the same author and the list is not empty.
+                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all
+                // messages have the same author and the list is not empty.
                 authorId: messageItems[0]!.authorId,
                 content: getTruncatedParentMessagesRangeContentWithoutReferences({
                     messages: messageItems,

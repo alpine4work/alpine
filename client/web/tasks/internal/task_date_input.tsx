@@ -3,6 +3,7 @@ import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
 import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
+import {DateInputCalendar} from "~/client/web/design/date_input_calendar.js";
 import {getNextFocusableElementIfExists} from "~/client/web/design/helpers/get_next_focusable_element.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
@@ -20,7 +21,6 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {formatTaskDate} from "~/client/web/tasks/format_task_date.js";
-import {TaskDateInputCalendar} from "~/client/web/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/web/tasks/internal/task_date_input_text.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
@@ -67,9 +67,8 @@ const initialTaskDateInputFocusState: TaskDateInputFocusState = {
 };
 
 /**
- * The date field displays the formatted date we show everywhere but when
- * you click or focus we reveal a text input where you can type the date in
- * your locale.
+ * The date field displays the formatted date we show everywhere but when you click
+ * or focus we reveal a text input where you can type the date in your locale.
  */
 export function TaskDateInput({
     date,
@@ -143,20 +142,18 @@ export function TaskDateInput({
 
     const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
 
-    // When our calendar overlay opens on mobile we need to scroll it into view if
-    // it's rendered offscreen.
+    // When our calendar overlay opens on mobile we need to scroll it into view if it's
+    // rendered offscreen.
     //
-    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` does nothing when the task
-    // date input is focused. Since that hooks is designed to avoid the mobile
-    // keyboard when the mobile keyboard opens. However, if the mobile keyboard is
-    // already open and the user focuses a date input then we still need to scroll
-    // the date input into view. Instead of competing with
-    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` we fully implement scroll
-    // logic for when the date input is focused here.
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` does nothing when the task date
+    // input is focused. Since that hooks is designed to avoid the mobile keyboard when
+    // the mobile keyboard opens. However, if the mobile keyboard is already open and
+    // the user focuses a date input then we still need to scroll the date input into
+    // view. Instead of competing with `useScrollToAvoidBottomBarsAndMobileKeyboard()`
+    // we fully implement scroll logic for when the date input is focused here.
     //
-    // We have a hook that does basically the same thing in
-    // `<TaskDateInput>`. If you make a change here you should also probably make a
-    // change there.
+    // We have a hook that does basically the same thing in `<TaskDateInput>`. If you
+    // make a change here you should also probably make a change there.
     const lastIsEditingRef = useRef(isEditing);
     useEffect(() => {
         if (lastIsEditingRef.current === isEditing) return;
@@ -191,8 +188,8 @@ export function TaskDateInput({
             const inputRect = inputElement.getBoundingClientRect();
             const viewportRect = document.documentElement.getBoundingClientRect();
 
-            // NOTE(calebmer, #mobile-webkit-weirdness): For some reason, and I have truly
-            // no idea, in Safari (but not in the native app!) when we call
+            // NOTE(calebmer, #mobile-webkit-weirdness): For some reason, and I have truly no
+            // idea, in Safari (but not in the native app!) when we call
             // `getBoundingClientRect()` for overlay here it gives us the position before
             // Popper.js positioning is applied. But if we call `getBoundingClientRect()`
             // directly in the effect all is fine...
@@ -236,8 +233,8 @@ export function TaskDateInput({
         };
 
         // This effect needs to run after `NativeMobileBridge` calls
-        // `keyboard.subscribeToFrameChange` subscribers. That way we can properly
-        // avoid the keyboard.
+        // `keyboard.subscribeToFrameChange` subscribers. That way we can properly avoid
+        // the keyboard.
         const cleanup = subscribeToMobileKeyboardFrameChange(() => {
             cleanup();
             timeout.clear();
@@ -294,10 +291,11 @@ export function TaskDateInput({
             className={sprinkles({
                 position: "relative",
                 width: display === "block" ? "full" : undefined,
-                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit
-                // target size][1].
+                // Height of 9 for 45px on mobile to meet the [minimum recommended touch hit target
+                // size][1].
                 //
-                // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
+                // [1]:
+                //     https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
                 height:
                     height === "full" ? "full" : platform === "mobile" ? "9" : cast<"4">(height),
                 marginY: insetMarginY ? `-${insetMarginY}` : undefined,
@@ -306,8 +304,7 @@ export function TaskDateInput({
             {!isEditing && formattedDate && (
                 <div
                     className={sprinkles({
-                        // Inline flex so the clickable range doesn't extend beyond the
-                        // input's contents.
+                        // Inline flex so the clickable range doesn't extend beyond the input's contents.
                         display: display === "inline" ? "inline-flex" : "flex",
                         alignItems: "stretch",
                         height: "full",
@@ -331,8 +328,8 @@ export function TaskDateInput({
                         </div>
                     )}
                     {isReadOnly || formattedDate.isFormattedAroundToday ? (
-                        // Render read-only date inputs as a single div so they may be easily selected
-                        // and copied/pasted.
+                        // Render read-only date inputs as a single div so they may be easily selected and
+                        // copied/pasted.
                         <div
                             {...previewPressProps}
                             className={sprinkles({
@@ -342,8 +339,8 @@ export function TaskDateInput({
                                 paddingLeft: !shouldIncludeCalendarIcon ? paddingX : undefined,
                                 paddingRight: paddingX,
                             })}
-                            // Small UX improvement, focus the day input segment if the text is "Today"
-                            // or "Yesterday".
+                            // Small UX improvement, focus the day input segment if the text is "Today" or
+                            // "Yesterday".
                             //
                             // Used by `previewPressProps`.
                             data-skip={1}
@@ -373,14 +370,14 @@ export function TaskDateInput({
                                     // Don't collapse space.
                                     whiteSpace: "pre",
                                 }}
-                                // Small UX improvement, focus the input segment the user clicked on. It's a
-                                // little strange how the preview text transforms into editable text.
-                                // Especially disorienting when you click the end and the start is focused. So
-                                // attempt to focus the same segment the user clicked.
+                                // Small UX improvement, focus the input segment the user clicked on. It's a little
+                                // strange how the preview text transforms into editable text. Especially
+                                // disorienting when you click the end and the start is focused. So attempt to
+                                // focus the same segment the user clicked.
                                 //
-                                // We hope that the words separated by spaces in our date line up with the
-                                // editable input segments which is the case with the en-US locale but this
-                                // heuristic may need to be hardened for other locales.
+                                // We hope that the words separated by spaces in our date line up with the editable
+                                // input segments which is the case with the en-US locale but this heuristic may
+                                // need to be hardened for other locales.
                                 //
                                 // Used by `previewPressProps`.
                                 data-skip={index}
@@ -395,17 +392,17 @@ export function TaskDateInput({
             <OverlayAnimated
                 isVisible={isEditing}
                 disableAnimationOut={focusState.disableAnimationOut}
-                // Focusing is a direct user interaction so don't animate. To focus out the
-                // user clicks somewhere else which is an indirect interaction so animate.
+                // Focusing is a direct user interaction so don't animate. To focus out the user
+                // clicks somewhere else which is an indirect interaction so animate.
                 disableAnimationIn
-                // Prefer rendering the overlay above the input on mobile since the keyboard
-                // will open below the input causing an overlay rendered below to jump up.
+                // Prefer rendering the overlay above the input on mobile since the keyboard will
+                // open below the input causing an overlay rendered below to jump up.
                 placement={platform === "mobile" ? "top" : "bottom"}
                 offset={overlayOffset}
-                // The overlay blocks interaction with everything outside the overlay. Except
-                // the date input. We still want to render the overlay in our current
-                // overlay scope so that it animates smoothly with scroll animations (important
-                // on mobile when we need to avoid the keyboard).
+                // The overlay blocks interaction with everything outside the overlay. Except the
+                // date input. We still want to render the overlay in our current overlay scope so
+                // that it animates smoothly with scroll animations (important on mobile when we
+                // need to avoid the keyboard).
                 isBlocking={true}
                 withoutRootBlockingScope={true}
                 withoutBlockingTarget={true}
@@ -413,12 +410,12 @@ export function TaskDateInput({
                     if (document.activeElement instanceof HTMLElement)
                         document.activeElement.blur();
                 }}
-                // Set a constant `overflowBottom` value instead of relying on the current
-                // keyboard height (which will be updated asynchronously after `isEditing` is
-                // true). This stops the overlay placement from jumping around while the
-                // keyboard opens. The value was calculated based on the keyboard height in
-                // iOS. We may need to change this constant if the keyboard height for iOS
-                // changes or the Android keyboard height is bigger.
+                // Set a constant `overflowBottom` value instead of relying on the current keyboard
+                // height (which will be updated asynchronously after `isEditing` is true). This
+                // stops the overlay placement from jumping around while the keyboard opens. The
+                // value was calculated based on the keyboard height in iOS. We may need to change
+                // this constant if the keyboard height for iOS changes or the Android keyboard
+                // height is bigger.
                 overflowBottom={platform === "mobile" ? "18rem" : undefined}
                 overflowTop={navigationBarHeight}
                 overlay={
@@ -437,8 +434,8 @@ export function TaskDateInput({
                         // consider the calendar focused and won't close the overlay.
                         tabIndex={-1}
                         onFocus={event => {
-                            // `<FocusRing>` updates are run with immediate priority. Make sure this update
-                            // is as well so we see both update in the same render.
+                            // `<FocusRing>` updates are run with immediate priority. Make sure this update is
+                            // as well so we see both update in the same render.
                             runWithImmediatePriority(() => {
                                 const isFocusWithinOverlay = event.currentTarget.contains(
                                     event.target,
@@ -457,10 +454,10 @@ export function TaskDateInput({
                             });
                         }}
                         onBlur={event => {
-                            // Chrome dispatches a "fake" blur event when the user has an element focused
-                            // but then clicks on another window, focusing that window but leaving our
-                            // current window visible. `blur` is dispatched but `document.activeElement`
-                            // doesn't change!
+                            // Chrome dispatches a "fake" blur event when the user has an element focused but
+                            // then clicks on another window, focusing that window but leaving our current
+                            // window visible. `blur` is dispatched but `document.activeElement` doesn't
+                            // change!
                             //
                             // Detect this case. If we receive a `blur` event but `document.activeElement`
                             // hasn't changed then escalate to a real blur.
@@ -469,13 +466,14 @@ export function TaskDateInput({
                             }
 
                             // If we're focusing an element with a popup (`role="combobox"` [implicitly has
-                            // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly
-                            // focused element will probably open its popup.
+                            // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly focused
+                            // element will probably open its popup.
                             //
                             // This happens when you have this input open then switch to another input by
                             // tapping in `<TaskGridViewMobileKeyboardToolbar>`.
                             //
-                            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+                            // [1]:
+                            //     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
                             const disableAnimationOut =
                                 event.relatedTarget instanceof HTMLElement
                                     ? (event.relatedTarget.ariaHasPopup ??
@@ -484,8 +482,8 @@ export function TaskDateInput({
                                               : null)) !== null
                                     : false;
 
-                            // `<FocusRing>` updates are run with immediate priority. Make sure this update
-                            // is as well so we see both update in the same render.
+                            // `<FocusRing>` updates are run with immediate priority. Make sure this update is
+                            // as well so we see both update in the same render.
                             runWithImmediatePriority(() => {
                                 const isFocusWithinOverlay = event.currentTarget.contains(
                                     event.relatedTarget,
@@ -516,7 +514,12 @@ export function TaskDateInput({
                             });
                         }}
                     >
-                        <TaskDateInputCalendar date={date} onDateChange={onDateChange} />
+                        <DateInputCalendar
+                            date={date}
+                            onDateChange={onDateChange}
+                            monthCount={platform === "mobile" ? 1 : 2}
+                            onClear={() => onDateChange(null)}
+                        />
                     </div>
                 }
             >
@@ -549,10 +552,10 @@ export function TaskDateInput({
                         });
                     }}
                     onBlur={event => {
-                        // Chrome dispatches a "fake" blur event when the user has an element focused
-                        // but then clicks on another window, focusing that window but leaving our
-                        // current window visible. `blur` is dispatched but `document.activeElement`
-                        // doesn't change!
+                        // Chrome dispatches a "fake" blur event when the user has an element focused but
+                        // then clicks on another window, focusing that window but leaving our current
+                        // window visible. `blur` is dispatched but `document.activeElement` doesn't
+                        // change!
                         //
                         // Detect this case. If we receive a `blur` event but `document.activeElement`
                         // hasn't changed then escalate to a real blur.
@@ -561,13 +564,14 @@ export function TaskDateInput({
                         }
 
                         // If we're focusing an element with a popup (`role="combobox"` [implicitly has
-                        // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly
-                        // focused element will probably open its popup.
+                        // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly focused
+                        // element will probably open its popup.
                         //
                         // This happens when you have this input open then switch to another input by
                         // tapping in `<TaskGridViewMobileKeyboardToolbar>`.
                         //
-                        // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+                        // [1]:
+                        //     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
                         const disableAnimationOut =
                             event.relatedTarget instanceof HTMLElement
                                 ? (event.relatedTarget.ariaHasPopup ??

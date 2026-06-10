@@ -1,13 +1,10 @@
-/* eslint-disable cyberworlds/string-quotes */
-
 import escapeHtml from "escape-html";
 
-// Hardcode Phosphor speaker-simple-slash icon SVG.
-// This is since we don't want to mount a React
-// root when we need to render the icon outside of React.
+// Hardcode Phosphor speaker-simple-slash icon SVG. This is since we don't want to
+// mount a React root when we need to render the icon outside of React.
 //
-// We import the component anyway, though, so that if we're every refactoring
-// our icon usage we can find this hardcoded string.
+// We import the component anyway, though, so that if we're every refactoring our
+// icon usage we can find this hardcoded string.
 
 export const speakerSimpleSlashIconSvg = ({className = ""}: {className?: string} = {}) =>
     `<svg xmlns="http://www.w3.org/2000/svg" class="${escapeHtml(

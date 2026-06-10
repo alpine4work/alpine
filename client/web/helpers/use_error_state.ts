@@ -5,9 +5,9 @@ type ErrorState = {readonly hasError: false} | {readonly hasError: true; readonl
 const initialErrorState: ErrorState = {hasError: false};
 
 /**
- * Basic error handling state. If you call the returned `setErrorState()`
- * function then the component will start throwing an error that's caught at
- * the nearest error boundary.
+ * Basic error handling state. If you call the returned `setErrorState()` function
+ * then the component will start throwing an error that's caught at the nearest
+ * error boundary.
  */
 export function useErrorState(): Memo<(error: unknown) => void> {
     const [errorState, setErrorState] = useState(initialErrorState);

@@ -3,6 +3,17 @@
     "prettier": {
         "allowed": true
     },
+    "language_servers": [
+        "vtsls",
+        "!typescript-language-server",
+        "!tailwindcss-language-server",
+        "!buck2-lsp",
+        "!tilt",
+        "!oxfmt",
+        "!oxlint",
+        "!deno",
+        "..."
+    ],
     "lsp": {
         // https://github.com/zed-industries/zed/issues/6115#issuecomment-2709471139
         "vtsls": {

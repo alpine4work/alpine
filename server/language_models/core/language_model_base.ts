@@ -16,18 +16,19 @@ export interface LanguageModelBaseClass {
 
     /**
      * Are dimensions 32-bit floats or 8-bit signed bytes (aka integer in the range
-     * [-127, 128])? Typically, models return 32-bit floats but research shows you
-     * can quantize vectors to bytes with significant performance improvement for a
-     * minimal effect on recall ([source 1][1], [source 2][2], [source 3][3]).
+     * [-127, 128])? Typically, models return 32-bit floats but research shows you can
+     * quantize vectors to bytes with significant performance improvement for a minimal
+     * effect on recall ([source 1][1], [source 2][2], [source 3][3]).
      *
      * The `embed()` function is expected to return dimensions of this type.
      *
      * Generally, we recommend using a `byte` data type for your model since the
-     * performance is much better for a minimal effect on recall. However, a
-     * `float` data type is more convenient since you don't need to perform
-     * quantization on your vectors.
+     * performance is much better for a minimal effect on recall. However, a `float`
+     * data type is more convenient since you don't need to perform quantization on
+     * your vectors.
      *
-     * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-vector#lucene-byte-vector
+     * [1]:
+     *     https://opensearch.org/docs/latest/field-types/supported-field-types/knn-vector#lucene-byte-vector
      * [2]: https://www.elastic.co/blog/save-space-with-byte-sized-vectors
      * [3]: https://qdrant.tech/articles/scalar-quantization/
      */
@@ -41,8 +42,8 @@ export interface LanguageModelBaseClass {
 }
 
 /**
- * Interface for a language model. Useful for swapping out language
- * model implementations.
+ * Interface for a language model. Useful for swapping out language model
+ * implementations.
  */
 export interface LanguageModelBase {
     readonly statics: LanguageModelBaseClass;
@@ -50,8 +51,8 @@ export interface LanguageModelBase {
     /**
      * Embed some texts into vector representations with this model.
      *
-     * `inputType` is [required by Cohere][1] and unused by other models. Other
-     * models ignore the option.
+     * `inputType` is [required by Cohere][1] and unused by other models. Other models
+     * ignore the option.
      *
      * [1]: https://docs.cohere.com/reference/embed
      */

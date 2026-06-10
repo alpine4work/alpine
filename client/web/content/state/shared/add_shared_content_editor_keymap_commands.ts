@@ -21,8 +21,7 @@ function getPunctuation(
     punctuation: "(" | "{" | "[" | '"' | "'",
     isInCodeBlock: boolean,
 ): {openingPunctuation: string; closingPunctuation: string} {
-    // If we are in a code block, we do not want smart quotations to wrap
-    // our content
+    // If we are in a code block, we do not want smart quotations to wrap our content
     if (isInCodeBlock) {
         switch (punctuation) {
             case "(":
@@ -78,9 +77,8 @@ function wrapWithPunctuation(
         const nodeFrom = $from.node();
         const nodeTo = $to.node();
 
-        // This checks if the selection spans across content nodes. If the selection is
-        // in the same `codeBlock` then we allow it to span across multiple
-        // `codeBlockLine`s.
+        // This checks if the selection spans across content nodes. If the selection is in
+        // the same `codeBlock` then we allow it to span across multiple `codeBlockLine`s.
         if (nodeFrom !== nodeTo) {
             if (nodeFrom.type.name !== "codeBlockLine" || nodeTo.type.name !== "codeBlockLine") {
                 return false;
@@ -111,9 +109,9 @@ function wrapWithPunctuation(
                 }
             }
 
-            // If the user doesn't have text selected, always create a matching bracket.
-            // This is useful in code where there are many brackets but also in regular
-            // prose when the user is writing a parenthetical.
+            // If the user doesn't have text selected, always create a matching bracket. This
+            // is useful in code where there are many brackets but also in regular prose when
+            // the user is writing a parenthetical.
             if (dispatch) {
                 const {openingPunctuation, closingPunctuation} = getPunctuation(
                     punctuation,
@@ -157,13 +155,13 @@ function wrapWithPunctuation(
 }
 
 /**
- * If the user types closing punctuation (e.g. `)`) and we've already inserted
- * the closing punctuation (e.g. when you type `(` we insert `()` and put your
- * cursor inside) don't insert a second closing punctuation character.
+ * If the user types closing punctuation (e.g. `)`) and we've already inserted the
+ * closing punctuation (e.g. when you type `(` we insert `()` and put your cursor
+ * inside) don't insert a second closing punctuation character.
  *
- * This depends on the user typing only within the punctuation. If their
- * selection moves outside of the punctuation we'll insert their closing
- * punctuation as normal.
+ * This depends on the user typing only within the punctuation. If their selection
+ * moves outside of the punctuation we'll insert their closing punctuation as
+ * normal.
  */
 // eslint-disable-next-line cyberworlds/string-quotes
 function skipClosingPunctuation(punctuation: "(" | "{" | "[" | '"' | "'"): Command {
@@ -191,8 +189,8 @@ function skipClosingPunctuation(punctuation: "(" | "{" | "[" | '"' | "'"): Comma
  * just `<ContentEditor>`. For example `<TaskRowTitleInput>` is a ProseMirror
  * editor that doesn't use content.
  *
- * If you used shared keymap commands you should also make sure the editor is
- * using `sharedContentEditorTrackSelectionWithinPlugin()`.
+ * If you used shared keymap commands you should also make sure the editor is using
+ * `sharedContentEditorTrackSelectionWithinPlugin()`.
  */
 export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>) {
     /* eslint-disable cyberworlds/string-quotes */
@@ -202,17 +200,16 @@ export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>)
         keys.set("[", wrapWithPunctuation("["));
         keys.set("{", wrapWithPunctuation("{"));
 
-        // You open and close quotes with the same character. Chain the commands
-        // together.
+        // You open and close quotes with the same character. Chain the commands together.
         keys.set('"', chainCommands(skipClosingPunctuation('"'), wrapWithPunctuation('"')));
 
         keys.set(
             "'",
             wrapWithPunctuation("'", {
-                // Don't auto balance single quotes since they're often used in contractions.
-                // We may want to auto balance single quotes in code (if you have a single
-                // quoted string) but it's tough since we don't want contractions in
-                // comments to be auto balanced.
+                // Don't auto balance single quotes since they're often used in contractions. We
+                // may want to auto balance single quotes in code (if you have a single quoted
+                // string) but it's tough since we don't want contractions in comments to be auto
+                // balanced.
                 withoutAutoBalancing: true,
             }),
         );

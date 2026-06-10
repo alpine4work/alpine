@@ -17,8 +17,8 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * In case of transient D1 errors, retry the action a few times.
- * See https://developers.cloudflare.com/d1/best-practices/retry-queries/.
+ * In case of transient D1 errors, retry the action a few times. See
+ * https://developers.cloudflare.com/d1/best-practices/retry-queries/.
  */
 function retryD1ErrorAndWrapInSpan<T>(
     span: TracerSpan,
@@ -27,13 +27,16 @@ function retryD1ErrorAndWrapInSpan<T>(
 ): Promise<T> {
     return retryWithExponentialBackoff(async retry => {
         try {
-            return span.withSpan(`D1 ${name}`, () => {
-                return action();
+            // TODO: Re-enable `@typescript-eslint/return-await` after deciding whether
+            // this `try`/`catch` should handle async D1 failures.
+            // eslint-disable-next-line @typescript-eslint/return-await
+            return span.withSpan(`D1 ${name}`, async () => {
+                return await action();
             });
         } catch (error) {
-            // These error message matchings seem weird. I agree.
-            // But they are taken from Cloudflare's own documentation.
-            // So we will trust that these are the correct strings to match on.
+            // These error message matchings seem weird. I agree. But they are taken from
+            // Cloudflare's own documentation. So we will trust that these are the correct
+            // strings to match on.
             const errorMessage = String(error);
             const isRetryableError =
                 errorMessage.includes("Network connection lost") ||
@@ -103,7 +106,7 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
         accountId: string,
         sinceTimestamp: number,
     ): Promise<number> {
-        return retryD1ErrorAndWrapInSpan(
+        return await retryD1ErrorAndWrapInSpan(
             span,
             "getUsedMillicentsByAccountIdSinceTimestamp",
             async () => {
@@ -134,7 +137,7 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
         accountId: string,
         type: AgentUsageWindowType,
     ): Promise<AgentUsageWindow | null> {
-        return retryD1ErrorAndWrapInSpan(span, "getWindowByAccountIdAndType", async () => {
+        return await retryD1ErrorAndWrapInSpan(span, "getWindowByAccountIdAndType", async () => {
             const [row] = await this.database
                 .select()
                 .from(agentUsageWindowsTable)
@@ -212,7 +215,7 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
         span: TracerSpan,
         accountId: string,
     ): Promise<AccountEntitlements | null> {
-        return retryD1ErrorAndWrapInSpan(span, "getAccountEntitlements", async () => {
+        return await retryD1ErrorAndWrapInSpan(span, "getAccountEntitlements", async () => {
             const results = await this.database
                 .select()
                 .from(accountEntitlements)

@@ -1,9 +1,63 @@
 name: "Initialize Bazel cache"
 description: "Sets up the Bazel repository cache and remote cache"
+inputs:
+    start-bazel-remote-cache:
+        description: "Whether to start the Bazel remote cache proxy."
+        required: false
+        default: "true"
 
 runs:
     using: "composite"
     steps:
+        - id: runner-mode
+          name: Detect runner mode
+          shell: bash
+          run: |
+              # `ALPINE_RUNNER_TAG` is injected by the runner bootstrap script
+              # Read it at runtime and branch on this step's output instead.
+              echo "runner-tag=${ALPINE_RUNNER_TAG:-}" >> "$GITHUB_OUTPUT"
+
+        - if: steps.runner-mode.outputs.runner-tag == 'aws-test-asg'
+          id: image-cache
+          name: Check AMI image cache
+          shell: bash
+          env:
+              # Keep this `hashFiles()` input list in sync with
+              # `build-test-runner-ami.yaml`:
+              #
+              # - the `push.paths` trigger that decides when `main` should build
+              #   a fresh AMI image cache
+              # - the workflow's own `BAZEL_CACHE_KEY` definition
+              BAZEL_CACHE_KEY: bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+          run: |
+              image_cache_key_path="${ALPINE_AMI_BAZEL_CACHE_KEY_PATH:-/opt/alpine-runner-image/bazel-cache-key}"
+              image_cache_key=
+              # `aws-test-asg` now depends on the runner AMI image cache existing.
+              # If the AMI was not built correctly, fail immediately instead of
+              # silently downgrading to a cold local runner startup path.
+              if [ ! -f "$image_cache_key_path" ]; then
+                  echo "Expected AMI image cache metadata at $image_cache_key_path, but it was not found." >&2
+                  exit 1
+              fi
+              image_cache_key=$(tr -d '\n' < "$image_cache_key_path")
+              if [ "$image_cache_key" = "$BAZEL_CACHE_KEY" ]; then
+                  echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+              else
+                  echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+              fi
+
+        - if: steps.runner-mode.outputs.runner-tag == 'aws-test-asg' && steps.image-cache.outputs.cache-hit != 'true'
+          name: Refresh local Bazel cache from workspace
+          shell: bash
+          run: |
+              # ASG runners normally boot from an AMI image cache that already
+              # has a warm `main` checkout and Bazel cache on local disk. When
+              # the current job's cache key does not match that image cache,
+              # fall back to the legacy local warmup path on this runner instead
+              # of paying a shared filesystem restore cost.
+              admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --remote_cache= --build_tests_only --test_tag_filters=-macos
+              admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --remote_cache=
+
         # We cache Bazel external repositories with [GitHub's cache action][1]. We
         # cache individual build rule results with [Bazel remote caching][2].
         #
@@ -18,9 +72,10 @@ runs:
         #
         # [1]: https://github.com/actions/cache
         # [2]: https://bazel.build/remote/caching
-        - id: cache
+        - if: steps.runner-mode.outputs.runner-tag != 'aws-test-asg'
+          id: cache
           name: Restore Bazel repositories cache
-          uses: actions/cache/restore@v3
+          uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
           with:
               path: |
                   ~/.cache/bazelisk
@@ -28,7 +83,7 @@ runs:
               # IMPORTANT: Should have the same `hashFiles()` as `deploy.yaml`. We want to
               # share our cache between the two workflows.
               key: |
-                  bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+                  bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/*.patch', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
               restore-keys: |
                   bazel-${{ runner.os }}-${{ runner.arch }}-
 
@@ -44,7 +99,7 @@ runs:
         # > miss, it will be set to `false`.
         #
         # [1]: https://github.com/actions/cache/blob/main/restore/README.md
-        - if: steps.cache.outputs.cache-hit != 'true'
+        - if: steps.runner-mode.outputs.runner-tag != 'aws-test-asg' && steps.cache.outputs.cache-hit != 'true'
           name: Fetch Bazel repositories
           shell: bash
           run: |
@@ -57,14 +112,19 @@ runs:
         #
         # We only save new cache entries on the `main` branch. So if you're iterating
         # on a PR we don't save a bunch of cache entries that'll never be used again.
-        - if: steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        - if: steps.runner-mode.outputs.runner-tag != 'aws-test-asg' && steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
           name: Save Bazel repositories cache
-          uses: actions/cache/save@v3
+          uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
           with:
               path: |
                   ~/.cache/bazelisk
                   ~/.cache/bazel
               key: ${{ steps.cache.outputs.cache-primary-key }}
+
+        - name: Configure Bazel remote cache log path
+          shell: bash
+          run: |
+              echo "BAZEL_REMOTE_CACHE_LOG_PATH=$RUNNER_TEMP/bazel-remote-cache.log" >> "$GITHUB_ENV"
 
         # This starts the Bazel remote cache proxy server. We store [Bazel remote
         # cache][1] files in AWS S3. The AWS S3 API is mostly compatible with what
@@ -131,7 +191,8 @@ runs:
         # [1]: https://bazel.build/remote/caching
         # [2]: https://bazel.build/remote/cache-remote
         # [3]: https://github.com/buchgr/bazel-remote
-        - name: Start Bazel remote cache
+        - if: inputs.start-bazel-remote-cache == 'true'
+          name: Start Bazel remote cache
           shell: bash
           run: |
               admin/aws/internal/aws_github_runners_bazel_remote_cache.sh

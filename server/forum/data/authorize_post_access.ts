@@ -11,9 +11,9 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Authorizes that the session user can access the provided post.
- * Implicitly also authorizes that the session user can access the channel the
- * post is in and the space the channel is in.
+ * Authorizes that the session user can access the provided post. Implicitly also
+ * authorizes that the session user can access the channel the post is in and the
+ * space the channel is in.
  */
 export async function authorizePostAccess(
     context: ServerActionContext,
@@ -27,9 +27,9 @@ export async function authorizePostAccess(
 }
 
 /**
- * Authorizes that the session user can access the provided post.
- * Implicitly also authorizes that the session user can access the channel the
- * post is in and the space the channel is in.
+ * Authorizes that the session user can access the provided post. Implicitly also
+ * authorizes that the session user can access the channel the post is in and the
+ * space the channel is in.
  *
  * Returns a result if there's an authorization failure instead of throwing.
  */
@@ -42,6 +42,10 @@ export async function authorizePostAccessIfPossible(
     Result<{spaceId: SpaceId; channelId: ChannelId; channelAccessPolicy: AccessPolicy}, ErrorBase>
 > {
     const postItem = await getPostItemForAuthorization(context, id, options);
+
+    // Optimization: Don't wait until the channel loads (and so we call
+    // `evaluateAccessPolicy()`) to report the post's `SpaceId` as discovered.
+    context.discovery?.discoverSpaceId(postItem.spaceId);
 
     const result = await authorizeChannelAccessIfPossible(
         context,

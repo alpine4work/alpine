@@ -1,9 +1,8 @@
 /**
  * Returns exactly the type that was passed in.
  *
- * The type has a useful property when you're doing TypeScript meta-programming.
- * It makes TypeScript show an evaluated type instead of a type alias with its
- * input.
+ * The type has a useful property when you're doing TypeScript meta-programming. It
+ * makes TypeScript show an evaluated type instead of a type alias with its input.
  *
  * Example:
  *

@@ -14,12 +14,12 @@ export type IntegerMappingIntegerType<T extends IntegerMapping<any>> =
     T extends IntegerMapping<infer Mapping> ? Mapping[keyof Mapping] : never;
 
 /**
- * Create a mapping of strings to integers. Integers are more efficient to
- * encode then strings. So if you have a fixed list of strings and encoding
- * efficiency matters, this utility may be helpful to you.
+ * Create a mapping of strings to integers. Integers are more efficient to encode
+ * then strings. So if you have a fixed list of strings and encoding efficiency
+ * matters, this utility may be helpful to you.
  *
- * It's generally recommended to avoid using 0 so that 0 can be reserved for
- * null values in a binary encoding.
+ * It's generally recommended to avoid using 0 so that 0 can be reserved for null
+ * values in a binary encoding.
  */
 export function createEnumIntegerMapping<const Mapping extends {[key: string]: number}>(
     mapping: Mapping,

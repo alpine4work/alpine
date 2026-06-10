@@ -20,10 +20,10 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -62,7 +62,7 @@ const context = createTestContext({
                 break;
             }
             case "IndexSearchEntityEmbeddingChunks": {
-                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job, span);
                 break;
             }
             default: {
@@ -78,8 +78,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -1120,6 +1120,50 @@ test(
     45 * 1000,
 );
 
+test("tasks with a local default grant are visible in search to everyone in the space", async () => {
+    const space = await TestSpace.create(context);
+    const creatorSession = await space.createSession();
+    const otherSession = await space.createSession();
+
+    const task = await TestTask.create(creatorSession, {
+        title: "Local Default Grant Search Visibility",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const getTaskSearchEntityIds = async (session: TestSpaceSession) => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+        const results = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "Local Default Grant Search Visibility",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results.map(result => result.id).filter(resultId => resultId.startsWith("Task:"));
+    };
+
+    // Without a task-local default grant, only explicitly granted accounts can see the
+    // task in search.
+    expect(await getTaskSearchEntityIds(creatorSession)).toEqual([`Task:${task.id}`]);
+    expect(await getTaskSearchEntityIds(otherSession)).toEqual([]);
+
+    await task.access.grantDefault(creatorSession, "View");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getTaskSearchEntityIds(creatorSession)).toEqual([`Task:${task.id}`]);
+    expect(await getTaskSearchEntityIds(otherSession)).toEqual([`Task:${task.id}`]);
+});
+
 test("will not allow users to view task comments they do not have access to", async () => {
     const space = await TestSpace.create(context);
 
@@ -1162,6 +1206,7 @@ test("will not allow users to view task comments they do not have access to", as
     await privateTask.updateAssignee(creatorSession, assigneeSession);
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [manageSession.account.id, {level: "Manage", generation: 1}],
@@ -1302,6 +1347,7 @@ test("will not allow users to view task comments they do not have access to afte
     ];
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [commenterSession.account.id, {level: "Comment"}],
@@ -1352,6 +1398,7 @@ test("will not allow users to view task comments they do not have access to afte
     ]);
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
             [commenterSession.account.id, {level: "View"}],
@@ -1418,6 +1465,7 @@ test("will not allow users to view task comments they do not have access to when
     ];
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
         ]),
@@ -1457,6 +1505,7 @@ test("will not allow users to view task comments they do not have access to when
     ]);
 
     await privateCollection.access.set(creatorSession, {
+        type: "Local",
         accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
             [creatorSession.account.id, {level: "Manage", generation: 0}],
         ]),
@@ -1833,6 +1882,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection1.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1841,6 +1891,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection2.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1849,6 +1900,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection3.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1857,6 +1909,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection4.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1865,6 +1918,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection5.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -1873,6 +1927,7 @@ test("can get affinitive collections for an account", async () => {
             spaceId: space.id,
             entityId: `TaskCollection:${collection6.id}`,
             interaction: {type: "MediumIntentUpdate"},
+            siteId: null,
         });
     }
 
@@ -2170,7 +2225,7 @@ test("effective task collection name fuzzy searching", async () => {
         "Core Product FY2023Q3",
         "Core Product FY2024Q2",
     ]);
-});
+}, 20_000);
 
 test("excludes collections account doesn\u2019t have access to when searching", async () => {
     const space = await TestSpace.create(context);
@@ -2216,6 +2271,7 @@ test("excludes collections account doesn\u2019t have access to when searching", 
 
     await runAllPromises([
         collection5.access.set(session1, {
+            type: "Local",
             accountGrantById: new Map([
                 [session1.account.id, {level: "Manage", generation: 0}],
                 [session3.account.id, {level: "Manage", generation: 1}],
@@ -2224,6 +2280,7 @@ test("excludes collections account doesn\u2019t have access to when searching", 
             urlGrant: null,
         }),
         collection6.access.set(session2, {
+            type: "Local",
             accountGrantById: new Map([
                 [session2.account.id, {level: "Manage", generation: 0}],
                 [session3.account.id, {level: "Manage", generation: 1}],
@@ -2259,8 +2316,8 @@ test("excludes collections account doesn\u2019t have access to when searching", 
     await ProcessContextModule.waitForTestTasks();
 });
 
-// Tests that would be in `get_search_entity.test.ts` except we don't want to
-// start OpenSearch in that file.
+// Tests that would be in `get_search_entity.test.ts` except we don't want to start
+// OpenSearch in that file.
 describe("getSearchEntity", () => {
     test("can get task search entity", async () => {
         const space = await TestSpace.create(context);

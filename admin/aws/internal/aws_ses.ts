@@ -54,7 +54,8 @@ export class AwsSes extends Construct {
         this._alpineIdentity = new EmailIdentity(this, "EmailIdentity", {
             identity: Identity.domain("alpine.inc"),
             mailFromDomain: "mail.alpine.inc",
-            // We disable feedback emails since we have our reputation metrics sent to CloudWatch
+            // We disable feedback emails since we have our reputation metrics sent to
+            // CloudWatch
             feedbackForwarding: false,
             configurationSet: this._configurationSet,
             dkimSigning: true,

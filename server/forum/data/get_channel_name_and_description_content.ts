@@ -10,8 +10,8 @@ import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Get the channel name and description content without references. Used for
- * building a search entity which will load content references on its own in a
- * way that tracks dependencies.
+ * building a search entity which will load content references on its own in a way
+ * that tracks dependencies.
  */
 export async function getChannelNameAndDescriptionContent(
     context: ServerActionContext,
@@ -26,6 +26,27 @@ export async function getChannelNameAndDescriptionContent(
     creatorId: AccountId | null;
     accessPolicy: AccessPolicy;
 }> {
+    const channelItem = await getChannelNameAndDescriptionContentIfExists(context, channelId, {
+        consistency,
+    });
+    if (!channelItem) throw createChannelNotFoundError(channelId);
+
+    return channelItem;
+}
+
+export async function getChannelNameAndDescriptionContentIfExists(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    name: string;
+    description: MessageContent;
+    createdTime: Date;
+    creatorId: AccountId | null;
+    accessPolicy: AccessPolicy;
+} | null> {
     const channelItemPromise = ForumRealtimeTable.getItemIfExists(
         context,
         {
@@ -40,7 +61,8 @@ export async function getChannelNameAndDescriptionContent(
     ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, channelItemPromise);
 
     const channelItem = await channelItemPromise;
-    if (!channelItem) throw createChannelNotFoundError(channelId);
+
+    if (!channelItem) return null;
 
     await authorizeChannelItemAccess(context, channelItem, "View");
 

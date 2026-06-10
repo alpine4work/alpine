@@ -39,8 +39,8 @@ export function createContentEditorCheckListItemNodeViewConstructor({
             // Don't allow clicking on checkbox items if you don't have edit permissions.
             if (!hasAccessLevel(getAccessLevel(), "Edit")) return;
 
-            // We don't want to select surrounding text when double clicking this element.
-            // So we need to both prevent default (prevents browser selection) and stop
+            // We don't want to select surrounding text when double clicking this element. So
+            // we need to both prevent default (prevents browser selection) and stop
             // propagation (prevents ProseMirror selection).
             event.preventDefault();
             event.stopPropagation();
@@ -108,8 +108,8 @@ export function createContentEditorCheckListItemNodeViewConstructor({
             dom,
             contentDOM: contentDom,
             ignoreMutation: mutation => {
-                // Ignore changes to the `class` attribute so that the node isn't recreated
-                // when we update classes.
+                // Ignore changes to the `class` attribute so that the node isn't recreated when we
+                // update classes.
                 return mutation.type === "attributes" && mutation.attributeName === "class";
             },
         };

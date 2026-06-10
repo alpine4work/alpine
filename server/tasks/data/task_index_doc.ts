@@ -19,6 +19,7 @@ import {
     HybridLogicalTimeType,
     SortableHybridLogicalTimeType,
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
+import {AccessPolicyRegister, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {CrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
     HybridLogicalTime,
@@ -51,6 +52,7 @@ import {
     TaskAssigneeStatusSchema,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
+import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 import {
     TaskDisplayStatus,
     TaskDisplayStatusIntegerMapping,
@@ -59,6 +61,11 @@ import {
     TaskFilterableTime,
     getTaskFilterableTimeSetterDate,
 } from "~/shared/tasks/task_filterable_time.js";
+import {
+    TaskLayout,
+    TaskLayoutIntegerMapping,
+    TaskLayoutRegister,
+} from "~/shared/tasks/task_layout.js";
 import {
     TaskPosition,
     TaskPositionRegister,
@@ -74,24 +81,34 @@ import {TaskStatus, TaskStatusWithSortableAccountRegister} from "~/shared/tasks/
 import {TaskTitle, getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 
 /**
- * Indexes an account and inlines the account's name and the account's
- * name version.
+ * Indexes an account and inlines the account's name and the account's name
+ * version.
  *
- * We inline the account name into this object so we can sort by account
- * name. When the account name changes we run a
- * [`/:index/_search` request][1] to find all tasks we need to update.
+ * We inline the account name into this object so we can sort by account name. When
+ * the account name changes we run a [`/:index/_search` request][1] to find all
+ * tasks we need to update.
  *
- * The inlined account name/version is prefixed with "working" to denote that
- * the account is what we're currently using for sorting but it's not the
- * canonical account name source and may temporarily be out-of-date.
+ * The inlined account name/version is prefixed with "working" to denote that the
+ * account is what we're currently using for sorting but it's not the canonical
+ * account name source and may temporarily be out-of-date.
  *
- * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+ * [1]:
+ *     https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
  */
 const TaskIndexSortableAccountType = OpensearchIndexObjectType.new({
     fields: {
         accountId: new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
         workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
         workingAccountNameVersion: new OpensearchIndexIntegerType({isFilterable: true}),
+    },
+});
+
+const TaskIndexCreatorType = OpensearchIndexObjectType.new({
+    fields: {
+        accountId: new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
+        workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
+        workingAccountNameVersion: new OpensearchIndexIntegerType({isFilterable: true}),
+        from: new OpensearchIndexIgnoredObjectType(TaskCreatorFromSchema).nullable().default(null),
     },
 });
 
@@ -111,8 +128,8 @@ const TaskIndexFilterableTimeType = OpensearchIndexObjectType.new({
             // represents a logical workday that is not subject to arbitrary time zone
             // boundaries. See `TaskFilterableTime` for more reasoning behind this.
             //
-            // `CalendarDate` is represented by an OpenSearch date field at midnight
-            // UTC for that date.
+            // `CalendarDate` is represented by an OpenSearch date field at midnight UTC for
+            // that date.
             setterDate: new OpensearchIndexDateType({isFilterable: true}).transform<CalendarDate>({
                 serialize: date => date.toDate("UTC"),
                 deserialize: date => toCalendarDate(parseAbsolute(date.toISOString(), "UTC")),
@@ -135,14 +152,14 @@ const TaskIndexPositionType = OpensearchIndexObjectType.new({
 });
 
 /**
- * Represents the parent task, if there is one, and the position of our task in
- * its parent.
+ * Represents the parent task, if there is one, and the position of our task in its
+ * parent.
  *
- * The parent `taskId` and `position` are separate registers so they may be
- * updated independently even though `position` depends on `taskId`. `position`
- * should reset whenever `taskId` changes and `position` should be considered
- * null if `taskId` is null. `position` must be set if `taskId` is non-null so
- * we consider `position` to always be non-null`.
+ * The parent `taskId` and `position` are separate registers so they may be updated
+ * independently even though `position` depends on `taskId`. `position` should
+ * reset whenever `taskId` changes and `position` should be considered null if
+ * `taskId` is null. `position` must be set if `taskId` is non-null so we consider
+ * `position` to always be non-null`.
  */
 const TaskIndexParentType = OpensearchIndexObjectType.new({
     fields: {
@@ -179,19 +196,19 @@ const TaskIndexParentType = OpensearchIndexObjectType.new({
  *
  * We have the raw representation of our task's collections which doesn't get
  * indexed. Then we index a couple flattened array fields: `ids`,
- * `positionOrderTimes`, and `positionOrderKeys`. These arrays are correlated
- * by their position in the array. So an item at position 2 in
- * `positionOrderTimes` corresponds to item 2 in `ids`.
+ * `positionOrderTimes`, and `positionOrderKeys`. These arrays are correlated by
+ * their position in the array. So an item at position 2 in `positionOrderTimes`
+ * corresponds to item 2 in `ids`.
  *
- * We choose to use flat array fields as opposed to a nested field for
- * performance. Nested fields create separate documents (under the hood) for
- * each item in the array. This doesn't give us a speed advantage for the case
- * we need correlated `TaskCollectionId`s: sorting. So instead we sort by a
- * script. The script finds the index of the collection in `ids` and uses it to
- * get the right order time and order key.
+ * We choose to use flat array fields as opposed to a nested field for performance.
+ * Nested fields create separate documents (under the hood) for each item in the
+ * array. This doesn't give us a speed advantage for the case we need correlated
+ * `TaskCollectionId`s: sorting. So instead we sort by a script. The script finds
+ * the index of the collection in `ids` and uses it to get the right order time and
+ * order key.
  *
- * OpenSearch doesn't have indexes for sorting, unfortunately. If we find this
- * to be slow, we can build our own index for fast sorting outside of our tasks
+ * OpenSearch doesn't have indexes for sorting, unfortunately. If we find this to
+ * be slow, we can build our own index for fast sorting outside of our tasks
  * OpenSearch index.
  */
 const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
@@ -210,8 +227,8 @@ const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
                     isFilterable: true,
                 }).validate<TaskCollectionId>(isId),
             ),
-            // Store a map of `TaskCollectionId` to `TaskPosition` in a string array. This
-            // is used by a script to sort tasks.
+            // Store a map of `TaskCollectionId` to `TaskPosition` in a string array. This is
+            // used by a script to sort tasks.
             positions: new OpensearchIndexArrayType(
                 new OpensearchIndexKeywordType({isUsableInScripts: true}),
             ),
@@ -238,14 +255,15 @@ export const TaskStatusTypeIntegerMapping = createEnumIntegerMapping({
 /**
  * Indexes `TaskStatus`.
  *
- * We represent priority with an integer so it's consistent with other enums
- * in OpenSearch.
+ * We represent priority with an integer so it's consistent with other enums in
+ * OpenSearch.
  *
- * You may filter by status but you don't sort by this status field. Instead
- * you sort by the computed field `displayStatus` which takes both `status` and
+ * You may filter by status but you don't sort by this status field. Instead you
+ * sort by the computed field `displayStatus` which takes both `status` and
  * `assigneeStatus` into account.
  *
- * [1]: https://opensearch.org/docs/latest/search-plugins/searching-data/sort/#performance-considerations
+ * [1]:
+ *     https://opensearch.org/docs/latest/search-plugins/searching-data/sort/#performance-considerations
  */
 const TaskIndexStatusType = createCrdtRegisterOpensearchType(
     TaskStatusWithSortableAccountRegister,
@@ -347,8 +365,8 @@ const TaskIndexTitleType = OpensearchIndexObjectType.new({
                 // Uses the standard analyzer which is case insensitive, uses the [Unicode Text
                 // Segmentation][1] algorithm to split words, and does not discard stop words.
                 //
-                // It's important we use an analyzer here that we can reimplement in
-                // JavaScript since filtering also needs to be performed on the client.
+                // It's important we use an analyzer here that we can reimplement in JavaScript
+                // since filtering also needs to be performed on the client.
                 //
                 // [1]: https://unicode.org/reports/tr29/
                 analyzer: "standard",
@@ -361,8 +379,8 @@ const TaskIndexTitleType = OpensearchIndexObjectType.new({
 /**
  * Indexes a task due date represented by a `CalendarDate`.
  *
- * `CalendarDate` is represented by an OpenSearch date field at midnight
- * UTC for that date.
+ * `CalendarDate` is represented by an OpenSearch date field at midnight UTC for
+ * that date.
  */
 const TaskIndexDueDateType = createCrdtRegisterOpensearchType(
     TaskDueDateRegister,
@@ -381,10 +399,11 @@ const TaskIndexDueDateType = createCrdtRegisterOpensearchType(
  * Indexes `TaskPriority`.
  *
  * Represent priority with an integer so that it's sortable. OpenSearch recommends
- * using the [smallest type possible][1] when sorting since it needs to be
- * loaded into memory.
+ * using the [smallest type possible][1] when sorting since it needs to be loaded
+ * into memory.
  *
- * [1]: https://opensearch.org/docs/latest/search-plugins/searching-data/sort/#performance-considerations
+ * [1]:
+ *     https://opensearch.org/docs/latest/search-plugins/searching-data/sort/#performance-considerations
  */
 const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
     TaskPriorityRegister,
@@ -400,6 +419,20 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
         .nullable(),
 );
 
+const TaskIndexLayoutType = createCrdtRegisterOpensearchType(
+    TaskLayoutRegister,
+    new OpensearchIndexByteType({
+        isFilterable: true,
+        isSortable: true,
+    })
+        .transform<TaskLayout>({
+            serialize: layout => TaskLayoutIntegerMapping.into(layout),
+            deserialize: layout =>
+                TaskLayoutIntegerMapping.from(TaskLayoutIntegerMapping.assert(layout)),
+        })
+        .nullable(),
+);
+
 export type TaskIndexSearchEntityJob = SchemaType<typeof TaskIndexSearchEntityJobSchema>;
 
 const TaskIndexSearchEntityJobSchema = Schema.object({
@@ -407,8 +440,8 @@ const TaskIndexSearchEntityJobSchema = Schema.object({
     // NOTE(calebmer, 2025-01-31): Prior to this date we didn't have a generation
     // number for this object.
     generation: Schema.integer.min(0).default(0),
-    // NOTE(calebmer, 2025-01-31): We used to always use 60 as the job's
-    // `delaySeconds` prior to this date.
+    // NOTE(calebmer, 2025-01-31): We used to always use 60 as the job's `delaySeconds`
+    // prior to this date.
     delaySeconds: Schema.integer.default(60),
     updatedTraits: Schema.union({
         Any: Schema.object({type: Schema.value("Any")}),
@@ -424,9 +457,9 @@ const TaskIndexSearchEntityJobSchema = Schema.object({
  * The type of a document in our tasks index. Can be used to execute arbitrary
  * queries against tasks efficiently.
  *
- * This type is customized for use in `TaskRealtimeService` for representing
- * tasks in-memory. So OpenSearch bookkeeping fields have been removed. For the
- * actual type we get from OpenSearch see `TaskIndexActualDoc`.
+ * This type is customized for use in `TaskRealtimeService` for representing tasks
+ * in-memory. So OpenSearch bookkeeping fields have been removed. For the actual
+ * type we get from OpenSearch see `TaskIndexActualDoc`.
  */
 export type TaskIndexDoc = MergeObjectIntersection<
     {
@@ -436,8 +469,8 @@ export type TaskIndexDoc = MergeObjectIntersection<
         "lastIndexSearchEntityJob" | "approximateActionCountByAccountId"
     > & {
             // This type is used throughout `TaskRealtimeService` to represent a task. It
-            // should not include bookkeeping properties from OpenSearch that won't be
-            // updated in-memory.
+            // should not include bookkeeping properties from OpenSearch that won't be updated
+            // in-memory.
             readonly version?: undefined;
             readonly lastIndexSearchEntityJob?: undefined;
             readonly approximateActionCountByAccountId?: undefined;
@@ -445,8 +478,8 @@ export type TaskIndexDoc = MergeObjectIntersection<
 >;
 
 /**
- * The actual type of a doc in the OpenSearch task index. `TaskIndexDoc` is a
- * more refined type where some OpenSearch bookkeeping has been removed.
+ * The actual type of a doc in the OpenSearch task index. `TaskIndexDoc` is a more
+ * refined type where some OpenSearch bookkeeping has been removed.
  */
 export type TaskIndexActualDoc = OpensearchIndexTypeType<typeof TaskIndexDocType>;
 
@@ -523,13 +556,12 @@ export const TaskApproximateActionCountByAccountId = createSchemaLazyTransformCl
 
 export const TaskIndexDocType = OpensearchIndexObjectType.new({
     fields: {
-        // The space this task is in. We also use the `SpaceId` as the routing value
-        // for `TaskIndex`. Why do we also need it here? For index sorting. We want to
-        // sort the OpenSearch index by space, then deletion, then open/close status.
-        // So it's efficient to filter for open, not-deleted, tasks in a space. The
-        // documentation is unclear on whether the routing field is included in
-        // index sorting so we manually have an identical `spaceId` field that's
-        // part of index sorting.
+        // The space this task is in. We also use the `SpaceId` as the routing value for
+        // `TaskIndex`. Why do we also need it here? For index sorting. We want to sort the
+        // OpenSearch index by space, then deletion, then open/close status. So it's
+        // efficient to filter for open, not-deleted, tasks in a space. The documentation
+        // is unclear on whether the routing field is included in index sorting so we
+        // manually have an identical `spaceId` field that's part of index sorting.
         //
         // We recommend filtering on both `spaceId` and the routing field to make sure
         // index sorting optimizations kick in.
@@ -538,7 +570,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             isSortable: true,
         }).validate<SpaceId>(isId),
 
-        creator: TaskIndexSortableAccountType,
+        creator: TaskIndexCreatorType,
         createdTime: TaskIndexFilterableTimeType,
         // The `isDeleted` computed property definitively tells us whether a task is
         // deleted or not.
@@ -546,24 +578,31 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         rawUndeletedTime: HybridLogicalTimeType.nullable(),
 
         parent: TaskIndexParentType,
-        // See the documentation on `TaskUpdateChildrenCountsAction` for what these
-        // fields are. They are CRDTs that allow us to figure out the task's
-        // `childTaskCount` and `childClosedTaskCount`.
+        // See the documentation on `TaskUpdateChildrenCountsAction` for what these fields
+        // are. They are CRDTs that allow us to figure out the task's `childTaskCount` and
+        // `childClosedTaskCount`.
         //
-        // We don't have `childTaskCount` or `childClosedTaskCount` computed fields
-        // since we don't need to index those fields.
+        // We don't have `childTaskCount` or `childClosedTaskCount` computed fields since
+        // we don't need to index those fields.
         addedChildTaskCount: new OpensearchIndexIntegerType(),
         removedChildTaskCount: new OpensearchIndexIntegerType(),
         addedClosedChildTaskCount: new OpensearchIndexIntegerType(),
         removedClosedChildTaskCount: new OpensearchIndexIntegerType(),
+
+        accessPolicy: createCrdtRegisterOpensearchType(
+            AccessPolicyRegister,
+            new OpensearchIndexIgnoredObjectType(AccessPolicySchema),
+        )
+            .nullable()
+            .default(null),
 
         collections: TaskIndexCollectionsType,
 
         status: TaskIndexStatusType,
         assignee: TaskIndexAssigneeType,
         // Raw since this is a register that can independently update from `status` and
-        // `assignee` but the true value depends on these fields. If `status` is closed
-        // or `assignee` is null then `assigneeStatus` is always inactive.
+        // `assignee` but the true value depends on these fields. If `status` is closed or
+        // `assignee` is null then `assigneeStatus` is always inactive.
         rawAssigneeStatus: new OpensearchIndexIgnoredObjectType(
             Schema.object({
                 value: TaskAssigneeStatusSchema,
@@ -574,12 +613,11 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             deserialize: register =>
                 new TaskAssigneeStatusRegister(register.value, register.version),
         }),
-        // The actual value of this register on the task is null if the `AccountId` in
-        // this register is different from the assignee then the value is also null.
+        // The actual value of this register on the task is null if the `AccountId` in this
+        // register is different from the assignee then the value is also null.
         //
-        // However, if the actual value of this register is null and the task is
-        // assigned then we default the position to be based on the assignee register's
-        // `version`.
+        // However, if the actual value of this register is null and the task is assigned
+        // then we default the position to be based on the assignee register's `version`.
         rawAssigneePosition: new OpensearchIndexIgnoredObjectType(
             Schema.object({
                 value: Schema.object({
@@ -594,30 +632,35 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
                 deserialize: register =>
                     new TaskAssigneePositionRegister(register.value, register.version),
             })
-            // NOTE(calebmer, 2025-03-10): This property didn't exist on tasks until this
-            // date. Provide a default that can be overridden by any action.
+            // NOTE(calebmer, 2025-03-10): This property didn't exist on tasks until this date.
+            // Provide a default that can be overridden by any action.
             .default(new TaskAssigneePositionRegister(null, zeroHybridLogicalTime)),
 
         title: TaskIndexTitleType,
         dueDate: TaskIndexDueDateType,
         priority: TaskIndexPriorityType,
 
+        layout: TaskIndexLayoutType
+            // NOTE(calebmer, 2026-02-20): This property didn't exist on tasks until this date.
+            // Represent default layout as null for old docs.
+            .nullable()
+            .default(null),
+
         /**
          * Information about the last time we sent an `IndexSearchEntity` job for this
          * `TaskIndexDoc`. Since tasks may be updated many times in quick succession we
-         * want to throttle how often we reindex the task to capture many changes
-         * at once.
+         * want to throttle how often we reindex the task to capture many changes at once.
          *
-         * We throttle task notes and `TaskIndexDoc` changes separately. That's because
-         * we update the data in entirely different databases. Which makes having shared
+         * We throttle task notes and `TaskIndexDoc` changes separately. That's because we
+         * update the data in entirely different databases. Which makes having shared
          * throttling state more difficult.
          */
         lastIndexSearchEntityJob: new OpensearchIndexIgnoredObjectType(
             TaskIndexSearchEntityJobSchema,
         ).default({
             // NOTE(calebmer): Tasks created/updated before this date did not have this
-            // property. This default should cause us to always schedule new indexing jobs
-            // when updating those tasks.
+            // property. This default should cause us to always schedule new indexing jobs when
+            // updating those tasks.
             sendTime: new Date("2023-12-07T16:35:04.622Z"),
             generation: 0,
             delaySeconds: 60,
@@ -625,29 +668,27 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         }),
 
         /**
-         * Keep track of the number of actions contributed by various `AccountId`s.
-         * This is an approximate count since we only count an action if it changed the
-         * task. So if two actions A and B update the same `dueDate` property but are
-         * committed out-of-order (B then A) we only increment the action count for B,
-         * not A, since A is a noop because B has a later action time.
+         * Keep track of the number of actions contributed by various `AccountId`s. This is
+         * an approximate count since we only count an action if it changed the task. So if
+         * two actions A and B update the same `dueDate` property but are committed
+         * out-of-order (B then A) we only increment the action count for B, not A, since A
+         * is a noop because B has a later action time.
          *
-         * This is similar to `stepCountByAccountId` in the document DynamoDB table
-         * except it's approximate and not exact.
+         * This is similar to `stepCountByAccountId` in the document DynamoDB table except
+         * it's approximate and not exact.
          *
-         * This is a simple way to determine who's contributed to the task and by
-         * what amount. We split actions into two kinds. "Continuous" actions and
-         * "discrete" actions. Continuous actions are ones where the user makes many
-         * edits over a short period of time. For example typing in the task title.
-         * Discrete actions happen once and the update is saved. For example, updating
-         * the task priority.
+         * This is a simple way to determine who's contributed to the task and by what
+         * amount. We split actions into two kinds. "Continuous" actions and "discrete"
+         * actions. Continuous actions are ones where the user makes many edits over a
+         * short period of time. For example typing in the task title. Discrete actions
+         * happen once and the update is saved. For example, updating the task priority.
          *
-         * However, action count is only a valid measure of task contribution if you
-         * assume the relative weight of each action is the same. For example, when
-         * updating a task title a user could paste a lot of content in a single
-         * action. Task title update actions are also throttled by network speed on the
-         * client so users with a faster network count more actions. Approaches that
-         * measure granular contribution of actions would be less efficient and more
-         * prone to error.
+         * However, action count is only a valid measure of task contribution if you assume
+         * the relative weight of each action is the same. For example, when updating a
+         * task title a user could paste a lot of content in a single action. Task title
+         * update actions are also throttled by network speed on the client so users with a
+         * faster network count more actions. Approaches that measure granular contribution
+         * of actions would be less efficient and more prone to error.
          *
          * The two important things we want this field to measure are:
          *
@@ -657,12 +698,12 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
          *
          * It's ok to approximate for the purpose of 2.
          *
-         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits
-         * in UTF-8. That means for 4kb we can fit 250 `Id`s in binary but only 153
-         * `Id`s in UTF-8.
+         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits in
+         * UTF-8. That means for 4kb we can fit 250 `Id`s in binary but only 153 `Id`s in
+         * UTF-8.
          *
-         * This map was not around prior to 2024-01-02. So tasks created before
-         * then (and until this deploys) will not have an accurate action count map.
+         * This map was not around prior to 2024-01-02. So tasks created before then (and
+         * until this deploys) will not have an accurate action count map.
          */
         approximateActionCountByAccountId: new OpensearchIndexBinaryType()
             .transform<TaskApproximateActionCountByAccountId>({

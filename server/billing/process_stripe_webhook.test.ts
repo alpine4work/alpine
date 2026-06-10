@@ -699,7 +699,8 @@ describe("processStripeWebhook", () => {
                 ).initialData.plan,
             ).toBe("LifetimeAccess");
 
-            // Verify the purchase was recorded with correct price in dollars (unit price, not total)
+            // Verify the purchase was recorded with correct price in dollars (unit price, not
+            // total)
             const billingItem = await getAccountBillingItemIfExistsForTest(
                 sessionContext,
                 session.account.id,

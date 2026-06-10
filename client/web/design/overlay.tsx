@@ -84,12 +84,11 @@ export {OverlayForwardRef as Overlay};
 
 export type OverlayProps = {
     /**
-     * Is the overlay content visible? We default to the overlay content being
-     * hidden.
+     * Is the overlay content visible? We default to the overlay content being hidden.
      *
      * We can't render overlay content on the server. That means if you want your
-     * overlay to be visible immediately on page load it might flash in. To avoid
-     * this, only render overlay in response to user interaction.
+     * overlay to be visible immediately on page load it might flash in. To avoid this,
+     * only render overlay in response to user interaction.
      */
     isVisible?: boolean;
 
@@ -99,8 +98,8 @@ export type OverlayProps = {
     placement: OverlayPlacement;
 
     /**
-     * Placements to try if `placement` would put the overlay out of bounds. If
-     * it's an empty array then the overlay will never flip from `placement`.
+     * Placements to try if `placement` would put the overlay out of bounds. If it's an
+     * empty array then the overlay will never flip from `placement`.
      *
      * If undefined the overlay can flip anywhere.
      *
@@ -141,9 +140,9 @@ export type OverlayProps = {
     preventOverflow?: boolean;
 
     /**
-     * Space at the top of the screen we consider to be "overflow" area. That is
-     * if an overlay is placed in this area the overlay will flip to a fallback
-     * placement to avoid rendering in the area.
+     * Space at the top of the screen we consider to be "overflow" area. That is if an
+     * overlay is placed in this area the overlay will flip to a fallback placement to
+     * avoid rendering in the area.
      *
      * Useful if you want your overlay to avoid the navigation bar's area.
      *
@@ -152,48 +151,48 @@ export type OverlayProps = {
     overflowTop?: Spacing | RemLength;
 
     /**
-     * Space at the bottom of the screen we consider to be "overflow" area. That is
-     * if an overlay is placed in this area the overlay will flip to a fallback
-     * placement to avoid rendering in the area.
+     * Space at the bottom of the screen we consider to be "overflow" area. That is if
+     * an overlay is placed in this area the overlay will flip to a fallback placement
+     * to avoid rendering in the area.
      *
-     * Useful if on mobile your overlay is open when the software keyboard is open.
-     * You can set some overflow bottom to ensure the overlay won't render in
-     * keyboard space even when the keyboard is closed. So when the keyboard opens
-     * the overlay won't jump around.
+     * Useful if on mobile your overlay is open when the software keyboard is open. You
+     * can set some overflow bottom to ensure the overlay won't render in keyboard
+     * space even when the keyboard is closed. So when the keyboard opens the overlay
+     * won't jump around.
      *
      * Bottom safe area is added to this value but NOT bottom bar height.
      *
-     * By default, this will use the mobile keyboard's height if the keyboard is
-     * open. That default isn't enough if you're opening an overlay at the same
-     * time the keyboard is opening. Since your overlay may open before the
-     * keyboard animation causing your overlay to jump around.
+     * By default, this will use the mobile keyboard's height if the keyboard is open.
+     * That default isn't enough if you're opening an overlay at the same time the
+     * keyboard is opening. Since your overlay may open before the keyboard animation
+     * causing your overlay to jump around.
      */
     overflowBottom?: Spacing | RemLength;
 
     /**
-     * Makes the overlay width the same width as the content the overlay is
-     * attached to.
+     * Makes the overlay width the same width as the content the overlay is attached
+     * to.
      *
      * Defaults to `false`.
      */
     sameWidth?: boolean;
 
     /**
-     * Makes the overlay height the same height as the content the overlay is
-     * attached to.
+     * Makes the overlay height the same height as the content the overlay is attached
+     * to.
      *
      * Defaults to `false`.
      */
     sameHeight?: boolean;
 
     /**
-     * Does this overlay block interaction with everything else on the page? If
-     * true then we render in the root overlay boundary and render a cover
-     * across the entire DOM.
+     * Does this overlay block interaction with everything else on the page? If true
+     * then we render in the root overlay boundary and render a cover across the entire
+     * DOM.
      *
-     * The string `"ContextMenu"` is a special blocking level above everything
-     * else. Since the context menu needs to render on top of absolutely
-     * everything, even when there's another blocking modal.
+     * The string `"ContextMenu"` is a special blocking level above everything else.
+     * Since the context menu needs to render on top of absolutely everything, even
+     * when there's another blocking modal.
      *
      * Defaults to `false`.
      */
@@ -204,25 +203,25 @@ export type OverlayProps = {
      * boundary and instead render in the current overlay scope you may set this to
      * true.
      *
-     * Useful if you have a scroll animation and you want your overlay to
-     * animate smoothly with the scroll. Or if you want to contain your blocking
-     * overlay to some element instead of allowing it to break out of the element.
+     * Useful if you have a scroll animation and you want your overlay to animate
+     * smoothly with the scroll. Or if you want to contain your blocking overlay to
+     * some element instead of allowing it to break out of the element.
      *
      * We'll still render a cover across the entire DOM to prevent interaction with
-     * other elements but the cover will cut out the overlay's area so you can
-     * interact with the overlay.
+     * other elements but the cover will cut out the overlay's area so you can interact
+     * with the overlay.
      *
      * Defaults to `false`.
      */
     withoutRootBlockingScope?: boolean;
 
     /**
-     * When `isBlocking` is true should the target element still be interactive?
-     * That way you can interact with the target element, the overlay element, but
-     * nothing else because of the blocking cover.
+     * When `isBlocking` is true should the target element still be interactive? That
+     * way you can interact with the target element, the overlay element, but nothing
+     * else because of the blocking cover.
      *
-     * Useful for comboboxes where you want clicking outside the combobox to close
-     * the overlay (but not trigger hover states or the click target of whatever's
+     * Useful for comboboxes where you want clicking outside the combobox to close the
+     * overlay (but not trigger hover states or the click target of whatever's
      * underneath) but the user should still be able to select text within the
      * combobox.
      *
@@ -231,30 +230,29 @@ export type OverlayProps = {
     withoutBlockingTarget?: boolean;
 
     /**
-     * Called when there's a `pointerdown` event on our blocking cover. Will only
-     * be called if `isBlocking` is true.
+     * Called when there's a `pointerdown` event on our blocking cover. Will only be
+     * called if `isBlocking` is true.
      */
     onBlockingCoverPointerDown?: () => void;
 
     /**
      * Stop updating the position of the overlay and instead use the previously
-     * rendered position. Useful if the target element is moving around but you
-     * want the overlay to stay in the same position.
+     * rendered position. Useful if the target element is moving around but you want
+     * the overlay to stay in the same position.
      */
     withPreviousPosition?: boolean;
 
     /**
-     * The element our overlay content will be rendered around. Must
-     * provide a ref to an HTML element or we will throw an error.
+     * The element our overlay content will be rendered around. Must provide a ref to
+     * an HTML element or we will throw an error.
      *
      * Can not provided this prop and `targetElement`.
      */
     children?: ReactElement;
 
     /**
-     * The element our overlay content will be rendered next to. Use this prop when
-     * the element you're targeting is not managed by React. Otherwise prefer
-     * `children`.
+     * The element our overlay content will be rendered next to. Use this prop when the
+     * element you're targeting is not managed by React. Otherwise prefer `children`.
      *
      * Can not provide this prop and `children`.
      */
@@ -267,13 +265,12 @@ export type OverlayProps = {
  *
  * The overlay element is rendered in the nearest parent
  * `<OverlayScopeContextProvider>`. We typically render one of these elements at
- * the root of the app and in scroll views so that if we occlude an element
- * while scrolling, the overlay is also occluded.
+ * the root of the app and in scroll views so that if we occlude an element while
+ * scrolling, the overlay is also occluded.
  *
- * Uses [Popper][1] under the hood. That means you can depend on the existence
- * of attributes like `data-popper-placement` on the `overlay` element. You may
- * also use the attribute `data-popper-arrow` for placing an arrow to the
- * content.
+ * Uses [Popper][1] under the hood. That means you can depend on the existence of
+ * attributes like `data-popper-placement` on the `overlay` element. You may also
+ * use the attribute `data-popper-arrow` for placing an arrow to the content.
  *
  * [1]: https://popper.js.org
  */
@@ -352,8 +349,8 @@ function Overlay(
     let {portalElement, blockingCoverPortalElement} = elementState;
 
     // If we are making the overlay visible and we initially read the portal ref as
-    // `null` but not the portal ref has a value, update our state without waiting
-    // for an effect.
+    // `null` but not the portal ref has a value, update our state without waiting for
+    // an effect.
     if (
         isVisible &&
         (portalElement === null ||
@@ -373,11 +370,11 @@ function Overlay(
 
     // If this component is rendered at the same time as our
     // `<OverlayScopeContextProvider>` then we will get `null` when reading
-    // `portalRef.current` in render. So re-render with the actual element. We
-    // will only re-render if the overlay is visible on initial mount.
+    // `portalRef.current` in render. So re-render with the actual element. We will
+    // only re-render if the overlay is visible on initial mount.
     //
-    // This may cause the overlay portal to flash in. Consider a layout
-    // effect here to prevent flashes.
+    // This may cause the overlay portal to flash in. Consider a layout effect here to
+    // prevent flashes.
     useEffect(() => {
         if (!isVisible) return;
 
@@ -419,15 +416,14 @@ function Overlay(
             );
             const overlayElement = overlayRef.current;
 
-            // If `isVisible` is true and `withPreviousPosition` is true then the overlay
-            // uses the style attributes from the popper we just destroyed.
+            // If `isVisible` is true and `withPreviousPosition` is true then the overlay uses
+            // the style attributes from the popper we just destroyed.
             if (withPreviousPosition) {
                 if (previousAttributesRef.current === null) {
-                    // TODO(calebmer): In this case, maybe we should call `createPopper()` to get
-                    // the position, immediately `destroy()` the popper instance, but use the
-                    // position here. This seems like a much better solution than putting the
-                    // overlay in the top left corner which'll feel pretty janky if a user ever sees
-                    // this state.
+                    // TODO(calebmer): In this case, maybe we should call `createPopper()` to get the
+                    // position, immediately `destroy()` the popper instance, but use the position
+                    // here. This seems like a much better solution than putting the overlay in the top
+                    // left corner which'll feel pretty janky if a user ever sees this state.
                     overlayElement.style.position = "absolute";
                     overlayElement.style.top = "0";
                     overlayElement.style.left = "0";
@@ -529,9 +525,8 @@ function Overlay(
                                           reference: Rect;
                                           popper: Rect;
                                       }) => {
-                                          // This seems to be running before the `sameWidth` and `sameHeight` plugin so
-                                          // our `popper` rect hasn't updated. Instead we can hardcode similar
-                                          // logic here.
+                                          // This seems to be running before the `sameWidth` and `sameHeight` plugin so our
+                                          // `popper` rect hasn't updated. Instead we can hardcode similar logic here.
                                           return [
                                               reference.width / 2 -
                                                   (sameWidth ? reference.width : popper.width) / 2,
@@ -648,14 +643,14 @@ function Overlay(
                                     });
                                 }
                             },
-                            // If `isBlocking` is true and `withoutRootBlockingScope` is true then we need
-                            // to make sure scrolling in the overlay element won't end up scrolling the
-                            // overlay's scrollable parent. We do this by attaching event listeners that'll
-                            // call `event.preventDefault()` when the user tries to scroll.
+                            // If `isBlocking` is true and `withoutRootBlockingScope` is true then we need to
+                            // make sure scrolling in the overlay element won't end up scrolling the overlay's
+                            // scrollable parent. We do this by attaching event listeners that'll call
+                            // `event.preventDefault()` when the user tries to scroll.
                             //
-                            // Try removing this then scrolling a blocking overlay which can't scroll (e.g.
-                            // the task priority input). Scrolling on the priority input will scroll the
-                            // view whereas scrolling on the blocking cover will do nothing.
+                            // Try removing this then scrolling a blocking overlay which can't scroll (e.g. the
+                            // task priority input). Scrolling on the priority input will scroll the view
+                            // whereas scrolling on the blocking cover will do nothing.
                             effect: ({state}: {state: State}) => {
                                 if (!withoutRootBlockingScope) return;
 
@@ -685,9 +680,9 @@ function Overlay(
                 // This function checks to see if `targetElement` or any of its parents has a
                 // running animation. If there is a running animation then we setup a
                 // `requestAnimationFrame()` loop to update our popper position every animation
-                // frame. We call this once when the lifecycle ref initializes and check after
-                // our current set of animations finishes (in case a new set of animations
-                // started afterwards).
+                // frame. We call this once when the lifecycle ref initializes and check after our
+                // current set of animations finishes (in case a new set of animations started
+                // afterwards).
                 //
                 // Test case for this:
                 //
@@ -698,10 +693,9 @@ function Overlay(
                 // 5. Redo the paste (cmd-shift-z)
                 // 6. Undo the paste (cmd-z)
                 //
-                // At step 6 the task title should be focused and it should be animating up.
-                // Since we run task movement animations on undo/redo. We need to update the
-                // position of the `<FocusRing>` (which renders an `<Overlay>`) in this
-                // animation loop.
+                // At step 6 the task title should be focused and it should be animating up. Since
+                // we run task movement animations on undo/redo. We need to update the position of
+                // the `<FocusRing>` (which renders an `<Overlay>`) in this animation loop.
                 const maybeStartAnimationLoop = () => {
                     if (isDestroyed) return;
                     if (isAnimationLoopRunning) return;
@@ -726,12 +720,12 @@ function Overlay(
 
                             popper.forceUpdate();
 
-                            // When `isAnimationLoopRunning` is `false` we want to run
-                            // `popper.forceUpdate()` once last time before finishing the loop.
+                            // When `isAnimationLoopRunning` is `false` we want to run `popper.forceUpdate()`
+                            // once last time before finishing the loop.
                             //
-                            // Once our animation loop finishes running (since the previous set of
-                            // animations has finished) then try to start the animation loop again if
-                            // there's a new set of animations on our target element.
+                            // Once our animation loop finishes running (since the previous set of animations
+                            // has finished) then try to start the animation loop again if there's a new set of
+                            // animations on our target element.
                             if (isAnimationLoopRunning) {
                                 runAnimationLoop();
                             } else {
@@ -749,8 +743,7 @@ function Overlay(
 
                 // The Popper library was deprecated and replaced with Floating UI.
                 // Functionality-wise, Popper is still working great for us. The Popper
-                // documentation lives on here:
-                // https://popper.js.org/docs/v2/
+                // documentation lives on here: https://popper.js.org/docs/v2/
                 const popper = Object.assign(
                     createPopper(targetElement, overlayElement, getOptions()),
                     {maybeStartAnimationLoop},
@@ -759,9 +752,8 @@ function Overlay(
                 popperRef.current = popper;
                 overlayVisiblePoppers.add(popper);
 
-                // Make sure Popper is positioned correctly. We find that sometimes after
-                // parameter updates (e.g. `placement` changes), Popper won't have the
-                // right position.
+                // Make sure Popper is positioned correctly. We find that sometimes after parameter
+                // updates (e.g. `placement` changes), Popper won't have the right position.
                 popper.forceUpdate();
 
                 // Update the overlay placement if the target or overlay element resizes.
@@ -769,10 +761,9 @@ function Overlay(
                 addResizeListenerForElement(targetElement, handleResize);
                 addResizeListenerForElement(overlayElement, handleResize);
 
-                // If we're using `sameWidth` or `sameHeight` then calling
-                // `popper.forceUpdate()` after a resize will cause the overlay element to
-                // resize. It's ok if resize listeners don't fire on the overlay element after
-                // this.
+                // If we're using `sameWidth` or `sameHeight` then calling `popper.forceUpdate()`
+                // after a resize will cause the overlay element to resize. It's ok if resize
+                // listeners don't fire on the overlay element after this.
                 if (
                     sameWidth ||
                     sameHeight ||
@@ -819,17 +810,16 @@ function Overlay(
                       })
                     : null;
 
-                // If the mobile keyboard frame changes while our overlay is visible then
-                // update the overlay's options with the new covered height (read in
-                // `getOptions()`).
+                // If the mobile keyboard frame changes while our overlay is visible then update
+                // the overlay's options with the new covered height (read in `getOptions()`).
                 const unsubscribeFromMobileKeyboardFrameChange =
                     subscribeToMobileKeyboardFrameChange(() => {
                         void popper.setOptions(getOptions());
                     });
 
                 return () => {
-                    // Before destroying, record the attributes which determine the overlay's
-                    // position. We'll restore these attributes if `withPreviousPosition` is true.
+                    // Before destroying, record the attributes which determine the overlay's position.
+                    // We'll restore these attributes if `withPreviousPosition` is true.
                     {
                         const previousAttributes = new Map<string, string>();
                         previousAttributesRef.current = previousAttributes;
@@ -900,13 +890,13 @@ function Overlay(
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!isVisible) return;
 
-        // Run in a microtask so that parent effects run before we update the
-        // popper position.
+        // Run in a microtask so that parent effects run before we update the popper
+        // position.
         scheduleMicrotask(() => {
             popperRef.current?.forceUpdate();
 
-            // Try starting the animation loop as well in case any animations were started
-            // in a layout effect.
+            // Try starting the animation loop as well in case any animations were started in a
+            // layout effect.
             popperRef.current?.maybeStartAnimationLoop();
         });
     });
@@ -914,11 +904,11 @@ function Overlay(
     useEffect(() => {
         if (!isVisible) return;
 
-        // Run in a microtask so that parent effects run before we update the
-        // popper position.
+        // Run in a microtask so that parent effects run before we update the popper
+        // position.
         scheduleMicrotask(() => {
-            // Try starting the animation loop as well in case any animations were started
-            // in an effect.
+            // Try starting the animation loop as well in case any animations were started in
+            // an effect.
             popperRef.current?.maybeStartAnimationLoop();
         });
     });
@@ -927,8 +917,8 @@ function Overlay(
         <>
             {isVisible &&
                 portalElement &&
-                // This intentionally comes before `children` so that React executes
-                // `overlayRef` before `targetRef`.
+                // This intentionally comes before `children` so that React executes `overlayRef`
+                // before `targetRef`.
                 createPortal(
                     isBlocking === false ? (
                         overlay
@@ -945,8 +935,8 @@ function Overlay(
                 isBlocking !== false &&
                 blockingCoverPortalElement &&
                 // When we have a blocking overlay add a cover to the document to prevent
-                // scrolling, hover effects, and any other interaction while the context menu
-                // is open.
+                // scrolling, hover effects, and any other interaction while the context menu is
+                // open.
                 createPortal(
                     <OverlayBlockingCover
                         ref={blockingCoverRef}
@@ -1086,18 +1076,17 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
         return (
             <Box
                 ref={elementRef}
-                // Don't clear the selection when clicking on a blocking overlay cover. Two
-                // cases where this is important:
+                // Don't clear the selection when clicking on a blocking overlay cover. Two cases
+                // where this is important:
                 //
-                // 1. If you've right clicked on some text (outside a `<ContentEditor>`) then
-                //    you click to dismiss the right click menu. We should keep the text
-                //    selected. For example, if the text was in a post when the right click
-                //    menu closes the `<MessageViewPointerToolbar>` should appear.
+                // 1. If you've right clicked on some text (outside a `<ContentEditor>`) then you
+                //    click to dismiss the right click menu. We should keep the text selected. For
+                //    example, if the text was in a post when the right click menu closes the
+                //    `<MessageViewPointerToolbar>` should appear.
                 //
-                // 2. When you click on the reaction button in `<MessageViewPointerToolbar>`
-                //    then click outside `<ReactionRadialPicker>` to close the radial picker we
-                //    should leave the text selected so the `<MessageViewPointerToolbar>` stays
-                //    visible.
+                // 2. When you click on the reaction button in `<MessageViewPointerToolbar>` then
+                //    click outside `<ReactionRadialPicker>` to close the radial picker we should
+                //    leave the text selected so the `<MessageViewPointerToolbar>` stays visible.
                 className={withoutClearSelectionOnMouseDownClassName}
                 position="absolute"
                 top="0"
@@ -1108,10 +1097,10 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                     // Prevent the browser from moving focus when pressing on the overlay blocking
                     // cover.
                     //
-                    // This is important for `context_menu.tsx`. You right click in a focused
-                    // element which opens our custom context menu. If you click the blocking cover
-                    // to close the custom context menu we don't want the element you had previously
-                    // focused to lose focus.
+                    // This is important for `context_menu.tsx`. You right click in a focused element
+                    // which opens our custom context menu. If you click the blocking cover to close
+                    // the custom context menu we don't want the element you had previously focused to
+                    // lose focus.
                     //
                     // To reproduce a bug which happens when we don't have `event.preventDefault()`
                     // here: Go to `<ContentEditor>`. Select to highlight some text. Right click the
@@ -1129,18 +1118,17 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
         return (
             <Box
                 ref={elementRef}
-                // Don't clear the selection when clicking on a blocking overlay cover. Two
-                // cases where this is important:
+                // Don't clear the selection when clicking on a blocking overlay cover. Two cases
+                // where this is important:
                 //
-                // 1. If you've right clicked on some text (outside a `<ContentEditor>`) then
-                //    you click to dismiss the right click menu. We should keep the text
-                //    selected. For example, if the text was in a post when the right click
-                //    menu closes the `<MessageViewPointerToolbar>` should appear.
+                // 1. If you've right clicked on some text (outside a `<ContentEditor>`) then you
+                //    click to dismiss the right click menu. We should keep the text selected. For
+                //    example, if the text was in a post when the right click menu closes the
+                //    `<MessageViewPointerToolbar>` should appear.
                 //
-                // 2. When you click on the reaction button in `<MessageViewPointerToolbar>`
-                //    then click outside `<ReactionRadialPicker>` to close the radial picker we
-                //    should leave the text selected so the `<MessageViewPointerToolbar>` stays
-                //    visible.
+                // 2. When you click on the reaction button in `<MessageViewPointerToolbar>` then
+                //    click outside `<ReactionRadialPicker>` to close the radial picker we should
+                //    leave the text selected so the `<MessageViewPointerToolbar>` stays visible.
                 className={withoutClearSelectionOnMouseDownClassName}
                 pointerEvents="none"
                 position="absolute"
@@ -1152,10 +1140,10 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                     // Prevent the browser from moving focus when pressing on the overlay blocking
                     // cover.
                     //
-                    // This is important for `context_menu.tsx`. You right click in a focused
-                    // element which opens our custom context menu. If you click the blocking cover
-                    // to close the custom context menu we don't want the element you had previously
-                    // focused to lose focus.
+                    // This is important for `context_menu.tsx`. You right click in a focused element
+                    // which opens our custom context menu. If you click the blocking cover to close
+                    // the custom context menu we don't want the element you had previously focused to
+                    // lose focus.
                     //
                     // To reproduce a bug which happens when we don't have `event.preventDefault()`
                     // here: Go to `<ContentEditor>`. Select to highlight some text. Right click the

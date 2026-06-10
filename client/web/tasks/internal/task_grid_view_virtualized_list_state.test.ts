@@ -1,4 +1,5 @@
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {TaskClientStore} from "~/client/web/tasks/core/task_client_store.js";
 import {
     TaskGridViewVirtualizedListState,
@@ -39,6 +40,7 @@ afterEach(() => {
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 const accountRegistry = getAccountRegistry(spaceId);
+const siteRegistry = getSiteRegistry(spaceId);
 
 const account1 = createTestAccountModel({name: "Test Account 1"});
 const account2 = createTestAccountModel({name: "Test Account 2"});
@@ -83,7 +85,7 @@ function createTask(
         time = store.clock.now(),
         taskAction = {
             type: "Create",
-            creatorId: account1.id,
+            creator: {accountId: account1.id, from: null},
             creatorTimeZone: defaultTimeZone,
         },
     }: {
@@ -116,14 +118,14 @@ function expectItems(
     if (itemCount > 0) state.getItem(0);
 
     // Get items backwards as well as forwards. We implement an optimization that
-    // allows `getItem(n + 1)` preceded by `getItem(n)` to be O(1) but that's not
-    // the case for `getItem(n - 1)` preceded by `getItem(n)`.
+    // allows `getItem(n + 1)` preceded by `getItem(n)` to be O(1) but that's not the
+    // case for `getItem(n - 1)` preceded by `getItem(n)`.
     for (let i = itemCount - 1; i >= 0; i--) {
         reversedActualItems.push(state.getItem(i));
     }
 
-    // For good measure, let's also get all our items in a random order to really
-    // make sure there are no internal iteration state bugs.
+    // For good measure, let's also get all our items in a random order to really make
+    // sure there are no internal iteration state bugs.
     for (const i of shuffledItemIndexes) {
         shuffledActualItems.push(state.getItem(i));
     }
@@ -136,6 +138,7 @@ function expectItems(
 test("can represent items of an empty query", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -166,6 +169,7 @@ test("can represent items of an empty query", () => {
         backfillTasks: [],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -185,6 +189,7 @@ test("can represent items of an empty query", () => {
 test("can represent items of a query", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -225,6 +230,7 @@ test("can represent items of a query", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -278,6 +284,7 @@ test("can represent items of a query", () => {
 test("can represent items of a query with some expanded unloaded child tasks", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -353,6 +360,7 @@ test("can represent items of a query with some expanded unloaded child tasks", (
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -582,6 +590,7 @@ test("can represent items of a query with some expanded unloaded child tasks", (
 test("can represent items of a query with some expanded child tasks", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -795,6 +804,7 @@ test("can represent items of a query with some expanded child tasks", () => {
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -1079,6 +1089,7 @@ test("can represent items of a query with some expanded child tasks", () => {
 test("can represent items of a query with some expanded child tasks and extra unloaded child tasks", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -1292,6 +1303,7 @@ test("can represent items of a query with some expanded child tasks and extra un
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -1666,6 +1678,7 @@ test("can represent items of a query with some expanded child tasks and extra un
 test("can represent items of a query with some expanded child tasks where task reports fewer than query", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -1879,6 +1892,7 @@ test("can represent items of a query with some expanded child tasks where task r
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2139,6 +2153,7 @@ test("can represent items of a query with some expanded child tasks where task r
 test("can represent items of a query with some double nested expanded child tasks", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -2408,6 +2423,7 @@ test("can represent items of a query with some double nested expanded child task
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 
@@ -2647,6 +2663,7 @@ test("can represent items of a query with some double nested expanded child task
 test("can get the index of items including nested items if the path to the task is known", () => {
     const store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -2916,6 +2933,7 @@ test("can get the index of items including nested items if the path to the task 
         ],
         backfillCollections: [],
         referencedAccounts: [],
+        referencedSites: [],
         originClientId: null,
     });
 

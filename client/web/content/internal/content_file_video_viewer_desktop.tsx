@@ -101,8 +101,8 @@ function ContentFileVideoViewerDesktopInner({
         if (previousContainerHtml === containerHtml) return;
 
         if (!previousContainerHtml) {
-            // This case happens during a hot reload. We need to remove the children
-            // currently in the DOM.
+            // This case happens during a hot reload. We need to remove the children currently
+            // in the DOM.
             while (containerElement.hasChildNodes()) {
                 containerElement.firstChild!.remove();
             }

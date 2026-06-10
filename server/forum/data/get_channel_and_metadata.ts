@@ -4,12 +4,12 @@ import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_acce
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
 import {authorizeChannelItemAccessIfPossible} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
-import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {
-    DynamoGeneralRealtimeBackfillResult,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+    ChannelPreviewItemAuthorizationCache,
+    convertChannelModelToChannelPreviewAttributesItem,
+} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {DynamoItemKey, DynamoItemPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoBackfillResult, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {
     DataLossError,
     DeadlineExceededError,
@@ -23,7 +23,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SiteId} from "~/shared/id/types/id_types.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 /**
  * Get a `ChannelModel` and post files in the channel all at once. Executes a
@@ -36,19 +36,21 @@ export function getChannelAndMetadataIfPossible(
         postFilesLimit,
         afterItemKey = null,
         consistency = "Eventual",
+        onSiteId,
     }: {
         channelId: ChannelId;
         postFilesLimit: number;
         afterItemKey?: DynamoItemKey | null;
         consistency?: DynamoReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
     },
-): Promise<Result<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>, ErrorBase> | null> {
+): Promise<Result<RynamoQueryResult<ChannelOrMetadataModel>, ErrorBase> | null> {
     if (afterItemKey) {
         return (async () => {
             const [channelResult, queryResult] = await runAllPromises([
-                // Get the channel preview separately to make sure we're authorized to make
-                // this request.
-                getChannelPreviewIfPossible(context, channelId, {consistency}),
+                // Get the channel preview separately to make sure we're authorized to make this
+                // request.
+                getChannelPreviewIfPossible(context, channelId, {consistency, onSiteId}),
 
                 ForumRealtimeTable.realtimeQuery(context, {
                     consistency,
@@ -68,7 +70,7 @@ export function getChannelAndMetadataIfPossible(
         const channelPromiseResolver = createPromiseResolver<ChannelModel | null>();
 
         const promise = (async (): Promise<Result<
-            DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>,
+            RynamoQueryResult<ChannelOrMetadataModel>,
             ErrorBase
         > | null> => {
             const result = await ForumRealtimeTable.realtimeQuery(context, {
@@ -78,6 +80,11 @@ export function getChannelAndMetadataIfPossible(
                 // Plus one for `ChannelModel` and plus one for `ChannelContributorsModel`.
                 limit: postFilesLimit + 2,
                 onItem: item => {
+                    if (item.sortRangeType === "Attributes" && item.accessPolicy.type === "Site") {
+                        onSiteId?.(item.accessPolicy.siteId);
+                    }
+                },
+                onModel: item => {
                     if (item.model instanceof ChannelModel) {
                         channelPromiseResolver.resolve(item.model);
                     }
@@ -91,18 +98,22 @@ export function getChannelAndMetadataIfPossible(
                 throw new DataLossError("Expected the first query item to be the channel model");
             }
 
-            // Save the channel item to our authorization cache in case we try to load it
-            // again later.
+            const channelItemForAuthorization = convertChannelModelToChannelPreviewAttributesItem(
+                channel.model,
+            );
+
+            // Save the channel item to our authorization cache in case we try to load it again
+            // later.
             ChannelPreviewItemAuthorizationCache.set(
                 context,
                 consistency,
                 channelId,
-                channel.model,
+                channelItemForAuthorization,
             );
 
             const authorizationResult = await authorizeChannelItemAccessIfPossible(
                 context,
-                channel.model,
+                channelItemForAuthorization,
                 "View",
             );
             if (!authorizationResult.ok) return authorizationResult;
@@ -110,9 +121,9 @@ export function getChannelAndMetadataIfPossible(
             return {ok: true, value: result};
         })().then(
             result => {
-                // All of these promise resolvers MUST have either been resolved or rejected by
-                // the end of this promise. So any promise resolvers that haven't been settled
-                // yet reject with an error as a safety mechanism.
+                // All of these promise resolvers MUST have either been resolved or rejected by the
+                // end of this promise. So any promise resolvers that haven't been settled yet
+                // reject with an error as a safety mechanism.
                 if (!channelPromiseResolver.isSettled()) {
                     if (!result) {
                         channelPromiseResolver.resolve(null);
@@ -133,10 +144,9 @@ export function getChannelAndMetadataIfPossible(
             },
         );
 
-        // Protect against deadlocks where `ForumRealtimeTable.realtimeQuery()` is
-        // waiting for this channel preview promise before it can return. But the
-        // channel preview promise is waiting on `ForumRealtimeTable.realtimeQuery()`
-        // to finish.
+        // Protect against deadlocks where `ForumRealtimeTable.realtimeQuery()` is waiting
+        // for this channel preview promise before it can return. But the channel preview
+        // promise is waiting on `ForumRealtimeTable.realtimeQuery()` to finish.
         const timeout = createTimeout(() => {
             channelPromiseResolver.reject(
                 new DeadlineExceededError(
@@ -150,14 +160,13 @@ export function getChannelAndMetadataIfPossible(
             () => timeout.clear(),
         );
 
+        const cachePromise = channelPromiseResolver.promise.then(channel =>
+            channel ? convertChannelModelToChannelPreviewAttributesItem(channel) : null,
+        );
+
         // If we're loading the channel, we can use the channel item in our
         // `ChannelPreviewModel` cache to avoid extra fetches.
-        ChannelPreviewItemAuthorizationCache.set(
-            context,
-            consistency,
-            channelId,
-            channelPromiseResolver.promise,
-        );
+        ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, cachePromise);
 
         return promise;
     }
@@ -174,8 +183,9 @@ export async function getChannelAndMetadata(
         postFilesLimit: number;
         afterItemKey?: DynamoItemKey | null;
         consistency?: DynamoReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
     },
-): Promise<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>> {
+): Promise<RynamoQueryResult<ChannelOrMetadataModel>> {
     const result = await getChannelAndMetadataIfPossible(context, options);
     if (!result) throw createChannelNotFoundError(options.channelId);
     return unwrapResult(result);
@@ -194,7 +204,7 @@ export async function backfillChannelAndMetadata(
         channelId: ChannelId;
         checkpoint: ServerSynchronizationCheckpoint;
     },
-): Promise<DynamoGeneralRealtimeBackfillResult<ChannelOrMetadataModel>> {
+): Promise<RynamoBackfillResult<ChannelOrMetadataModel>> {
     const [, result] = await runAllPromises([
         authorizeChannelAccess(context, channelId, "View"),
 

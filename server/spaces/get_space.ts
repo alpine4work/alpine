@@ -15,8 +15,8 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 /**
- * Get the space with the specified `SpaceId`. Throws an error if the actor
- * doesn't have access to the space or if the space doesn't exist.
+ * Get the space with the specified `SpaceId`. Throws an error if the actor doesn't
+ * have access to the space or if the space doesn't exist.
  */
 export async function getSpace(
     context: ServerActionContext,
@@ -35,9 +35,8 @@ export async function getSpace(
 }
 
 /**
- * Get the space with the specified `SpaceId`. Returns a null if the space
- * doesn't exist and returns a `Result` if the actor doesn't have access to
- * the space.
+ * Get the space with the specified `SpaceId`. Returns a null if the space doesn't
+ * exist and returns a `Result` if the actor doesn't have access to the space.
  */
 export async function getSpaceIfPossible(
     context: ServerActionContext,

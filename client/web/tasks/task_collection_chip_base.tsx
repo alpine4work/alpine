@@ -2,13 +2,11 @@ import {X} from "phosphor-react";
 import {ReactNode, Ref, forwardRef} from "react";
 import {usePress} from "react-aria";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
-import {
-    taskCollectionChipBorderRadius,
-    taskCollectionChipHeight,
-} from "~/client/web/styles/tasks_shared_styles.js";
+import {taskCollectionChipHeight} from "~/client/web/styles/tasks_shared_styles.js";
 import {
     taskCollectionChipBaseClassNameBase,
     taskCollectionChipBaseColorDotClassNameByColor,
@@ -17,6 +15,8 @@ import {
     taskCollectionChipBaseDesktopLayoutWithoutColorClassName,
     taskCollectionChipBaseNameClassName,
     taskCollectionChipBaseNameGradientClassName,
+    taskCollectionChipLockIconClassName,
+    taskCollectionChipLockIconWithoutColorClassName,
 } from "~/client/web/tasks/task_collection_chip_base_html.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
@@ -59,6 +59,7 @@ const removeButtonContainerClassName = sprinkles({
 function TaskCollectionChipBase(
     {
         color,
+        isPrivate,
         name,
         nameMaxWidth,
         withDesktopLayout,
@@ -67,6 +68,7 @@ function TaskCollectionChipBase(
         onRemove,
     }: {
         color: ThemeColor | null;
+        isPrivate: boolean;
         name: ReactNode;
         nameMaxWidth?: Spacing;
         withDesktopLayout?: boolean;
@@ -101,11 +103,12 @@ function TaskCollectionChipBase(
 
     return (
         <div
-            // `react-aria` has a bug where `usePress()` will call `event.preventDefault()`
-            // on `keydown` events even when disabled. Given a chip could include a text
-            // `<input>` we don't want to prevent enter/space keypresses.
+            // `react-aria` has a bug where `usePress()` will call `event.preventDefault()` on
+            // `keydown` events even when disabled. Given a chip could include a text `<input>`
+            // we don't want to prevent enter/space keypresses.
             {...(isDisabled ? omitObject(pressProps, ["onKeyDown", "onKeyUp"]) : pressProps)}
             ref={ref}
+            data-testid={process.env.NODE_ENV !== "production" ? "TaskCollectionChip" : undefined}
             className={
                 withDesktopLayout
                     ? color !== null
@@ -137,6 +140,17 @@ function TaskCollectionChipBase(
                     />
                 </div>
             )}
+            {isPrivate && (
+                <LockBoldFillIcon
+                    size={spacing["2.5"]}
+                    aria-label="Private lock icon"
+                    className={
+                        color !== null
+                            ? taskCollectionChipLockIconClassName
+                            : taskCollectionChipLockIconWithoutColorClassName
+                    }
+                />
+            )}
             <div
                 className={taskCollectionChipBaseNameClassName}
                 style={{
@@ -157,16 +171,17 @@ function TaskCollectionChipBase(
                 {name}
             </div>
             {onRemove &&
-                // If we're on mobile but `withDesktopLayout` is true then never render the
-                // remove button since it would be too small.
+                // If we're on mobile but `withDesktopLayout` is true then never render the remove
+                // button since it would be too small.
                 !(platform === "mobile" && withDesktopLayout) && (
                     <div className={removeButtonContainerClassName}>
                         <IconButton
                             size={platform === "mobile" ? "md" : "xs"}
                             variant="quiet-above-grey-5-background"
-                            borderRadius={taskCollectionChipBorderRadius}
-                            // The user focuses the pill as a whole and hits the delete key to delete using
-                            // the keyboard.
+                            // `overflow: hidden` on the parent element will clip the right border radius.
+                            borderRadius="none"
+                            // The user focuses the pill as a whole and hits the delete key to delete using the
+                            // keyboard.
                             isTabbable={false}
                             description="Remove"
                             withoutTooltip={true}

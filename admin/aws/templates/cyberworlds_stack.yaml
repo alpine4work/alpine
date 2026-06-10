@@ -210,6 +210,126 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/Vpc/VPCGW
+    BastionHostInstanceSecurityGroupE1AD2D4E:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/BastionHost, no inbound rules. Access via SSM Session Manager.
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/InstanceSecurityGroup/Resource
+    BastionHostInstanceRole1113FAAD:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ec2.amazonaws.com
+                Version: 2012-10-17
+            Description: CyberworldsStack/BastionHost, SSM managed instance role.
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/AmazonSSMManagedInstanceCore
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/InstanceRole/Resource
+    BastionHostInstanceRoleDefaultPolicy9DBB02BB:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - es:ESHttpDelete
+                          - es:ESHttpGet
+                          - es:ESHttpHead
+                          - es:ESHttpPatch
+                          - es:ESHttpPost
+                          - es:ESHttpPut
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - OpensearchDomainCED7C974
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+            PolicyName: BastionHostInstanceRoleDefaultPolicy9DBB02BB
+            Roles:
+                - Ref: BastionHostInstanceRole1113FAAD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/InstanceRole/DefaultPolicy/Resource
+    BastionHostInstanceInstanceProfileB1DB546D:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Roles:
+                - Ref: BastionHostInstanceRole1113FAAD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/Instance/InstanceProfile
+    BastionHostInstance82B9AD9B:
+        Type: AWS::EC2::Instance
+        Properties:
+            AvailabilityZone:
+                Fn::Select:
+                    - 0
+                    - Fn::GetAZs: ""
+            BlockDeviceMappings:
+                - DeviceName: /dev/sdf
+                  Ebs:
+                      VolumeSize: 20
+                      VolumeType: gp3
+            IamInstanceProfile:
+                Ref: BastionHostInstanceInstanceProfileB1DB546D
+            ImageId:
+                Ref: SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter
+            InstanceType: t3.micro
+            SecurityGroupIds:
+                - Fn::GetAtt:
+                      - BastionHostInstanceSecurityGroupE1AD2D4E
+                      - GroupId
+            SubnetId:
+                Ref: VpcPublicSubnet1Subnet5C2D37C4
+            Tags:
+                - Key: Name
+                  Value: cyberworlds-bastion-host
+            UserData:
+                Fn::Base64: "#!/bin/bash"
+        DependsOn:
+            - BastionHostInstanceRoleDefaultPolicy9DBB02BB
+            - BastionHostInstanceRole1113FAAD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/Instance/Resource
+    BastionHostElasticIp852C19EF:
+        Type: AWS::EC2::EIP
+        Properties:
+            Domain: vpc
+            Tags:
+                - Key: Name
+                  Value: cyberworlds-bastion-host-elastic-ip
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/ElasticIp
+    BastionHostElasticIpAssociationAE87FCF0:
+        Type: AWS::EC2::EIPAssociation
+        Properties:
+            AllocationId:
+                Fn::GetAtt:
+                    - BastionHostElasticIp852C19EF
+                    - AllocationId
+            InstanceId:
+                Ref: BastionHostInstance82B9AD9B
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BastionHost/ElasticIpAssociation
     EcsClusterFB9B21B5:
         Type: AWS::ECS::Cluster
         Metadata:
@@ -258,6 +378,24 @@ Resources:
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
+    OpensearchDomainSecurityGroupfromCyberworldsStackBastionHostInstanceSecurityGroupA7A2D5BA4439F4AB11D:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackBastionHostInstanceSecurityGroupA7A2D5BA:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchDomainSecurityGroup046A436D
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - BastionHostInstanceSecurityGroupE1AD2D4E
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+                CyberworldsStackBastionHostInstanceSecurityGroupA7A2D5BA:443
     OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD0844369CA9230:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
@@ -702,7 +840,7 @@ Resources:
                 Fn::GetAtt:
                     - OpensearchDeployScriptProviderframeworkonEvent8257EBC2
                     - Arn
-            indexesHash: 93277f3c3adc4b7e131c758880604227f0dbde497693766dda468ce22ccbf36c
+            indexesHash: d3c679fb39e8cf9928ec1144c466fb192b0cab5cf725dcfa63254a5e6143c6bc
         DependsOn:
             - OpensearchDomainAppLogs191CCADD
             - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33eCustomResourcePolicy5F7B356F
@@ -710,6 +848,7 @@ Resources:
             - OpensearchDomainCED7C974
             - OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceLaunchTemplateSecurityGroup432566304431BAD3659
             - OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F56844399D2FF0A
+            - OpensearchDomainSecurityGroupfromCyberworldsStackBastionHostInstanceSecurityGroupA7A2D5BA4439F4AB11D
             - OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3443A4E30F75
             - OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C
             - OpensearchDomainSecurityGroupfromCyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E443C3C732FE
@@ -1088,7 +1227,7 @@ Resources:
         Properties:
             FlexibleTimeWindow:
                 Mode: OFF
-            ScheduleExpression: cron(58 * * * ? *)
+            ScheduleExpression: cron(13,28,43,58 * * * ? *)
             ScheduleExpressionTimezone: Etc/UTC
             State: ENABLED
             Target:
@@ -1560,6 +1699,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/InboxTable/Resource
+    IntegrationsTable781EC78A:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: Integrations
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/IntegrationsTable/Resource
     NotificationsTable76DCFC6C:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -1702,6 +1866,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/SearchEntitiesTable/Resource
+    SitesTable456CECCC:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: Sites
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/SitesTable/Resource
     SpacesTable8A997355:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -1829,10 +2018,14 @@ Resources:
                       AllowedOrigins:
                           - https://alpine.inc
                           - https://www.alpine.inc
+                      ExposedHeaders:
+                          - ETag
                       MaxAge: 3600
             LifecycleConfiguration:
                 Rules:
-                    - ExpirationInDays: 7
+                    - AbortIncompleteMultipartUpload:
+                          DaysAfterInitiation: 7
+                      ExpirationInDays: 7
                       Status: Enabled
             PublicAccessBlockConfiguration:
                 BlockPublicAcls: true
@@ -2160,6 +2353,11 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/CloudWatchAgentServerPolicy
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateRole/Resource
     TaskRealtimeServiceLaunchTemplateRoleDefaultPolicy89E98F70:
@@ -2217,7 +2415,7 @@ Resources:
                             - TaskRealtimeServiceLaunchTemplateProfile73C60351
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: m6g.large
                 SecurityGroupIds:
                     - Fn::GetAtt:
@@ -2363,6 +2561,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - IntegrationsTable781EC78A
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -2370,6 +2571,9 @@ Resources:
                                 - Arn
                           - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SitesTable456CECCC
                                 - Arn
                           - Fn::GetAtt:
                                 - SpacesTable8A997355
@@ -2458,6 +2662,12 @@ Resources:
                           - Fn::Join:
                                 - ""
                                 - - Fn::GetAtt:
+                                        - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
@@ -2471,6 +2681,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SearchEntitiesTableC54BE0E8
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SitesTable456CECCC
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -2566,6 +2782,26 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                Version: 2012-10-17
+            PolicyName: TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            Roles:
+                - Ref: TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/TaskRealtimeService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -2582,24 +2818,16 @@ Resources:
                                 - SqsJobQueue62388F96
                                 - Arn
                     - Action:
-                          - kinesis:ListShards
-                          - kinesis:PutRecord
-                          - kinesis:PutRecords
-                      Effect: Allow
-                      Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
-                    - Action:
                           - firehose:PutRecord
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
                           Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                 Version: 2012-10-17
-            PolicyName: TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             Roles:
                 - Ref: TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/TaskDefinition/TaskRole/OverflowPolicy1/Resource
     TaskRealtimeServiceTaskDefinition4487CD82:
         Type: AWS::ECS::TaskDefinition
         Properties:
@@ -2643,6 +2871,7 @@ Resources:
                       - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$TASK_REALTIME_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                   Cpu: 2008
@@ -2651,6 +2880,8 @@ Resources:
                         Value: .
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -2674,7 +2905,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionContainerLogGroup64BE4AA7
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 7686
+                  MemoryReservation: 7546
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4001
@@ -2743,6 +2974,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:TaskRealtimeServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:TaskRealtimeServiceSecrets:importerServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -2767,6 +3005,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -2787,7 +3027,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionGatewayContainerLogGroupC33881DF
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 156
+                  MemoryReservation: 154
                   Name: GatewayContainer
                   PortMappings:
                       - ContainerPort: 80
@@ -2911,6 +3151,7 @@ Resources:
                 Ref: TaskRealtimeServiceTaskDefinition4487CD82
         DependsOn:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition1Of4/Service/Service
@@ -2942,6 +3183,7 @@ Resources:
                 Ref: TaskRealtimeServiceTaskDefinition4487CD82
         DependsOn:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition2Of4/Service/Service
@@ -2973,6 +3215,7 @@ Resources:
                 Ref: TaskRealtimeServiceTaskDefinition4487CD82
         DependsOn:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition3Of4/Service/Service
@@ -3004,9 +3247,588 @@ Resources:
                 Ref: TaskRealtimeServiceTaskDefinition4487CD82
         DependsOn:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRoleOverflowPolicy192973A23
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition4Of4/Service/Service
+    ImporterServiceEbsVolumeRoleE8334632:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs.amazonaws.com
+                Version: 2012-10-17
+            Description: Allows ECS to manage EBS volumes for importer tasks
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/EbsVolumeRole/Resource
+    ImporterServiceEbsVolumeRoleDefaultPolicy93C63B38:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ec2:AttachVolume
+                          - ec2:CreateVolume
+                          - ec2:DeleteVolume
+                          - ec2:DescribeAvailabilityZones
+                          - ec2:DescribeVolumeStatus
+                          - ec2:DescribeVolumes
+                          - ec2:DetachVolume
+                      Effect: Allow
+                      Resource: "*"
+                    - Action: ec2:CreateTags
+                      Condition:
+                          StringEquals:
+                              ec2:CreateAction: CreateVolume
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:ec2:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :volume/*
+                Version: 2012-10-17
+            PolicyName: ImporterServiceEbsVolumeRoleDefaultPolicy93C63B38
+            Roles:
+                - Ref: ImporterServiceEbsVolumeRoleE8334632
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/EbsVolumeRole/DefaultPolicy/Resource
+    ImporterServiceTaskDefinitionTaskRoleA1F1F597:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/TaskRole/Resource
+    ImporterServiceTaskDefinitionTaskRoleDefaultPolicyD3141FF5:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:BatchWriteItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:DeleteItem
+                          - dynamodb:GetItem
+                          - dynamodb:PutItem
+                          - dynamodb:Query
+                          - dynamodb:TransactGetItems
+                          - dynamodb:TransactWriteItems
+                          - dynamodb:UpdateItem
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AccountsTable81C15AE5
+                                - Arn
+                          - Fn::GetAtt:
+                                - AlphaAccessTable823F6A12
+                                - Arn
+                          - Fn::GetAtt:
+                                - BotWebhookEventsTable9E64D99B
+                                - Arn
+                          - Fn::GetAtt:
+                                - BotsTable78B66B1C
+                                - Arn
+                          - Fn::GetAtt:
+                                - ChatTable7A2D1C24
+                                - Arn
+                          - Fn::GetAtt:
+                                - DeployTableF6562626
+                                - Arn
+                          - Fn::GetAtt:
+                                - DocumentsTable7E808EE5
+                                - Arn
+                          - Fn::GetAtt:
+                                - FeedTable1849209D
+                                - Arn
+                          - Fn::GetAtt:
+                                - FilesTable1399FAA4
+                                - Arn
+                          - Fn::GetAtt:
+                                - ForumRealtimeTableFB7C25E5
+                                - Arn
+                          - Fn::GetAtt:
+                                - ForumTable1FBA2B20
+                                - Arn
+                          - Fn::GetAtt:
+                                - InboxTableE3C19927
+                                - Arn
+                          - Fn::GetAtt:
+                                - IntegrationsTable781EC78A
+                                - Arn
+                          - Fn::GetAtt:
+                                - NotificationsTable76DCFC6C
+                                - Arn
+                          - Fn::GetAtt:
+                                - NotionImporterTable695D7176
+                                - Arn
+                          - Fn::GetAtt:
+                                - SearchEntitiesTableC54BE0E8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SitesTable456CECCC
+                                - Arn
+                          - Fn::GetAtt:
+                                - SpacesTable8A997355
+                                - Arn
+                          - Fn::GetAtt:
+                                - SpellCheckTable1F4FC39B
+                                - Arn
+                          - Fn::GetAtt:
+                                - TaskActionsTableFC756837
+                                - Arn
+                          - Fn::GetAtt:
+                                - TasksTable88911DC5
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AccountsTable81C15AE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AlphaAccessTable823F6A12
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotWebhookEventsTable9E64D99B
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotsTable78B66B1C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ChatTable7A2D1C24
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DeployTableF6562626
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DocumentsTable7E808EE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FeedTable1849209D
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FilesTable1399FAA4
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ForumRealtimeTableFB7C25E5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ForumTable1FBA2B20
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - InboxTableE3C19927
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotificationsTable76DCFC6C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotionImporterTable695D7176
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SearchEntitiesTableC54BE0E8
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SitesTable456CECCC
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpacesTable8A997355
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpellCheckTable1F4FC39B
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - TaskActionsTableFC756837
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - TasksTable88911DC5
+                                        - Arn
+                                  - /index/*
+                    - Action:
+                          - s3:GetBucket*
+                          - s3:GetObject*
+                          - s3:List*
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - ImportUploadsBucketECD42D88
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ImportUploadsBucketECD42D88
+                                        - Arn
+                                  - /*
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsJobQueue62388F96
+                                - Arn
+                Version: 2012-10-17
+            PolicyName: ImporterServiceTaskDefinitionTaskRoleDefaultPolicyD3141FF5
+            Roles:
+                - Ref: ImporterServiceTaskDefinitionTaskRoleA1F1F597
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    ImporterServiceTaskDefinition04939494:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            ContainerDefinitions:
+                - Command:
+                      - /var/www/server/importer/importer_service/importer_binary
+                      - --edgeServiceUrl=https://alpine.inc
+                      - --resourceServiceUrl=https://resources.alpine.inc
+                      - --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                      - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                      - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                      - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                      - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                      - --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                      - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                      - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                      - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
+                      - --servicePrivateKey=$IMPORTER_SERVICE_PRIVATE_KEY
+                      - --tokenAgentSecret=$TOKEN_AGENT_SECRET
+                      - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --kinesisTracerStreamName=
+                              - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
+                      - Fn::Join:
+                            - ""
+                            - - --importUploadsBucketName=
+                              - Ref: ImportUploadsBucketECD42D88
+                      - Fn::Join:
+                            - ""
+                            - - --jobQueueUrl=
+                              - Ref: SqsJobQueue62388F96
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorJobQueueUrl=
+                              - Ref: SqsFileProcessorJobQueue551DBCF8
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorHeavyJobQueueUrl=
+                              - Ref: SqsFileProcessorHeavyJobQueueA7996724
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorLightJobQueueUrl=
+                              - Ref: SqsFileProcessorLightJobQueueDC9222EF
+                      - --importerAction=$IMPORTER_ACTION
+                      - --spaceId=$SPACE_ID
+                      - --notionImportId=$NOTION_IMPORT_ID
+                      - Fn::Join:
+                            - ""
+                            - - --ecsCluster=
+                              - Ref: EcsClusterFB9B21B5
+                      - --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRealtimeServiceTaskDefinition81563AFA
+                      - Fn::Join:
+                            - ""
+                            - - --taskRealtimeServiceSecurityGroupId=
+                              - Fn::GetAtt:
+                                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
+                                    - GroupId
+                  Environment:
+                      - Name: NODE_ENV
+                        Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
+                  Essential: true
+                  Image:
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
+                  LogConfiguration:
+                      LogDriver: awslogs
+                      Options:
+                          awslogs-group:
+                              Ref: ImporterServiceTaskDefinitionContainerLogGroupD91C9A24
+                          awslogs-stream-prefix: CyberworldsStack
+                          awslogs-region: us-east-1
+                  MountPoints:
+                      - ContainerPath: /data/importer
+                        ReadOnly: false
+                        SourceVolume: importer-data
+                  Name: Container
+                  Secrets:
+                      - Name: APP_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:appServicePublicKey::"
+                      - Name: EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:edgeServiceFamilyPublicKey::"
+                      - Name: TASK_REALTIME_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:taskRealtimeServicePublicKey::"
+                      - Name: JOB_QUEUE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:jobQueueServicePublicKey::"
+                      - Name: FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:fileProcessorServicePublicKey::"
+                      - Name: API_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:apiServicePublicKey::"
+                      - Name: RESOURCE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:importerServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PRIVATE_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:importerServicePrivateKey::"
+                      - Name: TOKEN_AGENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:tokenAgentSecret::"
+                      - Name: CLOUDFLARE_R2_ACCESS_KEY_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:cloudflareR2AccessKeyId::"
+                      - Name: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:cloudflareR2SecretAccessKey::"
+                      - Name: HONEYCOMB_API_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ImporterServiceSecrets:honeycombApiKey::"
+                  User: www-data
+            Cpu: "4096"
+            ExecutionRoleArn:
+                Fn::GetAtt:
+                    - ImporterServiceTaskDefinitionExecutionRole1B9BCF70
+                    - Arn
+            Family: CyberworldsStackImporterServiceTaskDefinition878133C9
+            Memory: "30720"
+            NetworkMode: awsvpc
+            RequiresCompatibilities:
+                - FARGATE
+            RuntimePlatform:
+                CpuArchitecture: ARM64
+                OperatingSystemFamily: LINUX
+            TaskRoleArn:
+                Fn::GetAtt:
+                    - ImporterServiceTaskDefinitionTaskRoleA1F1F597
+                    - Arn
+            Volumes:
+                - ConfiguredAtLaunch: true
+                  Name: importer-data
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/Resource
+    ImporterServiceTaskDefinitionContainerLogGroupD91C9A24:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            RetentionInDays: 14
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/Container/LogGroup/Resource
+    ImporterServiceTaskDefinitionExecutionRole1B9BCF70:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/ExecutionRole/Resource
+    ImporterServiceTaskDefinitionExecutionRoleDefaultPolicyCCC4360B:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ecr:BatchCheckLayerAvailability
+                          - ecr:BatchGetImage
+                          - ecr:GetDownloadUrlForLayer
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:ecr:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :repository/
+                                - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                    - Action: ecr:GetAuthorizationToken
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - ImporterServiceTaskDefinitionContainerLogGroupD91C9A24
+                              - Arn
+                    - Action:
+                          - secretsmanager:DescribeSecret
+                          - secretsmanager:GetSecretValue
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:secretsmanager:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :secret:ImporterServiceSecrets-??????
+                Version: 2012-10-17
+            PolicyName: ImporterServiceTaskDefinitionExecutionRoleDefaultPolicyCCC4360B
+            Roles:
+                - Ref: ImporterServiceTaskDefinitionExecutionRole1B9BCF70
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    ImporterServiceInstanceSecurityGroup104C7A59:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/ImporterService/InstanceSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ImporterService/InstanceSecurityGroup/Resource
     AppServiceLaunchTemplateRole07DED169:
         Type: AWS::IAM::Role
         Properties:
@@ -3115,7 +3937,7 @@ Resources:
                             - AppServiceLaunchTemplateProfile42DDF9C1
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 Monitoring:
                     Enabled: true
@@ -3168,8 +3990,8 @@ Resources:
                     Fn::GetAtt:
                         - AppServiceLaunchTemplate42ACBC3C
                         - LatestVersionNumber
-            MaxSize: "8"
-            MinSize: "4"
+            MaxSize: "4"
+            MinSize: "2"
             NewInstancesProtectedFromScaleIn: true
             Tags:
                 - Key: CloudWatchAgent
@@ -3263,6 +4085,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - IntegrationsTable781EC78A
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -3270,6 +4095,9 @@ Resources:
                                 - Arn
                           - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SitesTable456CECCC
                                 - Arn
                           - Fn::GetAtt:
                                 - SpacesTable8A997355
@@ -3358,6 +4186,12 @@ Resources:
                           - Fn::Join:
                                 - ""
                                 - - Fn::GetAtt:
+                                        - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
@@ -3371,6 +4205,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SearchEntitiesTableC54BE0E8
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SitesTable456CECCC
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3466,21 +4306,6 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
-                    - Action: sqs:SendMessage
-                      Effect: Allow
-                      Resource:
-                          - Fn::GetAtt:
-                                - SqsFileProcessorHeavyJobQueueA7996724
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsFileProcessorJobQueue551DBCF8
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsFileProcessorLightJobQueueDC9222EF
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsJobQueue62388F96
-                                - Arn
                     - Action:
                           - kinesis:ListShards
                           - kinesis:PutRecord
@@ -3508,6 +4333,21 @@ Resources:
             Path: /
             PolicyDocument:
                 Statement:
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsJobQueue62388F96
+                                - Arn
                     - Action: ses:SendEmail
                       Effect: Allow
                       Resource:
@@ -3526,6 +4366,8 @@ Resources:
                                   - Ref: SesEmailIdentity8E702B39
                     - Action:
                           - s3:Abort*
+                          - s3:DeleteObject
+                          - s3:GetObject
                           - s3:PutObject
                           - s3:PutObjectLegalHold
                           - s3:PutObjectRetention
@@ -3539,6 +4381,22 @@ Resources:
                                       - ImportUploadsBucketECD42D88
                                       - Arn
                                 - /*
+                    - Action: ecs:RunTask
+                      Effect: Allow
+                      Resource:
+                          Ref: ImporterServiceTaskDefinition04939494
+                    - Action: iam:PassRole
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - ImporterServiceEbsVolumeRoleE8334632
+                                - Arn
+                          - Fn::GetAtt:
+                                - ImporterServiceTaskDefinitionExecutionRole1B9BCF70
+                                - Arn
+                          - Fn::GetAtt:
+                                - ImporterServiceTaskDefinitionTaskRoleA1F1F597
+                                - Arn
                     - Action:
                           - dynamodb:BatchGetItem
                           - dynamodb:ConditionCheckItem
@@ -3621,12 +4479,15 @@ Resources:
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
                       - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$APP_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                       - --apnsCertificate=$APNS_CERTIFICATE
                       - --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
                       - --webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY
                       - --webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY
+                      - --slackClientId=$SLACK_CLIENT_ID
+                      - --slackClientSecret=$SLACK_CLIENT_SECRET
                       - --stripeSecretKey=$STRIPE_SECRET_KEY
                       - --stripeSigningSecret=$STRIPE_SIGNING_SECRET
                       - --logoDevSecretKey=$LOGO_DEV_SECRET_KEY
@@ -3636,10 +4497,34 @@ Resources:
                             - ""
                             - - --importUploadsBucketName=
                               - Ref: ImportUploadsBucketECD42D88
+                      - Fn::Join:
+                            - ""
+                            - - --importerServiceEcsTaskDefinition=
+                              - Ref: ImporterServiceTaskDefinition04939494
+                      - Fn::Join:
+                            - ""
+                            - - --importerServiceSubnets=
+                              - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                              - ","
+                              - Ref: VpcPublicSubnet2Subnet691E08A3
+                      - Fn::Join:
+                            - ""
+                            - - --importerServiceSecurityGroups=
+                              - Fn::GetAtt:
+                                    - ImporterServiceInstanceSecurityGroup104C7A59
+                                    - GroupId
+                      - Fn::Join:
+                            - ""
+                            - - --importerServiceEbsVolumeRoleArn=
+                              - Fn::GetAtt:
+                                    - ImporterServiceEbsVolumeRoleE8334632
+                                    - Arn
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -3660,7 +4545,7 @@ Resources:
                               Ref: AppServiceTaskDefinitionContainerLogGroup1060112F
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -3723,6 +4608,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:importerServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -3814,6 +4706,20 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:logoDevPublishableKey::"
+                      - Name: SLACK_CLIENT_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:slackClientId::"
+                      - Name: SLACK_CLIENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:slackClientSecret::"
                   StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:
@@ -3915,7 +4821,7 @@ Resources:
                 MinimumHealthyPercent: 50
             DeploymentController:
                 Type: ECS
-            DesiredCount: 4
+            DesiredCount: 2
             EnableECSManagedTags: false
             HealthCheckGracePeriodSeconds: 60
             LoadBalancers:
@@ -4253,7 +5159,7 @@ Resources:
                             - ApiServiceLaunchTemplateProfile943D531F
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 Monitoring:
                     Enabled: true
@@ -4401,6 +5307,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - IntegrationsTable781EC78A
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -4408,6 +5317,9 @@ Resources:
                                 - Arn
                           - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SitesTable456CECCC
                                 - Arn
                           - Fn::GetAtt:
                                 - SpacesTable8A997355
@@ -4496,6 +5408,12 @@ Resources:
                           - Fn::Join:
                                 - ""
                                 - - Fn::GetAtt:
+                                        - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
@@ -4509,6 +5427,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SearchEntitiesTableC54BE0E8
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SitesTable456CECCC
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -4604,21 +5528,6 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
-                    - Action: sqs:SendMessage
-                      Effect: Allow
-                      Resource:
-                          - Fn::GetAtt:
-                                - SqsFileProcessorHeavyJobQueueA7996724
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsFileProcessorJobQueue551DBCF8
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsFileProcessorLightJobQueueDC9222EF
-                                - Arn
-                          - Fn::GetAtt:
-                                - SqsJobQueue62388F96
-                                - Arn
                     - Action:
                           - kinesis:ListShards
                           - kinesis:PutRecord
@@ -4639,6 +5548,33 @@ Resources:
                 - Ref: ApiServiceTaskDefinitionTaskRole5521C40B
         Metadata:
             aws:cdk:path: CyberworldsStack/ApiService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    ApiServiceTaskDefinitionTaskRoleOverflowPolicy1CF73D306:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/ApiService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsJobQueue62388F96
+                                - Arn
+                Version: 2012-10-17
+            Roles:
+                - Ref: ApiServiceTaskDefinitionTaskRole5521C40B
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/TaskDefinition/TaskRole/OverflowPolicy1/Resource
     ApiServiceTaskDefinitionD60EA9BF:
         Type: AWS::ECS::TaskDefinition
         Properties:
@@ -4697,6 +5633,7 @@ Resources:
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
                       - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$API_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                       - --apnsCertificate=$APNS_CERTIFICATE
@@ -4707,6 +5644,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -4727,7 +5666,7 @@ Resources:
                               Ref: ApiServiceTaskDefinitionContainerLogGroup7F4869A8
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -4790,6 +5729,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:ApiServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:importerServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -4969,6 +5915,7 @@ Resources:
             - ApiServiceLoadBalancerAlbListenerCD838A52
             - ApiServiceLoadBalancerAlbListenerTargetGroupGroup573E76BE
             - ApiServiceTaskDefinitionTaskRoleDefaultPolicy7F7154F1
+            - ApiServiceTaskDefinitionTaskRoleOverflowPolicy1CF73D306
             - ApiServiceTaskDefinitionTaskRole5521C40B
         Metadata:
             aws:cdk:path: CyberworldsStack/ApiService/Service/Service
@@ -5195,6 +6142,11 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/CloudWatchAgentServerPolicy
         Metadata:
             aws:cdk:path: CyberworldsStack/JobQueueService/LaunchTemplateRole/Resource
     JobQueueServiceLaunchTemplateRoleDefaultPolicy169D1E69:
@@ -5264,7 +6216,7 @@ Resources:
                             - JobQueueServiceLaunchTemplateProfileBBFF57CB
                             - Arn
                 ImageId:
-                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
                 SecurityGroupIds:
                     - Fn::GetAtt:
@@ -5315,8 +6267,8 @@ Resources:
                     Fn::GetAtt:
                         - JobQueueServiceLaunchTemplate05372F6D
                         - LatestVersionNumber
-            MaxSize: "6"
-            MinSize: "3"
+            MaxSize: "4"
+            MinSize: "2"
             NewInstancesProtectedFromScaleIn: true
             Tags:
                 - Key: CloudWatchAgent
@@ -5424,6 +6376,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - IntegrationsTable781EC78A
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -5431,6 +6386,9 @@ Resources:
                                 - Arn
                           - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SitesTable456CECCC
                                 - Arn
                           - Fn::GetAtt:
                                 - SpacesTable8A997355
@@ -5519,6 +6477,12 @@ Resources:
                           - Fn::Join:
                                 - ""
                                 - - Fn::GetAtt:
+                                        - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
@@ -5532,6 +6496,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SearchEntitiesTableC54BE0E8
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SitesTable456CECCC
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -5627,6 +6597,19 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
+                Version: 2012-10-17
+            PolicyName: JobQueueServiceTaskDefinitionTaskRoleDefaultPolicy9F7601AC
+            Roles:
+                - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
+        Metadata:
+            aws:cdk:path: CyberworldsStack/JobQueueService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    JobQueueServiceTaskDefinitionTaskRoleOverflowPolicy10624BA54:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/JobQueueService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
                     - Action:
                           - sqs:ChangeMessageVisibility
                           - sqs:DeleteMessage
@@ -5646,26 +6629,6 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
-                    - Action:
-                          - ec2:DescribeNetworkInterfaces
-                          - ecs:DescribeContainerInstances
-                          - ecs:DescribeTasks
-                          - ecs:ListTasks
-                      Effect: Allow
-                      Resource: "*"
-                Version: 2012-10-17
-            PolicyName: JobQueueServiceTaskDefinitionTaskRoleDefaultPolicy9F7601AC
-            Roles:
-                - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
-        Metadata:
-            aws:cdk:path: CyberworldsStack/JobQueueService/TaskDefinition/TaskRole/DefaultPolicy/Resource
-    JobQueueServiceTaskDefinitionTaskRoleOverflowPolicy10624BA54:
-        Type: AWS::IAM::ManagedPolicy
-        Properties:
-            Description: Part of the policies for CyberworldsStack/JobQueueService/TaskDefinition/TaskRole
-            Path: /
-            PolicyDocument:
-                Statement:
                     - Action: ses:SendEmail
                       Effect: Allow
                       Resource:
@@ -5703,6 +6666,13 @@ Resources:
                       Effect: Allow
                       Resource:
                           Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action:
+                          - ec2:DescribeNetworkInterfaces
+                          - ecs:DescribeContainerInstances
+                          - ecs:DescribeTasks
+                          - ecs:ListTasks
+                      Effect: Allow
+                      Resource: "*"
                 Version: 2012-10-17
             Roles:
                 - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
@@ -5781,21 +6751,23 @@ Resources:
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
                       - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$JOB_QUEUE_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                       - --apnsCertificate=$APNS_CERTIFICATE
                       - --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
                       - --webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY
                       - --webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY
+                      - --slackClientId=$SLACK_CLIENT_ID
+                      - --slackClientSecret=$SLACK_CLIENT_SECRET
                       - --githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY
-                      - Fn::Join:
-                            - ""
-                            - - --importUploadsBucketName=
-                              - Ref: ImportUploadsBucketECD42D88
+                      - --loopsApiKey=$LOOPS_API_KEY
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -5816,7 +6788,7 @@ Resources:
                               Ref: JobQueueServiceTaskDefinitionContainerLogGroup4CA57652
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 3906
+                  Memory: 3800
                   Name: Container
                   Secrets:
                       - Name: APP_SERVICE_PUBLIC_KEY
@@ -5868,6 +6840,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:importerServicePublicKey::"
                       - Name: JOB_QUEUE_SERVICE_PRIVATE_KEY
                         ValueFrom:
                             Fn::Join:
@@ -5924,6 +6903,20 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:webPushVapidPrivateKey::"
+                      - Name: SLACK_CLIENT_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:slackClientId::"
+                      - Name: SLACK_CLIENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:slackClientSecret::"
                       - Name: GITHUB_APP_ID
                         ValueFrom:
                             Fn::Join:
@@ -5973,6 +6966,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:cloudflareR2SecretAccessKey::"
+                      - Name: LOOPS_API_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:loopsApiKey::"
                   StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:
@@ -6112,7 +7112,7 @@ Resources:
                 MinimumHealthyPercent: 50
             DeploymentController:
                 Type: ECS
-            DesiredCount: 4
+            DesiredCount: 2
             EnableECSManagedTags: false
             SchedulingStrategy: REPLICA
             TaskDefinition:
@@ -6191,6 +7191,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - IntegrationsTable781EC78A
+                                - Arn
+                          - Fn::GetAtt:
                                 - NotificationsTable76DCFC6C
                                 - Arn
                           - Fn::GetAtt:
@@ -6198,6 +7201,9 @@ Resources:
                                 - Arn
                           - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SitesTable456CECCC
                                 - Arn
                           - Fn::GetAtt:
                                 - SpacesTable8A997355
@@ -6286,6 +7292,12 @@ Resources:
                           - Fn::Join:
                                 - ""
                                 - - Fn::GetAtt:
+                                        - IntegrationsTable781EC78A
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
                                         - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
@@ -6299,6 +7311,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SearchEntitiesTableC54BE0E8
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SitesTable456CECCC
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -6394,6 +7412,26 @@ Resources:
                                         - OpensearchDomainCED7C974
                                         - Arn
                                   - /tasks/*
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                Version: 2012-10-17
+            PolicyName: MigrationServiceTaskDefinitionTaskRoleDefaultPolicy0D3E0F49
+            Roles:
+                - Ref: MigrationServiceTaskDefinitionTaskRole781D9E98
+        Metadata:
+            aws:cdk:path: CyberworldsStack/MigrationService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    MigrationServiceTaskDefinitionTaskRoleOverflowPolicy115CBEB20:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/MigrationService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -6409,19 +7447,11 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
-                    - Action:
-                          - kinesis:ListShards
-                          - kinesis:PutRecord
-                          - kinesis:PutRecords
-                      Effect: Allow
-                      Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
                 Version: 2012-10-17
-            PolicyName: MigrationServiceTaskDefinitionTaskRoleDefaultPolicy0D3E0F49
             Roles:
                 - Ref: MigrationServiceTaskDefinitionTaskRole781D9E98
         Metadata:
-            aws:cdk:path: CyberworldsStack/MigrationService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+            aws:cdk:path: CyberworldsStack/MigrationService/TaskDefinition/TaskRole/OverflowPolicy1/Resource
     MigrationServiceTaskDefinition46CECC7B:
         Type: AWS::ECS::TaskDefinition
         Properties:
@@ -6463,6 +7493,8 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   Image:
                       Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
@@ -7739,7 +8771,7 @@ Resources:
             IamInstanceProfile:
                 Ref: FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E
             ImageId:
-                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
             InstanceType: r7g.large
             SecurityGroups:
                 - Fn::GetAtt:
@@ -7901,12 +8933,15 @@ Resources:
                       - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                       - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
                       - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY
                       - --servicePrivateKey=$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                       - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
                         Value: production
+                      - Name: AWS_REGION
+                        Value: us-east-1
                   Essential: true
                   HealthCheck:
                       Command:
@@ -7927,7 +8962,7 @@ Resources:
                               Ref: FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 15810
+                  Memory: 15675
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -7986,6 +9021,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:FileProcessorServiceSecrets:resourceServicePublicKey::"
+                      - Name: IMPORTER_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:importerServicePublicKey::"
                       - Name: FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                         ValueFrom:
                             Fn::Join:
@@ -8174,6 +9216,820 @@ Resources:
             ValidationMethod: DNS
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/Certificate/Resource
+    AwsAnalyticsMirrorExportBucket56D42964:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: analytics-mirror
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/ExportBucket/Resource
+    AwsAnalyticsMirrorExportBucketNotificationsA2DC14DF:
+        Type: Custom::S3BucketNotifications
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+                    - Arn
+            BucketName:
+                Ref: AwsAnalyticsMirrorExportBucket56D42964
+            NotificationConfiguration:
+                LambdaFunctionConfigurations:
+                    - Events:
+                          - s3:ObjectCreated:*
+                      Filter:
+                          Key:
+                              FilterRules:
+                                  - Name: suffix
+                                    Value: manifest-files.json
+                                  - Name: prefix
+                                    Value: raw-exports/
+                      LambdaFunctionArn:
+                          Fn::GetAtt:
+                              - AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionAE146861
+                              - Arn
+            Managed: true
+            SkipDestinationValidation: false
+        DependsOn:
+            - AwsAnalyticsMirrorExportBucketAllowBucketNotificationsToCyberworldsStackAwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionE5EE2D423E2520D9
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/ExportBucket/Notifications/Resource
+    AwsAnalyticsMirrorExportBucketAllowBucketNotificationsToCyberworldsStackAwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionE5EE2D423E2520D9:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionAE146861
+                    - Arn
+            Principal: s3.amazonaws.com
+            SourceAccount:
+                Ref: AWS::AccountId
+            SourceArn:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorExportBucket56D42964
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/ExportBucket/AllowBucketNotificationsToCyberworldsStackAwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionE5EE2D42
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleF4DFCE03:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/ExecutionRole/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleDefaultPolicy7B668D6C:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionDeadLetterQueue6ABDB473
+                              - Arn
+                    - Action: dynamodb:ExportTableToPointInTime
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:dynamodb:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :table/Accounts
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:dynamodb:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :table/Spaces
+                    - Action:
+                          - s3:Abort*
+                          - s3:DeleteObject*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AwsAnalyticsMirrorExportBucket56D42964
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AwsAnalyticsMirrorExportBucket56D42964
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+            PolicyName: AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleDefaultPolicy7B668D6C
+            Roles:
+                - Ref: AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleF4DFCE03
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/ExecutionRole/DefaultPolicy/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionDeadLetterQueue6ABDB473:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/Function/DeadLetterQueue/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunction47E2CAA7:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                ImageUri:
+                    Fn::Join:
+                        - ""
+                        - - Ref: AWS::AccountId
+                          - .dkr.ecr.us-east-1.
+                          - Ref: AWS::URLSuffix
+                          - /
+                          - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                          - :latest
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionDeadLetterQueue6ABDB473
+                        - Arn
+            Environment:
+                Variables:
+                    EXPORT_BUCKET:
+                        Ref: AwsAnalyticsMirrorExportBucket56D42964
+                    EXPORT_BUCKET_PREFIX: raw-exports
+                    ACCOUNTS_TABLE_ARN:
+                        Fn::Join:
+                            - ""
+                            - - "arn:aws:dynamodb:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :table/Accounts
+                    SPACES_TABLE_ARN:
+                        Fn::Join:
+                            - ""
+                            - - "arn:aws:dynamodb:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :table/Spaces
+                    NODE_ENV: production
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
+                    RUNFILES: /var/task/admin/analytics/analytics_mirror_export/trigger_analytics_mirror_export_lambda_binary.runfiles
+            MemorySize: 256
+            PackageType: Image
+            Role:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleF4DFCE03
+                    - Arn
+            Timeout: 60
+        DependsOn:
+            - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleDefaultPolicy7B668D6C
+            - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportExecutionRoleF4DFCE03
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/Function/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionLogRetention423252CC:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunction47E2CAA7
+            RetentionInDays: 7
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExport/Function/LogRetention/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportSchedule626C7527:
+        Type: AWS::Events::Rule
+        Properties:
+            ScheduleExpression: cron(0 4 * * ? *)
+            State: ENABLED
+            Targets:
+                - Arn:
+                      Fn::GetAtt:
+                          - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunction47E2CAA7
+                          - Arn
+                  Id: Target0
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExportSchedule/Resource
+    AwsAnalyticsMirrorTriggerAnalyticsMirrorExportScheduleAllowEventRuleCyberworldsStackAwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionA071234090F1A04D:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunction47E2CAA7
+                    - Arn
+            Principal: events.amazonaws.com
+            SourceArn:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTriggerAnalyticsMirrorExportSchedule626C7527
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TriggerAnalyticsMirrorExportSchedule/AllowEventRuleCyberworldsStackAwsAnalyticsMirrorTriggerAnalyticsMirrorExportFunctionA0712340
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRole02DBBC45:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/ExecutionRole/Resource
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRoleDefaultPolicyDA751A98:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - kinesis:ListShards
+                          - kinesis:PutRecord
+                          - kinesis:PutRecords
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionDeadLetterQueueF7FBD3D6
+                              - Arn
+                    - Action:
+                          - s3:Abort*
+                          - s3:DeleteObject*
+                          - s3:GetBucket*
+                          - s3:GetObject*
+                          - s3:List*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AwsAnalyticsMirrorExportBucket56D42964
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AwsAnalyticsMirrorExportBucket56D42964
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+            PolicyName: AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRoleDefaultPolicyDA751A98
+            Roles:
+                - Ref: AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRole02DBBC45
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/ExecutionRole/DefaultPolicy/Resource
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionDeadLetterQueueF7FBD3D6:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/Function/DeadLetterQueue/Resource
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionAE146861:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                ImageUri:
+                    Fn::Join:
+                        - ""
+                        - - Ref: AWS::AccountId
+                          - .dkr.ecr.us-east-1.
+                          - Ref: AWS::URLSuffix
+                          - /
+                          - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                          - :latest
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionDeadLetterQueueF7FBD3D6
+                        - Arn
+            Environment:
+                Variables:
+                    OUTPUT_BUCKET:
+                        Ref: AwsAnalyticsMirrorExportBucket56D42964
+                    OUTPUT_PREFIX: parquet
+                    NODE_ENV: production
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
+                    KINESIS_TRACER_STREAM_NAME:
+                        Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityTracerEventStream25E3CD6583FC10C2
+                    RUNFILES: /var/task/admin/analytics/analytics_mirror_export/transform_analytics_mirror_export_lambda_binary.runfiles
+            MemorySize: 1024
+            PackageType: Image
+            Role:
+                Fn::GetAtt:
+                    - AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRole02DBBC45
+                    - Arn
+            Timeout: 300
+        DependsOn:
+            - AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRoleDefaultPolicyDA751A98
+            - AwsAnalyticsMirrorTransformAnalyticsMirrorExportExecutionRole02DBBC45
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/Function/Resource
+    AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionLogRetentionEF1AB53E:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: AwsAnalyticsMirrorTransformAnalyticsMirrorExportFunctionAE146861
+            RetentionInDays: 7
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/TransformAnalyticsMirrorExport/Function/LogRetention/Resource
+    AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD:
+        Type: AWS::Glue::Database
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseInput:
+                Description: Database for analytics dimension tables (accounts, spaces)
+                Name: app
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/AppDimensionGlueDatabase
+    AwsAnalyticsMirrorAccountsDimensionGlueTableF8C842C7:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Accounts dimension table with allowlisted columns
+                Name: accounts
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: id
+                          Type: string
+                        - Name: name
+                          Type: string
+                        - Name: plan
+                          Type: string
+                        - Name: created_time
+                          Type: string
+                        - Name: has_internal_access
+                          Type: boolean
+                        - Name: has_not_signed_up
+                          Type: boolean
+                        - Name: bot_space_id
+                          Type: string
+                        - Name: bot_id
+                          Type: string
+                        - Name: last_opened_space_id
+                          Type: string
+                        - Name: observed_time_zone
+                          Type: string
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/accounts/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/AccountsDimensionGlueTable
+    AwsAnalyticsMirrorSpacesDimensionGlueTable388FCF32:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Spaces dimension table with allowlisted columns
+                Name: spaces
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: id
+                          Type: string
+                        - Name: name
+                          Type: string
+                        - Name: created_time
+                          Type: string
+                        - Name: welcome_package_general_channel_id
+                          Type: string
+                        - Name: welcome_package_random_channel_id
+                          Type: string
+                        - Name: welcome_package_chat_gpt_bot_account_id
+                          Type: string
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/spaces/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/SpacesDimensionGlueTable
+    AwsAnalyticsMirrorAccountEmailAddressesDimensionGlueTableB77625C2:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Account email addresses dimension table
+                Name: account_email_addresses
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: email_address
+                          Type: string
+                        - Name: account_id
+                          Type: string
+                        - Name: created_time
+                          Type: string
+                        - Name: is_verified
+                          Type: boolean
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/account_email_addresses/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/AccountEmailAddressesDimensionGlueTable
+    AwsAnalyticsMirrorStripeCustomersDimensionGlueTable883FEB24:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Stripe customers dimension table
+                Name: stripe_customers
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: stripe_customer_id
+                          Type: string
+                        - Name: account_id
+                          Type: string
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/stripe_customers/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/StripeCustomersDimensionGlueTable
+    AwsAnalyticsMirrorSpaceAccountsDimensionGlueTableF78D5D7F:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Space accounts dimension table for membership data
+                Name: space_accounts
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: space_id
+                          Type: string
+                        - Name: account_id
+                          Type: string
+                        - Name: role
+                          Type: string
+                        - Name: added_time
+                          Type: string
+                        - Name: state
+                          Type: string
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/space_accounts/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/SpaceAccountsDimensionGlueTable
+    AwsAnalyticsMirrorSpaceEmailDomainsDimensionGlueTable54AF5A43:
+        Type: AWS::Glue::Table
+        Properties:
+            CatalogId:
+                Ref: AWS::AccountId
+            DatabaseName: app
+            TableInput:
+                Description: Space email domains for auto-add accounts feature
+                Name: space_email_domains
+                Parameters:
+                    classification: json
+                StorageDescriptor:
+                    Columns:
+                        - Name: space_id
+                          Type: string
+                        - Name: email_domain
+                          Type: string
+                        - Name: is_enabled
+                          Type: boolean
+                    InputFormat: org.apache.hadoop.mapred.TextInputFormat
+                    Location:
+                        Fn::Join:
+                            - ""
+                            - - s3://
+                              - Ref: AwsAnalyticsMirrorExportBucket56D42964
+                              - /parquet/space_email_domains/
+                    OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+                    SerdeInfo:
+                        Parameters:
+                            serialization.format: "1"
+                        SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+                TableType: EXTERNAL_TABLE
+        DependsOn:
+            - AwsAnalyticsMirrorAppDimensionGlueDatabase492BD8CD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AwsAnalyticsMirror/SpaceEmailDomainsDimensionGlueTable
+    BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+    BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: s3:PutBucketNotification
+                      Effect: Allow
+                      Resource: "*"
+                Version: 2012-10-17
+            PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+            Roles:
+                - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+    BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+        Type: AWS::Lambda::Function
+        Properties:
+            Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources
+                (@aws-cdk/aws-s3)
+            Code:
+                ZipFile: >-
+                    import boto3  # type: ignore
+
+                    import json
+
+                    import logging
+
+                    import urllib.request
+
+
+                    s3 = boto3.client("s3")
+
+
+                    EVENTBRIDGE_CONFIGURATION = 'EventBridgeConfiguration'
+
+                    CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations",
+                    "LambdaFunctionConfigurations"]
+
+
+                    def handler(event: dict, context):
+                      response_status = "SUCCESS"
+                      error_message = ""
+                      try:
+                        props = event["ResourceProperties"]
+                        notification_configuration = props["NotificationConfiguration"]
+                        managed = props.get('Managed', 'true').lower() == 'true'
+                        skipDestinationValidation = props.get('SkipDestinationValidation', 'false').lower() == 'true'
+                        stack_id = event['StackId']
+                        old = event.get("OldResourceProperties", {}).get("NotificationConfiguration", {})
+                        if managed:
+                          config = handle_managed(event["RequestType"], notification_configuration)
+                        else:
+                          config = handle_unmanaged(props["BucketName"], stack_id, event["RequestType"], notification_configuration, old)
+                        s3.put_bucket_notification_configuration(Bucket=props["BucketName"], NotificationConfiguration=config, SkipDestinationValidation=skipDestinationValidation)
+                      except Exception as e:
+                        logging.exception("Failed to put bucket notification configuration")
+                        response_status = "FAILED"
+                        error_message = f"Error: {str(e)}. "
+                      finally:
+                        submit_response(event, context, response_status, error_message)
+
+                    def handle_managed(request_type, notification_configuration):
+                      if request_type == 'Delete':
+                        return {}
+                      return notification_configuration
+
+                    def handle_unmanaged(bucket, stack_id, request_type, notification_configuration,
+                    old):
+                      def get_id(n):
+                        n['Id'] = ''
+                        sorted_notifications = sort_filter_rules(n)
+                        strToHash=json.dumps(sorted_notifications, sort_keys=True).replace('"Name": "prefix"', '"Name": "Prefix"').replace('"Name": "suffix"', '"Name": "Suffix"')
+                        return f"{stack_id}-{hash(strToHash)}"
+                      def with_id(n):
+                        n['Id'] = get_id(n)
+                        return n
+
+                      external_notifications = {}
+                      existing_notifications = s3.get_bucket_notification_configuration(Bucket=bucket)
+                      for t in CONFIGURATION_TYPES:
+                        if request_type == 'Update':
+                            old_incoming_ids = [get_id(n) for n in old.get(t, [])]
+                            external_notifications[t] = [n for n in existing_notifications.get(t, []) if not get_id(n) in old_incoming_ids]      
+                        elif request_type == 'Delete':
+                            external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+                        elif request_type == 'Create':
+                            external_notifications[t] = [n for n in existing_notifications.get(t, [])]
+                      if EVENTBRIDGE_CONFIGURATION in existing_notifications:
+                        external_notifications[EVENTBRIDGE_CONFIGURATION] = existing_notifications[EVENTBRIDGE_CONFIGURATION]
+
+                      if request_type == 'Delete':
+                        return external_notifications
+
+                      notifications = {}
+                      for t in CONFIGURATION_TYPES:
+                        external = external_notifications.get(t, [])
+                        incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+                        notifications[t] = external + incoming
+
+                      if EVENTBRIDGE_CONFIGURATION in notification_configuration:
+                        notifications[EVENTBRIDGE_CONFIGURATION] = notification_configuration[EVENTBRIDGE_CONFIGURATION]
+                      elif EVENTBRIDGE_CONFIGURATION in external_notifications:
+                        notifications[EVENTBRIDGE_CONFIGURATION] = external_notifications[EVENTBRIDGE_CONFIGURATION]
+
+                      return notifications
+
+                    def submit_response(event: dict, context, response_status: str, error_message:
+                    str):
+                      response_body = json.dumps(
+                        {
+                          "Status": response_status,
+                          "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                          "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                          "StackId": event["StackId"],
+                          "RequestId": event["RequestId"],
+                          "LogicalResourceId": event["LogicalResourceId"],
+                          "NoEcho": False,
+                        }
+                      ).encode("utf-8")
+                      headers = {"content-type": "", "content-length": str(len(response_body))}
+                      try:
+                        req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+                        with urllib.request.urlopen(req) as response:
+                          print(response.read().decode("utf-8"))
+                        print("Status code: " + response.reason)
+                      except Exception as e:
+                          print("send(..) failed executing request.urlopen(..): " + str(e))
+
+                    def sort_filter_rules(json_obj):
+                      if not isinstance(json_obj, dict):
+                          return json_obj
+                      for key, value in json_obj.items():
+                          if isinstance(value, dict):
+                              json_obj[key] = sort_filter_rules(value)
+                          elif isinstance(value, list):
+                              json_obj[key] = [sort_filter_rules(item) for item in value]
+                      if "Filter" in json_obj and "Key" in json_obj["Filter"] and "FilterRules" in json_obj["Filter"]["Key"]:
+                          filter_rules = json_obj["Filter"]["Key"]["FilterRules"]
+                          sorted_filter_rules = sorted(filter_rules, key=lambda x: x["Name"])
+                          json_obj["Filter"]["Key"]["FilterRules"] = sorted_filter_rules
+                      return json_obj
+            Handler: index.handler
+            Role:
+                Fn::GetAtt:
+                    - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+                    - Arn
+            Runtime: python3.11
+            Timeout: 300
+        DependsOn:
+            - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+            - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
     ScheduleDeployExecutionRoleE801ABF6:
         Type: AWS::IAM::Role
         Properties:
@@ -8426,9 +10282,12 @@ Outputs:
         Export:
             Name: CyberworldsStack:FileProcessorHeavyJobQueueArn
 Parameters:
-    SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
+    SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-        Default: /aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id
+        Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+    SsmParameterValueawsserviceecsoptimizedamiamazonlinux2023arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
+        Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+        Default: /aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id
     FileProcessorServiceResizeFileServiceLambdaWeight8C995723:
         Type: Number
         Default: 100

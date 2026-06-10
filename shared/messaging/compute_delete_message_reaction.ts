@@ -10,10 +10,10 @@ import {
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
 /**
- * Computes the new `reactionsByPos` map for a message based on the position
- * the client removed their reaction from. Doesn't actually update the message
- * in the database. Only performs the necessary validations and data structure
- * update logic.
+ * Computes the new `reactionsByPos` map for a message based on the position the
+ * client removed their reaction from. Doesn't actually update the message in the
+ * database. Only performs the necessary validations and data structure update
+ * logic.
  */
 export function computeDeleteMessageReaction({
     actorAccountId,
@@ -50,12 +50,12 @@ export function computeDeleteMessageReaction({
         }),
     );
 
-    // Throw if the client doesn't get the position right. While we could be
-    // forgiving here and use the correct `pos`, we choose to be unforgiving
-    // to make sure the client has correct `pos` calculation logic.
+    // Throw if the client doesn't get the position right. While we could be forgiving
+    // here and use the correct `pos`, we choose to be unforgiving to make sure the
+    // client has correct `pos` calculation logic.
     //
-    // The client needs a correct `pos` calculation implementation to know if the
-    // user has already reacted to an arbitrary range of text in the message.
+    // The client needs a correct `pos` calculation implementation to know if the user
+    // has already reacted to an arbitrary range of text in the message.
     if (
         (payload.contentUpdate?.mappings.length ?? 0) === clientContentVersion &&
         pos !== clientPos
@@ -69,8 +69,7 @@ export function computeDeleteMessageReaction({
     const newReactions = new Map(newReactionsByPos.get(pos)?.get());
     newReactions.delete(actorAccountId);
 
-    // If there are no reactions left then remove the full `ReactionSet`
-    // itself.
+    // If there are no reactions left then remove the full `ReactionSet` itself.
     if (newReactions.size === 0) {
         newReactionsByPos.delete(pos);
     } else {

@@ -15,7 +15,13 @@ ts_project(
         "//server/content/context_module:__pkg__",
         "//server/context:__pkg__",
         "//server/dynamo/test_helpers:__pkg__",
+        # The importer service needs opensearch for type compatibility with
+        # ServerProcessContextModules. The importer doesn't use opensearch directly
+        # (it queues search indexing through the job system), but removing it from
+        # the context types would require a deep refactor of ServerActionContext.
+        "//server/importer/importer_service:__pkg__",
         "//server/rpc:__subpackages__",
+        "//server/tasks/data/test_helpers:__pkg__",
     ],
     deps = [
         "//:node_modules/@types/json-bigint",

@@ -4,10 +4,9 @@ import {decodeIdInto} from "~/shared/id/id.js";
 import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Manually build a `DynamoItemKey` for an `InboxPostCommentsEntryModel` using
- * the same process the server uses. The data within `DynamoItemKey`s is not
- * secure by design, they're trivial to reverse engineer by clients. Like we
- * do here.
+ * Manually build a `DynamoItemKey` for an `InboxPostCommentsEntryModel` using the
+ * same process the server uses. The data within `DynamoItemKey`s is not secure by
+ * design, they're trivial to reverse engineer by clients. Like we do here.
  */
 export function createInboxPostCommentsEntryDynamoItemKey(
     spaceId: SpaceId,

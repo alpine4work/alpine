@@ -14,14 +14,16 @@ import {
     appendSelectionBoundaryHtml,
 } from "~/client/web/content/internal/content_file_preview.js";
 import {handleContentLinkClick} from "~/client/web/content/internal/handle_content_link_click.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {Reporter} from "~/client/web/design/reporter.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
+import {getDynamicSearchEntityPathForFileEntity} from "~/client/web/search/core/get_search_entity_path.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
@@ -29,11 +31,7 @@ import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase, InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
-import {
-    FileEntityId,
-    parseFileEntityId,
-    printFileEntityIdIntoPath,
-} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {fileEntityMaxRecursionDepth} from "~/shared/files/file_entity_max_recursion_depth.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
@@ -60,9 +58,9 @@ let depth = 0;
  *
  * Unlike `renderContentFilePreview()` this only renders file entities. The
  * implementation of each file entity renderer needs to be injected through
- * dependency injection (we use React context for this) since the package
- * we're in (`//client/web/content`) can't depend on all other UI code across our
- * codebase (e.g. `//client/web/tasks` and `//client/web/documents`).
+ * dependency injection (we use React context for this) since the package we're in
+ * (`//client/web/content`) can't depend on all other UI code across our codebase
+ * (e.g. `//client/web/tasks` and `//client/web/documents`).
  */
 export function renderContentFileEntityPreview(
     get: <Value>(store: Store<Value>) => Value,
@@ -78,6 +76,7 @@ export function renderContentFileEntityPreview(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         blockWidth,
         transformScale,
@@ -91,7 +90,7 @@ export function renderContentFileEntityPreview(
         node: Node;
         fileEntityId: FileEntityId;
         fileEntityResult: Result<FileEntityModel> | undefined;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         layout: ContentFileLayout;
         getContext: () => AppContext;
         clientInfo: ClientInfo;
@@ -99,6 +98,7 @@ export function renderContentFileEntityPreview(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         blockWidth: number;
         transformScale: number;
@@ -116,6 +116,13 @@ export function renderContentFileEntityPreview(
 
     assert(html instanceof HtmlElementGenerator);
 
+    if (process.env.NODE_ENV !== "production") {
+        html.setAttribute(
+            "data-testid",
+            `ContentFileEntityPreview:${fileEntityId.split(":", 2)[0]!}`,
+        );
+    }
+
     html.setAttribute(
         "class",
         classNames(html.getAttribute("class"), contentStyles.fileEntityClassName),
@@ -126,9 +133,9 @@ export function renderContentFileEntityPreview(
 
     if (depth >= fileEntityMaxRecursionDepth && !fileEntityResult) {
         // If we've hit the max depth where the backend stops loading file entities to
-        // prevent infinite recursion then instead of rendering an error message,
-        // render nothing.
-    } else if (!fileEntityRenderers || !fileEntityResult?.ok) {
+        // prevent infinite recursion then instead of rendering an error message, render
+        // nothing.
+    } else if (!fileEntityResult?.ok) {
         const fileEntityIdObject = parseFileEntityId(fileEntityId);
         const entityNoun = getFileEntityNoun(fileEntityIdObject.type);
 
@@ -187,6 +194,7 @@ export function renderContentFileEntityPreview(
                 accountRegistry,
                 searchEntityRegistry,
                 fileRegistry,
+                siteRegistry,
                 currentAccount,
                 blockWidth,
                 transformScale,
@@ -225,7 +233,7 @@ export function addContentFileEntityPreviewBehavior(
         spaceId: SpaceId;
         fileEntityId: FileEntityId;
         fileEntityResult: Result<FileEntityModel> | undefined;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         navigate: NavigateFunction;
         getReporter: () => Reporter;
         isInert?: boolean;
@@ -243,7 +251,11 @@ export function addContentFileEntityPreviewBehavior(
         onPress: event => {
             handleContentLinkClick(
                 event,
-                printFileEntityIdIntoPath(spaceId, fileEntityId),
+                getDynamicSearchEntityPathForFileEntity({
+                    spaceId,
+                    fileEntityId,
+                    fileEntityResult: fileEntityResult ?? null,
+                }),
                 navigate,
             );
         },
@@ -271,9 +283,9 @@ export function addContentFileEntityPreviewBehavior(
             dataTransfer.clearData();
             dataTransfer.setData("text/html", serializedNode.outerHTML);
 
-            // We check for this content type in the `dragenter` event to know if we need
-            // to show file drop targets. If this is set then it's assumed `text/html` will
-            // be parsed to `fileRow` or `file` nodes.
+            // We check for this content type in the `dragenter` event to know if we need to
+            // show file drop targets. If this is set then it's assumed `text/html` will be
+            // parsed to `fileRow` or `file` nodes.
             dataTransfer.setData("application/x.alpine.file", "");
 
             if (onDrag) {
@@ -285,8 +297,8 @@ export function addContentFileEntityPreviewBehavior(
                 };
 
                 // Attach `dragend` handler here since even if this content file's behavior is
-                // cleaned up (say `reference` changes) we don't want to remove our `dragend`
-                // event listener.
+                // cleaned up (say `reference` changes) we don't want to remove our `dragend` event
+                // listener.
                 element.addEventListener("dragend", handleDragEnd);
 
                 onDrag(dragPromiseResolver.promise);
@@ -308,7 +320,11 @@ export function addContentFileEntityPreviewBehavior(
                     iconPlacement: "end",
                     onPress: async () => {
                         const url = new URL(
-                            printFileEntityIdIntoPath(spaceId, fileEntityId),
+                            getDynamicSearchEntityPathForFileEntity({
+                                spaceId,
+                                fileEntityId,
+                                fileEntityResult: fileEntityResult ?? null,
+                            }),
                             window.location.href,
                         );
                         await writeTextToClipboard(url.toString());
@@ -321,7 +337,7 @@ export function addContentFileEntityPreviewBehavior(
     element.addEventListener("contextmenu", handleContextMenu);
 
     let cleanupExtra: (() => void) | undefined;
-    if (fileEntityResult?.ok && fileEntityRenderers) {
+    if (fileEntityResult?.ok) {
         const fileEntity = fileEntityResult.value;
 
         cleanupExtra = fileEntityRenderers.addPreviewBehaviorByType[fileEntity.type]?.(

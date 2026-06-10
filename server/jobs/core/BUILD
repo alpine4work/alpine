@@ -13,7 +13,7 @@ ts_project(
         "//server/helpers",
         "//server/notifications/core",
         "//server/search/core",
-        "//shared/api",
+        "//shared/api/specification",
         "//shared/context",
         "//shared/error",
         "//shared/feed",

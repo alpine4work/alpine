@@ -6,8 +6,8 @@ import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 
 /**
  * Rewind an email address's one time password sign in state by some number of
- * hours. This allows us to test cases where time has passed after the user
- * tried to sign in.
+ * hours. This allows us to test cases where time has passed after the user tried
+ * to sign in.
  */
 export async function rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest(
     context: DynamoContext,

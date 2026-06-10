@@ -61,8 +61,8 @@ export async function fetchUploadedFile(
         throw new InvalidArgumentError(`Search param \`variant\` is not a valid file variant`);
     }
 
-    // Make sure the user is allowed to access this file by verifying the signed
-    // URL. If the user tampered with the URL then we'll throw an error.
+    // Make sure the user is allowed to access this file by verifying the signed URL.
+    // If the user tampered with the URL then we'll throw an error.
     try {
         await tokenAgent.publicSide.verifyUrl(signedUrl);
     } catch (error) {
@@ -82,8 +82,8 @@ export async function fetchUploadedFile(
     // We authenticate with an `Authorization` not a `Cookie` header.
     headers.delete("cookie");
 
-    // Use a system actor for our resize action. We've already verified the user
-    // has access to this URL after calling `verifyUrl()`.
+    // Use a system actor for our resize action. We've already verified the user has
+    // access to this URL after calling `verifyUrl()`.
     const token = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
         "FileProcessorService",
         {type: "System", spaceId: route.spaceId},
@@ -117,8 +117,8 @@ export async function fetchUploadedFile(
         if (cachedResponse) {
             const cachedResponseHeaders = new Headers(cachedResponse.headers);
 
-            // 1. Make sure to switch the `public` `cache-control` directive back to
-            //    `private` before returning.
+            // 1. Make sure to switch the `public` `cache-control` directive back to `private`
+            //    before returning.
             // 2. Change `max-age` to match the expiration time from our URL.
             const cacheControlResponseHeader = cachedResponseHeaders.get("cache-control");
             if (cacheControlResponseHeader) {
@@ -149,14 +149,13 @@ export async function fetchUploadedFile(
             // https://github.com/cloudflare/miniflare/blob/12f6f915e08fbf3c7c5298e5131153c5e6e11d57/packages/shared/src/error.ts#L9
             error.name === "CacheError [ERR_DESERIALIZATION]"
         ) {
-            // There's a race condition in Miniflare in development where if
-            // `filesCache.put()` hasn't finished running then Miniflare will have started
-            // writing to the cache but won't have written cache metadata. This causes
-            // Miniflare to crash. This race condition reproduces reliably when playing a
-            // video file that's not in the cache.
+            // There's a race condition in Miniflare in development where if `filesCache.put()`
+            // hasn't finished running then Miniflare will have started writing to the cache
+            // but won't have written cache metadata. This causes Miniflare to crash. This race
+            // condition reproduces reliably when playing a video file that's not in the cache.
             //
-            // If we detect this race condition then we ignore the error and treat this as
-            // an uncached request.
+            // If we detect this race condition then we ignore the error and treat this as an
+            // uncached request.
         } else {
             throw error;
         }
@@ -164,13 +163,12 @@ export async function fetchUploadedFile(
 
     let response: Response;
 
-    // If a `width` search param wasn't provided then we return the file as-is
-    // without resizing. So if `width` was provided then execute our resize
-    // request against file processor service. Otherwise directly read the file
-    // from R2.
+    // If a `width` search param wasn't provided then we return the file as-is without
+    // resizing. So if `width` was provided then execute our resize request against
+    // file processor service. Otherwise directly read the file from R2.
     //
-    // We use the resize request as a cache key regardless of whether we actually
-    // need to execute the resize.
+    // We use the resize request as a cache key regardless of whether we actually need
+    // to execute the resize.
     if (width !== null) {
         response = await fetchWithTracer(
             span,
@@ -187,11 +185,11 @@ export async function fetchUploadedFile(
                 if (!contentType) {
                     throw new InternalError("Missing `Content-Type` header");
                 } else if (contentType === "application/json") {
-                    // NOTE(ifitzsimmons, 2025-09-15): We expect the file processor to return
-                    // either `image/avif` or `text/plain` for most responses. However, if
-                    // the infra fails (ie, the lambda times out), we return a JSON response
-                    // with the serialized error. This is necessary for cases where we want to
-                    // add displayMessages to errors on the backend.
+                    // NOTE(ifitzsimmons, 2025-09-15): We expect the file processor to return either
+                    // `image/avif` or `text/plain` for most responses. However, if the infra fails
+                    // (ie, the lambda times out), we return a JSON response with the serialized error.
+                    // This is necessary for cases where we want to add displayMessages to errors on
+                    // the backend.
                     const body = await response.json();
                     let responseError;
                     try {
@@ -220,8 +218,8 @@ export async function fetchUploadedFile(
         );
     }
 
-    // Cloudflare doesn't support caching partial responses. So make sure we
-    // have a non-206 status code before writing to the cache.
+    // Cloudflare doesn't support caching partial responses. So make sure we have a
+    // non-206 status code before writing to the cache.
     if (response.ok && response.status !== 206) {
         const {
             body: cacheResponseBody,
@@ -236,9 +234,9 @@ export async function fetchUploadedFile(
                 const cacheControlResponseHeader = cacheResponseHeaders.get("cache-control");
                 if (cacheControlResponseHeader) {
                     // Replace the `private` `cache-control` directive with `public`. It's safe to
-                    // cache files in `filesCache` since in order to access `filesCache` you must
-                    // have a valid signed URL when accessing this endpoint. We'll only generate
-                    // signed URLs when the user actually has access to a file.
+                    // cache files in `filesCache` since in order to access `filesCache` you must have
+                    // a valid signed URL when accessing this endpoint. We'll only generate signed URLs
+                    // when the user actually has access to a file.
                     cacheResponseHeaders.set(
                         "cache-control",
                         cacheControlResponseHeader.replace(
@@ -248,16 +246,16 @@ export async function fetchUploadedFile(
                     );
                 }
 
-                // Make sure to remove any `set-cookie` header that might be set by our AWS
-                // load balancer since it'll break Cloudflare caching.
+                // Make sure to remove any `set-cookie` header that might be set by our AWS load
+                // balancer since it'll break Cloudflare caching.
                 //
                 // https://developers.cloudflare.com/cache/concepts/default-cache-behavior
                 cacheResponseHeaders.delete("set-cookie");
 
-                // We use the resize request as a cache key regardless of whether we actually
-                // need to execute the resize. Which is why the URL will be
-                // `/:spaceId/resize/:fileId` even if we're not resizing the file and instead
-                // reading directly from Cloudflare R2.
+                // We use the resize request as a cache key regardless of whether we actually need
+                // to execute the resize. Which is why the URL will be `/:spaceId/resize/:fileId`
+                // even if we're not resizing the file and instead reading directly from Cloudflare
+                // R2.
                 cacheSpan.addData({
                     http: {
                         service: {name: subrequestServiceName},

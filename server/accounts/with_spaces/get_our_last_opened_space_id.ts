@@ -9,7 +9,14 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  */
 export async function getOurLastOpenedSpaceId(
     context: ServerSessionActionContext,
-): Promise<SpaceId | null | undefined> {
+): Promise<SpaceId | null> {
+    const {lastOpenedSpaceId} = await getOurAccountSpaceIdsAndLastOpenedSpaceId(context);
+    return lastOpenedSpaceId;
+}
+
+export async function getOurAccountSpaceIdsAndLastOpenedSpaceId(
+    context: ServerSessionActionContext,
+): Promise<{lastOpenedSpaceId: SpaceId | null; spaceIds: ReadonlySet<SpaceId>}> {
     const [accountSettingsItem, {spaceIds}] = await runAllPromises([
         getAccountSettingsItem(context, context.actor.getAccountId()),
         getOurAccountSpaceIds(context),
@@ -19,8 +26,11 @@ export async function getOurLastOpenedSpaceId(
         !accountSettingsItem?.lastOpenedSpaceId ||
         !spaceIds.has(accountSettingsItem.lastOpenedSpaceId)
     ) {
-        return spaceIds.size > 0 ? spaceIds.values().next().value : null;
+        return {
+            lastOpenedSpaceId: spaceIds.size > 0 ? (spaceIds.values().next().value ?? null) : null,
+            spaceIds,
+        };
     }
 
-    return accountSettingsItem.lastOpenedSpaceId;
+    return {lastOpenedSpaceId: accountSettingsItem.lastOpenedSpaceId, spaceIds};
 }

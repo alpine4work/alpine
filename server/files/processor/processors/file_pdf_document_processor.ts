@@ -20,10 +20,7 @@ import {
     FilePdfDocumentContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
-import {
-    maxFilePreviewAspectRatio,
-    minFilePreviewAspectRatio,
-} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
+import {getFilePreviewImageMaxResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -31,9 +28,9 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
- * Create a file processor for PDF files. We process PDF files with `sharp`. We
- * use a [custom `sharp` build][1] that includes [PDFium from Chrome][2] to
- * render PDFs. Only the first page of the PDF is rendered.
+ * Create a file processor for PDF files. We process PDF files with `sharp`. We use
+ * a [custom `sharp` build][1] that includes [PDFium from Chrome][2] to render
+ * PDFs. Only the first page of the PDF is rendered.
  *
  * [1]: https://github.com/cyberworlds/sharp-libvips
  * [2]: https://pdfium.googlesource.com/pdfium
@@ -110,7 +107,7 @@ export function processPdfDocumentFile(
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     signal;
 
-    const previewSizeWithoutModification = (async () => {
+    const previewSizeWithoutModificationPromise = (async () => {
         let retryCount = 0;
 
         while (true) {
@@ -147,11 +144,11 @@ export function processPdfDocumentFile(
                     throw new InternalError("Couldn\u2019t find `width` or `height` of image file");
                 }
 
-                // We produce a JPEG preview image that's 2x bigger than the source PDF. This
-                // is so when viewing the preview image on a retina display with a scale factor
-                // of 2 it looks the same as if we directly rendered the document. Zooming in
-                // on the preview image won't look good since fundamentally we're taking a
-                // vector format (PDF) and converting it to a raster format (JPEG).
+                // We produce a JPEG preview image that's 2x bigger than the source PDF. This is so
+                // when viewing the preview image on a retina display with a scale factor of 2 it
+                // looks the same as if we directly rendered the document. Zooming in on the
+                // preview image won't look good since fundamentally we're taking a vector format
+                // (PDF) and converting it to a raster format (JPEG).
                 const scale = 2;
 
                 return {
@@ -161,22 +158,20 @@ export function processPdfDocumentFile(
                     hasAlpha: metadata.hasAlpha ?? false,
                 };
             } catch (error) {
-                // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an
-                // error message for password protected PDFs. Our
+                // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an error
+                // message for password protected PDFs. Our
                 // `py_pdf_sample_libreoffice_write_password.pdf` test in
-                // `file_processor_content_types.test.ts` observes occasional failures where we
-                // get the truncated error message "Input buffer has corrupt header: " instead
-                // of the full "Input buffer has corrupt header: pdfload: password required or
-                // incorrect password". So when we detect a truncated error message from
-                // `sharp` let's retry the `metadata()` call up to 10 times until we get a real
-                // error message.
+                // `file_processor_content_types.test.ts` observes occasional failures where we get
+                // the truncated error message "Input buffer has corrupt header: " instead of the
+                // full "Input buffer has corrupt header: pdfload: password required or incorrect
+                // password". So when we detect a truncated error message from `sharp` let's retry
+                // the `metadata()` call up to 10 times until we get a real error message.
                 //
-                // `previewContentPromise`'s `sharp` call is also flaky in this regard. We
-                // don't add a retry there because if we throw a proper `PermissionDeniedError`
-                // here (with a display message) and `previewContentPromise` throws a flaky
+                // `previewContentPromise`'s `sharp` call is also flaky in this regard. We don't
+                // add a retry there because if we throw a proper `PermissionDeniedError` here
+                // (with a display message) and `previewContentPromise` throws a flaky
                 // `InvalidArgumentError` then `getAggregateErrorPriority()` will pick the
-                // `PermissionDeniedError` as the error to throw since it has a
-                // `displayMessage`.
+                // `PermissionDeniedError` as the error to throw since it has a `displayMessage`.
                 //
                 // Code in `sharp` where this error message is created:
                 // https://github.com/lovell/sharp/blob/1533bf995acda779313fc178d2b9d46791349961/src/common.cc#L417
@@ -204,11 +199,7 @@ export function processPdfDocumentFile(
         contentLength: number;
         data: ReadableStream;
     }> => {
-        const {
-            width: actualWidth,
-            height: actualHeight,
-            scale,
-        } = await previewSizeWithoutModification;
+        const {width, height, scale} = await previewSizeWithoutModificationPromise;
 
         await context.tracer.withSpan(
             `sharp reformat ${getFileContentTypeName(
@@ -222,81 +213,76 @@ export function processPdfDocumentFile(
                     },
                 });
 
-                let sharpInstance = sharp(inputPath, {pages: 1}).timeout({
-                    seconds: sharpTimeoutSeconds,
-                });
+                // HEIF has an upper bound on image dimensions. Keep preview _metadata_ at full
+                // resolution, but downscale preview content so AVIF encoding succeeds.
+                const previewContentScale = Math.min(
+                    1,
+                    getFilePreviewImageMaxResizeWidth() / Math.max(width, height),
+                );
+                const previewContentWidth = Math.max(1, Math.round(width * previewContentScale));
+                const previewContentHeight = Math.max(1, Math.round(height * previewContentScale));
 
-                const aspectRatio = actualWidth / actualHeight;
-                let previewWidth: number;
-                let previewHeight: number;
+                let sharpInstance = sharp(inputPath, {pages: 1})
+                    .timeout({seconds: sharpTimeoutSeconds})
+                    .resize({width: previewContentWidth, height: previewContentHeight})
 
-                // If the PDF is beyond our min/max aspect ratio bounds then we crop the PDF
-                // preview to a valid size.
-                if (aspectRatio <= minFilePreviewAspectRatio) {
-                    previewWidth = actualWidth;
-                    previewHeight = Math.round(actualWidth / minFilePreviewAspectRatio);
-
-                    sharpInstance = sharpInstance.resize({
-                        width: previewWidth,
-                        height: previewHeight,
-                        fit: "cover",
-                        position: "top",
-                    });
-                } else if (aspectRatio >= maxFilePreviewAspectRatio) {
-                    previewWidth = Math.round(actualHeight * maxFilePreviewAspectRatio);
-                    previewHeight = actualHeight;
-
-                    sharpInstance = sharpInstance.resize({
-                        width: previewWidth,
-                        height: previewHeight,
-                        fit: "cover",
-                        position: "centre",
-                    });
-                } else {
-                    previewWidth = actualWidth;
-                    previewHeight = actualHeight;
-
-                    sharpInstance = sharpInstance.resize({
-                        width: previewWidth,
-                        height: previewHeight,
-                    });
-                }
-
-                sharpInstance = sharpInstance
                     // AVIF is our preferred format for generating preview images ([source][1],
-                    // [source][2]). AVIF has full browser support, provides better compression
-                    // than JPEG and WebP, and has alpha channel support (unlike JPEG).
+                    // [source][2]). AVIF has full browser support, provides better compression than
+                    // JPEG and WebP, and has alpha channel support (unlike JPEG).
                     //
                     // Quality 80 since:
                     //
                     // - The preview's dimensions are already 2x the original file's
-                    // - We only use this when previewing the file, when viewing the file we use a
-                    //   full PDF renderer
+                    // - We only use this when previewing the file, when viewing the file we use a full
+                    //   PDF renderer
                     //
                     // We want some compression since the extra storage cost of the preview file is
                     // bourne by us.
                     //
-                    // If we need lossless images we should use WebP instead since [AVIF is worse
-                    // at lossless compression][3].
+                    // If we need lossless images we should use WebP instead since [AVIF is worse at
+                    // lossless compression][3].
                     //
-                    // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                    // [1]:
+                    //     https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
                     // [2]: https://jakearchibald.com/2020/avif-has-landed
                     // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
                     .toFormat("avif", {quality: 80});
 
                 if (extractPreview) {
-                    const extractLeft = clamp(0, extractPreview.left * scale, previewWidth);
-                    const extractTop = clamp(0, extractPreview.top * scale, previewHeight);
+                    const extractScale = scale * previewContentScale;
+
+                    const extractLeft = clamp(
+                        0,
+                        extractPreview.left * extractScale,
+                        previewContentWidth,
+                    );
+                    const extractTop = clamp(
+                        0,
+                        extractPreview.top * extractScale,
+                        previewContentHeight,
+                    );
+                    const extractWidth = clamp(
+                        0,
+                        extractPreview.width * extractScale,
+                        previewContentWidth - extractLeft,
+                    );
+                    const extractHeight = clamp(
+                        0,
+                        extractPreview.height * extractScale,
+                        previewContentHeight - extractTop,
+                    );
 
                     sharpInstance = sharpInstance.extract({
-                        left: extractLeft,
-                        width: clamp(0, extractPreview.width * scale, previewWidth - extractLeft),
-                        top: extractTop,
-                        height: clamp(0, extractPreview.height * scale, previewHeight - extractTop),
+                        left: Math.round(extractLeft),
+                        top: Math.round(extractTop),
+                        width: Math.round(extractWidth),
+                        height: Math.round(extractHeight),
                     });
                 }
 
-                return sharpInstance.toFile(previewContentPath).catch(rethrowClassifiedSharpError);
+                return await sharpInstance
+                    .toFile(previewContentPath)
+                    .catch(rethrowClassifiedSharpError);
             },
         );
 
@@ -311,42 +297,22 @@ export function processPdfDocumentFile(
         if (extractPreview) {
             const previewContent = await previewContentPromise;
 
-            return processFileImagePreviewPlaceholder(context, previewContentPath, {
+            return await processFileImagePreviewPlaceholder(context, previewContentPath, {
                 contentType: previewContent.contentType,
                 contentLength: previewContent.contentLength,
             });
         } else {
-            return processFileImagePreviewPlaceholder(context, inputPath, {
+            return await processFileImagePreviewPlaceholder(context, inputPath, {
                 contentType: "application/pdf",
                 contentLength,
             });
         }
     })();
 
-    let previewSizePromise = previewSizeWithoutModification.then(previewSize => {
-        const aspectRatio = previewSize.width / previewSize.height;
-
-        // If the PDF is beyond our min/max aspect ratio bounds then we crop the PDF
-        // preview to a valid size.
-        if (aspectRatio <= minFilePreviewAspectRatio) {
-            return {
-                ...previewSize,
-                width: previewSize.width,
-                height: Math.round(previewSize.width / minFilePreviewAspectRatio),
-            };
-        } else if (aspectRatio >= maxFilePreviewAspectRatio) {
-            return {
-                ...previewSize,
-                width: Math.round(previewSize.height * maxFilePreviewAspectRatio),
-                height: previewSize.height,
-            };
-        } else {
-            return previewSize;
-        }
-    });
+    let previewSizePromise = previewSizeWithoutModificationPromise;
 
     if (extractPreview) {
-        previewSizePromise = previewSizeWithoutModification.then(
+        previewSizePromise = previewSizeWithoutModificationPromise.then(
             ({width, height, scale, hasAlpha}) => ({
                 width: clamp(0, width, extractPreview.width * scale),
                 height: clamp(0, height, extractPreview.height * scale),

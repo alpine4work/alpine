@@ -28,10 +28,10 @@ var __copyProps = (to, from, except, desc) => {
 var __toESM = (mod, isNodeMode, target) => (
     (target = mod != null ? __create(__getProtoOf(mod)) : {}),
     __copyProps(
-        // If the importer is in node compatibility mode or this is not an ESM
-        // file that has been converted to a CommonJS file using a Babel-
-        // compatible transform (i.e. "__esModule" has not been set), then set
-        // "default" to the CommonJS "module.exports" for node compatibility.
+        // If the importer is in node compatibility mode or this is not an ESM file that
+        // has been converted to a CommonJS file using a Babel- compatible transform (i.e.
+        // "\_\_esModule" has not been set), then set "default" to the CommonJS
+        // "module.exports" for node compatibility.
         isNodeMode || !mod || !mod.__esModule
             ? __defProp(target, "default", {value: mod, enumerable: true})
             : target,
@@ -1159,8 +1159,7 @@ var require_route = __commonJS({
             const models = Object.keys(conversions);
             for (let len = models.length, i = 0; i < len; i++) {
                 graph[models[i]] = {
-                    // http://jsperf.com/1-vs-infinity
-                    // micro-opt, but this is simple.
+                    // http://jsperf.com/1-vs-infinity micro-opt, but this is simple.
                     distance: -1,
                     parent: null,
                 };
@@ -1764,11 +1763,11 @@ var ErrorBase = class _ErrorBase extends Error {
         if (aggregateDedupeKey !== void 0) this.aggregateDedupeKey = aggregateDedupeKey;
     }
     /**
-     * Convert an unknown exception object into a coded error with the original
-     * error as the cause object.
+     * Convert an unknown exception object into a coded error with the original error
+     * as the cause object.
      *
-     * If you call `ErrorBase.from()` you will get an `UnknownError`. Instead
-     * prefer using a specific error like `FailedPreconditionError.from()`.
+     * If you call `ErrorBase.from()` you will get an `UnknownError`. Instead prefer
+     * using a specific error like `FailedPreconditionError.from()`.
      */
     static from(error, newMessage, {displayMessage} = {}) {
         const ErrorConstructor = this !== _ErrorBase ? this : UnknownError;
@@ -1809,7 +1808,7 @@ function assert(condition, message) {
 // client/web/blobs/helpers/blobs_settings.js
 var maxPossibleCanvasSize = 1e4;
 function getBlobsCanvasSize() {
-    assert(typeof window !== "undefined");
+    assert(typeof window !== "undefined", '`typeof window !== "undefined"`');
     const blobsCanvasWidthPx = Math.max(window.screen.width, 3e3);
     const blobsCanvasHeightPx = 800;
     return {
@@ -1818,7 +1817,7 @@ function getBlobsCanvasSize() {
     };
 }
 function getBlobsCanvasScale() {
-    assert(typeof window !== "undefined");
+    assert(typeof window !== "undefined", '`typeof window !== "undefined"`');
     return Math.min(
         Math.floor(maxPossibleCanvasSize / window.devicePixelRatio),
         window.devicePixelRatio,
@@ -3218,7 +3217,7 @@ var GlProgram = class {
         this.fragmentShader = fragmentShader;
         this.gl = _gl;
         const {gl} = _gl;
-        const program = assertExists(gl.createProgram());
+        const program = assertExists(gl.createProgram(), "`gl.createProgram()`");
         gl.attachShader(program, vertexShader.shader);
         gl.attachShader(program, fragmentShader.shader);
         gl.linkProgram(program);
@@ -3292,7 +3291,10 @@ var GlShader = class {
         this.type = type;
         this.gl = _gl;
         const {gl} = _gl;
-        const shader = assertExists(gl.createShader(glEnum(type)));
+        const shader = assertExists(
+            gl.createShader(glEnum(type)),
+            "`gl.createShader(glEnum(type))`",
+        );
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
         const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
@@ -3318,7 +3320,7 @@ var GlTexture2d = class {
         this.textureUnit = textureUnit;
         this.format = format;
         this.level = level ?? 0;
-        this.texture = assertExists(gl.gl.createTexture());
+        this.texture = assertExists(gl.gl.createTexture(), "`gl.gl.createTexture()`");
     }
     set(data) {
         this.data = data;
@@ -3393,11 +3395,11 @@ var Gl = class {
         program => this.gl.deleteProgram(program.program),
     );
     buffers = new GlResources(
-        () => assertExists(this.gl.createBuffer()),
+        () => assertExists(this.gl.createBuffer(), "`this.gl.createBuffer()`"),
         buffer => this.gl.deleteBuffer(buffer),
     );
     vertexArrays = new GlResources(
-        () => assertExists(this.gl.createVertexArray()),
+        () => assertExists(this.gl.createVertexArray(), "`this.gl.createVertexArray()`"),
         vertexArray => this.gl.deleteVertexArray(vertexArray),
     );
     textures = new GlResources(
@@ -3473,8 +3475,8 @@ var GlResources = class {
 
 // shared/design/core/colors.js
 var colors = {
-    // Pure white background color is useful when embedding files since many files
-    // have white backgrounds and look odd on an off-white background.
+    // Pure white background color is useful when embedding files since many files have
+    // white backgrounds and look odd on an off-white background.
     "grey-0": "#ffffff",
     "grey-1": "#f8f8fc",
     "grey-5": "#ededf2",
@@ -3489,16 +3491,19 @@ var colors = {
     "grey-90": "#27272b",
     "grey-99": "#1a1a1e",
     "grey-100": "#0b0b0d",
-    // We have a set of slightly lighter greys for elevated surfaces in dark mode.
-    // When we render peeks on top of other content you have arbitrary peek content
-    // above other arbitrary content. In dark mode we can't use shadows to simulate
-    // depth and differentiate elements. So instead we make surfaces that are
-    // "higher up" lighter as if they're closer to a light source.
+    // A color below `grey-100` that we use as the space layout sidebar color in dark
+    // mode.
+    "grey-100-lowered": "#070708",
+    // We have a set of slightly lighter greys for elevated surfaces in dark mode. When
+    // we render peeks on top of other content you have arbitrary peek content above
+    // other arbitrary content. In dark mode we can't use shadows to simulate depth and
+    // differentiate elements. So instead we make surfaces that are "higher up" lighter
+    // as if they're closer to a light source.
     //
-    // Since peeks can contain arbitrary content we bake this property into the
-    // color system instead of writing a bunch of `isPeek` logic. These grey colors
-    // are just a hair lighter in peeks, it's a small detail that's almost
-    // unnoticeable but it helps reinforce a sense of depth subconsciously.
+    // Since peeks can contain arbitrary content we bake this property into the color
+    // system instead of writing a bunch of `isPeek` logic. These grey colors are just
+    // a hair lighter in peeks, it's a small detail that's almost unnoticeable but it
+    // helps reinforce a sense of depth subconsciously.
     "grey-70-elevated-1": "#515158",
     "grey-80-elevated-1": "#404045",
     "grey-90-elevated-1": "#2a2a2d",
@@ -3698,6 +3703,9 @@ function isPlainObject(value) {
 
 // shared/helpers/control/is_deep_equal.js
 function isDeepEqual(value1, value2) {
+    return isDeepEqualForUnknownValues(value1, value2);
+}
+function isDeepEqualForUnknownValues(value1, value2) {
     if (value1 === value2) return true;
     if (
         value1 !== null &&
@@ -3722,6 +3730,8 @@ function areObjectsDeeplyEqual(object1, object2) {
         if (object1 instanceof Set && object2 instanceof Set)
             return areSetsDeeplyEqual(object1, object2);
         if (object1 instanceof Date && object2 instanceof Date) return isEqual(object1, object2);
+        if (object1 instanceof Uint8Array && object2 instanceof Uint8Array)
+            return areArraysDeeplyEqual(object1, object2);
         return false;
     }
     const object1Keys = new Set(Object.keys(object1));
@@ -3729,13 +3739,16 @@ function areObjectsDeeplyEqual(object1, object2) {
         if (!object1Keys.delete(key)) return false;
         if (!hasOwnProperty(object1, key)) return false;
         const value1 = object1[key];
-        if (!isDeepEqual(value1, value2)) return false;
+        if (!isDeepEqualForUnknownValues(value1, value2)) return false;
     }
     return object1Keys.size === 0;
 }
 function areArraysDeeplyEqual(array1, array2) {
     if (array1.length !== array2.length) return false;
-    return array1.every((item1, index) => isDeepEqual(item1, array2[index]));
+    for (let index = 0; index < array1.length; index++) {
+        if (!isDeepEqualForUnknownValues(array1[index], array2[index])) return false;
+    }
+    return true;
 }
 function areMapsDeeplyEqual(map1, map2) {
     if (map1.size !== map2.size) return false;
@@ -3743,7 +3756,7 @@ function areMapsDeeplyEqual(map1, map2) {
     for (const [key, value2] of map2) {
         if (!map1Keys.delete(key)) return false;
         const value1 = map1.get(key);
-        if (!isDeepEqual(value1, value2)) return false;
+        if (!isDeepEqualForUnknownValues(value1, value2)) return false;
     }
     return map1Keys.size === 0;
 }
@@ -3788,8 +3801,8 @@ var Lazy = class {
         this._get = get;
     }
     /**
-     * Get the value. If the value has not yet been computed then we will compute
-     * it synchronously.
+     * Get the value. If the value has not yet been computed then we will compute it
+     * synchronously.
      */
     get() {
         if (this._result === null) {
@@ -3944,6 +3957,7 @@ var Vector2 = class _Vector2 {
 };
 
 // client/web/blobs/helpers/draw_blobs_factory.js
+var actuallyDrawBlobsForIntegrationTestMap;
 if (typeof window !== "undefined" && !window.__blobs) {
     const factory = new Lazy(() => {
         const canvas = document.createElement("canvas");
@@ -4054,8 +4068,9 @@ function willDrawBlobFactoryToCanvas(canvas, blobSettings) {
         ok: true,
         factory,
         // If we've started drawing a lot of blobs in the last second, we defer the drawing
-        // to avoid blocking the main thread for too long. This is a workaround for performance issues
-        // when drawing many blobs at once, especially on lower-end devices.
+        // to avoid blocking the main thread for too long. This is a workaround for
+        // performance issues when drawing many blobs at once, especially on lower-end
+        // devices.
         defer: window.__blobs.timing.length > 2,
     };
 }
@@ -4082,7 +4097,7 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
         ...settings,
         smoothness: settings.smoothness * effectiveScale,
     };
-    const container = assertExists(canvas.parentElement);
+    const container = assertExists(canvas.parentElement, "`canvas.parentElement`");
     container.setAttribute(
         "style",
         [
@@ -4102,6 +4117,14 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
             const result = factory.draw(size, scaledSettings, scaledBlobs);
             const ctx = canvas.getContext("2d");
             ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+        } else {
+            actuallyDrawBlobsForIntegrationTestMap ??
+                (actuallyDrawBlobsForIntegrationTestMap = /* @__PURE__ */ new WeakMap());
+            actuallyDrawBlobsForIntegrationTestMap.set(canvas, () => {
+                const result = factory.draw(size, scaledSettings, scaledBlobs);
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+            });
         }
         const gradient = assertExists(
             (_b =
@@ -4110,6 +4133,7 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
                     : _a.getElementsByClassName(blobsArtGradientClassName)) == null
                 ? void 0
                 : _b[0],
+            "`canvas.parentElement?.getElementsByClassName(blobsArtGradientClassName)?.[0]`",
         );
         let backgroundColor = colors[settings.backgroundColor];
         let parent = canvas.parentElement;
@@ -4146,6 +4170,22 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
         setTimeout(actuallyDraw, 0);
     } else {
         actuallyDraw();
+    }
+}
+function actuallyDrawBlobsForIntegrationTest() {
+    assert(
+        globalThis.__isIntegrationTest,
+        '`process.env.NODE_ENV !== "production" && (globalThis).__isIntegrationTest`',
+    );
+    for (const element of document.querySelectorAll("canvas[data-blob-id]")) {
+        const draw =
+            actuallyDrawBlobsForIntegrationTestMap == null
+                ? void 0
+                : actuallyDrawBlobsForIntegrationTestMap.get(element);
+        actuallyDrawBlobsForIntegrationTestMap == null
+            ? void 0
+            : actuallyDrawBlobsForIntegrationTestMap.delete(element);
+        draw == null ? void 0 : draw();
     }
 }
 var BlobFactoryBlob = class {
@@ -4251,15 +4291,14 @@ var StableRandom = class {
     constructor(baseString) {
         this._baseString = baseString;
     }
-    /** Generate a random number between 0 and 1 based on  */
+    /** Generate a random number between 0 and 1 based on */
     random(keyString, index) {
         return cyrb53(this._baseString, keyString, index) / Number.MAX_SAFE_INTEGER;
     }
     /**
      * Generates a stable random integer between `a` and `b` (exclusive).
      *
-     * If `b` is not defined, generates a random integer between 0 and `a`
-     * (exclusive).
+     * If `b` is not defined, generates a random integer between 0 and `a` (exclusive).
      */
     randomInteger(keyString, index, a, b) {
         return Math.floor(this.randomFloat(keyString, index, a, b));
@@ -4276,8 +4315,8 @@ var StableRandom = class {
         return lerp(0, a, this.random(keyString, index));
     }
     /**
-     * Generate a random number following a normal distribution.
-     * Approximate range is -3 to 3.
+     * Generate a random number following a normal distribution. Approximate range is
+     * -3 to 3.
      */
     randomNormalDistribution(keyString, index) {
         const u = 1 - this.random(keyString, index);
@@ -4331,6 +4370,7 @@ function generateBlobsForContent({
             );
             const color2 = assertExists(
                 themeColors.at((baseThemeColorIndex + colorOffset) % themeColors.length),
+                "`themeColors.at((baseThemeColorIndex + colorOffset) % themeColors.length)`",
             );
             return new BlobFactoryBlob(
                 position,
@@ -4352,7 +4392,9 @@ function drawBlobs(blobCanvasId, settings, scale) {
             colorScheme === "dark" ? settings.colorLevelInsideDark : settings.colorLevelInsideLight,
             settings.themeColor,
         );
-        const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
+        const hueBias =
+            360 -
+            assertExists(baseThemeColor.lch().object().h, "`baseThemeColor.lch().object().h`");
         const blobsCanvasSize = getBlobsCanvasSize();
         const blobs = generateBlobsForContent({
             contentWidthPx: blobsContentWidthPx,
@@ -4405,5 +4447,8 @@ function drawBlobs(blobCanvasId, settings, scale) {
 }
 if (typeof window !== "undefined") {
     window.__drawBlobs = drawBlobs;
+    if (globalThis.__isIntegrationTest) {
+        window.__actuallyDrawBlobsForIntegrationTest = actuallyDrawBlobsForIntegrationTest;
+    }
 }
-//# sourceMappingURL=blobs_script_bundle_debug_unminified.js.map
+// # sourceMappingURL=blobs_script_bundle_debug_unminified.js.map

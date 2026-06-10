@@ -4,17 +4,14 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {
     ChannelPostFilesItem,
     ForumRealtimeTable,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostContentFileIds} from "~/server/forum/data/internal/get_post_content_file_ids.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimePutItemEvent,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
+import {RynamoEvent, RynamoPutItemEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {getPostSearchEntityTitleContentSnippet} from "~/shared/forum/create_post_search_entity_title.js";
 import {isPostContent} from "~/shared/forum/post_content_schema.js";
@@ -40,9 +37,9 @@ export function updatePostContent(
     },
 ): Promise<{
     contentUpdatedTime: Date;
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
-    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>;
+    ) => Promise<ReadonlyArray<RynamoEvent<PostModel>>>;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const oldPostItem = await ForumRealtimeTable.getItem(context, {
@@ -108,9 +105,7 @@ export function updatePostContent(
         const newFileIds = getPostContentFileIds(newPostItem.content);
 
         let result: {
-            getEvent: (
-                context: ServerActionContext,
-            ) => Promise<DynamoGeneralRealtimePutItemEvent<PostModel>>;
+            getEvent: (context: ServerActionContext) => Promise<RynamoPutItemEvent<PostModel>>;
         };
 
         if (isDeepEqual(oldFileIds, newFileIds)) {
@@ -142,7 +137,7 @@ export function updatePostContent(
                 fileIds: newFileIds,
             };
 
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+            await RynamoTableSchema.executeTransaction(context, [
                 transactionEntry,
                 channelPostFilesDeletedItem
                     ? ForumRealtimeTable.transactionUndeleteItem(
@@ -167,7 +162,7 @@ export function updatePostContent(
 
             result = {getEvent};
 
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+            await RynamoTableSchema.executeTransaction(context, [
                 transactionEntry,
                 newFileIds.size === 0
                     ? ForumRealtimeTable.transactionDeleteItem(channelPostFilesItem)
@@ -179,8 +174,8 @@ export function updatePostContent(
 
         const updatedTraits: Array<"Title"> = [];
 
-        // If the start of the post changed, then we need to update anyone who
-        // mentioned the post.
+        // If the start of the post changed, then we need to update anyone who mentioned
+        // the post.
         if (
             !getPostSearchEntityTitleContentSnippet(oldPostItem.content).eq(
                 getPostSearchEntityTitleContentSnippet(newPostItem.content),
@@ -201,9 +196,7 @@ export function updatePostContent(
 
         return {
             contentUpdatedTime,
-            getDynamoGeneralRealtimeEventTransaction: async context => [
-                await result.getEvent(context),
-            ],
+            getRynamoEvents: async context => [await result.getEvent(context)],
         };
     });
 }

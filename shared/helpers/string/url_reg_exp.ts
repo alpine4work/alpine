@@ -1,32 +1,31 @@
 /* eslint-disable no-useless-concat, cyberworlds/string-quotes */
 
 /**
- * NOTE(imjoshin, 2025-11-14): Updated regex! We also added support for '[]' in query params.
- * NOTE(calebmer, 2023-01-24): This file is adapted from the Android open
- * source code which linkifies URLs in user text:
+ * NOTE(imjoshin, 2025-11-14): Updated regex! We also added support for '[]' in
+ * query params. NOTE(calebmer, 2023-01-24): This file is adapted from the Android
+ * open source code which linkifies URLs in user text:
  * https://github.com/aosp-mirror/platform_frameworks_base/blob/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/java/android/util/Patterns.java#L112-L450
  *
  * Copyright (C) 2007 The Android Open Source Project
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
     /**
-     *  Regular expression to match all IANA top-level domains.
+     * Regular expression to match all IANA top-level domains.
      *
-     *  List accurate as of 2023/09/11.  List taken from:
-     *  http://data.iana.org/TLD/tlds-alpha-by-domain.txt
+     * List accurate as of 2023/09/11. List taken from:
+     * http://data.iana.org/TLD/tlds-alpha-by-domain.txt
      */
     const ianaTopLevelDomains =
         "(?:" +
@@ -235,7 +234,8 @@ function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
     const iriLabel = "[" + labelChar + "](?:[" + labelChar + "_-]{0,61}[" + labelChar + "]){0,1}";
 
     /**
-     * RFC 3492 references RFC 1034 and limits Punycode algorithm output to 63 characters.
+     * RFC 3492 references RFC 1034 and limits Punycode algorithm output to 63
+     * characters.
      */
     const punycodeTld = "xn--[\\w-]{0,58}\\w";
 
@@ -280,8 +280,8 @@ function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
         "(?:" + "(?:" + iriLabel + "(?:\\.(?=\\S))" + "?)+" + "|" + ipAddressString + ")";
 
     /**
-     * Regular expression to match strings that do not start with a supported protocol. The TLDs
-     * are expected to be one of the known TLDs.
+     * Regular expression to match strings that do not start with a supported protocol.
+     * The TLDs are expected to be one of the known TLDs.
      */
     const webUrlWithoutProtocol =
         "(" +
@@ -302,8 +302,8 @@ function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
         ")";
 
     /**
-     * Regular expression to match strings that start with a supported protocol. Rules for domain
-     * names and TLDs are more relaxed. TLDs are optional.
+     * Regular expression to match strings that start with a supported protocol. Rules
+     * for domain names and TLDs are more relaxed. TLDs are optional.
      */
     const webUrlWithProtocol =
         "(" +
@@ -329,9 +329,10 @@ function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
         ")";
 
     /**
-     * Regular expression pattern to match IRIs. If a string starts with http(s):// the expression
-     * tries to match the URL structure with a relaxed rule for TLDs. If the string does not start
-     * with http(s):// the TLDs are expected to be one of the known TLDs.
+     * Regular expression pattern to match IRIs. If a string starts with http(s):// the
+     * expression tries to match the URL structure with a relaxed rule for TLDs. If the
+     * string does not start with http(s):// the TLDs are expected to be one of the
+     * known TLDs.
      */
     const autolinkWebUrl = "(" + webUrlWithProtocol + "|" + webUrlWithoutProtocol + ")";
 
@@ -342,9 +343,8 @@ let globalUrlRegExp: RegExp | null = null;
 let urlRegExp: RegExp | null = null;
 
 /**
- * A regular expression for detecting URLs in a string. This will detect a URL
- * with a protocol like `https://google.com` and without a protocol like
- * `google.com`.
+ * A regular expression for detecting URLs in a string. This will detect a URL with
+ * a protocol like `https://google.com` and without a protocol like `google.com`.
  *
  * Useful for detecting URLs in arbitrary user text. This regular expression is
  * adapted from the Android source code.

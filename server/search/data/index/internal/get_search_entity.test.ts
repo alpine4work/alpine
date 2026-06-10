@@ -10,6 +10,8 @@ import {
     getSearchEntity,
     isSearchEntityIndexAccessPolicySubset,
 } from "~/server/search/data/index/internal/get_search_entity.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -19,11 +21,12 @@ import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 const context = createTestContext({
     chatInjection,
+    sitesInjection,
 });
 
 // We should have at least one `getSearchEntity()` test for every search entity
-// type. This object will have a TypeScript error whenever a new search entity
-// is added reminding developers to add a new test for the search entity.
+// type. This object will have a TypeScript error whenever a new search entity is
+// added reminding developers to add a new test for the search entity.
 const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]: () => void} = {
     Database: () => {
         // TODO: Add tests for database search entity indexing.
@@ -457,7 +460,10 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: expect.any(Date),
                     title: null,
-                    titleVersion: null,
+                    titleVersion: {
+                        type: "Integer",
+                        version: 0,
+                    },
                     body: null,
                     tags: [],
                     embeddingChunks: [],
@@ -491,7 +497,10 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: expect.any(Date),
                     title: null,
-                    titleVersion: null,
+                    titleVersion: {
+                        type: "Integer",
+                        version: 1,
+                    },
                     body: null,
                     tags: [],
                     embeddingChunks: [],
@@ -533,7 +542,10 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: expect.any(Date),
                     title: null,
-                    titleVersion: null,
+                    titleVersion: {
+                        type: "Integer",
+                        version: 0,
+                    },
                     body: null,
                     tags: [],
                     embeddingChunks: [],
@@ -577,17 +589,21 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: expect.any(Date),
                     title: "Caleb Meredith, Josh Meredith, and Shawn Meredith",
-                    titleVersion: null,
+                    titleVersion: {
+                        type: "Integer",
+                        version: 1,
+                    },
                     body: null,
                     tags: [],
                     embeddingChunks: [],
                     media: {
                         type: "AccountPile",
-                        accountIds: [
+                        accountCount: 3,
+                        previewAccountIds: expect.arrayContaining([
                             session1.account.id,
                             session2.account.id,
                             session3.account.id,
-                        ].sort(defaultCompareStrings),
+                        ]),
                     },
                     creatorId: null,
                     contributorIds: new Map([
@@ -622,7 +638,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
-                dependencyIds: new Set([`Chat:${chat.id}`]),
+                dependencyIds: new Set([`Chat:${chat.id}:Definition`]),
                 entity: {
                     id: `ChatMessage:${chat.id}-0`,
                     accessPolicy: {
@@ -658,18 +674,65 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
     },
     Task: () => {
         // Our `getSearchEntity()` tests for tasks are in
-        // `search_entity_index_tasks.test.ts` because we don't want to start
-        // OpenSearch in this test.
+        // `search_entity_index_tasks.test.ts` because we don't want to start OpenSearch in
+        // this test.
     },
     TaskCollection: () => {
         // Our `getSearchEntity()` tests for tasks are in
-        // `search_entity_index_tasks.test.ts` because we don't want to start
-        // OpenSearch in this test.
+        // `search_entity_index_tasks.test.ts` because we don't want to start OpenSearch in
+        // this test.
     },
     TaskComment: () => {
         // Our `getSearchEntity()` tests for tasks are in
-        // `search_entity_index_tasks.test.ts` because we don't want to start
-        // OpenSearch in this test.
+        // `search_entity_index_tasks.test.ts` because we don't want to start OpenSearch in
+        // this test.
+    },
+    Site: () => {
+        test("can get site search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const site = await TestSite.create(session, {
+                name: "Project X Wiki",
+                access: "Public",
+            });
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Site", siteId: site.id},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `Site:${site.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
+                    createdTime: expect.any(Date),
+                    title: "Project X Wiki",
+                    titleVersion: {type: "Integer", version: 0},
+                    body: null,
+                    tags: [],
+                    embeddingChunks: [],
+                    media: {
+                        type: "Site",
+                        firstEntityId: null,
+                    },
+                    creatorId: session.account.id,
+                    contributorIds: new Map(),
+                    priority: null,
+                    openness: null,
+                    activeness: null,
+                    assigneeId: null,
+                    dueDate: null,
+                },
+            });
+        });
     },
 };
 

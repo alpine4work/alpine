@@ -16,8 +16,8 @@ import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {emptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {
     ContentReferencesSearchEntity,
@@ -63,8 +63,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -73,17 +73,16 @@ afterEach(() => {
 });
 
 // NOTE(calebmer, 2025-07-23): When I wrote this file it was testing
-// `server/messaging/helpers/get_message_references_for_multiple_accounts.ts`.
-// It manually batched message reference loading for
-// `MessagingRealtimeConnection`. But instead of manually batching, I decided
-// to do automatic RPC batching in `WorkerRpcContextModule` which meant we
-// could avoid a system context privilege escalation which makes the code
-// much nicer.
+// `server/messaging/helpers/get_message_references_for_multiple_accounts.ts`. It
+// manually batched message reference loading for `MessagingRealtimeConnection`.
+// But instead of manually batching, I decided to do automatic RPC batching in
+// `WorkerRpcContextModule` which meant we could avoid a system context privilege
+// escalation which makes the code much nicer.
 //
-// So now instead we export
-// `server/messaging/helpers/get_message_references.ts`. But we're keeping this
-// test as-is since it still covers some useful behavior. Mainly around caching
-// when we request data from multiple independent actors in the same action.
+// So now instead we export `server/messaging/helpers/get_message_references.ts`.
+// But we're keeping this test as-is since it still covers some useful behavior.
+// Mainly around caching when we request data from multiple independent actors in
+// the same action.
 async function getMessageReferencesForMultipleAccounts(
     context: ServerSystemActionContext,
     fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
@@ -161,22 +160,27 @@ test("only loads an account from DynamoDB once no matter how many accounts we\u2
         [3, 6],
         [25, 6],
         // Steps:
-        // 1. Call impersonateAccountAsSystemContext for N accounts (loads Space#Account items).
+        //
+        // 1. Call impersonateAccountAsSystemContext for N accounts (loads Space#Account
+        //    items).
         // 2. Fetch the author's AccountModel (Query for avatar + attributes).
         // 3. Load AccountModels for 3 reference IDs.
-        //    - Each reference load includes a Space#Account get (batched when possible) and an AccountModel query.
+        //     - Each reference load includes a Space#Account get (batched when possible)
+        //       and an AccountModel query.
         //
         // DynamoDB calls (example with N = 4 accounts total: 1 author + 3 references):
-        //   - 1x GetItem for author's Space#Account
-        //   - 1x Query for author's AccountItem
-        //   - 1x BatchGetItem for Space#Accounts of all 3 reference IDs
-        //   - 3x Queries for AccountItems of the 3 reference IDs
-        // Total: 6 calls
+        //
+        // - 1x GetItem for author's Space#Account
+        // - 1x Query for author's AccountItem
+        // - 1x BatchGetItem for Space#Accounts of all 3 reference IDs
+        // - 3x Queries for AccountItems of the 3 reference IDs Total: 6 calls
         //
         // Special case with N = 50 accounts:
-        //   1. Initial BatchGetItem for all 50 Space#Account items.
-        //   2. Still perform 4 queries for AccountItems (author + 3 references).
-        //   3. Space#Accounts for references are already cached → no extra BatchGetItem needed.
+        //
+        // 1. Initial BatchGetItem for all 50 Space#Account items.
+        // 2. Still perform 4 queries for AccountItems (author + 3 references).
+        // 3. Space#Accounts for references are already cached → no extra BatchGetItem
+        //    needed.
         [50, 5],
     ]);
     for (const [
@@ -320,6 +324,8 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         fileIds: new Set(),
     };
 
+    const postAuthor = await sessions[49].get();
+
     const expectedReferences: MessageReferences = {
         author: await sessions[46].get(),
         contentReferences: {
@@ -330,10 +336,12 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Channel:${channel.id}`,
+                            type: "Channel",
                             title: "Test Channel",
-                            titleVersion: expect.any(Object),
-                            media: null,
+                            channel: {
+                                id: channel.id,
+                                version: expect.any(Number),
+                            },
                         }),
                     },
                 ],
@@ -342,12 +350,13 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Post:${post.id}`,
+                            type: "Post",
                             title: "in Test Channel: Test Post",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "Account",
-                                account: await sessions[49].get(),
+                            post: {
+                                id: post.id,
+                                version: expect.any(Number),
+                                channelVersion: expect.any(Number),
+                                author: postAuthor,
                             },
                         }),
                     },
@@ -357,13 +366,15 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `TaskCollection:${collection.id}`,
+                            type: "TaskCollection",
                             title: "Test Task Collection",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "TaskCollectionColor",
-                                color: null,
-                                version: expect.any(Array),
+                            collection: {
+                                id: collection.id,
+                                titleVersion: expect.any(Object),
+                                color: {
+                                    value: null,
+                                    version: expect.any(Array),
+                                },
                             },
                         }),
                     },
@@ -373,13 +384,15 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Task:${task.id}`,
+                            type: "Task",
                             title: "Test Task",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "TaskDisplayStatus",
-                                displayStatus: "OpenInactive",
-                                version: expect.any(Array),
+                            task: {
+                                id: task.id,
+                                titleSnapshot: expect.any(Uint8Array),
+                                displayStatus: {
+                                    value: "OpenInactive",
+                                    version: expect.any(Array),
+                                },
                             },
                         }),
                     },
@@ -396,16 +409,19 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         [2, 5],
         [3, 5],
         [25, 5],
-        // In this scenario, impersonateAccountAsSystemContext preloads all 50 Space#Account items
-        // via a single BatchGetItem to DynamoDB, filling the spaceAccountCache. Later lookups for
-        // the message/post authors' Space#Accounts hit the cache instead of DynamoDB.
+        // In this scenario, impersonateAccountAsSystemContext preloads all 50
+        // Space#Account items via a single BatchGetItem to DynamoDB, filling the
+        // spaceAccountCache. Later lookups for the message/post authors' Space#Accounts
+        // hit the cache instead of DynamoDB.
         //
-        // As in all cases, we still perform two queries to fetch AccountItems (for avatars) directly:
-        //   1. BatchGetItem (preload all Space#Accounts)
-        //   2. [cache hit] Get Space#Account for message author
-        //   3. Query AccountItems for message author → get AccountModel
-        //   4. [cache hit] Get Space#Account for post author
-        //   5. Query AccountItems for post author → get AccountModel
+        // As in all cases, we still perform two queries to fetch AccountItems (for
+        // avatars) directly:
+        //
+        // 1. BatchGetItem (preload all Space#Accounts)
+        // 2. [cache hit] Get Space#Account for message author
+        // 3. Query AccountItems for message author → get AccountModel
+        // 4. [cache hit] Get Space#Account for post author
+        // 5. Query AccountItems for post author → get AccountModel
         //
         // Total DynamoDB calls: 3 (steps 1, 3, and 5).
         [50, 3],
@@ -490,6 +506,8 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         fileIds: new Set(),
     };
 
+    const postAuthor = await sessions[49].get();
+
     const expectedReferences: MessageReferences = {
         author: await sessions[46].get(),
         contentReferences: {
@@ -500,10 +518,12 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Channel:${channel.id}`,
+                            type: "Channel",
                             title: "Test Channel",
-                            titleVersion: expect.any(Object),
-                            media: null,
+                            channel: {
+                                id: channel.id,
+                                version: expect.any(Number),
+                            },
                         }),
                     },
                 ],
@@ -512,12 +532,13 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Post:${post.id}`,
+                            type: "Post",
                             title: "in Test Channel: Test Post",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "Account",
-                                account: await sessions[49].get(),
+                            post: {
+                                id: post.id,
+                                version: expect.any(Number),
+                                channelVersion: expect.any(Number),
+                                author: postAuthor,
                             },
                         }),
                     },
@@ -527,13 +548,15 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `TaskCollection:${collection.id}`,
+                            type: "TaskCollection",
                             title: "Test Task Collection",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "TaskCollectionColor",
-                                color: null,
-                                version: expect.any(Array),
+                            collection: {
+                                id: collection.id,
+                                titleVersion: expect.any(Object),
+                                color: {
+                                    value: null,
+                                    version: expect.any(Array),
+                                },
                             },
                         }),
                     },
@@ -543,13 +566,15 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                     {
                         isPrivate: false,
                         entity: new SearchEntityModel({
-                            id: `Task:${task.id}`,
+                            type: "Task",
                             title: "Test Task",
-                            titleVersion: expect.any(Object),
-                            media: {
-                                type: "TaskDisplayStatus",
-                                displayStatus: "OpenInactive",
-                                version: expect.any(Array),
+                            task: {
+                                id: task.id,
+                                titleSnapshot: expect.any(Uint8Array),
+                                displayStatus: {
+                                    value: "OpenInactive",
+                                    version: expect.any(Array),
+                                },
                             },
                         }),
                     },
@@ -566,16 +591,19 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         [2, 5],
         [3, 5],
         [25, 5],
-        // In this scenario, impersonateAccountAsSystemContext preloads all 50 Space#Account items
-        // via a single BatchGetItem to DynamoDB, filling the spaceAccountCache. Later lookups for
-        // the message/post authors' Space#Accounts hit the cache instead of DynamoDB.
+        // In this scenario, impersonateAccountAsSystemContext preloads all 50
+        // Space#Account items via a single BatchGetItem to DynamoDB, filling the
+        // spaceAccountCache. Later lookups for the message/post authors' Space#Accounts
+        // hit the cache instead of DynamoDB.
         //
-        // As in all cases, we still perform two queries to fetch AccountItems (for avatars) directly:
-        //   1. BatchGetItem (preload all Space#Accounts)
-        //   2. [cache hit] Get Space#Account for message author
-        //   3. Query AccountItems for message author → get AccountModel
-        //   4. [cache hit] Get Space#Account for post author
-        //   5. Query AccountItems for post author → get AccountModel
+        // As in all cases, we still perform two queries to fetch AccountItems (for
+        // avatars) directly:
+        //
+        // 1. BatchGetItem (preload all Space#Accounts)
+        // 2. [cache hit] Get Space#Account for message author
+        // 3. Query AccountItems for message author → get AccountModel
+        // 4. [cache hit] Get Space#Account for post author
+        // 5. Query AccountItems for post author → get AccountModel
         //
         // Total DynamoDB calls: 3 (steps 1, 3, and 5).
         [50, 3],

@@ -18,8 +18,8 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 
 /**
- * Class added to `containerClassName` that tells us if our video container
- * element is currently fullscreen.
+ * Class added to `containerClassName` that tells us if our video container element
+ * is currently fullscreen.
  */
 export const fullscreenClassName = style({});
 
@@ -30,15 +30,15 @@ export const fullscreenClassName = style({});
 export const hoveredClassName = style({});
 
 /**
- * Class added to `controlsContainerClassName` when the pointer is hovering
- * over the element.
+ * Class added to `controlsContainerClassName` when the pointer is hovering over
+ * the element.
  */
 export const hoveredControlsClassName = style({});
 
 /**
- * Class added to `containerClassName` when the pointer is hovering over the
- * video and hasn't moved for a while. When this class is added we should hide
- * the video controls.
+ * Class added to `containerClassName` when the pointer is hovering over the video
+ * and hasn't moved for a while. When this class is added we should hide the video
+ * controls.
  */
 export const stillPointerClassName = style({});
 
@@ -48,20 +48,18 @@ export const containerClassName = style({
     width: "100%",
     height: "100%",
     selectors: {
-        // Beat the specificity of `${fileClassName} > *` setting
-        // `pointer-events: none`.
+        // Beat the specificity of `${fileClassName} > *` setting `pointer-events: none`.
         "&&&": {
-            // We need this to allow pointer events on the video element when full
-            // screened. Clicking on the video when fullscreen-ed should cause the video
-            // to pause/play.
+            // We need this to allow pointer events on the video element when full screened.
+            // Clicking on the video when fullscreen-ed should cause the video to pause/play.
             //
             // This also allows our `controlsClassName` element to be clickable and lets us
             // receive `pointerenter`/`pointerleave` events.
             pointerEvents: "auto",
         },
         [`&${fullscreenClassName}`]: {
-            // Override our parent's `cursor: pointer` style when fullscreen. Clicking on
-            // the video won't select the file element in the document anymore.
+            // Override our parent's `cursor: pointer` style when fullscreen. Clicking on the
+            // video won't select the file element in the document anymore.
             cursor: "default",
             // Pure black background color for the container when fullscreened. In case the
             // video needs to be [letter-boxed][1].
@@ -95,8 +93,7 @@ export const playIndicatorClassName = style({
     width: spacing["14"],
     height: spacing["14"],
     borderRadius: borderRadius["full"],
-    // Add elevation so we can easily see our floating elements on a white
-    // background.
+    // Add elevation so we can easily see our floating elements on a white background.
     boxShadow: elevation["elevation-5"].light,
     color: colorSchemeVars["grey-90"],
     backgroundColor: colorSchemeVars["grey-0"],
@@ -164,8 +161,7 @@ export const durationPreviewClassName = style({
     color: colorSchemeVars["grey-90"],
     backgroundColor: colorSchemeVars["grey-0"],
     borderRadius: borderRadius["0.5"],
-    // Add elevation so we can easily see our floating elements on a white
-    // background.
+    // Add elevation so we can easily see our floating elements on a white background.
     boxShadow: elevation["elevation-5"].light,
     paddingLeft: spacing["1.5"],
     paddingRight: spacing["1.5"],
@@ -212,8 +208,14 @@ export const videoClassName = style({
     objectPosition: "center top",
     objectFit: "cover",
     selectors: {
+        // Hide the `<video>` until we know playback has started (`playing` adds
+        // `hasPlayedClassName`). Do not use `display: none` here: Safari will often defer
+        // decoding and never fire `playing` on the first load, so the video element stays
+        // hidden. Keeping the video in the render tree with `opacity: 0` allows the
+        // preview to show through and lets WebKit run its decoder.
         [`${containerClassName}:not(${hasPlayedClassName}) &`]: {
-            display: "none",
+            opacity: 0,
+            pointerEvents: "none",
         },
         [`${containerClassName}${fullscreenClassName} &`]: {
             // When full screened, make sure the user can see the entire video even if it
@@ -222,10 +224,10 @@ export const videoClassName = style({
             objectFit: "contain",
         },
         [`${containerClassName}:not(${fullscreenClassName}) &`]: {
-            // Make sure the video has `pointer-events: none` when not fullscreened. This
-            // is because we've observed `dragleave` events with an `event.relatedTarget`
-            // of a pseudo element not in the DOM when hovering over video elements that
-            // breaks our drag/drop handling.
+            // Make sure the video has `pointer-events: none` when not fullscreened. This is
+            // because we've observed `dragleave` events with an `event.relatedTarget` of a
+            // pseudo element not in the DOM when hovering over video elements that breaks our
+            // drag/drop handling.
             //
             // When not fullscreened pressing on the preview will handle play/pause for the
             // video.
@@ -270,8 +272,7 @@ export const controlsContainerClassName = style({
 globalStyle(`${controlsContainerClassName} > ${controlsClassName}`, {
     backgroundColor: colorSchemeVars["grey-0"],
     borderRadius: borderRadius["0.5"],
-    // Add elevation so we can easily see our floating elements on a white
-    // background.
+    // Add elevation so we can easily see our floating elements on a white background.
     boxShadow: elevation["elevation-5"].light,
 });
 

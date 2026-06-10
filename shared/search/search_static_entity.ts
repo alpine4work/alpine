@@ -1,14 +1,12 @@
 import _Fuse from "fuse.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {SearchStaticEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-export type SearchStaticEntity = {
+type SearchStaticEntity = {
     readonly title: string;
-    readonly media?: SearchEntityMediaModel;
     readonly otherHitTexts?: ReadonlyArray<string>;
 };
 
@@ -100,8 +98,8 @@ export const searchStaticEntityById: {
 };
 
 /**
- * A lazy Fuse.js index for static entities. Used by our search implementation
- * to allow the user to take actions from the search modal.
+ * A lazy Fuse.js index for static entities. Used by our search implementation to
+ * allow the user to take actions from the search modal.
  */
 export const searchStaticEntityIndex = new Lazy(() => {
     const entities: Array<{
@@ -128,8 +126,8 @@ export const searchStaticEntityIndex = new Lazy(() => {
 
     return new Fuse(entities, {
         includeScore: true,
-        // Must match more characters than "Create". Otherwise the user would see all
-        // the create commands when typing "Create" all at once.
+        // Must match more characters than "Create". Otherwise the user would see all the
+        // create commands when typing "Create" all at once.
         minMatchCharLength: "Create".length + 1,
         keys: [{name: "text"}],
     });

@@ -22,10 +22,10 @@ export function createEmptyTaskIndexDoc(
     actionTime: HybridLogicalTime,
     action: TaskCreateAction,
 ): Omit<TaskIndexDoc, "id" | "spaceId" | "creator"> & {
-    creator: {accountId: AccountId};
+    creator: {accountId: AccountId; from: TaskIndexDoc["creator"]["from"]};
 } {
     return {
-        creator: {accountId: action.creatorId},
+        creator: {accountId: action.creator.accountId, from: action.creator.from},
         createdTime: new TaskFilterableTime({
             absoluteTime: actionTime,
             setterTimeZone: action.creatorTimeZone,
@@ -49,6 +49,12 @@ export function createEmptyTaskIndexDoc(
                 positionById: TaskPositionByCollectionIdMap.empty,
             },
         },
+        // Empty tasks have an access policy of null for historic reasons. When we added
+        // `accessPolicy` to tasks all existing task index docs default their
+        // `accessPolicy` to null. So the behavior of a task without an
+        // `UpdateAccessPolicy` action is as if the `accessPolicy` never existed in the
+        // first place.
+        accessPolicy: null,
         status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
         assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
         rawAssigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),
@@ -56,5 +62,6 @@ export function createEmptyTaskIndexDoc(
         title: {raw: emptyTaskTitle.get()},
         dueDate: new TaskDueDateRegister(null, actionTime),
         priority: new TaskPriorityRegister(null, actionTime),
+        layout: null,
     };
 }

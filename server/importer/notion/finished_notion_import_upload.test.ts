@@ -1,9 +1,8 @@
-import {TestLocalJobSender} from "~/admin/environment/test/unit/test_local_job_sender.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestImporterContextModule} from "~/server/importer/importer_context_module_test.js";
 import {createNotionImport} from "~/server/importer/notion/create_notion_import.js";
 import {finishedNotionImportUpload} from "~/server/importer/notion/finished_notion_import_upload.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -11,9 +10,12 @@ import {NotionImportId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 
-function simulateFileUpload(importKey: string): void {
-    const importer = context.importer as unknown as TestImporterContextModule;
-    importer.setUploadedFile(importKey, new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+function getTestImporter(): TestImporterContextModule {
+    return context.importer as unknown as TestImporterContextModule;
+}
+
+async function simulateFileUpload(importKey: string): Promise<void> {
+    await getTestImporter().setUploadedFile(importKey, new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
 }
 
 test("transitions status from UploadPending to ValidateQueued", async () => {
@@ -26,11 +28,13 @@ test("transitions status from UploadPending to ValidateQueued", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     await finishedNotionImportUpload(session.action(), {
         spaceId: space.id,
         notionImportId,
+        uploadId: "test-upload-id",
+        parts: [{partNumber: 1, etag: "test-etag"}],
     });
 
     const importItem = await NotionImporterTable.getItem(context, {
@@ -44,7 +48,7 @@ test("transitions status from UploadPending to ValidateQueued", async () => {
     });
 });
 
-test("queues ValidateNotionImportAndExtractMetadata job", async () => {
+test("triggers validation via importer context module", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
@@ -54,22 +58,22 @@ test("queues ValidateNotionImportAndExtractMetadata job", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
-    const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
-        await finishedNotionImportUpload(session.action(), {
-            spaceId: space.id,
-            notionImportId,
-        });
+    const importer = getTestImporter();
+    const callsBeforeCount = importer.startValidateNotionImportCalls.length;
+
+    await finishedNotionImportUpload(session.action(), {
+        spaceId: space.id,
+        notionImportId,
+        uploadId: "test-upload-id",
+        parts: [{partNumber: 1, etag: "test-etag"}],
     });
 
-    expect(sentJobs).toHaveLength(1);
-    expect(sentJobs[0]).toMatchObject({
-        job: {
-            type: "ValidateNotionImportAndExtractMetadata",
-            spaceId: space.id,
-            notionImportId,
-        },
+    expect(importer.startValidateNotionImportCalls.length - callsBeforeCount).toBe(1);
+    expect(importer.startValidateNotionImportCalls.at(-1)).toMatchObject({
+        spaceId: space.id,
+        notionImportId,
     });
 });
 
@@ -83,12 +87,14 @@ test("throws if called when status is not UploadPending", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     // First call transitions to ValidateQueued
     await finishedNotionImportUpload(session.action(), {
         spaceId: space.id,
         notionImportId,
+        uploadId: "test-upload-id",
+        parts: [{partNumber: 1, etag: "test-etag"}],
     });
 
     // Second call should throw because status is no longer UploadPending
@@ -96,6 +102,8 @@ test("throws if called when status is not UploadPending", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -110,7 +118,7 @@ test("throws if status is already Validated", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     // Manually set status to Validated (simulating completed validation)
     await NotionImporterTable.updateItem(
@@ -118,7 +126,7 @@ test("throws if status is already Validated", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Validated" as const},
+            status: {type: "Validated" as const, result: {teamspaces: new Map()}},
         }),
     );
 
@@ -126,6 +134,8 @@ test("throws if status is already Validated", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -139,6 +149,8 @@ test("throws if import does not exist", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId: nonexistentId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Item not found");
 });
@@ -155,12 +167,14 @@ test("throws if import belongs to different space", async () => {
         contentLength: 1024,
     });
 
-    simulateFileUpload(importKey);
+    await simulateFileUpload(importKey);
 
     await expect(
         finishedNotionImportUpload(session2.action(), {
             spaceId: space2.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("does not belong to space");
 });
@@ -181,6 +195,8 @@ test("throws if uploaded file does not exist", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Uploaded file not found");
 });
@@ -208,6 +224,8 @@ test("throws when status is ValidateQueued", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -235,6 +253,8 @@ test("throws when status is Validating", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -254,7 +274,7 @@ test("throws when status is ProcessQueued", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "ProcessQueued" as const},
+            status: {type: "ProcessQueued" as const, result: {teamspaces: new Map()}},
         }),
     );
 
@@ -262,6 +282,8 @@ test("throws when status is ProcessQueued", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -281,7 +303,10 @@ test("throws when status is Processing", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Processing" as const},
+            status: {
+                type: "Processing" as const,
+                result: {teamspaces: new Map()},
+            },
         }),
     );
 
@@ -289,6 +314,8 @@ test("throws when status is Processing", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -308,7 +335,7 @@ test("throws when status is Success", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Success" as const},
+            status: {type: "Success" as const, result: {teamspaces: new Map()}},
         }),
     );
 
@@ -316,6 +343,8 @@ test("throws when status is Success", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -335,7 +364,11 @@ test("throws when status is Failed", async () => {
         {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
         item => ({
             ...assertExists(item),
-            status: {type: "Failed" as const, error: "Test error"},
+            status: {
+                type: "Failed" as const,
+                error: "Test error",
+                result: {teamspaces: new Map()},
+            },
         }),
     );
 
@@ -343,6 +376,8 @@ test("throws when status is Failed", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Status is not in the correct state for processing");
 });
@@ -362,6 +397,8 @@ test("only checks file when status is UploadPending", async () => {
         finishedNotionImportUpload(session.action(), {
             spaceId: space.id,
             notionImportId,
+            uploadId: "test-upload-id",
+            parts: [{partNumber: 1, etag: "test-etag"}],
         }),
     ).rejects.toThrow("Uploaded file not found");
 

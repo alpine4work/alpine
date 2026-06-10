@@ -9,6 +9,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@slack/web-api",
         "//:node_modules/@types/web-push",
         "//:node_modules/web-push",
         "//server/cloudflare/r2",
@@ -18,6 +19,7 @@ ts_project(
         "//server/opensearch",
         "//server/tokens",
         "//shared/accounts",
+        "//shared/chat",
         "//shared/context",
         "//shared/documents",
         "//shared/dynamo",
@@ -26,6 +28,7 @@ ts_project(
         "//shared/forum",
         "//shared/helpers",
         "//shared/id",
+        "//shared/integrations",
         "//shared/schema",
         "//shared/search",
         "//shared/tasks",

@@ -7,13 +7,13 @@ import {ApiKey} from "~/shared/id/api_key.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get the information associated with an `ApiKey`. Like what bot the `ApiKey`
- * is for and what `SpaceId` the `ApiKey` is for. If null then there's no
- * `ApiKey` and our API shouldn't grant access for the `ApiKey`.
+ * Get the information associated with an `ApiKey`. Like what bot the `ApiKey` is
+ * for and what `SpaceId` the `ApiKey` is for. If null then there's no `ApiKey` and
+ * our API shouldn't grant access for the `ApiKey`.
  *
- * This isn't dangerous since if an attacker has a user's `ApiKey` then the
- * user is already cooked. Every user has access, through the API, to know
- * whether their API key is valid or not.
+ * This isn't dangerous since if an attacker has a user's `ApiKey` then the user is
+ * already cooked. Every user has access, through the API, to know whether their
+ * API key is valid or not.
  */
 export async function getApiKeyAttributesIfExists(
     context: DynamoContext,

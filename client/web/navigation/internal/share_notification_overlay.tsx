@@ -11,6 +11,7 @@ import {
 import {FocusScope} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {Spacer} from "~/client/web/design/spacer.js";
 import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/web/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {ShareOverlayAccountBody} from "~/client/web/navigation/internal/share_overlay_account_body.js";
 import {
@@ -21,12 +22,12 @@ import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     AccessLevel,
-    AccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -52,7 +53,7 @@ function ShareNotificationOverlay(
         onShare,
     }: {
         accessLevelText: Record<AccessLevel, string>;
-        accessPolicy: AccessPolicy;
+        accessPolicy: ResolvedAccessPolicyWithGenerations;
         excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
         isVisible: boolean;
         onCloseWithoutAnimation: () => void;
@@ -73,7 +74,7 @@ function ShareNotificationOverlay(
     );
 
     const defaultAccessLevel = useMemo(
-        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy, null),
         [accessPolicy],
     );
 
@@ -129,12 +130,12 @@ function ShareNotificationOverlay(
 
     return (
         <FocusScope
-            // If we're animating closed then don't contain focus since we need to move
-            // focus back to the overlay trigger button element.
+            // If we're animating closed then don't contain focus since we need to move focus
+            // back to the overlay trigger button element.
             contain={isVisible}
         >
             <Box
-                className={greyElevated1ClassName}
+                className={greyElevated2ClassName}
                 position="relative"
                 zIndex="0"
                 backgroundColor="grey-0"
@@ -143,8 +144,8 @@ function ShareNotificationOverlay(
                 paddingY="5"
                 style={{
                     // Add just a little more width so it doesn't line up perfectly with other `96`
-                    // spaced elements. For example, in channel views where `<ChannelViewAside>` has
-                    // a width of `96` (see `postListViewAsideMaxWidth`).
+                    // spaced elements. For example, in channel views where `<ChannelViewAside>` has a
+                    // width of `96` (see `postListViewAsideMaxWidth`).
                     width: addRemLengths(spacing["96"], spacing["4"]),
                 }}
             >
@@ -173,6 +174,7 @@ function ShareNotificationOverlay(
                             }
                         />
                     </Box>
+                    <Spacer space="2" />
                     <Box paddingX="5">
                         <ShareOverlayAccountBody
                             willAlwaysNotifyPeople={true}

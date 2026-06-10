@@ -5,8 +5,8 @@ import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
  * The error icon is a red warning triangle. The warning triangle always has a
  * white exclamation mark in dark mode.
  *
- * This is a thin wrapper around the `phosphor-react` `<Warning>` icon
- * that is correctly colored.
+ * This is a thin wrapper around the `phosphor-react` `<Warning>` icon that is
+ * correctly colored.
  */
 export function ErrorIcon({size}: {size?: string}) {
     return (

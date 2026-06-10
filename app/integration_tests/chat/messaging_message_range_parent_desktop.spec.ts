@@ -8,17 +8,17 @@ import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messag
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {ApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {MessageContentProsemirrorSchema as schema} from "~/shared/content/message_content_schema.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 
 const {context, services} = createTestServices();
 
 // NOTE(calebmer): `ApiMessageRoomPath` is the only path I can think of, at the
-// moment, which has a union of all messaging room types in the product. Using
-// it to make sure we exhaustively test all messaging room types in this file.
+// moment, which has a union of all messaging room types in the product. Using it
+// to make sure we exhaustively test all messaging room types in this file.
 type MessagingRoomType = ApiMessageRoomPath extends `/${infer Type}/${string}` ? Type : never;
 
 const testCases: Record<
@@ -41,7 +41,7 @@ const testCases: Record<
 
             return {
                 room: chat,
-                roomPath: `/s/${chat.space.id}/chat/${chat.id}`,
+                roomPath: `/chat/${chat.id}`,
             };
         },
     },
@@ -60,7 +60,7 @@ const testCases: Record<
 
             return {
                 room: commentThread,
-                roomPath: `/s/${document.space.id}/documents/${document.id}?comments=${commentThread.id}`,
+                roomPath: `/doc/${document.id}?thread=${commentThread.id}`,
             };
         },
     },
@@ -71,7 +71,7 @@ const testCases: Record<
 
             return {
                 room: post,
-                roomPath: `/s/${post.space.id}/posts/${post.id}`,
+                roomPath: `/post/${post.id}`,
             };
         },
     },
@@ -83,7 +83,7 @@ const testCases: Record<
 
             return {
                 room: task,
-                roomPath: `/s/${task.space.id}/tasks/${task.id}?comments=show`,
+                roomPath: `/task/${task.id}`,
             };
         },
     },

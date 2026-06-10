@@ -75,9 +75,8 @@ function testGetFullSearchContentChunk(
 
         const content3 = parseSearchContent(text2);
 
-        // Printing/parsing our parsed content again should give us the exact same
-        // content. Parsing/printing should be reversible after we've removed lossy
-        // styles.
+        // Printing/parsing our parsed content again should give us the exact same content.
+        // Parsing/printing should be reversible after we've removed lossy styles.
         expect(content3.toJSON()).toEqual(content2.toJSON());
     }
 
@@ -2956,6 +2955,7 @@ test("prints chunk text with inline styles", async () => {
                 // correctly handle this case. We should get the Markdown parser fixed.
                 //
                 // See:
+                //
                 // - https://github.com/orgs/unifiedjs/discussions/160
                 // - https://github.com/syntax-tree/mdast-util-from-markdown/issues/15
                 skipParseCorrectnessTests: true,
@@ -3693,7 +3693,7 @@ test("correctly chunks document content", async () => {
                                     {
                                         type: "link",
                                         attrs: {
-                                            url: "https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/9rfgay7czbxcbzvgarpyb1ycz8",
+                                            url: "https://cyberworlds.dev/doc/9rfgay7czbxcbzvgarpyb1ycz8",
                                         },
                                     },
                                 ],
@@ -4419,7 +4419,7 @@ test("correctly chunks document content", async () => {
                                     {
                                         type: "link",
                                         attrs: {
-                                            url: "https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/w1675bxd15e10cf0mhrmdcgq24",
+                                            url: "https://cyberworlds.dev/doc/w1675bxd15e10cf0mhrmdcgq24",
                                         },
                                     },
                                 ],
@@ -4432,7 +4432,7 @@ test("correctly chunks document content", async () => {
                                     {
                                         type: "link",
                                         attrs: {
-                                            url: "https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/947dbjnmhvv1h2txwxkycmp320",
+                                            url: "https://cyberworlds.dev/doc/947dbjnmhvv1h2txwxkycmp320",
                                         },
                                     },
                                 ],
@@ -4448,7 +4448,7 @@ test("correctly chunks document content", async () => {
                                     {
                                         type: "link",
                                         attrs: {
-                                            url: "https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/9rfgay7czbxcbzvgarpyb1ycz8",
+                                            url: "https://cyberworlds.dev/doc/9rfgay7czbxcbzvgarpyb1ycz8",
                                         },
                                     },
                                 ],
@@ -5177,9 +5177,9 @@ test("ignores files in file rows when file row is in quote block or list item", 
         testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("The quick brown fox jumps")]),
-                // NOTE(calebmer, 2024-09-23): Currently we don't allow file rows in quote
-                // blocks in our content schema, but we still want to exercise the code for
-                // this case since we may support this format someday.
+                // NOTE(calebmer, 2024-09-23): Currently we don't allow file rows in quote blocks
+                // in our content schema, but we still want to exercise the code for this case
+                // since we may support this format someday.
                 schema.nodes.quoteBlock.create({}, [
                     schema.node("fileRow", {}, [
                         schema.node("file", {fileId: generateChronologicalId<FileId>()}),
@@ -5188,9 +5188,9 @@ test("ignores files in file rows when file row is in quote block or list item", 
                     ]),
                 ]),
                 schema.node("paragraph", {}, [schema.text("over the")]),
-                // NOTE(calebmer, 2024-09-23): Currently we don't allow file rows in list
-                // items in our content schema, but we still want to exercise the code for
-                // this case since we may support this format someday.
+                // NOTE(calebmer, 2024-09-23): Currently we don't allow file rows in list items in
+                // our content schema, but we still want to exercise the code for this case since
+                // we may support this format someday.
                 schema.nodes.orderedListItem.create({}, [
                     schema.node("paragraph", {}, [schema.text("hi")]),
                     schema.node("fileRow", {}, [

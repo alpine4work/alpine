@@ -32,14 +32,14 @@ export type FileInfoWithEntity =
       };
 
 /**
- * Iterates through all media elements in the given container element and
- * yields an object containing:
+ * Iterates through all media elements in the given container element and yields an
+ * object containing:
  *
  * - The discovered media element itself
  * - File information that indicates whether the file should be:
- *   - Uploaded as a new file (type: "UploadFile")
- *   - Attached from an existing file (type: "AttachFile")
- *   - Or null if no valid source is found
+ *     - Uploaded as a new file (type: "UploadFile")
+ *     - Attached from an existing file (type: "AttachFile")
+ *     - Or null if no valid source is found
  */
 export function* iterateFileInfosInElement(
     element: Element,
@@ -49,12 +49,12 @@ export function* iterateFileInfosInElement(
     let resourceServiceUrl: URL | undefined;
 
     for (const fileElement of element.querySelectorAll("img, video, audio, object, iframe")) {
-        // Handle file entity elements (serialized to DOM via `<iframe>`s) separately
-        // from other file types.
+        // Handle file entity elements (serialized to DOM via `<iframe>`s) separately from
+        // other file types.
         if (fileElement instanceof HTMLIFrameElement) {
             const spaceId = getSpaceId();
 
-            const entityId = parseSearchEntityIdFromUrl(spaceId, fileElement.src);
+            const entityId = parseSearchEntityIdFromUrl(fileElement.src);
             if (entityId === null || !isFileEntityId(entityId)) continue;
 
             yield {element, info: {type: "AttachFileEntity", spaceId, fileEntityId: entityId}};
@@ -92,8 +92,8 @@ export function* iterateFileInfosInElement(
             continue;
         }
 
-        // Ignore non-HTTP protocols for now. It's probably reasonable to support
-        // `data://` URLs at some point.
+        // Ignore non-HTTP protocols for now. It's probably reasonable to support `data://`
+        // URLs at some point.
         if (url.protocol !== "http:" && url.protocol !== "https:") {
             continue;
         }
@@ -105,9 +105,9 @@ export function* iterateFileInfosInElement(
         // 3. The file is in the same space that we're in right now; AND
         // 4. The file element has a valid `data-cy-attached` attribute
         //
-        // Then the file already exists for this space. Instead of uploading a new file
-        // to our backend instead we can create a new attachment for the file that
-        // already exists.
+        // Then the file already exists for this space. Instead of uploading a new file to
+        // our backend instead we can create a new attachment for the file that already
+        // exists.
         if (url.origin === currentUrl.origin || url.origin === resourceServiceUrl.origin) {
             const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
             if (

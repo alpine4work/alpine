@@ -17,8 +17,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type LambdaLocalRoute = {
     /**
-     * URL path pattern with parameters in curly braces
-     * Example: "/resize/{spaceId}/{fileId}" or "/process-file"
+     * URL path pattern with parameters in curly braces Example:
+     * "/resize/{spaceId}/{fileId}" or "/process-file"
      */
     path: string;
 
@@ -54,8 +54,9 @@ export type LambdaLocalRoute = {
 };
 
 /**
- * Single Lambda runtime server that can handle multiple Lambda functions with routing.
- * Routes requests to appropriate Lambda handlers based on URL path patterns.
+ * Single Lambda runtime server that can handle multiple Lambda functions with
+ * routing. Routes requests to appropriate Lambda handlers based on URL path
+ * patterns.
  */
 export function createLambdaLocalHttpServer(
     processContext: LambdaActionContext,
@@ -176,9 +177,8 @@ function findMatchingRoute(
 }
 
 /**
- * Check if a request path matches a route pattern and extract parameters
- * Pattern: "/resize/{spaceId}/{fileId}"
- * Path: "/resize/abc123/def456"
+ * Check if a request path matches a route pattern and extract parameters Pattern:
+ * "/resize/{spaceId}/{fileId}" Path: "/resize/abc123/def456"
  */
 function matchPathPattern(requestPath: string, pattern: string): boolean {
     // Convert pattern to regex, replacing {param} with capture groups

@@ -22,10 +22,9 @@ export type FormRef = {
     submit(): void;
 };
 
-// NOTE(calebmer, 2025-01-07): Could be upgraded to `//client/web/design`
-// someday. A `<form>` component that handles submissions on the client.
-// Accessible and handles all the standard form behaviors like enter in an
-// input to submit.
+// NOTE(calebmer, 2025-01-07): Could be upgraded to `//client/web/design` someday.
+// A `<form>` component that handles submissions on the client. Accessible and
+// handles all the standard form behaviors like enter in an input to submit.
 export function Form({
     ref,
     submitErrorTitle,
@@ -92,8 +91,8 @@ export function Form({
                 () => {
                     setIsPending(false);
 
-                    // Clear the error state once submission completes. If the pending spinner
-                    // didn't clear it earlier.
+                    // Clear the error state once submission completes. If the pending spinner didn't
+                    // clear it earlier.
                     setErrorState(null);
                 },
                 error => {
@@ -114,12 +113,14 @@ export function Form({
 
     return (
         <form
+            // Disable browser validation. We handle validation ourselves.
+            noValidate={true}
             onKeyDown={event => {
                 switch (event.key) {
-                    // Automatically submit the form when the user presses the enter key in an
-                    // input. Most browsers do this automatically. We override the browser logic
-                    // so we can show a pressed state on the button and make sure focus doesn't
-                    // move from the input.
+                    // Automatically submit the form when the user presses the enter key in an input.
+                    // Most browsers do this automatically. We override the browser logic so we can
+                    // show a pressed state on the button and make sure focus doesn't move from the
+                    // input.
                     case "Enter": {
                         event.preventDefault();
                         event.stopPropagation();
@@ -133,10 +134,10 @@ export function Form({
             }}
             onKeyUp={event => {
                 switch (event.key) {
-                    // Automatically submit the form when the user presses the enter key in an
-                    // input. Most browsers do this automatically. We override the browser logic
-                    // so we can show a pressed state on the button and make sure focus doesn't
-                    // move from the input.
+                    // Automatically submit the form when the user presses the enter key in an input.
+                    // Most browsers do this automatically. We override the browser logic so we can
+                    // show a pressed state on the button and make sure focus doesn't move from the
+                    // input.
                     case "Enter": {
                         event.preventDefault();
                         event.stopPropagation();
@@ -150,8 +151,8 @@ export function Form({
                 }
             }}
             onSubmit={event => {
-                // Don't perform a page navigation. Instead we'll handle the submission on
-                // the client.
+                // Don't perform a page navigation. Instead we'll handle the submission on the
+                // client.
                 event.preventDefault();
 
                 handleSubmit();
@@ -162,8 +163,8 @@ export function Form({
                 shouldSubmitForm: true,
                 isPressed: isButtonPressed,
                 isPending,
-                // Override when the button pending spinner should be shown with our own
-                // loading indicator delay that's synchronized with error clearing.
+                // Override when the button pending spinner should be shown with our own loading
+                // indicator delay that's synchronized with error clearing.
                 shouldShowPendingSpinner,
             })}
             {afterButton}

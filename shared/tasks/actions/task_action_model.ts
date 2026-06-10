@@ -10,8 +10,8 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskTitleUpdate, TaskTitleUpdateModel} from "~/shared/tasks/title/task_title.js";
 
 /**
- * `TaskAction` but you can change the type of `titleUpdate` in the
- * `UpdateTitle` task action.
+ * `TaskAction` but you can change the type of `titleUpdate` in the `UpdateTitle`
+ * task action.
  */
 export type TaskActionModel =
     | Exclude<TaskAction, {readonly type: "UpdateTask"}>
@@ -39,8 +39,8 @@ export type TaskTaskActionModel =
     | (TaskAddCollectionAction & {readonly referencedCollection?: TaskCollectionModel});
 
 /**
- * `TaskAction` but you can change the type of `titleUpdate` in the
- * `UpdateTitle` task action.
+ * `TaskAction` but you can change the type of `titleUpdate` in the `UpdateTitle`
+ * task action.
  */
 export type TaskActionMaybeModel =
     | Exclude<TaskAction, {readonly type: "UpdateTask"}>

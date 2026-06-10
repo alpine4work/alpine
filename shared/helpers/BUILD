@@ -15,6 +15,7 @@ CORE_SRCS = [
     "object/is_plain_object.ts",
     "object/map_object_values.ts",
     "object/omit_object.ts",
+    "types/distributive_omit.ts",
 ]
 
 # We have a separate `helpers_core` package with a small number of essential
@@ -40,7 +41,7 @@ ts_project(
         ["**/*.ts"],
         exclude = CORE_SRCS + ["**/*.test.ts"],
     ),
-    test_deps = ["//:node_modules/expect-type"],
+    test_deps = ["//:node_modules/diff", "//:node_modules/expect-type"],
     visibility = ["//visibility:public"],
     deps = [
         ":helpers_core",
@@ -56,6 +57,8 @@ ts_project(
         "//:node_modules/grapheme-splitter",
         "//:node_modules/html-tags",
         "//:node_modules/tough-cookie",
+        "//:node_modules/unicode-default-word-boundary",
+        "//:node_modules/remove-accents",
         "//shared/error:error_core",
     ],
 )

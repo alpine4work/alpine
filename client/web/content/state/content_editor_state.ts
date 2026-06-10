@@ -12,6 +12,7 @@ import {
 } from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
+import {contentEditorDateDecorationPlugin} from "~/client/web/content/state/content_editor_date_decoration_plugin.js";
 import {ContentEditorFloaterState} from "~/client/web/content/state/content_editor_floater_state.js";
 import {
     openContentEditorCommentInputFloaterMetaKey,
@@ -56,17 +57,20 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {hasDatePickerFeature} from "~/shared/spaces/has_date_picker_feature.js";
 import {hasSpellCheckFeature} from "~/shared/spaces/has_spell_check_feature.js";
 
 export const createContentCommentThreadMetaKey = "createCommentThread";
 export const intentionallyUpdateContentAccessPolicyMetaKey = "intentionallyUpdateAccessPolicy";
 
 function buildPlugins<Content extends ContentWithReferences>({
+    spaceId,
     schema,
     references,
     reduceReferences,
     disableUndoKeyboardShortcuts,
 }: {
+    spaceId: SpaceId | null;
     schema: ContentProsemirrorSchema;
     references: Content["references"];
     reduceReferences: (
@@ -78,10 +82,10 @@ function buildPlugins<Content extends ContentWithReferences>({
     const plugins = [
         history({
             newGroupDelay: undoMergeTextUpdatesDelayMs,
-            // If we're disabling undo/redo keyboard shortcuts it means our rendering
-            // component is managing undo/redo stacks. In that case our history plugin
-            // should never clear out old events which would make our history plugin
-            // out-of-sync with our rendering component.
+            // If we're disabling undo/redo keyboard shortcuts it means our rendering component
+            // is managing undo/redo stacks. In that case our history plugin should never clear
+            // out old events which would make our history plugin out-of-sync with our
+            // rendering component.
             depth: disableUndoKeyboardShortcuts ? Number.MAX_SAFE_INTEGER : undefined,
         }),
         buildContentEditorInputRulesPlugin(schema),
@@ -98,30 +102,34 @@ function buildPlugins<Content extends ContentWithReferences>({
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
 
-    // A bit of a hack to get the spaceId while this plugin is feature flagged
-    // We don't run harper server side, so we won't show errors outside the browser anyways
-    const spaceId =
-        typeof window !== "undefined"
-            ? (window.location.pathname.match(/\/s\/([^/]+)/)?.[1] as SpaceId) || null
-            : null;
+    if (
+        spaceId &&
+        hasDatePickerFeature(spaceId) &&
+        typeof localStorage !== "undefined" &&
+        !isMobileWebKit &&
+        // Create an escape hatch while we're testing in case things break
+        localStorage.getItem("disableDatePicker") !== "true"
+    ) {
+        plugins.push(contentEditorDateDecorationPlugin());
+    }
 
     // Native spellcheck is often more distracting then it's worth. It puts a red
-    // squiggly under names, nouns, industry terms, and oddly sometimes
-    // contractions (like "they're", maybe has to do with curly quotes?).
+    // squiggly under names, nouns, industry terms, and oddly sometimes contractions
+    // (like "they're", maybe has to do with curly quotes?).
     //
     // It's also inconsistent with `<input>`s which don't have spellcheck on by
     // default.
     //
-    // In iOS, however, the native spellchecker is _essential_ for proper
-    // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
-    // spell check results show up inline instead of requiring a right click (which
-    // we override).
+    // In iOS, however, the native spellchecker is _essential_ for proper document
+    // editing. Since typos abound on mobile keyboards. Unlike on web, iOS spell check
+    // results show up inline instead of requiring a right click (which we override).
     //
-    // Make sure our spell checker is disabled on mobile,
-    // the native spell checker should win there.
+    // Make sure our spell checker is disabled on mobile, the native spell checker
+    // should win there.
     if (
         spaceId &&
         hasSpellCheckFeature(spaceId) &&
+        typeof localStorage !== "undefined" &&
         !isMobileWebKit &&
         // Create an escape hatch while we're testing in case things break
         localStorage.getItem("disableSpellCheck") !== "true"
@@ -137,61 +145,77 @@ function buildPlugins<Content extends ContentWithReferences>({
  *
  * We have a wrapper to require the user of certain plugins.
  *
- * Wraps around ProseMirror's own `EditorState` and provides a controlled
- * interface to the outside world.
+ * Wraps around ProseMirror's own `EditorState` and provides a controlled interface
+ * to the outside world.
  */
 export class ContentEditorState<Content extends ContentWithReferences> {
     /**
      * Creates a new state for our content editor.
      *
-     * Simplified editor state creation for content with a normal
-     * `ContentReferences` object. You need to use `_create()` or
-     * `createCollaborative()` to customize the `ContentReferences` type.
+     * Simplified editor state creation for content with a normal `ContentReferences`
+     * object. You need to use `_create()` or `createCollaborative()` to customize the
+     * `ContentReferences` type.
      */
-    public static create<ContentDoc extends Node>(
-        content: ContentWithReferences & {doc: ContentDoc},
-        options: {
-            /**
-             * The initial selection to use for the editor state. If the string "start" or
-             * "end" then we'll automatically put the selection at that side of the doc.
-             */
-            selection?: "start" | "end" | Selection | SelectionBookmark;
+    public static create<ContentDoc extends Node>(options: {
+        /**
+         * The current `SpaceId` we're in. Null if we're not in a space (or if we're in
+         * tests).
+         */
+        spaceId: SpaceId | null;
 
-            /**
-             * Should the undo/redo keyboard shortcuts be disabled on this editor? When
-             * this is set to true it usually means the component rendering our content
-             * editor will managed undo/redo keyboard shortcuts.
-             */
-            disableUndoKeyboardShortcuts?: boolean;
-        } = {},
-    ): ContentEditorState<ContentWithReferences & {doc: ContentDoc}> {
+        /**
+         * The initial content of the editor.
+         */
+        content: ContentWithReferences & {doc: ContentDoc};
+
+        /**
+         * The initial selection to use for the editor state. If the string "start" or
+         * "end" then we'll automatically put the selection at that side of the doc.
+         */
+        selection?: "start" | "end" | Selection | SelectionBookmark;
+
+        /**
+         * Should the undo/redo keyboard shortcuts be disabled on this editor? When this is
+         * set to true it usually means the component rendering our content editor will
+         * managed undo/redo keyboard shortcuts.
+         */
+        disableUndoKeyboardShortcuts?: boolean;
+    }): ContentEditorState<ContentWithReferences & {doc: ContentDoc}> {
         return ContentEditorState._create({
             ...options,
-            content,
             reduceReferences: reduceContentReferences,
         });
     }
 
     /**
-     * Creates a new state for our content editor allowing the user to customize
-     * the type of `ContentReferences`.
+     * Creates a new state for our content editor allowing the user to customize the
+     * type of `ContentReferences`.
      */
     private static _create<Content extends ContentWithReferences>({
+        spaceId,
         content,
         reduceReferences,
         selection = "start",
         disableUndoKeyboardShortcuts = false,
     }: {
-        /** The initial content of the editor. */
+        /**
+         * The current `SpaceId` we're in. Null if we're not in a space (or if we're in
+         * tests).
+         */
+        spaceId: SpaceId | null;
+
+        /**
+         * The initial content of the editor.
+         */
         content: Content;
 
         /**
          * The editor may dispatch actions to update the content's references. This
          * function implements the reducer for those actions. If the type of your
          * references is `ContentReferences` you may use the provided
-         * `reduceContentReferences()` function. If you are not using
-         * `ContentReferences` (e.g. you're using `DocumentContentReferences`) then you
-         * need to implement this function yourself.
+         * `reduceContentReferences()` function. If you are not using `ContentReferences`
+         * (e.g. you're using `DocumentContentReferences`) then you need to implement this
+         * function yourself.
          */
         reduceReferences: (
             references: Content["references"],
@@ -205,6 +229,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         assert(schema.topNodeType === content.doc.type);
 
         const plugins = buildPlugins({
+            spaceId,
             schema,
             references: content.references,
             reduceReferences,
@@ -231,6 +256,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
      * Creates a new collaborative state for our content editor.
      */
     public static createCollaborative<Content extends ContentWithReferences>({
+        spaceId,
         version,
         content,
         selection = "start",
@@ -239,13 +265,19 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         disableUndoKeyboardShortcuts = false,
     }: {
         /**
+         * The current `SpaceId` we're in. Null if we're not in a space (or if we're in
+         * tests).
+         */
+        spaceId: SpaceId | null;
+
+        /**
          * The content version for collaborative editing.
          */
         version: number;
 
         /**
-         * The initial content in the editor. If no content is provided then we
-         * start with empty content.
+         * The initial content in the editor. If no content is provided then we start with
+         * empty content.
          */
         content: Content;
 
@@ -259,9 +291,9 @@ export class ContentEditorState<Content extends ContentWithReferences> {
          * The editor may dispatch actions to update the content's references. This
          * function implements the reducer for those actions. If the type of your
          * references is `ContentReferences` you may use the provided
-         * `reduceContentReferences()` function. If you are not using
-         * `ContentReferences` (e.g. you're using `DocumentContentReferences`) then you
-         * need to implement this function yourself.
+         * `reduceContentReferences()` function. If you are not using `ContentReferences`
+         * (e.g. you're using `DocumentContentReferences`) then you need to implement this
+         * function yourself.
          */
         reduceReferences: (
             references: Content["references"],
@@ -269,15 +301,15 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         ) => Content["references"];
 
         /**
-         * Identifier for this content editor. Each client should have its own unique
-         * ID to figure out which edits were made by us vs others.
+         * Identifier for this content editor. Each client should have its own unique ID to
+         * figure out which edits were made by us vs others.
          */
         clientId?: ContentEditorClientId;
 
         /**
-         * Should the undo/redo keyboard shortcuts be disabled on this editor? When
-         * this is set to true it usually means the component rendering our content
-         * editor will managed undo/redo keyboard shortcuts.
+         * Should the undo/redo keyboard shortcuts be disabled on this editor? When this is
+         * set to true it usually means the component rendering our content editor will
+         * managed undo/redo keyboard shortcuts.
          */
         disableUndoKeyboardShortcuts?: boolean;
     }): ContentEditorState<Content> {
@@ -287,20 +319,21 @@ export class ContentEditorState<Content extends ContentWithReferences> {
 
         const plugins = [
             ...buildPlugins({
+                spaceId,
                 schema,
                 references: content.references,
                 reduceReferences,
                 disableUndoKeyboardShortcuts,
             }),
             collab({
-                // Every client gets its own ID generated by the client. If a bad actor
-                // client impersonates another, known, client they can cause some annoying bugs
-                // but that's about it.
+                // Every client gets its own ID generated by the client. If a bad actor client
+                // impersonates another, known, client they can cause some annoying bugs but that's
+                // about it.
                 //
-                // The ID is necessary so the client knows when it is confirming steps it
-                // generated vs. receiving steps from another client. We generate an ID for
-                // every content state instance because if you have two content editors on the
-                // page they need separate IDs so they don't conflict.
+                // The ID is necessary so the client knows when it is confirming steps it generated
+                // vs. receiving steps from another client. We generate an ID for every content
+                // state instance because if you have two content editors on the page they need
+                // separate IDs so they don't conflict.
                 clientID: clientId,
                 version,
             }),
@@ -332,9 +365,9 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     }
 
     /**
-     * Get the internal ProseMirror editor state object. Prefer the public methods
-     * on this class that provide a constrained, safe, interface. But this escape
-     * hatch is available if necessary.
+     * Get the internal ProseMirror editor state object. Prefer the public methods on
+     * this class that provide a constrained, safe, interface. But this escape hatch is
+     * available if necessary.
      */
     public _getInternalState(): EditorState & {schema: ContentProsemirrorSchema} {
         return this._state as EditorState & {schema: ContentProsemirrorSchema};
@@ -343,8 +376,8 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     /**
      * The current content rendered in the editor.
      *
-     * Our state contains more information than just the content. For instance,
-     * the cursor position.
+     * Our state contains more information than just the content. For instance, the
+     * cursor position.
      */
     public getContent(): Content {
         return getContentEditorReferences(this._state) as Content;
@@ -387,8 +420,8 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     /**
      * Get the current version of our content for collaborative editing.
      *
-     * May only call this method if the content editor state is collaborative.
-     * (Can check with `isCollab()`.)
+     * May only call this method if the content editor state is collaborative. (Can
+     * check with `isCollab()`.)
      */
     public getVersion(): number {
         assert(this.isCollaborative());
@@ -398,8 +431,8 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     /**
      * Are there any unconfirmed local steps the server hasn't acknowledged?
      *
-     * May only call this method if the content editor state is collaborative.
-     * (Can check with `isCollab()`.)
+     * May only call this method if the content editor state is collaborative. (Can
+     * check with `isCollab()`.)
      */
     public hasSendableSteps(): boolean {
         assert(this.isCollaborative());
@@ -408,11 +441,11 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     }
 
     /**
-     * Provides the unconfirmed steps for this content that we need to send to
-     * a central authority.
+     * Provides the unconfirmed steps for this content that we need to send to a
+     * central authority.
      *
-     * May only call this method if the content editor state is collaborative.
-     * (Can check with `isCollab()`.)
+     * May only call this method if the content editor state is collaborative. (Can
+     * check with `isCollab()`.)
      */
     public sendableSteps(): {
         version: number;
@@ -440,22 +473,22 @@ export class ContentEditorState<Content extends ContentWithReferences> {
      *
      * We also expect new `ContentReferences` associated with the new steps.
      *
-     * May only call this method if the content editor state is collaborative.
-     * (Can check with `isCollab()`.)
+     * May only call this method if the content editor state is collaborative. (Can
+     * check with `isCollab()`.)
      */
     public receiveSteps(
         steps: Iterable<{step: Step; clientId: ContentEditorClientId}>,
-        // We require you to pass in content references because if you have user
-        // generated steps then there may also be references associated with those
-        // steps you need to provide.
+        // We require you to pass in content references because if you have user generated
+        // steps then there may also be references associated with those steps you need to
+        // provide.
         stepsContentReferences: Content["references"],
     ): ContentEditorState<Content> {
         let state: ContentEditorState<Content> = this;
         let stepTransaction: Array<{step: Step; clientId: ContentEditorClientId}> = [];
 
-        // `prosemirror-collab` needs steps from our `clientId` to be at the beginning
-        // of the `receiveSteps()` call. So call `receiveSteps()` whenever the
-        // `clientId` of our steps change.
+        // `prosemirror-collab` needs steps from our `clientId` to be at the beginning of
+        // the `receiveSteps()` call. So call `receiveSteps()` whenever the `clientId` of
+        // our steps change.
         //
         // Arguably, this is a bug in `prosemirror-collab`.
         //
@@ -493,9 +526,9 @@ export class ContentEditorState<Content extends ContentWithReferences> {
             clientIds.push(clientId);
         }
 
-        // Validation in development that if we're receiving steps from our client we
-        // do have steps we're waiting to receive. Otherwise ProseMirror ignores the
-        // steps and we can get into a bad state.
+        // Validation in development that if we're receiving steps from our client we do
+        // have steps we're waiting to receive. Otherwise ProseMirror ignores the steps and
+        // we can get into a bad state.
         if (
             process.env.NODE_ENV !== "production" &&
             clientIds.includes(this.getClientId()) &&
@@ -507,8 +540,8 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         }
 
         const transaction = receiveTransaction(this._state, stepsWithoutClientId, clientIds, {
-            // Users usually prefer this, but it isn't done by default for reasons
-            // of backwards compatibility.
+            // Users usually prefer this, but it isn't done by default for reasons of backwards
+            // compatibility.
             mapSelectionBackward: true,
         });
 
@@ -573,9 +606,9 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     /**
      * Set the access policy for this content.
      *
-     * Throws an error if the content doesn't have an access policy. Makes sure
-     * the `intentionallyUpdateAccessPolicy` option is set when running this
-     * update on the backend.
+     * Throws an error if the content doesn't have an access policy. Makes sure the
+     * `intentionallyUpdateAccessPolicy` option is set when running this update on the
+     * backend.
      */
     public setAccessPolicy(
         accessPolicy: AccessPolicy,
@@ -591,8 +624,8 @@ export class ContentEditorState<Content extends ContentWithReferences> {
                         accessPolicy,
                         notification,
                     })
-                    // Don't allow undoing access policy changes with cmd-z. Trying to undo an
-                    // access policy change will cause an error since it doesn't have the
+                    // Don't allow undoing access policy changes with cmd-z. Trying to undo an access
+                    // policy change will cause an error since it doesn't have the
                     // `intentionallyUpdateAccessPolicy` property set.
                     .setMeta("addToHistory", false),
             ),
@@ -642,8 +675,8 @@ function contentEditorFloaterStatePlugin() {
                     transaction.getMeta(contentEditorFloaterStatePluginKey);
                 if (transactionFloaterState) return transactionFloaterState;
 
-                // Open our toolbars on the current selection when certain meta is set on
-                // our transaction.
+                // Open our toolbars on the current selection when certain meta is set on our
+                // transaction.
                 if (transaction.getMeta(openContentEditorKeyboardHighlightFloaterMetaKey)) {
                     return {
                         type: "KeyboardHighlight",
@@ -680,19 +713,22 @@ function contentEditorFloaterStatePlugin() {
                             range: {from: $from.pos, to: newState.selection.head},
                             searchQuery: "",
                             handleKeyDownRef: {current: null},
+                            handleKeyUpRef: {current: null},
                             isClosing: false,
                         };
                     }
                 }
 
-                // `PointerToolbar` is the only state which does not record its position.
-                if (floaterState.type === "PointerToolbar") return floaterState;
+                // `PointerToolbar` and `GifPicker` do not record a position in the document.
+                if (floaterState.type === "PointerToolbar" || floaterState.type === "GifPicker") {
+                    return floaterState;
+                }
 
                 const newRangeFrom = transaction.mapping.map(floaterState.range.from);
                 const newRangeTo = transaction.mapping.map(floaterState.range.to);
 
-                // If the range collapsed into a single position (maybe the content was
-                // deleted?) reset to the initial state.
+                // If the range collapsed into a single position (maybe the content was deleted?)
+                // reset to the initial state.
                 if (newRangeFrom === newRangeTo) {
                     floaterState = {type: "PointerToolbar", previousState: floaterState};
                 } else if (
@@ -709,8 +745,8 @@ function contentEditorFloaterStatePlugin() {
                 if (floaterState.type === "Mention" && !floaterState.isClosing) {
                     const $from = newState.doc.resolve(floaterState.range.from);
 
-                    // If the mention no longer starts with the trigger character then close
-                    // our floater.
+                    // If the mention no longer starts with the trigger character then close our
+                    // floater.
                     if (
                         !$from.parent.inlineContent ||
                         $from.parentOffset === $from.parent.content.size ||
@@ -719,25 +755,25 @@ function contentEditorFloaterStatePlugin() {
                     ) {
                         floaterState = {...floaterState, isClosing: true};
                     }
-                    // If the head of our selection left the beginning of our mention range then
-                    // reset our floater back to the initial state.
+                    // If the head of our selection left the beginning of our mention range then reset
+                    // our floater back to the initial state.
                     else if (newState.selection.head < floaterState.range.from) {
                         floaterState = {...floaterState, isClosing: true};
                     }
                     // If the head of our selection left the end of our mention range...
                     else if (newState.selection.head > floaterState.range.to) {
-                        // We want to extend the mention range if the user is typing within the mention
-                        // and extending the search query. We want to cancel the mention range if the
-                        // user is explicitly moving their selection outside of the mention range.
+                        // We want to extend the mention range if the user is typing within the mention and
+                        // extending the search query. We want to cancel the mention range if the user is
+                        // explicitly moving their selection outside of the mention range.
                         //
                         // We use the heuristic that if both the document changed and the selection was
-                        // explicitly set in our transaction that indicates the user is typing (or
-                        // pasting or similar). This isn't perfect. Ideally we'd also check that this
-                        // came from our client (and not a collaborative edit) or that the document
-                        // change happened inside our mention range.
+                        // explicitly set in our transaction that indicates the user is typing (or pasting
+                        // or similar). This isn't perfect. Ideally we'd also check that this came from our
+                        // client (and not a collaborative edit) or that the document change happened
+                        // inside our mention range.
                         //
-                        // If the user pasted multiple paragraphs of content then our floater state
-                        // will be cleaned up below.
+                        // If the user pasted multiple paragraphs of content then our floater state will be
+                        // cleaned up below.
                         if (!transaction.selectionSet || !transaction.docChanged) {
                             floaterState = {...floaterState, isClosing: true};
                         } else {
@@ -749,9 +785,9 @@ function contentEditorFloaterStatePlugin() {
                     }
                 }
 
-                // Compute the new search query for our mention floater and put it in our
-                // state. If the mention range does not have a valid search query then we will
-                // reset our floater state here.
+                // Compute the new search query for our mention floater and put it in our state. If
+                // the mention range does not have a valid search query then we will reset our
+                // floater state here.
                 if (floaterState.type === "Mention" && !floaterState.isClosing) {
                     const mentionSlice = newState.doc.slice(
                         floaterState.range.from + 1,
@@ -770,8 +806,7 @@ function contentEditorFloaterStatePlugin() {
                         } else {
                             const searchQuery = child?.text ?? "";
 
-                            // Close the floater if user types another instance of the trigger
-                            // character.
+                            // Close the floater if user types another instance of the trigger character.
                             if (searchQuery.includes(floaterState.triggerCharacter)) {
                                 floaterState = {...floaterState, isClosing: true};
                             } else if (searchQuery !== floaterState.searchQuery) {
@@ -806,8 +841,8 @@ const contentEditorReferencesPluginKey = new PluginKey<{
     references: ContentReferences;
 }>("contentEditorReferences");
 
-// We store content references in a plugin on our `ContentEditorState` so that
-// it is updated in lockstep with the underlying doc.
+// We store content references in a plugin on our `ContentEditorState` so that it
+// is updated in lockstep with the underlying doc.
 function contentEditorReferencesPlugin<References extends ContentReferences>(
     initialReferences: References,
     reduceReferences: (
@@ -838,8 +873,8 @@ function contentEditorReferencesPlugin<References extends ContentReferences>(
                     return oldPluginState;
 
                 // We maintain a `ContentWithReferences` object in our plugin (instead of just
-                // `ContentReferences`) so that the we can have a memoized object reference
-                // that won't break any `useMemo()`s that listen to it on spurious changes.
+                // `ContentReferences`) so that the we can have a memoized object reference that
+                // won't break any `useMemo()`s that listen to it on spurious changes.
                 return {
                     doc: newState.doc,
                     references: newReferences,
@@ -924,10 +959,10 @@ export type ContentEditorReferencesSetFileSignedUrlSearchAction = {
 };
 
 /**
- * This action is designed to be idempotent and runnable out-of-order. You can
- * run it as often as you'd like. You can run it optimistically and then run it
- * again after you get a response back from the server. References will
- * converge to the correct value.
+ * This action is designed to be idempotent and runnable out-of-order. You can run
+ * it as often as you'd like. You can run it optimistically and then run it again
+ * after you get a response back from the server. References will converge to the
+ * correct value.
  */
 export type ContentEditorReferencesUpdateDocumentCommentThreadAction = {
     readonly type: "UpdateDocumentCommentThread";
@@ -1072,11 +1107,12 @@ function contentEditorQuickUndoPlugin() {
                 const newQuickUndoState = transaction.getMeta(contentEditorQuickUndoPluginKey);
                 if (newQuickUndoState) return newQuickUndoState;
 
-                // Ignore transactions that aren't added to undo/redo history. This is a
-                // heuristic for edits made not by our user. For example, [collaborative edits
-                // set `addToHistory` to false][1].
+                // Ignore transactions that aren't added to undo/redo history. This is a heuristic
+                // for edits made not by our user. For example, [collaborative edits set
+                // `addToHistory` to false][1].
                 //
-                // [1]: https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L150
+                // [1]:
+                //     https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L150
                 if (transaction.getMeta("addToHistory") === false) {
                     if (!quickUndoState) return null;
 
@@ -1086,8 +1122,8 @@ function contentEditorQuickUndoPlugin() {
                     return {...quickUndoState, pos: newPos};
                 }
 
-                // If the selection moved or document changed then throw away our quick undo.
-                // It might not work anymore on the new document.
+                // If the selection moved or document changed then throw away our quick undo. It
+                // might not work anymore on the new document.
                 return transaction.selectionSet || transaction.docChanged ? null : quickUndoState;
             },
         },
@@ -1167,8 +1203,7 @@ function contentEditorRetypedInputRulePlugin() {
                 const retypedString = transaction.doc.textBetween(replacementStart, selection.to);
 
                 // The retyped string must be the same as the string our input rule replaced in
-                // order for our retyping state to prevent the input rule from being applied
-                // again.
+                // order for our retyping state to prevent the input rule from being applied again.
                 if (
                     !state.replacedString.startsWith(retypedString) &&
                     !state.replacementString.startsWith(retypedString)
@@ -1185,9 +1220,9 @@ function contentEditorRetypedInputRulePlugin() {
 }
 
 /**
- * When an input rule is applied, keep track of whether the user retypes the
- * exact same input rule. If they do then we don't want to apply the input rule
- * a second time.
+ * When an input rule is applied, keep track of whether the user retypes the exact
+ * same input rule. If they do then we don't want to apply the input rule a second
+ * time.
  */
 export function trackContentEditorRetypedInputRule(
     transaction: Transaction,
@@ -1197,8 +1232,8 @@ export function trackContentEditorRetypedInputRule(
 }
 
 /**
- * Is the user retyping the input rule with this `Id`? If true then we
- * shouldn't apply the input rule a second time.
+ * Is the user retyping the input rule with this `Id`? If true then we shouldn't
+ * apply the input rule a second time.
  */
 export function isContentEditorRetypingInputRule(state: EditorState, inputRuleId: Id): boolean {
     return contentEditorRetypedInputRulePluginKey.getState(state)?.inputRuleId === inputRuleId;
@@ -1209,9 +1244,9 @@ const contentEditorIsContinuouslyTypingPluginKey = new PluginKey<boolean>(
 );
 
 /**
- * Plugin that detects if a user is continuously typing in their content
- * editor. True if the user is typing and false when the user finishes typing.
- * Will be false if the user is only moving their selection around.
+ * Plugin that detects if a user is continuously typing in their content editor.
+ * True if the user is typing and false when the user finishes typing. Will be
+ * false if the user is only moving their selection around.
  */
 function contentEditorIsContinuouslyTypingPlugin() {
     return new Plugin<boolean>({
@@ -1219,11 +1254,12 @@ function contentEditorIsContinuouslyTypingPlugin() {
         state: {
             init: () => false,
             apply: (transaction, isContinuouslyTyping, oldState, newState) => {
-                // Ignore transactions that aren't added to undo/redo history. This is a
-                // heuristic for edits made not by our user. For example, [collaborative edits
-                // set `addToHistory` to false][1].
+                // Ignore transactions that aren't added to undo/redo history. This is a heuristic
+                // for edits made not by our user. For example, [collaborative edits set
+                // `addToHistory` to false][1].
                 //
-                // [1]: https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L150
+                // [1]:
+                //     https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L150
                 if (transaction.getMeta("addToHistory") === false) return isContinuouslyTyping;
 
                 if (oldState.selection.from !== oldState.selection.to) return false;
@@ -1247,11 +1283,11 @@ const contentEditorSelectionGenerationPluginKey = new PluginKey<number>(
 );
 
 /**
- * Plugin that records the selection generation. The selection generation
- * changes whenever the selection is explicitly changed with
- * `transaction.setSelection()`. The generation doesn't change if the selection
- * moves due to some other user typing above the selection in the document
- * (which causes the selection to be mapped).
+ * Plugin that records the selection generation. The selection generation changes
+ * whenever the selection is explicitly changed with `transaction.setSelection()`.
+ * The generation doesn't change if the selection moves due to some other user
+ * typing above the selection in the document (which causes the selection to be
+ * mapped).
  */
 function contentEditorSelectionGeneration() {
     return new Plugin<number>({
@@ -1292,21 +1328,20 @@ const contentEditorRememberPosWhileLoadingPluginKey =
     );
 
 /**
- * Sometimes the user triggers an action, we need to asynchronously process
- * some data, then we can perform the action. For example, pasting some content
- * that contains mentions (we need to fetch mention data) or dropping a file
- * (we need to upload the file). In these cases frequently we want to perform
- * the action on the user's selection when they triggered the action. So if the
- * user triggers an action, then moves their selection, we apply the action
- * result to their original selection.
+ * Sometimes the user triggers an action, we need to asynchronously process some
+ * data, then we can perform the action. For example, pasting some content that
+ * contains mentions (we need to fetch mention data) or dropping a file (we need to
+ * upload the file). In these cases frequently we want to perform the action on the
+ * user's selection when they triggered the action. So if the user triggers an
+ * action, then moves their selection, we apply the action result to their original
+ * selection.
  *
- * This plugin gives us this capability. It allows us to register a promise we
- * want to keep track of. Whenever the document changes we map the selection
- * keeping it relative to the current document node. When the promise resolves
- * or rejects we remove the promise from our state. At any point between
- * registering the promise and the promise resolving you may get the mapped
- * selection for the promise representing the original position of the user's
- * action.
+ * This plugin gives us this capability. It allows us to register a promise we want
+ * to keep track of. Whenever the document changes we map the selection keeping it
+ * relative to the current document node. When the promise resolves or rejects we
+ * remove the promise from our state. At any point between registering the promise
+ * and the promise resolving you may get the mapped selection for the promise
+ * representing the original position of the user's action.
  */
 function contentEditorRememberPosWhileLoadingPlugin() {
     return new Plugin<ContentEditorRememberPosWhileLoadingPluginState>({

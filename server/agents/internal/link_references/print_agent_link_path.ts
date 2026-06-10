@@ -5,7 +5,7 @@ import {
     AgentPostCommentsLink,
 } from "~/server/agents/internal/link_references/agent_link.js";
 import {normalizeMarkdownLinkLabelForPath} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {ApiPath} from "~/shared/api/parse_api_path.js";
+import {ApiPath} from "~/shared/api/specification/parse_api_path.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function printAgentLinkPath(link: AgentLink) {
@@ -26,9 +26,9 @@ export function printAgentLinkPath(link: AgentLink) {
             // In case two chats have the same label, this will dedup them
             const chatMessageLabel = dedupeAgentLinkPath(
                 link.label,
-                // If the root message was deduped, use that number. If `rootMessage` is null,
-                // then this is the root message – so use the current dedupe  number.
-                // For more, see #dedupe-message-labels.
+                // If the root message was deduped, use that number. If `rootMessage` is null, then
+                // this is the root message – so use the current dedupe number. For more, see
+                // #dedupe-message-labels.
                 link.rootMessage ? link.rootMessage.dedupeNumber : link.dedupeNumber,
             );
             const paginationQueryString = printPaginationQueryString(link, link.paginationType);
@@ -38,9 +38,9 @@ export function printAgentLinkPath(link: AgentLink) {
         case "DocumentCommentThreadComments": {
             const documentCommentThreadLabel = dedupeAgentLinkPath(
                 link.label,
-                // If the root message was deduped, use that number. If `rootMessage` is null,
-                // then this is the root message – so use the current dedupe  number.
-                // For more, see #dedupe-message-labels.
+                // If the root message was deduped, use that number. If `rootMessage` is null, then
+                // this is the root message – so use the current dedupe number. For more, see
+                // #dedupe-message-labels.
                 link.rootMessage ? link.rootMessage.dedupeNumber : link.dedupeNumber,
             );
             const paginationQueryString = printPaginationQueryString(link, link.paginationType);
@@ -54,7 +54,8 @@ export function printAgentLinkPath(link: AgentLink) {
             const {localDocumentVersion} = link.localDocumentPage;
             const searchParams = new URLSearchParams();
             // NOTE(ifitzsimmons): This technically means that the first page of the document
-            // will get a query parameter, but we never actually create a link for the first page.
+            // will get a query parameter, but we never actually create a link for the first
+            // page.
             searchParams.set("page", link.localDocumentPage.pageNumber.toString());
 
             if (localDocumentVersion > 1) {
@@ -68,9 +69,9 @@ export function printAgentLinkPath(link: AgentLink) {
         case "PostComments": {
             const postCommentLabel = dedupeAgentLinkPath(
                 link.label,
-                // If the root message was deduped, use that number. If `rootMessage` is null,
-                // then this is the root message – so use the current dedupe  number.
-                // For more, see #dedupe-message-labels.
+                // If the root message was deduped, use that number. If `rootMessage` is null, then
+                // this is the root message – so use the current dedupe number. For more, see
+                // #dedupe-message-labels.
                 link.rootMessage ? link.rootMessage.dedupeNumber : link.dedupeNumber,
             );
             const paginationQueryString = printPaginationQueryString(link, link.paginationType);
@@ -88,9 +89,9 @@ export function printAgentLinkPath(link: AgentLink) {
         case "TaskComments": {
             const taskCommentLabel = dedupeAgentLinkPath(
                 link.label,
-                // If the root message was deduped, use that number. If `rootMessage` is null,
-                // then this is the root message – so use the current dedupe  number.
-                // For more, see #dedupe-message-labels.
+                // If the root message was deduped, use that number. If `rootMessage` is null, then
+                // this is the root message – so use the current dedupe number. For more, see
+                // #dedupe-message-labels.
                 link.rootMessage ? link.rootMessage.dedupeNumber : link.dedupeNumber,
             );
             const paginationQueryString = printPaginationQueryString(link, link.paginationType);
@@ -126,6 +127,11 @@ export function printAgentLinkPath(link: AgentLink) {
     }
 }
 
+// TODO(calebmer, #api-path-destruction): Why return a string here when we just
+// have to parse it back into an object when we use the path? Why not return an
+// `ApiTarget` object and avoid the print-to-string then parse-from-string
+// roundtrip? We may be able to get rid of `ApiPath` entirely (and related helpers)
+// after this.
 export function printApiPathForAgentLink(link: AgentLink): ApiPath {
     switch (link.type) {
         case "Account": {
@@ -182,9 +188,9 @@ export function printAgentPlainTextLabel(link: AgentLink): string {
             return link.label;
         }
         case "Task": {
-            // Intentionally not including whether the task is active in this label.
-            // Keeping things simple for the agent. The agent can read the task to see
-            // whether it's active.
+            // Intentionally not including whether the task is active in this label. Keeping
+            // things simple for the agent. The agent can read the task to see whether it's
+            // active.
             return `${link.title} ${link.status.type === "Open" ? "(Open)" : "(Closed)"}`;
         }
         case "TaskComments": {

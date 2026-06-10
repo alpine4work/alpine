@@ -59,6 +59,7 @@ function TaskQueryViewCustomizationMobileSection(
         onFiltersChange,
         sorts,
         onSortsChange,
+        excludeFilters,
     }: {
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -74,6 +75,7 @@ function TaskQueryViewCustomizationMobileSection(
         ) => void;
         sorts: ReadonlyArray<TaskQuerySort>;
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+        excludeFilters?: ReadonlySet<TaskQueryFilter["type"]>;
     },
     ref: Ref<TaskQueryViewCustomizationMobileSectionRef>,
 ) {
@@ -155,6 +157,7 @@ function TaskQueryViewCustomizationMobileSection(
                     firstCollectionsFilterOperationValueTriggerButtonRef={
                         firstCollectionsFilterOperationValueTriggerButtonRef
                     }
+                    excludeFilters={excludeFilters}
                 />
             )}
             {areSortsVisible && (
@@ -177,6 +180,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
     filterReferences,
     onFiltersChange,
     firstCollectionsFilterOperationValueTriggerButtonRef,
+    excludeFilters,
 }: {
     store: TaskClientStore;
     queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -188,6 +192,7 @@ function TaskQueryViewCustomizationMobileSectionFilters({
         options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
     firstCollectionsFilterOperationValueTriggerButtonRef: RefObject<OverlayTriggerButtonRef | null>;
+    excludeFilters?: ReadonlySet<TaskQueryFilter["type"]>;
 }) {
     let hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = false;
 
@@ -214,11 +219,12 @@ function TaskQueryViewCustomizationMobileSectionFilters({
                     onAddFilter={filter => {
                         onFiltersChange([filter, ...filters]);
                     }}
+                    excludeFilters={excludeFilters}
                 >
                     <Button
                         icon={<Plus />}
-                        // Icon placed at the end since otherwise we'd have the text "Add" and it
-                        // wouldn't be flush with the right border of our filters.
+                        // Icon placed at the end since otherwise we'd have the text "Add" and it wouldn't
+                        // be flush with the right border of our filters.
                         iconPlacement="end"
                         paddingX="1.5"
                         height={taskQueryViewCustomizationMobileSectionHeaderHeight}
@@ -308,9 +314,8 @@ function TaskQueryViewCustomizationMobileSectionSorts({
         onSortsChange(sortsWithId.map(({sort}) => sort));
     };
 
-    // We assign IDs to sort objects within this function. If we receive new sorts
-    // from props that don't match our state then reset our state and
-    // regenerate IDs.
+    // We assign IDs to sort objects within this function. If we receive new sorts from
+    // props that don't match our state then reset our state and regenerate IDs.
     if (
         !useMemo(
             () =>
@@ -353,8 +358,8 @@ function TaskQueryViewCustomizationMobileSectionSorts({
                 >
                     <Button
                         icon={<Plus />}
-                        // Icon placed at the end since otherwise we'd have the text "Add" and it
-                        // wouldn't be flush with the right border of our filters.
+                        // Icon placed at the end since otherwise we'd have the text "Add" and it wouldn't
+                        // be flush with the right border of our filters.
                         iconPlacement="end"
                         paddingX="1.5"
                         height={taskQueryViewCustomizationMobileSectionHeaderHeight}

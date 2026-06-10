@@ -6,10 +6,11 @@ import {
 import {AccountId, BrowserId} from "~/shared/id/types/id_types.js";
 
 /**
- * Get a web push subscription item if it exists for the provided `accountId` and `browserId`.
+ * Get a web push subscription item if it exists for the provided `accountId` and
+ * `browserId`.
  *
- * Performs no authorization, you should use `getWebPushSubscription()` or ensure you check
- * authorization before calling this function.
+ * Performs no authorization, you should use `getWebPushSubscription()` or ensure
+ * you check authorization before calling this function.
  */
 export function getWebPushSubscriptionItemIfExistsWithoutAuthorization(
     context: ServerActionContext,

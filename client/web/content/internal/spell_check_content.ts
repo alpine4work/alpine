@@ -25,11 +25,11 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 
 /**
- * Creates a ProseMirror incremental reducer that runs spell check on our
- * content. If you call the `spellCheckContent()` function returned by this
- * function with content that only has small edits we'll only re-run the spell
- * check on parts of the content that changed and return cached lints for the
- * rest thanks to ProseMirror's structural sharing.
+ * Creates a ProseMirror incremental reducer that runs spell check on our content.
+ * If you call the `spellCheckContent()` function returned by this function with
+ * content that only has small edits we'll only re-run the spell check on parts of
+ * the content that changed and return cached lints for the rest thanks to
+ * ProseMirror's structural sharing.
  */
 export function createSpellCheckContent({
     spaceId,
@@ -81,14 +81,14 @@ export function createSpellCheckContent({
                     const mention: ContentMention = childNode.attrs.mention;
 
                     // Get a snapshot of the mention text. Both with a snapshot of references
-                    // (`getReferences()`) and a snapshot of the mention text store. We don't listen
-                    // to changes to either. We'll never report a spelling issue inside a mention so
-                    // it doesn't matter if our mention text isn't up-to-date. We only care about
-                    // the mention text since it might provide useful context for the spell checker
-                    // as to what the words before/after mean.
+                    // (`getReferences()`) and a snapshot of the mention text store. We don't listen to
+                    // changes to either. We'll never report a spelling issue inside a mention so it
+                    // doesn't matter if our mention text isn't up-to-date. We only care about the
+                    // mention text since it might provide useful context for the spell checker as to
+                    // what the words before/after mean.
                     //
-                    // For example, we want the spell checker to "Hello, Caleb!" instead of
-                    // "Hello, !" since the latter it may report an error for.
+                    // For example, we want the spell checker to "Hello, Caleb!" instead of "Hello, !"
+                    // since the latter it may report an error for.
                     const mentionText = renderContentMentionToTextForClient(
                         store => store.getSnapshot(),
                         mention,
@@ -135,17 +135,17 @@ export function createSpellCheckContent({
                     let iterationIndex = 0;
                     let from: number | null = null;
 
-                    // TODO(#spell-check): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w2razny8st2t5x9h29vp7hw3vm
-                    //   The indexing of the matching lint here isn't quite right. For example,
-                    //   if we have "`InboxTable` is InboxTable", the lint for `InboxTable` is
-                    //   ignored because it's code, but the lint for the second InboxTable
-                    //   (that is not in code), will be ignored as well. Why?
-                    // Go through our content items to find the matching lint
+                    // TODO(#spell-check):
+                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w2razny8st2t5x9h29vp7hw3vm
+                    // The indexing of the matching lint here isn't quite right. For example, if we
+                    // have "`InboxTable` is InboxTable", the lint for `InboxTable` is ignored because
+                    // it's code, but the lint for the second InboxTable (that is not in code), will be
+                    // ignored as well. Why? Go through our content items to find the matching lint
                     for (let i = 0; i < content.length; i++) {
                         const item = assertExists(content[i]);
 
-                        // If we're at the end of our content, add an additional index to our end
-                        // to catch lints at the end of the document
+                        // If we're at the end of our content, add an additional index to our end to catch
+                        // lints at the end of the document
                         const nextIterationIndex =
                             iterationIndex + item.text.length + (i === content.length - 1 ? 1 : 0);
 
@@ -158,14 +158,13 @@ export function createSpellCheckContent({
                             from = item.pos + (targetStartIndex - iterationIndex);
                         }
 
-                        // If the lint crosses a non-text node we ignore it. We only report lints in
-                        // the content's own text.
+                        // If the lint crosses a non-text node we ignore it. We only report lints in the
+                        // content's own text.
                         if (from !== null && !item.isTextNode) {
                             return;
                         }
 
-                        // If the lint ends in this item then record `to` using the ProseMirror
-                        // position.
+                        // If the lint ends in this item then record `to` using the ProseMirror position.
                         if (
                             from !== null &&
                             iterationIndex <= targetEndIndex &&
@@ -194,10 +193,10 @@ export function createSpellCheckContent({
         return (promises, doc, offset) => {
             const actualPromise = promise.then(lints =>
                 lints.map(lint => ({
-                    // This key is used for caching lints in the spell checker plugin.
-                    // Even though the lint itself has a key from the spell checker engine,
-                    // we need a unique key per position in the document. We intentionally
-                    // do not use the lint's original key here to avoid collisions.
+                    // This key is used for caching lints in the spell checker plugin. Even though the
+                    // lint itself has a key from the spell checker engine, we need a unique key per
+                    // position in the document. We intentionally do not use the lint's original key
+                    // here to avoid collisions.
                     key: generateContentSpellCheckLintKey(),
                     from: offset + lint.from,
                     to: offset + lint.to,
@@ -285,8 +284,8 @@ export async function actuallySpellCheckContent(
             "formatting";
 
         result.push({
-            // We could use a Symbol here, but Firefox does not support symbols as WeakMap keys.
-            //   See: https://bugzilla.mozilla.org/show_bug.cgi?id=1710433
+            // We could use a Symbol here, but Firefox does not support symbols as WeakMap
+            // keys. See: https://bugzilla.mozilla.org/show_bug.cgi?id=1710433
             key: generateContentSpellCheckLintKey(),
             index: span.start,
             length: span.end - span.start,

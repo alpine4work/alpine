@@ -10,10 +10,13 @@ import {
     ServerUnknownActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {ActorContextModule, ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
+import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
+import {LoopsContextModuleBase} from "~/server/spaces/loops_context_module.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -28,7 +31,10 @@ type TestContextExtraModules = {
     email: EmailContextModuleBase;
     billing: BillingContextModuleBase;
     importer: ImporterContextModuleBase;
+    importerService: ImporterServiceContextModuleBase;
+    slack: SlackContextModuleBase;
     logoDev: LogoDevContextModuleBase;
+    loops: LoopsContextModuleBase;
 };
 
 export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;
@@ -115,8 +121,8 @@ export type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase
     /**
      * An action for a bot in some specified scope.
      *
-     * This function assumes you've already validated that `botAccountId` is
-     * actually an `AccountId` for a bot account.
+     * This function assumes you've already validated that `botAccountId` is actually
+     * an `AccountId` for a bot account.
      */
     botAction(
         spaceId: SpaceId,

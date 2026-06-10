@@ -6,9 +6,8 @@ import type {
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
 /**
- * Creates an {@link OpfsSyncAccessHandle} backed by a
- * single growable in-memory `Uint8Array`. Suitable for
- * tests that exercise OPFS-backed code paths without
+ * Creates an {@link OpfsSyncAccessHandle} backed by a single growable in-memory
+ * `Uint8Array`. Suitable for tests that exercise OPFS-backed code paths without
  * touching real OPFS.
  */
 export function createInMemoryOpfsSyncAccessHandle(): OpfsSyncAccessHandle {
@@ -52,9 +51,8 @@ export function createInMemoryOpfsSyncAccessHandle(): OpfsSyncAccessHandle {
 }
 
 /**
- * Creates an in-memory {@link OpfsDirectoryHandle}. Each
- * directory and file is backed by a `Map`, and file
- * contents persist across `getFileHandle` calls within
+ * Creates an in-memory {@link OpfsDirectoryHandle}. Each directory and file is
+ * backed by a `Map`, and file contents persist across `getFileHandle` calls within
  * the same directory.
  */
 export function createInMemoryOpfsDirectoryHandle(): OpfsDirectoryHandle {
@@ -89,9 +87,8 @@ export function createInMemoryOpfsDirectoryHandle(): OpfsDirectoryHandle {
 }
 
 /**
- * Reads the main table's `pages.bin` + `index.json`
- * files from a group dir. Mirrors the on-disk layout
- * that {@link OpfsPageStore} writes inside
+ * Reads the main table's `pages.bin` + `index.json` files from a group dir.
+ * Mirrors the on-disk layout that {@link OpfsPageStore} writes inside
  * `groupDir/{mainTableId}/`.
  */
 export async function extractOpfsPages(groupDir: OpfsDirectoryHandle): Promise<{
@@ -121,9 +118,9 @@ export async function extractOpfsPages(groupDir: OpfsDirectoryHandle): Promise<{
 }
 
 /**
- * Writes pages + index into a group dir's main table
- * subdirectory so that a subsequent `DatabaseClient.create`
- * opens an existing DB rather than creating a fresh one.
+ * Writes pages + index into a group dir's main table subdirectory so that a
+ * subsequent `DatabaseClient.create` opens an existing DB rather than creating a
+ * fresh one.
  */
 export async function prepopulateOpfsPages(
     groupDir: OpfsDirectoryHandle,

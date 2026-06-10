@@ -18,10 +18,7 @@ import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {ThumbsUpFill2Icon} from "~/client/web/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
-import {
-    ReactionPickerRef,
-    reactionPickerIconEmotions,
-} from "~/client/web/reactions/internal/reaction_picker_base.js";
+import {ReactionPickerRef} from "~/client/web/reactions/internal/reaction_picker_base.js";
 import {orderedReactionEmotions} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
@@ -30,6 +27,7 @@ import {withoutClearSelectionOnMouseDownClassName} from "~/client/web/styles/sty
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {Reaction, areReactionsEqual} from "~/shared/reactions/reaction.js";
@@ -48,7 +46,7 @@ const reactionBarItemGapRem = parseRemLength("1.5");
 const reactionBarPaddingRem = parseRemLength("1");
 
 // Min/max item counts: thumbs up + N emotions + more button
-const minItemCount = 4;
+const minItemCount = 6;
 const maxItemCount = 8;
 
 // Height is padding + item size + padding
@@ -59,7 +57,8 @@ const expandedEmotionRowGapRem = parseRemLength("1");
 
 /**
  * Calculate how many items can fit in the bar based on the available screen width.
- * Always includes thumbs up and more button and is bounded by `minItemCount` and `maxItemCount`.
+ * Always includes thumbs up and more button and is bounded by `minItemCount` and
+ * `maxItemCount`.
  */
 function calculateItemCount(screenWidthPx: number, spacingScale: SpacingScale): number {
     const remPx = remPxBySpacingScale[spacingScale];
@@ -96,9 +95,10 @@ const ReactionBarPickerForwardRef = forwardRef(ReactionBarPicker);
 export {ReactionBarPickerForwardRef as ReactionBarPicker};
 
 /**
- * A picker for reactions that appears as a bar with a thumbs up button, emotions, and a more button.
- * The number of emotions shown adapts to fit the screen width (min 4 items, max 8 items total).
- * It is intended to be used on mobile devices and supports touch controls.
+ * A picker for reactions that appears as a bar with a thumbs up button, emotions,
+ * and a more button. The number of emotions shown adapts to fit the screen width
+ * (min 4 items, max 8 items total). It is intended to be used on mobile devices
+ * and supports touch controls.
  */
 function ReactionBarPicker(
     {
@@ -118,7 +118,10 @@ function ReactionBarPicker(
     },
     ref: Ref<ReactionPickerRef>,
 ) {
-    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {
+        currentAccount,
+        currentAccountSettings: {reactionAffinity},
+    } = useSpaceContextAndRequireSpaceAccess();
     const {screenWidth} = useClientInfo();
     const spacingScale = useSpacingScale();
 
@@ -143,8 +146,9 @@ function ReactionBarPicker(
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Store the displayed primary reactions and extra reactions so we can freeze them during
-    // interaction. This prevents the UI from changing while the user is interacting with the picker.
+    // Store the displayed primary reactions and extra reactions so we can freeze them
+    // during interaction. This prevents the UI from changing while the user is
+    // interacting with the picker.
     const [primaryReactions, setPrimaryReactions] = useState<Array<Reaction>>([]);
     const [extraReactions, setExtraReactions] = useState<Array<Reaction>>([]);
 
@@ -217,33 +221,50 @@ function ReactionBarPicker(
     const moreButtonIndex = itemCount - 1;
     // Number of emotion icons to show (itemCount minus thumbs up and more button)
     const emotionCount = itemCount - 2;
+
+    const pickerEmotions = useMemo(() => {
+        switch (emotionCount) {
+            case 4:
+                return reactionAffinity.top4ReactionEmotions
+                    .map(({emotion}) => emotion)
+                    .toReversed();
+            case 5:
+                return reactionAffinity.top5ReactionEmotions
+                    .map(({emotion}) => emotion)
+                    .toReversed();
+            case 6:
+                return reactionAffinity.top6ReactionEmotions
+                    .map(({emotion}) => emotion)
+                    .toReversed();
+            default:
+                throw new InvalidArgumentError(`Invalid emotion count: ${emotionCount}`);
+        }
+    }, [reactionAffinity, emotionCount]);
     const barWidthRem = calculateBarWidthRem(itemCount);
 
-    // The primary bar shows `emotionCount` emotions from `reactionPickerIconEmotions` plus the
-    // current account reaction if it's a reaction that is not normally shown in the primary bar.
-    // The expanded bar shows all remaining emotions.
+    // The primary bar shows `emotionCount` emotions from the affinity-sorted picker
+    // emotions plus the current account reaction if it's a reaction that is not
+    // normally shown in the primary bar. The expanded bar shows all remaining
+    // emotions.
     const getReactions = useCallback(() => {
         const extraEmotions = orderedReactionEmotions.filter(
-            emotion => !reactionPickerIconEmotions.includes(emotion),
+            emotion => !pickerEmotions.includes(emotion),
         );
-        // True if we do not need to append the current account reaction to the primary bar.
+        // True if we do not need to append the current account reaction to the primary
+        // bar.
         if (
             !currentAccountReaction ||
             currentAccountReaction === "GenericLike" ||
-            reactionPickerIconEmotions
+            pickerEmotions
                 .slice(0, emotionCount)
                 .some(emotion => areReactionsEqual(currentAccountReaction, {character, emotion}))
         ) {
             return {
                 barReactions: [
-                    ...reactionPickerIconEmotions
-                        .slice(0, emotionCount)
-                        .map(emotion => ({character, emotion})),
+                    ...pickerEmotions.slice(0, emotionCount).map(emotion => ({character, emotion})),
                 ],
                 extraReactions: [
-                    ...reactionPickerIconEmotions
-                        .slice(emotionCount)
-                        .map(emotion => ({character, emotion})),
+                    ...pickerEmotions.slice(emotionCount).map(emotion => ({character, emotion})),
                     ...extraEmotions.map(emotion => ({character, emotion})),
                 ],
             };
@@ -251,12 +272,12 @@ function ReactionBarPicker(
             return {
                 barReactions: [
                     currentAccountReaction,
-                    ...reactionPickerIconEmotions
+                    ...pickerEmotions
                         .slice(0, emotionCount - 1)
                         .map(emotion => ({character, emotion})),
                 ],
                 extraReactions: [
-                    ...reactionPickerIconEmotions
+                    ...pickerEmotions
                         .slice(emotionCount - 1)
                         .map(emotion => ({character, emotion})),
                     ...extraEmotions
@@ -268,7 +289,7 @@ function ReactionBarPicker(
                 ],
             };
         }
-    }, [currentAccountReaction, character, emotionCount]);
+    }, [currentAccountReaction, character, emotionCount, pickerEmotions]);
 
     // Calculate how many emotions fit per row based on bar width
     const extraReactionsRowCount = Math.ceil(extraReactions.length / itemCount);
@@ -411,7 +432,8 @@ function ReactionBarPicker(
         ],
     );
 
-    // Get the current active reaction index from pointer coordinates relative to the bar container.
+    // Get the current active reaction index from pointer coordinates relative to the
+    // bar container.
     const calculateActiveIndex = useCallback(
         (xCoordinate: number, yCoordinate: number): number | null => {
             const barContainerElement = barContainerRef.current;
@@ -445,16 +467,17 @@ function ReactionBarPicker(
                 const contentX = relativeX - paddingPx;
                 const itemWithGapWidth = itemSizePx + gapPx;
 
-                // When expanded, the expanded emotions are at the top (y=0 to expandedReactionsHeightPx)
-                // and the main bar is at the bottom (y=expandedReactionsHeightPx to totalBarHeightPx)
+                // When expanded, the expanded emotions are at the top (y=0 to
+                // expandedReactionsHeightPx) and the main bar is at the bottom
+                // (y=expandedReactionsHeightPx to totalBarHeightPx)
                 const isWithinExpandedEmotions =
                     isExpanded && relativeY < expandedReactionsHeightPx;
 
                 if (isWithinExpandedEmotions) {
                     if (extraReactions.length === 0) return null;
 
-                    // Calculate which row in the expanded emotions grid
-                    // Account for padding at the top of the expanded section
+                    // Calculate which row in the expanded emotions grid Account for padding at the top
+                    // of the expanded section
                     const expandedContentY = relativeY - paddingPx;
                     const rowWithGapHeight = itemSizePx + expandedRowGapPx;
                     const rowIndex = Math.floor(expandedContentY / rowWithGapHeight);
@@ -465,8 +488,8 @@ function ReactionBarPicker(
                         Math.min(extraReactionsRowCount - 1, rowIndex),
                     );
 
-                    // Calculate how many items are in this row - distribute remainder evenly
-                    // with extra items pushed to bottom rows
+                    // Calculate how many items are in this row - distribute remainder evenly with
+                    // extra items pushed to bottom rows
                     const totalItems = extraReactions.length;
                     const baseItemsPerRow = Math.floor(totalItems / extraReactionsRowCount);
                     const remainder = totalItems % extraReactionsRowCount;
@@ -474,8 +497,8 @@ function ReactionBarPicker(
                         baseItemsPerRow +
                         (clampedRowIndex >= extraReactionsRowCount - remainder ? 1 : 0);
 
-                    // The expanded emotions are centered, so we need to
-                    // calculate the centering offset to correctly determine which column was clicked
+                    // The expanded emotions are centered, so we need to calculate the centering offset
+                    // to correctly determine which column was clicked
                     const availableWidth = barWidthPx - 2 * paddingPx;
                     const rowWidth = itemsInThisRow * itemSizePx + (itemsInThisRow - 1) * gapPx;
                     const centeringOffset = (availableWidth - rowWidth) / 2;
@@ -560,14 +583,16 @@ function ReactionBarPicker(
         };
     }, []);
 
-    // The background color for the like reaction varies based on selection and pointer interaction.
-    // It is darkest when it is selected and interacted with, slightly lighter when selected and not
-    // interacted with, and lightest when it is not selected but interacted with.
+    // The background color for the like reaction varies based on selection and pointer
+    // interaction. It is darkest when it is selected and interacted with, slightly
+    // lighter when selected and not interacted with, and lightest when it is not
+    // selected but interacted with.
     const getThumbsUpBackgroundColor = useCallback(
         (isPressed: boolean, isPointerDownFromOverlayOpen: boolean) => {
             // Like is currently selected
             if (currentAccountReaction === "GenericLike") {
-                // Like is currently active (the like icon is being pressed or the pointer is over it)
+                // Like is currently active (the like icon is being pressed or the pointer is over
+                // it)
                 if (activeIndex === 0) {
                     if (isPressed || isPointerDownFromOverlayOpen) {
                         return "grey-20";
@@ -579,7 +604,8 @@ function ReactionBarPicker(
                 }
                 // Like is not currently selected
             } else {
-                // Like is currently active (the like icon is being pressed or the pointer is over it)
+                // Like is currently active (the like icon is being pressed or the pointer is over
+                // it)
                 if (activeIndex === 0) {
                     if (isPressed || isPointerDownFromOverlayOpen) {
                         return "grey-10";
@@ -598,10 +624,10 @@ function ReactionBarPicker(
     return (
         <Box
             ref={barContainerRef}
-            // Don't clear the selection when clicking on the reaction bar picker. So
-            // when you open the reaction bar picker from `<MessageViewPointerToolbar>`
-            // then click on the empty space we don't clear the selection and close
-            // the `<MessageViewPointerToolbar>`.
+            // Don't clear the selection when clicking on the reaction bar picker. So when you
+            // open the reaction bar picker from `<MessageViewPointerToolbar>` then click on
+            // the empty space we don't clear the selection and close the
+            // `<MessageViewPointerToolbar>`.
             className={withoutClearSelectionOnMouseDownClassName}
             pointerEvents="none"
             style={{
@@ -657,8 +683,8 @@ function ReactionBarPicker(
                     }}
                 >
                     {Array.from({length: extraReactionsRowCount}).map((_, rowIndex) => {
-                        // Calculate how many items are in this row - distribute remainder evenly
-                        // with extra items pushed to bottom rows
+                        // Calculate how many items are in this row - distribute remainder evenly with
+                        // extra items pushed to bottom rows
                         const totalItems = extraReactions.length;
                         const baseItemsPerRow = Math.floor(totalItems / extraReactionsRowCount);
                         const remainder = totalItems % extraReactionsRowCount;

@@ -12,41 +12,40 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * The cached routes object becomes invalid after this period of time. You must
- * block while reloading the routes object. You can't use the old routes
- * object.
+ * block while reloading the routes object. You can't use the old routes object.
  */
 export const taskRealtimeServiceRoutesInvalidatedMs = 1000 * 60 * 2;
 
 /**
- * The cached routes object should be revalidated after this period of time in
- * the background. Then when the routes object becomes invalid we can use the
- * fresh routes object we prefetched so the user doesn't pay a cache
- * revalidation latency penalty.
+ * The cached routes object should be revalidated after this period of time in the
+ * background. Then when the routes object becomes invalid we can use the fresh
+ * routes object we prefetched so the user doesn't pay a cache revalidation latency
+ * penalty.
  */
 export const taskRealtimeServiceRoutesRevalidateMs =
     taskRealtimeServiceRoutesInvalidatedMs - 1000 * 5;
 
 /**
- * The time `TaskRealtimeService` waits before it considers itself to be
- * healthy. It's very important that `TaskRealtimeService` sees every new
- * committed `TaskAction`. If `TaskRealtimeService` misses a `TaskAction`
- * related to permissions then users may be allowed to view data they're not
- * supposed until, worst case, the `TaskRealtimeService` instance restarts.
+ * The time `TaskRealtimeService` waits before it considers itself to be healthy.
+ * It's very important that `TaskRealtimeService` sees every new committed
+ * `TaskAction`. If `TaskRealtimeService` misses a `TaskAction` related to
+ * permissions then users may be allowed to view data they're not supposed until,
+ * worst case, the `TaskRealtimeService` instance restarts.
  *
  * We can't consider `TaskRealtimeService` to be healthy until all of our other
  * services discover it. Until then we need to keep running our old
  * `TaskRealtimeService` nodes.
  *
  * To be safe, we wait TWO route invalidations among our services. Our
- * `TaskRealtimeService` should be discovered after only one invalidation but
- * we wait two in case the ECS API calls we make are eventually consistent.
+ * `TaskRealtimeService` should be discovered after only one invalidation but we
+ * wait two in case the ECS API calls we make are eventually consistent.
  *
- * Deployment speed is bounded by this time! So we need to balance the wait
- * time being relatively quick while also not overloading ECS APIs.
+ * Deployment speed is bounded by this time! So we need to balance the wait time
+ * being relatively quick while also not overloading ECS APIs.
  */
-// NOTE(calebmer): I know "service discovery" is an area of distributed systems
-// but I'm unfamiliar with it. Maybe there are better ways to implement
-// discovery for `TaskRealtimeService`?
+// NOTE(calebmer): I know "service discovery" is an area of distributed systems but
+// I'm unfamiliar with it. Maybe there are better ways to implement discovery for
+// `TaskRealtimeService`?
 //
 // I'd also love some protections/monitors that make sure `TaskRealtimeService`
 // does indeed see every `TaskAction`.
@@ -54,8 +53,8 @@ export const taskRealtimeServiceDiscoveryWaitMs = taskRealtimeServiceRoutesInval
 
 /**
  * Describes the layout of our `TaskRealtimeService` fleet to allow
- * `TaskRealtimeServiceRouterBase` to correctly route requests to the right
- * HTTP server(s).
+ * `TaskRealtimeServiceRouterBase` to correctly route requests to the right HTTP
+ * server(s).
  *
  * See the documentation on `TaskRealtimeServiceRouterBase` for more.
  */
@@ -83,35 +82,34 @@ export const TaskRealtimeServiceRoutesSchema = Schema.object({
     // partitions we have, we may have the old set of partitions and the new set of
     // partitions running at once.
     //
-    // To make sure we route requests properly these "planes" (segmented by
-    // partition count) need to be considered separately. Randomly picking a
-    // partition for a space across partitions with different partition counts may
-    // end up with an unexpected distribution of spaces.
+    // To make sure we route requests properly these "planes" (segmented by partition
+    // count) need to be considered separately. Randomly picking a partition for a
+    // space across partitions with different partition counts may end up with an
+    // unexpected distribution of spaces.
     partitionPlanes: Schema.array(TaskRealtimeServiceRoutesPartitionPlaneSchema),
 });
 
 /**
  * `TaskRealtimeService` is a stateful service where different `SpaceId`s are
  * handled by different server instances. So when we have a request for
- * `TaskRealtimeService` we need to route that request to the correct server.
- * This class provides the logic for that routing. The service layout is:
+ * `TaskRealtimeService` we need to route that request to the correct server. This
+ * class provides the logic for that routing. The service layout is:
  *
  * - We have a number of logical partitions
- * - Within each partition is at least one server instance, possibly more if
- *   we're in the middle of a deploy
+ * - Within each partition is at least one server instance, possibly more if we're
+ *   in the middle of a deploy
  * - Each server instance has multiple workers so it can do work in parallel
  *
- * To route a request for a `SpaceId` we pick a partition (`SpaceId`s are
- * evenly balanced across partitions with a hash function) and pick an instance
- * worker. If there are multiple running instances (there may be multiple
- * instances during a deploy or an auto-scaling rule may create a new instance)
- * we randomly pick an instance. For requests like applying an action
- * transaction in `TaskRealtimeService` then we need to apply the action
- * against all instances.
+ * To route a request for a `SpaceId` we pick a partition (`SpaceId`s are evenly
+ * balanced across partitions with a hash function) and pick an instance worker. If
+ * there are multiple running instances (there may be multiple instances during a
+ * deploy or an auto-scaling rule may create a new instance) we randomly pick an
+ * instance. For requests like applying an action transaction in
+ * `TaskRealtimeService` then we need to apply the action against all instances.
  *
- * This class has a "routes" object it uses to determine where to route
- * requests. This routes object is refreshed at regular intervals. Different
- * sub-classes will load the routes object from different places.
+ * This class has a "routes" object it uses to determine where to route requests.
+ * This routes object is refreshed at regular intervals. Different sub-classes will
+ * load the routes object from different places.
  */
 export abstract class TaskRealtimeServiceRouterBase {
     private _routesState: {
@@ -130,8 +128,8 @@ export abstract class TaskRealtimeServiceRouterBase {
      * `hostname` and `port`).
      *
      * If there are multiple URLs then that means we have multiple
-     * `TaskRealtimeService` instances for the space. You may choose one however
-     * you'd like or send a request to all of them if you need.
+     * `TaskRealtimeService` instances for the space. You may choose one however you'd
+     * like or send a request to all of them if you need.
      *
      * If there are no hosts something bad has happened while deploying! We should
      * always have at least one host per `SpaceId`.
@@ -165,8 +163,8 @@ export abstract class TaskRealtimeServiceRouterBase {
     }
 
     /**
-     * If an account wants to connect to `TaskRealtimeService` then we
-     * consistently pick a single, healthy, host.
+     * If an account wants to connect to `TaskRealtimeService` then we consistently
+     * pick a single, healthy, host.
      */
     public async getStickyAccountHost(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
@@ -189,9 +187,9 @@ export abstract class TaskRealtimeServiceRouterBase {
             return healthyHosts[0]!;
         }
 
-        // The order of hosts is not specified. Since we want to route a `SessionId` to
-        // the same host over, sort the host list so our choice is stable if the host
-        // list doesn't change.
+        // The order of hosts is not specified. Since we want to route a `SessionId` to the
+        // same host over, sort the host list so our choice is stable if the host list
+        // doesn't change.
         healthyHosts.sort();
 
         const hostIndex = this._stableRandom.randomInteger(accountId, 0, healthyHosts.length);
@@ -223,9 +221,9 @@ export abstract class TaskRealtimeServiceRouterBase {
             return healthyHosts[0]!;
         }
 
-        // The order of hosts is not specified. Since we want to route a `SessionId` to
-        // the same host over, sort the host list so our choice is stable if the host
-        // list doesn't change.
+        // The order of hosts is not specified. Since we want to route a `SessionId` to the
+        // same host over, sort the host list so our choice is stable if the host list
+        // doesn't change.
         healthyHosts.sort();
 
         const hostIndex = randomInteger(healthyHosts.length);
@@ -237,9 +235,8 @@ export abstract class TaskRealtimeServiceRouterBase {
      * Load the current routes object which tells us how many `TaskRealtimeService`
      * instances are running and the network address to reach them.
      *
-     * This function always loads the routes object fresh. Instead you should
-     * generally call `_getRoutes()` which caches the routes object for some
-     * duration.
+     * This function always loads the routes object fresh. Instead you should generally
+     * call `_getRoutes()` which caches the routes object for some duration.
      */
     protected abstract _loadRoutes(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
@@ -247,16 +244,16 @@ export abstract class TaskRealtimeServiceRouterBase {
     ): Promise<TaskRealtimeServiceRoutes>;
 
     /**
-     * Get the current routes object. Calls `_loadRoutes()` and caches the result
-     * for some duration.
+     * Get the current routes object. Calls `_loadRoutes()` and caches the result for
+     * some duration.
      */
     public getRoutes(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
     ): Promise<TaskRealtimeServiceRoutes> {
         const currentTime = Date.now();
 
-        // If our routes promise is invalidated and we have a new promise at the
-        // ready, substitute it in.
+        // If our routes promise is invalidated and we have a new promise at the ready,
+        // substitute it in.
         if (
             this._routesState &&
             currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesInvalidatedMs &&
@@ -272,14 +269,13 @@ export abstract class TaskRealtimeServiceRouterBase {
         // This branch runs if one of the following is true:
         //
         // 1. We haven't loaded routes yet yet; OR
-        // 2. We have a routes promise that's invalidated and have not started
-        //    a new routes promise in the background; OR
-        // 3. We had started a new routes promise in the background but enough
-        //    time has passed that the background routes promise has become
-        //    invalidated.
+        // 2. We have a routes promise that's invalidated and have not started a new routes
+        //    promise in the background; OR
+        // 3. We had started a new routes promise in the background but enough time has
+        //    passed that the background routes promise has become invalidated.
         //
-        // We reach case 3 if the branch above sets the new routes promise but
-        // the new routes promise is also invalidated.
+        // We reach case 3 if the branch above sets the new routes promise but the new
+        // routes promise is also invalidated.
         if (
             this._routesState === null ||
             currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesInvalidatedMs
@@ -294,9 +290,8 @@ export abstract class TaskRealtimeServiceRouterBase {
             };
         }
 
-        // If we've passed our revalidation timeout then reload routes in the
-        // background. Once our current routes promise expires we can switch to
-        // this one.
+        // If we've passed our revalidation timeout then reload routes in the background.
+        // Once our current routes promise expires we can switch to this one.
         if (
             currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesRevalidateMs &&
             !this._routesState.next

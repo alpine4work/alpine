@@ -28,6 +28,7 @@ export function getSpaceAvatarContainerClassName({
     return classNames(
         hiddenClassName,
         sprinkles({
+            flexShrink: "0",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

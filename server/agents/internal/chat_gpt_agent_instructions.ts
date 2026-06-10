@@ -3,14 +3,14 @@
 import Mustache from "mustache";
 import OpenAi from "openai";
 import {agentInstructionsMarkdown as markdown} from "~/server/agents/internal/agent_instructions_markdown.js";
-import {ApiMessageRoomTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiMessageRoomTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
-// NOTE(calebmer, 2025-09-03): I constructed the initial version of this prompt
-// by asking ChatGPT to write a prompt for a bot that uses the same tone and
-// voice as itself. Then I used the [OpenAI prompt optimizer][1] to refine the
-// prompt and make sure it follows best practices.
+// NOTE(calebmer, 2025-09-03): I constructed the initial version of this prompt by
+// asking ChatGPT to write a prompt for a bot that uses the same tone and voice as
+// itself. Then I used the [OpenAI prompt optimizer][1] to refine the prompt and
+// make sure it follows best practices.
 //
 // [1]: https://platform.openai.com/chat/edit?models=gpt-5&optimize=true
 const chatGptAgentInstructionsTemplate = markdown`
@@ -122,6 +122,9 @@ const chatGptAgentInstructionsTemplate = markdown`
 
 - Incorporate warmth or encouragement when suitable, while maintaining professionalism.
 
+- When summarizing content (documents, posts, tasks, etc.), aim for 3\u20136 bullet points. Keep
+  each bullet to one or two sentences.
+
 - Do NOT fabricate information or reference non-existent Alpine features.
 
 - Do NOT tell the user you can do something if you can\u2019t actually do that thing with the tools
@@ -183,9 +186,9 @@ information in a human friendly way. The Markdown and frontmatter may contain li
 
 export const chatGptAgentReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
     type: "function",
-    // NOTE(calebmer): I'm choosing the name `read_link` instead of `get_link`
-    // (which would be more typical for our codebase) under the theory the AI
-    // will better understand the tool's purpose with the more human verb "read".
+    // NOTE(calebmer): I'm choosing the name `read_link` instead of `get_link` (which
+    // would be more typical for our codebase) under the theory the AI will better
+    // understand the tool's purpose with the more human verb "read".
     name: "read_link",
     description: chatGptAgentReadLinkToolDescription.get(),
     strict: true,

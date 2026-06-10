@@ -4,16 +4,17 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
- * A sort determines what order tasks are in when showing a query to the user.
- * The UI allows users to edit sorts which are represented by this type.
+ * A sort determines what order tasks are in when showing a query to the user. The
+ * UI allows users to edit sorts which are represented by this type.
  *
- * Before we execute a query we normalize sorts to `TaskQueryNormalizedSort`.
- * This adds a created time filter and removes any duplicate filters. The
- * `TaskQueryNormalizedSort` filter type also supports some internal filters
- * which are not available in the UI.
+ * Before we execute a query we normalize sorts to `TaskQueryNormalizedSort`. This
+ * adds a created time filter and removes any duplicate filters. The
+ * `TaskQueryNormalizedSort` filter type also supports some internal filters which
+ * are not available in the UI.
  */
 export type TaskQuerySort =
     | TaskQueryDisplayStatusSort
+    | TaskQueryLayoutSort
     | TaskQueryPrioritySort
     | TaskQueryAssigneeSort
     | TaskQueryCreatorSort
@@ -32,6 +33,11 @@ export type TaskQueryDisplayStatusSort = {
 export type TaskQueryPrioritySort = {
     readonly type: "Priority";
     readonly direction: "Ascending" | "Descending";
+};
+
+export type TaskQueryLayoutSort = {
+    readonly type: "Layout";
+    readonly missing: "First" | "Last";
 };
 
 export type TaskQueryAssigneeSort = {
@@ -84,18 +90,17 @@ export function deserializeTaskQuerySortsSearchParam(sorts: string): ReadonlyArr
 }
 
 /**
- * Serialize a list of task query sorts to binary data. This binary data can
- * then be encoded in the URL. We use a binary format to make sure sorts in
- * the URL are as small as possible and opaque to end users.
+ * Serialize a list of task query sorts to binary data. This binary data can then
+ * be encoded in the URL. We use a binary format to make sure sorts in the URL are
+ * as small as possible and opaque to end users.
  *
- * We may introduce a plain text format for sorts in the future so that end
- * users can generate view URLs.
+ * We may introduce a plain text format for sorts in the future so that end users
+ * can generate view URLs.
  */
 export function serializeTaskQuerySorts(sorts: ReadonlyArray<TaskQuerySort>): ArrayBuffer {
-    // Make sure the sort length can fit in 7 bits. We always set the first bit
-    // to 1 as a version marker. If we introduce a new binary format in the future
-    // the first bit will be 0 which will tell our deserializer to use a different
-    // format.
+    // Make sure the sort length can fit in 7 bits. We always set the first bit to 1 as
+    // a version marker. If we introduce a new binary format in the future the first
+    // bit will be 0 which will tell our deserializer to use a different format.
     if (sorts.length > 2 ** 7 - 1) throw new InvalidArgumentError("Too many sorts");
 
     const sortByteLengths = sorts.map(sort => getTaskQuerySortByteLength(sort));
@@ -148,6 +153,8 @@ function getTaskQuerySortByteLength(sort: TaskQuerySort): number {
         case "DisplayStatus":
             return 1;
         case "Priority":
+            return 1;
+        case "Layout":
             return 1;
         case "Assignee":
             return 1;
@@ -248,6 +255,14 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
+        case "Layout": {
+            if (sort.missing === "First") {
+                view.setUint8(0, 20);
+            } else {
+                view.setUint8(0, 21);
+            }
+            break;
+        }
         default:
             throw exhaustive(sort);
     }
@@ -298,6 +313,10 @@ function deserializeTaskQuerySort(view: DataView): {
             return {sort: {type: "ActivatedTime", direction: "Ascending"}, byteLength: 1};
         case 19:
             return {sort: {type: "ActivatedTime", direction: "Descending"}, byteLength: 1};
+        case 20:
+            return {sort: {type: "Layout", missing: "First"}, byteLength: 1};
+        case 21:
+            return {sort: {type: "Layout", missing: "Last"}, byteLength: 1};
         default:
             throw new InvalidArgumentError(`Unrecognized sort type ${typeByte}`);
     }

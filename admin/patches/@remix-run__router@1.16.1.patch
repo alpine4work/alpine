@@ -14,7 +14,7 @@ index bda672225f076be7fc7350f01e11a35d84ba167a..d3b553e3db679bb5982854b5240adf7b
  /**
   * Memory history stores the current location in memory. It is designed for use
 diff --git a/dist/router.cjs.js b/dist/router.cjs.js
-index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dcd86af14d 100644
+index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..dc0c87e9ef87d4ba85b078b8de1b02510d7ed911 100644
 --- a/dist/router.cjs.js
 +++ b/dist/router.cjs.js
 @@ -27,6 +27,37 @@ function _extends() {
@@ -162,17 +162,18 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -2177,7 +2290,8 @@ function createRouter(init) {
+@@ -2177,7 +2290,9 @@ function createRouter(init) {
        preventScrollReset,
        replace: opts && opts.replace,
        enableViewTransition: opts && opts.unstable_viewTransition,
 -      flushSync
 +      flushSync,
-+      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate
++      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate,
++      unstable_headers: opts && opts.unstable_headers
      });
    }
  
-@@ -2247,6 +2361,30 @@ function createRouter(init) {
+@@ -2247,6 +2362,30 @@ function createRouter(init) {
        } = getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -203,7 +204,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
        completeNavigation(location, {
          matches: notFoundMatches,
          loaderData: {},
-@@ -2265,7 +2403,33 @@ function createRouter(init) {
+@@ -2265,7 +2404,33 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -238,7 +239,27 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
        completeNavigation(location, {
          matches
        }, {
-@@ -2314,6 +2478,24 @@ function createRouter(init) {
+@@ -2276,7 +2441,9 @@ function createRouter(init) {
+ 
+     // Create a controller/Request for this navigation
+     pendingNavigationController = new AbortController();
+-    let request = createClientSideRequest(init.history, location, pendingNavigationController.signal, opts && opts.submission);
++    // NOTE(calebmer): Allow passing in HTTP headers to `?_data` requests from
++    // `navigate()`.
++    let request = createClientSideRequest(init.history, location, pendingNavigationController.signal, opts && opts.submission, opts && opts.unstable_headers);
+     let pendingActionResult;
+     if (opts && opts.pendingError) {
+       // If we have a pendingError, it means the user attempted a GET submission
+@@ -2301,7 +2468,7 @@ function createRouter(init) {
+       flushSync = false;
+ 
+       // Create a GET request for the loaders
+-      request = createClientSideRequest(init.history, request.url, request.signal);
++      request = createClientSideRequest(init.history, request.url, request.signal, opts && opts.unstable_headers);
+     }
+ 
+     // Call loaders
+@@ -2314,6 +2481,24 @@ function createRouter(init) {
        return;
      }
  
@@ -263,7 +284,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -2428,6 +2610,24 @@ function createRouter(init) {
+@@ -2428,6 +2613,24 @@ function createRouter(init) {
  
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
@@ -288,7 +309,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
        let updatedFetchers = markFetchRedirectsDone();
        completeNavigation(location, _extends({
          matches,
-@@ -2777,6 +2977,31 @@ function createRouter(init) {
+@@ -2777,6 +2980,31 @@ function createRouter(init) {
      if (state.navigation.state === "loading" && loadId > pendingNavigationLoadId) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -320,7 +341,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
        completeNavigation(state.navigation.location, {
          matches,
          loaderData,
-@@ -2964,7 +3189,7 @@ function createRouter(init) {
+@@ -2964,7 +3192,7 @@ function createRouter(init) {
    async function callDataStrategy(type, request, matchesToLoad, matches) {
      try {
        let results = await callDataStrategyImpl(dataStrategyImpl, type, request, matchesToLoad, matches, manifest, mapRouteProperties);
@@ -329,7 +350,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
          if (isRedirectHandlerResult(result)) {
            let response = result.result;
            return {
-@@ -2984,7 +3209,7 @@ function createRouter(init) {
+@@ -2984,7 +3212,7 @@ function createRouter(init) {
      }
    }
    async function callLoadersAndMaybeResolveData(currentMatches, matches, matchesToLoad, fetchersToLoad, request) {
@@ -338,7 +359,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
        if (f.matches && f.match && f.controller) {
          let fetcherRequest = createClientSideRequest(init.history, f.path, f.controller.signal);
          return callDataStrategy("loader", fetcherRequest, [f.match], f.matches).then(r => r[0]);
-@@ -2997,7 +3222,7 @@ function createRouter(init) {
+@@ -2997,7 +3225,7 @@ function createRouter(init) {
          });
        }
      })]);
@@ -347,7 +368,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
      return {
        loaderResults,
        fetcherResults
-@@ -3291,7 +3516,8 @@ function createRouter(init) {
+@@ -3291,7 +3519,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
@@ -357,7 +378,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
    };
    return router;
  }
-@@ -3701,7 +3927,7 @@ function createStaticHandler(routes, opts) {
+@@ -3701,7 +3930,7 @@ function createStaticHandler(routes, opts) {
    // pass around the manifest, mapRouteProperties, etc.
    async function callDataStrategy(type, request, matchesToLoad, matches, isRouteRequest, requestContext, unstable_dataStrategy) {
      let results = await callDataStrategyImpl(unstable_dataStrategy || defaultDataStrategy, type, request, matchesToLoad, matches, manifest, mapRouteProperties, requestContext);
@@ -366,7 +387,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
        if (isRedirectHandlerResult(result)) {
          let response = result.result;
          // Throw redirects and let the server handle them with an HTTP redirect
-@@ -4158,7 +4384,7 @@ async function loadLazyRouteModule(route, mapRouteProperties, manifest) {
+@@ -4158,7 +4387,7 @@ async function loadLazyRouteModule(route, mapRouteProperties, manifest) {
  
  // Default implementation of `dataStrategy` which fetches all loaders in parallel
  function defaultDataStrategy(opts) {
@@ -375,7 +396,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
  }
  async function callDataStrategyImpl(dataStrategyImpl, type, request, matchesToLoad, matches, manifest, mapRouteProperties, requestContext) {
    let routeIdsToLoad = matchesToLoad.reduce((acc, m) => acc.add(m.route.id), new Set());
-@@ -4248,7 +4474,7 @@ async function callLoaderOrAction(type, request, match, manifest, mapRouteProper
+@@ -4248,7 +4477,7 @@ async function callLoaderOrAction(type, request, match, manifest, mapRouteProper
        if (handler) {
          // Run statically defined handler in parallel with lazy()
          let handlerError;
@@ -384,7 +405,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
          // If the handler throws, don't let it immediately bubble out,
          // since we need to let the lazy() execution finish so we know if this
          // route has a boundary that can handle the error
-@@ -4326,7 +4552,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
+@@ -4326,7 +4555,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
          if (result.body == null) {
            data = null;
          } else {
@@ -396,14 +417,39 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dc
          }
        } else {
          data = await result.text();
-@@ -5017,4 +5246,4 @@ exports.redirectDocument = redirectDocument;
+@@ -4402,10 +4634,11 @@ function normalizeRedirectLocation(location, currentUrl, basename) {
+ // Utility method for creating the Request instances for loaders/actions during
+ // client-side navigations and fetches.  During SSR we will always have a
+ // Request instance from the static handler (query/queryRoute)
+-function createClientSideRequest(history, location, signal, submission) {
++function createClientSideRequest(history, location, signal, submission, headers) {
+   let url = history.createURL(stripHashFromPath(location)).toString();
+   let init = {
+-    signal
++    signal,
++    headers: new Headers(headers)
+   };
+   if (submission && isMutationMethod(submission.formMethod)) {
+     let {
+@@ -4417,9 +4650,7 @@ function createClientSideRequest(history, location, signal, submission) {
+     // See: https://fetch.spec.whatwg.org/#concept-method
+     init.method = formMethod.toUpperCase();
+     if (formEncType === "application/json") {
+-      init.headers = new Headers({
+-        "Content-Type": formEncType
+-      });
++      init.headers.set("Content-Type", formEncType);
+       init.body = JSON.stringify(submission.json);
+     } else if (formEncType === "text/plain") {
+       // Content-Type is inferred (https://fetch.spec.whatwg.org/#dom-request)
+@@ -5017,4 +5248,4 @@ exports.redirectDocument = redirectDocument;
  exports.resolvePath = resolvePath;
  exports.resolveTo = resolveTo;
  exports.stripBasename = stripBasename;
 -//# sourceMappingURL=router.cjs.js.map
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/router.d.ts b/dist/router.d.ts
-index f9c6cadf4a97ca40f80f8a379098249c21b9232f..7a6b9d68739cae1b14b073d7f4e646bcc93bd5c9 100644
+index f9c6cadf4a97ca40f80f8a379098249c21b9232f..5c9c933e862fc21db0ffc5f9f666edc006cad1c0 100644
 --- a/dist/router.d.ts
 +++ b/dist/router.d.ts
 @@ -182,6 +182,19 @@ export interface Router {
@@ -438,18 +484,21 @@ index f9c6cadf4a97ca40f80f8a379098249c21b9232f..7a6b9d68739cae1b14b073d7f4e646bc
  }
  /**
   * State returned from a server-side query() call
-@@ -347,6 +365,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
+@@ -347,6 +365,12 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
      state?: any;
      fromRouteId?: string;
      unstable_viewTransition?: boolean;
 +    // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
 +    // developers to stop revalidation at navigation function call-sites.
 +    unstable_shouldRevalidate?: boolean;
++    // NOTE(calebmer): Allow passing in HTTP headers to `?_data` requests from
++    // `navigate()`.
++    unstable_headers?: HeadersInit;
  };
  type BaseSubmissionOptions = {
      formMethod?: HTMLFormMethod;
 diff --git a/dist/router.js b/dist/router.js
-index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d45fbadf2 100644
+index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d9fdbb9a73861f5a90fd30a9fac96cd00e85618 100644
 --- a/dist/router.js
 +++ b/dist/router.js
 @@ -23,6 +23,37 @@ function _extends() {
@@ -596,17 +645,18 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -1789,7 +1901,8 @@ function createRouter(init) {
+@@ -1789,7 +1901,9 @@ function createRouter(init) {
        preventScrollReset,
        replace: opts && opts.replace,
        enableViewTransition: opts && opts.unstable_viewTransition,
 -      flushSync
 +      flushSync,
-+      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate
++      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate,
++      unstable_headers: opts && opts.unstable_headers
      });
    }
    // Revalidate all current loaders.  If a navigation is in progress or if this
-@@ -1852,6 +1965,30 @@ function createRouter(init) {
+@@ -1852,6 +1966,30 @@ function createRouter(init) {
        } = getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -637,7 +687,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
        completeNavigation(location, {
          matches: notFoundMatches,
          loaderData: {},
-@@ -1869,7 +2006,33 @@ function createRouter(init) {
+@@ -1869,7 +2007,33 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -672,7 +722,27 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
        completeNavigation(location, {
          matches
        }, {
-@@ -1914,6 +2077,25 @@ function createRouter(init) {
+@@ -1879,7 +2043,9 @@ function createRouter(init) {
+     }
+     // Create a controller/Request for this navigation
+     pendingNavigationController = new AbortController();
+-    let request = createClientSideRequest(init.history, location, pendingNavigationController.signal, opts && opts.submission);
++    // NOTE(calebmer): Allow passing in HTTP headers to `?_data` requests from
++    // `navigate()`.
++    let request = createClientSideRequest(init.history, location, pendingNavigationController.signal, opts && opts.submission, opts && opts.unstable_headers);
+     let pendingActionResult;
+     if (opts && opts.pendingError) {
+       // If we have a pendingError, it means the user attempted a GET submission
+@@ -1903,7 +2069,7 @@ function createRouter(init) {
+       loadingNavigation = getLoadingNavigation(location, opts.submission);
+       flushSync = false;
+       // Create a GET request for the loaders
+-      request = createClientSideRequest(init.history, request.url, request.signal);
++      request = createClientSideRequest(init.history, request.url, request.signal, opts && opts.unstable_headers);
+     }
+     // Call loaders
+     let {
+@@ -1914,6 +2080,25 @@ function createRouter(init) {
      if (shortCircuited) {
        return;
      }
@@ -698,7 +768,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -2020,6 +2202,24 @@ function createRouter(init) {
+@@ -2020,6 +2205,24 @@ function createRouter(init) {
      pendingNavigationLoadId = ++incrementingLoadId;
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
@@ -723,7 +793,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
        let updatedFetchers = markFetchRedirectsDone();
        completeNavigation(location, _extends({
          matches,
-@@ -2350,6 +2550,31 @@ function createRouter(init) {
+@@ -2350,6 +2553,31 @@ function createRouter(init) {
      if (state.navigation.state === "loading" && loadId > pendingNavigationLoadId) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -755,7 +825,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
        completeNavigation(state.navigation.location, {
          matches,
          loaderData,
-@@ -2524,7 +2749,7 @@ function createRouter(init) {
+@@ -2524,7 +2752,7 @@ function createRouter(init) {
    async function callDataStrategy(type, request, matchesToLoad, matches) {
      try {
        let results = await callDataStrategyImpl(dataStrategyImpl, type, request, matchesToLoad, matches, manifest, mapRouteProperties);
@@ -764,7 +834,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
          if (isRedirectHandlerResult(result)) {
            let response = result.result;
            return {
-@@ -2544,7 +2769,7 @@ function createRouter(init) {
+@@ -2544,7 +2772,7 @@ function createRouter(init) {
      }
    }
    async function callLoadersAndMaybeResolveData(currentMatches, matches, matchesToLoad, fetchersToLoad, request) {
@@ -773,7 +843,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
        if (f.matches && f.match && f.controller) {
          let fetcherRequest = createClientSideRequest(init.history, f.path, f.controller.signal);
          return callDataStrategy("loader", fetcherRequest, [f.match], f.matches).then(r => r[0]);
-@@ -2557,7 +2782,7 @@ function createRouter(init) {
+@@ -2557,7 +2785,7 @@ function createRouter(init) {
          });
        }
      })]);
@@ -782,7 +852,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
      return {
        loaderResults,
        fetcherResults
-@@ -2843,7 +3068,8 @@ function createRouter(init) {
+@@ -2843,7 +3071,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
@@ -792,7 +862,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
    };
    return router;
  }
-@@ -3233,7 +3459,7 @@ function createStaticHandler(routes, opts) {
+@@ -3233,7 +3462,7 @@ function createStaticHandler(routes, opts) {
    // pass around the manifest, mapRouteProperties, etc.
    async function callDataStrategy(type, request, matchesToLoad, matches, isRouteRequest, requestContext, unstable_dataStrategy) {
      let results = await callDataStrategyImpl(unstable_dataStrategy || defaultDataStrategy, type, request, matchesToLoad, matches, manifest, mapRouteProperties, requestContext);
@@ -801,7 +871,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
        if (isRedirectHandlerResult(result)) {
          let response = result.result;
          // Throw redirects and let the server handle them with an HTTP redirect
-@@ -3664,7 +3890,7 @@ async function loadLazyRouteModule(route, mapRouteProperties, manifest) {
+@@ -3664,7 +3893,7 @@ async function loadLazyRouteModule(route, mapRouteProperties, manifest) {
  }
  // Default implementation of `dataStrategy` which fetches all loaders in parallel
  function defaultDataStrategy(opts) {
@@ -810,7 +880,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
  }
  async function callDataStrategyImpl(dataStrategyImpl, type, request, matchesToLoad, matches, manifest, mapRouteProperties, requestContext) {
    let routeIdsToLoad = matchesToLoad.reduce((acc, m) => acc.add(m.route.id), new Set());
-@@ -3750,7 +3976,7 @@ async function callLoaderOrAction(type, request, match, manifest, mapRouteProper
+@@ -3750,7 +3979,7 @@ async function callLoaderOrAction(type, request, match, manifest, mapRouteProper
        if (handler) {
          // Run statically defined handler in parallel with lazy()
          let handlerError;
@@ -819,7 +889,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
          // If the handler throws, don't let it immediately bubble out,
          // since we need to let the lazy() execution finish so we know if this
          // route has a boundary that can handle the error
-@@ -3828,7 +4054,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
+@@ -3828,7 +4057,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
          if (result.body == null) {
            data = null;
          } else {
@@ -831,7 +901,32 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d
          }
        } else {
          data = await result.text();
-@@ -4472,4 +4701,4 @@ function persistAppliedTransitions(_window, transitions) {
+@@ -3902,10 +4134,11 @@ function normalizeRedirectLocation(location, currentUrl, basename) {
+ // Utility method for creating the Request instances for loaders/actions during
+ // client-side navigations and fetches.  During SSR we will always have a
+ // Request instance from the static handler (query/queryRoute)
+-function createClientSideRequest(history, location, signal, submission) {
++function createClientSideRequest(history, location, signal, submission, headers) {
+   let url = history.createURL(stripHashFromPath(location)).toString();
+   let init = {
+-    signal
++    signal,
++    headers: new Headers(headers)
+   };
+   if (submission && isMutationMethod(submission.formMethod)) {
+     let {
+@@ -3917,9 +4150,7 @@ function createClientSideRequest(history, location, signal, submission) {
+     // See: https://fetch.spec.whatwg.org/#concept-method
+     init.method = formMethod.toUpperCase();
+     if (formEncType === "application/json") {
+-      init.headers = new Headers({
+-        "Content-Type": formEncType
+-      });
++      init.headers.set("Content-Type", formEncType);
+       init.body = JSON.stringify(submission.json);
+     } else if (formEncType === "text/plain") {
+       // Content-Type is inferred (https://fetch.spec.whatwg.org/#dom-request)
+@@ -4472,4 +4703,4 @@ function persistAppliedTransitions(_window, transitions) {
  //#endregion
  
  export { AbortedDeferredError, Action, IDLE_BLOCKER, IDLE_FETCHER, IDLE_NAVIGATION, UNSAFE_DEFERRED_SYMBOL, DeferredData as UNSAFE_DeferredData, ErrorResponseImpl as UNSAFE_ErrorResponseImpl, convertRouteMatchToUiMatch as UNSAFE_convertRouteMatchToUiMatch, convertRoutesToDataRoutes as UNSAFE_convertRoutesToDataRoutes, getResolveToMatches as UNSAFE_getResolveToMatches, invariant as UNSAFE_invariant, warning as UNSAFE_warning, createBrowserHistory, createHashHistory, createMemoryHistory, createPath, createRouter, createStaticHandler, defer, generatePath, getStaticContextFromError, getToPathname, isDeferredData, isRouteErrorResponse, joinPaths, json, matchPath, matchRoutes, normalizePathname, parsePath, redirect, redirectDocument, resolvePath, resolveTo, stripBasename };
@@ -903,7 +998,7 @@ index 6b56d4d25e968a05c26f41c61e6b5c2661b5d210..c205276b6a92d9ef781ef8b44937deb4
    "types": "./dist/index.d.ts",
    "files": [
 diff --git a/router.ts b/router.ts
-index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3cde33e85 100644
+index b72cb7009192971da790f1d7eb269947c7504f70..f65c9e9c3d75f6617cb032b54b9a8886c5b72898 100644
 --- a/router.ts
 +++ b/router.ts
 @@ -51,6 +51,37 @@ import {
@@ -977,17 +1072,20 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
  }
  
  /**
-@@ -469,6 +519,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
+@@ -469,6 +519,12 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
    state?: any;
    fromRouteId?: string;
    unstable_viewTransition?: boolean;
 +  // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
 +  // developers to stop revalidation at navigation function call-sites.
 +  unstable_shouldRevalidate?: boolean;
++  // NOTE(calebmer): Allow passing in HTTP headers to `?_data` requests from
++  // `navigate()`.
++  unstable_headers?: HeadersInit;
  };
  
  // Only allowed for submission navigations
-@@ -1272,6 +1325,82 @@ export function createRouter(init: RouterInit): Router {
+@@ -1272,6 +1328,82 @@ export function createRouter(init: RouterInit): Router {
      cancelledFetcherLoads = [];
    }
  
@@ -1070,23 +1168,25 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(
-@@ -1379,6 +1508,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1379,6 +1511,8 @@ export function createRouter(init: RouterInit): Router {
        replace: opts && opts.replace,
        enableViewTransition: opts && opts.unstable_viewTransition,
        flushSync,
 +      unstable_shouldRevalidate: opts && opts.unstable_shouldRevalidate,
++      unstable_headers: opts && opts.unstable_headers,
      });
    }
  
-@@ -1432,6 +1562,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1432,6 +1566,8 @@ export function createRouter(init: RouterInit): Router {
        replace?: boolean;
        enableViewTransition?: boolean;
        flushSync?: boolean;
 +      unstable_shouldRevalidate?: boolean;
++      unstable_headers?: HeadersInit;
      }
    ): Promise<void> {
      // Abort any in-progress navigations and start a new one. Unset any ongoing
-@@ -1462,6 +1593,30 @@ export function createRouter(init: RouterInit): Router {
+@@ -1462,6 +1598,30 @@ export function createRouter(init: RouterInit): Router {
          getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -1117,7 +1217,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
        completeNavigation(
          location,
          {
-@@ -1482,12 +1637,38 @@ export function createRouter(init: RouterInit): Router {
+@@ -1482,12 +1642,38 @@ export function createRouter(init: RouterInit): Router {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -1157,7 +1257,30 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
        completeNavigation(location, { matches }, { flushSync });
        return;
      }
-@@ -1559,6 +1740,24 @@ export function createRouter(init: RouterInit): Router {
+@@ -1498,7 +1684,10 @@ export function createRouter(init: RouterInit): Router {
+       init.history,
+       location,
+       pendingNavigationController.signal,
+-      opts && opts.submission
++      opts && opts.submission,
++      // NOTE(calebmer): Allow passing in HTTP headers to `?_data` requests from
++      // `navigate()`.
++      opts && opts.unstable_headers
+     );
+     let pendingActionResult: PendingActionResult | undefined;
+ 
+@@ -1537,7 +1726,9 @@ export function createRouter(init: RouterInit): Router {
+       request = createClientSideRequest(
+         init.history,
+         request.url,
+-        request.signal
++        request.signal,
++        undefined,
++        opts && opts.unstable_headers
+       );
+     }
+ 
+@@ -1559,6 +1750,24 @@ export function createRouter(init: RouterInit): Router {
        return;
      }
  
@@ -1182,7 +1305,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -1721,6 +1920,24 @@ export function createRouter(init: RouterInit): Router {
+@@ -1721,6 +1930,24 @@ export function createRouter(init: RouterInit): Router {
  
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
@@ -1207,7 +1330,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
        let updatedFetchers = markFetchRedirectsDone();
        completeNavigation(
          location,
-@@ -2215,6 +2432,30 @@ export function createRouter(init: RouterInit): Router {
+@@ -2215,6 +2442,30 @@ export function createRouter(init: RouterInit): Router {
      ) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -1238,7 +1361,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
  
        completeNavigation(state.navigation.location, {
          matches,
-@@ -2476,7 +2717,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -2476,7 +2727,7 @@ export function createRouter(init: RouterInit): Router {
          mapRouteProperties
        );
  
@@ -1247,7 +1370,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
          results.map((result, i) => {
            if (isRedirectHandlerResult(result)) {
              let response = result.result as Response;
-@@ -2513,7 +2754,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -2513,7 +2764,7 @@ export function createRouter(init: RouterInit): Router {
      fetchersToLoad: RevalidatingFetcher[],
      request: Request
    ) {
@@ -1256,7 +1379,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
        matchesToLoad.length
          ? callDataStrategy("loader", request, matchesToLoad, matches)
          : [],
-@@ -2541,7 +2782,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -2541,7 +2792,7 @@ export function createRouter(init: RouterInit): Router {
        }),
      ]);
  
@@ -1265,7 +1388,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
        resolveDeferredResults(
          currentMatches,
          matchesToLoad,
-@@ -2904,6 +3145,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -2904,6 +3155,7 @@ export function createRouter(init: RouterInit): Router {
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
      _internalSetRoutes,
@@ -1273,7 +1396,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
    };
  
    return router;
-@@ -3511,7 +3753,7 @@ export function createStaticHandler(
+@@ -3511,7 +3763,7 @@ export function createStaticHandler(
        requestContext
      );
  
@@ -1282,7 +1405,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
        results.map((result, i) => {
          if (isRedirectHandlerResult(result)) {
            let response = result.result as Response;
-@@ -4144,7 +4386,7 @@ async function loadLazyRouteModule(
+@@ -4144,7 +4396,7 @@ async function loadLazyRouteModule(
  function defaultDataStrategy(
    opts: DataStrategyFunctionArgs
  ): ReturnType<DataStrategyFunction> {
@@ -1291,7 +1414,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
  }
  
  async function callDataStrategyImpl(
-@@ -4281,7 +4523,7 @@ async function callLoaderOrAction(
+@@ -4281,7 +4533,7 @@ async function callLoaderOrAction(
        if (handler) {
          // Run statically defined handler in parallel with lazy()
          let handlerError;
@@ -1300,7 +1423,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
            // If the handler throws, don't let it immediately bubble out,
            // since we need to let the lazy() execution finish so we know if this
            // route has a boundary that can handle the error
-@@ -4364,7 +4606,10 @@ async function convertHandlerResultToDataResult(
+@@ -4364,7 +4616,10 @@ async function convertHandlerResultToDataResult(
          if (result.body == null) {
            data = null;
          } else {
@@ -1312,6 +1435,29 @@ index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3
          }
        } else {
          data = await result.text();
+@@ -4470,10 +4725,11 @@ function createClientSideRequest(
+   history: History,
+   location: string | Location,
+   signal: AbortSignal,
+-  submission?: Submission
++  submission?: Submission,
++  headers?: HeadersInit
+ ): Request {
+   let url = history.createURL(stripHashFromPath(location)).toString();
+-  let init: RequestInit = { signal };
++  let init: RequestInit & { headers: Headers } = { signal, headers: new Headers(headers) };
+ 
+   if (submission && isMutationMethod(submission.formMethod)) {
+     let { formMethod, formEncType } = submission;
+@@ -4483,7 +4739,7 @@ function createClientSideRequest(
+     init.method = formMethod.toUpperCase();
+ 
+     if (formEncType === "application/json") {
+-      init.headers = new Headers({ "Content-Type": formEncType });
++      init.headers.set("Content-Type", formEncType);
+       init.body = JSON.stringify(submission.json);
+     } else if (formEncType === "text/plain") {
+       // Content-Type is inferred (https://fetch.spec.whatwg.org/#dom-request)
 diff --git a/utils.ts b/utils.ts
 index 561421e777349fe05016cf161236b9c12de5f8ea..e63596a3583fa5e41de50d1cde13e02d86c83d85 100644
 --- a/utils.ts

@@ -30,8 +30,8 @@ export function createFileIcoImageProcessor(
             hasVideoDuration: false,
         },
         process: (context, {spaceId, fileId, signal}) => {
-            // We load the file into memory since `decodeIco()` needs the full file. This
-            // is acceptable for `image/ico` files since they're usually quite small.
+            // We load the file into memory since `decodeIco()` needs the full file. This is
+            // acceptable for `image/ico` files since they're usually quite small.
             const bestImagePromise = (async () => {
                 const object = await context.r2.GetObject(
                     {
@@ -90,21 +90,29 @@ export function createFileIcoImageProcessor(
 
                     switch (bestImage.type) {
                         case "png": {
-                            return processFileImagePreviewPlaceholder(context, bestImage.data, {
-                                contentType: "image/png",
-                                contentLength: bestImage.data.length,
-                            });
+                            return await processFileImagePreviewPlaceholder(
+                                context,
+                                bestImage.data,
+                                {
+                                    contentType: "image/png",
+                                    contentLength: bestImage.data.length,
+                                },
+                            );
                         }
                         case "bmp": {
-                            return processFileImagePreviewPlaceholder(context, bestImage.data, {
-                                contentType: "image/bmp",
-                                contentLength: bestImage.data.length,
-                                raw: {
-                                    width: bestImage.width,
-                                    height: bestImage.height,
-                                    channels: 4,
+                            return await processFileImagePreviewPlaceholder(
+                                context,
+                                bestImage.data,
+                                {
+                                    contentType: "image/bmp",
+                                    contentLength: bestImage.data.length,
+                                    raw: {
+                                        width: bestImage.width,
+                                        height: bestImage.height,
+                                        channels: 4,
+                                    },
                                 },
-                            });
+                            );
                         }
                         default:
                             throw exhaustive(bestImage);

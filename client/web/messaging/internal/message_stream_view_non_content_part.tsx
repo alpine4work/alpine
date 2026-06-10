@@ -16,8 +16,11 @@ import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_regis
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {ApiMentionTargetPath, parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
-import {ApiMentionTarget} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiMentionTargetPath,
+    parseApiMentionTarget,
+} from "~/shared/api/specification/parse_api_path.js";
+import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -165,6 +168,12 @@ function getApiMentionContentMention(target: ApiMentionTarget): ContentMention {
                 entityId: `Channel:${target.id}`,
             };
         }
+        case "Chat": {
+            return {
+                type: "SearchEntity",
+                entityId: `Chat:${target.id}`,
+            };
+        }
         case "Document": {
             return {
                 type: "SearchEntity",
@@ -273,8 +282,8 @@ export function MessageStreamViewNonContentPart({
     return (
         <HtmlGeneratorView
             ref={containerRef}
-            // Must be an inline element `<span>` instead of a `<div>` so text truncation
-            // works properly.
+            // Must be an inline element `<span>` instead of a `<div>` so text truncation works
+            // properly.
             as="span"
             htmlGenerator={htmlGenerator}
         />

@@ -6,20 +6,19 @@ export type Color = keyof typeof colors;
 /**
  * Our color pallette.
  *
- * Colors are used for theming so we try to have colors that map to common
- * brand colors.
+ * Colors are used for theming so we try to have colors that map to common brand
+ * colors.
  *
- * We have more shades of grey than other colors for more range of expression
- * in dark modes.
+ * We have more shades of grey than other colors for more range of expression in
+ * dark modes.
  *
- * We aim for our theme colors to have similar luminosity and chroma values in
- * the [HCL color system][1]. That way our colors can be used interchangeably
- * without looking odd. An excellent tool for debugging our color scheme and
- * tweaking it for the HCL color space is https://tailwind.ink. To import our
- * color scheme into https://tailwind.ink use the `generateTailwindInkUrl()`
- * function. From there you can see how we're doing on maintaining luminosity
- * and chroma values for our color scheme and manually drag colors around to
- * tweak them.
+ * We aim for our theme colors to have similar luminosity and chroma values in the
+ * [HCL color system][1]. That way our colors can be used interchangeably without
+ * looking odd. An excellent tool for debugging our color scheme and tweaking it
+ * for the HCL color space is https://tailwind.ink. To import our color scheme into
+ * https://tailwind.ink use the `generateTailwindInkUrl()` function. From there you
+ * can see how we're doing on maintaining luminosity and chroma values for our
+ * color scheme and manually drag colors around to tweak them.
  *
  * `yellow` we don't try to maintain a similar luminosity value as other theme
  * colors as yellow will just end up looking muddy and ugly.
@@ -27,8 +26,8 @@ export type Color = keyof typeof colors;
  * [1]: https://en.wikipedia.org/wiki/HCL_color_space
  */
 export const colors = {
-    // Pure white background color is useful when embedding files since many files
-    // have white backgrounds and look odd on an off-white background.
+    // Pure white background color is useful when embedding files since many files have
+    // white backgrounds and look odd on an off-white background.
     "grey-0": "#ffffff",
     "grey-1": "#f8f8fc",
     "grey-5": "#ededf2",
@@ -44,16 +43,20 @@ export const colors = {
     "grey-99": "#1a1a1e",
     "grey-100": "#0b0b0d",
 
-    // We have a set of slightly lighter greys for elevated surfaces in dark mode.
-    // When we render peeks on top of other content you have arbitrary peek content
-    // above other arbitrary content. In dark mode we can't use shadows to simulate
-    // depth and differentiate elements. So instead we make surfaces that are
-    // "higher up" lighter as if they're closer to a light source.
+    // A color below `grey-100` that we use as the space layout sidebar color in dark
+    // mode.
+    "grey-100-lowered": "#070708",
+
+    // We have a set of slightly lighter greys for elevated surfaces in dark mode. When
+    // we render peeks on top of other content you have arbitrary peek content above
+    // other arbitrary content. In dark mode we can't use shadows to simulate depth and
+    // differentiate elements. So instead we make surfaces that are "higher up" lighter
+    // as if they're closer to a light source.
     //
-    // Since peeks can contain arbitrary content we bake this property into the
-    // color system instead of writing a bunch of `isPeek` logic. These grey colors
-    // are just a hair lighter in peeks, it's a small detail that's almost
-    // unnoticeable but it helps reinforce a sense of depth subconsciously.
+    // Since peeks can contain arbitrary content we bake this property into the color
+    // system instead of writing a bunch of `isPeek` logic. These grey colors are just
+    // a hair lighter in peeks, it's a small detail that's almost unnoticeable but it
+    // helps reinforce a sense of depth subconsciously.
     "grey-70-elevated-1": "#515158",
     "grey-80-elevated-1": "#404045",
     "grey-90-elevated-1": "#2a2a2d",

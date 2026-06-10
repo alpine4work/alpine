@@ -12,10 +12,7 @@ import {
 } from "~/client/web/forum/post_list.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {VirtualizedTreeBase} from "~/client/web/virtualized/helpers/virtualized_tree.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -65,8 +62,8 @@ export class PostFeedList implements PostListInterface {
         });
     }
 
-    // Even if in reality there's only one post in the feed, we don't want to
-    // use single post rendering for feed.
+    // Even if in reality there's only one post in the feed, we don't want to use
+    // single post rendering for feed.
     public isSinglePost(): boolean {
         return false;
     }
@@ -143,10 +140,12 @@ export class PostFeedList implements PostListInterface {
         };
     }
 
-    public getPostRealtimeItemIfExists(
-        postId: PostId,
-    ): DynamoGeneralRealtimeItem<PostModel> | null {
+    public getPostRealtimeItemIfExists(postId: PostId): RynamoItem<PostModel> | null {
         return this._entries.getPostRealtimeItemIfExists(postId);
+    }
+
+    public hasMorePosts(): boolean {
+        return this.hasMoreEntries;
     }
 
     public hasOpenPostComments(): boolean {
@@ -179,10 +178,8 @@ export class PostFeedList implements PostListInterface {
         });
     }
 
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ) {
-        const newEntries = this._entries.handleEventTransaction(eventTransaction);
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>) {
+        const newEntries = this._entries.handleEvents(events);
 
         if (newEntries === this._entries) return this;
 
@@ -237,7 +234,7 @@ type PostFeedListVirtualizedTreeNode =
     | Exclude<FeedEntryModel, FeedPostEntryModel>
     | {
           readonly type: "Post";
-          readonly post: DynamoGeneralRealtimeItem<PostModel> & {
+          readonly post: RynamoItem<PostModel> & {
               readonly extra: PostListItemExtra | null;
           };
       };
@@ -253,16 +250,14 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
         PostId,
         | {isVisible: true; index: number}
         // We keep track of every post realtime tells us about in `postVisibilityById`
-        // whether or not it's in our `posts` list. That's because in some race
-        // conditions if we load more posts from the server we might load a stale
-        // version of the post so we'll need to replace it with the newer version we
-        // got from realtime.
+        // whether or not it's in our `posts` list. That's because in some race conditions
+        // if we load more posts from the server we might load a stale version of the post
+        // so we'll need to replace it with the newer version we got from realtime.
         //
         // TODO(calebmer): We could throw away unreferenced posts after a timeout when
-        // we're confident the server won't return us stale data for the post (~3
-        // minutes). For now we don't think `postVisibilityById` will get unreasonably
-        // large.
-        | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+        // we're confident the server won't return us stale data for the post (~3 minutes).
+        // For now we don't think `postVisibilityById` will get unreasonably large.
+        | {isVisible: false; item: RynamoItem<PostModel>}
     >;
 
     private constructor({
@@ -274,15 +269,14 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
         openPostCommentsCount: number;
         postVisibilityById: ImmutableMap<
             PostId,
-            | {isVisible: true; index: number}
-            | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+            {isVisible: true; index: number} | {isVisible: false; item: RynamoItem<PostModel>}
         >;
         nodeByOrderKey: Tree<number, PostFeedListVirtualizedTreeNode>;
         itemCountSubtreeCache: WeakMap<TreeNode<number, PostFeedListVirtualizedTreeNode>, number>;
     }) {
         // In development, make sure `openPostCommentsCount` is the correct value every
-        // time we change the virtualized tree. This is an O(n) check so it's expensive
-        // to run in production.
+        // time we change the virtualized tree. This is an O(n) check so it's expensive to
+        // run in production.
         if (process.env.NODE_ENV !== "production") {
             let expectedOpenPostCommentsCount = 0;
 
@@ -369,9 +363,7 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
         };
     }
 
-    public getPostRealtimeItemIfExists(
-        postId: PostId,
-    ): DynamoGeneralRealtimeItem<PostModel> | null {
+    public getPostRealtimeItemIfExists(postId: PostId): RynamoItem<PostModel> | null {
         const nodeKey = this._postVisibilityById.get(postId);
         if (!nodeKey?.isVisible) return null;
 
@@ -382,8 +374,8 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
     }
 
     /**
-     * Add entries to the end of the virtualized tree. Only one post may exist for
-     * each `PostId`. We ignore any repeated `PostId`s.
+     * Add entries to the end of the virtualized tree. Only one post may exist for each
+     * `PostId`. We ignore any repeated `PostId`s.
      */
     public addEntries(entries: ReadonlyArray<FeedEntryModel>): PostFeedListVirtualizedTree {
         let postVisibilityById = this._postVisibilityById;
@@ -397,7 +389,7 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
 
                 let oldPostVisibility:
                     | {isVisible: true; index: number}
-                    | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+                    | {isVisible: false; item: RynamoItem<PostModel>}
                     | undefined;
 
                 postVisibilityById = postVisibilityById.update(
@@ -435,8 +427,8 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
                     const iterator = nodeByOrderKey.find(oldPostVisibility.index);
                     assert(iterator.value?.type === "Post");
                     nodeByOrderKey =
-                        // If the currently visible item has a higher version then don't update with
-                        // the newly loaded post.
+                        // If the currently visible item has a higher version then don't update with the
+                        // newly loaded post.
                         iterator.value.post.version > post.version
                             ? nodeByOrderKey
                             : iterator.update({
@@ -456,37 +448,33 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
     }
 
     /**
-     * Handle a realtime update event transaction from our DynamoDB general
-     * realtime system. Will update any visible posts and keep a record of any
-     * other posts realtime tells us about. So if later that post is added (via
-     * `addEntries()`) but with a stale version then we'll actually have the latest
-     * version.
+     * Handle a realtime update event transaction from our DynamoDB general realtime
+     * system. Will update any visible posts and keep a record of any other posts
+     * realtime tells us about. So if later that post is added (via `addEntries()`) but
+     * with a stale version then we'll actually have the latest version.
      */
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ): PostFeedListVirtualizedTree {
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>): PostFeedListVirtualizedTree {
         let postVisibilityById = this._postVisibilityById;
         let nodeByOrderKey = this._nodeByOrderKey;
 
-        for (const event of eventTransaction) {
+        for (const event of events) {
             // The `deleteItem()` operation is disabled for posts.
             //
-            // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the
-            // future. But right now my idea for deleting posts is to leave the post in the
-            // database but delete its content. Since we don't want to delete comments on
-            // the post. If that's the case we should never receive a `DeleteItem` event
-            // for a post.
+            // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the future.
+            // But right now my idea for deleting posts is to leave the post in the database
+            // but delete its content. Since we don't want to delete comments on the post. If
+            // that's the case we should never receive a `DeleteItem` event for a post.
             if (event.type === "DeleteItem") continue;
 
             cast<"PutItem">(event.type);
 
             // We only care about posts...
             if (!(event.item.model instanceof PostModel)) continue;
-            const item = event.item as DynamoGeneralRealtimeItem<PostModel>;
+            const item = event.item as RynamoItem<PostModel>;
 
             let postVisibility:
                 | {isVisible: true; index: number}
-                | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+                | {isVisible: false; item: RynamoItem<PostModel>}
                 | undefined;
 
             postVisibilityById = postVisibilityById.update(item.model.id, _postVisibility => {
@@ -573,8 +561,8 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
     }
 
     /**
-     * Update the comments list for a post. If the post id is not in the list this
-     * is a noop.
+     * Update the comments list for a post. If the post id is not in the list this is a
+     * noop.
      */
     public updatePostComments(
         postId: PostId,
@@ -613,8 +601,8 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
     }
 
     /**
-     * Iterate through every post in our list updating each `PostCommentsState`
-     * to `Closed`.
+     * Iterate through every post in our list updating each `PostCommentsState` to
+     * `Closed`.
      */
     public closeAllPostComments(): PostFeedListVirtualizedTree {
         let nodeByOrderKey = this._nodeByOrderKey;

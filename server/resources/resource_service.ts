@@ -56,7 +56,8 @@ type ResourceServiceRoute =
     | {type: "HealthCheck"}
     | {type: "NotFound"};
 
-// This is the list of all possible routes that this service can handle. Patterns are evaluated in order and the first match is used.
+// This is the list of all possible routes that this service can handle. Patterns
+// are evaluated in order and the first match is used.
 const routeMap: ReadonlyArray<{
     readonly pattern: URLPattern;
     readonly getRoute: (
@@ -170,10 +171,10 @@ async function handleFetch(
 
     const url = new URL(request.url);
 
-    // Fast path for static asset requests. We don't want to trace these requests
-    // or perform any other request/response manipulation.
+    // Fast path for static asset requests. We don't want to trace these requests or
+    // perform any other request/response manipulation.
     if (appStaticManifestPaths.has(url.pathname) || url.pathname.startsWith("/assets/")) {
-        return fetchAppStaticFile(request, env, executionContext, url);
+        return await fetchAppStaticFile(request, env, executionContext, url);
     }
 
     // TODO(ifitzsimmons, #local-kinesis): This will eventually be required. For now,
@@ -182,9 +183,9 @@ async function handleFetch(
     if (!streamName && process.env.NODE_ENV === "production")
         throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
 
-    // Create a new tracer for every request because we need a Honeycomb client and
-    // the Honeycomb client needs `executionContext.waitUntil()` which is request
-    // scoped. Tracers are cheap to construct so this is fine.
+    // Create a new tracer for every request because we need a Honeycomb client and the
+    // Honeycomb client needs `executionContext.waitUntil()` which is request scoped.
+    // Tracers are cheap to construct so this is fine.
     const tracer = createServerTracer({
         serviceName: "ResourceService",
         jsHost: "CloudflareWorker",
@@ -223,27 +224,41 @@ async function handleFetch(
         }
     }
 
-    // We end up here if the path matched one or more patterns but none of the routes were actually valid
+    // We end up here if the path matched one or more patterns but none of the routes
+    // were actually valid
     if (!routeString || !route) {
         routeString = "/*";
         route = {type: "NotFound"};
     }
 
-    return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
+    return await traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         let response;
 
+        // Add CORS headers to the response for trusted domains. Only origins that are in
+        // the trusted domains can access files via CORS mode.
+        const origin = request.headers.get("Origin");
+        const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
+
+        const allowedCorsOrigin = origin && trustedOrigins.includes(origin) ? origin : null;
+
         try {
-            // Important to `await` here so that our try/catch catches any errors
-            // asynchronously thrown by this function.
-            response = await actuallyHandleFetch(
-                request,
-                env,
-                executionContext,
-                startTime,
-                url,
-                route,
-                span,
-            );
+            if (request.method === "OPTIONS") {
+                // OPTIONS requests are handled here to avoid reaching `actuallyHandleFetch`, which
+                // only supports `GET` and `HEAD`.
+                response = handleOptionsRequest(request, allowedCorsOrigin !== null);
+            } else {
+                // Important to `await` here so that our try/catch catches any errors
+                // asynchronously thrown by this function.
+                response = await actuallyHandleFetch(
+                    request,
+                    env,
+                    executionContext,
+                    startTime,
+                    url,
+                    route,
+                    span,
+                );
+            }
         } catch (error) {
             span.addException(error);
             response = createSimpleErrorResponse(error);
@@ -251,27 +266,22 @@ async function handleFetch(
 
         const responseHeaders = new Headers(response.headers);
 
-        // Add CORS headers to the response for trusted domains. Only origins that are in the trusted
-        // domains can access files via CORS mode.
-        const origin = request.headers.get("Origin");
-        const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
-
-        // If there is no origin header, then this isn't a CORS request
-        if (origin && trustedOrigins.includes(origin)) {
-            responseHeaders.set("Access-Control-Allow-Origin", origin);
+        if (allowedCorsOrigin !== null) {
+            responseHeaders.set("Access-Control-Allow-Origin", allowedCorsOrigin);
         }
 
-        // Ensure if the origin changes, the browser will re-fetch the resource.
-        // Important particularly if a request previously had no origin (no-cors) and now has one (cors)
-        // as the browser will otherwise use a cached no-cors request for a cors request to the same resource.
+        // Ensure if the origin changes, the browser will re-fetch the resource. Important
+        // particularly if a request previously had no origin (no-cors) and now has one
+        // (cors) as the browser will otherwise use a cached no-cors request for a cors
+        // request to the same resource.
         responseHeaders.set("Vary", "Origin");
 
         switch (route.type) {
             case "AccountAvatar":
             case "BotAvatar":
             case "SpaceAvatar": {
-                // This header will allow no-cors requests from outside the same site as the request origin.
-                // Useful for embedding avatars in emails.
+                // This header will allow no-cors requests from outside the same site as the
+                // request origin. Useful for embedding avatars in emails.
                 responseHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
                 break;
             }
@@ -279,7 +289,8 @@ async function handleFetch(
             case "FileDownload":
             case "HealthCheck":
             case "NotFound": {
-                // This header will prevent no-cors requests from outside the same site as the request origin.
+                // This header will prevent no-cors requests from outside the same site as the
+                // request origin.
                 responseHeaders.set("Cross-Origin-Resource-Policy", "same-site");
                 break;
             }
@@ -292,6 +303,29 @@ async function handleFetch(
             headers: responseHeaders,
         });
     });
+}
+
+function handleOptionsRequest(request: Request, isCorsRequest: boolean) {
+    const responseHeaders = new Headers();
+
+    if (isCorsRequest && request.headers.has("Access-Control-Request-Method")) {
+        responseHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+
+        // We allow any headers to be sent in the request.
+        const requestedHeaders = request.headers.get("Access-Control-Request-Headers");
+        if (requestedHeaders) {
+            responseHeaders.set("Access-Control-Allow-Headers", requestedHeaders);
+        }
+    } else {
+        responseHeaders.set("Allow", "GET, HEAD, OPTIONS");
+    }
+
+    responseHeaders.set("Access-Control-Max-Age", "86400");
+
+    // This is purposely a 200 instead of a 204 as some browsers may not correctly
+    // fetch the actual resource after receiving a 204.
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/OPTIONS#preflighted_requests_in_cors
+    return new Response(null, {status: 200, headers: responseHeaders});
 }
 
 async function actuallyHandleFetch(
@@ -335,6 +369,10 @@ async function actuallyHandleFetch(
         if (!resourceServicePublicKey)
             throw new InternalError("Missing `RESOURCE_SERVICE_PUBLIC_KEY` env variable");
 
+        const importerServicePublicKey = env.IMPORTER_SERVICE_PUBLIC_KEY;
+        if (!importerServicePublicKey)
+            throw new InternalError("Missing `IMPORTER_SERVICE_PUBLIC_KEY` env variable");
+
         const resourceServicePrivateKey = env.RESOURCE_SERVICE_PRIVATE_KEY;
         if (!resourceServicePrivateKey)
             throw new InternalError("Missing `RESOURCE_SERVICE_PRIVATE_KEY` env variable");
@@ -352,6 +390,7 @@ async function actuallyHandleFetch(
                 fileProcessorServicePublicKey,
                 apiServicePublicKey,
                 resourceServicePublicKey,
+                importerServicePublicKey,
                 secret: tokenAgentSecret,
             }),
             TokenAgentPrivateSide.new({
@@ -404,9 +443,10 @@ async function actuallyHandleFetch(
             );
             break;
         }
-        // We separate out the download route from the File route so we can set the `Content-Disposition` header to
-        // force the browser to download the file instead of navigating to it. This is to get around the
-        // fact that cross-origin requests are not supported from anchor tags with the `download` attribute.[1]
+        // We separate out the download route from the File route so we can set the
+        // `Content-Disposition` header to force the browser to download the file instead
+        // of navigating to it. This is to get around the fact that cross-origin requests
+        // are not supported from anchor tags with the `download` attribute.[1]
         //
         // [1]: https://chromestatus.com/feature/4969697975992320
         case "FileDownload": {
@@ -439,7 +479,6 @@ async function actuallyHandleFetch(
 
                 const filename =
                     getContentFileDownloadNameFromContentType(canonicalizedContentType);
-                // eslint-disable-next-line cyberworlds/string-quotes
                 response.headers.set("Content-Disposition", `attachment; filename="${filename}"`);
             }
 

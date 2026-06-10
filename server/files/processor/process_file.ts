@@ -60,7 +60,7 @@ export async function processFile(
 ) {
     span.addPropagatedData({context: {spaceId, fileId}});
 
-    const fileUploader = await getFileUploaderAsUploader(context, spaceId, fileId);
+    const fileUploader = await getFileUploaderAsUploader(context, fileId);
     const contentLength = fileUploader.getContentLength();
 
     span.addPropagatedData({context: {accountId: fileUploader.uploaderId}});
@@ -137,8 +137,8 @@ export async function processFile(
                                   ContentType: alternative.contentType,
                                   ContentLength: alternative.contentLength,
                                   Body: alternative.data,
-                                  // Error if an object already exists at this key. We don't want to override
-                                  // objects that already exist.
+                                  // Error if an object already exists at this key. We don't want to override objects
+                                  // that already exist.
                                   IfNoneMatch: "*",
                               },
                               {signal},
@@ -146,9 +146,9 @@ export async function processFile(
                       } catch (error) {
                           if (!isCloudflareR2ConditionConflictError(error)) throw error;
 
-                          // If an object already exists at the alternative key then we shouldn't
-                          // override it! Instead, get the metadata of the existing object and use that
-                          // to update our database.
+                          // If an object already exists at the alternative key then we shouldn't override
+                          // it! Instead, get the metadata of the existing object and use that to update our
+                          // database.
                           const object = await context.r2.HeadObject({
                               Bucket: filesBucketName,
                               Key: `${spaceId}/${fileUploader.fileId}-alternative`,
@@ -237,8 +237,8 @@ export async function processFile(
                               ContentType: content.contentType,
                               ContentLength: content.contentLength,
                               Body: content.data,
-                              // Error if an object already exists at this key. We don't want to override
-                              // objects that already exist.
+                              // Error if an object already exists at this key. We don't want to override objects
+                              // that already exist.
                               IfNoneMatch: "*",
                           },
                           {signal},
@@ -246,9 +246,9 @@ export async function processFile(
                   } catch (error) {
                       if (!isCloudflareR2ConditionConflictError(error)) throw error;
 
-                      // If an object already exists at the preview key then we shouldn't
-                      // override it! Instead, get the metadata of the existing object and use that
-                      // to update our database.
+                      // If an object already exists at the preview key then we shouldn't override it!
+                      // Instead, get the metadata of the existing object and use that to update our
+                      // database.
                       const object = await context.r2.HeadObject({
                           Bucket: filesBucketName,
                           Key: `${spaceId}/${fileUploader.fileId}-preview`,
@@ -356,8 +356,7 @@ export async function processFile(
             try {
                 imagePreviewVideoDuration = await imagePreviewVideoDurationPromise;
             } catch {
-                // Ignore errors from the video duration promise here. They're handled
-                // elsewhere.
+                // Ignore errors from the video duration promise here. They're handled elsewhere.
                 return;
             }
 
@@ -373,11 +372,12 @@ export async function processFile(
             }
         };
 
-        // Specific file processors often have dependencies on one another, e.g.
-        // "Process file preview size" depends on "Process file alternative" for Microsoft Word
-        // documents. However, we intentionally measure spans from the start of file processing
-        // so that when we look at the duration we get the user duration perceived by the user
-        // (since as each of these resolves we `sendEvent()` to the user).
+        // Specific file processors often have dependencies on one another, e.g. "Process
+        // file preview size" depends on "Process file alternative" for Microsoft Word
+        // documents. However, we intentionally measure spans from the start of file
+        // processing so that when we look at the duration we get the user duration
+        // perceived by the user (since as each of these resolves we `sendEvent()` to the
+        // user).
         await runAllPromises([
             alternativePromise?.then(finallyAlternativePromise, async error => {
                 await runAllPromises([
@@ -402,8 +402,8 @@ export async function processFile(
 
                         await fileUploader.finishProcessingAlternativeWithError(
                             context,
-                            // We only get to show one processing error to the user even if we have
-                            // multiple. Pick the first one.
+                            // We only get to show one processing error to the user even if we have multiple.
+                            // Pick the first one.
                             processorErrors?.[0] ?? {type: "Unknown"},
                         );
                     })(),
@@ -483,8 +483,8 @@ export async function processFile(
 
                 await fileUploader.finishProcessingPreviewWithError(
                     context,
-                    // We only get to show one processing error to the user even if we have
-                    // multiple. Pick the first one.
+                    // We only get to show one processing error to the user even if we have multiple.
+                    // Pick the first one.
                     processorErrors[0] ?? {type: "Unknown"},
                 );
             }),
@@ -497,8 +497,8 @@ export async function processFile(
         abortTimeout.clear();
 
         // If we caught any errors then add them to the span. We don't want to throw an
-        // aggregate error since we don't want to retry the job. However, we still want
-        // the errors to show up in telemetry.
+        // aggregate error since we don't want to retry the job. However, we still want the
+        // errors to show up in telemetry.
         if (caughtErrors.length > 0) {
             span.addException(createAggregateError(caughtErrors));
         }
@@ -507,8 +507,8 @@ export async function processFile(
 
         abortTimeout.clear();
 
-        // If our promise failed when we had caught errors then create an
-        // `AggregateError` that includes the caught errors and throw that.
+        // If our promise failed when we had caught errors then create an `AggregateError`
+        // that includes the caught errors and throw that.
         if (caughtErrors.length === 0) {
             throw error;
         } else {
@@ -518,9 +518,9 @@ export async function processFile(
 }
 
 /**
- * Take an `AggregateError` and dedupe errors with the same message. Useful
- * since our file processor promises frequently depend on each other. If two
- * promises throw the same error we don't want to list the error twice in an
+ * Take an `AggregateError` and dedupe errors with the same message. Useful since
+ * our file processor promises frequently depend on each other. If two promises
+ * throw the same error we don't want to list the error twice in an
  * `AggregateError`.
  */
 function dedupeAggregateError(error: unknown) {
@@ -556,8 +556,8 @@ function dedupeAggregateError(error: unknown) {
 }
 
 /**
- * Look for a timeout or abort error. We want to retry our processing job if
- * there was a timeout.
+ * Look for a timeout or abort error. We want to retry our processing job if there
+ * was a timeout.
  */
 function isDeadlineExceededOrAbortedError(error: unknown): boolean {
     if (error instanceof DeadlineExceededError) return true;
@@ -652,8 +652,8 @@ const fileProcessorByContentType: {
     (createFileProcessor as any)(contentType),
 );
 
-// Make sure our file processors in `FileProcessorService` match our file
-// processor declarations in `fileProcessorDeclarationByContentType`.
+// Make sure our file processors in `FileProcessorService` match our file processor
+// declarations in `fileProcessorDeclarationByContentType`.
 assert(
     isDeepEqual(
         fileProcessorDeclarationByContentType,

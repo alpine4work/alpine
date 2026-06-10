@@ -7,11 +7,11 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 /**
- * Computes the next date and time when we should send a digest notification to an account or
- * returns null if they are not eligible to receive one.
+ * Computes the next date and time when we should send a digest notification to an
+ * account or returns null if they are not eligible to receive one.
  *
- * See `computeDigestNotificationsNextScheduledDateTime` for the time computation logic and
- * `isInboxEligibleForDigestNotification` for the eligibility logic.
+ * See `computeDigestNotificationsNextScheduledDateTime` for the time computation
+ * logic and `isInboxEligibleForDigestNotification` for the eligibility logic.
  */
 export function computeDigestNotificationsNextScheduledDateTimeIfEligible(
     context: Context<{tracer: TracerContextModule}>,

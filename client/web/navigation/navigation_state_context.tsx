@@ -44,8 +44,8 @@ export function NavigationStateProvider({children}: {children?: ReactNode}) {
         });
     }
 
-    // Read our current navigation state from `sessionStorage` and use it to
-    // initialize our context's state.
+    // Read our current navigation state from `sessionStorage` and use it to initialize
+    // our context's state.
     useEffect(() => {
         const navigationStateString = sessionStorage.getItem("cyberworlds/navigationState");
         if (navigationStateString) {

@@ -24,11 +24,11 @@ import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {visitDraftApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
+import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {
     ApiContentResponse,
     ApiMessageRoomTarget,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
@@ -38,22 +38,20 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 type LoadAgentMessagesListLinkRequest = Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
 
 /**
- * Loads content for a list of message/comments. When paginating through a list of messages,
- * we don't provide links to already-visited pages. This means that the agent can't go backward
- * to a previous page via a `[Previous Page]()` link.
+ * Loads content for a list of message/comments. When paginating through a list of
+ * messages, we don't provide links to already-visited pages. This means that the
+ * agent can't go backward to a previous page via a `[Previous Page]()` link.
  *
- * The *only* time we'll show links to next **and** previous pages is when we're loading
- * the first "chunk" of messages. So if the agent is trying to load the page for a message
- * at index 100, we'll give it links so that it can paginate in either direction from there.
+ * The _only_ time we'll show links to next **and** previous pages is when we're
+ * loading the first "chunk" of messages. So if the agent is trying to load the
+ * page for a message at index 100, we'll give it links so that it can paginate in
+ * either direction from there.
  *
  * ```markdown
- * [Previous chunk](/chat/ian-first-post-sentence?chunk=-1)
- * <-- Zeroth chunk -->
+ * [Previous chunk](/chat/ian-first-post-sentence?chunk=-1) <-- Zeroth chunk -->
  *
- * <human name="Ian">message 1</human>
- * <bot name="GPT">message 2</bot>
- * <human name="Josh">message 3</human>
- * <human name="Rachel">message 4</human>
+ * <human name="Ian">message 1</human> <bot name="GPT">message 2</bot>
+ * <human name="Josh">message 3</human> <human name="Rachel">message 4</human>
  *
  * <-- Zeroth chunk -->
  *
@@ -104,19 +102,19 @@ async function loadPageMessages(options: {
     const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
-            return getMarkdownContentForPageFromStart({
+            return await getMarkdownContentForPageFromStart({
                 ...options,
                 cursorOptions: link.pageInfo,
             });
         }
         case "Middle": {
-            return getMarkdownContentForPageFromMiddle({
+            return await getMarkdownContentForPageFromMiddle({
                 ...options,
                 cursorOptions: link.pageInfo,
             });
         }
         case "End": {
-            return getMarkdownContentForPageFromEnd({
+            return await getMarkdownContentForPageFromEnd({
                 ...options,
                 cursorOptions: link.pageInfo,
             });
@@ -126,15 +124,14 @@ async function loadPageMessages(options: {
     }
 }
 
-// For a given page of messages, we add a preamble to provide more context
-// about the snippet of the conversation on the page. For example, if the
-// page is a list of document comments, the preamble would include
+// For a given page of messages, we add a preamble to provide more context about
+// the snippet of the conversation on the page. For example, if the page is a list
+// of document comments, the preamble would include
 //
 // ```markdown
 // Comments on [My Document](/documents/123):
 //
 // ...page content (messages)
-//
 // ```
 async function getPagePreambleElements(options: {
     tracer: TracerBase;
@@ -145,17 +142,17 @@ async function getPagePreambleElements(options: {
 }): Promise<Array<RootContent>> {
     switch (options.link.type) {
         case "ChatMessages":
-            return getPreambleForChatMessages({
+            return await getPreambleForChatMessages({
                 ...options,
                 link: options.link,
             });
         case "DocumentCommentThreadComments":
-            return getPreambleForDocumentComments({
+            return await getPreambleForDocumentComments({
                 ...options,
                 link: options.link,
             });
         case "TaskComments":
-            return getPreambleForTaskComments({
+            return await getPreambleForTaskComments({
                 ...options,
                 link: options.link,
             });
@@ -433,8 +430,8 @@ async function getPreambleForDocumentComments({
             value: "a document.",
         });
     } else {
-        // When showing the conversation for the first time, show the snippet of text that the
-        // comment was created on and the link to the document.
+        // When showing the conversation for the first time, show the snippet of text that
+        // the comment was created on and the link to the document.
         const [existingDocumentLink, commentThreadData] = await runAllPromises([
             findAgentLinkForApiPathIfExists(transaction, `/documents/${link.documentId}`),
             isFirstPage
@@ -506,9 +503,6 @@ async function getPreambleForDocumentComments({
                 documentContentSnippet,
                 link.commentThreadId,
             ),
-            {
-                spaceId: request.spaceId,
-            },
         );
 
         for (const element of snippetContentMarkdownTree.children) {

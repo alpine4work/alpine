@@ -7,11 +7,12 @@ import {BrowserId} from "~/shared/id/types/id_types.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**
- * Gets or creates a push subscription on the browser and returns a validated web push subscription.
+ * Gets or creates a push subscription on the browser and returns a validated web
+ * push subscription.
  *
- * If `unsubscribeExistingSubscription` is true, this will first unsubscribe from the existing
- * subscription if it exists then create a new subscription instead of only creating a new
- * subscription if one doesn't already exist.
+ * If `unsubscribeExistingSubscription` is true, this will first unsubscribe from
+ * the existing subscription if it exists then create a new subscription instead of
+ * only creating a new subscription if one doesn't already exist.
  */
 export async function subscribeToPushNotificationsInBrowser(
     browserId: BrowserId,
@@ -40,7 +41,8 @@ export async function subscribeToPushNotificationsInBrowser(
     ]);
     assert(vapidCredentials, "Missing vapid credentials");
 
-    // `userVisibleOnly` *must* be set to true for Chrome to receive push notifications.
+    // `userVisibleOnly` _must_ be set to true for Chrome to receive push
+    // notifications.
     const subscriptionOptions: PushSubscriptionOptionsInit = {
         userVisibleOnly: true,
         applicationServerKey: vapidCredentials.vapidPublicKey,
@@ -48,7 +50,8 @@ export async function subscribeToPushNotificationsInBrowser(
 
     const notificationPermissions = Notification.permission;
 
-    // We expect that browser permissions have already been requested and granted by the user.
+    // We expect that browser permissions have already been requested and granted by
+    // the user.
     if (notificationPermissions !== "granted") {
         throw new FailedPreconditionError(
             "User has not granted browser permission to receive push notifications",

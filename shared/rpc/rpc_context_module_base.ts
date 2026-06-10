@@ -6,9 +6,9 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 /**
  * Context module for executing an RPC from anywhere.
  *
- * In a web browser this will be a cross-network `fetch()` call and
- * authenticated with cookies. In our app worker this will be a local function
- * call using authentication from the context.
+ * In a web browser this will be a cross-network `fetch()` call and authenticated
+ * with cookies. In our app worker this will be a local function call using
+ * authentication from the context.
  */
 export abstract class RpcContextModuleBase<Modules extends {} = {}>
     extends ContextModuleBase<Modules>

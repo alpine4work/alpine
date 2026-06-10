@@ -6,9 +6,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 /**
  * The underlying representation of a [floating point number][1].
  *
- * JavaScript represents all numbers as a 64-bit float. You can use this
- * function to see the exact exponent and mantissa (aka significand) of the
- * float.
+ * JavaScript represents all numbers as a 64-bit float. You can use this function
+ * to see the exact exponent and mantissa (aka significand) of the float.
  *
  * Useful if you want to encode a float in some custom way.
  *

@@ -4,6 +4,7 @@ ts_project(
     name = "lambda",
     visibility = [
         "//server:__subpackages__",
+        "//admin/analytics:__subpackages__",
         "//admin/lambda:__subpackages__",
         "//admin/opensearch/deploy_script:__subpackages__",
     ],

@@ -3,13 +3,13 @@ import {IconContext} from "phosphor-react";
 import {useCallback, useContext, useEffect, useId, useRef, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
-import {IconButton} from "~/client/web/design/icon_button.js";
+import {IconButton, spaceLayoutSideBarIconSize} from "~/client/web/design/icon_button.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
 } from "~/client/web/design/overlay_trigger_button.js";
 import {defaultTooltipOffset} from "~/client/web/design/tooltip.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
 import {inboxEntryWidth} from "~/client/web/inbox/inbox_entry_view.js";
 import {LoudNotificationBadgeSvg} from "~/client/web/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
@@ -25,17 +25,20 @@ import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/web/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/web/virtualized/virtualized_scroll_view_state.js";
-import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+    addRemLengths,
+    convertRemLengthToPx,
+    negateRemLength,
+    spacing,
+} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getInboxEntries,
@@ -45,7 +48,7 @@ import {
 export function SpaceLayoutSideBarInboxButton({
     initialInbox,
 }: {
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    initialInbox: RynamoItem<InboxModel>;
 }) {
     const spacingScale = useSpacingScale();
     const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
@@ -58,16 +61,16 @@ export function SpaceLayoutSideBarInboxButton({
     const overlayTriggerButtonRef = useRef<OverlayTriggerButtonRef>(null);
 
     // On mobile platforms, we expect that this component shouldn't render. Instead
-    // `<SpaceLayoutNativeMobileInboxController>` should render for native mobile
-    // and `<SpaceLayoutWebMobileTabBar>` for web mobile. This assert is a
-    // sanity check since we don't want to maintain two separate inbox realtime
-    // items which would be inefficient.
+    // `<SpaceLayoutNativeMobileInboxController>` should render for native mobile and
+    // `<SpaceLayoutWebMobileTabBar>` for web mobile. This assert is a sanity check
+    // since we don't want to maintain two separate inbox realtime items which would be
+    // inefficient.
     assert(platform !== "mobile" && !isNativeMobile);
 
-    const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
+    const {item: inbox} = useRynamoItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+            subscriber => subscribeToEvents(event => subscriber(event.events)),
             [subscribeToEvents],
         ),
         reloadItemWithStrongReadConsistency: useCallback(async () => {
@@ -82,15 +85,15 @@ export function SpaceLayoutSideBarInboxButton({
               isVisible: true;
               isPending: boolean;
               isAnimatingOut: boolean;
-              filter: "New" | "Archive";
+              filter: InboxEntryStatus;
               initialEntriesResultPromise: PromiseImmediate<
-                  DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>
+                  RynamoIndexQueryResult<InboxEntryModel>
               >;
           }
     >({isVisible: false});
 
-    // Fetch enough items to fill the virtualization window with entries. This
-    // gives the user a bit of space to scroll.
+    // Fetch enough items to fill the virtualization window with entries. This gives
+    // the user a bit of space to scroll.
     const initialEntriesLimit = Math.ceil(
         getVirtualizationWindowHeight(
             convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeight], spacingScale),
@@ -119,8 +122,8 @@ export function SpaceLayoutSideBarInboxButton({
             });
 
             overlayTriggerButton.open({
-                // Don't call `onOpen` which will `preventDefault`. We actually want the
-                // overlay to open now.
+                // Don't call `onOpen` which will `preventDefault`. We actually want the overlay to
+                // open now.
                 stopPropagation: true,
             });
         };
@@ -196,8 +199,8 @@ export function SpaceLayoutSideBarInboxButton({
             offsetAlong="-0.5"
             onOpen={() => {
                 // Don't open the loading indicator immediately. Instead start loading inbox
-                // entries. If we don't successfully load within some timeout we'll open anyway
-                // and display loading indicators.
+                // entries. If we don't successfully load within some timeout we'll open anyway and
+                // display loading indicators.
                 setOverlayState({
                     isVisible: true,
                     isPending: true,
@@ -237,7 +240,7 @@ export function SpaceLayoutSideBarInboxButton({
                     display="flex"
                     flexDirection="column"
                     overflow="hidden"
-                    className={greyElevated1ClassName}
+                    className={greyElevated2ClassName}
                 >
                     {overlayState.isVisible && (
                         <SpaceLayoutSideBarInboxOverlay
@@ -269,7 +272,7 @@ export function SpaceLayoutSideBarInboxButton({
                             onArchivePress={async () => {
                                 const {entriesResult} = await getInboxEntries(context, {
                                     spaceId: space.id,
-                                    filter: "Archive",
+                                    filter: "Done",
                                     limit: initialEntriesLimit,
                                     afterCursor: null,
                                 });
@@ -281,7 +284,7 @@ export function SpaceLayoutSideBarInboxButton({
                                         ...overlayState,
                                         isVisible: true,
                                         isPending: false,
-                                        filter: "Archive",
+                                        filter: "Done",
                                         initialEntriesResultPromise:
                                             PromiseImmediate.resolve(entriesResult),
                                     };
@@ -297,25 +300,37 @@ export function SpaceLayoutSideBarInboxButton({
                 isPending={overlayState.isVisible && overlayState.isPending}
                 // We'll open the overlay after a delay and show a loading indicator there.
                 withoutLoadingIndicator
-                size="lg"
+                variant="quieter"
+                size="space-layout-side-bar"
                 description="Inbox"
                 tooltipPlacement="right"
                 pressErrorTitle="Couldn&#x2019;t open inbox"
-                // Don't focus the button on press since pressing will open the overlay and
-                // should focus the overlay.
+                // Don't focus the button on press since pressing will open the overlay and should
+                // focus the overlay.
                 //
                 // TODO(calebmer): Find a way to automate this instead of setting this prop
                 // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
                 withoutFocusOnPress={true}
             >
-                <Box position="relative" width="5" height="5">
+                <Box
+                    position="relative"
+                    style={{width: spaceLayoutSideBarIconSize, height: spaceLayoutSideBarIconSize}}
+                >
                     <Box
                         pointerEvents="none"
                         position="absolute"
-                        width="10"
-                        height="10"
-                        top="-5"
-                        right="-5"
+                        style={{
+                            top: negateRemLength(spaceLayoutSideBarIconSize),
+                            right: negateRemLength(spaceLayoutSideBarIconSize),
+                            width: addRemLengths(
+                                spaceLayoutSideBarIconSize,
+                                spaceLayoutSideBarIconSize,
+                            ),
+                            height: addRemLengths(
+                                spaceLayoutSideBarIconSize,
+                                spaceLayoutSideBarIconSize,
+                            ),
+                        }}
                     >
                         <SpaceLayoutSideBarInboxButtonIcon
                             notificationType={notificationType}
@@ -353,15 +368,15 @@ function SpaceLayoutSideBarInboxButtonIcon({
             // Extra space above and to the right in the `viewBox` to make space for the
             // notification badge.
             //
-            // NOTE(calebmer): I don't really understand why -128 in `viewBox` works here.
-            // I'd expect -256 to be what we need to give 512 total `viewBox` units of
-            // vertical space with 256 of those units above the icon. -128 seems to put us
-            // in the exact right position *shrug*.
+            // NOTE(calebmer): I don't really understand why -128 in `viewBox` works here. I'd
+            // expect -256 to be what we need to give 512 total `viewBox` units of vertical
+            // space with 256 of those units above the icon. -128 seems to put us in the exact
+            // right position _shrug_.
             viewBox="0 -128 512 256"
             fill={contextColor}
             {...context}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{
                 width: `calc(${contextSize} * 2)`,
                 height: `calc(${contextSize} * 2)`,

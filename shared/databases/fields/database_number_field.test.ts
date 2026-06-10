@@ -62,8 +62,7 @@ describe("databaseNumberFieldProvider", () => {
             ["JPY1200", 1200],
             ["Fr. 3.14", 3.14],
             ["3.14 Fr.", 3.14],
-            // Permissive alpha within the 4-char limit — even
-            // non-currency letters strip.
+            // Permissive alpha within the 4-char limit — even non-currency letters strip.
             ["abc 3.14", 3.14],
             ["3.14 xyz", 3.14],
             ["USD$ 3.14", 3.14],
@@ -79,16 +78,14 @@ describe("databaseNumberFieldProvider", () => {
             ["(£3.14)", -3.14],
             ["($1,234.56)", -1234.56],
             ["(USD 3.14)", -3.14],
-            // Inner parens (immediately around the number)
-            // also negate.
+            // Inner parens (immediately around the number) also negate.
             ["USD (3.14)", -3.14],
             ["(3.14) USD", -3.14],
             ["( 3.14 ) USD", -3.14],
             // Outer + inner parens nest (cancel out).
             ["((3.14))", 3.14],
             ["(USD (3.14))", 3.14],
-            // Percent — must be the first non-whitespace
-            // character after the number.
+            // Percent — must be the first non-whitespace character after the number.
             ["50%", 0.5],
             ["-25%", -0.25],
             // US thousands separators
@@ -106,12 +103,12 @@ describe("databaseNumberFieldProvider", () => {
         test.each([
             ["3.14%"],
             ["3.14 %"],
-            // `%` is the first non-whitespace char of the
-            // suffix — followup decoration after `%` is fine.
+            // `%` is the first non-whitespace char of the suffix — followup decoration after
+            // `%` is fine.
             ["3.14 %USD"],
         ])("scales %j as ~0.0314", input => {
-            // `3.14 × 0.01` isn't exact in IEEE-754, so use a
-            // tolerant compare instead of `toEqual`.
+            // `3.14 × 0.01` isn't exact in IEEE-754, so use a tolerant compare instead of
+            // `toEqual`.
             const result = databaseNumberFieldProvider.parseString(input, config);
             expect(result.ok).toBe(true);
             if (result.ok) expect(result.value!).toBeCloseTo(0.0314, 10);
@@ -139,8 +136,8 @@ describe("databaseNumberFieldProvider", () => {
             // European decimal — we don't guess locale.
             ["3,14"],
             ["1.234,56"],
-            // Decoration longer than 4 non-whitespace chars on
-            // either side: looks more like text than a number.
+            // Decoration longer than 4 non-whitespace chars on either side: looks more like
+            // text than a number.
             ["abcde 3.14"],
             ["USDXX 3.14"],
             ["3.14 abcde"],
@@ -152,18 +149,20 @@ describe("databaseNumberFieldProvider", () => {
             ["3..14"],
             ["3.1.4"],
             // Percent placement rules:
+            //
             // - Multiple `%` signs.
             ["50%%"],
             // - Leading `%` not allowed.
             ["%50"],
             ["% 3.14"],
-            // - Trailing `%` must be the first non-whitespace
-            //   char of the suffix; anything between rejects.
+            // - Trailing `%` must be the first non-whitespace char of the suffix; anything
+            //   between rejects.
             ["3.14 USD%"],
             ["3.14USD%"],
             // - `%` after a closing inner paren rejects.
             ["(3.14)%"],
             // Paren placement rules:
+            //
             // - Imbalanced inner parens.
             ["(3.14"],
             ["3.14)"],
@@ -172,12 +171,11 @@ describe("databaseNumberFieldProvider", () => {
             // - Interspersed parens (not flanking the number).
             ["(US)D 3.14"],
             ["3.14 U(S)D"],
-            // - Multiple inner-paren layers without an outer
-            //   wrap to absorb them.
+            // - Multiple inner-paren layers without an outer wrap to absorb them.
             ["((3.14)"],
             ["(3.14))"],
-            // Parens combined with `%` or `-` reject —
-            // parens are the sole indicator of negative.
+            // Parens combined with `%` or `-` reject — parens are the sole indicator of
+            // negative.
             ["(-3.14)"],
             ["-(3.14)"],
             ["(USD -3.14)"],

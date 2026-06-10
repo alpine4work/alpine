@@ -8,15 +8,15 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
-// We grab the original `setTimeout` here since we want to set a timeout
-// without being affected by Jest fake timers.
+// We grab the original `setTimeout` here since we want to set a timeout without
+// being affected by Jest fake timers.
 const originalSetTimeout = setTimeout;
 
 /**
- * This context provides information about the process our code is running in
- * and allows extending the lifetime of the process for code running in
- * serverless-like environments with the `waitUntil()` function
- * (e.g. Cloudflare Workers and Cloudflare Durable Objects).
+ * This context provides information about the process our code is running in and
+ * allows extending the lifetime of the process for code running in serverless-like
+ * environments with the `waitUntil()` function (e.g. Cloudflare Workers and
+ * Cloudflare Durable Objects).
  */
 export class ProcessContextModule extends ContextModuleBase implements ForkableContextModuleBase {
     private readonly _waitUntil: (promise: Promise<unknown>) => void;
@@ -33,7 +33,8 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      *
      * See the [Cloudflare documentation][1] for this method.
      *
-     * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
+     * [1]:
+     *     https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
      */
     public waitUntil(
         action: Promise<unknown> | (() => Promise<unknown>),
@@ -91,6 +92,22 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
     private static _waitForTestTasksPromise?: Promise<void>;
 
     /**
+     * Whether there are any pending `waitUntil()` test tasks that `waitForTestTasks()`
+     * would wait on.
+     *
+     * Useful for draining background work to a fixed point. Processing a job can
+     * register new `waitUntil()` tasks (e.g. enqueueing a follow-up job) and those
+     * tasks can in turn enqueue more jobs, so a single drain pass may finish before
+     * everything settles. Callers can alternate `waitForTestTasks()` and job-queue
+     * draining until this returns `false`.
+     */
+    public static hasPendingTestTasks(): boolean {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+        assert(afterEachPromisesForTest);
+        return afterEachPromisesForTest.size > 0;
+    }
+
+    /**
      * Wait for all the promises passed into the `waitUntil()` function of
      * `ProcessContextModule.test()`s to resolve.
      */
@@ -104,8 +121,7 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
 
         // Must early return when there are no promises since otherwise
         // `this._waitForTestTasksPromise` won't get cleared since the `finally` which
-        // clears `this._waitForTestTasksPromise` will run before the promise is
-        // assigned.
+        // clears `this._waitForTestTasksPromise` will run before the promise is assigned.
         if (!(afterEachPromisesForTest.size > 0)) return Promise.resolve();
 
         if (this._waitForTestTasksPromise === undefined) {
@@ -115,16 +131,15 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
                 try {
                     const errors: Array<unknown> = [];
 
-                    // Wait for all promises to resolve. If there's an error, don't throw it until
-                    // all promises have resolved.
+                    // Wait for all promises to resolve. If there's an error, don't throw it until all
+                    // promises have resolved.
                     while (afterEachPromisesForTest.size > 0) {
                         const promises = afterEachPromisesForTest;
                         afterEachPromisesForTest = new Set();
 
                         if (!withoutDeadlineExceededLog) {
                             // Log a warning when we've been waiting on a promise for too long. We construct
-                            // the error in the `waitUntil()` call so we can trace the source of the
-                            // promise.
+                            // the error in the `waitUntil()` call so we can trace the source of the promise.
                             for (const promise of promises) {
                                 const timeoutId = originalSetTimeout(() => {
                                     // eslint-disable-next-line no-console

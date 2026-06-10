@@ -5,6 +5,7 @@ import {
 } from "~/client/web/blobs/helpers/blobs_settings.js";
 import {HTMLCanvasElementWithBlobSettings} from "~/client/web/blobs/helpers/blobs_types.js";
 import {
+    actuallyDrawBlobsForIntegrationTest,
     drawBlobFactoryToCanvas,
     getInterpolatedThemeColor,
 } from "~/client/web/blobs/helpers/draw_blobs_factory.js";
@@ -15,11 +16,11 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 declare global {
     interface Window {
         __drawBlobs: typeof drawBlobs;
+        __actuallyDrawBlobsForIntegrationTest?: typeof actuallyDrawBlobsForIntegrationTest;
     }
 }
 
 function drawBlobs(blobCanvasId: string, settings: BlobsSettings, scale?: number) {
-    // eslint-disable-next-line cyberworlds/string-quotes
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
 
     const actuallyDrawBlobs = (colorScheme: ColorScheme) => {
@@ -49,11 +50,11 @@ function drawBlobs(blobCanvasId: string, settings: BlobsSettings, scale?: number
         });
 
         // NOTE(imjoshin): In case multiple blobs are rendered with the same key, draw them
-        // all here. To reduce redundant draws, within drawBlobFactoryToCanvas we check if we've
-        // already drawn this blob and if so, skip it.
+        // all here. To reduce redundant draws, within drawBlobFactoryToCanvas we check if
+        // we've already drawn this blob and if so, skip it.
         canvas.forEach(canvas => {
-            // keep track of the settings used to draw the blobs
-            // so that we can redraw them when the color scheme changes
+            // keep track of the settings used to draw the blobs so that we can redraw them
+            // when the color scheme changes
             (canvas as HTMLCanvasElementWithBlobSettings)._blobsSettings = settings;
 
             drawBlobFactoryToCanvas(
@@ -92,4 +93,8 @@ function drawBlobs(blobCanvasId: string, settings: BlobsSettings, scale?: number
 
 if (typeof window !== "undefined") {
     window.__drawBlobs = drawBlobs;
+
+    if (process.env.NODE_ENV !== "production" && (globalThis as any).__isIntegrationTest) {
+        window.__actuallyDrawBlobsForIntegrationTest = actuallyDrawBlobsForIntegrationTest;
+    }
 }

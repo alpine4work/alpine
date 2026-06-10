@@ -15,9 +15,11 @@ import {
     ForumInjectionContextModule,
     NotificationsInjectionContextModule,
     SearchInjectionContextModule,
+    SitesInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TraceOnlyEmailContextModule} from "~/server/emails/trace_only_email_context_module.js";
@@ -41,7 +43,13 @@ import {
     filesBindingName,
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {ImporterDevelopmentContextModule} from "~/server/importer/importer_development_context_module.js";
+import {
+    ImporterDevelopmentContextModule,
+    createDevelopmentEscalateToImporterServiceContext,
+} from "~/server/importer/development/importer_development_context_module.js";
+import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
+import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
@@ -49,10 +57,12 @@ import {notificationsInjection} from "~/server/notifications/data/notifications_
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {
     LogoDevContextModule,
     LogoDevNoopContextModule,
 } from "~/server/spaces/logo_dev_context_module.js";
+import {LoopsContextModule, LoopsNoopContextModule} from "~/server/spaces/loops_context_module.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     TestAnonymousActionContext,
@@ -67,8 +77,8 @@ import {
     TestUnknownActionContext,
 } from "~/server/spaces/test_helpers/test_context.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
-import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/router/task_realtime_service_local_router.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
@@ -76,7 +86,7 @@ import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_trace
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
-import {Context} from "~/shared/context/context.js";
+import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -121,12 +131,12 @@ const fileProcessorDevPort = assertPort(env.FILE_PROCESSOR_DEV_PORT);
 const taskRealtimeServiceLocalPort = assertPort(env.TASK_REALTIME_DEV_PORT);
 
 /**
- * Create a context for our development environment. This depends on the
- * dev command running and our local services (e.g. DynamoDB, OpenSearch, etc.)
- * being available.
+ * Create a context for our development environment. This depends on the dev
+ * command running and our local services (e.g. DynamoDB, OpenSearch, etc.) being
+ * available.
  *
- * The context type is `TestContext` which has just about everything you'd want
- * and lets you use our test helpers like `TestDocument` with the context.
+ * The context type is `TestContext` which has just about everything you'd want and
+ * lets you use our test helpers like `TestDocument` with the context.
  */
 export async function withDevelopmentEnvironment<Value>(
     action: (
@@ -161,6 +171,7 @@ export async function withDevelopmentEnvironment<Value>(
             fileProcessorServicePublicKey: keyDirectoryPath("file_processor_service_rsa.pub"),
             apiServicePublicKey: keyDirectoryPath("api_service_rsa.pub"),
             resourceServicePublicKey: keyDirectoryPath("resource_service_rsa.pub"),
+            importerServicePublicKey: keyDirectoryPath("importer_service_rsa.pub"),
             servicePrivateKey: keyDirectoryPath("app_service_rsa"),
             tokenAgentSecret: keyDirectoryPath("token_agent_secret"),
         },
@@ -211,7 +222,7 @@ export async function withDevelopmentEnvironment<Value>(
         );
     };
 
-    const processContext = Context.new<TestContextModules>({
+    const processContext: ContextWithDestroy<TestContextModules> = Context.new<TestContextModules>({
         process: new ProcessContextModule({waitUntil: promiseWaiter.waitUntil}),
         tracer: new TracerContextModule(tracer),
         dynamo: DynamoContextModule.new({
@@ -231,7 +242,8 @@ export async function withDevelopmentEnvironment<Value>(
             new JobSender({
                 region: "us-east-1",
                 queueUrl: `http://localhost:${sqsLocalPort}/local/JobQueue`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 fileProcessorQueueUrl: `http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 fileProcessorLightQueueUrl: `http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
                 fileProcessorHeavyQueueUrl: `http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
@@ -250,7 +262,19 @@ export async function withDevelopmentEnvironment<Value>(
             resourceServiceUrl: `http://localhost:${resourcesDevPort}`,
         }),
         billing: new BillingNoopDevelopmentContextModule(),
-        importer: new ImporterDevelopmentContextModule(),
+        importer: new ImporterDevelopmentContextModule({
+            getProcessContext: (): ServerProcessContext => processContext,
+            escalateToImporterServiceContext: createDevelopmentEscalateToImporterServiceContext(),
+        }),
+        slack:
+            env.SLACK_CLIENT_ID && env.SLACK_CLIENT_SECRET
+                ? new SlackContextModule({
+                      clientId: env.SLACK_CLIENT_ID,
+                      clientSecret: env.SLACK_CLIENT_SECRET,
+                      authRedirectOrigin: env.SLACK_AUTH_REDIRECT_ORIGIN ?? "",
+                  })
+                : new NoopSlackContextModule(),
+        importerService: new ImporterServiceDevelopmentContextModule(),
         r2: new CloudflareR2ContextModule(cloudflareClient),
         logoDev:
             env.LOGO_DEV_SECRET_KEY && env.LOGO_DEV_PUBLISHABLE_KEY
@@ -259,11 +283,15 @@ export async function withDevelopmentEnvironment<Value>(
                       publishableKey: env.LOGO_DEV_PUBLISHABLE_KEY,
                   })
                 : new LogoDevNoopContextModule(),
+        loops: env.LOOPS_API_KEY
+            ? new LoopsContextModule({apiKey: env.LOOPS_API_KEY})
+            : new LoopsNoopContextModule(),
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
         notificationsInjection: new NotificationsInjectionContextModule(notificationsInjection),
         searchInjection: new SearchInjectionContextModule(searchInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
         tasks: new TaskContextModule({
@@ -392,8 +420,8 @@ export async function withDevelopmentEnvironment<Value>(
     const valueResult = await captureResultPromise(() => action(context, {tokenAgent}));
 
     try {
-        // Wait for all `waitUntil()` promises to resolve before destroying the context
-        // and returning (even if there was an error).
+        // Wait for all `waitUntil()` promises to resolve before destroying the context and
+        // returning (even if there was an error).
         await promiseWaiter.wait();
     } catch (error) {
         // If `promiseWaiter` threw AND `action()` threw then create an aggregate error

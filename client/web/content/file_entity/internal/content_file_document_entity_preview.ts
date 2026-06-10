@@ -4,14 +4,16 @@ import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {renderBlobsArtToHtml} from "~/client/web/blobs/blobs_art_html.js";
 import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {getPlatformRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
@@ -45,6 +47,7 @@ export function renderContentFileDocumentEntityPreview(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         transformScale: originalTransformScale,
         platform,
@@ -63,6 +66,7 @@ export function renderContentFileDocumentEntityPreview(
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
+        siteRegistry: SiteRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
@@ -70,7 +74,7 @@ export function renderContentFileDocumentEntityPreview(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
-        fileEntityRenderers: ContentFileEntityRenderers | null;
+        fileEntityRenderers: ContentFileEntityRenderers;
         suppressHydrationWarning: () => void;
     },
 ) {
@@ -88,12 +92,19 @@ export function renderContentFileDocumentEntityPreview(
         withoutContainerPaddingY: true,
         transformScaleBaseFontSize: "75",
         scaledContainerStyles: [
-            // Document title top margin is computed using safe area inset. So zero out
-            // safe area inset which shouldn't apply here.
+            // Document title top margin is computed using safe area inset. So zero out safe
+            // area inset which shouldn't apply here.
             "--safe-area-inset-top-base: 0px",
             "--safe-area-inset-top: 0px",
         ],
         calculateScaledContainerTransformStyle: config => {
+            if (fileEntity.site) {
+                // Match the container-top-to-breadcrumb-top spacing used by every other entity
+                // preview (a single container padding from the box top). Skip the negative
+                // `titlePaddingTop` translateY — the title's own top spacing is suppressed via
+                // `withoutTitleTopSpacingDocClassName` below.
+                return `translateY(${config.paddingPx}px) scale(${config.transformScale})`;
+            }
             // Document-specific margin top calculation
             const marginTopPx = Math.max(
                 config.paddingPx * 1.5,
@@ -110,6 +121,23 @@ export function renderContentFileDocumentEntityPreview(
         references: emptyDocumentContentReferences,
     };
 
+    if (fileEntity.site) {
+        // Wrap the breadcrumb in a block-styled div so it lines up horizontally with the
+        // doc's title and paragraphs below (which inherit the same
+        // `max-width: blockMaxWidthVar` + centered margins via their block class). Without
+        // the wrapper, the breadcrumb hugs `scaledDocHtml`'s left edge while the title
+        // sits at the centered block's left edge — visibly out of alignment for the
+        // full-width preview.
+        const breadcrumbBlockHtml = scaledDocHtml.appendChild(new HtmlElementGenerator("div"));
+        breadcrumbBlockHtml.setAttribute("class", contentStyles.docBlockClassName);
+        renderContentFileEntitySiteBreadcrumb(
+            get,
+            siteRegistry,
+            breadcrumbBlockHtml,
+            fileEntity.site,
+        );
+    }
+
     const cover: DocumentContentCover = content.doc.attrs.cover;
     if (cover?.type === "Blobs") {
         const canvasHtml = renderBlobsArtToHtml(cover, {suppressHydrationWarning});
@@ -123,6 +151,10 @@ export function renderContentFileDocumentEntityPreview(
             contentStyles.docClassName,
             contentStyles.narrowRouteLayoutDocClassName,
             contentStyles.withUserSelectNoneDocClassName,
+            // Strip the title's top breathing room when a site breadcrumb sits above the title
+            // — otherwise the title's `min-height` leaves a `titlePaddingTop` gap between the
+            // title text and the first body block.
+            fileEntity.site && contentStyles.withoutTitleTopSpacingDocClassName,
             isContentTitleEmpty(content.doc) && contentStyles.emptyTitleClassName,
             isContentBodyEmpty(content.doc) && contentStyles.emptyBodyClassName,
         ),
@@ -137,6 +169,7 @@ export function renderContentFileDocumentEntityPreview(
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
+        siteRegistry,
         currentAccount,
         // If we render files/tables inside the preview make sure they have an
         // appropriately scaled block width (important for row of 3 recursive docs use
@@ -170,6 +203,7 @@ function createDummyDocumentContent(title: string): DocumentContent {
             "doc",
             {
                 accessPolicy: cast<AccessPolicy>({
+                    type: "Local",
                     accountGrantById: emptyMap,
                     defaultGrant: null,
                     urlGrant: null,

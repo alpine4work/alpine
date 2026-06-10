@@ -5,15 +5,15 @@ function cantUpdateFrozenMap(): never {
 }
 
 /**
- * Freeze a `Map`. Calling `Object.freeze()` on a map won't work since you'll
- * still be able to call `set()`, `delete()`, and `clear()` to modify the map.
+ * Freeze a `Map`. Calling `Object.freeze()` on a map won't work since you'll still
+ * be able to call `set()`, `delete()`, and `clear()` to modify the map.
  *
  * This function isn't perfect. You can still call
  * `Map.prototype.set.call(supposedlyFrozenMap, key, value)` to modify a map.
- * Freezing is best effort and meant to stop accidental modifications but we
- * can't perfectly prevent all modifications. As a codebase convention, if we
- * don't use `Map.prototype.set.call()` then this workaround shouldn't be an
- * issue in practice.
+ * Freezing is best effort and meant to stop accidental modifications but we can't
+ * perfectly prevent all modifications. As a codebase convention, if we don't use
+ * `Map.prototype.set.call()` then this workaround shouldn't be an issue in
+ * practice.
  */
 export function freezeMap<Key, Value>(map: Map<Key, Value>): ReadonlyMap<Key, Value> {
     if (!Object.isFrozen(map)) {

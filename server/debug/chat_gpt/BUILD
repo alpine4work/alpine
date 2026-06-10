@@ -19,7 +19,7 @@ ts_project(
         "//:node_modules/prettier",
         "//server/remix",
         "//server/spaces",
-        "//shared/api",
+        "//shared/api/specification",
         "//shared/bots",
         "//shared/content/code",
         "//shared/debug/chat_gpt",

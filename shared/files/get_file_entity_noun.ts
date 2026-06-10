@@ -14,18 +14,22 @@ export function getFileEntityNoun(type: FileEntityIdObject["type"]): string {
             return "task collection";
         case "Channel":
             return "channel";
+        case "Chat":
+            return "chat";
         case "Post":
             return "post";
+        case "Site":
+            return "site";
         default:
             throw exhaustive(type);
     }
 }
 
 /**
- * Get a user friendly, English, noun for the file entity. This noun is
- * capitalized so you can use it at the start of a sentence (following English
- * formatting rules). Unlike `getFileEntityNoun()` which returns the file
- * entity noun in lowercase.
+ * Get a user friendly, English, noun for the file entity. This noun is capitalized
+ * so you can use it at the start of a sentence (following English formatting
+ * rules). Unlike `getFileEntityNoun()` which returns the file entity noun in
+ * lowercase.
  */
 export function getFileEntityStartOfSentenceNoun(type: FileEntityIdObject["type"]): string {
     switch (type) {
@@ -37,8 +41,12 @@ export function getFileEntityStartOfSentenceNoun(type: FileEntityIdObject["type"
             return "Task collection";
         case "Channel":
             return "Channel";
+        case "Chat":
+            return "Chat";
         case "Post":
             return "Post";
+        case "Site":
+            return "Site";
         default:
             throw exhaustive(type);
     }

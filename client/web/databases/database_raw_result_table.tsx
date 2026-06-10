@@ -3,8 +3,8 @@ import {Box} from "~/client/web/design/box.js";
 const defaultFieldWidth = 200;
 
 /**
- * Basic read-only table for displaying raw SQL query
- * results. Infers columns from row object keys.
+ * Basic read-only table for displaying raw SQL query results. Infers columns from
+ * row object keys.
  */
 export function DatabaseRawResultTable({rows: rawRows}: {rows: ReadonlyArray<unknown>}) {
     const rows = rawRows as ReadonlyArray<Record<string, unknown>>;

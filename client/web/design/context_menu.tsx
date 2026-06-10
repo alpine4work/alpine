@@ -35,6 +35,7 @@ import {
     dispatchTriggeredOverlayCloseEvent,
     dispatchTriggeredOverlayOpenEvent,
 } from "~/client/web/design/overlay_trigger_button_event_listeners.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {setElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
@@ -72,14 +73,12 @@ type ContextMenuEventExtension = {
  * Add context menu actions to the `contextmenu` `MouseEvent`. Generally prefer
  * using `<ContextMenuActions>` which manages the event for you.
  *
- * Context menu actions are be ordered from most specific to least specific. So
- * if you have:
+ * Context menu actions are be ordered from most specific to least specific. So if
+ * you have:
  *
  * ```jsx
  * <ContextMenuActions actions={actions2}>
- *     <ContextMenuActions actions={actions1}>
- *         ...
- *     </ContextMenuActions>
+ *     <ContextMenuActions actions={actions1}>...</ContextMenuActions>
  * </ContextMenuActions>
  * ```
  *
@@ -136,8 +135,7 @@ export function addContextMenuActionsToPreviousSection(
 }
 
 /**
- * Is there an action with the provided `key` in the current context menu
- * actions?
+ * Is there an action with the provided `key` in the current context menu actions?
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function hasContextMenuActionWithKey(
@@ -200,14 +198,12 @@ function addContextMenuTriggerOverlayOpenElement(
  * Create a context menu actions ref if you want to avoid rendering another
  * component with `<ContextMenuActions>` for performance reasons.
  *
- * Context menu actions are be ordered from most specific to least specific. So
- * if you have:
+ * Context menu actions are be ordered from most specific to least specific. So if
+ * you have:
  *
  * ```jsx
  * <ContextMenuActions actions={actions2}>
- *     <ContextMenuActions actions={actions1}>
- *         ...
- *     </ContextMenuActions>
+ *     <ContextMenuActions actions={actions1}>...</ContextMenuActions>
  * </ContextMenuActions>
  * ```
  *
@@ -253,8 +249,8 @@ export function useContextMenuActionsRef(
 
         addContextMenuActions(event, actions);
 
-        // If `element` is a `<Button>` then right clicking should show the same
-        // selection state the button would be in if it had an open overlay.
+        // If `element` is a `<Button>` then right clicking should show the same selection
+        // state the button would be in if it had an open overlay.
         addContextMenuTriggerOverlayOpenElement(event, element);
 
         if (mergeReadonlyCopyAction !== undefined) {
@@ -291,29 +287,27 @@ export function useContextMenuActionsRef(
 /**
  * Across our entire app we disable the native right-click menu. Because:
  *
- * - It doesn't feel app-like for the context menu to appear absolutely
- *   anywhere you right click. It only makes sense for interactive elements.
- * - It doesn't feel app-like for the context menu to be filled with web
- *   specific stuff. Like "Cast" in Chrome.
+ * - It doesn't feel app-like for the context menu to appear absolutely anywhere
+ *   you right click. It only makes sense for interactive elements.
+ * - It doesn't feel app-like for the context menu to be filled with web specific
+ *   stuff. Like "Cast" in Chrome.
  * - It's inconsistent from a design perspective to sometimes use the native
- *   context menu and sometimes use a custom context menu depending on whether
- *   the target element needs it.
+ *   context menu and sometimes use a custom context menu depending on whether the
+ *   target element needs it.
  *
- * We are building an app, not a website, so we have our own context menu
- * system that supports our needs.
+ * We are building an app, not a website, so we have our own context menu system
+ * that supports our needs.
  *
  * If you want to add some actions to the context menu then wrap a `<div>` (or
- * other HTML element) in this component. It will listen for context menu
- * events on child elements and add some actions when the user right-clicks.
+ * other HTML element) in this component. It will listen for context menu events on
+ * child elements and add some actions when the user right-clicks.
  *
- * Context menu actions are be ordered from most specific to least specific. So
- * if you have:
+ * Context menu actions are be ordered from most specific to least specific. So if
+ * you have:
  *
  * ```jsx
  * <ContextMenuActions actions={actions2}>
- *     <ContextMenuActions actions={actions1}>
- *         ...
- *     </ContextMenuActions>
+ *     <ContextMenuActions actions={actions1}>...</ContextMenuActions>
  * </ContextMenuActions>
  * ```
  *
@@ -365,8 +359,8 @@ export function useIsContextMenuOpen(): boolean {
 }
 
 /**
- * Returns the actions targeted by the context menu. Null if the context
- * menu isn't open.
+ * Returns the actions targeted by the context menu. Null if the context menu isn't
+ * open.
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useContextMenuActions(): ReadonlyArray<MenuActionsSection> | null {
@@ -400,7 +394,7 @@ type ContextMenuState =
       };
 
 export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
 
     const [contextMenuState, setContextMenuState] = useState<ContextMenuState>({
         isOpen: false,
@@ -408,17 +402,17 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
         lastInstance: null,
     });
 
-    // Disable the native right-click menu everywhere in our app. This is an
-    // artifact of the web and not common in apps. Instead we provide our own
-    // right-click menu system where it makes sense.
+    // Disable the native right-click menu everywhere in our app. This is an artifact
+    // of the web and not common in apps. Instead we provide our own right-click menu
+    // system where it makes sense.
     useEffect(() => {
         const handleContextMenu = (
             event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
         ) => {
-            // The Chrome mobile device debugger (and so probably also Chrome on Android)
-            // fires the `contextmenu` event after a long press. This breaks any long press
-            // functionality we might add so call `event.preventDefault()` and don't open
-            // our custom context menu.
+            // The Chrome mobile device debugger (and so probably also Chrome on Android) fires
+            // the `contextmenu` event after a long press. This breaks any long press
+            // functionality we might add so call `event.preventDefault()` and don't open our
+            // custom context menu.
             if ("pointerType" in event && event.pointerType !== "mouse") {
                 event.preventDefault();
                 return;
@@ -426,8 +420,8 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 
             // If the user was holding shift then show the default browser context menu.
             //
-            // TODO(calebmer): If we ever have a native app wrapper, disable this behavior
-            // in the native app wrapper. Only allow our custom context menu there.
+            // TODO(calebmer): If we ever have a native app wrapper, disable this behavior in
+            // the native app wrapper. Only allow our custom context menu there.
             if (event.shiftKey) return;
 
             event.preventDefault();
@@ -529,7 +523,11 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                         if (!isEmpty) {
                             const action: MenuStandardAction = {
                                 label: "Copy",
-                                keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                keyboardShortcutHint: renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "c",
+                                ),
                                 onPress: () => {
                                     document.execCommand("copy");
                                 },
@@ -546,7 +544,11 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             {
                                 label: "Cut",
                                 isDisabled: isEmpty,
-                                keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
+                                keyboardShortcutHint: renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "x",
+                                ),
                                 onPress: () => {
                                     document.execCommand("cut");
                                 },
@@ -554,18 +556,26 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             {
                                 label: "Copy",
                                 isDisabled: isEmpty,
-                                keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                keyboardShortcutHint: renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "c",
+                                ),
                                 onPress: () => {
                                     document.execCommand("copy");
                                 },
                             },
                             {
                                 label: "Paste",
-                                keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
+                                keyboardShortcutHint: renderKeyboardShortcutHint(
+                                    clientInfo,
+                                    "mod",
+                                    "v",
+                                ),
                                 onPress: () => {
-                                    // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we
-                                    // have a desktop app wrapper also ask the user if they want to install the app
-                                    // to paste.
+                                    // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we have
+                                    // a desktop app wrapper also ask the user if they want to install the app to
+                                    // paste.
                                     setShouldShowPasteWarningDialog(true);
                                 },
                             },
@@ -626,7 +636,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
         return () => {
             document.removeEventListener("contextmenu", handleContextMenu);
         };
-    }, [isAppleDevice]);
+    }, [clientInfo]);
 
     const [shouldShowPasteWarningDialog, setShouldShowPasteWarningDialog] = useState(false);
 
@@ -636,8 +646,8 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 
     const previousContextMenuStateRef = useRef<ContextMenuState | null>(null);
 
-    // Call `dispatchTriggeredOverlayCloseEvent()` once the context menu closes on
-    // any elements we had called `dispatchTriggeredOverlayOpenEvent()` on.
+    // Call `dispatchTriggeredOverlayCloseEvent()` once the context menu closes on any
+    // elements we had called `dispatchTriggeredOverlayOpenEvent()` on.
     useEffect(() => {
         if ((previousContextMenuStateRef.current ?? null) === contextMenuState) return;
 
@@ -659,8 +669,8 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
             for (const element of previousInstance.triggerOverlayCloseElements) {
                 // Double request animation frame on close (when animating) like
                 // `<OverlayTriggerButton>`. See the documentation comment in
-                // `<OverlayTriggerButton>` around its `dispatchTriggeredOverlayCloseEvent()`
-                // call for more details on why we need a double animation frame.
+                // `<OverlayTriggerButton>` around its `dispatchTriggeredOverlayCloseEvent()` call
+                // for more details on why we need a double animation frame.
                 if (
                     !previousContextMenuState?.isOpen &&
                     !previousContextMenuState?.shouldAnimateOut
@@ -677,14 +687,14 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
         }
     }, [contextMenuState, instance]);
 
-    // Set the target of our `<OverlayAnimated>` to be owned by the element the
-    // user right clicked on. This way we won't consider events in the context menu
-    // to be outside the target element.
+    // Set the target of our `<OverlayAnimated>` to be owned by the element the user
+    // right clicked on. This way we won't consider events in the context menu to be
+    // outside the target element.
     //
     // We need to use `setElementOwnedBy()` instead of the `data-ownedby` attribute
-    // because we can't add an `id` to arbitrary elements in the DOM. For example,
-    // an element in a ProseMirror `EditorView` will immediately remove any
-    // unexpected DOM changes.
+    // because we can't add an `id` to arbitrary elements in the DOM. For example, an
+    // element in a ProseMirror `EditorView` will immediately remove any unexpected DOM
+    // changes.
     const instanceTargetRef = useLifecycleRef<HTMLDivElement>(
         useCallback(
             element => {
@@ -702,8 +712,8 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
             {instance &&
                 createPortal(
                     <OverlayAnimated
-                        // The context menu needs to render over other blocking overlays (e.g.
-                        // `<Modal>`s) so it gets its own special blocking level.
+                        // The context menu needs to render over other blocking overlays (e.g. `<Modal>`s)
+                        // so it gets its own special blocking level.
                         isBlocking="ContextMenu"
                         isVisible={contextMenuState.isOpen}
                         placement="bottom-start"
@@ -764,10 +774,16 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                 )}
             {shouldShowPasteWarningDialog && (
                 <ModalDialog
-                    title={`Can only paste with ${isAppleDevice ? "⌘+V" : "Ctrl+V"}`}
-                    description={`For security purposes, your browser only allows pasting with the keyboard shortcut ${
-                        isAppleDevice ? "⌘+V" : "Ctrl+V"
-                    }. Try again but instead of right clicking use the keyboard shortcut.`}
+                    title={`Can only paste with ${renderKeyboardShortcutHint(
+                        clientInfo,
+                        "mod",
+                        "v",
+                    )}`}
+                    description={`For security purposes, your browser only allows pasting with the keyboard shortcut ${renderKeyboardShortcutHint(
+                        clientInfo,
+                        "mod",
+                        "v",
+                    )}. Try again but instead of right clicking use the keyboard shortcut.`}
                     primaryButtonLabel="Ok"
                     onPrimaryButtonPress={() => setShouldShowPasteWarningDialog(false)}
                     shouldHideCancelButton={true}
@@ -829,9 +845,9 @@ const ContextMenu = forwardRef(function ContextMenu(
 
     const lastFocusedMenuItemIndexRef = useRef<number | null>(focusedMenuItemIndex);
 
-    // If a direct descendant was focused then close any open submenu we may have.
-    // This will happen if you open a submenu with the keyboard then hover over a
-    // different menu item.
+    // If a direct descendant was focused then close any open submenu we may have. This
+    // will happen if you open a submenu with the keyboard then hover over a different
+    // menu item.
     useEffect(() => {
         if (lastFocusedMenuItemIndexRef.current === focusedMenuItemIndex) return;
         lastFocusedMenuItemIndexRef.current = focusedMenuItemIndex;
@@ -859,8 +875,8 @@ const ContextMenu = forwardRef(function ContextMenu(
 
     const [searchText, setSearchText] = useState("");
 
-    // We want to reset the search text back to an empty string after some period
-    // of time whenever it changes.
+    // We want to reset the search text back to an empty string after some period of
+    // time whenever it changes.
     useEffect(() => {
         if (searchText === "") return;
 
@@ -879,8 +895,8 @@ const ContextMenu = forwardRef(function ContextMenu(
     //
     // TODO(calebmer): This doesn't support `ArrowRight` keyboard events when the
     // context menu includes a children action. Ideally I'd find a way to refactor
-    // `<Menu>` in a way where its `onKeyDown` logic works with global key down
-    // events when there's no focus.
+    // `<Menu>` in a way where its `onKeyDown` logic works with global key down events
+    // when there's no focus.
     const handleGlobalKeyDown = useEvent((event: KeyboardEvent) => {
         switch (event.key) {
             // Don't allow using tab to move keyboard focus while the context menu is open.
@@ -908,8 +924,8 @@ const ContextMenu = forwardRef(function ContextMenu(
                 return;
             }
 
-            // When focus is in a menu, moves focus to the next item, optionally
-            // wrapping from the last to the first.
+            // When focus is in a menu, moves focus to the next item, optionally wrapping from
+            // the last to the first.
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             case "ArrowDown": {
@@ -931,8 +947,8 @@ const ContextMenu = forwardRef(function ContextMenu(
                     }
                 }
 
-                // If we did not find a menu item after `currentIndex` then loop back around to
-                // the first menu item.
+                // If we did not find a menu item after `currentIndex` then loop back around to the
+                // first menu item.
                 for (let index = 0; index < flattenedActions.length; index++) {
                     const flattenedAction = flattenedActions[index]!;
                     if (flattenedAction.type === "Action") {
@@ -944,8 +960,8 @@ const ContextMenu = forwardRef(function ContextMenu(
                 return;
             }
 
-            // When focus is in a menu, moves focus to the previous item,
-            // optionally wrapping from the first to the last.
+            // When focus is in a menu, moves focus to the previous item, optionally wrapping
+            // from the first to the last.
             //
             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
             case "ArrowUp": {
@@ -976,9 +992,9 @@ const ContextMenu = forwardRef(function ContextMenu(
                 return;
             }
 
-            // Moves focus to the first item in the current menu. Technically, the spec
-            // says only implement if arrow key wrapping is not supported but it's easy
-            // to support so why not.
+            // Moves focus to the first item in the current menu. Technically, the spec says
+            // only implement if arrow key wrapping is not supported but it's easy to support
+            // so why not.
             //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "Home": {
@@ -996,9 +1012,9 @@ const ContextMenu = forwardRef(function ContextMenu(
                 return;
             }
 
-            // Moves focus to the last item in the current menu. Technically, the spec
-            // says only implement if arrow key wrapping is not supported but it's easy
-            // to support so why not.
+            // Moves focus to the last item in the current menu. Technically, the spec says
+            // only implement if arrow key wrapping is not supported but it's easy to support
+            // so why not.
             //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "End": {
@@ -1017,8 +1033,8 @@ const ContextMenu = forwardRef(function ContextMenu(
             }
 
             default: {
-                // Move focus to the next menu item in the current menu whose label
-                // begins with that printable character.
+                // Move focus to the next menu item in the current menu whose label begins with
+                // that printable character.
                 //
                 // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                 if (
@@ -1045,8 +1061,8 @@ const ContextMenu = forwardRef(function ContextMenu(
                     return;
                 }
 
-                // Ignore modifier keys since the user may be starting a keyboard shortcut and
-                // they need to see the context menu for the keyboard shortcut hint.
+                // Ignore modifier keys since the user may be starting a keyboard shortcut and they
+                // need to see the context menu for the keyboard shortcut hint.
                 if (
                     event.key === "Meta" ||
                     event.key === "Alt" ||

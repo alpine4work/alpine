@@ -1,4 +1,6 @@
-/** Matches Notion file names: `Title <32hexchars>.md` or `Title <32hexchars>.csv` */
+/**
+ * Matches Notion file names: `Title <32hexchars>.md` or `Title <32hexchars>.csv`
+ */
 const notionImportFileNamePattern = /^(.+)\s([0-9a-f]{32})\.(md|csv)$/;
 
 export interface NotionImportFileName {
@@ -14,8 +16,9 @@ export interface NotionImportFileName {
  * Parses Notion export file names which follow the pattern:
  * `Title <32hexchars>.md` or `Title <32hexchars>.csv`
  *
- * @see README.md "Notion ID Formats" section for details on the 32-char hex ID format.
- * @see README.md "Document Types" section for how pages and databases use this naming.
+ * @see README.md "Notion ID Formats" section for details on the 32-char hex ID
+ * format. @see README.md "Document Types" section for how pages and databases use
+ * this naming.
  */
 export function parseNotionImportFileName(fileName: string): NotionImportFileName | null {
     const match = fileName.match(notionImportFileNamePattern);

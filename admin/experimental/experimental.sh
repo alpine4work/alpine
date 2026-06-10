@@ -2,6 +2,32 @@
 
 set -e
 
+# Worktree support: search up from the current directory for a `cyberworlds`
+# checkout. If we find one with a different
+# `admin/experimental/experimental.sh` script, run that instead. Skip if we're
+# in Bazel's output directory since the execroot mirrors the source tree and
+# we'd find `admin/experimental` scripts there.
+if [[ "$(pwd -P)" != *"/_bazel_"* ]]; then
+    search_dir="$PWD"
+    found_workspace=false
+    while [ "$search_dir" != "/" ]; do
+        if [ -x "$search_dir/admin/experimental/experimental.sh" ]; then
+            this_script=$(cd "$(dirname "$0")" && pwd -P)/experimental.sh
+            found_script=$(cd "$search_dir/admin/experimental" && pwd -P)/experimental.sh
+            if [ "$this_script" != "$found_script" ]; then
+                exec "$search_dir/admin/experimental/experimental.sh" "$@"
+            fi
+            found_workspace=true
+            break
+        fi
+        search_dir=$(dirname "$search_dir")
+    done
+    if [ "$found_workspace" = false ]; then
+        echo 'Error: Not in a `cyberworlds` checkout' >&2
+        exit 1
+    fi
+fi
+
 # Change to workspace root
 workspace_path=$(cd $(dirname $0)/../.. && pwd)
 cd $workspace_path

@@ -3,19 +3,21 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 
-// TypeScript errors here when new normalized filters are added. If you add a
-// new normalized filter you should make sure to update
+// TypeScript errors here when new normalized filters are added. If you add a new
+// normalized filter you should make sure to update
 // `getTaskQueryNormalizedFiltersInitialFields()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "layoutFilter"
     | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
@@ -29,9 +31,11 @@ assertEqualTypes<
 >();
 
 export type TaskQueryNormalizedFiltersInitialFields = {
+    readonly parentTaskId: TaskId | null;
     readonly status: "Open" | "Closed";
     readonly collectionIds: ReadonlySet<TaskCollectionId>;
     readonly priority: TaskPriority | null;
+    readonly layout: TaskLayout | null;
     readonly title: string;
     readonly assigneeId: AccountId | null;
     readonly assigneeStatus: "Inactive" | "Active";
@@ -39,26 +43,31 @@ export type TaskQueryNormalizedFiltersInitialFields = {
 };
 
 /**
- * Get the initial fields for a task based on a task query's filters. This
- * function is best effort. We won't always be able to produce task fields that
- * match the filters. For example, if there's a created time filter, we can't
- * control the task creation time. When the choice for which value to pick is
- * ambiguous then we make a decision. For example, if a task can be medium or
- * high priority then we pick medium priority. It's unlikely that our decision
- * will be correct so the user will likely need to go and update any choice
- * we make.
+ * Get the initial fields for a task based on a task query's filters. This function
+ * is best effort. We won't always be able to produce task fields that match the
+ * filters. For example, if there's a created time filter, we can't control the
+ * task creation time. When the choice for which value to pick is ambiguous then we
+ * make a decision. For example, if a task can be medium or high priority then we
+ * pick medium priority. It's unlikely that our decision will be correct so the
+ * user will likely need to go and update any choice we make.
  */
 export function getTaskQueryNormalizedFiltersInitialFields(
     filters: TaskQueryNormalizedFilters,
     evaluationContext: TaskQueryEvaluationContext,
 ): TaskQueryNormalizedFiltersInitialFields {
+    let parentTaskId: TaskId | null = null;
     let status: "Open" | "Closed" = "Open";
     const collectionIds = new Set<TaskCollectionId>();
     let priority: TaskPriority | null = null;
+    let layout: TaskLayout | null = null;
     let title: string = "";
     let assigneeId: AccountId | null = null;
     let assigneeStatus: "Inactive" | "Active" = "Inactive";
     let dueDate: CalendarDate | null = null;
+
+    if (filters.parentFilter) {
+        parentTaskId = filters.parentFilter.parentTaskId;
+    }
 
     if (filters.displayStatusFilter.ifOpenInactive) {
         status = "Open";
@@ -98,6 +107,16 @@ export function getTaskQueryNormalizedFiltersInitialFields(
             priority = "Urgent";
         } else {
             throw exhaustive(filters.priorityFilter);
+        }
+    }
+
+    if (filters.layoutFilter) {
+        if (filters.layoutFilter.ifNull) {
+            layout = null;
+        } else if (filters.layoutFilter.ifProject) {
+            layout = "Project";
+        } else {
+            throw exhaustive(filters.layoutFilter);
         }
     }
 
@@ -170,10 +189,9 @@ export function getTaskQueryNormalizedFiltersInitialFields(
             case "Range": {
                 const filter = filters.dueDateFilter;
 
-                // We look for the closest date in our range filter to a week from today and
-                // set that as the due date. Setting the due date to a week from today feels
-                // better than setting it to today. Since generally due dates are set in the
-                // future.
+                // We look for the closest date in our range filter to a week from today and set
+                // that as the due date. Setting the due date to a week from today feels better
+                // than setting it to today. Since generally due dates are set in the future.
                 const date = evaluationContext.currentDate.add({days: 7});
 
                 // If the current date is within the range then let's use the current date!
@@ -187,8 +205,8 @@ export function getTaskQueryNormalizedFiltersInitialFields(
                 ) {
                     dueDate = date;
                 }
-                // If the current date is not within the range then let's use the closest day
-                // to the current date in the range.
+                // If the current date is not within the range then let's use the closest day to
+                // the current date in the range.
                 else {
                     if (
                         filter.exclusiveLowerBoundDate !== null &&
@@ -210,9 +228,11 @@ export function getTaskQueryNormalizedFiltersInitialFields(
     }
 
     return {
+        parentTaskId,
         status,
         collectionIds,
         priority,
+        layout,
         title,
         assigneeId,
         assigneeStatus,

@@ -28,6 +28,8 @@ import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
+import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
@@ -43,8 +45,8 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 export const commitTaskActionTransaction = defineRpc({
     name: "commitTaskActionTransaction",
     // TODO(calebmer): This should be idempotent thanks to CRDTs! But I think
-    // `updateAccessPolicyShareNotification` might make this RPC non-idempotent
-    // since we'll send share notifications twice.
+    // `updateAccessPolicyShareNotification` might make this RPC non-idempotent since
+    // we'll send share notifications twice.
     //
     // Make sure this RPC is idempotent!
     isIdempotent: false,
@@ -62,6 +64,16 @@ export const commitTaskActionTransaction = defineRpc({
     output: {
         extraActions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
+        referencedSites: Schema.array(
+            Schema.result(
+                Schema.object({
+                    ok: Schema.value(true),
+                    value: SitePreviewModel.schema,
+                }),
+                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            ),
+        ),
+        eventsForSite: Schema.array(RynamoSiteEventSchema).optional(),
     },
 });
 
@@ -77,6 +89,15 @@ export const deleteTaskAndAllChildren = defineRpc({
     output: {
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
+        referencedSites: Schema.array(
+            Schema.result(
+                Schema.object({
+                    ok: Schema.value(true),
+                    value: SitePreviewModel.schema,
+                }),
+                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            ),
+        ),
     },
 });
 
@@ -93,6 +114,15 @@ export const duplicateTaskAndAllChildren = defineRpc({
     output: {
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
+        referencedSites: Schema.array(
+            Schema.result(
+                Schema.object({
+                    ok: Schema.value(true),
+                    value: SitePreviewModel.schema,
+                }),
+                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            ),
+        ),
         taskId: Schema.id<TaskId>(),
     },
 });
@@ -152,28 +182,20 @@ export const getTaskNotesContentReferences = defineRpc({
 });
 
 /**
- * Authorizes whether you have view access to a task. Throws an error if you
- * don't have view access. Also authorizes whether you have edit access to a
- * task. Returns an `editResult` with an error if you have view access to a
- * task but not edit access.
+ * Authorizes whether you have view access to a task. Throws an error if you don't
+ * have view access. Also authorizes whether you have edit access to a task.
+ * Returns an `editResult` with an error if you have view access to a task but not
+ * edit access.
  */
 export const authorizeTaskAccess = defineRpc({
     name: "authorizeTaskAccess",
     isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
-        // TODO(calebmer, #task-collaboration-access-level-refactor): Make this
-        // required once all clients are connecting with the right `AccessLevel`.
-        expectedAccessLevel: AccessLevelSchema.optional(),
+        expectedAccessLevel: AccessLevelSchema,
     },
     output: {
         spaceId: Schema.id<SpaceId>(),
-        // TODO(calebmer, #task-collaboration-access-level-refactor): Remove this
-        // once clients are connecting with the right `AccessLevel`.
-        editResult: Schema.result(
-            Schema.object({ok: Schema.value(true)}),
-            Schema.object({ok: Schema.value(false), error: ErrorSchema}),
-        ),
     },
 });
 

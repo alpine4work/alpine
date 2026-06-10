@@ -3,8 +3,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 /**
- * React state which may be updated optimistically while waiting on some data
- * to save. If we fail to save the data, the optimistic update reverts.
+ * React state which may be updated optimistically while waiting on some data to
+ * save. If we fail to save the data, the optimistic update reverts.
  *
  * Used like this:
  *
@@ -14,26 +14,24 @@ import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
  * ```
  *
  * `updateValue()` updates the value immediately. If there are any pending
- * optimistic updates then `updateValue()` will be applied to the value without
- * any optimistic changes and optimistic updates will be re-applied after to
- * produce the final value.
+ * optimistic updates then `updateValue()` will be applied to the value without any
+ * optimistic changes and optimistic updates will be re-applied after to produce
+ * the final value.
  *
- * `updateValueOptimistically()` updates the value immediately but keeps track
- * of the `promise` you provide. The update will not be fully applied until
- * after the `promise` resolves. If the `promise` rejects then we remove the
- * optimistic update from the value and revert the value back to its original
- * form.
+ * `updateValueOptimistically()` updates the value immediately but keeps track of
+ * the `promise` you provide. The update will not be fully applied until after the
+ * `promise` resolves. If the `promise` rejects then we remove the optimistic
+ * update from the value and revert the value back to its original form.
  *
- * The way this hook works is optimistic updates are kept in a queue. We keep
- * track of the value without any optimistic updates and the value with
- * optimistic updates. To revert an optimistic update, we remove it from our
- * queue and re-apply all remaining optimistic updates to the value without any
- * optimistic updates applied. The end result is a value without the optimistic
- * update.
+ * The way this hook works is optimistic updates are kept in a queue. We keep track
+ * of the value without any optimistic updates and the value with optimistic
+ * updates. To revert an optimistic update, we remove it from our queue and
+ * re-apply all remaining optimistic updates to the value without any optimistic
+ * updates applied. The end result is a value without the optimistic update.
  *
- * This hook is built on top of a `useReducer()`. If you want to use this logic
- * as part of a more complex reducer then we export all the individual parts.
- * e.g. `reduceStateWithOptimisticUpdates()`.
+ * This hook is built on top of a `useReducer()`. If you want to use this logic as
+ * part of a more complex reducer then we export all the individual parts. e.g.
+ * `reduceStateWithOptimisticUpdates()`.
  */
 export function useStateWithOptimisticUpdates<Value>(
     initialValue: MaybeThunk<Value>,

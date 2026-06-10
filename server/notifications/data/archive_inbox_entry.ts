@@ -7,9 +7,9 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryKey} from "~/shared/notifications/inbox_model.js";
 
 /**
- * Archives an inbox entry, moving it out of the account's primary inbox and
- * into an archive. The user can still manually revive archived inbox entries
- * if desired.
+ * Archives an inbox entry, moving it out of the account's primary inbox and into
+ * an archive. The user can still manually revive archived inbox entries if
+ * desired.
  *
  * If the user sends a message to a chat and that implicitly archives the inbox
  * entry, that doesn't happen through this function. Instead it happens through

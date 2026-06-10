@@ -4,11 +4,11 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -57,6 +57,8 @@ async function testLoadTaskRealtimeQueries(
         server,
         spaceId,
         queries,
+        taskIds = [],
+        collectionIds = [],
     }: {
         server: TestTaskRealtimeServer;
         spaceId: SpaceId;
@@ -65,6 +67,8 @@ async function testLoadTaskRealtimeQueries(
             sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
             limit?: number;
         }>;
+        taskIds?: ReadonlyArray<TaskId>;
+        collectionIds?: ReadonlyArray<TaskCollectionId>;
     },
 ) {
     const {
@@ -100,8 +104,8 @@ async function testLoadTaskRealtimeQueries(
                 limit: query?.limit ?? 100,
             };
         }),
-        taskIds: [],
-        collectionIds: [],
+        taskIds,
+        collectionIds,
     });
 
     expect(extraQueries).toEqual([]);
@@ -118,9 +122,9 @@ async function testLoadTaskRealtimeQueries(
 function massageUpdateEvent(updateEvent: TaskRealtimeUpdateEvent) {
     return {
         ...updateEvent,
-        // `backfillTasks` and `backfillCollections` may be returned in a
-        // non-deterministic order. So to prevent flaky test failures we turn them into
-        // an object where order doesn't matter to Jest when determining equality.
+        // `backfillTasks` and `backfillCollections` may be returned in a non-deterministic
+        // order. So to prevent flaky test failures we turn them into an object where order
+        // doesn't matter to Jest when determining equality.
         backfillTasks: Object.fromEntries(
             updateEvent.backfillTasks.map((task): [TaskId, unknown] => {
                 if (task.type !== "Authorized") return [task.taskId, task];
@@ -190,8 +194,53 @@ test("loads no queries", async () => {
             backfillTasks: {},
             backfillCollections: {},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
+});
+
+test("loads task ids with task access policy and collection access", async () => {
+    const space = await TestSpace.create(context);
+    const [ownerSession, viewerSession] = await runAllPromises([
+        space.createSession({role: "Admin"}),
+        space.createSession(),
+    ]);
+    const server = new TestTaskRealtimeServer(context);
+
+    const task = await TestTask.create(ownerSession);
+
+    await server.wait();
+
+    const loadForViewer = () =>
+        testLoadTaskRealtimeQueries(viewerSession.action(), {
+            server,
+            spaceId: space.id,
+            queries: [],
+            taskIds: [task.id],
+        });
+
+    await expect(loadForViewer()).rejects.toThrow(PermissionDeniedError);
+
+    await task.access.grant(ownerSession, viewerSession, "View");
+    await server.wait();
+
+    expect((await loadForViewer()).updateEvent.backfillTasks[task.id]).toEqual(
+        expectAuthorizedTask(),
+    );
+
+    await task.access.revoke(ownerSession, viewerSession);
+
+    await expect(loadForViewer()).rejects.toThrow(PermissionDeniedError);
+
+    const collection = await TestTaskCollection.create(ownerSession, {access: "Private"});
+    await collection.access.grant(ownerSession, viewerSession, "View");
+    await task.addCollection(ownerSession, collection);
+
+    await server.wait();
+
+    expect((await loadForViewer()).updateEvent.backfillTasks[task.id]).toEqual(
+        expectAuthorizedTask([collection.id]),
+    );
 });
 
 test("loads a query", async () => {
@@ -239,6 +288,7 @@ test("loads a query", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 });
@@ -307,6 +357,7 @@ test("loads multiple queries", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session1.get()],
+            referencedSites: [],
         },
     });
 
@@ -344,6 +395,7 @@ test("loads multiple queries", async () => {
                 [collection1.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session2.get(), await session1.get()],
+            referencedSites: [],
         },
     });
 
@@ -394,6 +446,7 @@ test("loads multiple queries", async () => {
                 [collection1.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session2.get(), await session1.get()],
+            referencedSites: [],
         },
     });
 });
@@ -594,6 +647,7 @@ test("queries may have different pagination states", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -626,6 +680,7 @@ test("queries may have different pagination states", async () => {
             backfillTasks: {},
             backfillCollections: {},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -664,6 +719,7 @@ test("queries may have different pagination states", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -702,6 +758,7 @@ test("queries may have different pagination states", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -752,6 +809,7 @@ test("queries may have different pagination states", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 });
@@ -817,6 +875,7 @@ test("loads referenced parent tasks", async () => {
             },
             backfillCollections: {},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 });
@@ -893,6 +952,7 @@ test("loads referenced collections", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 });
@@ -968,6 +1028,7 @@ test("loads unauthorized parent tasks", async () => {
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
+            referencedSites: [],
         },
     });
 });
@@ -1063,6 +1124,7 @@ test("loads unauthorized collections", async () => {
             },
             backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
+            referencedSites: [],
         },
     });
 });
@@ -1144,6 +1206,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1183,6 +1246,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1223,6 +1287,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1254,6 +1319,7 @@ test("loads a query as an anonymous actor", async () => {
             backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1296,6 +1362,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection4.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1538,6 +1605,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1577,6 +1645,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1617,6 +1686,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1648,6 +1718,7 @@ test("loads a query as an anonymous actor", async () => {
             backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1690,6 +1761,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection4.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -1726,6 +1798,7 @@ test("loads a query as an anonymous actor", async () => {
             },
             backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -1842,6 +1915,7 @@ test("loads a query as an anonymous actor", async () => {
             },
             backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -1964,6 +2038,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2003,6 +2078,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2043,6 +2119,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection3.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2074,6 +2151,7 @@ test("loads a query as an anonymous actor", async () => {
             backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
             backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2116,6 +2194,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection4.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [await session.get()],
+            referencedSites: [],
         },
     });
 
@@ -2155,6 +2234,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2193,6 +2273,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2292,6 +2373,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2330,6 +2412,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2428,6 +2511,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2467,6 +2551,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2559,6 +2644,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2617,6 +2703,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2656,6 +2743,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2748,6 +2836,7 @@ test("loads a query as an anonymous actor", async () => {
                 [collection2.id]: expectAuthorizedCollection(),
             },
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2825,6 +2914,7 @@ test("loads a query as an anonymous actor", async () => {
             },
             backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -2940,6 +3030,7 @@ test("loads a query as an anonymous actor", async () => {
             },
             backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -3066,6 +3157,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: creatorSession.account.id,
+                            from: null,
                             workingAccountName: creatorSession.account.initialName,
                             workingAccountNameVersion: 0,
                         },
@@ -3086,6 +3178,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3135,6 +3228,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
@@ -3145,6 +3239,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                 assigneeSession.get(),
                 assignerSession1.get(),
             ]),
+            referencedSites: [],
         },
     });
 
@@ -3188,6 +3283,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3208,6 +3304,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3218,11 +3315,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3237,11 +3335,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                                     workingAccountName: assigneeSession.account.initialName,
                                     workingAccountNameVersion: 0,
                                 },
-                                assigner: {
+                                assigner: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 assignedTime: new TaskFilterableTime({
                                     absoluteTime: updateAssigneeTime1,
                                     setterTimeZone: defaultTimeZone,
@@ -3257,11 +3356,13 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+            referencedSites: [],
         },
     });
 
@@ -3305,6 +3406,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3325,6 +3427,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3335,11 +3438,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3354,11 +3458,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                                     workingAccountName: assigneeSession.account.initialName,
                                     workingAccountNameVersion: 0,
                                 },
-                                assigner: {
+                                assigner: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 assignedTime: new TaskFilterableTime({
                                     absoluteTime: updateAssigneeTime1,
                                     setterTimeZone: defaultTimeZone,
@@ -3374,11 +3479,13 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+            referencedSites: [],
         },
     });
 
@@ -3427,6 +3534,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: creatorSession.account.id,
+                            from: null,
                             workingAccountName: creatorSession.account.initialName,
                             workingAccountNameVersion: 0,
                         },
@@ -3447,6 +3555,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3496,6 +3605,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
@@ -3506,6 +3616,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                 assigneeSession.get(),
                 assignerSession2.get(),
             ]),
+            referencedSites: [],
         },
     });
 
@@ -3549,6 +3660,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3569,6 +3681,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3579,11 +3692,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3598,11 +3712,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                                     workingAccountName: assigneeSession.account.initialName,
                                     workingAccountNameVersion: 0,
                                 },
-                                assigner: {
+                                assigner: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 assignedTime: new TaskFilterableTime({
                                     absoluteTime: updateAssigneeTime2,
                                     setterTimeZone: defaultTimeZone,
@@ -3618,11 +3733,13 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+            referencedSites: [],
         },
     });
 
@@ -3666,6 +3783,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3686,6 +3804,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3696,11 +3815,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3715,11 +3835,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                                     workingAccountName: assigneeSession.account.initialName,
                                     workingAccountNameVersion: 0,
                                 },
-                                assigner: {
+                                assigner: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 assignedTime: new TaskFilterableTime({
                                     absoluteTime: updateAssigneeTime2,
                                     setterTimeZone: defaultTimeZone,
@@ -3735,11 +3856,13 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
+            referencedSites: [],
         },
     });
 
@@ -3785,6 +3908,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: creatorSession.account.id,
+                            from: null,
                             workingAccountName: creatorSession.account.initialName,
                             workingAccountNameVersion: 0,
                         },
@@ -3805,6 +3929,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3839,11 +3964,13 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([creatorSession.get(), closerSession.get()]),
+            referencedSites: [],
         },
     });
 
@@ -3887,6 +4014,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -3907,6 +4035,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -3917,11 +4046,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -3941,11 +4071,13 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 
@@ -3989,6 +4121,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         spaceId: space.id,
                         creator: {
                             accountId: unknownAccountId,
+                            from: null,
                             workingAccountName: "Unknown",
                             workingAccountNameVersion: 0,
                         },
@@ -4009,6 +4142,7 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         removedChildTaskCount: 0,
                         addedClosedChildTaskCount: 0,
                         removedClosedChildTaskCount: 0,
+                        accessPolicy: null,
                         collections: TaskCollectionSet.empty.apply({
                             type: "Set",
                             key: collection.id,
@@ -4019,11 +4153,12 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         status: new TaskStatusWithSortableAccountRegister(
                             {
                                 type: "Closed",
-                                closer: {
+                                closer: expect.objectContaining({
                                     accountId: unknownAccountId,
+                                    from: null,
                                     workingAccountName: "Unknown",
                                     workingAccountNameVersion: 0,
-                                },
+                                }),
                                 closedTime: new TaskFilterableTime({
                                     absoluteTime: updateStatusTime,
                                     setterTimeZone: defaultTimeZone,
@@ -4043,11 +4178,13 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         title: new TaskTitleModel(emptyTaskTitle.get()),
                         dueDate: new TaskDueDateRegister(null, task.createdTime),
                         priority: new TaskPriorityRegister(null, task.createdTime),
+                        layout: null,
                     }),
                 },
             },
             backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
+            referencedSites: [],
         },
     });
 });

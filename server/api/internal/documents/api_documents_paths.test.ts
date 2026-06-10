@@ -1,24 +1,107 @@
 import {Fragment, Mark, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {apiDocumentsPaths} from "~/server/api/internal/documents/api_documents_paths.js";
+import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {
+    getDocumentContent,
+    getDocumentContentSteps,
+    updateDocumentContent,
+    updateDocumentSnapshotForTest,
+} from "~/server/documents/data/documents_actions.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {
+    DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
+    DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
+} from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    DocumentContentProsemirrorSchema,
+    assertDocumentContent,
+} from "~/shared/documents/document_content_schema.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
+import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 
 const context = createTestContext({
     chatInjection,
     documentsInjection,
     tasksInjection,
+
+    // Reimplement the Durable Object `/update-content-with-diff` route in tests so we
+    // can test the API endpoint. The actual route in
+    // `DocumentCollaborationDurableObject` isn't that dissimilar from what you see
+    // here.
+    sendRequestToDurableObject: async (actualContext, request) => {
+        const match = request.url.match(
+            /^\/api\/durable-objects\/documents\/([^/]+)\/update-content-with-diff/,
+        );
+        if (!match) return;
+
+        const context = (actualContext as ApiServiceBotActionContext).dynamo
+            // Strong consistency isn't required since this logic is test-only. So all requests
+            // will be strong consistency implicitly.
+            .unexpectStrongReadConsistency();
+
+        const documentId = assertId<DocumentId>(match[1]!);
+
+        const requestBody = DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
+            request.body ?? null,
+        );
+
+        const document = await getDocumentContent(context, documentId);
+
+        const invertedSteps =
+            requestBody.version < document.version
+                ? await getDocumentContentSteps(context, {
+                      id: documentId,
+                      startVersion: requestBody.version,
+                      endVersion: document.version,
+                  })
+                : [];
+
+        let oldContent = document.content;
+
+        for (let index = invertedSteps.length - 1; index >= 0; index--) {
+            const step = invertedSteps[index]!;
+            const stepResult = step.invertedStep.apply(oldContent);
+            if (!stepResult.doc) throw new InternalError(stepResult.failed!);
+            oldContent = assertDocumentContent(stepResult.doc);
+        }
+
+        const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(
+            // This method isn't currently allowed to update document attributes like
+            // `AccessPolicy`.
+            oldContent.attrs,
+            requestBody.content,
+        );
+
+        const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+        const {newVersion, newContent} = await updateDocumentContent(context, {
+            id: documentId,
+            version: requestBody.version,
+            steps,
+            clientId: generateId(),
+        });
+
+        return DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
+            ok: true,
+            spaceId: document.spaceId,
+            creatorId: document.creator.id,
+            newVersion,
+            newContent,
+        });
+    },
 });
 
 const server = createTestApiServer(context, apiDocumentsPaths);
@@ -180,6 +263,7 @@ describe("POST /documents", () => {
 
         const collection = await TestTaskCollection.create(session, {
             access: {
+                type: "Local",
                 accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -188,7 +272,8 @@ describe("POST /documents", () => {
         const task = await TestTask.create(session, {collections: [collection]});
         await task.createComment(session, "This is a test comment");
 
-        // Create API key with Task scope - this simulates a bot being mentioned in task comments
+        // Create API key with Task scope - this simulates a bot being mentioned in task
+        // comments
         const apiKey = await bot.createApiKey({type: "Task", taskId: task.id});
 
         const response = await server.POST("/documents", {
@@ -395,7 +480,7 @@ describe("/documents/{id}/mention", () => {
         });
     });
 
-    test("can’t read document mention without access", async () => {
+    test("can\u2019t read document mention without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -415,14 +500,14 @@ describe("/documents/{id}/mention", () => {
             body: {
                 error: expect.objectContaining({
                     message: expect.stringMatching(
-                        "You aren’t allowed to access this document. Ask someone with access to share it with you.",
+                        "You aren\u2019t allowed to access this document.",
                     ),
                 }),
             },
         });
     });
 
-    test("can’t read document mention for non-existent document", async () => {
+    test("can\u2019t read document mention for non-existent document", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -438,7 +523,7 @@ describe("/documents/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 error: expect.objectContaining({
-                    message: expect.stringMatching("This document doesn’t exist"),
+                    message: expect.stringMatching("This document doesn\u2019t exist"),
                 }),
             },
         });
@@ -851,4 +936,554 @@ describe("comment threads", () => {
             },
         });
     });
+});
+
+describe("PATCH /documents/{id}", () => {
+    test("no-op PATCH returns the unchanged document", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "No-op Test",
+            body: "Stable content.",
+            access: "Public",
+        });
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "No-op Test",
+                    version: await document.getVersion(),
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Stable content."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                document: expect.objectContaining({
+                    content: expect.objectContaining({
+                        elements: expect.arrayContaining([
+                            expect.objectContaining({
+                                type: "Paragraph",
+                                elements: [
+                                    expect.objectContaining({
+                                        type: "Text",
+                                        text: "Stable content.",
+                                    }),
+                                ],
+                            }),
+                        ]),
+                    }),
+                }),
+            },
+        });
+    });
+
+    test("PATCH returns the updated document", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Updated Test",
+            body: "Original content.",
+            access: "Public",
+        });
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Updated Test",
+                    version: await document.getVersion(),
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Updated content."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                document: expect.objectContaining({
+                    content: expect.objectContaining({
+                        elements: expect.arrayContaining([
+                            expect.objectContaining({
+                                type: "Paragraph",
+                                elements: [
+                                    expect.objectContaining({
+                                        type: "Text",
+                                        text: "Updated content.",
+                                    }),
+                                ],
+                            }),
+                        ]),
+                    }),
+                }),
+            },
+        });
+    });
+
+    test("PATCH updates the document title via ProseMirror steps", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Original API Title",
+            body: "Body stays the same.",
+            access: "Public",
+        });
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Renamed Via API",
+                    version: await document.getVersion(),
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Body stays the same."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                document: expect.objectContaining({
+                    title: "Renamed Via API",
+                }),
+            },
+        });
+    });
+
+    test("PATCH rebases title updates from a previous version over concurrent body updates", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Original Title",
+            body: "Original body.",
+            access: "Public",
+        });
+        const previousVersion = await document.getVersion();
+
+        await document.type(session, " Concurrent tail.");
+
+        const patchResponse = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Renamed Title",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Original body."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+        const getResponse = await server.GET(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({patchResponse, getResponse}).toMatchObject({
+            patchResponse: {
+                status: 200,
+                body: {
+                    document: expect.objectContaining({
+                        title: "Renamed Title",
+                        content: expect.objectContaining({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Original body. Concurrent tail.",
+                                        },
+                                    ],
+                                },
+                            ],
+                        }),
+                    }),
+                },
+            },
+            getResponse: {
+                status: 200,
+                body: {
+                    document: expect.objectContaining({
+                        title: "Renamed Title",
+                        content: expect.objectContaining({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Original body. Concurrent tail.",
+                                        },
+                                    ],
+                                },
+                            ],
+                        }),
+                    }),
+                },
+            },
+        });
+    });
+
+    test("PATCH rebases body updates from a previous version over concurrent title updates", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Original Title",
+            body: "Original body.",
+            access: "Public",
+        });
+        const previousVersion = await document.getVersion();
+
+        const concurrentTitleResponse = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Concurrent Title",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Original body."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+        const staleBodyResponse = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Original Title",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Updated body."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect({concurrentTitleResponse, staleBodyResponse}).toMatchObject({
+            concurrentTitleResponse: {status: 200},
+            staleBodyResponse: {
+                status: 200,
+                body: {
+                    document: expect.objectContaining({
+                        title: "Concurrent Title",
+                        content: expect.objectContaining({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated body."}],
+                                },
+                            ],
+                        }),
+                    }),
+                },
+            },
+        });
+    });
+
+    test("PATCH rebases non-conflicting body updates from a previous version", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Body Rebase",
+            body: "Alpha",
+            access: "Public",
+        });
+        const previousVersion = await document.getVersion();
+
+        const concurrentBodyResponse = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Body Rebase",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Alpha Beta"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+        const staleBodyResponse = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Body Rebase",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Start Alpha"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect({concurrentBodyResponse, staleBodyResponse}).toMatchObject({
+            concurrentBodyResponse: {status: 200},
+            staleBodyResponse: {
+                status: 200,
+                body: {
+                    document: expect.objectContaining({
+                        title: "Body Rebase",
+                        content: expect.objectContaining({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Start Alpha Beta"}],
+                                },
+                            ],
+                        }),
+                    }),
+                },
+            },
+        });
+    });
+
+    test("PATCH rebases previous version updates across the document snapshot boundary", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Snapshot Boundary",
+            body: "Base",
+            access: "Public",
+        });
+        const previousVersion = await document.getVersion();
+
+        await document.type(session, " one");
+        await document.type(session, " two");
+        await updateDocumentSnapshotForTest(session.action(), document.id);
+        await document.type(session, " three");
+        await document.type(session, " four");
+
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "Renamed Across Snapshot",
+                    version: previousVersion,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Base"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                document: expect.objectContaining({
+                    title: "Renamed Across Snapshot",
+                    content: expect.objectContaining({
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Base one two three four"}],
+                            },
+                        ],
+                    }),
+                }),
+            },
+        });
+    });
+});
+
+test("can read document with file attachment", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document = await TestDocument.create(session, {
+        title: "Document with File",
+        access: "Private",
+    });
+
+    const file = await TestFile.create(session);
+    await document.attachFile(session, file);
+
+    const response = await server.GET(`/documents/${document.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            document: expect.objectContaining({
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "File",
+                            id: file.id,
+                            contentType: "image/png",
+                            contentLength: 5232,
+                        }),
+                    ]),
+                }),
+            }),
+        },
+    });
+});
+
+test("can create document comment with file attachments", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document = await TestDocument.create(session);
+    const {range} = await document.type(session, "Hello");
+    const commentThread = await document.createCommentThread(session, range, "test");
+
+    // Upload and attach the file to the document so the bot can access it through the
+    // attachment authorizer.
+    const file = await TestFile.create(session);
+    await document.attachFile(session, file);
+
+    const response = await server.POST(
+        `/documents/${document.id}/threads/${commentThread.id}/messages`,
+        {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Comment with file"}],
+                        },
+                    ],
+                },
+                files: [{element: {type: "File", id: file.id}}],
+            },
+        },
+    );
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: expect.objectContaining({
+                payload: expect.objectContaining({
+                    type: "Content",
+                    files: [
+                        expect.objectContaining({
+                            rowIndex: 0,
+                            width: 1,
+                            element: {
+                                type: "File",
+                                id: file.id,
+                                contentType: expect.any(String),
+                                contentLength: expect.any(Number),
+                            },
+                        }),
+                    ],
+                }),
+            }),
+        },
+    });
+});
+
+test("document comment with invalid file object returns 400", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const document = await TestDocument.create(session);
+    const {range} = await document.type(session, "Hello");
+    const commentThread = await document.createCommentThread(session, range, "test");
+
+    const response = await server.POST(
+        `/documents/${document.id}/threads/${commentThread.id}/messages`,
+        {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Bad file"}],
+                        },
+                    ],
+                },
+                files: [{element: {type: "File", id: "not-a-valid-id"}}],
+            },
+        },
+    );
+
+    expect(response).toMatchObject({status: 400});
 });

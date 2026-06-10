@@ -12,10 +12,10 @@ export type BoxProps = Sprinkles &
 const BoxForwardRef = forwardRef(Box);
 export {BoxForwardRef as Box};
 
-// TODO(calebmer, #swc-transform): Someday, we should build a SWC compiler
-// plugin that inlines this component into `<div>`s and pre-computes the
-// `sprinkles()` function call. The only time we shouldn't inline this
-// component is if there's a spread in the props we can't statically analyze.
+// TODO(calebmer, #swc-transform): Someday, we should build a SWC compiler plugin
+// that inlines this component into `<div>`s and pre-computes the `sprinkles()`
+// function call. The only time we shouldn't inline this component is if there's a
+// spread in the props we can't statically analyze.
 function Box(props: BoxProps, ref: Ref<HTMLElement>) {
     const sprinklesProps: Sprinkles = {};
     const elementProps: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> = {};
@@ -23,8 +23,8 @@ function Box(props: BoxProps, ref: Ref<HTMLElement>) {
 
     for (const [key, value] of Object.entries(props)) {
         if (key === "as") {
-            // Check if we are using the `Box` component as any other HTMLElement
-            // and extract that value.
+            // Check if we are using the `Box` component as any other HTMLElement and extract
+            // that value.
             as = value;
         } else if (sprinkles.properties.has(key as any)) {
             (sprinklesProps as any)[key] = value;

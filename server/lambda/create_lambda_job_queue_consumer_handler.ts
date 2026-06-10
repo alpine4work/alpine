@@ -35,8 +35,8 @@ const honeycombApiKey =
         : assertExists(process.env.HONEYCOMB_API_KEY, "HONEYCOMB_API_KEY is required");
 
 const kinesisTracerStreamName =
-    // TODO(ifitzsimmons, #local-kinesis): We don't have a local Kinesis stream at the moment,
-    // but when we do, this will always be required
+    // TODO(ifitzsimmons, #local-kinesis): We don't have a local Kinesis stream at the
+    // moment, but when we do, this will always be required
     process.env.NODE_ENV !== "production"
         ? (process.env.KINESIS_TRACER_STREAM_NAME ?? "")
         : assertExists(
@@ -91,7 +91,7 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
             tokenAgentAndOptionsPromise ??= parentSpan.withSpan(
                 "Allocate token agent and context options",
                 async childSpan =>
-                    getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
+                    await getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
                         async options => {
                             const tokenAgent = await childSpan.withSpan(
                                 "Creating token agent",
@@ -146,9 +146,9 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
             }
 
             // NOTE(ifitzsimmons, 2025-09-08): In this case, the error has occurred before even
-            // processing the request, which might indicate that there's a problem with the runtime
-            // environment. An error here will force the Lambda lifecycle to kill this container so
-            // that it's execution environment is not reused.
+            // processing the request, which might indicate that there's a problem with the
+            // runtime environment. An error here will force the Lambda lifecycle to kill this
+            // container so that it's execution environment is not reused.
             throw error;
         } finally {
             await finishSpanAndFlushHoneycombEvents(finishParentSpan, promiseWaiter);
@@ -198,10 +198,10 @@ async function _processJob<TJobDescription extends JobDescription>(
                       .startSpanFromPropagationContextAsLinked(spanName, messageBody.tracerContext)
                 : actionContext.tracer.getRoot().startSpan(spanName));
 
-        // The time at which the job starts to be available for processing. The send
-        // time plus delay seconds. This will be a little earlier than when the job is
-        // truly available for processing since we don't include the latency of adding
-        // a job to SQS.
+        // The time at which the job starts to be available for processing. The send time
+        // plus delay seconds. This will be a little earlier than when the job is truly
+        // available for processing since we don't include the latency of adding a job to
+        // SQS.
         const jobStartTime =
             messageBody.delaySeconds === 0
                 ? messageBody.sendTime
@@ -214,9 +214,9 @@ async function _processJob<TJobDescription extends JobDescription>(
                 delaySeconds: messageBody.delaySeconds,
                 queueDurationMs:
                     span.clock.now() -
-                    // Don't include the delay in queue duration (use start time instead of send
-                    // time). The delay is intentional. We want to measure overall queue health.
-                    // Ideally the queue duration should be as close to zero as possible.
+                    // Don't include the delay in queue duration (use start time instead of send time).
+                    // The delay is intentional. We want to measure overall queue health. Ideally the
+                    // queue duration should be as close to zero as possible.
                     jobStartTime.getTime(),
             },
         });
@@ -236,10 +236,18 @@ async function _processJob<TJobDescription extends JobDescription>(
                 actor: SystemActorContextModule.dangerouslyNew(serviceName, spaceId),
             },
             context =>
-                withLambdaTimeout(lambdaContext, new AbortController(), async () =>
-                    // TODO(ifitzsimmons, 2025-09-16): Update processJob signature to include the
-                    // abort controller.
-                    processJob(context, messageBody.job as TJobDescription, jobStartTime, span!),
+                withLambdaTimeout(
+                    lambdaContext,
+                    new AbortController(),
+                    async () =>
+                        // TODO(ifitzsimmons, 2025-09-16): Update processJob signature to include the abort
+                        // controller.
+                        await processJob(
+                            context,
+                            messageBody.job as TJobDescription,
+                            jobStartTime,
+                            span!,
+                        ),
                 ),
         );
         finishSpan();

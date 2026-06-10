@@ -1,17 +1,17 @@
-// NOTE(calebmer, 2025-02-20): This file holds the Cloudflare Worker that runs
-// on https://cyberworlds.dev. Before we named the company Alpine we named the
+// NOTE(calebmer, 2025-02-20): This file holds the Cloudflare Worker that runs on
+// https://cyberworlds.dev. Before we named the company Alpine we named the
 // codebase Cyberworlds. And hosted the product on https://cyberworlds.dev. Now
-// that we've named the company Alpine, bought the domain https://alpine.inc,
-// and are starting to get customers we moved the app to our company's real
-// domain https://alpine.inc. To make sure any links from before 2025-02-20
-// don't break we run a Cloudflare Worker that redirects all valid routes from
-// before 2025-02-20 to https://alpine.inc.
+// that we've named the company Alpine, bought the domain https://alpine.inc, and
+// are starting to get customers we moved the app to our company's real domain
+// https://alpine.inc. To make sure any links from before 2025-02-20 don't break we
+// run a Cloudflare Worker that redirects all valid routes from before 2025-02-20
+// to https://alpine.inc.
 //
-// I imagine the engineering team will have a use for https://cyberworlds.dev
-// in the future. For example, to host internal developer UIs. If that happens
-// you can add support to this worker. Ideally as long as it doesn't conflict
-// with the URLs we need to redirect. Though it's very unlikely there are many
-// of these URLs floating around in the wild.
+// I imagine the engineering team will have a use for https://cyberworlds.dev in
+// the future. For example, to host internal developer UIs. If that happens you can
+// add support to this worker. Ideally as long as it doesn't conflict with the URLs
+// we need to redirect. Though it's very unlikely there are many of these URLs
+// floating around in the wild.
 
 // All `SpaceId`s from before 2025-02-20. There may be https://cyberworlds.dev
 // links to these spaces out in the wild that we need to redirect to
@@ -41,8 +41,8 @@ const redirectSpaceIds = new Set([
 ]);
 
 // All non-space routes from before 2025-02-20. There may be
-// https://cyberworlds.dev links to these routes out in the wild that we need
-// to redirect to https://alpine.inc.
+// https://cyberworlds.dev links to these routes out in the wild that we need to
+// redirect to https://alpine.inc.
 const redirectPathnames = new Set([
     "/",
     "/api/internal/alpha-email-addresses",

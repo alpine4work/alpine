@@ -23,8 +23,8 @@ export class EventEmitter<Event = void> {
                 // If one of our listeners throws an error, continue calling the rest of our
                 // listeners.
                 //
-                // Treat listener errors as unhandled errors. Emitting an event should not need
-                // to think about downstream listener implementation details.
+                // Treat listener errors as unhandled errors. Emitting an event should not need to
+                // think about downstream listener implementation details.
                 scheduleUncaughtError(error);
             }
         }
@@ -63,8 +63,8 @@ export class EventEmitter<Event = void> {
     }
 
     /**
-     * Allow treating the `EventEmitter` as an `AsyncIterable`. Useful for
-     * integrating `EventEmitter` with native platform features.
+     * Allow treating the `EventEmitter` as an `AsyncIterable`. Useful for integrating
+     * `EventEmitter` with native platform features.
      */
     public async *[Symbol.asyncIterator](): AsyncIterableIterator<Event> {
         let promiseResolver = createPromiseResolver<Event>();

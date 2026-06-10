@@ -7,8 +7,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Send a request to a Cloudflare Durable Object created with
- * `createDurableObject()` from a Cloudflare Worker. Makes sure the session,
- * tracer data, and ID is correctly propagated.
+ * `createDurableObject()` from a Cloudflare Worker. Makes sure the session, tracer
+ * data, and ID is correctly propagated.
  */
 export async function fetchFromDurableObjectStub({
     durableObjectNamespace,
@@ -33,12 +33,12 @@ export async function fetchFromDurableObjectStub({
 
     const durableObjectStub = durableObjectNamespace.get(durableObjectId, {
         // Currently, we only have data in the AWS region `us-east-1`. So place Durable
-        // Objects in the Eastern North America region so Durable Objects get low
-        // latency when making RPC calls to `AppService` in AWS.
+        // Objects in the Eastern North America region so Durable Objects get low latency
+        // when making RPC calls to `AppService` in AWS.
         //
         // Long term, ideally we'll put space data in the nearest AWS region to the
-        // customer and our Durable Objects should be created near that data center
-        // as well. Or we'll have DynamoDB replicas in multiple regions.
+        // customer and our Durable Objects should be created near that data center as
+        // well. Or we'll have DynamoDB replicas in multiple regions.
         locationHint: "enam",
     });
 
@@ -66,5 +66,5 @@ export async function fetchFromDurableObjectStub({
         newRequest.headers.set("authorization", `bearer ${requestToken}`);
     }
 
-    return durableObjectStub.fetch(newRequest);
+    return await durableObjectStub.fetch(newRequest);
 }

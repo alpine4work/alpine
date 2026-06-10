@@ -140,8 +140,8 @@ function TaskQueryTitleFilterOperationEditorValueEditor({
                         }
                     }}
                     onBlur={() => {
-                        // When the user blurs, update our page if it's a valid page number. If the
-                        // user types "15" we don't update the page as they type, only when they blur.
+                        // When the user blurs, update our page if it's a valid page number. If the user
+                        // types "15" we don't update the page as they type, only when they blur.
                         if (state.isFocused) {
                             onTitleQueryChange(state.value);
                             setState({isFocused: false});
@@ -152,8 +152,8 @@ function TaskQueryTitleFilterOperationEditorValueEditor({
                             event.preventDefault();
                             event.stopPropagation();
 
-                            // If the user hits enter, update our page. If they're typing "15" then this
-                            // will jump to page 15.
+                            // If the user hits enter, update our page. If they're typing "15" then this will
+                            // jump to page 15.
                             if (state.isFocused) {
                                 onTitleQueryChange(state.value);
                             }

@@ -8,6 +8,7 @@ export type EdgeServiceEnv = {
     ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
     MyAccountDurableObjectNamespace: DurableObjectNamespace;
     TaskNotesCollaborationDurableObjectNamespace: DurableObjectNamespace;
+    SiteRealtimeDurableObjectNamespace: DurableObjectNamespace;
     DatabaseGroupDurableObjectNamespace: DurableObjectNamespace;
     COOKIE_NAME_SUFFIX: string;
     APP_SERVICE_PUBLIC_KEY?: string;
@@ -17,6 +18,7 @@ export type EdgeServiceEnv = {
     FILE_PROCESSOR_SERVICE_PUBLIC_KEY?: string;
     API_SERVICE_PUBLIC_KEY?: string;
     RESOURCE_SERVICE_PUBLIC_KEY?: string;
+    IMPORTER_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     TOKEN_AGENT_SECRET?: string;
     FILE_PROCESSOR_SERVICE_URL?: string;

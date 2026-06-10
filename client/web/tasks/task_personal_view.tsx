@@ -19,6 +19,7 @@ import {MenuAction} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/web/design/scrollbar.js";
+import {useAlignFontBaselines} from "~/client/web/design/use_align_font_baselines.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {
@@ -30,27 +31,21 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
-import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
-import {
-    navigationBarStyles,
-    pointerEventsNoneNotInheritedClassName,
-    sprinkles,
-    tasksStyles,
-} from "~/client/web/styles/styles.js";
+import {pointerEventsNoneNotInheritedClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskGridViewColumnHeaderHeight,
     taskGridViewPaddingBottomWithNext,
+    taskQueryViewCustomizationBarDesktopMarginY,
     taskRowViewMinHeight,
 } from "~/client/web/styles/tasks_shared_styles.js";
-import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionsForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
 import {TaskFloatingCreateButton} from "~/client/web/tasks/internal/task_floating_create_button.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewColumnHeader} from "~/client/web/tasks/internal/task_grid_view_column_header.js";
@@ -60,120 +55,176 @@ import {
     useTaskGridViewVirtualizedListItemAnimation,
     useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard,
 } from "~/client/web/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskGridViewDecorativeGhostTaskMemo} from "~/client/web/tasks/internal/task_grid_view_virtualized_list_components.js";
 import {
     TaskGridViewVirtualizedListAnimation,
     taskAnimationDurationMs,
 } from "~/client/web/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskGridViewVirtualizedListViewRef} from "~/client/web/tasks/internal/task_grid_view_virtualized_list_types.js";
-import {TaskPersonalNavigationBarCollectionsButton} from "~/client/web/tasks/internal/task_personal_navigation_bar_collections_button.js";
-import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
+import {
+    TaskQueryViewCustomizationBar,
+    TaskQueryViewCustomizationBarRef,
+} from "~/client/web/tasks/internal/task_query_view_customization_bar.js";
+import {
+    TaskQueryViewCustomizationMobileSection,
+    TaskQueryViewCustomizationMobileSectionRef,
+} from "~/client/web/tasks/internal/task_query_view_customization_mobile_section.js";
 import {
     TaskUndoStackEntry,
     useTaskUndoStackState,
 } from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
 import {TaskGridViewDraggableData} from "~/client/web/tasks/task_grid_view_dnd_context.js";
 import {
+    TaskPersonalViewSectionQueryOptions,
+    useTaskPersonalViewQueryState,
+} from "~/client/web/tasks/use_task_personal_view_query_state.js";
+import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {interFontCapHeight, interFontXHeight} from "~/shared/design/core/font_metrics.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
     RemLength,
-    Spacing,
     addRemLengths,
-    convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {concatReadonlyArrays} from "~/shared/helpers/array/concat_readonly_arrays.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {
+    TaskQueryFilterReferences,
+    mergeTaskQueryFilterReferences,
+} from "~/shared/tasks/task_query_filter_references.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-type TaskPersonalViewSection = "Active" | "Overdue" | "DueToday" | "DueSoon" | "Remaining";
-type TaskPersonalViewVisibleSection = Exclude<TaskPersonalViewSection, "Remaining">;
+type TaskPersonalViewSection =
+    | "Active"
+    | "Overdue"
+    | "DueToday"
+    | "DueSoon"
+    | "Closed"
+    | "Remaining";
 
-const initialTaskPersonalViewVisibleSectionState = {section: null, previousSections: emptySet};
+const defaultOrderSentence = "Tasks are grouped by status and due date.";
+const excludeFilters = new Set<TaskQueryFilter["type"]>(["Assignee"]);
 
 export function TaskPersonalView({
     store,
-    activeQuery,
-    overdueQuery,
-    dueTodayQuery,
-    dueSoonQuery,
-    remainingQuery,
+    activeQuery: initialActiveQuery,
+    overdueQuery: initialOverdueQuery,
+    dueTodayQuery: initialDueTodayQuery,
+    dueSoonQuery: initialDueSoonQuery,
+    closedQuery: initialclosedQuery,
+    remainingQuery: initialRemainingQuery,
+    initialFilters,
+    initialFilterReferences,
+    onFiltersChange,
+    initialSorts,
+    onSortsChange,
     affinityManager,
     initialIsFavorite,
 }: {
     store: TaskClientStore;
-    activeQuery: {
-        query: TaskClientQuery;
-        initialGridViewExpansionState: TaskGridViewExpansionState;
-    };
-    overdueQuery: {
-        query: TaskClientQuery;
-        initialGridViewExpansionState: TaskGridViewExpansionState;
-    };
-    dueTodayQuery: {
-        query: TaskClientQuery;
-        initialGridViewExpansionState: TaskGridViewExpansionState;
-    };
-    dueSoonQuery: {
-        query: TaskClientQuery;
-        initialGridViewExpansionState: TaskGridViewExpansionState;
-    };
-    remainingQuery: {
-        query: TaskClientQuery;
-        initialGridViewExpansionState: TaskGridViewExpansionState;
-    };
+    activeQuery: TaskPersonalViewSectionQueryOptions | null;
+    overdueQuery: TaskPersonalViewSectionQueryOptions | null;
+    dueTodayQuery: TaskPersonalViewSectionQueryOptions | null;
+    dueSoonQuery: TaskPersonalViewSectionQueryOptions | null;
+    closedQuery: TaskPersonalViewSectionQueryOptions | null;
+    remainingQuery: TaskPersonalViewSectionQueryOptions | null;
+    initialFilters: ReadonlyArray<TaskQueryFilter>;
+    initialFilterReferences: TaskQueryFilterReferences;
+    onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
+    initialSorts: ReadonlyArray<TaskQuerySort>;
+    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialIsFavorite: boolean;
 }) {
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {isAppleDevice, timeZone} = useClientInfo();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
-    // Retain our queries.
-    useEffect(() => {
-        activeQuery.query.retain();
-        overdueQuery.query.retain();
-        dueTodayQuery.query.retain();
-        dueSoonQuery.query.retain();
-        remainingQuery.query.retain();
+    // Filter/sort state for customization bar
+    const [{filters, filterReferences}, actuallySetFiltersState] = useState({
+        filters: initialFilters,
+        filterReferences: initialFilterReferences,
+    });
+    const [sorts, actuallySetSorts] = useState(initialSorts);
 
-        return () => {
-            // Release after a microtask in case the effect re-runs in which case we'll
-            // synchronously call `retain()` again.
-            scheduleMicrotask(() => {
-                activeQuery.query.release();
-                overdueQuery.query.release();
-                dueTodayQuery.query.release();
-                dueSoonQuery.query.release();
-                remainingQuery.query.release();
-            });
-        };
-    }, [
-        activeQuery.query,
-        dueSoonQuery.query,
-        dueTodayQuery.query,
-        overdueQuery.query,
-        remainingQuery.query,
-    ]);
+    const desktopCustomizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
+    const mobileCustomizationSectionRef = useRef<TaskQueryViewCustomizationMobileSectionRef>(null);
+    const [customizationState, setCustomizationState] = useState<{
+        initiallyFocus: "AddFilter" | "AddSort" | null;
+    } | null>(filters.length > 0 || sorts.length > 0 ? {initiallyFocus: null} : null);
+    if (!customizationState && (filters.length > 0 || sorts.length > 0)) {
+        setCustomizationState({initiallyFocus: null});
+    }
+
+    const {
+        queries: [
+            activeQuery,
+            overdueQuery,
+            dueTodayQuery,
+            dueSoonQuery,
+            closedQuery,
+            remainingQuery,
+        ],
+        activeFilters,
+    } = useTaskPersonalViewQueryState({
+        filters,
+        store,
+        sorts,
+        currentAccount,
+        initialActiveQuery,
+        initialOverdueQuery,
+        initialDueTodayQuery,
+        initialDueSoonQuery,
+        initialclosedQuery,
+        initialRemainingQuery,
+    });
+
+    assert(
+        activeQuery !== undefined &&
+            overdueQuery !== undefined &&
+            dueTodayQuery !== undefined &&
+            dueSoonQuery !== undefined &&
+            closedQuery !== undefined &&
+            remainingQuery !== undefined,
+    );
+
+    const {updateFilters, setSorts} = useEvents({
+        updateFilters: (
+            newFilters: ReadonlyArray<TaskQueryFilter>,
+            {
+                mergeFilterReferences: mergeRefs,
+            }: {mergeFilterReferences?: TaskQueryFilterReferences} = {},
+        ) => {
+            actuallySetFiltersState(({filterReferences: refs}) => ({
+                filters: newFilters,
+                filterReferences: mergeRefs
+                    ? mergeTaskQueryFilterReferences(refs, mergeRefs)
+                    : refs,
+            }));
+            onFiltersChange(newFilters);
+        },
+        setSorts: (newSorts: ReadonlyArray<TaskQuerySort>) => {
+            actuallySetSorts(newSorts);
+            onSortsChange(newSorts);
+        },
+    });
 
     assert(
         useContext(TaskGridViewHasDndContext),
@@ -233,6 +284,9 @@ export function TaskPersonalView({
                 case "DueSoon":
                     applyUndoStackEntry = dueSoonGridViewResult.applyUndoStackEntry;
                     break;
+                case "Closed":
+                    applyUndoStackEntry = closedGridViewResult.applyUndoStackEntry;
+                    break;
                 case "Remaining":
                     applyUndoStackEntry = remainingGridViewResult.applyUndoStackEntry;
                     break;
@@ -284,6 +338,9 @@ export function TaskPersonalView({
                     break;
                 case "DueSoon":
                     applyUndoStackEntry = dueSoonGridViewResult.applyUndoStackEntry;
+                    break;
+                case "Closed":
+                    applyUndoStackEntry = closedGridViewResult.applyUndoStackEntry;
                     break;
                 case "Remaining":
                     applyUndoStackEntry = remainingGridViewResult.applyUndoStackEntry;
@@ -349,167 +406,85 @@ export function TaskPersonalView({
     };
 
     /* ========================================================================== *\
-     *                              Visible section                               *
-    \* ========================================================================== */
-
-    const [visibleSectionState, setVisibleSectionState] = useState<{
-        section: TaskPersonalViewVisibleSection | null;
-        previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
-    }>(initialTaskPersonalViewVisibleSectionState);
-
-    const visibleSectionPositionStateRef = useRef<{
-        activeHeaderPosition: {offset: number; height: number} | null;
-        overdueHeaderPosition: {offset: number; height: number} | null;
-        dueTodayHeaderPosition: {offset: number; height: number} | null;
-        dueSoonHeaderPosition: {offset: number; height: number} | null;
-        remainingHeaderPosition: {offset: number; height: number} | null;
-    } | null>(null);
-
-    const handleScroll = () => {
-        const view = assertExists(viewRef.current);
-
-        // When the user scrolls, only update state if it hasn't been initialized yet.
-        // Just because the user scrolled doesn't mean virtualized scroll view state
-        // will change.
-        if (visibleSectionPositionStateRef.current === null) {
-            visibleSectionPositionStateRef.current = {
-                activeHeaderPosition: view.getPositionByKeyIfExists("ActiveHeader"),
-                overdueHeaderPosition: view.getPositionByKeyIfExists("OverdueHeader"),
-                dueTodayHeaderPosition: view.getPositionByKeyIfExists("DueTodayHeader"),
-                dueSoonHeaderPosition: view.getPositionByKeyIfExists("DueSoonHeader"),
-                remainingHeaderPosition: view.getPositionByKeyIfExists("RemainingHeader"),
-            };
-        }
-
-        handleScrollOrStateChange(view, visibleSectionPositionStateRef.current);
-    };
-
-    const handleStateChange = () => {
-        const view = assertExists(viewRef.current);
-
-        // Always reset state when the virtualized scroll view state changes. Any
-        // position may have updated.
-        visibleSectionPositionStateRef.current = {
-            activeHeaderPosition: view.getPositionByKeyIfExists("ActiveHeader"),
-            overdueHeaderPosition: view.getPositionByKeyIfExists("OverdueHeader"),
-            dueTodayHeaderPosition: view.getPositionByKeyIfExists("DueTodayHeader"),
-            dueSoonHeaderPosition: view.getPositionByKeyIfExists("DueSoonHeader"),
-            remainingHeaderPosition: view.getPositionByKeyIfExists("RemainingHeader"),
-        };
-
-        handleScrollOrStateChange(view, visibleSectionPositionStateRef.current);
-    };
-
-    const navigationBarHeightPx = useMemo(
-        () => convertRemLengthToPx(navigationBarHeight, spacingScale),
-        [spacingScale],
-    );
-
-    const handleScrollOrStateChange = (
-        view: VirtualizedScrollViewRef,
-        visibleSectionPositionState: {
-            activeHeaderPosition: {offset: number; height: number} | null;
-            overdueHeaderPosition: {offset: number; height: number} | null;
-            dueTodayHeaderPosition: {offset: number; height: number} | null;
-            dueSoonHeaderPosition: {offset: number; height: number} | null;
-            remainingHeaderPosition: {offset: number; height: number} | null;
-        },
-    ) => {
-        const scrollOffset = view.getScrollOffset();
-
-        let newVisibleSection: TaskPersonalViewVisibleSection | null = null;
-
-        if (
-            visibleSectionPositionState.remainingHeaderPosition !== null &&
-            scrollOffset + navigationBarHeightPx >
-                visibleSectionPositionState.remainingHeaderPosition.offset
-        ) {
-            newVisibleSection = null;
-        } else if (
-            visibleSectionPositionState.dueSoonHeaderPosition !== null &&
-            scrollOffset + navigationBarHeightPx >
-                visibleSectionPositionState.dueSoonHeaderPosition.offset
-        ) {
-            newVisibleSection = "DueSoon";
-        } else if (
-            visibleSectionPositionState.dueTodayHeaderPosition !== null &&
-            scrollOffset + navigationBarHeightPx >
-                visibleSectionPositionState.dueTodayHeaderPosition.offset
-        ) {
-            newVisibleSection = "DueToday";
-        } else if (
-            visibleSectionPositionState.overdueHeaderPosition !== null &&
-            scrollOffset + navigationBarHeightPx >
-                visibleSectionPositionState.overdueHeaderPosition.offset
-        ) {
-            newVisibleSection = "Overdue";
-        } else if (
-            visibleSectionPositionState.activeHeaderPosition !== null &&
-            scrollOffset + navigationBarHeightPx >
-                visibleSectionPositionState.activeHeaderPosition.offset
-        ) {
-            newVisibleSection = "Active";
-        }
-
-        setVisibleSectionState(visibleSectionState => {
-            if (visibleSectionState.section === newVisibleSection) return visibleSectionState;
-
-            if (
-                visibleSectionState.section !== null &&
-                visibleSectionState.previousSections.has(visibleSectionState.section)
-            ) {
-                return {...visibleSectionState, section: newVisibleSection};
-            }
-
-            return {
-                section: newVisibleSection,
-                previousSections:
-                    visibleSectionState.section !== null
-                        ? new Set([
-                              ...visibleSectionState.previousSections,
-                              visibleSectionState.section,
-                          ])
-                        : visibleSectionState.previousSections,
-            };
-        });
-    };
-
-    /* ========================================================================== *\
      *                               Navigation Bar                               *
     \* ========================================================================== */
 
     const favoriteMenuAction = useSearchFavoriteEntityMenuAction("TaskPersonal", initialIsFavorite);
 
-    const navigationBarMenuActions = useMemo(
-        (): ReadonlyArray<MenuAction> => [
-            {
-                label: "Copy link",
-                icon: <LinkIcon />,
-                iconPlacement: "end",
-                pressErrorTitle: "Couldn\u2019t copy link",
-                onPress: async () => {
-                    const url = new URL(`/s/${space.id}/tasks`, window.location.href);
-                    await writeTextToClipboard(url.toString());
+    const navigationBarMenuActions = useMemo((): ReadonlyArray<ReadonlyArray<MenuAction>> => {
+        const menuActions: Array<ReadonlyArray<MenuAction>> = [
+            [
+                {
+                    label: "Copy link",
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
+                    pressErrorTitle: "Couldn\u2019t copy link",
+                    onPress: async () => {
+                        const url = new URL(`/my-tasks/${space.id}`, window.location.href);
+                        await writeTextToClipboard(url.toString());
+                    },
                 },
-            },
-            ...(favoriteMenuAction ? [favoriteMenuAction] : []),
-        ],
-        [favoriteMenuAction, space.id],
-    );
+                ...(favoriteMenuAction ? [favoriteMenuAction] : []),
+            ],
+        ];
+
+        if (routeLayout === "narrow") {
+            // eslint-disable-next-line react-compiler/react-compiler
+            menuActions.push([
+                {
+                    label: "Add filter",
+                    onPress: () => {
+                        // Make sure the filter/sort section is visible.
+                        assertExists(viewRef.current).setScrollOffset(0);
+
+                        if (!customizationState) {
+                            setCustomizationState({initiallyFocus: "AddFilter"});
+                        } else {
+                            if (platform === "mobile") {
+                                assertExists(
+                                    mobileCustomizationSectionRef.current,
+                                ).openAddFilterMenu();
+                            } else {
+                                assertExists(
+                                    desktopCustomizationBarRef.current,
+                                ).openAddFilterMenu();
+                            }
+                        }
+                    },
+                },
+                {
+                    label: "Add sort",
+                    onPress: () => {
+                        // Make sure the filter/sort section is visible.
+                        assertExists(viewRef.current).setScrollOffset(0);
+
+                        if (!customizationState) {
+                            setCustomizationState({initiallyFocus: "AddSort"});
+                        } else {
+                            if (platform === "mobile") {
+                                assertExists(
+                                    mobileCustomizationSectionRef.current,
+                                ).openAddSortMenu();
+                            } else {
+                                assertExists(desktopCustomizationBarRef.current).openAddSortMenu();
+                            }
+                        }
+                    },
+                },
+            ]);
+        }
+
+        return menuActions;
+    }, [favoriteMenuAction, space.id, platform, routeLayout, customizationState]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: routeLayout !== "narrow",
         withoutDisappearingTitle: true,
-        title:
-            platform === "mobile" ? (
-                "My tasks"
-            ) : (
-                <TaskPersonalNavigationBarTitleDesktop
-                    paddingLeft="0"
-                    visibleSectionState={visibleSectionState}
-                />
-            ),
+        title: "My tasks",
+        desktopTitleFontSize: "400",
+        desktopTitleFontWeight: "bold",
         menuActions: navigationBarMenuActions,
+        defaultPreviousRoute: `/home/${space.id}`,
     });
 
     /* ========================================================================== *\
@@ -523,6 +498,7 @@ export function TaskPersonalView({
         getOverdueItemCount: () => overdueGridViewResult.itemCount,
         getDueTodayItemCount: () => dueTodayGridViewResult.itemCount,
         getDueSoonItemCount: () => dueSoonGridViewResult.itemCount,
+        getClosedItemCount: () => closedGridViewResult.itemCount,
         getRemainingItemCount: () => remainingGridViewResult.itemCount,
     });
 
@@ -545,7 +521,10 @@ export function TaskPersonalView({
                 hasMultilineTitle: false,
                 hasColumns: true,
                 withoutAssigneeField: true,
+                withoutDueDateField: false,
+                withoutCollectionsField: false,
                 hasDenseFields: false,
+                isCreatedCollectionFromGhostTaskPrivate: true,
             };
         } else {
             return {
@@ -554,7 +533,10 @@ export function TaskPersonalView({
                 hasMultilineTitle: true,
                 hasColumns: false,
                 withoutAssigneeField: true,
+                withoutDueDateField: false,
+                withoutCollectionsField: false,
                 hasDenseFields: true,
+                isCreatedCollectionFromGhostTaskPrivate: true,
             };
         }
     }, [routeLayout]);
@@ -581,63 +563,83 @@ export function TaskPersonalView({
             runningItemCount,
             events.getActiveItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
+            if (!activeQuery) return null;
+
             const time1 = store.clock.now();
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(time3, activeQuery.query, position)
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                activeQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneeStatus",
-                        assigneeStatus: {
-                            type: "Active",
-                            activatedTime: new TaskFilterableTime({
-                                absoluteTime: time2,
-                                setterTimeZone: timeZone,
-                            }),
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneeStatus",
+                            assigneeStatus: {
+                                type: "Active",
+                                activatedTime: new TaskFilterableTime({
+                                    absoluteTime: time2,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -654,7 +656,6 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -703,14 +704,13 @@ export function TaskPersonalView({
         activeGridViewResult.loadedState === "FullyLoaded";
 
     if (isActiveGridViewEmpty) {
-        // We won't show the `ActiveHeader` item we added previously if this grid view
-        // is empty.
+        // We won't show the `ActiveHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(activeGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -750,7 +750,9 @@ export function TaskPersonalView({
             runningItemCount,
             events.getOverdueItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
+            if (!overdueQuery) return null;
+
             assert(
                 overdueQuery.query.filters.dueDateFilter?.type === "Range" &&
                     overdueQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate,
@@ -766,56 +768,70 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(
-                          time3,
-                          overdueQuery.query,
-                          position,
-                      )
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                overdueQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateDueDate",
-                        dueDate: currentDate,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateDueDate",
+                            dueDate: currentDate,
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -841,7 +857,6 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -893,14 +908,13 @@ export function TaskPersonalView({
         );
 
     if (isOverdueGridViewEmpty) {
-        // We won't show the `OverdueHeader` item we added previously if this grid view
-        // is empty.
+        // We won't show the `OverdueHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(overdueGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -934,8 +948,8 @@ export function TaskPersonalView({
         ],
     );
 
-    // `DueTodayHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
-    // to shift indexes correctly)
+    // `DueTodayHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
+    // shift indexes correctly)
     runningItemCount += 1;
 
     const dueTodayGridViewResult = useTaskGridViewVirtualizedListBase({
@@ -949,7 +963,9 @@ export function TaskPersonalView({
             runningItemCount,
             events.getDueTodayItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
+            if (!dueTodayQuery) return null;
+
             assert(
                 dueTodayQuery.query.filters.dueDateFilter?.type === "Range" &&
                     dueTodayQuery.query.filters.dueDateFilter.exclusiveLowerBoundDate,
@@ -961,56 +977,70 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(
-                          time3,
-                          dueTodayQuery.query,
-                          position,
-                      )
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                dueTodayQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateDueDate",
-                        dueDate: currentDate,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateDueDate",
+                            dueDate: currentDate,
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -1036,7 +1066,6 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1086,14 +1115,13 @@ export function TaskPersonalView({
         );
 
     if (isDueTodayGridViewEmpty) {
-        // We won't show the `DueTodayHeader` item we added previously if this grid
-        // view is empty.
+        // We won't show the `DueTodayHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(dueTodayGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -1127,8 +1155,8 @@ export function TaskPersonalView({
         ],
     );
 
-    // `DueSoonHeader` (must be before `useTaskGridViewVirtualizedListViewRef()`
-    // to shift indexes correctly)
+    // `DueSoonHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
+    // shift indexes correctly)
     runningItemCount += 1;
 
     const dueSoonGridViewResult = useTaskGridViewVirtualizedListBase({
@@ -1142,14 +1170,16 @@ export function TaskPersonalView({
             runningItemCount,
             events.getDueSoonItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
+            if (!dueSoonQuery) return null;
+
             assert(
                 dueSoonQuery.query.filters.dueDateFilter?.type === "Range" &&
                     dueSoonQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate,
             );
 
-            // By default, set due date to one week from today (7 days from now). This
-            // should be the same as the upper bound of the due soon date range.
+            // By default, set due date to one week from today (7 days from now). This should
+            // be the same as the upper bound of the due soon date range.
             const currentDate =
                 dueSoonQuery.query.filters.dueDateFilter.exclusiveUpperBoundDate.subtract({
                     days: 1,
@@ -1159,56 +1189,70 @@ export function TaskPersonalView({
             const time2 = store.clock.now();
             const time3 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(
-                          time3,
-                          dueSoonQuery.query,
-                          position,
-                      )
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                dueSoonQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateDueDate",
-                        dueDate: currentDate,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateDueDate",
+                            dueDate: currentDate,
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time3,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -1234,7 +1278,6 @@ export function TaskPersonalView({
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
         withoutBottomGhostTask: true,
-        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1251,13 +1294,25 @@ export function TaskPersonalView({
         previousGridViewAnimations,
         nextGridView: {
             focusFirstTaskTitleStart: () => {
-                remainingGridViewResult.focusFirstTaskTitleStart();
+                if (!isClosedGridViewEmpty) {
+                    closedGridViewResult.focusFirstTaskTitleStart();
+                } else {
+                    remainingGridViewResult.focusFirstTaskTitleStart();
+                }
             },
             focusFirstTaskTitleCoord: coord => {
-                remainingGridViewResult.focusFirstTaskTitleCoord(coord);
+                if (!isClosedGridViewEmpty) {
+                    closedGridViewResult.focusFirstTaskTitleCoord(coord);
+                } else {
+                    remainingGridViewResult.focusFirstTaskTitleCoord(coord);
+                }
             },
             focusFirstTaskCell: column => {
-                remainingGridViewResult.focusFirstTaskCell(column);
+                if (!isClosedGridViewEmpty) {
+                    closedGridViewResult.focusFirstTaskCell(column);
+                } else {
+                    remainingGridViewResult.focusFirstTaskCell(column);
+                }
             },
         },
     });
@@ -1274,14 +1329,13 @@ export function TaskPersonalView({
         );
 
     if (isDueSoonGridViewEmpty) {
-        // We won't show the `DueSoonHeader` item we added previously if this grid view
-        // is empty.
+        // We won't show the `DueSoonHeader` item we added previously if this grid view is
+        // empty.
         runningItemCount -= 1;
 
-        // Safety check: Make sure the grid view has no virtualized scroll view
-        // items if we determine it to be empty. That way if the effects in the
-        // virtualized scroll view check `viewRef.current.getRenderedRange()` we'll
-        // accurately return null.
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
         assert(dueSoonGridViewResult.itemCount === 0);
     } else {
         // Always render the first header since its column names will be
@@ -1315,25 +1369,247 @@ export function TaskPersonalView({
         ],
     );
 
-    const isRemainingGridViewHeaderVisible =
+    // TODO(ifitzsimmons, closed-tasks-section): The Closed Tasks section should be the
+    // last section in the personal task view. However, this component is built on the
+    // assumption that the remaining section is always last. To avoid bloat in this
+    // change, we'll merge as is and follow up with a refactor to make the "Closed"
+    // section the last section in the grid when the closed query is not null.
+    //
+    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/203932h5chns4zj4taetzh7zcg
+
+    // `ClosedHeader` (must be before `useTaskGridViewVirtualizedListViewRef()` to
+    // shift indexes correctly)
+    runningItemCount += 1;
+
+    const closedGridViewResult = useTaskGridViewVirtualizedListBase({
+        structuralItemKeyPrefix: "Closed-",
+        capabilities: gridViewCapabilities,
+        store,
+        query: closedQuery,
+        affinityManager,
+        viewRef: useTaskGridViewVirtualizedListViewRef(
+            viewRef,
+            runningItemCount,
+            events.getClosedItemCount,
+        ),
+        // NOTE(ifitzsimmons, 2026-02-22): The closed section only ever shows up when
+        // filters are applied, which means that users can never actually edit grid view
+        // items in the closed section.
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
+            if (!closedQuery) return null;
+
+            const time1 = store.clock.now();
+            const time2 = store.clock.now();
+            const time3 = store.clock.now();
+
+            const positions: Array<TaskPosition> = [];
+
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time3,
+                closedQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateStatus",
+                            status: {
+                                type: "Closed",
+                                closerId: currentAccount.id,
+                                closedTime: new TaskFilterableTime({
+                                    absoluteTime: time2,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time3,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
+                    },
+                );
+            }
+
+            return {
+                actions,
+                positions,
+            };
+        },
+        getMaybeRemoveTaskFromQueryActions: taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: null,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateStatus",
+                    status: {type: "Open"},
+                },
+            },
+        ],
+        withoutColumnHeader: true,
+        withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
+        withoutBottomGhostTask: true,
+
+        isDragging,
+        draggingData,
+        pushUndoStackEntry: entry => {
+            pushUndoStackEntry({...entry, extra: "Closed"});
+        },
+        scrollToAnchorPosition,
+        previousGridView: !isDueSoonGridViewEmpty
+            ? dueSoonGridViewResult
+            : !isDueTodayGridViewEmpty
+              ? dueTodayGridViewResult
+              : !isOverdueGridViewEmpty
+                ? overdueGridViewResult
+                : !isActiveGridViewEmpty
+                  ? activeGridViewResult
+                  : undefined,
+        previousGridViewAnimations,
+        nextGridView: {
+            focusFirstTaskTitleStart: () => {
+                remainingGridViewResult.focusFirstTaskTitleStart();
+            },
+            focusFirstTaskTitleCoord: coord => {
+                remainingGridViewResult.focusFirstTaskTitleCoord(coord);
+            },
+            focusFirstTaskCell: column => {
+                remainingGridViewResult.focusFirstTaskCell(column);
+            },
+        },
+    });
+
+    const isClosedGridViewEmpty =
+        closedGridViewResult.stateItemCount === 0 &&
+        closedGridViewResult.loadedState === "FullyLoaded";
+
+    const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForClosedHeader} =
+        useTaskGridViewVirtualizedListItemAnimation(
+            viewRef,
+            previousGridViewAnimations,
+            !isClosedGridViewEmpty ? runningItemCount - 1 : null,
+        );
+
+    if (isClosedGridViewEmpty) {
+        // We won't show the `ClosedHeader` item we added previously if this grid view is
+        // empty.
+        runningItemCount -= 1;
+
+        // Safety check: Make sure the grid view has no virtualized scroll view items if we
+        // determine it to be empty. That way if the effects in the virtualized scroll view
+        // check `viewRef.current.getRenderedRange()` we'll accurately return null.
+        assert(closedGridViewResult.itemCount === 0);
+    } else {
+        // Always render the first header since its column names will be
+        // `position: sticky`.
+        if (!hasFirstHeader) {
+            hasFirstHeader = true;
+            alwaysRenderAdditionalItemIndexes.push(runningItemCount - 1);
+        }
+
+        for (const index of closedGridViewResult.alwaysRenderAdditionalItemIndexes) {
+            alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
+        }
+
+        runningItemCount += closedGridViewResult.itemCount;
+    }
+
+    const closedGridViewHeaderAnimations =
+        useTaskPersonalViewHeaderAnimations(closedGridViewResult);
+
+    previousGridViewAnimations = useMemo(
+        () =>
+            concatReadonlyArrays(
+                previousGridViewAnimations,
+                closedGridViewHeaderAnimations,
+                closedGridViewResult.animations,
+            ),
+        [
+            closedGridViewHeaderAnimations,
+            closedGridViewResult.animations,
+            previousGridViewAnimations,
+        ],
+    );
+
+    // At this point, we don't really know if the remaining grid view header should be
+    // visible or not. It is visible when either
+    //
+    // 1. There are no applied filters and at least one other section is not empty
+    //     - The absence of filters means that we always show the remaining tasks
+    //       section because it always renders a ghost task row ("Add a task" row)
+    // 2. There are filters applied and the remaining section is not empty.
+    //     - When filters are applied, users can't add tasks to the grid, so the the
+    //       remaining section will not include a ghost task row.
+    //     - however, at this point, we don't know if the remaining section is empty or
+    //       not.
+    const isMaybeRemainingGridViewHeaderVisible =
         !isActiveGridViewEmpty ||
         !isOverdueGridViewEmpty ||
         !isDueTodayGridViewEmpty ||
-        !isDueSoonGridViewEmpty;
+        !isDueSoonGridViewEmpty ||
+        !isClosedGridViewEmpty;
 
     // `RemainingHeader`
     //
-    // This is conditional since if `RemainingHeader` isn't visible because none of
-    // the other grid views are visible we don't want to shift the remaining grid
-    // view items incorrectly because the remaining grid view will always be
-    // visible. It's ok if we incorrectly shift other grid views when they have an
-    // item count of 0 so the shift won't matter.
-    if (isRemainingGridViewHeaderVisible) {
+    // This is conditional since if `RemainingHeader` isn't visible because none of the
+    // other grid views are visible we don't want to shift the remaining grid view
+    // items incorrectly. It's ok if we incorrectly shift other grid views when they
+    // have an item count of 0 so the shift won't matter.
+    if (isMaybeRemainingGridViewHeaderVisible) {
         runningItemCount += 1;
     }
 
     const remainingGridViewHeaderAnimations = useTaskPersonalViewRemainingHeaderAnimations(
-        isRemainingGridViewHeaderVisible,
+        isMaybeRemainingGridViewHeaderVisible,
     );
 
     previousGridViewAnimations = useMemo(
@@ -1341,8 +1617,27 @@ export function TaskPersonalView({
         [previousGridViewAnimations, remainingGridViewHeaderAnimations],
     );
 
+    const remainingStructuralItemKeyPrefix = "Remaining-";
+
+    const remainingPreviousGridViewResult = !isClosedGridViewEmpty
+        ? closedGridViewResult
+        : !isDueSoonGridViewEmpty
+          ? dueSoonGridViewResult
+          : !isDueTodayGridViewEmpty
+            ? dueTodayGridViewResult
+            : !isOverdueGridViewEmpty
+              ? overdueGridViewResult
+              : !isActiveGridViewEmpty
+                ? activeGridViewResult
+                : undefined;
+
+    const remainingPreviousFocusLastTaskTitleEnd =
+        remainingPreviousGridViewResult?.focusLastTaskTitleEnd;
+    const remainingPreviousFocusLastTaskTitleAll =
+        remainingPreviousGridViewResult?.focusLastTaskTitleAll;
+
     const remainingGridViewResult = useTaskGridViewVirtualizedListBase({
-        structuralItemKeyPrefix: "Remaining-",
+        structuralItemKeyPrefix: remainingStructuralItemKeyPrefix,
         capabilities: gridViewCapabilities,
         store,
         query: remainingQuery,
@@ -1352,51 +1647,67 @@ export function TaskPersonalView({
             runningItemCount,
             events.getRemainingItemCount,
         ),
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
+            if (!remainingQuery) return null;
+
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(
-                          time2,
-                          remainingQuery.query,
-                          position,
-                      )
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssignee",
-                        assignee: {
-                            assigneeId: currentAccount.id,
-                            assignerId: currentAccount.id,
-                            assignedTime: new TaskFilterableTime({
-                                absoluteTime: time1,
-                                setterTimeZone: timeZone,
-                            }),
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time2,
+                remainingQuery.query,
+                actualPosition,
+                taskIds.length,
+            );
+
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: new TaskFilterableTime({
+                                    absoluteTime: time1,
+                                    setterTimeZone: timeZone,
+                                }),
+                            },
                         },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateAssigneePosition",
-                        accountId: currentAccount.id,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateAssigneePosition",
+                            accountId: currentAccount.id,
+                            position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => [
@@ -1418,17 +1729,24 @@ export function TaskPersonalView({
             pushUndoStackEntry({...entry, extra: "Remaining"});
         },
         scrollToAnchorPosition,
-        previousGridView: !isDueSoonGridViewEmpty
-            ? dueSoonGridViewResult
-            : !isDueTodayGridViewEmpty
-              ? dueTodayGridViewResult
-              : !isOverdueGridViewEmpty
-                ? overdueGridViewResult
-                : !isActiveGridViewEmpty
-                  ? activeGridViewResult
-                  : undefined,
+        previousGridView: remainingPreviousGridViewResult,
         previousGridViewAnimations,
     });
+
+    const isRemainingGridViewEmpty =
+        remainingGridViewResult.stateItemCount === 0 &&
+        remainingGridViewResult.loadedState === "FullyLoaded";
+
+    const allSectionsExceptRemainingEmpty = !isMaybeRemainingGridViewHeaderVisible;
+
+    const shouldRenderRemainingSection =
+        !isRemainingGridViewEmpty ||
+        allSectionsExceptRemainingEmpty ||
+        // If the user has not applied any filters, always show the remaining section.
+        activeFilters.length === 0;
+
+    const isRemainingGridViewHeaderVisible =
+        shouldRenderRemainingSection && isMaybeRemainingGridViewHeaderVisible;
 
     const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForRemainingHeader} =
         useTaskGridViewVirtualizedListItemAnimation(
@@ -1437,47 +1755,89 @@ export function TaskPersonalView({
             isRemainingGridViewHeaderVisible ? runningItemCount - 1 : null,
         );
 
-    for (const index of remainingGridViewResult.alwaysRenderAdditionalItemIndexes) {
-        alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
-    }
+    // When a user applies a filter such that there non-empty sections, we can get into
+    // the following state:
+    //
+    // 1. There are tasks within the filter criteria in the Active and Overdue sections
+    // 2. Because there are non-empty sections, `isRemainingGridViewHeaderVisible` is
+    //    true and we increment the `runningItemCount` by 1 to render the
+    //    `RemainingHeader`
+    // 3. There aren't any tasks within the filter criteria in the Remaining section,
+    //    so we don't render it. Meaning that we also don't render the
+    //    `RemainingHeader` item.
+    //
+    // This check ensures that the `runningItemCount` is correct.
+    if (!shouldRenderRemainingSection) {
+        if (isRemainingGridViewHeaderVisible) {
+            // We won't show the `RemainingHeader` item we added previously if we don't render
+            // the remaining grid view
+            runningItemCount -= 1;
+        }
+    } else {
+        for (const index of remainingGridViewResult.alwaysRenderAdditionalItemIndexes) {
+            alwaysRenderAdditionalItemIndexes.push(index + runningItemCount);
+        }
 
-    runningItemCount += remainingGridViewResult.itemCount;
+        runningItemCount += remainingGridViewResult.itemCount;
+    }
 
     /* ========================================================================== *\
      *                                   Render                                   *
     \* ========================================================================== */
 
-    const focusEnd = () => {
-        if (remainingGridViewResult.itemCount > 0) {
-            remainingGridViewResult.focusEnd();
-        } else if (dueSoonGridViewResult.itemCount > 0) {
-            dueSoonGridViewResult.focusEnd();
-        } else if (dueTodayGridViewResult.itemCount > 0) {
-            dueTodayGridViewResult.focusEnd();
-        } else if (overdueGridViewResult.itemCount > 0) {
-            overdueGridViewResult.focusEnd();
-        } else if (activeGridViewResult.itemCount > 0) {
-            activeGridViewResult.focusEnd();
-        }
-    };
+    const itemCount =
+        // `NavigationBar`
+        1 +
+        (!isActiveGridViewEmpty
+            ? // `ActiveHeader`
+              1 + activeGridViewResult.itemCount
+            : 0) +
+        (!isOverdueGridViewEmpty
+            ? // `OverdueHeader`
+              1 + overdueGridViewResult.itemCount
+            : 0) +
+        (!isDueTodayGridViewEmpty
+            ? // `DueTodayHeader`
+              1 + dueTodayGridViewResult.itemCount
+            : 0) +
+        (!isDueSoonGridViewEmpty
+            ? // `DueSoonHeader`
+              1 + dueSoonGridViewResult.itemCount
+            : 0) +
+        (!isClosedGridViewEmpty
+            ? // `ClosedHeader`
+              1 + closedGridViewResult.itemCount
+            : 0) +
+        (shouldRenderRemainingSection
+            ? (isRemainingGridViewHeaderVisible ? 1 : 0) + remainingGridViewResult.itemCount
+            : // Decorative ghost row rendering decorative ghost row background.
+              1);
 
-    // Extract the `renderItem` property so we can call it in `useCallback()`
-    // without depending on the whole `activeGridViewResult` object. If we
-    // called `activeGridViewResult.renderItem()` then
-    // `activeGridViewResult` would be assigned to `this` in `renderItem`
-    // and React would need to add a dependency on `activeGridViewResult`
-    // to the `useCallback()`.
+    // Make sure we animate that last decorative ghost row!
+    const {onRenderedRangeLayoutChange: onRenderedRangeLayoutChangeForLastDecorativeGhostRow} =
+        useTaskGridViewVirtualizedListItemAnimation(
+            viewRef,
+            previousGridViewAnimations,
+            !shouldRenderRemainingSection ? itemCount - 1 : null,
+        );
+
+    // Extract the `renderItem` property so we can call it in `useCallback()` without
+    // depending on the whole `activeGridViewResult` object. If we called
+    // `activeGridViewResult.renderItem()` then `activeGridViewResult` would be
+    // assigned to `this` in `renderItem` and React would need to add a dependency on
+    // `activeGridViewResult` to the `useCallback()`.
     const renderActiveGridViewItem = activeGridViewResult.renderItem;
     const renderOverdueGridViewItem = overdueGridViewResult.renderItem;
     const renderDueTodayGridViewItem = dueTodayGridViewResult.renderItem;
     const renderDueSoonGridViewItem = dueSoonGridViewResult.renderItem;
+    const renderClosedGridViewItem = closedGridViewResult.renderItem;
     const renderRemainingGridViewItem = remainingGridViewResult.renderItem;
 
     const renderItem = useCallback(
         (index: number): VirtualizedScrollViewItem => {
-            // We don't need to modify the `key` for our items because the queries should
-            // be exclusive. If a task shows up in one section it should not show up in
-            // any other section.
+            // We don't need to modify the `key` for our items because the queries should be
+            // exclusive. If a task shows up in one section it should not show up in any other
+            // section.
 
             let hasFirstHeader = false;
 
@@ -1487,10 +1847,46 @@ export function TaskPersonalView({
                         key: "NavigationBar",
                         minHeight: spacing[navigationBarHeight],
                         node: (
-                            <>
-                                <Box height="safe-area-inset-top" />
+                            <Box paddingTop="safe-area-inset">
                                 <Box height={navigationBarHeight} />
-                            </>
+                                {customizationState &&
+                                    (platform === "mobile" ? (
+                                        <TaskQueryViewCustomizationMobileSection
+                                            ref={mobileCustomizationSectionRef}
+                                            store={store}
+                                            queryReferencesForUrlGrant={null}
+                                            initiallyFocus={customizationState.initiallyFocus}
+                                            defaultOrderSentence={defaultOrderSentence}
+                                            filters={filters}
+                                            filterReferences={filterReferences}
+                                            onFiltersChange={updateFilters}
+                                            sorts={sorts}
+                                            onSortsChange={setSorts}
+                                            excludeFilters={excludeFilters}
+                                        />
+                                    ) : (
+                                        <Box
+                                            paddingX={screenPaddingX}
+                                            paddingTop="1"
+                                            paddingBottom="5"
+                                        >
+                                            <TaskQueryViewCustomizationBar
+                                                ref={desktopCustomizationBarRef}
+                                                store={store}
+                                                queryReferencesForUrlGrant={null}
+                                                shouldCollapseWhenFiltersAreEmpty={true}
+                                                defaultOrderSentence={defaultOrderSentence}
+                                                filters={filters}
+                                                filterReferences={filterReferences}
+                                                onFiltersChange={updateFilters}
+                                                sorts={sorts}
+                                                onSortsChange={setSorts}
+                                                initiallyFocus={customizationState.initiallyFocus}
+                                                excludeFilters={excludeFilters}
+                                            />
+                                        </Box>
+                                    ))}
+                            </Box>
                         ),
                     };
                 } else {
@@ -1501,16 +1897,29 @@ export function TaskPersonalView({
                             : spacing[navigationBarHeight],
                         withManualLayout: true,
                         render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
-                            <TaskPersonalNavigationBar
+                            <TaskPersonalViewDesktopNavigationBar
                                 itemRef={ref}
                                 store={store}
                                 offset={offset}
                                 shouldRenderWithRelativePositioning={
                                     shouldRenderWithRelativePositioning
                                 }
-                                withoutRemainingGridViewHeader={!isRemainingGridViewHeaderVisible}
-                                visibleSectionState={visibleSectionState}
+                                // When all other sections are empty and the remaining section doesn't have its own
+                                // header, we show the column header directly in the navigation bar instead. This
+                                // avoids having a blank space where the section header would be.
+                                //
+                                // We should only show this UX if the remaining section is the first (only)
+                                // rendered section.
+                                withoutRemainingGridViewHeader={
+                                    !isRemainingGridViewHeaderVisible &&
+                                    shouldRenderRemainingSection
+                                }
                                 menuActions={navigationBarMenuActions}
+                                filters={filters}
+                                filterReferences={filterReferences}
+                                onFiltersChange={updateFilters}
+                                sorts={sorts}
+                                onSortsChange={setSorts}
                             />
                         ),
                     };
@@ -1671,24 +2080,104 @@ export function TaskPersonalView({
                 index -= dueSoonGridViewResult.itemCount;
             }
 
-            if (isRemainingGridViewHeaderVisible) {
+            if (!isClosedGridViewEmpty) {
                 if (index === 0) {
-                    return {
-                        key: "RemainingHeader",
-                        minHeight: taskPersonalViewHeaderHeight[routeLayout],
-                        zIndex: "40",
-                        node: <TaskPersonalViewHeader name="Tasks" />,
-                    };
+                    if (routeLayout === "narrow" || hasFirstHeader) {
+                        return {
+                            key: "ClosedHeader",
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
+                            zIndex: "40",
+                            node: <TaskPersonalViewHeader name="Closed" />,
+                        };
+                    } else {
+                        return {
+                            key: "ClosedHeader",
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
+                            withManualLayout: true,
+                            render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
+                                <TaskPersonalViewFirstHeaderDesktop
+                                    itemRef={ref}
+                                    offset={offset}
+                                    shouldRenderWithRelativePositioning={
+                                        shouldRenderWithRelativePositioning
+                                    }
+                                    name="Closed"
+                                />
+                            ),
+                        };
+                    }
                 }
 
+                hasFirstHeader = true;
                 index -= 1;
+
+                if (index < closedGridViewResult.itemCount) {
+                    return renderClosedGridViewItem(index);
+                }
+
+                index -= closedGridViewResult.itemCount;
             }
 
-            if (index < remainingGridViewResult.itemCount) {
-                return renderRemainingGridViewItem(index);
+            if (shouldRenderRemainingSection) {
+                if (isRemainingGridViewHeaderVisible) {
+                    if (index === 0) {
+                        return {
+                            key: "RemainingHeader",
+                            minHeight: taskPersonalViewHeaderHeight[routeLayout],
+                            zIndex: "40",
+                            node: <TaskPersonalViewHeader name="Tasks" />,
+                        };
+                    }
+
+                    index -= 1;
+                }
+
+                if (index < remainingGridViewResult.itemCount) {
+                    return renderRemainingGridViewItem(index);
+                }
+
+                index -= remainingGridViewResult.itemCount;
             }
 
-            index -= remainingGridViewResult.itemCount;
+            // If we're not rendering the remaining section (because of filters) then we render
+            // a decorative ghost task to get our repeating grid view lines at the end of
+            // personal task view. Otherwise the remaining section is responsible for rendering
+            // our decorative ghost task background.
+            if (!shouldRenderRemainingSection && index === 0) {
+                // We only render this when there's a section that's not the remaining section
+                // visible. If all sections are hidden then we render the remaining section.
+                //
+                // This assert is a precaution to make sure we don't get in a state this code
+                // doesn't expect.
+                assert(!allSectionsExceptRemainingEmpty);
+
+                return {
+                    key: `${remainingStructuralItemKeyPrefix}DecorativeGhostTask:${index}`,
+                    minHeight: spacing[taskRowViewMinHeight],
+                    node: (
+                        <TaskGridViewDecorativeGhostTaskMemo
+                            rowMaxWidth={null}
+                            isInert={gridViewCapabilities.isReadOnly}
+                            structuralItemKeyPrefix={remainingStructuralItemKeyPrefix}
+                            relativeItemIndex={index}
+                            isFirstRow={false}
+                            withoutBorderTopIfFirstRow={false}
+                            // HACK: The previous section will have padding bottom of
+                            // `taskGridViewPaddingBottomWithNext`. Add some padding top to create space
+                            // equivalent to a task row.
+                            paddingTop={subtractRemLengths(
+                                taskRowViewMinHeight,
+                                taskGridViewPaddingBottomWithNext,
+                            )}
+                            withPaddingBottom={true}
+                            hasNextGridView={false}
+                            hasDecorativeGhostRowBackground={true}
+                            focusPreviousTaskTitleEnd={remainingPreviousFocusLastTaskTitleEnd}
+                            focusPreviousTaskTitleAll={remainingPreviousFocusLastTaskTitleAll}
+                        />
+                    ),
+                };
+            }
 
             throw new OutOfRangeError("Index out of personal task view bounds");
         },
@@ -1697,11 +2186,18 @@ export function TaskPersonalView({
             isOverdueGridViewEmpty,
             isDueTodayGridViewEmpty,
             isDueSoonGridViewEmpty,
-            isRemainingGridViewHeaderVisible,
-            remainingGridViewResult.itemCount,
+            isClosedGridViewEmpty,
+            shouldRenderRemainingSection,
             routeLayout,
+            customizationState,
+            platform,
             store,
-            visibleSectionState,
+            filters,
+            filterReferences,
+            updateFilters,
+            sorts,
+            setSorts,
+            isRemainingGridViewHeaderVisible,
             navigationBarMenuActions,
             activeGridViewResult.itemCount,
             renderActiveGridViewItem,
@@ -1711,7 +2207,14 @@ export function TaskPersonalView({
             renderDueTodayGridViewItem,
             dueSoonGridViewResult.itemCount,
             renderDueSoonGridViewItem,
+            closedGridViewResult.itemCount,
+            renderClosedGridViewItem,
+            remainingGridViewResult.itemCount,
             renderRemainingGridViewItem,
+            allSectionsExceptRemainingEmpty,
+            gridViewCapabilities.isReadOnly,
+            remainingPreviousFocusLastTaskTitleEnd,
+            remainingPreviousFocusLastTaskTitleAll,
         ],
     );
 
@@ -1723,55 +2226,19 @@ export function TaskPersonalView({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            className={tasksStyles.textCursorNotInherited2ClassName}
-            {...useOutOfBoundsClickSelection({
-                // Accept clicks on our `<VirtualizedScrollView>` child too.
-                accept: event =>
-                    event.target === event.currentTarget ||
-                    (event.target instanceof Element &&
-                        event.target.parentElement === event.currentTarget),
-                onSelect: focusEnd,
-                onSelectAll: focusEnd,
-            })}
         >
             {activeGridViewResult.modals}
             {overdueGridViewResult.modals}
             {dueTodayGridViewResult.modals}
             {dueSoonGridViewResult.modals}
+            {closedGridViewResult.modals}
             {remainingGridViewResult.modals}
             <GlobalKeyDownEvent onGlobalKeyDown={onGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={scrollViewRef}
                     bufferedItemHeight={spacing[taskRowViewMinHeight]}
-                    itemCount={
-                        // `NavigationBar`
-                        1 +
-                        (!isActiveGridViewEmpty
-                            ? // `ActiveHeader`
-                              1 + activeGridViewResult.itemCount
-                            : 0) +
-                        (!isOverdueGridViewEmpty
-                            ? // `OverdueHeader`
-                              1 + overdueGridViewResult.itemCount
-                            : 0) +
-                        (!isDueTodayGridViewEmpty
-                            ? // `DueTodayHeader`
-                              1 + dueTodayGridViewResult.itemCount
-                            : 0) +
-                        (!isDueSoonGridViewEmpty
-                            ? // `DueSoonHeader`
-                              1 + dueSoonGridViewResult.itemCount
-                            : 0) +
-                        (!isActiveGridViewEmpty ||
-                        !isOverdueGridViewEmpty ||
-                        !isDueTodayGridViewEmpty ||
-                        !isDueSoonGridViewEmpty
-                            ? // `RemainingHeader`
-                              1
-                            : 0) +
-                        remainingGridViewResult.itemCount
-                    }
+                    itemCount={itemCount}
                     alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalItemIndexes}
                     scrollbarInsetTop={
                         routeLayout === "narrow"
@@ -1852,29 +2319,43 @@ export function TaskPersonalView({
                             runningItemCount += dueSoonGridViewResult.itemCount;
                         }
 
-                        if (
-                            !isActiveGridViewEmpty ||
-                            !isOverdueGridViewEmpty ||
-                            !isDueTodayGridViewEmpty ||
-                            !isDueSoonGridViewEmpty
-                        ) {
-                            // `RemainingHeader`
+                        if (!isClosedGridViewEmpty) {
+                            // `ClosedHeader`
                             runningItemCount += 1;
+
+                            closedGridViewResult.onRenderedRangeChange(
+                                shiftRenderedRange(
+                                    runningItemCount,
+                                    closedGridViewResult.itemCount,
+                                    range,
+                                ),
+                            );
+
+                            runningItemCount += closedGridViewResult.itemCount;
                         }
 
-                        remainingGridViewResult.onRenderedRangeChange(
-                            shiftRenderedRange(
-                                runningItemCount,
-                                remainingGridViewResult.itemCount,
-                                range,
-                            ),
-                        );
+                        if (shouldRenderRemainingSection) {
+                            if (isRemainingGridViewHeaderVisible) {
+                                // `RemainingHeader`
+                                runningItemCount += 1;
+                            }
+
+                            remainingGridViewResult.onRenderedRangeChange(
+                                shiftRenderedRange(
+                                    runningItemCount,
+                                    remainingGridViewResult.itemCount,
+                                    range,
+                                ),
+                            );
+                        }
                     }}
                     onRenderedRangeLayoutChange={range => {
                         onRenderedRangeLayoutChangeForOverdueHeader();
                         onRenderedRangeLayoutChangeForDueTodayHeader();
                         onRenderedRangeLayoutChangeForDueSoonHeader();
+                        onRenderedRangeLayoutChangeForClosedHeader();
                         onRenderedRangeLayoutChangeForRemainingHeader();
+                        onRenderedRangeLayoutChangeForLastDecorativeGhostRow();
 
                         let runningItemCount = 0;
 
@@ -1941,26 +2422,36 @@ export function TaskPersonalView({
                             runningItemCount += dueSoonGridViewResult.itemCount;
                         }
 
-                        if (
-                            !isActiveGridViewEmpty ||
-                            !isOverdueGridViewEmpty ||
-                            !isDueTodayGridViewEmpty ||
-                            !isDueSoonGridViewEmpty
-                        ) {
-                            // `RemainingHeader`
+                        if (!isClosedGridViewEmpty) {
+                            // `ClosedHeader`
                             runningItemCount += 1;
+
+                            closedGridViewResult.onRenderedRangeLayoutChange(
+                                shiftRenderedRange(
+                                    runningItemCount,
+                                    closedGridViewResult.itemCount,
+                                    range,
+                                ),
+                            );
+
+                            runningItemCount += closedGridViewResult.itemCount;
                         }
 
-                        remainingGridViewResult.onRenderedRangeLayoutChange(
-                            shiftRenderedRange(
-                                runningItemCount,
-                                remainingGridViewResult.itemCount,
-                                range,
-                            ),
-                        );
+                        if (shouldRenderRemainingSection) {
+                            if (isRemainingGridViewHeaderVisible) {
+                                // `RemainingHeader`
+                                runningItemCount += 1;
+                            }
+
+                            remainingGridViewResult.onRenderedRangeLayoutChange(
+                                shiftRenderedRange(
+                                    runningItemCount,
+                                    remainingGridViewResult.itemCount,
+                                    range,
+                                ),
+                            );
+                        }
                     }}
-                    onScroll={handleScroll}
-                    onStateChange={handleStateChange}
                     extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
@@ -1978,8 +2469,8 @@ function useTaskGridViewVirtualizedListViewRef(
 
     const getPreviousItemCount = useEvent(() => previousItemCount);
 
-    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
-    // items which precede our children grid view.
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of items
+    // which precede our children grid view.
     useImperativeHandle(
         gridViewRef,
         () => ({
@@ -2068,25 +2559,33 @@ function shiftRenderedRange(
     }
 }
 
-const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
+const TaskPersonalViewDesktopNavigationBar = memo(function TaskPersonalViewDesktopNavigationBar({
     itemRef,
     store,
     offset,
     shouldRenderWithRelativePositioning,
     withoutRemainingGridViewHeader,
-    visibleSectionState,
     menuActions,
+    filters,
+    filterReferences,
+    onFiltersChange,
+    sorts,
+    onSortsChange,
 }: {
     itemRef: Ref<HTMLDivElement>;
     store: TaskClientStore;
     offset: number;
     shouldRenderWithRelativePositioning: boolean;
     withoutRemainingGridViewHeader: boolean;
-    visibleSectionState: {
-        section: TaskPersonalViewVisibleSection | null;
-        previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
-    };
-    menuActions: ReadonlyArray<MenuAction>;
+    menuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+    filters: ReadonlyArray<TaskQueryFilter>;
+    filterReferences: TaskQueryFilterReferences;
+    onFiltersChange: (
+        filters: ReadonlyArray<TaskQueryFilter>,
+        options?: {mergeFilterReferences?: TaskQueryFilterReferences},
+    ) => void;
+    sorts: ReadonlyArray<TaskQuerySort>;
+    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
     return (
         <div
@@ -2111,14 +2610,62 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
                 paddingTop="safe-area-inset"
                 backgroundColor="grey-0"
             >
-                <Box display="flex" alignItems="center" paddingRight={screenPaddingX.desktop}>
-                    <TaskPersonalNavigationBarTitleDesktop
+                <Box minHeight={navigationBarHeight} display="flex" paddingRight={screenPaddingX}>
+                    <Box
+                        flexShrink="0"
+                        display="flex"
+                        alignItems="center"
+                        height={navigationBarHeight}
                         paddingLeft="10"
-                        visibleSectionState={visibleSectionState}
+                    >
+                        <h1
+                            className={sprinkles({fontSize: "400", fontStyle: "bold"})}
+                            style={{marginTop: useAlignFontBaselines("400", "75")}}
+                        >
+                            My tasks
+                        </h1>
+                    </Box>
+                    <Box
+                        flexShrink="0"
+                        alignSelf="stretch"
+                        marginY="4"
+                        marginX={screenPaddingX}
+                        borderLeft="grey-5"
                     />
-                    <Box flexGrow="1" />
-                    <TaskPersonalNavigationBarCollectionsButton store={store} />
-                    <Box paddingLeft="4" flexShrink="0">
+                    <Box
+                        flexGrow="1"
+                        style={{
+                            paddingTop: taskQueryViewCustomizationBarDesktopMarginY,
+                            paddingBottom: taskQueryViewCustomizationBarDesktopMarginY,
+                        }}
+                    >
+                        <TaskQueryViewCustomizationBar
+                            store={store}
+                            queryReferencesForUrlGrant={null}
+                            shouldCollapseWhenFiltersAreEmpty={true}
+                            defaultOrderSentence={defaultOrderSentence}
+                            filters={filters}
+                            filterReferences={filterReferences}
+                            onFiltersChange={onFiltersChange}
+                            sorts={sorts}
+                            onSortsChange={onSortsChange}
+                            excludeFilters={excludeFilters}
+                        />
+                    </Box>
+                    <Box
+                        flexShrink="0"
+                        alignSelf="stretch"
+                        marginY="4"
+                        marginX={screenPaddingX}
+                        borderLeft="grey-5"
+                    />
+                    <Box
+                        flexShrink="0"
+                        height={navigationBarHeight}
+                        display="flex"
+                        alignItems="center"
+                        gap="2"
+                    >
                         <MenuButton placement="bottom-end" actions={menuActions}>
                             <IconButton size="md" description="More" withoutTooltip={true}>
                                 <DotsThreeVertical />
@@ -2143,141 +2690,6 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
                 )}
             </Box>
         </div>
-    );
-});
-
-const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigationBarTitleDesktop({
-    paddingLeft,
-    visibleSectionState,
-}: {
-    paddingLeft: Spacing;
-    visibleSectionState: {
-        section: TaskPersonalViewVisibleSection | null;
-        previousSections: ReadonlySet<TaskPersonalViewVisibleSection>;
-    };
-}) {
-    const spacingScale = useSpacingScale();
-
-    const hasActivePreviousVisibleSection = visibleSectionState.previousSections.has("Active");
-    const hasOverduePreviousVisibleSection = visibleSectionState.previousSections.has("Overdue");
-    const hasDueTodayPreviousVisibleSection = visibleSectionState.previousSections.has("DueToday");
-    const hasDueSoonPreviousVisibleSection = visibleSectionState.previousSections.has("DueSoon");
-
-    const isActiveVisibleSection = visibleSectionState.section === "Active";
-    const isOverdueVisibleSection = visibleSectionState.section === "Overdue";
-    const isDueTodayVisibleSection = visibleSectionState.section === "DueToday";
-    const isDueSoonVisibleSection = visibleSectionState.section === "DueSoon";
-
-    return (
-        <Box
-            flexShrink="0"
-            display="flex"
-            alignItems="center"
-            height={navigationBarHeight}
-            paddingLeft={paddingLeft}
-        >
-            <Box display="flex" alignItems="baseline" gap="3">
-                <h1 className={sprinkles({fontSize: "400", fontStyle: "bold"})}>My tasks</h1>
-                <Box
-                    position="relative"
-                    width="24"
-                    fontSize="100"
-                    fontStyle="semi-bold"
-                    color="grey-50"
-                    style={{
-                        fontSize:
-                            fontSizesBySpacingScale["400"][spacingScale].fontSize *
-                            (interFontXHeight / interFontCapHeight),
-                    }}
-                >
-                    <Box
-                        aria-hidden={!isActiveVisibleSection}
-                        // We can only use fade in/out animation classes if the section has previously
-                        // been visible. Otherwise we animate on initial mount which is wrong.
-                        opacity={
-                            !hasActivePreviousVisibleSection && !isActiveVisibleSection
-                                ? "0"
-                                : undefined
-                        }
-                        className={
-                            isActiveVisibleSection
-                                ? navigationBarStyles.titleFadeInAnimationClassName
-                                : hasActivePreviousVisibleSection
-                                  ? navigationBarStyles.titleFadeOutAnimationClassName
-                                  : undefined
-                        }
-                    >
-                        Active
-                    </Box>
-                    <Box
-                        aria-hidden={!isOverdueVisibleSection}
-                        // We can only use fade in/out animation classes if the section has previously
-                        // been visible. Otherwise we animate on initial mount which is wrong.
-                        opacity={
-                            !hasOverduePreviousVisibleSection && !isOverdueVisibleSection
-                                ? "0"
-                                : undefined
-                        }
-                        className={
-                            isOverdueVisibleSection
-                                ? navigationBarStyles.titleFadeInAnimationClassName
-                                : hasOverduePreviousVisibleSection
-                                  ? navigationBarStyles.titleFadeOutAnimationClassName
-                                  : undefined
-                        }
-                        position="absolute"
-                        left="0"
-                        top="0"
-                    >
-                        Overdue
-                    </Box>
-                    <Box
-                        aria-hidden={!isDueTodayVisibleSection}
-                        // We can only use fade in/out animation classes if the section has previously
-                        // been visible. Otherwise we animate on initial mount which is wrong.
-                        opacity={
-                            !hasDueTodayPreviousVisibleSection && !isDueTodayVisibleSection
-                                ? "0"
-                                : undefined
-                        }
-                        className={
-                            isDueTodayVisibleSection
-                                ? navigationBarStyles.titleFadeInAnimationClassName
-                                : hasDueTodayPreviousVisibleSection
-                                  ? navigationBarStyles.titleFadeOutAnimationClassName
-                                  : undefined
-                        }
-                        position="absolute"
-                        left="0"
-                        top="0"
-                    >
-                        Due today
-                    </Box>
-                    <Box
-                        aria-hidden={!isDueSoonVisibleSection}
-                        // We can only use fade in/out animation classes if the section has previously
-                        // been visible. Otherwise we animate on initial mount which is wrong.
-                        opacity={
-                            !hasDueSoonPreviousVisibleSection && !isDueSoonVisibleSection
-                                ? "0"
-                                : undefined
-                        }
-                        className={
-                            isDueSoonVisibleSection
-                                ? navigationBarStyles.titleFadeInAnimationClassName
-                                : hasDueSoonPreviousVisibleSection
-                                  ? navigationBarStyles.titleFadeOutAnimationClassName
-                                  : undefined
-                        }
-                        position="absolute"
-                        left="0"
-                        top="0"
-                    >
-                        Due soon
-                    </Box>
-                </Box>
-            </Box>
-        </Box>
     );
 });
 
@@ -2423,10 +2835,10 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
             } else if (nonStateItemCountDifference < 0) {
                 const heightRem =
                     parseRemLength(taskPersonalViewHeaderHeight[routeLayout]) +
-                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This
-                    // is true for the bottom ghost task and decorative ghost rows. The grid view
-                    // shouldn't have a column header so it's safe to assume all non-state items
-                    // have a height of `taskRowViewMinHeight`.
+                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This is
+                    // true for the bottom ghost task and decorative ghost rows. The grid view
+                    // shouldn't have a column header so it's safe to assume all non-state items have a
+                    // height of `taskRowViewMinHeight`.
                     parseRemLength(taskRowViewMinHeight) * -nonStateItemCountDifference +
                     parseRemLength(taskGridViewPaddingBottomWithNext);
 
@@ -2435,8 +2847,8 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
                     {
                         type: "Delete",
                         startTime: Date.now(),
-                        // Take a little longer for header create/delete animations so everything
-                        // doesn't move too fast.
+                        // Take a little longer for header create/delete animations so everything doesn't
+                        // move too fast.
                         duration: taskAnimationDurationMs * 2,
                         kind: "Unknown",
                         height: `${heightRem}rem`,
@@ -2447,10 +2859,10 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
 
                 const heightRem =
                     parseRemLength(taskPersonalViewHeaderHeight[routeLayout]) +
-                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This
-                    // is true for the bottom ghost task and decorative ghost rows. The grid view
-                    // shouldn't have a column header so it's safe to assume all non-state items
-                    // have a height of `taskRowViewMinHeight`.
+                    // We assume all non-state items have a height of `taskRowViewMinHeight`. This is
+                    // true for the bottom ghost task and decorative ghost rows. The grid view
+                    // shouldn't have a column header so it's safe to assume all non-state items have a
+                    // height of `taskRowViewMinHeight`.
                     parseRemLength(taskRowViewMinHeight) * nonStateItemCountDifference +
                     parseRemLength(taskGridViewPaddingBottomWithNext);
 
@@ -2459,8 +2871,8 @@ function useTaskPersonalViewHeaderAnimations(gridViewResult: {
                     {
                         type: "Create",
                         startTime: Date.now(),
-                        // Take a little longer for header create/delete animations so everything
-                        // doesn't move too fast.
+                        // Take a little longer for header create/delete animations so everything doesn't
+                        // move too fast.
                         duration: taskAnimationDurationMs * 2,
                         kind: "Unknown",
                         height: `${heightRem}rem`,

@@ -4,8 +4,7 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 test("letter spacing matches Inter tracking formula", () => {
-    // Inter formula for letter spacing:
-    // https://rsms.me/inter/dynmetrics
+    // Inter formula for letter spacing: https://rsms.me/inter/dynmetrics
     const getTracking = (n: number) => -0.0223 + 0.185 * Math.exp(-0.1745 * n);
 
     expect(

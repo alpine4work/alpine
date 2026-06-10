@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import {join as joinPath} from "path";
 import sharp from "sharp";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -29,10 +30,10 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     // Make sure the viewport size never changes since we'll need precise pixel
     // placement when dropping an image.
-    await page.setViewportSize({width: 1280, height: 720});
+    await page.setViewportSize({width: 1280, height: 1000});
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const file1Contents = await sharp(
         joinPath(
@@ -40,8 +41,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
             "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         ),
     )
-        // When we wrote the tests we weren't rendering files at half their size. So
-        // scale the file back up so everything keeps working.
+        // When we wrote the tests we weren't rendering files at half their size. So scale
+        // the file back up so everything keeps working.
         .resize(1000, 750)
         .toBuffer();
 
@@ -62,7 +63,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 738,
-        clientY: 407,
+        clientY: 416,
         dataTransfer: file1DataTransfer,
     });
 
@@ -76,7 +77,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 738,
-            clientY: 257,
+            clientY: 266,
             dataTransfer: file1DataTransfer,
         });
 
@@ -92,7 +93,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 738,
-            clientY: 164,
+            clientY: 69,
             dataTransfer: file1DataTransfer,
         });
 
@@ -108,7 +109,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 738,
-            clientY: 577,
+            clientY: 586,
             dataTransfer: file1DataTransfer,
         });
 
@@ -127,7 +128,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 738,
-        clientY: 257,
+        clientY: 266,
         dataTransfer: file1DataTransfer,
     });
 
@@ -160,7 +161,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 738,
-        clientY: 407,
+        clientY: 416,
         dataTransfer: file1DataTransfer,
     });
 
@@ -202,8 +203,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
             "cyberworlds/server/files/processor/test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
         ),
     )
-        // When we wrote the tests we weren't rendering files at half their size. So
-        // scale the file back up so everything keeps working.
+        // When we wrote the tests we weren't rendering files at half their size. So scale
+        // the file back up so everything keeps working.
         .resize(480, 268)
         .toBuffer();
 
@@ -224,7 +225,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 738,
-        clientY: 257,
+        clientY: 266,
         dataTransfer: file2DataTransfer,
     });
 
@@ -238,7 +239,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 855,
-            clientY: 641,
+            clientY: 650,
             dataTransfer: file2DataTransfer,
         });
 
@@ -254,7 +255,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 504,
-            clientY: 343,
+            clientY: 352,
             dataTransfer: file2DataTransfer,
         });
 
@@ -270,7 +271,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
-            clientY: 169,
+            clientY: 69,
             dataTransfer: file2DataTransfer,
         });
 
@@ -285,8 +286,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 399,
-            clientY: 602,
+            clientX: 310,
+            clientY: 469,
             dataTransfer: file2DataTransfer,
         });
 
@@ -301,8 +302,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 955,
-            clientY: 602,
+            clientX: 1020,
+            clientY: 469,
             dataTransfer: file2DataTransfer,
         });
 
@@ -317,8 +318,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 175,
-            clientY: 602,
+            clientX: 310,
+            clientY: 469,
             dataTransfer: file2DataTransfer,
         });
 
@@ -333,8 +334,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 1068,
-            clientY: 602,
+            clientX: 1020,
+            clientY: 469,
             dataTransfer: file2DataTransfer,
         });
 
@@ -375,8 +376,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
-        clientX: 1068,
-        clientY: 602,
+        clientX: 1020,
+        clientY: 469,
         dataTransfer: file2DataTransfer,
     });
 
@@ -451,7 +452,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 742,
-        clientY: 335,
+        clientY: 344,
         dataTransfer: file3DataTransfer,
     });
 
@@ -465,7 +466,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 742,
-            clientY: 416,
+            clientY: 509,
             dataTransfer: file3DataTransfer,
         });
 
@@ -481,7 +482,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 500,
-            clientY: 322,
+            clientY: 269,
             dataTransfer: file3DataTransfer,
         });
 
@@ -497,7 +498,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
-            clientY: 169,
+            clientY: 69,
             dataTransfer: file3DataTransfer,
         });
 
@@ -512,8 +513,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 436,
-            clientY: 353,
+            clientX: 310,
+            clientY: 362,
             dataTransfer: file3DataTransfer,
         });
 
@@ -528,8 +529,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 916,
-            clientY: 396,
+            clientX: 1020,
+            clientY: 405,
             dataTransfer: file3DataTransfer,
         });
 
@@ -544,8 +545,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 239,
-            clientY: 396,
+            clientX: 310,
+            clientY: 405,
             dataTransfer: file3DataTransfer,
         });
 
@@ -560,8 +561,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 1095,
-            clientY: 396,
+            clientX: 1020,
+            clientY: 405,
             dataTransfer: file3DataTransfer,
         });
 
@@ -574,10 +575,33 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
         page.getByTestId(/^ContentEditorFileDropTargetIndicator:[^:]+:(?!522$)/),
     ).toBeHidden();
 
+    const firstFilePreviewBox = await page
+        .getByRole("textbox", {name: "Document"})
+        .locator("> *")
+        .nth(2)
+        .getByTestId(/^ContentFilePreview:/)
+        .nth(0)
+        .boundingBox();
+    const secondFilePreviewBox = await page
+        .getByRole("textbox", {name: "Document"})
+        .locator("> *")
+        .nth(2)
+        .getByTestId(/^ContentFilePreview:/)
+        .nth(1)
+        .boundingBox();
+    assert(firstFilePreviewBox);
+    assert(secondFilePreviewBox);
+
+    const middleFileDropTargetX =
+        firstFilePreviewBox.x +
+        firstFilePreviewBox.width +
+        (secondFilePreviewBox.x - firstFilePreviewBox.x - firstFilePreviewBox.width) / 2;
+    const middleFileDropTargetY = firstFilePreviewBox.y + firstFilePreviewBox.height / 2;
+
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
-            clientX: 622,
-            clientY: 396,
+            clientX: middleFileDropTargetX,
+            clientY: middleFileDropTargetY,
             dataTransfer: file3DataTransfer,
         });
 
@@ -634,8 +658,8 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(page.getByRole("textbox", {name: "Document"}).locator("> *").nth(7)).toBeHidden();
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
-        clientX: 1068,
-        clientY: 602,
+        clientX: 1020,
+        clientY: 405,
         dataTransfer: file3DataTransfer,
     });
 
@@ -696,7 +720,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 644,
-        clientY: 399,
+        clientY: 408,
         dataTransfer: file1DataTransfer,
     });
 
@@ -710,7 +734,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 644,
-            clientY: 326,
+            clientY: 335,
             dataTransfer: file1DataTransfer,
         });
 
@@ -726,7 +750,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 1030,
-            clientY: 418,
+            clientY: 427,
             dataTransfer: file1DataTransfer,
         });
 
@@ -742,7 +766,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 607,
-            clientY: 169,
+            clientY: 69,
             dataTransfer: file1DataTransfer,
         });
 
@@ -758,7 +782,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 330,
-            clientY: 321,
+            clientY: 330,
             dataTransfer: file1DataTransfer,
         });
 
@@ -774,7 +798,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 737,
-            clientY: 415,
+            clientY: 424,
             dataTransfer: file1DataTransfer,
         });
 
@@ -790,7 +814,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(async () => {
         await page.getByRole("textbox", {name: "Document"}).dispatchEvent("dragover", {
             clientX: 554,
-            clientY: 340,
+            clientY: 349,
             dataTransfer: file1DataTransfer,
         });
 
@@ -825,7 +849,7 @@ test("can drop file into floating comment input", async ({
     await document.type(session, "!");
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await page
         .getByRole("textbox", {name: "Document"})
@@ -939,13 +963,13 @@ test("can copy/paste a file within the same space", async ({
 
     await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${document1.id}`);
+    await page1.goto(`/doc/${document1.id}`);
 
     const browserContext2 = await browser.newContext();
     await browserContext2.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document2.id}`);
+    await page2.goto(`/doc/${document2.id}`);
 
     const file1Contents = await sharp(
         joinPath(
@@ -953,8 +977,8 @@ test("can copy/paste a file within the same space", async ({
             "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         ),
     )
-        // When we wrote the tests we weren't rendering files at half their size. So
-        // scale the file back up so everything keeps working.
+        // When we wrote the tests we weren't rendering files at half their size. So scale
+        // the file back up so everything keeps working.
         .resize(1000, 750)
         .toBuffer();
 
@@ -976,7 +1000,7 @@ test("can copy/paste a file within the same space", async ({
 
     await page1.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 640,
-        clientY: 360,
+        clientY: 369,
         dataTransfer: file1DataTransfer,
     });
 
@@ -985,7 +1009,7 @@ test("can copy/paste a file within the same space", async ({
 
     await page1.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 640,
-        clientY: 360,
+        clientY: 369,
         dataTransfer: file1DataTransfer,
     });
 
@@ -1014,7 +1038,9 @@ test("can copy/paste a file within the same space", async ({
     }, clipboardHtml);
 
     await page2.getByRole("textbox", {name: "Document"}).focus();
-    await page2.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
+    await page2
+        .getByRole("textbox", {name: "Document"})
+        .press(await pageKeyboardShortcut(page2, "mod", "v"));
 
     await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 
@@ -1038,13 +1064,13 @@ test("can copy/paste a file across spaces", async ({
 
     await browserContext1.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space1.id}/documents/${document1.id}`);
+    await page1.goto(`/doc/${document1.id}`);
 
     const browserContext2 = await browser.newContext();
     await browserContext2.grantPermissions(["clipboard-read", "clipboard-write"]);
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space2.id}/documents/${document2.id}`);
+    await page2.goto(`/doc/${document2.id}`);
 
     const file1Contents = await sharp(
         joinPath(
@@ -1052,8 +1078,8 @@ test("can copy/paste a file across spaces", async ({
             "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         ),
     )
-        // When we wrote the tests we weren't rendering files at half their size. So
-        // scale the file back up so everything keeps working.
+        // When we wrote the tests we weren't rendering files at half their size. So scale
+        // the file back up so everything keeps working.
         .resize(1000, 750)
         .toBuffer();
 
@@ -1075,7 +1101,7 @@ test("can copy/paste a file across spaces", async ({
 
     await page1.getByRole("textbox", {name: "Document"}).dispatchEvent("dragenter", {
         clientX: 640,
-        clientY: 360,
+        clientY: 369,
         dataTransfer: file1DataTransfer,
     });
 
@@ -1084,7 +1110,7 @@ test("can copy/paste a file across spaces", async ({
 
     await page1.getByRole("textbox", {name: "Document"}).dispatchEvent("drop", {
         clientX: 640,
-        clientY: 360,
+        clientY: 369,
         dataTransfer: file1DataTransfer,
     });
 
@@ -1113,7 +1139,9 @@ test("can copy/paste a file across spaces", async ({
     }, clipboardHtml);
 
     await page2.getByRole("textbox", {name: "Document"}).focus();
-    await page2.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
+    await page2
+        .getByRole("textbox", {name: "Document"})
+        .press(await pageKeyboardShortcut(page2, "mod", "v"));
 
     await expect(page2.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 

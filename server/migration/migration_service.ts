@@ -4,6 +4,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
@@ -21,6 +22,7 @@ import {
     createServiceOpensearchContextModule,
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -32,25 +34,25 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // NOTE(calebmer): My vision for `MigrationService`:
 //
-// Right now migration service is pretty bare bones. It only runs a migration
-// to index all search entities in OpenSearch and must be triggered manually.
-// However, in the future I'd like for `MigrationService` to run new migrations
+// Right now migration service is pretty bare bones. It only runs a migration to
+// index all search entities in OpenSearch and must be triggered manually. However,
+// in the future I'd like for `MigrationService` to run new migrations
 // automatically in development and production.
 //
-// Say an AWS lambda runs after a deploy completes, checks if all migrations
-// have been run by looking at a DynamoDB table, and kicks off ECS tasks for
-// any migrations which need to run. A similar process would happen in
-// development. If we see new migrations, we run them.
+// Say an AWS lambda runs after a deploy completes, checks if all migrations have
+// been run by looking at a DynamoDB table, and kicks off ECS tasks for any
+// migrations which need to run. A similar process would happen in development. If
+// we see new migrations, we run them.
 //
-// A system like this would allow developers to conveniently write arbitrary
-// data schema changes. Though new migrations should probably get extra
-// scrutiny during code review since they may corrupt data or temporarily
-// increase load as they slow down the product.
+// A system like this would allow developers to conveniently write arbitrary data
+// schema changes. Though new migrations should probably get extra scrutiny during
+// code review since they may corrupt data or temporarily increase load as they
+// slow down the product.
 //
-// Until `MigrationService` runs automatically, you need to manually run
-// migrations using the AWS CLI. For example, this is the exact command we ran
-// once to index every search entity. Review every parameter before running
-// this. Our infrastructure may have changed.
+// Until `MigrationService` runs automatically, you need to manually run migrations
+// using the AWS CLI. For example, this is the exact command we ran once to index
+// every search entity. Review every parameter before running this. Our
+// infrastructure may have changed.
 //
 // ```
 // aws ecs run-task \
@@ -120,6 +122,7 @@ export async function run({
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
+        sitesInjection: new SitesInjectionContextModule(sitesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
     });
 
@@ -130,8 +133,8 @@ export async function run({
                 span.addPropagatedData({context: {migration: migrationString}});
                 span.addData({migration: {segmentIndex, totalSegmentCount}});
 
-                // Make sure to finish initializing all DynamoDB table schemas before we start
-                // our migration.
+                // Make sure to finish initializing all DynamoDB table schemas before we start our
+                // migration.
                 finishInitializingDynamoTableSchemas();
 
                 await migration(context, {segmentIndex, totalSegmentCount});

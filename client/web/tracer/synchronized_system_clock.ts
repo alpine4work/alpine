@@ -10,11 +10,11 @@ let synchronizedSystemClockPromise: PromiseImmediate<SynchronizedSystemClock> | 
 
 /**
  * Get the synchronized system clock. The synchronized system clock uses the
- * device's system clock but adds communication with our servers to get the
- * real time unaffected by the user's local device's clock adjustments.
+ * device's system clock but adds communication with our servers to get the real
+ * time unaffected by the user's local device's clock adjustments.
  *
- * If you are getting a time on the client you want to use for ordering events
- * on the server relative to other clients then you should be using this clock.
+ * If you are getting a time on the client you want to use for ordering events on
+ * the server relative to other clients then you should be using this clock.
  *
  * Uses [NTP clock synchronization][1] to determine the right time.
  *
@@ -33,15 +33,15 @@ class SynchronizedSystemClock implements Clock {
     constructor(clientTimeOffsetMs: number) {
         this._clientTimeOffsetMs = clientTimeOffsetMs;
 
-        // When running in a web browser, occasionally refresh the client time offset
-        // to make sure our clock is still synchronized with the server.
+        // When running in a web browser, occasionally refresh the client time offset to
+        // make sure our clock is still synchronized with the server.
         //
-        // Outside of web browser environments, we assume the system clock is
-        // synchronized for us. (e.g. AWS Linux 2 AMIs use the AWS Time Sync service.)
+        // Outside of web browser environments, we assume the system clock is synchronized
+        // for us. (e.g. AWS Linux 2 AMIs use the AWS Time Sync service.)
         if (typeof window !== "undefined") {
             const listener = () => {
-                // When the document is made visible, immediately go and update our client
-                // time offset.
+                // When the document is made visible, immediately go and update our client time
+                // offset.
                 if (document.visibilityState === "visible") {
                     fetchClientTimeOffsetMs()
                         .then(clientTimeOffsetMs => (this._clientTimeOffsetMs = clientTimeOffsetMs))
@@ -58,17 +58,17 @@ class SynchronizedSystemClock implements Clock {
      * return it synchronously.
      */
     public static new(): PromiseImmediate<SynchronizedSystemClock> {
-        // If we are running on the server then assume our system clock is
-        // synchronized for us. (e.g. AWS Linux 2 AMIs use the AWS Time Sync service.)
+        // If we are running on the server then assume our system clock is synchronized for
+        // us. (e.g. AWS Linux 2 AMIs use the AWS Time Sync service.)
         if (typeof window === "undefined") {
             return PromiseImmediate.resolve(new SynchronizedSystemClock(0));
         }
 
-        // Try to get the client time offset from the HTTP `Server-Timing` header. If
-        // it doesn't exist then we need to make a network request.
+        // Try to get the client time offset from the HTTP `Server-Timing` header. If it
+        // doesn't exist then we need to make a network request.
         //
-        // If it does exist then yay! We can use time immediately without needing to
-        // wait for a network roundtrip.
+        // If it does exist then yay! We can use time immediately without needing to wait
+        // for a network roundtrip.
         let clientTimeOffsetMs = getClientTimeOffsetMsFromServerTimingIfAvailable();
         if (clientTimeOffsetMs !== null) {
             return PromiseImmediate.resolve(new SynchronizedSystemClock(clientTimeOffsetMs));
@@ -76,9 +76,9 @@ class SynchronizedSystemClock implements Clock {
 
         return PromiseImmediate.resolve(
             (async () => {
-                // It's essential that we load the client time offset from our server. So in
-                // case we there's a transient network error, keep retrying until we get the
-                // client time offset.
+                // It's essential that we load the client time offset from our server. So in case
+                // we there's a transient network error, keep retrying until we get the client time
+                // offset.
                 clientTimeOffsetMs = await retryWithExponentialBackoff(async retry => {
                     try {
                         const clientTimeOffsetMs = await fetchClientTimeOffsetMs();
@@ -95,8 +95,8 @@ class SynchronizedSystemClock implements Clock {
 
     /**
      * Get the client time offset as determined by this clock. You can add this to
-     * `unsynchronizedSystemClock.now()` to get the same time our synchronized
-     * system clock would return.
+     * `unsynchronizedSystemClock.now()` to get the same time our synchronized system
+     * clock would return.
      */
     public getClientTimeOffsetMs() {
         return this._clientTimeOffsetMs;
@@ -112,8 +112,8 @@ class SynchronizedSystemClock implements Clock {
 
 /**
  * Gets the client's time offset using the HTTP `Server-Timing` header if
- * available. Once we parse information from the `Server-Timing` header we use
- * the [NTP algorithm][1] to determine the client offset.
+ * available. Once we parse information from the `Server-Timing` header we use the
+ * [NTP algorithm][1] to determine the client offset.
  *
  * You add the returned offset to client times to get the synced time.
  *
@@ -122,11 +122,10 @@ class SynchronizedSystemClock implements Clock {
 function getClientTimeOffsetMsFromServerTimingIfAvailable(): number | null {
     // Avoid error in Safari 10 and other old browsers.
     //
-    // TODO(calebmer): Our mobile wrapper runs WebKit on iOS and our desktop
-    // wrapper may run WebKit on MacOS. We should inject an implementation of
-    // `Server-Timing` in these environments since a synchronized system clock
-    // being immediately available is important for monitoring and for our
-    // task system.
+    // TODO(calebmer): Our mobile wrapper runs WebKit on iOS and our desktop wrapper
+    // may run WebKit on MacOS. We should inject an implementation of `Server-Timing`
+    // in these environments since a synchronized system clock being immediately
+    // available is important for monitoring and for our task system.
     if (!window.performance || !performance.getEntriesByType) return null;
 
     const navigationTimings = performance.getEntriesByType(
@@ -138,8 +137,8 @@ function getClientTimeOffsetMsFromServerTimingIfAvailable(): number | null {
 
     const navigationTiming = navigationTimings[0];
 
-    // Request was read from the cache. Cached server timing header won't be
-    // accurate here.
+    // Request was read from the cache. Cached server timing header won't be accurate
+    // here.
     if (navigationTiming.requestStart === 0) return null;
 
     const edgeServerTiming = navigationTiming.serverTiming?.find(entry => entry.name === "edge");
@@ -176,16 +175,16 @@ function getClientTimeOffsetMsFromServerTimingIfAvailable(): number | null {
 let timeApiCallCount = 1;
 
 /**
- * Get the current client time offset by making a network request to our
- * servers. We then use the [NTP algorithm][1] to determine the client offset.
+ * Get the current client time offset by making a network request to our servers.
+ * We then use the [NTP algorithm][1] to determine the client offset.
  *
  * You add the returned offset to client times to get the synced time.
  *
  * [1]: https://stackoverflow.com/a/8478288/1568890
  */
 async function fetchClientTimeOffsetMs() {
-    // Add a unique key query parameter so we can find the associated performance
-    // entry later.
+    // Add a unique key query parameter so we can find the associated performance entry
+    // later.
     const url = new URL(`/api/time?n=${timeApiCallCount++}`, window.location.href);
 
     const clientStartHighResTime = performance.now();
@@ -205,9 +204,9 @@ async function fetchClientTimeOffsetMs() {
     ];
     const anchorHighResTime = highResTime1 + (highResTime2 - highResTime1) / 2;
 
-    // Ideally we have a resource timing entry which excludes any unessential time
-    // like DNS connection time or response streaming time which closely matches
-    // our server timing.
+    // Ideally we have a resource timing entry which excludes any unessential time like
+    // DNS connection time or response streaming time which closely matches our server
+    // timing.
     const resourceTiming = performance.getEntriesByName(url.toString())[0] as
         | PerformanceResourceTiming
         | undefined;

@@ -24,8 +24,9 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {AccountId, ContentEditorClientId, SpaceId} from "~/shared/id/types/id_types.js";
 
+const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 
 function textSlice(text: string) {
@@ -37,7 +38,9 @@ test("can receive steps one at a time", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc: assertDocumentContent(
@@ -127,7 +130,9 @@ test("can receive multiple steps at a time", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc: assertDocumentContent(
@@ -235,7 +240,9 @@ test("can receive steps out of order", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc: assertDocumentContent(
@@ -348,7 +355,9 @@ test("can receive steps multiple times", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc: assertDocumentContent(
@@ -518,7 +527,9 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc: assertDocumentContent(
@@ -614,7 +625,9 @@ test("can receive large step backfill with duplicate steps at beginning of backf
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc: assertDocumentContent(
@@ -698,7 +711,9 @@ test("can receive large step backfill with duplicate steps in the middle of back
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc: assertDocumentContent(
@@ -774,7 +789,9 @@ test("reproduce receive steps assertion failure", () => {
     const otherClientId = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 0,
         initialContent: {
             doc: assertDocumentContent(
@@ -930,6 +947,7 @@ test("collaborative update scenario", () => {
     const collabPluginVersion = 11;
 
     const editorState = ContentEditorState.createCollaborative<DocumentContentWithReferences>({
+        spaceId: null,
         version: collabPluginVersion,
         content: {doc, references: emptyDocumentContentReferences},
         reduceReferences: reduceDocumentContentReferences,
@@ -1021,8 +1039,8 @@ test("collaborative update scenario", () => {
         expect(sendableSteps?.steps.length).toEqual(undefined);
     }
 
-    // Manually update our collab plugin's `unconfirmed` state since there's no
-    // easy way to initialize it with the `prosemirror-collab` API.
+    // Manually update our collab plugin's `unconfirmed` state since there's no easy
+    // way to initialize it with the `prosemirror-collab` API.
     // https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L43
     (editorState as any)._state.collab$.unconfirmed = collabPluginUnconfirmed;
 
@@ -1033,6 +1051,7 @@ test("collaborative update scenario", () => {
     }
 
     const oldState: DocumentContentEditorState = {
+        spaceId,
         persistedVersion: 0,
         pendingActions: [
             {
@@ -1090,6 +1109,7 @@ test("collaborative update scenario", () => {
         errorState: {hasError: false},
         extra: {
             currentAccountId,
+            accessLevel: "Manage",
             pendingCreateCommentThreads: [],
             pendingIntentionallyUpdateAccessPolicy: null,
             rememberedSteps: [],
@@ -1119,7 +1139,9 @@ test("generates correct remembered steps", () => {
     );
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc,
@@ -1232,7 +1254,9 @@ test("can reset to persisted version", () => {
     );
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc,
@@ -1373,7 +1397,9 @@ test("setting presence state to a version we don't have remembered steps for doe
     const client1Id = generateId<ContentEditorClientId>();
 
     let state = getInitialDocumentContentEditorState({
+        spaceId,
         currentAccountId,
+        accessLevel: "Manage",
         initialVersion: 10,
         initialContent: {
             doc: assertDocumentContent(
@@ -1458,4 +1484,98 @@ test("setting presence state to a version we don't have remembered steps for doe
     expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
         'doc(title, paragraph("initial content more text"))',
     );
+});
+
+// Pins down the reducer's "clear empty cursor in read-only mode" branch. In a
+// read-only `<ContentEditor>` the browser doesn't render a cursor for an empty
+// selection (it only renders selected ranges), so broadcasting an empty-selection
+// presence to other clients is wasted state. The reducer relies on
+// `state.extra.accessLevel` to decide — if the parent component recreates the
+// editor state with a stale `accessLevel`, this branch will misbehave.
+
+test("ourPresenceState is cleared when accessLevel is below Edit and selection is empty", () => {
+    const initialState = getInitialDocumentContentEditorState({
+        spaceId,
+        currentAccountId,
+        accessLevel: "View",
+        initialVersion: 0,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    expect(initialState.editorState.getSelection().empty).toBe(true);
+
+    // `UnclearOurPresenceState` would normally restore presence to the editor's
+    // current selection. With `accessLevel: "View"` and an empty selection, the
+    // post-reduce branch should immediately strip it back to null.
+    const state = reduceDocumentContentEditorState(initialState, [
+        {type: "Extra", extra: {type: "UnclearOurPresenceState"}},
+    ]);
+
+    expect(state.extra.ourPresenceState).toBeNull();
+});
+
+test("ourPresenceState is preserved when accessLevel is Edit even with an empty selection", () => {
+    const initialState = getInitialDocumentContentEditorState({
+        spaceId,
+        currentAccountId,
+        accessLevel: "Edit",
+        initialVersion: 0,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("abc")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    expect(initialState.editorState.getSelection().empty).toBe(true);
+
+    const state = reduceDocumentContentEditorState(initialState, [
+        {type: "Extra", extra: {type: "UnclearOurPresenceState"}},
+    ]);
+
+    // Edit access keeps the empty-selection presence — editable `<ContentEditor>`
+    // renders cursors for empty selections, so other clients should see them.
+    expect(state.extra.ourPresenceState).not.toBeNull();
+    expect(state.extra.ourPresenceState?.selection.empty).toBe(true);
+});
+
+test("ourPresenceState is preserved when accessLevel is below Edit but selection is non-empty", () => {
+    const doc = assertDocumentContent(
+        schema.node("doc", {}, [
+            schema.node("title", {}, []),
+            schema.node("paragraph", {}, [schema.text("abc")]),
+        ]),
+    );
+    const initialState = getInitialDocumentContentEditorState({
+        spaceId,
+        currentAccountId,
+        accessLevel: "View",
+        initialVersion: 0,
+        initialContent: {doc, references: emptyDocumentContentReferences},
+        // Select the "abc" range explicitly so the editor's selection is non-empty.
+        initialSelection: TextSelection.create(doc, 3, 6),
+    });
+
+    expect(initialState.editorState.getSelection().empty).toBe(false);
+
+    const state = reduceDocumentContentEditorState(initialState, [
+        {type: "Extra", extra: {type: "UnclearOurPresenceState"}},
+    ]);
+
+    // Read-only `<ContentEditor>` _does_ render a non-empty selection range, so we
+    // keep the presence — only empty cursor selections get stripped.
+    expect(state.extra.ourPresenceState).not.toBeNull();
+    expect(state.extra.ourPresenceState?.selection.empty).toBe(false);
 });

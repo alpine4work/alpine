@@ -14,12 +14,11 @@ import {PostId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
- * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored
- * the post.
+ * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored the
+ * post.
  *
- * The result is cached. If you call this for the same `PostId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `PostId` multiple times in
+ * the same action you'll get the same result without issuing a network request.
  */
 // Designed for `server/notifications/data/notifications_table.ts`.
 export async function getPostAuthorAndChannelPreviewIfPossible(
@@ -35,9 +34,9 @@ export async function getPostAuthorAndChannelPreviewIfPossible(
 
     const [, channelResult] = await runAllPromises([
         authorPromise.catch(() => {
-            // Ignore errors but wait for `authorPromise` to resolve. If
-            // `channelResultPromise` returns an `ok: false` result then we're going to
-            // ignore any errors from `getAccount()`.
+            // Ignore errors but wait for `authorPromise` to resolve. If `channelResultPromise`
+            // returns an `ok: false` result then we're going to ignore any errors from
+            // `getAccount()`.
         }),
         channelResultPromise,
     ]);
@@ -53,12 +52,11 @@ export async function getPostAuthorAndChannelPreviewIfPossible(
 }
 
 /**
- * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored
- * the post.
+ * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored the
+ * post.
  *
- * The result is cached. If you call this for the same `PostId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `PostId` multiple times in
+ * the same action you'll get the same result without issuing a network request.
  */
 export async function getPostAuthorAndChannelPreview(
     context: ServerActionContext,

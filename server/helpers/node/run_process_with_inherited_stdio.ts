@@ -8,9 +8,9 @@ import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_
 import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
- * Convenient function for running a process to completion. Throws if the
- * process exits with a non-zero exit code. Prints stdout and stderr to the
- * current process's stdout/stderr.
+ * Convenient function for running a process to completion. Throws if the process
+ * exits with a non-zero exit code. Prints stdout and stderr to the current
+ * process's stdout/stderr.
  *
  * Executes the process in a predictable, reproducible, environment. By default,
  * executes in the repository root with no `PATH`.
@@ -31,8 +31,8 @@ export async function runProcessWithInheritedStdio(
         onStderrData,
     }: {
         /**
-         * What directory should the process run in? By default runs in the root
-         * directory of our code repository.
+         * What directory should the process run in? By default runs in the root directory
+         * of our code repository.
          */
         cwd?: string;
 

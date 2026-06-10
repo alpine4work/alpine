@@ -19,28 +19,28 @@ import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // The same error message is copied in `WebNavigationController.swift`'s
-// `showUnhealthyAlert()` function. If we update the message here, we should
-// update it there as well.
+// `showUnhealthyAlert()` function. If we update the message here, we should update
+// it there as well.
 export const offlineErrorDisplayMessage = errorDisplayMessage`Your device isn\u2019t connected to the internet. Make sure you\u2019re online then try again.`;
 
 const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
 
 /**
- * External service names are not PascalCase like our internal service names
- * (in the `TracerServiceName` type) instead they are a human readable phrase,
+ * External service names are not PascalCase like our internal service names (in
+ * the `TracerServiceName` type) instead they are a human readable phrase,
  * potentially including spaces.
  *
- * For example "OpenSearch" is an external service name instead of
- * "Opensearch". "Opensearch" (without a capital "S") is how we refer to
- * OpenSearch in PascalCase since we want to treat it like a single word. But
- * OpenSearch is how you'd write the service name in a sentence.
+ * For example "OpenSearch" is an external service name instead of "Opensearch".
+ * "Opensearch" (without a capital "S") is how we refer to OpenSearch in PascalCase
+ * since we want to treat it like a single word. But OpenSearch is how you'd write
+ * the service name in a sentence.
  *
- * A simpler example is "Secrets Manager" instead of "SecretsManager" to refer
- * to the AWS Secrets Manager service.
+ * A simpler example is "Secrets Manager" instead of "SecretsManager" to refer to
+ * the AWS Secrets Manager service.
  *
  * Human readable phrases match our span name style which is why we do this.
  */
-export type ExternalServiceName = "OpenSearch" | "Cohere" | "LogoDev" | "Cursor";
+export type ExternalServiceName = "OpenSearch" | "Cohere" | "LogoDev" | "Cursor" | "Loops";
 
 function isExternalServiceName(
     serviceName: TracerServiceName | ExternalServiceName,
@@ -50,10 +50,11 @@ function isExternalServiceName(
         case "Cohere":
         case "LogoDev":
         case "Cursor":
+        case "Loops":
             return true;
         default:
-            // Should handle all `ExternalServiceName`s. Only `TracerServiceName`s should
-            // be left (`cast()` enforces this with TypeScript).
+            // Should handle all `ExternalServiceName`s. Only `TracerServiceName`s should be
+            // left (`cast()` enforces this with TypeScript).
             cast<TracerServiceName>(serviceName);
             return false;
     }
@@ -64,18 +65,17 @@ function isExternalServiceName(
  * Generally should always use this instead of the global `fetch()`.
  *
  * You must provide an `action` function to do something with the response. The
- * time it takes to execute the action (and any errors thrown) will be included
- * in the HTTP span. Generally you want to read the request body (with
- * `response.body()` or `response.json()`). Deserialization logic can also go
- * in the `action` function and contribute to the HTTP request time.
+ * time it takes to execute the action (and any errors thrown) will be included in
+ * the HTTP span. Generally you want to read the request body (with
+ * `response.body()` or `response.json()`). Deserialization logic can also go in
+ * the `action` function and contribute to the HTTP request time.
  *
  * We require you to provide an action so:
  *
  * 1. Response body read times (with `response.json()`) are included in the span
  * 2. Deserialization times are included in the HTTP span
- * 3. If the request failed, you can throw a detailed error object which will
- *    be included in the span (instead of the failed HTTP request appear to
- *    succeed)
+ * 3. If the request failed, you can throw a detailed error object which will be
+ *    included in the span (instead of the failed HTTP request appear to succeed)
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
  */
@@ -91,25 +91,25 @@ export async function fetchWithTracer<ResponseData>(
         ...requestInit
     }: RequestInit & {
         /**
-         * The name of the service we are making a request to. Will be included in the
-         * span name.
+         * The name of the service we are making a request to. Will be included in the span
+         * name.
          */
         serviceName: TracerServiceName | ExternalServiceName;
 
         /**
-         * A description of the path we'll include in the `TracerSpan`'s name.
-         * This should be low cardinality for analysis.
+         * A description of the path we'll include in the `TracerSpan`'s name. This should
+         * be low cardinality for analysis.
          *
          * Uses a subset of the [URL Pattern API][1].
          *
          * For example if you are accessing a path that looks like
-         * `/task_index/_update/27g6s1h4ygh1zqzw5h23gqtn88` your route should not
-         * include the `Id` (which is very high cardinality) and instead be
-         * `/task_index/_update/:taskId`. That way you can analyze this method
-         * across all tasks.
+         * `/task_index/_update/27g6s1h4ygh1zqzw5h23gqtn88` your route should not include
+         * the `Id` (which is very high cardinality) and instead be
+         * `/task_index/_update/:taskId`. That way you can analyze this method across all
+         * tasks.
          *
-         * It's recommended that your identifier names (e.g. `:taskId`) are
-         * formatted as camel case (instead of `:task_id`).
+         * It's recommended that your identifier names (e.g. `:taskId`) are formatted as
+         * camel case (instead of `:task_id`).
          *
          * [1]: https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
          */
@@ -117,25 +117,26 @@ export async function fetchWithTracer<ResponseData>(
 
         /**
          * Provide a custom fetch function in case, for some reason, you can't use the
-         * global fetch function. Useful for Cloudflare Durable Object stubs which
-         * [provide their own fetch function][1].
+         * global fetch function. Useful for Cloudflare Durable Object stubs which [provide
+         * their own fetch function][1].
          *
-         * [1]: https://developers.cloudflare.com/durable-objects/how-to/create-durable-object-stubs/#2-send-http-requests
+         * [1]:
+         *     https://developers.cloudflare.com/durable-objects/how-to/create-durable-object-stubs/#2-send-http-requests
          */
         fetch?: (request: Request) => Promise<Response>;
 
         /**
-         * Sign or otherwise modify a request object before it's sent. Useful for
-         * signing requests to AWS with a library like [`aws4fetch`][1].
+         * Sign or otherwise modify a request object before it's sent. Useful for signing
+         * requests to AWS with a library like [`aws4fetch`][1].
          *
          * [1]: https://www.npmjs.com/package/aws4fetch
          */
         sign?: (request: Request, span: TracerSpan) => Promise<Request>;
 
         /**
-         * If you want to maintain a session across HTTP calls then provide a
-         * `CookieJar` which stores cookies from responses and sends previously
-         * assigned cookies with the response.
+         * If you want to maintain a session across HTTP calls then provide a `CookieJar`
+         * which stores cookies from responses and sends previously assigned cookies with
+         * the response.
          */
         cookieJar?: CookieJar;
     },
@@ -215,9 +216,9 @@ export async function fetchWithTracer<ResponseData>(
         const response = await fetch(request).catch(error => {
             // Classify network errors as the `Unavailable` status code.
             //
-            // If the user is offline then we use a `FailedPreconditionError` since it's a
-            // user error (no internet connection) not a system error. System errors show a
-            // red error icon.
+            // If the user is offline then we use a `FailedPreconditionError` since it's a user
+            // error (no internet connection) not a system error. System errors show a red
+            // error icon.
             throw new (
                 typeof window !== "undefined" && !navigator.onLine
                     ? FailedPreconditionError

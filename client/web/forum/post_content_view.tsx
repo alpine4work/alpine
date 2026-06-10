@@ -1,7 +1,7 @@
 import classNames from "classnames";
-import {ChatCircle, ChatCircleDots, Check, DotsThree} from "phosphor-react";
+import {ChatCircleDots, Check, DotsThree} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
-import {Memo, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/web/accounts/account_avatar_pile.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
@@ -26,7 +26,7 @@ import {PostCommentsState} from "~/client/web/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
-import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/web/icons/caret_up_with_customizable_stroke_width_icon.js";
+import {ChatCircleWithCaretUpIcon} from "~/client/web/icons/chat_circle_with_caret_up_icon.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {InlineEditorToolbar} from "~/client/web/messaging/inline_editor_toolbar.js";
@@ -40,10 +40,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
-import {
-    useSpaceContext,
-    useSpaceContextAndRequireSpaceAccess,
-} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
@@ -72,7 +69,7 @@ import {
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
@@ -81,6 +78,7 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -100,19 +98,27 @@ import {
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 
 export type PostContentViewInitialScroll = {
     readonly type: "File";
     readonly fileId: FileId;
 };
 
+const postContentViewSeeMore = {
+    type: "Gradient",
+    paddingX: postContentViewInnerMarginY,
+    paddingY: postContentViewInnerMarginY,
+} as const;
+
 export function PostContentView({
     post,
     postComments,
     postCommentsState,
-    shouldShowChannel,
     postEditing,
+    shouldShowChannel,
     isPostView,
+    hasCommentAccessLevel,
     initialScroll,
     jumpState,
     idBase,
@@ -121,7 +127,7 @@ export function PostContentView({
     onScrollToIfNotVisible,
     isShowingAllContent,
     onIsShowingAllContentChange,
-    onOptimisticPostRealtimeEventTransaction,
+    onOptimisticPostRealtimeEvents,
     isPostArchived,
     onArchivePost,
     onUnarchivePost,
@@ -132,6 +138,7 @@ export function PostContentView({
     postEditing: PostEditing;
     shouldShowChannel: boolean;
     isPostView: boolean;
+    hasCommentAccessLevel: Store<boolean>;
     initialScroll: PostContentViewInitialScroll | null;
     jumpState: JumpToPostRangeState | null;
     idBase: string;
@@ -140,8 +147,8 @@ export function PostContentView({
     onScrollToIfNotVisible: () => void;
     isShowingAllContent: boolean;
     onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
-    onOptimisticPostRealtimeEventTransaction: (
-        promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
+    onOptimisticPostRealtimeEvents: (
+        promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;
@@ -152,20 +159,28 @@ export function PostContentView({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
 
+    const isReadOnly = !useStore(hasCommentAccessLevel);
+
     // Update `SearchEntityRegistry` with the post content. Now as the post content
-    // changes in realtime, any `SearchEntityModel`s rendered elsewhere in
-    // the product will also update.
+    // changes in realtime, any `SearchEntityModel`s rendered elsewhere in the product
+    // will also update.
     {
         const searchEntity = useStore(
             useMemo(() => {
                 return computeStore(get => {
                     return new SearchEntityModel({
-                        id: `Post:${post.id}`,
+                        type: "Post",
+                        post: {
+                            id: post.id,
+                            version: post.version,
+                            channelVersion: post.channel.version,
+                            author: post.author,
+                        },
                         title: createPostSearchEntityTitle(
                             post.channel.name,
                             post.content.doc,
@@ -175,11 +190,6 @@ export function PostContentView({
                                 {accountRegistry, searchEntityRegistry, fileRegistry},
                             ),
                         ),
-                        titleVersion: {
-                            type: "Integers",
-                            versions: [post.version, post.channel.version],
-                        },
-                        media: {type: "Account", account: post.author},
                     });
                 });
             }, [
@@ -212,24 +222,38 @@ export function PostContentView({
 
     const isEditingPost = !!postEditingForThisPost;
 
-    const postSnippet = useMemo(() => {
+    const contentSnippet = useMemo(() => {
         if (isPostView) {
             return null;
         } else {
-            return {
-                doc: assertPostContent(
-                    getContentSnippet(
-                        post.content.doc.resolve(0),
-                        {linesAbove: 0, linesBelow: routeLayout === "narrow" ? 5 : 16},
-                        {
-                            // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
-                            // want to be slightly more aggressive than the default grapheme count (which
-                            // counts the "l" character which is narrower) since we render the entire
-                            // snippet.
-                            maxLineGraphemeCount: platform === "mobile" ? 42 : 72,
-                        },
-                    ),
+            let contentSnippet = getContentSnippet(
+                post.content.doc.resolve(0),
+                {linesAbove: 0, linesBelow: routeLayout === "narrow" ? 12 : 16},
+                {
+                    // 1.125x the number of "x"s we can fit in a single line in a peek (64). We want to
+                    // be slightly more aggressive than the default grapheme count (which counts the
+                    // "l" character which is narrower) since we render the entire snippet.
+                    maxLineGraphemeCount: platform === "mobile" ? 42 : 72,
+                },
+            );
+
+            contentSnippet = assertExists(
+                contentSnippet.type.createAndFill(
+                    contentSnippet.attrs,
+                    filterMapArray(contentSnippet.content.content, node => {
+                        // Strip all dividers from post. Since a divider in a post in a post list may look
+                        // like it's creating a second post. The user needs to press "See more" to expand
+                        // the post into a card view to see any dividers.
+                        if (node.type.name === "divider") return;
+
+                        return node;
+                    }),
+                    contentSnippet.marks,
                 ),
+            );
+
+            return {
+                doc: assertPostContent(contentSnippet),
                 references: post.content.references,
             };
         }
@@ -260,12 +284,11 @@ export function PostContentView({
             fileNodePos = pos;
         });
 
-        // We need to run after a microtask since our `<VirtualizedScrollView>` parent
-        // will set scroll top to its initial value (0) in a `useLayoutEffect()`. So we
-        // need to apply our scroll after that.
+        // We need to run after a microtask since our `<VirtualizedScrollView>` parent will
+        // set scroll top to its initial value (0) in a `useLayoutEffect()`. So we need to
+        // apply our scroll after that.
         scheduleMicrotask(() => {
             const fileElement = contentContainerElement.querySelector(
-                // eslint-disable-next-line cyberworlds/string-quotes
                 `[data-pos="${fileNodePos}"]`,
             );
             if (!fileElement) return;
@@ -320,10 +343,10 @@ export function PostContentView({
 
     const editorHeightSpacerRef = useRef<HTMLDivElement>(null);
 
-    // When we switch from not editing to editing, measure the current height of
-    // the content container element. This runs before React makes any changes to
-    // the DOM. So we'll get the content container height before it switches to the
-    // editor component.
+    // When we switch from not editing to editing, measure the current height of the
+    // content container element. This runs before React makes any changes to the DOM.
+    // So we'll get the content container height before it switches to the editor
+    // component.
     //
     // I feel ok reading mutable state in a `useState()` initializer function (vs
     // `useMemo()` or directly in the React render function).
@@ -335,9 +358,9 @@ export function PostContentView({
         );
 
     // When we switch from not editing to editing, after the editor has rendered
-    // measure the new height and take the difference of the height pre-editor
-    // render and post-editor render. We'll render the difference in some empty
-    // space below the post so layout doesn't shift.
+    // measure the new height and take the difference of the height pre-editor render
+    // and post-editor render. We'll render the difference in some empty space below
+    // the post so layout doesn't shift.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (oldContentContainerHeightForEditorHeightDifference === null) return;
 
@@ -355,8 +378,8 @@ export function PostContentView({
             oldContentContainerHeight - newContentContainerHeight,
         );
 
-        // Directly set the `style` attribute in this effect so we don't need a
-        // React re-render.
+        // Directly set the `style` attribute in this effect so we don't need a React
+        // re-render.
         editorHeightSpacerElement.setAttribute("style", `height: ${editorHeightDifference}px`);
     }, [oldContentContainerHeightForEditorHeightDifference]);
 
@@ -366,6 +389,9 @@ export function PostContentView({
                 process.env.NODE_ENV !== "production" ? `PostContentView:${post.id}` : undefined
             }
             position="relative"
+            // Render on top of the card background in `<PostListView>` when
+            // `isShowingAllContent` is true.
+            zIndex="20"
             paddingTop={!isPostView ? postContentViewOuterMarginY : undefined}
             style={{
                 minHeight: isPostView
@@ -403,6 +429,7 @@ export function PostContentView({
                                 onStartEditingPost: () => {
                                     postEditing.dispatch({
                                         type: "StartEditing",
+                                        spaceId: space.id,
                                         postId: post.id,
                                         contentVersion: post.contentUpdate?.mappings.length ?? 0,
                                         content: post.content,
@@ -449,7 +476,7 @@ export function PostContentView({
                 }}
             >
                 {!isEditingPost ? (
-                    !postSnippet ? (
+                    !contentSnippet ? (
                         <ContentView
                             content={post.content}
                             contentUpdatedTime={post.contentUpdate?.time ?? null}
@@ -459,8 +486,8 @@ export function PostContentView({
                                 sprinkles({padding: postContentViewInnerMarginY}),
                             )}
                             style={{paddingTop: isPostView ? postViewContentPaddingTop : undefined}}
-                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're
-                            // referencing a post and not a post comment.
+                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're referencing
+                            // a post and not a post comment.
                             data-room={post.id}
                             data-index={-1}
                             jumpAnimation={jumpAnimation}
@@ -475,11 +502,13 @@ export function PostContentView({
                             )}
                             style={{paddingTop: isPostView ? postViewContentPaddingTop : undefined}}
                             content={post.content}
-                            contentSnippet={postSnippet}
+                            contentSnippet={contentSnippet}
                             isShowingAllContent={isShowingAllContent}
                             onIsShowingAllContentChange={onIsShowingAllContentChange}
-                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're
-                            // referencing a post and not a post comment.
+                            // Render the "See more" button via gradient instead of an inline link.
+                            seeMore={postContentViewSeeMore}
+                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're referencing
+                            // a post and not a post comment.
                             data-room={post.id}
                             data-index={-1}
                             jumpAnimation={jumpAnimation}
@@ -502,9 +531,10 @@ export function PostContentView({
                 post={post}
                 postComments={postComments}
                 postCommentsState={postCommentsState}
+                isReadOnly={isReadOnly}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
-                onOptimisticPostRealtimeEventTransaction={onOptimisticPostRealtimeEventTransaction}
+                onOptimisticPostRealtimeEvents={onOptimisticPostRealtimeEvents}
             />
         </Box>
     );
@@ -514,17 +544,19 @@ function PostContentViewFooter({
     post,
     postComments,
     postCommentsState,
+    isReadOnly,
     onTogglePostComments,
     onLoadInitialPostComments,
-    onOptimisticPostRealtimeEventTransaction,
+    onOptimisticPostRealtimeEvents,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
+    isReadOnly: boolean;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
-    onOptimisticPostRealtimeEventTransaction: (
-        promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
+    onOptimisticPostRealtimeEvents: (
+        promise: Promise<ReadonlyArray<RynamoEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;
@@ -532,7 +564,7 @@ function PostContentViewFooter({
     const context = useAppContext();
     const {locale} = useClientInfo();
     const platform = usePlatform();
-    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {currentAccount} = useSpaceContext();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const reporter = useReporter();
@@ -589,7 +621,7 @@ function PostContentViewFooter({
                         if (isNavigatePending) return;
 
                         setIsNavigatePending(true);
-                        navigate(`/s/${space.id}/posts/${post.id}/reactions`).finally(() => {
+                        navigate(`/post/${post.id}/reactions`).finally(() => {
                             setIsNavigatePending(false);
                         });
                     }}
@@ -603,10 +635,13 @@ function PostContentViewFooter({
                 style={{width: postContentViewFooterReactionButtonAreaWidth}}
             >
                 <ReactionButton
+                    isReadOnly={isReadOnly}
                     reactions={post.reactions}
                     onSetReaction={reaction => {
+                        if (!currentAccount) return;
+
                         const promise = setPostReaction(context, {postId: post.id, reaction}).then(
-                            ({eventTransaction}) => eventTransaction,
+                            ({events}) => events,
                         );
 
                         promise.catch(error => {
@@ -614,33 +649,35 @@ function PostContentViewFooter({
                         });
 
                         // On the server, `setPostReaction()` uses the same logic as
-                        // `setPostCommentReaction()` for archiving a post in response to a
-                        // reaction. So use the same logic on the client as well.
+                        // `setPostCommentReaction()` for archiving a post in response to a reaction. So
+                        // use the same logic on the client as well.
                         inboxContext?.onSetMessageReactionOptimistically(promise, post.id);
 
-                        onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
+                        onOptimisticPostRealtimeEvents(promise, post.id, post => {
                             const newReactions = new Map(post.reactions.get());
                             newReactions.set(currentAccount.id, reaction);
                             return post.clone({reactions: new ReactionSet(newReactions)});
                         });
                     }}
                     onDeleteReaction={() => {
+                        if (!currentAccount) return;
+
                         const promise = deletePostReaction(context, {postId: post.id}).then(
-                            ({eventTransaction}) => eventTransaction,
+                            ({events}) => events,
                         );
 
                         promise.catch(error => {
                             reporter.displayError("Couldn\u2019t remove reaction from post", error);
                         });
 
-                        onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
+                        onOptimisticPostRealtimeEvents(promise, post.id, post => {
                             const newReactions = new Map(post.reactions.get());
                             newReactions.delete(currentAccount.id);
                             return post.clone({reactions: new ReactionSet(newReactions)});
                         });
                     }}
                     onPressSeeReactions={async () => {
-                        await navigate(`/s/${space.id}/posts/${post.id}/reactions`);
+                        await navigate(`/post/${post.id}/reactions`);
                     }}
                 />
             </Box>
@@ -681,41 +718,24 @@ function PostContentViewFooter({
                                     size={spacing[postContentViewFooterButtonIconSize]}
                                 />
                             ) : (
-                                <Box
-                                    position="relative"
-                                    width={postContentViewFooterButtonIconSize}
-                                    height={postContentViewFooterButtonIconSize}
-                                >
-                                    <ChatCircle
-                                        size={spacing[postContentViewFooterButtonIconSize]}
-                                    />
-                                    <Box
-                                        position="absolute"
-                                        inset="0"
-                                        display="flex"
-                                        justifyContent="center"
-                                        alignItems="center"
-                                    >
-                                        <CaretUpWithCustomizableStrokeWidthIcon
-                                            size={spacing["2"]}
-                                            strokeWidthScale={4 / 2}
-                                            style={{
-                                                transform:
-                                                    postCommentsState !== "Closed"
-                                                        ? "rotate(-180deg)"
-                                                        : "rotate(0deg)",
-                                                transition: "transform 250ms ease",
-                                            }}
-                                        />
-                                    </Box>
-                                </Box>
+                                <ChatCircleWithCaretUpIcon
+                                    size={spacing[postContentViewFooterButtonIconSize]}
+                                    caretStyle={{
+                                        transformOrigin: "center",
+                                        transform:
+                                            postCommentsState !== "Closed"
+                                                ? "rotate(180deg)"
+                                                : "rotate(0deg)",
+                                        transition: "transform 250ms ease",
+                                    }}
+                                />
                             )
                         }
                         iconPlacement="start"
                         pressErrorTitle="Couldn&#x2019;t open comments"
                         onPress={async () => {
                             if (routeLayout === "narrow") {
-                                await navigate(`/s/${post.spaceId}/posts/${post.id}`);
+                                await navigate(`/post/${post.id}`);
                                 return;
                             }
 
@@ -761,8 +781,8 @@ function PostContentViewFooter({
 
                             const postCommentsPromise = onLoadInitialPostComments();
 
-                            // Open post comments once we get our data back. But if the data is taking a
-                            // long time to load, open post comments after a delay.
+                            // Open post comments once we get our data back. But if the data is taking a long
+                            // time to load, open post comments after a delay.
                             await Promise.race([
                                 postCommentsPromise,
                                 wait(delayLoadingIndicatorLimitMs),
@@ -834,9 +854,9 @@ function PostCommentsAccountAvatarPile({
     );
 
     const {previewAccounts, accountCount} = useMemo(() => {
-        // If there are unloaded comment authors then don't touch our author state.
-        // Since we don't know whether an additional comment author has already been
-        // counted in `commentAuthorCount`.
+        // If there are unloaded comment authors then don't touch our author state. Since
+        // we don't know whether an additional comment author has already been counted in
+        // `commentAuthorCount`.
         if (previewCommentAuthors.length < post.commentAuthorCount) {
             return {
                 previewAccounts: previewCommentAuthors,
@@ -904,16 +924,19 @@ function PostContentViewEditor({
         const editor = assertExists(editorRef.current);
 
         // If the user is in the middle of a post and they hit "edit" we don't want to
-        // scroll the post. However, if the user is reading comments then they hit
-        // "edit" on the post then we do want to scroll.
+        // scroll the post. However, if the user is reading comments then they hit "edit"
+        // on the post then we do want to scroll.
         //
-        // By default, Chrome's scroll on focus will always scroll to the top of the
-        // editor even if the editor is already visible. However, the
-        // `onScrollToIfNotVisible()` function won't scroll if the editor is already
-        // visible.
+        // By default, Chrome's scroll on focus will always scroll to the top of the editor
+        // even if the editor is already visible. However, the `onScrollToIfNotVisible()`
+        // function won't scroll if the editor is already visible.
         editor.focus({preventScroll: true});
         if (isPostView) onScrollToIfNotVisible();
     }, [isPostView, onScrollToIfNotVisible]);
+
+    const onSelectGif = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
 
     const hasContentChanged =
         postEditingForThisPost.state.contentEditorState.getDoc() !==
@@ -936,8 +959,8 @@ function PostContentViewEditor({
             }}
         >
             <FocusRing
-                // Don't render a focus ring around the post if a node is selected since the
-                // node will have a blue focus ring. We don't want both focus rings to clash.
+                // Don't render a focus ring around the post if a node is selected since the node
+                // will have a blue focus ring. We don't want both focus rings to clash.
                 isDisabled={
                     postEditingForThisPost.state.contentEditorState.getSelection() instanceof
                     NodeSelection
@@ -956,8 +979,8 @@ function PostContentViewEditor({
                     // `<FocusRing>` when they line up in the bottom corners.
                     borderRadius="2.5"
                     style={{
-                        // Use box shadow to draw the border so it doesn't add 1px to layout like
-                        // `border` CSS would.
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like `border`
+                        // CSS would.
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
@@ -985,8 +1008,8 @@ function PostContentViewEditor({
                                 transaction,
                             });
                         }}
-                        // On mobile, don't allow interactions when unfocused. We're already in an
-                        // editing modality.
+                        // On mobile, don't allow interactions when unfocused. We're already in an editing
+                        // modality.
                         withoutMobileDualModality={true}
                         placeholder="Share your ideas, press @ to insert…"
                         fileAttachmentTarget={fileAttachmentTarget}
@@ -1003,6 +1026,7 @@ function PostContentViewEditor({
                             if (postEditingForThisPost.state.isSaving) return;
                             postEditingForThisPost.dispatch({type: "CancelEditing"});
                         }}
+                        onSelectGif={onSelectGif}
                     />
                     <InlineEditorToolbar
                         isSaving={postEditingForThisPost.state.isSaving}

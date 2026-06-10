@@ -9,14 +9,13 @@ import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
 
 // NOTE(calebmer, 2024-04-12): I added this before `WebSocketServer` performed
 // authorization on `sendEventToAll()` and `sendEvent()` calls. So on every
-// `/broadcast-inbox-realtime-event-transaction` request I wanted to authorize
-// the account still had access to the space. But calling the `getAccount()`
-// RPC every `/broadcast-inbox-realtime-event-transaction` request seemed
-// expensive (thundering herd problem, a write that updates many account
-// inboxes would cause many reads). So I built this cache. Now that
-// `WebSocketServer.sendEventToAll()` authorizes all connections before sending
-// events (we re-authorize every 5min or so) we could delete this cache and
-// rely on `WebSocketServer` authorization.
+// `/broadcast-inbox-realtime-event-transaction` request I wanted to authorize the
+// account still had access to the space. But calling the `getAccount()` RPC every
+// `/broadcast-inbox-realtime-event-transaction` request seemed expensive
+// (thundering herd problem, a write that updates many account inboxes would cause
+// many reads). So I built this cache. Now that `WebSocketServer.sendEventToAll()`
+// authorizes all connections before sending events (we re-authorize every 5min or
+// so) we could delete this cache and rely on `WebSocketServer` authorization.
 export class MyAccountDurableObjectAuthorizer {
     private readonly _systemActorCache = new Map<
         `${SpaceId}:${AccountId}`,
@@ -40,9 +39,9 @@ export class MyAccountDurableObjectAuthorizer {
                 const cacheKey = `${spaceId}:${accountId}` as const;
                 let cacheValue = this._systemActorCache.get(cacheKey);
 
-                // Only call the `getAccount()` RPC every 30min. If we find the account exists
-                // in the space once, it is likely to continue to exist in the space for a long
-                // time. (If not forever.)
+                // Only call the `getAccount()` RPC every 30min. If we find the account exists in
+                // the space once, it is likely to continue to exist in the space for a long time.
+                // (If not forever.)
                 if (cacheValue && differenceInMinutes(currentTime, cacheValue.cacheTime) < 30) {
                     await cacheValue.promise;
                 } else {

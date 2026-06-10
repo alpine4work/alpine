@@ -11,6 +11,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -43,9 +44,8 @@ export const TaskAuthorizationStateRegister = createCrdtRegister(TaskAuthorizati
 
 /**
  * Authorized `TaskAuthorizationState` object. If you use this instead of
- * `{type: "Authorized"}` then your code is marginally more performant since
- * we're not allocating a bunch of tiny objects we have to garbage collect
- * later.
+ * `{type: "Authorized"}` then your code is marginally more performant since we're
+ * not allocating a bunch of tiny objects we have to garbage collect later.
  */
 export const taskAuthorizedState: {readonly type: "Authorized"} = {type: "Authorized"};
 
@@ -94,6 +94,12 @@ export const TaskRealtimeUpdateEventSchema = Schema.object({
     backfillCollections: Schema.array(TaskRealtimeUpdateEventBackfillCollectionSchema),
     defaultAuthorizationStateVersion: HybridLogicalTimeSchema,
     referencedAccounts: Schema.array(AccountModel.schema),
+    referencedSites: Schema.array(
+        Schema.result(
+            Schema.object({ok: Schema.value(true), value: SitePreviewModel.schema}),
+            Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+        ),
+    ),
     originClientId: Schema.id<TaskRealtimeClientId>().nullable(),
 });
 
@@ -107,8 +113,8 @@ const TaskQuerySortCursorSchema = Schema.array(
  * - If `Partial` then that means only some of the query's tasks are loaded.
  * - If `Full` that means all of the query's tasks are loaded.
  * - `Partial` with an `endCursor` of null means no tasks are loaded yet.
- * - `Partial` with an `endCursor` means all tasks before `endCursor`
- *   (inclusive) are loaded.
+ * - `Partial` with an `endCursor` means all tasks before `endCursor` (inclusive)
+ *   are loaded.
  */
 export type TaskRealtimeQueryLoadedState = SchemaType<typeof TaskRealtimeQueryLoadedStateSchema>;
 

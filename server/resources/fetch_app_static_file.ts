@@ -12,7 +12,7 @@ export async function fetchAppStaticFile(
     if (process.env.NODE_ENV !== "production") {
         const fetchUrl = `${assertExists(env.APP_SERVICE_URL)}${url.pathname}`;
         // eslint-disable-next-line cyberworlds/no-global-fetch
-        return fetch(fetchUrl);
+        return await fetch(fetchUrl);
     }
 
     const cache: Cache =
@@ -39,17 +39,17 @@ export async function fetchAppStaticFile(
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
 
-    // Remix fingerprints its assets so we can cache them forever. Other assets
-    // (like `favicon.ico`) are cached for a day then can be updated.
+    // Remix fingerprints its assets so we can cache them forever. Other assets (like
+    // `favicon.ico`) are cached for a day then can be updated.
     //
-    // We manually version our font assets so fonts can be cached forever too. If
-    // we need to update a font the file name will change.
+    // We manually version our font assets so fonts can be cached forever too. If we
+    // need to update a font the file name will change.
     if (
         url.pathname.startsWith("/fonts/") ||
         url.pathname.startsWith("/assets/") ||
-        // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we
-        // used Vite for compilation. Can remove once clients that expect static assets
-        // under `/build` no longer exist.
+        // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we used
+        // Vite for compilation. Can remove once clients that expect static assets under
+        // `/build` no longer exist.
         url.pathname.startsWith("/build/")
     ) {
         // - `public`: Means we can store the asset in a shared cache since they don't
@@ -62,13 +62,14 @@ export async function fetchAppStaticFile(
         //   depend on authorization.
         // - `max-age=86400`: The asset lives for one day.
         // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
-        //   allowed to continue using it for a year as long as the cache revalidates
-        //   the asset in the background.
+        //   allowed to continue using it for a year as long as the cache revalidates the
+        //   asset in the background.
         headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
     }
 
-    // Add CORS headers to the response for trusted domains. Only origins that are in the trusted
-    // domains can access static files via CORS mode. if there is no origin header, then this isn't a CORS request
+    // Add CORS headers to the response for trusted domains. Only origins that are in
+    // the trusted domains can access static files via CORS mode. if there is no origin
+    // header, then this isn't a CORS request
     const origin = request.headers.get("Origin");
     const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
 
@@ -80,8 +81,8 @@ export async function fetchAppStaticFile(
         headers.set("Vary", "Origin");
     }
 
-    // This header will allow no-cors requests from outside the same site as the request origin.
-    // Useful for embedding static files in emails.
+    // This header will allow no-cors requests from outside the same site as the
+    // request origin. Useful for embedding static files in emails.
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
 
     const response = new Response(object.body, {headers});

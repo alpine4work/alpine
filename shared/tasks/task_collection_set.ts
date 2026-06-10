@@ -18,11 +18,11 @@ export type TaskCollectionSetAction = CrdtMapAction<TaskCollectionId, OrderKey>;
 
 /**
  * An ordered set of collections a task is in. This type is an operation-based
- * [CRDT][1]. That means the actions which update it
- * (see `TaskCollectionSetAction`) are commutative and idempotent.
+ * [CRDT][1]. That means the actions which update it (see
+ * `TaskCollectionSetAction`) are commutative and idempotent.
  *
- * We model this as a map of `TaskCollectionId` to `OrderKey`, but logically
- * you should think of this as a list of unique `TaskCollectionId`. `OrderKey`
+ * We model this as a map of `TaskCollectionId` to `OrderKey`, but logically you
+ * should think of this as a list of unique `TaskCollectionId`. `OrderKey`
  * determines the order of the list so you can easily insert move
  * `TaskCollectionId`s.
  *
@@ -31,9 +31,9 @@ export type TaskCollectionSetAction = CrdtMapAction<TaskCollectionId, OrderKey>;
  * - Deleted collections
  * - Collections the current account doesn't have access to
  *
- * Clients must take care to only render undeleted collections the current
- * account has access to out of this set. Trying to render everything may cause
- * problems. The `createDisplayTaskCollectionsStore()` function can help with this.
+ * Clients must take care to only render undeleted collections the current account
+ * has access to out of this set. Trying to render everything may cause problems.
+ * The `createDisplayTaskCollectionsStore()` function can help with this.
  *
  * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
  */
@@ -48,10 +48,9 @@ export class TaskCollectionSet {
     private constructor(entries: TaskCollectionSetEntries) {
         this._entries = entries;
 
-        // In Jest eagerly call `getArray()` which caches some data so
-        // `expect().toEqual()` never shows uncached data as the reason why two objects
-        // don't match. Seeing the cached data can also help determine the difference
-        // in a diff.
+        // In Jest eagerly call `getArray()` which caches some data so `expect().toEqual()`
+        // never shows uncached data as the reason why two objects don't match. Seeing the
+        // cached data can also help determine the difference in a diff.
         if (import.meta.jest) {
             this.getArray();
         }
@@ -74,8 +73,8 @@ export class TaskCollectionSet {
     /**
      * Get all the collections in the set in order.
      *
-     * We include the `orderKey` for each collection so you can insert a new
-     * collection wherever you'd like in the set.
+     * We include the `orderKey` for each collection so you can insert a new collection
+     * wherever you'd like in the set.
      */
     public getArray(): ReadonlyArray<{
         collectionId: TaskCollectionId;

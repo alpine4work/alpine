@@ -20,22 +20,22 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type AttemptOneTimePasswordSignInOptions = {
     /**
-     * What is the IP address of the client attempting to sign in? We will store
-     * this with the created session to identify the device the session is for.
+     * What is the IP address of the client attempting to sign in? We will store this
+     * with the created session to identify the device the session is for.
      */
     ipAddress: string | null;
 
     /**
-     * What is the user agent of the client attempting to sign in? We will store
-     * this with the created session to identify the device the session is for.
+     * What is the user agent of the client attempting to sign in? We will store this
+     * with the created session to identify the device the session is for.
      */
     userAgent: string | null;
 };
 
 /**
  * Attempts to sign into the account with a one time password. After a few
- * consecutive failed attempts to sign in, we will lock the account for at
- * least 24 hours.
+ * consecutive failed attempts to sign in, we will lock the account for at least 24
+ * hours.
  */
 export async function attemptOneTimePasswordSignIn(
     context: DynamoContext,
@@ -58,10 +58,10 @@ export async function attemptOneTimePasswordSignIn(
 }
 
 /**
- * Same as `attemptOneTimePasswordSignIn()` but you can provide an action that
- * runs after the password has been verified in parallel with session creation.
- * Useful for implementing sign up. We can immediately start creating the space
- * instead of waiting for session creation to finish.
+ * Same as `attemptOneTimePasswordSignIn()` but you can provide an action that runs
+ * after the password has been verified in parallel with session creation. Useful
+ * for implementing sign up. We can immediately start creating the space instead of
+ * waiting for session creation to finish.
  */
 export function attemptOneTimePasswordSignInWithAction<Value>(
     context: DynamoContext,
@@ -151,9 +151,9 @@ export function attemptOneTimePasswordSignInWithAction<Value>(
         }
 
         // Check if the one-time password is expired. We check if the account is locked
-        // first since the one-time password will expire while the account is locked
-        // and you won't be able to generate a new one-time password until after the
-        // account is unlocked.
+        // first since the one-time password will expire while the account is locked and
+        // you won't be able to generate a new one-time password until after the account is
+        // unlocked.
         if (minutesSinceGeneratedTime > expireOneTimePasswordAfterMinutes) {
             span.addData({common: {branch: "ExpiredOneTimePassword"}});
             throw missingOneTimePasswordError();

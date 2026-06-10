@@ -21,6 +21,7 @@ test("mention with mark survives schema serialization/deserialization", () => {
             type: "doc",
             attrs: {
                 accessPolicy: {
+                    type: "Local",
                     accountGrantById: new Map(),
                     defaultGrant: null,
                     urlGrant: null,
@@ -63,6 +64,7 @@ test("mention with mark survives schema serialization/deserialization", () => {
         type: "doc",
         attrs: {
             accessPolicy: {
+                type: "Local",
                 accountGrantById: new Map(),
                 defaultGrant: null,
                 urlGrant: null,

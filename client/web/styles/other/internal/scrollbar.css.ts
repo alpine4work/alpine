@@ -8,18 +8,18 @@ import {
 import {colors} from "~/shared/design/core/colors.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 
-// We completely hide all native scrollbars since we render custom scrollbars
-// in JavaScript.
+// We completely hide all native scrollbars since we render custom scrollbars in
+// JavaScript.
 //
-// We choose to render custom scrollbars for design consistency across
-// platforms. Not all platforms have a scrollbar design that:
+// We choose to render custom scrollbars for design consistency across platforms.
+// Not all platforms have a scrollbar design that:
 //
 // 1. Overlays content
 // 2. Is hidden by default
 //
 // MacOS default scrollbars have these properties but you can change an OS
-// configuration option to always show scrollbars. Windows does not have
-// scrollbars like this.
+// configuration option to always show scrollbars. Windows does not have scrollbars
+// like this.
 
 export const nativeScrollbarClassName = style({});
 

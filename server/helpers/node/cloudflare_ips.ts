@@ -2,8 +2,8 @@
  * Cloudflare IPv4 address ranges. From [Cloudflare's official list of IP
  * addresses][1]. Useful for only allowing connections from Cloudflare.
  *
- * Cloudflare IPs change occasionally so this list may need to updated once
- * in a while. Consider writing a process that automatically updates this list.
+ * Cloudflare IPs change occasionally so this list may need to updated once in a
+ * while. Consider writing a process that automatically updates this list.
  *
  * [1]: https://www.cloudflare.com/ips/
  */
@@ -26,11 +26,11 @@ export const cloudflareIpV4s = [
 ];
 
 /**
- * Cloudflare IPv6 addresses. From [Cloudflare's official list of IP
- * addresses][1]. Useful for only allowing connections from Cloudflare.
+ * Cloudflare IPv6 addresses. From [Cloudflare's official list of IP addresses][1].
+ * Useful for only allowing connections from Cloudflare.
  *
- * Cloudflare IPs change occasionally so this list may need to updated once
- * in a while. Consider writing a process that automatically updates this list.
+ * Cloudflare IPs change occasionally so this list may need to updated once in a
+ * while. Consider writing a process that automatically updates this list.
  *
  * [1]: https://www.cloudflare.com/ips/
  */

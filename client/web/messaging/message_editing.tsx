@@ -21,6 +21,7 @@ import {
     reverseLinkedList,
 } from "~/shared/helpers/immutable/linked_list.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadModel} from "~/shared/messaging/message_model.js";
 
 export type MessageEditingState<RoomKey extends string> =
@@ -52,6 +53,7 @@ export type MessageEditingState<RoomKey extends string> =
 export type MessageEditingAction<RoomKey extends string> =
     | {
           readonly type: "StartEditing";
+          readonly spaceId: SpaceId;
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
           readonly messagePayload: MessageContentPayloadModel;
@@ -93,7 +95,9 @@ function reduce<RoomKey extends string>(
                 messageRoomKey: action.messageRoomKey,
                 messageIndex: action.messageIndex,
                 contentVersion: action.messagePayload.contentUpdate?.mappings.length ?? 0,
-                contentEditorState: ContentEditorState.create(action.messagePayload.content, {
+                contentEditorState: ContentEditorState.create({
+                    spaceId: action.spaceId,
+                    content: action.messagePayload.content,
                     // The user is much more likely to need to edit from the end of the message than
                     // the start. But on mobile, if the message is long, editing should start at the
                     // start of the message so the cursor is visible.
@@ -187,8 +191,8 @@ export type MessageEditing<RoomKey extends string> = {
 };
 
 /**
- * Use state for managing message editing. Message editing state is hoisted to
- * the message virtualized list level because:
+ * Use state for managing message editing. Message editing state is hoisted to the
+ * message virtualized list level because:
  *
  * - We only want to allow editing one message at a time.
  * - We don't want to lose editing state if the message is unmounted by the
@@ -249,9 +253,9 @@ export function useMessageEditing<RoomKey extends string>({
             }
         }
 
-        // If the content hasn't actually changed, skip the update. This way we
-        // don't mark the message as edited if the user enters edit mode, makes
-        // changes, and then reverts back to the original content.
+        // If the content hasn't actually changed, skip the update. This way we don't mark
+        // the message as edited if the user enters edit mode, makes changes, and then
+        // reverts back to the original content.
         const finalDoc = trimTransaction !== null ? trimTransaction.doc : doc;
         if (finalDoc.eq(state.initialContent)) {
             state.savePromiseResolver?.resolve();

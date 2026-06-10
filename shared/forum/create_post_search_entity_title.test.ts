@@ -53,7 +53,7 @@ test("creates title for document with file that does exist", () => {
                     return {
                         isPrivate: false,
                         title: "Test Document",
-                        getAccountMediaShortName: null,
+                        getAuthorData: null,
                     };
                 },
                 getFileIfExists: () => null,

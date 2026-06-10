@@ -3,12 +3,16 @@ import {createTestApiServer} from "~/server/api/internal/test_helpers/create_tes
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext({
     chatInjection,
+    documentsInjection,
 });
 
 const server = createTestApiServer(context, apiChatPaths);
@@ -33,6 +37,7 @@ test("can read chat information", async () => {
         body: expect.objectContaining({
             spaceId: space.id,
             chat: expect.objectContaining({
+                type: "Direct",
                 id: chat.id,
                 members: expect.arrayContaining([
                     expect.objectContaining({
@@ -165,6 +170,7 @@ test("can read chat information with chat scope", async () => {
         body: expect.objectContaining({
             spaceId: space.id,
             chat: expect.objectContaining({
+                type: "Direct",
                 id: chat.id,
                 members: expect.arrayContaining([
                     expect.objectContaining({
@@ -183,4 +189,78 @@ test("can read chat information with chat scope", async () => {
             }),
         }),
     });
+});
+
+test("can send chat message with file attachments", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const chat = await TestChat.get(session1, bot);
+    const apiKey = await bot.createApiKey({type: "Chat", chatId: chat.id});
+
+    // Upload and attach the file to a public document so the bot can access it through
+    // the attachment authorizer.
+    const file = await TestFile.create(session1);
+    const document = await TestDocument.create(session1, {
+        title: "Doc with file",
+        access: "Public",
+    });
+    await document.attachFile(session1, file);
+
+    const response = await server.POST(`/chats/${chat.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [
+                    {type: "Paragraph", elements: [{type: "Text", text: "Message with file"}]},
+                ],
+            },
+            files: [{element: {type: "File", id: file.id}}],
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            message: expect.objectContaining({
+                payload: expect.objectContaining({
+                    type: "Content",
+                    files: [
+                        expect.objectContaining({
+                            rowIndex: 0,
+                            width: 1,
+                            element: {
+                                type: "File",
+                                id: file.id,
+                                contentType: expect.any(String),
+                                contentLength: expect.any(Number),
+                            },
+                        }),
+                    ],
+                }),
+            }),
+        },
+    });
+});
+
+test("chat message with invalid file object returns 400", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const chat = await TestChat.get(session1, bot);
+    const apiKey = await bot.createApiKey({type: "Chat", chatId: chat.id});
+
+    const response = await server.POST(`/chats/${chat.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            content: {
+                elements: [{type: "Paragraph", elements: [{type: "Text", text: "Bad file"}]}],
+            },
+            files: [{element: {type: "File", id: "not-a-valid-id"}}],
+        },
+    });
+
+    expect(response).toMatchObject({status: 400});
 });

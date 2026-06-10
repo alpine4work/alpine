@@ -49,11 +49,10 @@ export abstract class EmailContextModuleBase<
     implements ForkableContextModuleBase
 {
     /**
-     * Sends an email via the job queue.
-     * If it's critical that your email is sent immediately,
-     * use `sendImmediately` instead, which will skip the job queue.
-     * Note that the job queue only guarantees at least once delivery,
-     * so, rarely, an email may be sent multiple times
+     * Sends an email via the job queue. If it's critical that your email is sent
+     * immediately, use `sendImmediately` instead, which will skip the job queue. Note
+     * that the job queue only guarantees at least once delivery, so, rarely, an email
+     * may be sent multiple times
      */
     public async send<Template extends keyof EmailTemplates>({
         fromEmailAddressAlias,
@@ -82,9 +81,8 @@ export abstract class EmailContextModuleBase<
         });
     }
     /**
-     * Sends an email immediately without the job queue.
-     * Use this if it's important your email is sent right away or you wish to handle errors and
-     * retries yourself.
+     * Sends an email immediately without the job queue. Use this if it's important
+     * your email is sent right away or you wish to handle errors and retries yourself.
      */
     public async sendImmediately<Template extends keyof EmailTemplates>({
         fromEmailAddressAlias,
@@ -108,9 +106,10 @@ export abstract class EmailContextModuleBase<
         await this._send(fromEmailAddress, toEmailAddress, renderedEmail);
     }
     /**
-     * Accepts an already rendered email body and from email address and sends it without the job queue.
-     * Intended only for processing send email jobs from within queue consumers.
-     * You should use `send` or `sendImmediately` instead which render a template for you.
+     * Accepts an already rendered email body and from email address and sends it
+     * without the job queue. Intended only for processing send email jobs from within
+     * queue consumers. You should use `send` or `sendImmediately` instead which render
+     * a template for you.
      */
     public async sendPrerenderedEmailImmediately(
         fromEmailAddress: string,
@@ -132,7 +131,7 @@ export abstract class EmailContextModuleBase<
         baseUrl: string;
     }): URL {
         return new URL(
-            `${baseUrl}/s/${spaceId}/notifications/unsubscribe?accountId=${accountId}&emailType=${emailType}`,
+            `${baseUrl}/notifications/unsubscribe/${spaceId}?accountId=${accountId}&emailType=${emailType}`,
         );
     }
 
@@ -172,7 +171,8 @@ export abstract class EmailContextModuleBase<
     }
 
     /**
-     * Get a signed URL to unsubscribe from an email segment intended to be used by AppService.
+     * Get a signed URL to unsubscribe from an email segment intended to be used by
+     * AppService.
      */
     public abstract getSignedUnsubscribeUrlForAppService(options: {
         accountId: AccountId;

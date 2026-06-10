@@ -2,31 +2,34 @@ import {useMemo} from "react";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SiteId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel, SitePreviewModelData} from "~/shared/sites/site_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
-import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
+import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
 export type TaskQueryReferencesForUrlGrantFilterEditor = {
-    readonly accountById: ReadonlyMap<AccountId, AccountModelData>;
     readonly collectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModel>;
+    readonly accountById: ReadonlyMap<AccountId, AccountModelData>;
+    readonly siteById: ReadonlyMap<SiteId, SitePreviewModelData>;
 };
 
 /**
  * Finds all the referenced accounts and collections in a query. Will search
- * through the query for referenced accounts and collections then remember
- * those accounts/collections forever. So if the user applies a filter and a
- * new `query` is passed in, we still return a map including accounts from the
- * original query.
+ * through the query for referenced accounts and collections then remember those
+ * accounts/collections forever. So if the user applies a filter and a new `query`
+ * is passed in, we still return a map including accounts from the original query.
  *
- * This is used when a user without space access is looking at a task view with
- * a `urlGrant`. Since the user doesn't have space access, they won't be able
- * to search collections or load the full list of accounts in the space.
- * Instead when they go to filter by assignee we show them the list of accounts
- * referenced by the query instead of every account in the space.
+ * This is used when a user without space access is looking at a task view with a
+ * `urlGrant`. Since the user doesn't have space access, they won't be able to
+ * search collections or load the full list of accounts in the space. Instead when
+ * they go to filter by assignee we show them the list of accounts referenced by
+ * the query instead of every account in the space.
  *
  * This approach isn't perfect. Since we'll only see loaded referenced
  * accounts/collections. If the view is large then when the user scrolls more
@@ -47,6 +50,7 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
 
                     const iterator = taskOrder.begin;
                     const accountIds = new Set<AccountId>();
+                    const siteIds = new Set<SiteId>();
                     const collectionIds = new Set<TaskCollectionId>();
 
                     while (iterator.valid) {
@@ -54,8 +58,9 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                         const taskEntry = get(query.getLoadedTaskEntryStore(taskId));
 
                         if (taskEntry.task) {
-                            collectReferencedAccountIdsFromTaskModelData(
+                            collectReferencedIdsFromTaskModelData(
                                 accountIds,
+                                siteIds,
                                 taskEntry.task.rawData,
                             );
 
@@ -69,6 +74,23 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                         iterator.next();
                     }
 
+                    const collectionById = new Map(
+                        filterMapIterable(collectionIds, collectionId => {
+                            const collectionEntry = get(
+                                query.getReferencedCollectionEntryStore(collectionId),
+                            );
+                            if (!collectionEntry.collection) return;
+                            if (collectionEntry.collection.isDeleted()) return;
+
+                            collectReferencedIdsFromTaskCollectionModelData(
+                                siteIds,
+                                collectionEntry.collection.rawData,
+                            );
+
+                            return [collectionId, collectionEntry.collection];
+                        }),
+                    );
+
                     const accountById = new Map(
                         filterMapIterable(accountIds, accountId => {
                             const accountStore =
@@ -79,19 +101,17 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                         }),
                     );
 
-                    const collectionById = new Map(
-                        filterMapIterable(collectionIds, collectionId => {
-                            const collectionEntry = get(
-                                query.getReferencedCollectionEntryStore(collectionId),
+                    const siteById = new Map<SiteId, SitePreviewModelData>(
+                        filterMapIterable(siteIds, siteId => {
+                            const siteStore = assertExists(
+                                query.store.getReferencedSiteStoreIfExists(siteId),
                             );
-                            if (!collectionEntry.collection) return;
-                            if (collectionEntry.collection.isDeleted()) return;
 
-                            return [collectionId, collectionEntry.collection];
+                            return [siteId, get(siteStore)];
                         }),
                     );
 
-                    return {accountById, collectionById};
+                    return {accountById, collectionById, siteById};
                 }),
             [query],
         ),
@@ -104,19 +124,11 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
         ([newReferences], oldReferences) => {
             if (!newReferences) return null;
 
-            const accountById = new Map<AccountId, AccountModelData>(oldReferences?.accountById);
             const collectionById = new Map<TaskCollectionId, TaskCollectionModel>(
                 oldReferences?.collectionById,
             );
-
-            for (const [accountId, newAccount] of newReferences.accountById) {
-                const oldAccount = accountById.get(accountId);
-
-                accountById.set(
-                    accountId,
-                    oldAccount ? AccountModel.mergeData(oldAccount, newAccount) : newAccount,
-                );
-            }
+            const accountById = new Map<AccountId, AccountModelData>(oldReferences?.accountById);
+            const siteById = new Map<SiteId, SitePreviewModelData>(oldReferences?.siteById);
 
             for (const [collectionId, newCollection] of newReferences.collectionById) {
                 const oldCollection = collectionById.get(collectionId);
@@ -127,7 +139,25 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
                 );
             }
 
-            return {accountById, collectionById};
+            for (const [accountId, newAccount] of newReferences.accountById) {
+                const oldAccount = accountById.get(accountId);
+
+                accountById.set(
+                    accountId,
+                    oldAccount ? AccountModel.mergeData(oldAccount, newAccount) : newAccount,
+                );
+            }
+
+            for (const [siteId, newSite] of newReferences.siteById) {
+                const oldSite = siteById.get(siteId);
+
+                siteById.set(
+                    siteId,
+                    oldSite ? SitePreviewModel.mergeData(oldSite, newSite) : newSite,
+                );
+            }
+
+            return {accountById, collectionById, siteById};
         },
         [currentReferences],
     );

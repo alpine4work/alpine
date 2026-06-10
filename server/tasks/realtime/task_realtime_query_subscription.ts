@@ -29,10 +29,10 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
-// Keep track of the previous task object the subscription saw so we can check
-// if we've missed any updates. We run this validation in `development` and
-// `test` since maintaining task update state correctly is a little tricky to
-// get right but critical to the operation of this class.
+// Keep track of the previous task object the subscription saw so we can check if
+// we've missed any updates. We run this validation in `development` and `test`
+// since maintaining task update state correctly is a little tricky to get right
+// but critical to the operation of this class.
 const previousLoadedTaskByIdBySubscriptionForTest =
     process.env.NODE_ENV !== "production"
         ? new WeakMap<TaskRealtimeQuerySubscriptionInternal, Map<TaskId, TaskIndexDoc>>()
@@ -42,9 +42,8 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
     TaskRealtimeTaskReferencesSubscriptionCallbacks & {
         /**
          * An unexpected internal server error has occurred which has caused the
-         * subscription to disconnect. The subscription will receive no more events
-         * after this. Subscribers should present an error to users or attempt to
-         * reconnect.
+         * subscription to disconnect. The subscription will receive no more events after
+         * this. Subscribers should present an error to users or attempt to reconnect.
          */
         onFatalError(context: TaskRealtimeProcessContext, error: InternalError): void;
 
@@ -52,12 +51,12 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          * A task is added to the query subscription's loaded range. May happen when:
          *
          * 1. Loading more tasks into the query
-         * 2. An action transaction changes a task's filters or sorts such that the
-         *    task is now in the loaded range
+         * 2. An action transaction changes a task's filters or sorts such that the task is
+         *    now in the loaded range
          *
-         * In case 2 we may have some `TaskAction`s that represent the change but not
-         * in case 1. In both cases we should send the client a backfill event since
-         * this is the first time the client is seeing the task.
+         * In case 2 we may have some `TaskAction`s that represent the change but not in
+         * case 1. In both cases we should send the client a backfill event since this is
+         * the first time the client is seeing the task.
          */
         onLoadedTaskAdd(
             context: TaskRealtimeSystemActionContext,
@@ -81,9 +80,9 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
         ): void;
 
         /**
-         * A task in the query subscription's loaded range is removed. After this you
-         * will no longer receive updates to the task. If the task is added back you
-         * will get an "add" event and we expect you to send a backfill to clients.
+         * A task in the query subscription's loaded range is removed. After this you will
+         * no longer receive updates to the task. If the task is added back you will get an
+         * "add" event and we expect you to send a backfill to clients.
          *
          * There will always be some associated `TaskAction`s that caused the change.
          * Clients should apply these actions locally.
@@ -134,9 +133,9 @@ export class TaskRealtimeQuerySubscription {
      * Load more tasks into our subscription.
      *
      * Our subscription maintains a different loaded task count than the underlying
-     * query. If another subscription has already fully loaded the query then this
-     * call will not make a network request and instead only update our
-     * subscription's state.
+     * query. If another subscription has already fully loaded the query then this call
+     * will not make a network request and instead only update our subscription's
+     * state.
      *
      * Returns the current loaded state of our subscription.
      */
@@ -154,11 +153,10 @@ export class TaskRealtimeQuerySubscription {
     }
 }
 
-// Our subscription implementation has some public methods that
-// `TaskRealtimeQuery` is allowed to call but external users of
-// `TaskRealtimeStore` should not (e.g. `onQueryTasksLoad`). These methods
-// are public on this internal class and we have a wrapper
-// `TaskRealtimeQuerySubscription` class with a public interface.
+// Our subscription implementation has some public methods that `TaskRealtimeQuery`
+// is allowed to call but external users of `TaskRealtimeStore` should not (e.g.
+// `onQueryTasksLoad`). These methods are public on this internal class and we have
+// a wrapper `TaskRealtimeQuerySubscription` class with a public interface.
 export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskReferencesSubscriptionBase {
     public readonly query: TaskRealtimeQuery;
     protected readonly _callbacks: TaskRealtimeQuerySubscriptionCallbacks;
@@ -174,10 +172,10 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
         this.query.addSubscription(this);
 
         // All of the current query visible tasks are also considered visible in our
-        // subscription. However we don't need to call `onVisibleTaskAdd()` because we
-        // only track state for tasks considered loaded in this subscription (tasks
-        // less than `loadedBeforeCursor`) which will be no tasks when the query
-        // subscription initializes.
+        // subscription. However we don't need to call `onVisibleTaskAdd()` because we only
+        // track state for tasks considered loaded in this subscription (tasks less than
+        // `loadedBeforeCursor`) which will be no tasks when the query subscription
+        // initializes.
     }
 
     protected override _getStore() {
@@ -186,8 +184,8 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
     public assertCorrectForTest() {
         // We run this validation in `development` and `test` since maintaining state
-        // correctly across the store and query class is a little tricky to get right
-        // but critical to the operation of the task realtime service.
+        // correctly across the store and query class is a little tricky to get right but
+        // critical to the operation of the task realtime service.
         assert(process.env.NODE_ENV !== "production");
 
         const expectedLoadedCount = this.query.getSubscriptionExpectedLoadedCountForTest(
@@ -227,8 +225,8 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
     /**
      * Unsubscribe from the query. Will call the callbacks `onLoadedTaskRemove`,
-     * `onReferencedTaskRemove`, and `onReferencedCollectionRemove` for all tasks
-     * and collections that appeared in our query.
+     * `onReferencedTaskRemove`, and `onReferencedCollectionRemove` for all tasks and
+     * collections that appeared in our query.
      */
     public unsubscribe(context: Context<{process: ProcessContextModule}>): Promise<void> {
         assert(this._isSubscribed);
@@ -238,8 +236,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
         const {tasks} = this.query.getLoadedTasks({limit: this._loadedCount, afterCursor: null});
 
-        // We construct an event builder just so we can wait out `waitUntil()`
-        // promises.
+        // We construct an event builder just so we can wait out `waitUntil()` promises.
         const eventBuilder = new TaskRealtimeUnsubscribeUpdateEventBuilder(
             this.query.store.spaceId,
         );
@@ -265,9 +262,9 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
      * Load more tasks into our subscription.
      *
      * Our subscription maintains a different loaded task count than the underlying
-     * query. If another subscription has already fully loaded the query then this
-     * call will not make a network request and instead only update our
-     * subscription's state.
+     * query. If another subscription has already fully loaded the query then this call
+     * will not make a network request and instead only update our subscription's
+     * state.
      */
     public async loadMoreTasks(
         context: TaskRealtimeSystemActionContext,
@@ -412,8 +409,8 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousLoadedTaskByIdBySubscriptionForTest),
@@ -444,8 +441,8 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
         newTask: TaskIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
     ) {
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousLoadedTaskByIdBySubscriptionForTest),
@@ -479,8 +476,8 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
         oldTask: TaskIndexDoc,
         actions: ReadonlyArray<TaskAction>,
     ) {
-        // When testing, keep track of the tasks we've seen so we can guarantee we've
-        // seen every relevant update for a task.
+        // When testing, keep track of the tasks we've seen so we can guarantee we've seen
+        // every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
             const previousTaskById = getOrSetDefaultMapValue(
                 assertExists(previousLoadedTaskByIdBySubscriptionForTest),

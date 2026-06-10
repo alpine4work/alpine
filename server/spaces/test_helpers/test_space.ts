@@ -1,5 +1,9 @@
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
-import {addSpaceAccountForTest, createSpaceForTest} from "~/server/spaces/create_space_for_test.js";
+import {
+    addSpaceAccountForTest,
+    createSpaceForTest,
+    createSpaceWithAutoAddAccountsFromEmailDomainForTest,
+} from "~/server/spaces/create_space_for_test.js";
 import {getSpace} from "~/server/spaces/get_space.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
@@ -21,10 +25,11 @@ import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 let testSpaceCount = 1;
+let testAutoAddAccountsFromEmailDomainCount = 1;
 
 /**
- * Our test object system gives you a way to quickly set up scenarios for your
- * unit and integration tests.
+ * Our test object system gives you a way to quickly set up scenarios for your unit
+ * and integration tests.
  *
  * When migrating tests from the old style (`createTestSpace()` and
  * `createTestSession()`) we wrap old tests in a `describe()` block labeled
@@ -32,15 +37,15 @@ let testSpaceCount = 1;
  *
  * ## Conventions
  *
- * - Avoid properties on the test object that change. Instead provide getters
- *   that read from the database. You may have a property that changes if you
- *   prefix it with "initial" like `initialName` if that's useful.
+ * - Avoid properties on the test object that change. Instead provide getters that
+ *   read from the database. You may have a property that changes if you prefix it
+ *   with "initial" like `initialName` if that's useful.
  *
  * - Provide low-level convenience helpers off dot methods like
  *   `space.createSession()` and `task.updatePriority()`.
  *
- * - Don't `return this` from update methods. Update chaining unfortunately
- *   isn't a good style for asynchronous functions.
+ * - Don't `return this` from update methods. Update chaining unfortunately isn't a
+ *   good style for asynchronous functions.
  */
 export class TestSpace {
     public readonly context: TestContext;
@@ -58,13 +63,13 @@ export class TestSpace {
     public static async create(
         context: TestContext,
         {
+            id = generateId<SpaceId>(),
             name = `Test Space ${testSpaceCount++}`,
         }: {
+            id?: SpaceId;
             name?: string;
         } = {},
     ) {
-        const id = generateId<SpaceId>();
-
         await createSpaceForTest(context, {
             id,
             name,
@@ -75,14 +80,40 @@ export class TestSpace {
         return space;
     }
 
+    public static async createWithAutoAddAccountsFromEmailDomain(
+        context: TestContext,
+        {
+            name = `Test Space ${testSpaceCount++}`,
+            emailDomain = `test${testAutoAddAccountsFromEmailDomainCount++}.cyberworlds.dev`,
+            isDisabled,
+        }: {
+            name?: string;
+            emailDomain?: string;
+            isDisabled?: boolean;
+        } = {},
+    ): Promise<TestSpace & {readonly emailDomain: string}> {
+        const id = generateId<SpaceId>();
+
+        await createSpaceWithAutoAddAccountsFromEmailDomainForTest(context, {
+            id,
+            name,
+            emailDomain,
+            isDisabled,
+        });
+
+        const space = new TestSpace(context, id);
+
+        return Object.assign(space, {emailDomain});
+    }
+
     public getTokenPayload(): SystemTokenPayload {
         return {type: "System", spaceId: this.id};
     }
 
     /**
-     * Get a `TestSpace` helper object for an existing space. In case you didn't
-     * create the space with `TestSpace.create()`. Throws an error if the space
-     * doesn't already exist.
+     * Get a `TestSpace` helper object for an existing space. In case you didn't create
+     * the space with `TestSpace.create()`. Throws an error if the space doesn't
+     * already exist.
      */
     public static async get(context: TestContext, id: SpaceId) {
         // Confirm the space exists.
@@ -113,23 +144,28 @@ export class TestSpace {
                   id?: AccountId;
                   name?: string;
                   hasInternalAccess?: boolean;
-                  role?: SpaceRole;
                   reactionCharacter?: ReactionCharacter;
+                  overrideCreatedTime?: Date;
+                  role?: SpaceRole;
               },
     ): Promise<TestSpaceSession> {
+        let overrideCreatedTime: Date | undefined;
         let role: SpaceRole | undefined;
         let actualAccount: TestAccount;
 
         if (account instanceof TestAccount) {
             actualAccount = account;
         } else {
+            overrideCreatedTime = account?.overrideCreatedTime;
             role = account?.role;
             actualAccount = await TestAccount.create(this.context, account);
         }
 
         const [session] = await runAllPromises([
             TestSpaceSession._create(this, actualAccount),
-            this.addAccountIfNotExists(actualAccount, role),
+            this.addAccountIfNotExists(actualAccount, role, {
+                overrideCurrentTime: overrideCreatedTime,
+            }),
         ]);
 
         return session;
@@ -140,7 +176,11 @@ export class TestSpace {
         return runAllPromises(createArrayWithLength(count, () => this.createSession()));
     }
 
-    public async addAccount(account?: TestAccount | TestSession, role?: SpaceRole) {
+    public async addAccount(
+        account?: TestAccount | TestSession,
+        role?: SpaceRole,
+        {overrideCurrentTime}: {overrideCurrentTime?: Date} = {},
+    ) {
         let actualAccount: TestAccount;
 
         if (account instanceof TestAccount) {
@@ -155,6 +195,7 @@ export class TestSpace {
             spaceId: this.id,
             accountId: actualAccount.id,
             role: role ?? "Member",
+            overrideCurrentTime,
         });
 
         return actualAccount;
@@ -167,7 +208,11 @@ export class TestSpace {
         });
     }
 
-    public async addAccountIfNotExists(account: TestAccount | TestSession, role?: SpaceRole) {
+    public async addAccountIfNotExists(
+        account: TestAccount | TestSession,
+        role?: SpaceRole,
+        options?: {overrideCurrentTime?: Date},
+    ) {
         if (
             await isAccountMemberOfSpaceWithoutAuthorization(
                 this.context.clone({cache: CacheContextModule.new()}),
@@ -178,37 +223,40 @@ export class TestSpace {
             return;
         }
 
-        await this.addAccount(account, role);
+        await this.addAccount(account, role, options);
     }
 
     /**
-     * Invites a valid email address to the space.
-     * If you're expecting to validate errors from this call, use
-     * inviteEmailAddressesToSpace directly.
+     * Invites a valid email address to the space. If you're expecting to validate
+     * errors from this call, use inviteEmailAddressesToSpace directly.
      */
     public async inviteEmailAddress(session: TestSession, emailAddress: string) {
         const result = await inviteEmailAddressesToSpace(session.action(), {
             spaceId: this.id,
             emailAddresses: [emailAddress],
+            // Test helpers should not require search injection by default.
+            withoutAffinityPoints: true,
         });
 
         const account = assertExists(
             result.accounts[0],
             `Expected an account to be created from the email invite, got ${
-                result.alreadyMemberEmailAddresses.length
-                    ? "alreadyMember"
-                    : result.invalidEmailAddresses.length
-                      ? "invalidEmail"
-                      : result.rejectedAsSpamEmailAddresses.length
-                        ? "rejectedAsSpam"
-                        : result.unexpectedFailureEmailAddresses.size
-                          ? `unexpectedFailure:\n${
-                                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
-                                // fixing for now.
-                                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                                result.unexpectedFailureEmailAddresses.values().next().value
-                            }`
-                          : "none"
+                result.alreadyMemberEmailAddresses.size
+                    ? "already member error"
+                    : result.invalidEmailAddresses.size
+                      ? "invalid email address error"
+                      : result.rejectedAsSpamEmailAddresses.size
+                        ? "rejected as spam error"
+                        : result.requiresAdminAccessEmailAddresses.size
+                          ? "requires admin access error"
+                          : result.unexpectedFailureEmailAddresses.size
+                            ? `unexpected failure:\n${
+                                  // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                                  // fixing for now.
+                                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                                  result.unexpectedFailureEmailAddresses.values().next().value
+                              }`
+                            : "none"
             }`,
         );
 
@@ -216,8 +264,8 @@ export class TestSpace {
     }
 
     /**
-     * Invites a valid email address to the space and creates a session for the created account.
-     * If you're expecting to validate errors from this call, use
+     * Invites a valid email address to the space and creates a session for the created
+     * account. If you're expecting to validate errors from this call, use
      * inviteEmailAddressesToSpace directly.
      */
     public async inviteEmailAddressAndCreateSession(

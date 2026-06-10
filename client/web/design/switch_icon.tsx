@@ -48,7 +48,7 @@ export function SwitchIcon({
                     height: `calc(${spacing[size]} - 4px)`,
                     transition: "width 50ms linear, transform 50ms linear",
                 }}
-            ></Box>
+            />
         </Box>
     );
 }

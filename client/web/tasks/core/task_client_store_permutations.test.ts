@@ -1,4 +1,5 @@
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {TaskClientStore} from "~/client/web/tasks/core/task_client_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -17,6 +18,7 @@ const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 
 const accountRegistry = getAccountRegistry(spaceId);
+const siteRegistry = getSiteRegistry(spaceId);
 
 let store: TaskClientStore;
 let retainedTaskIds = new Set<TaskId>();
@@ -32,6 +34,7 @@ beforeEach(() => {
 
     store = new TaskClientStore({
         accountRegistry,
+        siteRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -101,8 +104,8 @@ testTaskActionPermutations({
             backfillCollections: [],
             defaultAuthorizationStateVersion: clock.now(),
             // The server must send an updated `AccountModel` whenever there's an
-            // `UpdateAccountName` action. There's a hard assert in our requirement
-            // requiring this.
+            // `UpdateAccountName` action. There's a hard assert in our requirement requiring
+            // this.
             referencedAccounts:
                 action.type === "UpdateAccountName"
                     ? [
@@ -118,6 +121,7 @@ testTaskActionPermutations({
                           }),
                       ]
                     : [],
+            referencedSites: [],
             originClientId: null,
         });
     },
@@ -154,6 +158,7 @@ testTaskActionPermutations({
             title: task.getTitle().getRaw(),
             dueDate: task.getDueDate(),
             priority: task.getPriority(),
+            layout: task.getLayout(),
         };
     },
     getTaskCollection: collectionId => {

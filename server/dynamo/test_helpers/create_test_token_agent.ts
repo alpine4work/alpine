@@ -40,6 +40,8 @@ export async function createTestTokenAgents<
                 return joinPath(keysDirectoryPath, "api_service_rsa");
             case "ResourceService":
                 return joinPath(keysDirectoryPath, "resource_service_rsa");
+            case "ImporterService":
+                return joinPath(keysDirectoryPath, "importer_service_rsa");
             case "EdgeService":
             case "DocumentCollaborationService":
             case "PostRealtimeService":
@@ -47,6 +49,7 @@ export async function createTestTokenAgents<
             case "ChatRealtimeService":
             case "MyAccountService":
             case "TaskNotesCollaborationService":
+            case "SiteRealtimeService":
             case "DatabaseGroupService":
                 return joinPath(keysDirectoryPath, "edge_service_family_rsa");
             default:
@@ -83,6 +86,10 @@ export async function createTestTokenAgents<
             ),
             apiServicePublicKey: fs.readFile(
                 joinPath(keysDirectoryPath, "api_service_rsa.pub"),
+                "utf8",
+            ),
+            importerServicePublicKey: fs.readFile(
+                joinPath(keysDirectoryPath, "importer_service_rsa.pub"),
                 "utf8",
             ),
         }),

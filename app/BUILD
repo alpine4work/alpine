@@ -91,6 +91,7 @@ ts_project(
         "//client/web/feed",
         "//client/web/forum",
         "//client/web/helpers",
+        "//client/web/importers/notion",
         "//client/web/inbox",
         "//client/web/messaging",
         "//client/web/navigation",
@@ -100,6 +101,7 @@ ts_project(
         "//client/web/rpc",
         "//client/web/settings",
         "//client/web/shimmer",
+        "//client/web/sites",
         "//client/web/spaces",
         "//client/web/spaces/layout",
         "//client/web/styles",
@@ -111,6 +113,7 @@ ts_project(
         "//server/billing",
         "//server/bots",
         "//server/bots/with_spaces",
+        "//server/integrations",
         "//server/chat/data",
         "//server/content",
         "//server/databases/data",
@@ -122,11 +125,13 @@ ts_project(
         "//server/feed",
         "//server/forum/data",
         "//server/importer",
+        "//server/importer/development",
         "//server/importer/notion",
         "//server/node",
         "//server/notifications/data",
         "//server/remix",
         "//server/rpc",
+        "//server/sites/data",
         "//server/spaces",
         "//server/tasks/router",
         "//server/tracer",
@@ -146,7 +151,9 @@ ts_project(
         "//shared/remix",
         "//shared/rpc",
         "//shared/schema",
+        "//shared/search",
         "//shared/spaces",
+        "//shared/store",
         "//shared/tracer",
     ],
 )
@@ -229,8 +236,8 @@ genrule(
         "".join([
             "\n    | \\\"{}\\\"".format(route_src[:route_src.rindex(".")].replace("$", "\\$$"))
             for route_src in ALL_ROUTE_SRCS
-            if route_src[:route_src.rindex(".")].startswith("routes/s.$spaceId.") and
-               not route_src.startswith("routes/s.$spaceId.peek")
+            if route_src[:route_src.rindex(".")].startswith("routes/_space.") and
+               not route_src.startswith("routes/_space.peek.")
         ]),
     ),
     visibility = ["//shared/remix:__pkg__"],
@@ -259,6 +266,7 @@ js_binary(
     data = [
         ":app_client_optimize_deps",
         ":app_wrapper_lib",
+        "@ffmpeg",
     ],
     entry_point = "app_service_main.js",
 )

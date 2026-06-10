@@ -19,8 +19,8 @@
     "files.associations": {
         ".env*": "properties"
     },
-    // Bazel creates a lot of symlinks. We were seeing really slow `rg` executions
-    // in process manager with this set to `true`.
+    // Bazel creates a lot of symlinks. We were seeing really slow `rg` executions in
+    // process manager with this set to `true`.
     "search.followSymlinks": false,
 
     // To enable file nesting, add this to your personal settings:

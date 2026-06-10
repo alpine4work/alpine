@@ -4,7 +4,7 @@ import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -23,15 +23,16 @@ export type ActorServiceName =
     | "AppClient"
     | TokenServiceName
     | "JobQueueService"
-    | "MigrationService";
+    | "MigrationService"
+    | "ImporterService";
 
 assertAssignableTypes<ActorServiceName, TracerServiceName>();
 
 /**
  * Represents who is currently taking an action against our system.
  *
- * Once an actor module has been added to the context you can not switch it for
- * a different actor module. That could result in a privilege escalation!
+ * Once an actor module has been added to the context you can not switch it for a
+ * different actor module. That could result in a privilege escalation!
  */
 export type ActorContextModule =
     | SessionActorContextModule
@@ -40,10 +41,21 @@ export type ActorContextModule =
     | ImpersonatedAccountActorContextModule
     | BotActorContextModule;
 
+export type AccountActorContextModule =
+    | SessionActorContextModule
+    | ImpersonatedAccountActorContextModule
+    | BotActorContextModule;
+
+export type AuthenticatedActorContextModule =
+    | SessionActorContextModule
+    | SystemActorContextModule
+    | ImpersonatedAccountActorContextModule
+    | BotActorContextModule;
+
 interface ActorContextModuleBase extends ContextModuleBase {
     /**
-     * Name of the service which initiated the current action. If the browser
-     * initiated an action the service name is `AppClient`.
+     * Name of the service which initiated the current action. If the browser initiated
+     * an action the service name is `AppClient`.
      */
     readonly serviceName: ActorServiceName;
 
@@ -53,40 +65,49 @@ interface ActorContextModuleBase extends ContextModuleBase {
     getPropagatedData(): TracerEventData;
 
     /**
-     * Get the token payload for this actor so we can create a new token with the
-     * same authorization.
+     * Get the token payload for this actor so we can create a new token with the same
+     * authorization.
      */
     getTokenPayload(): TokenPayload;
 
     /**
-     * Throws a `PermissionDeniedError` error if we are not a session actor.
-     * Otherwise returns a context with the correct type for the `actor` module.
+     * Throws a `PermissionDeniedError` error if we are not a session actor. Otherwise
+     * returns a context with the correct type for the `actor` module.
      *
-     * System actors can do a lot but they can't do things like establish a
-     * persistent realtime durable object connection.
+     * System actors can do a lot but they can't do things like establish a persistent
+     * realtime durable object connection.
      */
     authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: SessionActorContextModule}>>;
 
     /**
-     * Throws a `PermissionDeniedError` error if we are not a system actor.
-     * Otherwise returns a context with the correct type for the `actor` module.
+     * Throws a `PermissionDeniedError` error if we are not a system actor. Otherwise
+     * returns a context with the correct type for the `actor` module.
      */
     authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: SystemActorContextModule}>>;
+
+    /**
+     * Throws a `PermissionDeniedError` error if we are not a session, impersonated, or
+     * bot actor. Otherwise returns a context with the correct type for the `actor`
+     * module.
+     */
+    authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>>;
 }
 
 /**
  * We are in a context that may have associated authorization but we're not
  * entirely sure yet. Calling `authenticate()` will upgrade to an
- * `ActorContextModule` if we have a session (maybe it's in our cookies)
- * or throw an unauthenticated error if we don't have a session.
+ * `ActorContextModule` if we have a session (maybe it's in our cookies) or throw
+ * an unauthenticated error if we don't have a session.
  *
- * This class is not a part of the `ActorContextModule` union so authorization
- * code does not need to consider it. It mainly exists as an optimization to
- * let us lazily authenticate HTTP requests only when we need it.
+ * This class is not a part of the `ActorContextModule` union so authorization code
+ * does not need to consider it. It mainly exists as an optimization to let us
+ * lazily authenticate HTTP requests only when we need it.
  */
 export class UnknownActorContextModule<Modules extends {} = {}> extends ContextModuleBase<Modules> {
     private readonly _authenticate: (context: Context<Modules>) => Promise<ActorContextModule>;
@@ -130,11 +151,10 @@ export class UnknownActorContextModule<Modules extends {} = {}> extends ContextM
 
 /**
  * When an account signs in to our service they're represented with a session
- * actor. Their session actor has access to everything the account has access
- * to.
+ * actor. Their session actor has access to everything the account has access to.
  *
- * Should never be associated with a bot account. Bot accounts should
- * exclusively use the bot actor.
+ * Should never be associated with a bot account. Bot accounts should exclusively
+ * use the bot actor.
  */
 export class SessionActorContextModule
     extends UnknownActorContextModule
@@ -146,8 +166,8 @@ export class SessionActorContextModule
     private readonly _accountId: AccountId;
 
     /**
-     * Name of the service which initiated the current action. If the browser
-     * initiated an action the service name is `AppClient`.
+     * Name of the service which initiated the current action. If the browser initiated
+     * an action the service name is `AppClient`.
      */
     public readonly serviceName: ActorServiceName;
 
@@ -159,9 +179,9 @@ export class SessionActorContextModule
     }
 
     /**
-     * Dangerous since we don't check whether the `SessionId` was revoked. Make
-     * sure to call `getSessionIfExists()` to make sure the session is still valid
-     * before calling this function.
+     * Dangerous since we don't check whether the `SessionId` was revoked. Make sure to
+     * call `getSessionIfExists()` to make sure the session is still valid before
+     * calling this function.
      */
     public static dangerouslyNewWithoutCheckingIfRevoked(
         serviceName: ActorServiceName,
@@ -216,6 +236,12 @@ export class SessionActorContextModule
         throw new PermissionDeniedError("Session actor is not a system actor");
     }
 
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        return (this as any)._context;
+    }
+
     /**
      * Get the `SessionId` we authenticated with.
      */
@@ -224,17 +250,16 @@ export class SessionActorContextModule
     }
 
     /**
-     * What is the `AccountId` connected to our service? Returns the same
-     * `AccountId` as `getAccount()` but without loading the account from the
-     * database.
+     * What is the `AccountId` connected to our service? Returns the same `AccountId`
+     * as `getAccount()` but without loading the account from the database.
      */
     public getAccountId(): AccountId {
         return this._accountId;
     }
 
     /**
-     * Returns the same thing as `getAccountId()`. Has a scarier name so you
-     * consider the possibility that the actor is a bot account.
+     * Returns the same thing as `getAccountId()`. Has a scarier name so you consider
+     * the possibility that the actor is a bot account.
      */
     public getPossiblyBotAccountId(): AccountId {
         return this._accountId;
@@ -246,13 +271,12 @@ export class SessionActorContextModule
 }
 
 /**
- * A system actor has access to all data within a space. Be careful when using
- * this context module! Only internal services should be able to use it. A user
- * from the public internet should not be able to take an action with our
- * system context.
+ * A system actor has access to all data within a space. Be careful when using this
+ * context module! Only internal services should be able to use it. A user from the
+ * public internet should not be able to take an action with our system context.
  *
- * System contexts only have access to one space at a time to limit the power
- * of the system context and prevent accidental issues.
+ * System contexts only have access to one space at a time to limit the power of
+ * the system context and prevent accidental issues.
  */
 export class SystemActorContextModule
     extends UnknownActorContextModule
@@ -263,8 +287,8 @@ export class SystemActorContextModule
     private readonly _spaceId: SpaceId;
 
     /**
-     * Name of the service which initiated the current action. Only services that
-     * can sign tokens can create a system actor context.
+     * Name of the service which initiated the current action. Only services that can
+     * sign tokens can create a system actor context.
      */
     public readonly serviceName: ActorServiceName;
 
@@ -275,8 +299,8 @@ export class SystemActorContextModule
     }
 
     /**
-     * Dangerous since if an attacker can pass arbitrary input they can get
-     * wide ranging information about any space.
+     * Dangerous since if an attacker can pass arbitrary input they can get wide
+     * ranging information about any space.
      */
     public static dangerouslyNew(serviceName: ActorServiceName, spaceId: SpaceId) {
         return new SystemActorContextModule(serviceName, spaceId);
@@ -322,6 +346,12 @@ export class SystemActorContextModule
         return (this as any)._context;
     }
 
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        throw new PermissionDeniedError("System actor is not an account actor");
+    }
+
     public getSpaceId(): SpaceId {
         return this._spaceId;
     }
@@ -341,8 +371,8 @@ export class SystemActorContextModule
 }
 
 /**
- * Anonymous actors aren't signed into our service. They may be viewing a
- * read-only document or some other shared link.
+ * Anonymous actors aren't signed into our service. They may be viewing a read-only
+ * document or some other shared link.
  */
 export class AnonymousActorContextModule
     extends UnknownActorContextModule
@@ -351,8 +381,8 @@ export class AnonymousActorContextModule
     public readonly type = "Anonymous";
 
     /**
-     * Name of the service which initiated the current action. Only services that
-     * can sign tokens can create an anonymous actor context.
+     * Name of the service which initiated the current action. Only services that can
+     * sign tokens can create an anonymous actor context.
      */
     public readonly serviceName: ActorServiceName;
 
@@ -363,8 +393,8 @@ export class AnonymousActorContextModule
 
     /**
      * Dangerous since you can pass in an arbitrary `serviceName` here. You need to
-     * make sure to pass in the right one so you only get access to the procedures
-     * made available to your service.
+     * make sure to pass in the right one so you only get access to the procedures made
+     * available to your service.
      */
     public static dangerouslyNew(serviceName: ActorServiceName) {
         return new AnonymousActorContextModule(serviceName);
@@ -394,21 +424,27 @@ export class AnonymousActorContextModule
         throw new PermissionDeniedError("Anonymous actor is not a system actor");
     }
 
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        throw new PermissionDeniedError("Anonymous actor is not an account actor");
+    }
+
     public fork() {
         return new AnonymousActorContextModule(this.serviceName);
     }
 }
 
 /**
- * Impersonated account actors have access to everything the account has access
- * to in a single space. They don't have access to documents or tasks or
- * anything else the account has access to in another space.
+ * Impersonated account actors have access to everything the account has access to
+ * in a single space. They don't have access to documents or tasks or anything else
+ * the account has access to in another space.
  *
  * Since system actors have access to everything in a space, they're allowed to
  * impersonate any accounts in their space.
  *
- * Should never be associated with a bot account. Bot accounts should
- * exclusively use the bot actor.
+ * Should never be associated with a bot account. Bot accounts should exclusively
+ * use the bot actor.
  */
 export class ImpersonatedAccountActorContextModule
     extends UnknownActorContextModule
@@ -428,10 +464,13 @@ export class ImpersonatedAccountActorContextModule
     }
 
     /**
-     * Dangerous since you can pass in an arbitrary `SpaceId` and `AccountId` here.
-     * We don't verify that the `SpaceId` exists or the `AccountId` is a member of
-     * the space. You should use `impersonateAccountAsSystemContext()` to construct
-     * this context module.
+     * Dangerous since you can pass in an arbitrary `SpaceId` and `AccountId` here. We
+     * don't verify that the `SpaceId` exists or the `AccountId` is a member of the
+     * space. You should use `impersonateAccountAsSystemContext()` to construct this
+     * context module.
+     *
+     * Bot actors are not allowed to impersonate accounts. Bots have to use their own
+     * actor context with the appropriate scope.
      */
     public static dangerouslyNew(
         actorContextModule: SystemActorContextModule,
@@ -448,9 +487,11 @@ export class ImpersonatedAccountActorContextModule
     }
 
     public getTokenPayload(): TokenPayload {
-        // NOTE(calebmer): We don't need cross-service communication for impersonated
-        // actors right now but may need the capability in the future.
-        throw new InternalError("Can\u2019t create token for impersonated account actor");
+        return {
+            type: "ImpersonatedAccount",
+            accountId: this._accountId,
+            spaceId: this._spaceId,
+        };
     }
 
     public getPropagatedData(): TracerEventData {
@@ -475,6 +516,12 @@ export class ImpersonatedAccountActorContextModule
         throw new PermissionDeniedError("Impersonated account actor is not a system actor");
     }
 
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        return (this as any)._context;
+    }
+
     public getSpaceId() {
         return this._spaceId;
     }
@@ -484,8 +531,8 @@ export class ImpersonatedAccountActorContextModule
     }
 
     /**
-     * Returns the same thing as `getAccountId()`. Has a scarier name so you
-     * consider the possibility that the actor is a bot account.
+     * Returns the same thing as `getAccountId()`. Has a scarier name so you consider
+     * the possibility that the actor is a bot account.
      */
     public getPossiblyBotAccountId(): AccountId {
         return this._accountId;
@@ -501,9 +548,9 @@ export class ImpersonatedAccountActorContextModule
 }
 
 /**
- * Bot account actors have access to everything in a scope and everything that
- * the accounts in the scope ALL have access to. Bot accounts are only ever in
- * one space so it's implied that a bot actor only has access to one space.
+ * Bot account actors have access to everything in a scope and everything that the
+ * accounts in the scope ALL have access to. Bot accounts are only ever in one
+ * space so it's implied that a bot actor only has access to one space.
  */
 export class BotActorContextModule
     extends UnknownActorContextModule
@@ -516,8 +563,8 @@ export class BotActorContextModule
     private readonly _scope: BotTokenPayloadScope;
 
     /**
-     * Name of the service which initiated the current action. Only services that
-     * can sign tokens can create a system actor context.
+     * Name of the service which initiated the current action. Only services that can
+     * sign tokens can create a system actor context.
      */
     public readonly serviceName: ActorServiceName;
 
@@ -536,8 +583,8 @@ export class BotActorContextModule
 
     /**
      * Dangerous since you can pass in an arbitrary `accountId`, `scope`, and
-     * `serviceName` here. An attacker could get broad access to our system if they
-     * can call this function!
+     * `serviceName` here. An attacker could get broad access to our system if they can
+     * call this function!
      */
     public static dangerouslyNew(
         serviceName: ActorServiceName,
@@ -591,6 +638,12 @@ export class BotActorContextModule
         throw new PermissionDeniedError("Bot actor is not a system actor");
     }
 
+    public authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
+        return (this as any)._context;
+    }
+
     public getSpaceId(): SpaceId {
         return this._spaceId;
     }
@@ -600,26 +653,26 @@ export class BotActorContextModule
      * intentionally awkward if the user wants to call `context.actor.getAccountId()`
      * with `ActorBotContextModule | ActorSessionContextModule`. Bot actors behave
      * differently than session actors with regard to permissions. Bot accounts get
-     * access to a scope and only content in that scope. They can't be granted
-     * access via an `AccessPolicy`.
+     * access to a scope and only content in that scope. They can't be granted access
+     * via an `AccessPolicy`.
      *
-     * Generally you'll want a special case for bot accounts in your
-     * authorization code.
+     * Generally you'll want a special case for bot accounts in your authorization
+     * code.
      */
     public getBotAccountId(): AccountId {
         return this._accountId;
     }
 
     /**
-     * The scope of the bot actor. The actor can only access what ALL non-bot
-     * accounts within the scope have access to.
+     * The scope of the bot actor. The actor can only access what ALL non-bot accounts
+     * within the scope have access to.
      *
-     * We assume the scope is a valid entity in the same space as the bot
-     * account. If the entity doesn't exist or is in another space, that's a bug.
+     * We assume the scope is a valid entity in the same space as the bot account. If
+     * the entity doesn't exist or is in another space, that's a bug.
      *
-     * We implicitly have access to the `AccessPolicy` of the scoped entity. Since
-     * we need to know what accounts are in the scope to know what else the bot
-     * actor has access to.
+     * We implicitly have access to the `AccessPolicy` of the scoped entity. Since we
+     * need to know what accounts are in the scope to know what else the bot actor has
+     * access to.
      */
     public getScope(): BotTokenPayloadScope {
         return this._scope;

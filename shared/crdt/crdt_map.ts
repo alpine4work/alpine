@@ -18,8 +18,8 @@ export type CrdtMapClass<Key extends string | number, Value extends {}> = {
 
 export interface CrdtMap<Key extends string | number, Value extends {}> {
     /**
-     * Gets the value for the specified key or `undefined` if the value does not
-     * exist in the map.
+     * Gets the value for the specified key or `undefined` if the value does not exist
+     * in the map.
      */
     get(key: Key): Value | undefined;
 
@@ -55,16 +55,16 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     entries(): IterableIterator<[Key, Value]>;
 
     /**
-     * Returns a new iterator of all the entires in the map with the `version`
-     * of their registers.
+     * Returns a new iterator of all the entires in the map with the `version` of their
+     * registers.
      */
     entriesWithVersion(): IterableIterator<[Key, {value: Value; version: HybridLogicalTime}]>;
 
     /**
-     * Returns a new iterator of all the entires in the map including deleted
-     * entries and the version for each entry. As the name suggests these are
-     * the "actual" entries of the underlying map. If you wanted to clone the
-     * map exactly you'd use this and apply appropriate actions.
+     * Returns a new iterator of all the entires in the map including deleted entries
+     * and the version for each entry. As the name suggests these are the "actual"
+     * entries of the underlying map. If you wanted to clone the map exactly you'd use
+     * this and apply appropriate actions.
      */
     actualEntries(): IterableIterator<[Key, CrdtRegister<Value | null>]>;
 
@@ -76,14 +76,14 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     [Symbol.iterator](): IterableIterator<[Key, Value]>;
 
     /**
-     * Merges two maps together. This method is commutative and idempotent. Maps
-     * will converge to the correct state.
+     * Merges two maps together. This method is commutative and idempotent. Maps will
+     * converge to the correct state.
      */
     merge(other: CrdtMap<Key, Value>): CrdtMap<Key, Value>;
 
     /**
-     * Is this CRDT map equal to the other? This means all versions and gravestones
-     * in the map have to be equal too.
+     * Is this CRDT map equal to the other? This means all versions and gravestones in
+     * the map have to be equal too.
      */
     isEqual(other: CrdtMap<Key, Value>): boolean;
 
@@ -94,8 +94,8 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     set(clock: HybridLogicalClock, key: Key, value: Value): CrdtMapAction<Key, Value>;
 
     /**
-     * Creates an action that removes a key from our map. You can apply the action
-     * with `apply()`.
+     * Creates an action that removes a key from our map. You can apply the action with
+     * `apply()`.
      */
     delete(clock: HybridLogicalClock, key: Key): CrdtMapAction<Key, Value>;
 
@@ -105,8 +105,8 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
     apply(action: CrdtMapAction<Key, Value>): CrdtMap<Key, Value>;
 
     /**
-     * Make sure the clock's time is after the time observed by every entry in
-     * this map.
+     * Make sure the clock's time is after the time observed by every entry in this
+     * map.
      */
     tick(clock: {tick(time: HybridLogicalTime): void}): void;
 }
@@ -133,9 +133,9 @@ type CrdtMapInterface<Key extends string | number, Value extends {}> = CrdtMap<K
 /**
  * Creates a simple map [CRDT][1] class.
  *
- * When you delete items from the map it leaves a gravestone. So the key will
- * still exist in the map but the key will not be observable when you call
- * `get()` or `entries()` or any other method to inspect the map.
+ * When you delete items from the map it leaves a gravestone. So the key will still
+ * exist in the map but the key will not be observable when you call `get()` or
+ * `entries()` or any other method to inspect the map.
  *
  * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
  */

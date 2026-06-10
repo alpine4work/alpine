@@ -3,16 +3,16 @@ import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm
 /**
  * Per-file VFS operations. Returned by {@link VfsMethods.open}.
  *
- * - `data` in `read`/`write` is a zero-copy `Uint8Array` view
- *   of the WASM heap, valid only for the duration of the call.
- * - Methods throw on error. The helper catches exceptions and
- *   returns appropriate SQLite error codes.
+ * - `data` in `read`/`write` is a zero-copy `Uint8Array` view of the WASM heap,
+ *   valid only for the duration of the call.
+ * - Methods throw on error. The helper catches exceptions and returns appropriate
+ *   SQLite error codes.
  */
 export interface VfsFile {
     /**
-     * Reads `data.byteLength` bytes at `offset` into `data`.
-     * Returns `true` on success, `false` for a short read (the
-     * implementer must zero-fill any remaining bytes).
+     * Reads `data.byteLength` bytes at `offset` into `data`. Returns `true` on
+     * success, `false` for a short read (the implementer must zero-fill any remaining
+     * bytes).
      */
     read(data: Uint8Array, offset: number): boolean;
     write(data: Uint8Array, offset: number): void;
@@ -23,16 +23,14 @@ export interface VfsFile {
 }
 
 /**
- * Simplified VFS methods that an implementer provides. The
- * helper handles struct setup, WASM memory access, string
- * conversion, and boilerplate methods (`xLock`, `xUnlock`,
- * `xFullPathname`, `xCurrentTime`, etc.).
+ * Simplified VFS methods that an implementer provides. The helper handles struct
+ * setup, WASM memory access, string conversion, and boilerplate methods (`xLock`,
+ * `xUnlock`, `xFullPathname`, `xCurrentTime`, etc.).
  */
 export interface VfsMethods {
     /**
-     * Opens a file. Returns a {@link VfsFile} for per-file
-     * operations. `flags` contains `SQLITE_OPEN_*` bits.
-     * Throw to reject the open (helper returns
+     * Opens a file. Returns a {@link VfsFile} for per-file operations. `flags`
+     * contains `SQLITE_OPEN_*` bits. Throw to reject the open (helper returns
      * `SQLITE_CANTOPEN`).
      */
     open(filename: string | null, flags: number): VfsFile;
@@ -42,12 +40,11 @@ export interface VfsMethods {
 }
 
 /**
- * Handle returned by {@link installVfs} for retrieving errors
- * that occurred inside VFS callbacks. When a VfsFile or
- * VfsMethods method throws, the helper stashes the error and
- * returns the appropriate SQLite error code. Call
- * {@link takeError} to retrieve (and clear) the stashed error
- * after the SQLite call that triggered it.
+ * Handle returned by {@link installVfs} for retrieving errors that occurred inside
+ * VFS callbacks. When a VfsFile or VfsMethods method throws, the helper stashes
+ * the error and returns the appropriate SQLite error code. Call {@link takeError}
+ * to retrieve (and clear) the stashed error after the SQLite call that triggered
+ * it.
  */
 export interface InstalledVfs {
     /** Returns and clears the stashed error, or `null`. */
@@ -55,15 +52,14 @@ export interface InstalledVfs {
 }
 
 /**
- * Installs a custom SQLite VFS backed by the given
- * {@link VfsMethods}. Handles all struct setup, WASM memory
- * access, string conversion, and boilerplate VFS methods.
+ * Installs a custom SQLite VFS backed by the given {@link VfsMethods}. Handles all
+ * struct setup, WASM memory access, string conversion, and boilerplate VFS
+ * methods.
  *
- * The helper manages the `filePtr → VfsFile` mapping
- * internally. All VfsFile method calls are wrapped in
- * try/catch — on exception, the error is stashed (retrievable
- * via the returned {@link InstalledVfs}) and the appropriate
- * SQLite error code is returned.
+ * The helper manages the `filePtr → VfsFile` mapping internally. All VfsFile
+ * method calls are wrapped in try/catch — on exception, the error is stashed
+ * (retrievable via the returned {@link InstalledVfs}) and the appropriate SQLite
+ * error code is returned.
  */
 export function installVfs(
     sqlite3: Sqlite3Static,
@@ -155,11 +151,9 @@ export function installVfs(
                     const file = files.get(filePtr);
                     if (file === undefined) return ioErr;
                     try {
-                        // `size` is a SQLite `i64`, marshalled as a
-                        // BigInt like `xRead`/`xWrite`'s `iOfst`.
-                        // Normalize to a JS number so it doesn't
-                        // poison downstream page arithmetic (e.g.
-                        // `Math.floor(size / pageSize)` in storage).
+                        // `size` is a SQLite `i64`, marshalled as a BigInt like `xRead`/`xWrite`'s
+                        // `iOfst`. Normalize to a JS number so it doesn't poison downstream page
+                        // arithmetic (e.g. `Math.floor(size / pageSize)` in storage).
                         file.truncate(Number(size));
                         return ok;
                     } catch (error) {

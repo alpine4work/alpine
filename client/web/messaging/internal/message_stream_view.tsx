@@ -38,17 +38,16 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-// TODO(calebmer, #ai-realtime-hacks): I haven't implemented backfilling
-// for message streams. That means a user could load the page when there's an
-// active stream and they'll load the current stream parts from the server but
-// miss some realtime events that happen between the Remix `loader()` call and
-// when we connect to a messaging realtime WebSocket. Or they'll miss realtime
-// events if they go temporarily offline.
+// TODO(calebmer, #ai-realtime-hacks): I haven't implemented backfilling for
+// message streams. That means a user could load the page when there's an active
+// stream and they'll load the current stream parts from the server but miss some
+// realtime events that happen between the Remix `loader()` call and when we
+// connect to a messaging realtime WebSocket. Or they'll miss realtime events if
+// they go temporarily offline.
 //
-// My proposal for backfill is to initiate backfill in this component. (So we
-// only backfill message streams that are rendered.) And pass the list of parts
-// plus the parts versions, compare that to what's on the server, and return
-// any new parts.
+// My proposal for backfill is to initiate backfill in this component. (So we only
+// backfill message streams that are rendered.) And pass the list of parts plus the
+// parts versions, compare that to what's on the server, and return any new parts.
 //
 // I haven't implemented backfilling since I'm moving fast today to get this
 // shipped.
@@ -123,11 +122,13 @@ export function MessageStreamView({
             if (currentSection.contentParts.length > 0) {
                 sections.push(currentSection);
 
-                // NOTE(ifitzsimmons, 2026-01-02): As stated above, we create a new "thinking summary"
-                // section for each content part produced by the agent. This is intuitive because it
-                // resembles the way humans interact -- we (hopefully) think before we say something.
+                // NOTE(ifitzsimmons, 2026-01-02): As stated above, we create a new "thinking
+                // summary" section for each content part produced by the agent. This is intuitive
+                // because it resembles the way humans interact -- we (hopefully) think before we
+                // say something.
                 //
                 // So, when a new section is created, it is due to one of two scenarios:
+                //
                 // 1. The agent completes a "thought", writes a response, and moves on to the next
                 //    "thought". This is pretty unlikely in the context of the way our agents work
                 //    today, but that might not always be the case.
@@ -138,20 +139,22 @@ export function MessageStreamView({
                 // In either case, it's not quite accurate to measure the following section's start
                 // time by using the first content part's created time. Consider the case where we
                 // inject the system message before the agent does any work
+                //
                 // 1. We send a system message.
                 // 2. The agent starts handling the request.
                 // 3. At some point later, the agent returns a reasoning or tool call part.
                 //
-                // In the above example, the following section's start time is actually number 2
-                // in the list. We may not get the first reasoning summary until 30 seconds later.
-                // Number 1 (system message sent) is almost *always* closer to the actual start time
-                // (Number 2) than the first reasoning summary part (Number 3).
+                // In the above example, the following section's start time is actually number 2 in
+                // the list. We may not get the first reasoning summary until 30 seconds later.
+                // Number 1 (system message sent) is almost _always_ closer to the actual start
+                // time (Number 2) than the first reasoning summary part (Number 3).
                 //
-                // If it helps to see a real world example of why this is necessary, see the following
-                // bug [1]. The second "Though for 0 seconds" summary is incorrect (the first one is
-                // a separate bug that's already been fixed).
+                // If it helps to see a real world example of why this is necessary, see the
+                // following bug [1]. The second "Though for 0 seconds" summary is incorrect (the
+                // first one is a separate bug that's already been fixed).
                 //
-                // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/ce6enwqth1qzsx9snntsc8gtbg
+                // [1]:
+                //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/ce6enwqth1qzsx9snntsc8gtbg
                 const approximatePreviousSectionEndTime = currentSection.contentStartTime;
 
                 currentSection = {
@@ -289,23 +292,23 @@ export function MessageStreamView({
 
             const heightLimit = convertRemLengthToPx("128", spacingScale);
 
-            // After the stream content exceeds a certain height, stop scrolling to the
-            // bottom whenever the stream changes. So we scroll in a bunch of content on
-            // screen then stop to let the user read the content.
+            // After the stream content exceeds a certain height, stop scrolling to the bottom
+            // whenever the stream changes. So we scroll in a bunch of content on screen then
+            // stop to let the user read the content.
             //
             // A couple details:
             //
-            // 1. If the thinking summary has been expanded then we don't count it as a
-            //    part of the stream's height (why we subtract
-            //    `previousLastExpandedSectionHeight`). This means we always scroll to
-            //    bottom when there are new thinking summary parts. Thinking summary parts
-            //    are added at a much slower rate. If the user has expanded the thinking
-            //    summary then we want to show them each new thinking summary item.
+            // 1. If the thinking summary has been expanded then we don't count it as a part of
+            //    the stream's height (why we subtract `previousLastExpandedSectionHeight`).
+            //    This means we always scroll to bottom when there are new thinking summary
+            //    parts. Thinking summary parts are added at a much slower rate. If the user
+            //    has expanded the thinking summary then we want to show them each new thinking
+            //    summary item.
             //
-            // 2. If we've stopped scrolling because we've exceeded a certain height then
-            //    the user uses their scroll wheel to move to the bottom of the stream
-            //    again we'll permanently auto-scroll for the rest of the message. This is
-            //    what `autoScrollStateRef.current` does.
+            // 2. If we've stopped scrolling because we've exceeded a certain height then the
+            //    user uses their scroll wheel to move to the bottom of the stream again we'll
+            //    permanently auto-scroll for the rest of the message. This is what
+            //    `autoScrollStateRef.current` does.
             if (
                 autoScrollStateRef.current !== "Wheeled" &&
                 streamHeight - lastExpandedSectionHeight > heightLimit
@@ -317,8 +320,7 @@ export function MessageStreamView({
                     scrollElement.addEventListener("wheel", handleWheel);
                 }
 
-                // Scroll to reach `heightLimit` based on stream height from the
-                // previous render.
+                // Scroll to reach `heightLimit` based on stream height from the previous render.
                 scrollDelta = Math.max(
                     0,
                     heightLimit - (previousStreamHeight - previousLastExpandedSectionHeight),
@@ -331,16 +333,16 @@ export function MessageStreamView({
             }
 
             // Only scroll if we're near the bottom. If we'd have to scroll more than ~4
-            // message views then don't do it since messages would jump unexpectedly and
-            // the user might be disturbed while reading.
+            // message views then don't do it since messages would jump unexpectedly and the
+            // user might be disturbed while reading.
             if (scrollDelta <= streamHeightDelta + getScrollToNewMessagesMargin(spacingScale)) {
                 scrollElement.scrollTop += scrollDelta;
                 flushNavigationBarScrollEventEmitter.emit(scrollElement);
             }
         };
 
-        // Run our effect after a microtask so the parent `<VirtualizedScrollView>` has
-        // a chance to re-render and update our positions.
+        // Run our effect after a microtask so the parent `<VirtualizedScrollView>` has a
+        // chance to re-render and update our positions.
         let isCancelled = false;
 
         // If auto-scroll has been stopped then don't scroll.

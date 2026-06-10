@@ -1,4 +1,5 @@
-import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {AccessLevelSchema} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {ContentDuplicationVariableValuesSchema} from "~/shared/content/content_duplication_variable_schema.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
@@ -19,12 +20,14 @@ import {
     DocumentModel,
     DocumentPreviewModel,
 } from "~/shared/documents/document_model.js";
+import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
+    SiteId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadModelFileSchema} from "~/shared/messaging/message_model.js";
@@ -38,8 +41,12 @@ import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messa
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SiteContainerIdSchema} from "~/shared/sites/site_entry_id.js";
+import {SiteOrSiteEntryModelSchema} from "~/shared/sites/site_model.js";
+import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -60,17 +67,26 @@ export const authorizeDocumentAccess = defineRpc({
 
 export const createDocument = defineRpc({
     name: "createDocument",
-    // Fails if the document already exists (when `documentId` is provided).
-    // Generates a new `documentId` otherwise.
+    // Fails if the document already exists (when `documentId` is provided). Generates
+    // a new `documentId` otherwise.
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>().optional(),
         content: DocumentContentSchema.optional(),
+        // If the document is being created in a site, this is required.
+        sitePosition: Schema.object({
+            siteId: Schema.id<SiteId>(),
+            parentId: SiteContainerIdSchema,
+            orderKey: OrderKeySchema,
+        }).optional(),
     },
     output: {
         documentId: Schema.id<DocumentId>(),
         createdTime: Schema.date,
+        eventsForSite: Schema.array(createRynamoEventSchema(SiteOrSiteEntryModelSchema)).default(
+            [],
+        ),
     },
 });
 
@@ -100,14 +116,14 @@ export const getDocument = defineRpc({
 
 // This RPC returns document content with comment marks even if the actor is a
 // viewer! It's a privilege escalation that's only allowed if the collaboration
-// service is calling this RPC. The collaboration service durable object needs
-// the full document content to function. If a viewer initializes the durable
-// object and an editor connects later, the editor still needs to see the
-// document with comment marks.
+// service is calling this RPC. The collaboration service durable object needs the
+// full document content to function. If a viewer initializes the durable object
+// and an editor connects later, the editor still needs to see the document with
+// comment marks.
 //
-// The collaboration service needs to implement additional authorization checks
-// to make sure it doesn't return document content with comment marks to users
-// who only have view access.
+// The collaboration service needs to implement additional authorization checks to
+// make sure it doesn't return document content with comment marks to users who
+// only have view access.
 export const getDocumentContentForCollaborationServiceInitialization = defineRpc({
     name: "getDocumentContentForCollaborationServiceInitialization",
     isIdempotent: true,
@@ -118,6 +134,7 @@ export const getDocumentContentForCollaborationServiceInitialization = defineRpc
         spaceId: Schema.id<SpaceId>(),
         version: Schema.integer,
         content: DocumentContentSchema,
+        creatorId: Schema.id<AccountId>().nullable(),
     },
 });
 
@@ -169,7 +186,7 @@ export const updateDocumentContent = defineRpc({
             }),
         ),
         intentionallyUpdateAccessPolicy: Schema.object({
-            accessPolicy: AccessPolicySchema,
+            accessPolicy: CreateOrUpdateAccessPolicySchema,
             notification: ShareNotificationSchema.nullable(),
         }).optional(),
         resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
@@ -178,6 +195,12 @@ export const updateDocumentContent = defineRpc({
     output: {
         newVersion: Schema.integer,
         updatedCommentThreads: Schema.array(DocumentCommentThreadModel.schema()),
+        /**
+         * Realtime events for any site item / site preview writes that happened in the
+         * same dynamo transaction as the document update. Empty when the update didn't
+         * touch a site.
+         */
+        eventsForSite: Schema.array(RynamoSiteEventSchema).default([]),
     },
 });
 

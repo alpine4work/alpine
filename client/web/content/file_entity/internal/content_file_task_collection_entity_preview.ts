@@ -1,12 +1,14 @@
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
-import {ContentFileLayout} from "~/client/web/content/state/content_file_layout_computations.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {renderTaskDisplayStatusCircle} from "~/client/web/design/task_display_status_circle_html.js";
+import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/web/styles/tasks_shared_styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
@@ -22,11 +24,13 @@ export function renderContentFileTaskCollectionEntityPreview(
         layout,
         platform,
         spacingScale,
+        siteRegistry,
     }: {
         fileEntity: FileEntityModel;
         layout: ContentFileLayout;
         platform: Platform;
         spacingScale: SpacingScale;
+        siteRegistry: SiteRegistry;
     },
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileTaskCollectionEntityModelSchema);
@@ -37,6 +41,15 @@ export function renderContentFileTaskCollectionEntityPreview(
         spacingScale,
         transformScaleBaseFontSize: "100",
     });
+
+    if (fileEntity.site) {
+        renderContentFileEntitySiteBreadcrumb(
+            get,
+            siteRegistry,
+            scaledContainerHtml,
+            fileEntity.site,
+        );
+    }
 
     {
         const headerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
@@ -138,8 +151,8 @@ export function renderContentFileTaskCollectionEntityPreview(
                 // Turn off text wrapping. This component emulates a single-line input.
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
                 "white-space: pre",
-                // `display: inline-block` creates an inline layout which adds extra space
-                // below the element. Adding `vertical-align` stops the space from being added.
+                // `display: inline-block` creates an inline layout which adds extra space below
+                // the element. Adding `vertical-align` stops the space from being added.
                 // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                 "vertical-align: top",
                 // Render contextual alternate glyphs. User text may be rendered here. Helpful

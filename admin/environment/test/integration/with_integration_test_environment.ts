@@ -7,6 +7,7 @@ import {join as joinPath} from "path";
 import {BrowserContext} from "playwright";
 import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {Readable as ReadableStream} from "stream";
+import {forwardDurableObjectRequestToEdgeServiceForTest} from "~/admin/environment/test/integration/forward_durable_object_request_to_edge_service_for_test.js";
 import {
     TestActualContext,
     actuallyCreateUnitTestEnvironment,
@@ -16,6 +17,7 @@ import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {handleUpdateContentWithoutOptimisticBroadcastForTest} from "~/server/documents/test_helpers/handle_update_content_without_optimistic_broadcast_for_test.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -25,13 +27,20 @@ import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/router/task_realtime_service_local_router.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {
+    TokenAgentAppServicePrivateSide,
+    TokenAgentJobQueueServicePrivateSide,
+} from "~/server/tokens/token_agent_private_side.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {InternalError, UnknownError} from "~/shared/error/error.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -42,8 +51,8 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {ApiKey, assertApiKey} from "~/shared/id/api_key.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
-// This file should only run in a Node.js test environment. Either Jest
-// or Playwright.
+// This file should only run in a Node.js test environment. Either Jest or
+// Playwright.
 assert(process.release.name === "node");
 assert(isTestNodeEnvOrAdminScenariosScript);
 
@@ -51,10 +60,18 @@ const debug = createDebug(import.meta.url);
 
 const env = parseDotenv();
 
-// Assign AWS env variables to `process.env` so
-// `@aws-sdk/credential-provider-node` picks them up.
+// Assign AWS env variables to `process.env` so `@aws-sdk/credential-provider-node`
+// picks them up. Clear `AWS_PROFILE` and `AWS_SESSION_TOKEN` from the ambient
+// shell (developers often have these set for real AWS work) since
+// `defaultProvider()` prefers `AWS_PROFILE` over `AWS_ACCESS_KEY_ID`/
+// `AWS_SECRET_ACCESS_KEY` and we need our spawned subservices to all use the same
+// `"local"` access key as the test process. DynamoDB Local partitions its
+// in-memory tables by access key (no `-sharedDb`), so a mismatch would make tables
+// written by one process invisible to another.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
+delete process.env.AWS_PROFILE;
+delete process.env.AWS_SESSION_TOKEN;
 
 export type TestServices = {
     /**
@@ -71,6 +88,11 @@ export type TestServices = {
     waitForBaseUrl(): Promise<string>;
 
     /**
+     * Wait for `JobQueueService` to process all the jobs on the SQS job queue.
+     */
+    waitForSqsProcessJobs(): Promise<void>;
+
+    /**
      * Get the port `AgentService` is listening on.
      */
     getAgentServicePort(): number;
@@ -81,13 +103,23 @@ export type TestServices = {
     getAppServiceTokenAgent(): TokenAgent<TokenAgentAppServicePrivateSide>;
 
     /**
+     * Get a `TokenAgent` with `JobQueueService`'s private key.
+     */
+    getJobQueueServiceTokenAgent(): TokenAgent<TokenAgentJobQueueServicePrivateSide>;
+
+    /**
      * Get the local unscoped API key for the mock ChatGPT bot.
      */
     getMockChatGptLocalUnscopedApiKey(): Promise<ApiKey>;
 
     /**
-     * Sign a session in to the test browser context by setting the
-     * appropriate cookies.
+     * Get the local unscoped API key for the mock Cursor bot.
+     */
+    getMockCursorLocalUnscopedApiKey(): Promise<ApiKey>;
+
+    /**
+     * Sign a session in to the test browser context by setting the appropriate
+     * cookies.
      */
     signIn(
         browserContext: BrowserContext,
@@ -97,21 +129,21 @@ export type TestServices = {
     ): Promise<void>;
 
     /**
-     * Get the one time passwords generated during the current test. The array
-     * resets after each test.
+     * Get the one time passwords generated during the current test. The array resets
+     * after each test.
      */
     getOneTimePasswords(): ReadonlyArray<{emailAddress: string; oneTimePassword: string}>;
 
     /**
-     * Get the invite URLs generated during the current test. The array resets
-     * after each test.
+     * Get the invite URLs generated during the current test. The array resets after
+     * each test.
      */
     getInviteUrls(): ReadonlyArray<{emailAddress: string; inviteUrl: string}>;
 };
 
 /**
- * Runs a test server for Playwright tests using the test context's DynamoDB.
- * Also sets that server as the base URL for future tests.
+ * Runs a test server for Playwright tests using the test context's DynamoDB. Also
+ * sets that server as the base URL for future tests.
  */
 export async function withIntegrationTestEnvironment<Value>(
     options: {
@@ -131,6 +163,7 @@ export async function withIntegrationTestEnvironment<Value>(
             afterEach: callback => afterEachCallbacks.push(callback),
             beforeAll: callback => beforeAllCallbacks.push(callback),
             afterAll: callback => afterAllCallbacks.push(callback),
+            setTimeout: () => {},
         },
         options,
     );
@@ -144,7 +177,23 @@ export async function withIntegrationTestEnvironment<Value>(
     }
 
     try {
-        const value = await action(context, services);
+        const promiseWaiter = new PromiseWaiter();
+
+        const actualContext = context.cloneWithHelpers({
+            process: new ProcessContextModule({
+                waitUntil: promise => {
+                    promiseWaiter.waitUntil(promise);
+                    context.process.waitUntil(promise);
+                },
+            }),
+        });
+
+        const value = await action(actualContext, services);
+
+        // Wait for all `waitUntil()` promises to resolve before cleaning up the
+        // environment.
+        await promiseWaiter.wait();
+
         return value;
     } finally {
         for (const callback of afterEachCallbacks) {
@@ -158,16 +207,16 @@ export async function withIntegrationTestEnvironment<Value>(
 }
 
 /**
- * Creates an integration test environment and the associated
- * `TestActualContext` object. Designed to be used in Playwright tests where
- * setup/teardown is managed by `beforeAll()` and `afterAll()` callbacks.
+ * Creates an integration test environment and the associated `TestActualContext`
+ * object. Designed to be used in Playwright tests where setup/teardown is managed
+ * by `beforeAll()` and `afterAll()` callbacks.
  *
  * When writing a Playwright test, prefer using `createTestServices()` which
  * provides a more convenient interface for establishing an integration test
  * environment in Playwright.
  *
- * If you need an integration test environment outside of Playwright (e.g. in
- * an adhoc script), use `withIntegrationTestEnvironment()` which automatically
+ * If you need an integration test environment outside of Playwright (e.g. in an
+ * adhoc script), use `withIntegrationTestEnvironment()` which automatically
  * manages setup/teardown of the environment for you.
  */
 export function actuallyCreateIntegrationTestEnvironment(
@@ -176,6 +225,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         afterEach: (action: () => MaybePromise<void>) => void;
         beforeAll: (action: () => MaybePromise<void>) => void;
         afterAll: (action: () => MaybePromise<void>) => void;
+        setTimeout: (timeout: number) => void;
     },
     {
         undeclaredOutputsDirectoryPath,
@@ -188,20 +238,20 @@ export function actuallyCreateIntegrationTestEnvironment(
     context: TestActualContext;
     services: TestServices;
 } {
-    // Important that this comes before `actuallyCreateUnitTestEnvironment()`! We
-    // want all our services to finish shutting down before we kill the database
-    // services we start in `actuallyCreateUnitTestEnvironment()`.
+    // Important that this comes before `actuallyCreateUnitTestEnvironment()`! We want
+    // all our services to finish shutting down before we kill the database services we
+    // start in `actuallyCreateUnitTestEnvironment()`.
     //
-    // For instance, the job queue needs to finish processing its jobs before we
-    // can kill OpenSearch.
+    // For instance, the job queue needs to finish processing its jobs before we can
+    // kill OpenSearch.
     testHooks.afterAll(async () => {
         debug("Stopping services");
 
-        // First wait for `EdgeServiceFamily` to finish since it may need to make
-        // requests to `AppService` while finishing up ingress traffic.
+        // First wait for `EdgeServiceFamily` to finish since it may need to make requests
+        // to `AppService` while finishing up ingress traffic.
         //
-        // Catch any errors so we can still shutdown `AppService` even if the shutdown
-        // of one of these processes fails.
+        // Catch any errors so we can still shutdown `AppService` even if the shutdown of
+        // one of these processes fails.
         const result1 = await captureResultPromise(async () => {
             edgeServiceSubprocess?.kill("SIGINT");
 
@@ -259,7 +309,9 @@ export function actuallyCreateIntegrationTestEnvironment(
         agentServiceSubprocess = undefined;
 
         agentServicePort = null;
+        taskRealtimeServicePort = null;
         appServiceTokenAgent = null;
+        jobQueueServiceTokenAgent = null;
         mockChatGptUnscopedApiKeyPath = null;
 
         unwrapResult(result1);
@@ -276,15 +328,71 @@ export function actuallyCreateIntegrationTestEnvironment(
         forumInjection,
         notificationsInjection,
         searchInjection,
+        sitesInjection,
         spacesInjection,
         tasksInjection,
+
+        // Documents are added to/removed from a site by sending an access-policy update to
+        // the document's collaboration durable object. The durable object runs in the
+        // spawned edge service and isn't reachable for an in-process write, so we apply
+        // the change directly to the test database. Integration tests can do this because
+        // they bypass the production restriction that only `DocumentCollaborationService`
+        // may call `updateDocumentContent()`.
+        //
+        // That direct write leaves the document's resident collaboration durable object
+        // (woken by an earlier content-editor connection) at a stale in-memory version. So
+        // after writing, we evict the durable object via its test-only `/reset-for-test`
+        // route. The next websocket connection then reinitializes it fresh from the
+        // database instead of failing the "document version out of sync" check and closing
+        // the socket.
+        sendRequestToDurableObject: async (context, request) => {
+            const result = await handleUpdateContentWithoutOptimisticBroadcastForTest(
+                context,
+                request,
+            );
+
+            const documentIdMatch = request.url.match(
+                /^\/api\/durable-objects\/documents\/([^/]+)\//,
+            );
+            if (documentIdMatch && edgeServicePort !== null && appServiceTokenAgent !== null) {
+                await forwardDurableObjectRequestToEdgeServiceForTest(context, {
+                    edgeServiceUrl: `http://localhost:${edgeServicePort}`,
+                    tokenAgent: appServiceTokenAgent,
+                    serviceName: request.serviceName,
+                    url: `/api/durable-objects/documents/${documentIdMatch[1]}/reset-for-test`,
+                    route: "/api/durable-objects/documents/:documentId/reset-for-test",
+                    body: null,
+                });
+            }
+
+            return result;
+        },
+
+        // In integration tests we run the full `TaskRealtimeService` server so when using
+        // `context.tasks` you can directly access `TaskRealtimeService`.
+        taskContextModule: {
+            tokenAgent: () => {
+                if (jobQueueServiceTokenAgent === null)
+                    throw new InternalError("Test services haven\u2019t initialized");
+
+                return jobQueueServiceTokenAgent;
+            },
+            router: new TaskRealtimeServiceLocalRouter({
+                port: () => {
+                    if (taskRealtimeServicePort === null)
+                        throw new InternalError("Test services haven\u2019t initialized");
+
+                    return taskRealtimeServicePort;
+                },
+            }),
+        },
     });
 
     const context = unitTestContext.cloneWithHelpers({
         constants: new ConstantsContextModule({
             edgeServiceUrl: () => {
                 if (edgeServicePort === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return `http://localhost:${edgeServicePort}`;
             },
@@ -297,9 +405,12 @@ export function actuallyCreateIntegrationTestEnvironment(
     let edgeServicePort: number | null = null;
     void edgeServicePortPromise.then(port => (edgeServicePort = port));
 
+    let taskRealtimeServicePort: number | null = null;
     let agentServicePort: number | null = null;
     let appServiceTokenAgent: TokenAgent<TokenAgentAppServicePrivateSide> | null = null;
+    let jobQueueServiceTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide> | null = null;
     let mockChatGptUnscopedApiKeyPath: string | null = null;
+    let mockCursorUnscopedApiKeyPath: string | null = null;
 
     let appServiceSubprocess: ChildProcessByStdio<null, ReadableStream, ReadableStream> | undefined;
     let edgeServiceSubprocess:
@@ -331,12 +442,30 @@ export function actuallyCreateIntegrationTestEnvironment(
         inviteUrls = [];
     });
 
+    function waitForServiceHttpServer(
+        port: number,
+        serviceName: string,
+        subprocess: ChildProcessByStdio<null, ReadableStream, ReadableStream>,
+    ) {
+        return Promise.race([
+            waitForHttpServer(port),
+            waitForProcessExit(subprocess).then(() => {
+                throw new UnknownError(`${serviceName} exited before its HTTP server was ready`);
+            }),
+        ]);
+    }
+
     testHooks.beforeAll(async () => {
+        // Give services more time to start since they compete for CPU and memory while
+        // booting in parallel.
+        testHooks.setTimeout(60 * 1000);
+
         debug("Starting services");
 
         const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
         const ensureLocalCachePath = joinPath(context.getTemporaryDirectoryPath(), "ensure");
         const cloudflareR2LocalDataPath = joinPath(context.getTemporaryDirectoryPath(), "r2");
+        const importerLocalUploadPath = joinPath(context.getTemporaryDirectoryPath(), "importer");
         const fileProcessorServiceTemporaryDirectoryPath = joinPath(
             context.getTemporaryDirectoryPath(),
             "files",
@@ -400,6 +529,11 @@ export function actuallyCreateIntegrationTestEnvironment(
         const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub");
         const apiServicePrivateKeyPath = joinPath(keysDirectoryPath, "api_service_rsa");
 
+        const importerServicePublicKeyPath = joinPath(
+            keysDirectoryPath,
+            "importer_service_rsa.pub",
+        );
+
         const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
 
         mockChatGptUnscopedApiKeyPath = joinPath(
@@ -407,14 +541,16 @@ export function actuallyCreateIntegrationTestEnvironment(
             "mock_chat_gpt_unscoped_api_key",
         );
 
+        mockCursorUnscopedApiKeyPath = joinPath(keysDirectoryPath, "mock_cursor_unscoped_api_key");
+
         const [
             edgeServicePort,
-            taskRealtimeServicePort,
+            newTaskRealtimeServicePort,
             appServicePort,
             fileProcessorServicePort,
             apiServicePort,
             newAgentServicePort,
-            newAppServiceTokenAgent,
+            [newAppServiceTokenAgent, newJobQueueServiceTokenAgent],
         ] = await runAllPromises([
             edgeServicePortPromise,
             getPort(),
@@ -422,22 +558,41 @@ export function actuallyCreateIntegrationTestEnvironment(
             getPort(),
             getPort(),
             getPort(),
-            ensureServiceKeys(keysDirectoryPath).then(async () =>
-                createServiceTokenAgent({
-                    serviceName: "AppService",
-                    privateSide: TokenAgentAppServicePrivateSide,
-                    options: {
-                        appServicePublicKey: appServicePublicKeyPath,
-                        edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
-                        taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
-                        jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
-                        fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
-                        apiServicePublicKey: apiServicePublicKeyPath,
-                        resourceServicePublicKey: resourceServicePublicKeyPath,
-                        servicePrivateKey: appServicePrivateKeyPath,
-                        tokenAgentSecret: tokenAgentSecretPath,
-                    },
-                }),
+            ensureServiceKeys(keysDirectoryPath).then(() =>
+                runAllPromises([
+                    createServiceTokenAgent({
+                        serviceName: "AppService",
+                        privateSide: TokenAgentAppServicePrivateSide,
+                        options: {
+                            appServicePublicKey: appServicePublicKeyPath,
+                            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
+                            taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
+                            jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
+                            fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
+                            apiServicePublicKey: apiServicePublicKeyPath,
+                            resourceServicePublicKey: resourceServicePublicKeyPath,
+                            importerServicePublicKey: importerServicePublicKeyPath,
+                            servicePrivateKey: appServicePrivateKeyPath,
+                            tokenAgentSecret: tokenAgentSecretPath,
+                        },
+                    }),
+                    createServiceTokenAgent({
+                        serviceName: "JobQueueService",
+                        privateSide: TokenAgentJobQueueServicePrivateSide,
+                        options: {
+                            appServicePublicKey: appServicePublicKeyPath,
+                            edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
+                            taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
+                            jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
+                            fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
+                            apiServicePublicKey: apiServicePublicKeyPath,
+                            resourceServicePublicKey: resourceServicePublicKeyPath,
+                            importerServicePublicKey: importerServicePublicKeyPath,
+                            servicePrivateKey: jobQueueServicePrivateKeyPath,
+                            tokenAgentSecret: tokenAgentSecretPath,
+                        },
+                    }),
+                ]),
             ),
             fs.mkdir(agentsD1LocalDataPath, {recursive: true}).then(async () => {
                 const agentsD1LocalDataTarPath = joinPath(
@@ -452,8 +607,10 @@ export function actuallyCreateIntegrationTestEnvironment(
                 );
             }),
         ]);
+        taskRealtimeServicePort = newTaskRealtimeServicePort;
         agentServicePort = newAgentServicePort;
         appServiceTokenAgent = newAppServiceTokenAgent;
+        jobQueueServiceTokenAgent = newJobQueueServiceTokenAgent;
 
         const allMiniLmL6V2LanguageModelPath = joinPath(runfilesPath, "all_mini_lm_l6_v2");
 
@@ -489,13 +646,15 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -505,6 +664,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
                 `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--importerLocalUploadPathForTest=${importerLocalUploadPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
                 `--agentServiceUrl=http://localhost:${agentServicePort}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
@@ -562,6 +722,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
@@ -592,6 +753,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -600,7 +762,8 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -627,6 +790,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -634,7 +798,8 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -670,13 +835,15 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -706,6 +873,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--servicePrivateKey=${apiServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
@@ -714,7 +882,8 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove
+                // original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
@@ -743,6 +912,7 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--d1LocalDataPath=${agentsD1LocalDataPath}`,
                 `--apiServiceUrl=http://localhost:${apiServicePort}`,
                 `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
+                `--mockCursorApiServiceKey=${mockCursorUnscopedApiKeyPath}`,
                 // We have an empty D1 database prebuilt with all migrations applied so we
                 // shouldn't need to run them again.
                 "--withoutD1Migrations",
@@ -763,8 +933,8 @@ export function actuallyCreateIntegrationTestEnvironment(
             waitForProcessSpawn(edgeServiceSubprocess),
             waitForProcessSpawn(taskRealtimeServiceSubprocess),
             waitForProcessSpawn(jobQueueServiceSubprocess).then(() => {
-                // We don't wait on a port for `JobQueueService` so log once the process
-                // has spawned.
+                // We don't wait on a port for `JobQueueService` so log once the process has
+                // spawned.
                 debug("`JobQueueService` is ready");
             }),
             waitForProcessSpawn(fileProcessorServiceSubprocess),
@@ -773,29 +943,45 @@ export function actuallyCreateIntegrationTestEnvironment(
         ]);
 
         await runAllPromises([
-            waitForHttpServer(appServicePort).then(() => {
-                debug("`AppService` is ready");
-            }),
-            waitForHttpServer(taskRealtimeServicePort).then(() => {
+            waitForServiceHttpServer(appServicePort, "AppService", appServiceSubprocess).then(
+                () => {
+                    debug("`AppService` is ready");
+                },
+            ),
+            waitForServiceHttpServer(
+                taskRealtimeServicePort,
+                "TaskRealtimeService",
+                taskRealtimeServiceSubprocess,
+            ).then(() => {
                 debug("`TaskRealtimeService` is ready");
             }),
-            waitForHttpServer(fileProcessorServicePort).then(() => {
+            waitForServiceHttpServer(
+                fileProcessorServicePort,
+                "FileProcessorService",
+                fileProcessorServiceSubprocess,
+            ).then(() => {
                 debug("`FileProcessorService` is ready");
             }),
-            waitForHttpServer(apiServicePort).then(() => {
-                debug("`ApiService` is ready");
-            }),
-            waitForHttpServer(agentServicePort).then(() => {
-                debug("`AgentService` is ready");
-            }),
+            waitForServiceHttpServer(apiServicePort, "ApiService", apiServiceSubprocess).then(
+                () => {
+                    debug("`ApiService` is ready");
+                },
+            ),
+            waitForServiceHttpServer(agentServicePort, "AgentService", agentServiceSubprocess).then(
+                () => {
+                    debug("`AgentService` is ready");
+                },
+            ),
         ]);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
-        // `edgePort` will forward the request to `appPort` since the edge service
-        // proxies our app service.
-        await waitForHttpServer(edgeServicePort).then(() => {
-            debug("`EdgeService` is ready");
-        });
+        // `edgePort` will forward the request to `appPort` since the edge service proxies
+        // our app service.
+        await waitForServiceHttpServer(edgeServicePort, "EdgeService", edgeServiceSubprocess).then(
+            () => {
+                debug("`EdgeService` is ready");
+            },
+        );
     });
 
     const signIn = async (
@@ -816,8 +1002,8 @@ export function actuallyCreateIntegrationTestEnvironment(
 
         await browserContext.addCookies(
             parseSetCookieHeader(sessionCookieHeader).map(cookie => ({
-                // Playwright requires a `domain`/`path` pair but outside of production our
-                // cookie only has a `path`.
+                // Playwright requires a `domain`/`path` pair but outside of production our cookie
+                // only has a `path`.
                 domain: "localhost",
                 ...cookie,
                 // Transform the result from our parser to what Playwright expects.
@@ -840,7 +1026,7 @@ export function actuallyCreateIntegrationTestEnvironment(
         services: {
             getBaseUrl: () => {
                 if (edgeServicePort === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return `http://localhost:${edgeServicePort}`;
             },
@@ -848,23 +1034,39 @@ export function actuallyCreateIntegrationTestEnvironment(
                 const edgeServicePort = await edgeServicePortPromise;
                 return `http://localhost:${edgeServicePort}`;
             },
+            waitForSqsProcessJobs: () => {
+                return context.waitForSqsProcessJobs();
+            },
             getAgentServicePort: () => {
                 if (agentServicePort === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return agentServicePort;
             },
             getAppServiceTokenAgent: () => {
                 if (appServiceTokenAgent === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 return appServiceTokenAgent;
             },
+            getJobQueueServiceTokenAgent: () => {
+                if (jobQueueServiceTokenAgent === null)
+                    throw new InternalError("Test services haven\u2019t initialized");
+
+                return jobQueueServiceTokenAgent;
+            },
             getMockChatGptLocalUnscopedApiKey: async () => {
                 if (mockChatGptUnscopedApiKeyPath === null)
-                    throw new InternalError("Test services haven’t initialized");
+                    throw new InternalError("Test services haven\u2019t initialized");
 
                 const apiKey = await fs.readFile(mockChatGptUnscopedApiKeyPath, "utf8");
+                return assertApiKey(apiKey.trim());
+            },
+            getMockCursorLocalUnscopedApiKey: async () => {
+                if (mockCursorUnscopedApiKeyPath === null)
+                    throw new InternalError("Test services haven\u2019t initialized");
+
+                const apiKey = await fs.readFile(mockCursorUnscopedApiKeyPath, "utf8");
                 return assertApiKey(apiKey.trim());
             },
             signIn,

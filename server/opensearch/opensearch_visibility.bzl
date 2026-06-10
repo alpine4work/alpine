@@ -5,6 +5,7 @@ all OpenSearch index schemas when setting up our backend infrastructure
 """
 
 OPENSEARCH_VISIBILITY = [
+    "//server/importer",
     "//server/search/data/index",
     "//server/tasks/data",
 ]

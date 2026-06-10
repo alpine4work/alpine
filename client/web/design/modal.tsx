@@ -54,10 +54,11 @@ export function Modal({
     withoutCloseInteractions,
     withoutElevatedGrey,
     withBlurBackdropFilter,
+    withoutRestoreFocus,
 }: {
     /**
-     * The contents of the modal. If the contents are too big for the screen then
-     * the content area will scroll.
+     * The contents of the modal. If the contents are too big for the screen then the
+     * content area will scroll.
      */
     children?:
         | ReactNode
@@ -67,9 +68,9 @@ export function Modal({
           }) => ReactNode);
 
     /**
-     * Callback that will close and unmount the modal. The parent component is
-     * expected to manage the modal lifecycle. May be called after a short delay if
-     * the modal is animating out.
+     * Callback that will close and unmount the modal. The parent component is expected
+     * to manage the modal lifecycle. May be called after a short delay if the modal is
+     * animating out.
      */
     onClose: () => void;
 
@@ -77,23 +78,24 @@ export function Modal({
      * The id for an element in the DOM that describes this modal for assistive
      * technology. See [`aria-describedby`][1].
      *
-     * [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-describedby
+     * [1]:
+     *     https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-describedby
      */
     "aria-describedby"?: string;
 
     /**
-     * Allows you to set an element that owns this modal. Then
-     * `isElementOwnedBy()` will start reporting the modal as owned by the provided
-     * element which is useful for utilities like `useOutsideInteraction()` to
-     * understand whether an interaction is inside or outside some focused element.
+     * Allows you to set an element that owns this modal. Then `isElementOwnedBy()`
+     * will start reporting the modal as owned by the provided element which is useful
+     * for utilities like `useOutsideInteraction()` to understand whether an
+     * interaction is inside or outside some focused element.
      */
     "data-ownedby"?: string;
 
     /**
-     * Allows you to set an element that owns this modal. Then
-     * `isElementOwnedBy()` will start reporting the modal as owned by the provided
-     * element which is useful for utilities like `useOutsideInteraction()` to
-     * understand whether an interaction is inside or outside some focused element.
+     * Allows you to set an element that owns this modal. Then `isElementOwnedBy()`
+     * will start reporting the modal as owned by the provided element which is useful
+     * for utilities like `useOutsideInteraction()` to understand whether an
+     * interaction is inside or outside some focused element.
      */
     ownedByElement?: Element | null;
 
@@ -103,9 +105,9 @@ export function Modal({
     maxWidth?: Spacing | RemLength | "full";
 
     /**
-     * How height is handled for this modal. Defaults to `auto` which means the
-     * modal height will be as big as it's content height. If you want the modal's
-     * height to stretch across all available space then use `full`.
+     * How height is handled for this modal. Defaults to `auto` which means the modal
+     * height will be as big as it's content height. If you want the modal's height to
+     * stretch across all available space then use `full`.
      *
      * `width` behaves as `full` but you can't configure it.
      */
@@ -119,15 +121,15 @@ export function Modal({
     maxHeight?: Spacing | RemLength | "full";
 
     /**
-     * How much margin is there around the modal when its width and height are
-     * `full`. Default is `5`.
+     * How much margin is there around the modal when its width and height are `full`.
+     * Default is `5`.
      */
     margin?: "5" | "6" | "7" | "8";
 
     /**
      * Border radius for the modal content.
      */
-    borderRadius?: "1.5" | "2" | "2.5";
+    borderRadius?: "1.5" | "2" | "2.5" | "none";
 
     /**
      * Background color for the modal content.
@@ -135,36 +137,36 @@ export function Modal({
     backgroundColor?: Sprinkles["backgroundColor"];
 
     /**
-     * The modal will never animate when opening if set to true. Otherwise we fade
-     * in the modal when opened.
+     * The modal will never animate when opening if set to true. Otherwise we fade in
+     * the modal when opened.
      */
     withoutOpenAnimation?: boolean;
 
     /**
-     * The modal will never animate when closing if set to true. Otherwise we fade
-     * out the modal when closed indirectly.
+     * The modal will never animate when closing if set to true. Otherwise we fade out
+     * the modal when closed indirectly.
      */
     withoutCloseAnimation?: boolean;
 
     /**
-     * Don't include the close button in the top right corner. Useful if you want
-     * to reduce decision overload. The user can still use the keyboard or click
-     * the background to close the modal. We just won't have an explicit action.
+     * Don't include the close button in the top right corner. Useful if you want to
+     * reduce decision overload. The user can still use the keyboard or click the
+     * background to close the modal. We just won't have an explicit action.
      */
     withoutCloseButton?: boolean;
 
     /**
-     * If true, disables all close interactions. Include the close button, clicking
-     * the underlay to close, and pressing the escape key to close.
+     * If true, disables all close interactions. Include the close button, clicking the
+     * underlay to close, and pressing the escape key to close.
      *
      * Defaults to false. Automatically sets `withoutCloseButton` to true.
      */
     withoutCloseInteractions?: boolean;
 
     /**
-     * Don't use an elevated grey color scheme for the modal. By default for
-     * elements with a higher elevation we use a slightly lighter color scheme in
-     * dark mode to make it appear closer to the user.
+     * Don't use an elevated grey color scheme for the modal. By default for elements
+     * with a higher elevation we use a slightly lighter color scheme in dark mode to
+     * make it appear closer to the user.
      */
     withoutElevatedGrey?: boolean;
 
@@ -173,20 +175,24 @@ export function Modal({
      * `backgroundColor` to something semi-transparent.
      */
     withBlurBackdropFilter?: boolean;
+
+    /**
+     * Don't restore focus to the previously focused element when the modal closes.
+     */
+    withoutRestoreFocus?: boolean;
 } & (
     | {
           /**
-           * A label exposed to assistive technology (through `aria-label`) when
-           * there is no visible label for the element.
+           * A label exposed to assistive technology (through `aria-label`) when there is no
+           * visible label for the element.
            */
           "aria-label": string;
           "aria-labelledby"?: undefined;
       }
     | {
           /**
-           * A reference to another element (through `aria-labelledby`) with a
-           * visible label for this element. Usually a title element like an `<h2>`
-           * for modals.
+           * A reference to another element (through `aria-labelledby`) with a visible label
+           * for this element. Usually a title element like an `<h2>` for modals.
            */
           "aria-labelledby": string;
           "aria-label"?: undefined;
@@ -210,8 +216,8 @@ export function Modal({
         const timeout = createTimeout(() => {
             onCloseWithoutAnimation();
 
-            // If the `onClose()` callback doesn't actually close the modal after 1s, then
-            // the modal component is still mounted so should be made visible again.
+            // If the `onClose()` callback doesn't actually close the modal after 1s, then the
+            // modal component is still mounted so should be made visible again.
             //
             // We wait 1s since sometimes there's a small asynchronous delay between the
             // `onClose()` prop and the React render which actually closes the modal.
@@ -246,8 +252,8 @@ export function Modal({
     }, [ownedByElement]);
 
     // Immediately focus the modal on mount unless some component in the modal has
-    // already been focused. (e.g. We focus the primary save button in
-    // `<ModalDialog>` on mount.)
+    // already been focused. (e.g. We focus the primary save button in `<ModalDialog>`
+    // on mount.)
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
         if (hasInitiallyMountedRef.current) return;
@@ -291,12 +297,12 @@ export function Modal({
                         ? modalStyles.modalUnderlayFadeInAnimation
                         : undefined,
                 }}
-                // If the underlay is clicked, we close the modal. This element is not
-                // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
-                // to close the modal.
+                // If the underlay is clicked, we close the modal. This element is not focusable or
+                // keyboard accessible. You can hit the "Escape" key as a shortcut to close the
+                // modal.
                 onPointerDown={!withoutCloseInteractions ? onCloseWithAnimation : undefined}
             />
-            <FocusScope restoreFocus contain>
+            <FocusScope restoreFocus={!withoutRestoreFocus} contain>
                 <RootOverlayScopeContextProvider>
                     <GlobalKeyDownEventModal>
                         <GlobalKeyDownEvent
@@ -311,9 +317,9 @@ export function Modal({
                             <section
                                 ref={modalAlertRef}
                                 role="alertdialog"
-                                // It's important the modal is focusable for `<FocusScope contain>`. That way
-                                // when you click out of a focusable element in the modal, focus goes to this
-                                // element instead of `document.body`. If `<FocusScope contain>` sees focus on
+                                // It's important the modal is focusable for `<FocusScope contain>`. That way when
+                                // you click out of a focusable element in the modal, focus goes to this element
+                                // instead of `document.body`. If `<FocusScope contain>` sees focus on
                                 // `document.body` then it will move focus right back to the element that was
                                 // blurred which is not what the user wants.
                                 tabIndex={-1}
@@ -390,8 +396,8 @@ export function Modal({
                                                     size="xs"
                                                     description="Close"
                                                     withoutTooltip={true}
-                                                    // Our animation principle is to respond to user input immediately
-                                                    // without animation.
+                                                    // Our animation principle is to respond to user input immediately without
+                                                    // animation.
                                                     onPress={onCloseWithoutAnimation}
                                                 >
                                                     <X />

@@ -32,8 +32,8 @@ export function ColumnsPlusRightIcon({
             viewBox="0 0 256 256"
             fill={color ?? contextColor}
             {...context}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{
                 width: size ?? contextSize,
                 height: size ?? contextSize,

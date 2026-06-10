@@ -5,8 +5,8 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 /**
  * Name of all node types for any kind of content in our system.
  *
- * May include node names that don't exist in the `shared/content` package but
- * do exist elsewhere (like `shared/documents`).
+ * May include node names that don't exist in the `shared/content` package but do
+ * exist elsewhere (like `shared/documents`).
  *
  * Useful for writing code that operates on any kind of content.
  */
@@ -39,8 +39,8 @@ export const contentNodeTypeNames = {
 /**
  * Name of all inline node types for any kind of content in our system.
  *
- * May include node names that don't exist in the `shared/content` package but
- * do exist elsewhere (like `shared/documents`).
+ * May include node names that don't exist in the `shared/content` package but do
+ * exist elsewhere (like `shared/documents`).
  *
  * Useful for writing code that operates on any kind of content.
  */
@@ -55,8 +55,8 @@ export const contentInlineNodeTypeNames = {
 /**
  * Name of all textblock node types for any kind of content in our system.
  *
- * May include node names that don't exist in the `shared/content` package but
- * do exist elsewhere (like `shared/documents`).
+ * May include node names that don't exist in the `shared/content` package but do
+ * exist elsewhere (like `shared/documents`).
  *
  * Useful for writing code that operates on any kind of content.
  */
@@ -70,11 +70,11 @@ export const contentTextblockNodeTypeNames = {
 };
 
 /**
- * Name of all block node types for any kind of content in our system. (Blocks
- * are nodes that live at the root of a `doc`.)
+ * Name of all block node types for any kind of content in our system. (Blocks are
+ * nodes that live at the root of a `doc`.)
  *
- * May include node names that don't exist in the `shared/content` package but
- * do exist elsewhere (like `shared/documents`).
+ * May include node names that don't exist in the `shared/content` package but do
+ * exist elsewhere (like `shared/documents`).
  *
  * Useful for writing code that operates on any kind of content.
  */
@@ -98,8 +98,8 @@ export const contentBlockNodeTypeNames = {
 /**
  * Name of all mark types for any kind of content in our system.
  *
- * May include mark names that don't exist in the `shared/content` package but
- * do exist elsewhere (like `shared/documents`).
+ * May include mark names that don't exist in the `shared/content` package but do
+ * exist elsewhere (like `shared/documents`).
  *
  * Useful for writing code that operates on any kind of content.
  */
@@ -118,8 +118,8 @@ export const contentMarkTypeNames = {
 /**
  * Name of all list item node types for any kind of content in our system.
  *
- * May include nodes names that don't exist in the `shared/content` package but
- * do exist elsewhere (like `shared/documents`).
+ * May include nodes names that don't exist in the `shared/content` package but do
+ * exist elsewhere (like `shared/documents`).
  *
  * Useful for writing code that operates on any kind of content.
  */

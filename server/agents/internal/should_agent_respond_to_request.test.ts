@@ -106,6 +106,7 @@ describe("shouldAgentRespondToRequest", () => {
             data: {
                 spaceId: generateId<SpaceId>(),
                 chat: {
+                    type: "Direct",
                     id: chatId,
                     members: [
                         {account: createApiAccountMock({id: agentAccountId})},
@@ -190,6 +191,7 @@ describe("shouldAgentRespondToRequest", () => {
                 data: {
                     spaceId: generateId<SpaceId>(),
                     chat: {
+                        type: "Direct",
                         id: chatId,
                         members: [
                             {account: createApiAccountMock({id: agentAccountId})},
@@ -238,6 +240,7 @@ describe("shouldAgentRespondToRequest", () => {
                 data: {
                     spaceId: generateId<SpaceId>(),
                     chat: {
+                        type: "Direct",
                         id: chatId,
                         members: [
                             {account: createApiAccountMock({id: agentAccountId})},

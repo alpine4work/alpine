@@ -36,8 +36,8 @@ export function getMentionCountByAccountIdInContent(content: Node): ReadonlyMap<
  * content updates we want to update that map. This function takes the old
  * aggregated map and produces a new aggregated map.
  *
- * Pass in null for old content if you are creating new content. Pass in null
- * for new content if you are deleting old content.
+ * Pass in null for old content if you are creating new content. Pass in null for
+ * new content if you are deleting old content.
  */
 export function applyMentionCountByAccountIdDifferenceFromContentUpdate(
     mentionCountByAccountId: ReadonlyMap<AccountId, number>,

@@ -2,8 +2,8 @@ import {Memo, useCallback, useEffect, useRef} from "react";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 
 /**
- * Creates a function that returns a promise which waits for a condition on
- * some React state value to be met before resolving.
+ * Creates a function that returns a promise which waits for a condition on some
+ * React state value to be met before resolving.
  */
 export function useWaitForState<Value>(
     value: Value,

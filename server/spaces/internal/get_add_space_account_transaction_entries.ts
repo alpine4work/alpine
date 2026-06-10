@@ -34,29 +34,29 @@ export const addSpaceAccountBeforeExecuteTestCheckpoint =
     new TestCheckpoint<`${SpaceId}:${AccountId}`>();
 
 /**
- * Gets the transaction entries for adding an account to a space. Does all the
- * data loading and validation we need to make sure the account is correctly
- * added to the space.
+ * Gets the transaction entries for adding an account to a space. Does all the data
+ * loading and validation we need to make sure the account is correctly added to
+ * the space.
  *
  * IMPORTANT: Does not authorize the actor is allowed to add an account to the
- * space! You must perform authorization outside of this function. Also does
- * not check the space/account doesn't actually exist when you use
- * `space: {type: "New"}` or `account: {type: "New"}`. You're expected to add
- * an additional transaction entry that checks whether new space/account
- * actually exists or not.
+ * space! You must perform authorization outside of this function. Also does not
+ * check the space/account doesn't actually exist when you use
+ * `space: {type: "New"}` or `account: {type: "New"}`. You're expected to add an
+ * additional transaction entry that checks whether new space/account actually
+ * exists or not.
  *
- * You also need to set up your own `context.dynamo.retryTransaction()` loop
- * around this call.
+ * You also need to set up your own `context.dynamo.retryTransaction()` loop around
+ * this call.
  *
  * There's a bunch of edge cases in here to consider:
  *
- * - If `role` is set to `Owner` we verify the space doesn't have any other
- *   owners if `space.type === "Existing"`.
+ * - If `role` is set to `Owner` we verify the space doesn't have any other owners
+ *   if `space.type === "Existing"`.
  *
- * - If the account wasn't added to the space before and the account exists
- *   then you must provide `invitedEmailAddress` which represents the email
- *   address associated with the account that's known by the actor since we'll
- *   use this as the account's name.
+ * - If the account wasn't added to the space before and the account exists then
+ *   you must provide `invitedEmailAddress` which represents the email address
+ *   associated with the account that's known by the actor since we'll use this as
+ *   the account's name.
  *
  * - Existing bot accounts can't be added to a space through this function.
  *   However, if you remove a bot account from a space then you can add it back
@@ -74,7 +74,8 @@ export async function getAddSpaceAccountTransactionEntries(
         currentTime,
         space: spaceInputWithoutData,
         account: accountInputWithoutData,
-        role = "Member",
+        role,
+        inviterAccountId,
     }: {
         currentTime: Date;
         space: {type: "Existing"; id: SpaceId} | {type: "New"; id: SpaceId};
@@ -83,10 +84,10 @@ export async function getAddSpaceAccountTransactionEntries(
                   type: "Existing";
                   id: AccountId;
                   invitedEmailAddress?: EmailAddress;
-                  // Dangerous both because we skip the `InvitePending` state for this account
-                  // but also because we don't apply the welcome package for the account when
-                  // adding it as `Active`. You're responsible for applying the welcome package
-                  // for the account if you set `dangerouslyWithoutInvite: true`.
+                  // Dangerous both because we skip the `InvitePending` state for this account but
+                  // also because we don't apply the welcome package for the account when adding it
+                  // as `Active`. You're responsible for applying the welcome package for the account
+                  // if you set `dangerouslyWithoutInvite: true`.
                   dangerouslyWithoutInvite?: boolean;
               }
             | {
@@ -94,7 +95,8 @@ export async function getAddSpaceAccountTransactionEntries(
                   id: AccountId;
                   emailAddress: EmailAddress;
               };
-        role?: SpaceRole;
+        role: SpaceRole;
+        inviterAccountId: AccountId | null;
     },
 ) {
     const [existingSpaceData, existingAccountData] = await runAllPromises([
@@ -209,8 +211,8 @@ export async function getAddSpaceAccountTransactionEntries(
     if (
         accountSpaceIds.has(spaceInput.id) ||
         (accountInvitePendingSpaceIds.has(spaceInput.id) &&
-            // If the account has a pending invite in the space but we're adding the
-            // account as `Active` then don't error here.
+            // If the account has a pending invite in the space but we're adding the account as
+            // `Active` then don't error here.
             !(accountInput.type === "Existing" && accountInput.dangerouslyWithoutInvite))
     ) {
         // This is an extra check to make sure our spaceIds on the Account#Spaces isn't
@@ -221,10 +223,10 @@ export async function getAddSpaceAccountTransactionEntries(
     // Make sure there aren't any other owners in the space.
     //
     // This is race condition safe because of we use
-    // `SpacesTable.transactionUpdateLockVersionConditionCheck()` in our
-    // transaction to actually add an account. If two calls are racing then the
-    // race winner updates the space `updateLockVersion` causing the race loser to
-    // retry which will run this query again.
+    // `SpacesTable.transactionUpdateLockVersionConditionCheck()` in our transaction to
+    // actually add an account. If two calls are racing then the race winner updates
+    // the space `updateLockVersion` causing the race loser to retry which will run
+    // this query again.
     if (role === "Owner" && spaceInput.type === "Existing") {
         for await (const otherSpaceAccountItem of SpacesTable.query(context, {
             consistency: "Strong",
@@ -257,8 +259,8 @@ export async function getAddSpaceAccountTransactionEntries(
     if (accountInput.type === "Existing" && accountInput.spaceAccountItem) {
         let state: SpaceAccountState;
 
-        // If the account already exists in the space with an `InvitePending` state
-        // then `dangerouslyWithoutInvite` will switch them to an `Active` state.
+        // If the account already exists in the space with an `InvitePending` state then
+        // `dangerouslyWithoutInvite` will switch them to an `Active` state.
         if (
             accountInput.spaceAccountItem.state.type === "InvitePending" &&
             accountInput.dangerouslyWithoutInvite
@@ -279,7 +281,8 @@ export async function getAddSpaceAccountTransactionEntries(
             } else {
                 state = {
                     type: "InvitePending",
-                    invitedTime: new Date(),
+                    invitedTime: currentTime,
+                    inviterAccountId,
                     pendingAccountData: accountInput.spaceAccountItem.state.oldAccountData,
                     // Should always be true in this code path.
                     wasPreviouslyRemoved: accountInput.spaceAccountItem.state.type === "Removed",
@@ -296,14 +299,13 @@ export async function getAddSpaceAccountTransactionEntries(
             {onAfterTransactionExecutedSuccessfully},
         );
 
-        // If the account was previously removed, we should not update the account avatar override
-        // item. Maintain the "removed" avatar UX until they re-accept
+        // If the account was previously removed, we should not update the account avatar
+        // override item. Maintain the "removed" avatar UX until they re-accept
         spaceAccountAvatarOverrideItemTransactionEntry = null;
     } else {
-        // Bot accounts can only be a member of one space. Don't allow adding a bot
-        // account to a new space but it's ok if the bot account was previously a
-        // member of the space that was removed. Then it's ok to add the bot account
-        // back to the space.
+        // Bot accounts can only be a member of one space. Don't allow adding a bot account
+        // to a new space but it's ok if the bot account was previously a member of the
+        // space that was removed. Then it's ok to add the bot account back to the space.
         if (accountInput.type === "Existing" && accountInput.account.botId) {
             throw new FailedPreconditionError(
                 "Can\u2019t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
@@ -316,14 +318,14 @@ export async function getAddSpaceAccountTransactionEntries(
             // As the owner of a new space, the account is automatically active and doesn't
             // need to accept an invite.
             role === "Owner" ||
-            // We allow the caller to dangerously skip the invite process and directly add
-            // the account as `Active`. This is dangerous since it reveals private
-            // information about the account before they've intentionally opened a space.
+            // We allow the caller to dangerously skip the invite process and directly add the
+            // account as `Active`. This is dangerous since it reveals private information
+            // about the account before they've intentionally opened a space.
             //
-            // We use this when auto-adding accounts to a space based on their email
-            // domain. We only auto-add _new_ accounts to a space and as long as we do a
-            // good job deciding what's a company email domain vs generic email domain
-            // we'll always be adding the account to a space with trusted peers.
+            // We use this when auto-adding accounts to a space based on their email domain. We
+            // only auto-add _new_ accounts to a space and as long as we do a good job deciding
+            // what's a company email domain vs generic email domain we'll always be adding the
+            // account to a space with trusted peers.
             (accountInput.type === "Existing" && accountInput.dangerouslyWithoutInvite)
         ) {
             state = {type: "Active", activatedTime: currentTime};
@@ -345,22 +347,23 @@ export async function getAddSpaceAccountTransactionEntries(
             state = {
                 type: "InvitePending",
                 invitedTime: currentTime,
+                inviterAccountId,
                 pendingAccountData: {
                     id: accountInput.id,
                     version: 0,
-                    // Names are labelStrings and can only support 50 characters
-                    // Just do a hard truncate here
+                    // Names are labelStrings and can only support 50 characters Just do a hard
+                    // truncate here
                     name: emailAddress.slice(0, maxLabelStringLength),
                     // Once the account accepts their invite, the correct name should always have a
                     // higher version than this pending name.
                     nameVersion: -1,
                     // Pick a random character for the account since we don't want to reveal the
-                    // character selected by the account (which is private information along with
-                    // the rest of the account's data).
+                    // character selected by the account (which is private information along with the
+                    // rest of the account's data).
                     reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountInput.id),
                 },
-                // Should always be false since `accountInput.spaceAccountItem` is always null
-                // in this code path.
+                // Should always be false since `accountInput.spaceAccountItem` is always null in
+                // this code path.
                 wasPreviouslyRemoved: false,
             };
         }
@@ -378,9 +381,9 @@ export async function getAddSpaceAccountTransactionEntries(
             {onAfterTransactionExecutedSuccessfully},
         );
 
-        // If the account was not previously a member of the space, we need to create an account
-        // avatar override item with null content so that the user's avatar does not show up
-        // in the space
+        // If the account was not previously a member of the space, we need to create an
+        // account avatar override item with null content so that the user's avatar does
+        // not show up in the space
         spaceAccountAvatarOverrideItemTransactionEntry = SpacesTable.transactionCreateItem({
             partitionType: "Space",
             sortRangeType: "AccountAvatarOverride",
@@ -397,7 +400,8 @@ export async function getAddSpaceAccountTransactionEntries(
 
     const newAccountStateType = spaceAccountItemTransactionEntry.newItem.state.type;
 
-    // Only update the account's `spaceId`s if the account is being added to the space as Active.
+    // Only update the account's `spaceId`s if the account is being added to the space
+    // as Active.
     if (newAccountStateType === "Active") {
         accountSpaceIds.add(spaceInput.id);
     } else if (newAccountStateType === "InvitePending") {
@@ -412,8 +416,8 @@ export async function getAddSpaceAccountTransactionEntries(
     }
 
     async function onAfterTransactionExecutedSuccessfully() {
-        // When an account is added to a space, index the account in the space so it
-        // can be searched.
+        // When an account is added to a space, index the account in the space so it can be
+        // searched.
         context.jobs.send({
             type: "IndexSearchEntity",
             spaceId: spaceInput.id,
@@ -460,12 +464,12 @@ export async function getAddSpaceAccountTransactionEntries(
         accountVersionConditionCheckTransactionEntry,
 
         transactionEntries: [
-            // Since this transaction is security sensitive, make sure the account and
-            // space didn't update when we commit. This also makes sure both the space and
-            // account exist.
+            // Since this transaction is security sensitive, make sure the account and space
+            // didn't update when we commit. This also makes sure both the space and account
+            // exist.
             //
-            // If we're adding an owner, force this transaction to be serialized with other
-            // add space account `role: "Owner"` transactions.
+            // If we're adding an owner, force this transaction to be serialized with other add
+            // space account `role: "Owner"` transactions.
             ...(spaceInput.type === "Existing"
                 ? [
                       role === "Owner"

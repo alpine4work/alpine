@@ -1,4 +1,4 @@
-import {Duration} from "aws-cdk-lib";
+import {Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {
@@ -44,8 +44,8 @@ import {ecsStopTimeoutMs} from "~/server/helpers/node/shutdown_timeouts.js";
  * Creates either the API service or the App service.
  *
  * App service and API service have near identical workloads (stateless HTTP
- * requests) and run the same server code. App service also runs React SSR
- * `client` code which API service doesn't.
+ * requests) and run the same server code. App service also runs React SSR `client`
+ * code which API service doesn't.
  */
 export function createAwsAppOrApiService(
     parentConstruct: Construct,
@@ -76,9 +76,11 @@ export function createAwsAppOrApiService(
         loadBalancer: loadBalancerOptions,
         withAgentServiceUrl,
         withStripeSecrets,
+        withSlackSecrets,
         withLogoDevSecrets,
         withCookieNameSuffixOption,
         importUploadsBucketName,
+        importerService,
     }: {
         serviceName: string;
         secretsName: string;
@@ -98,14 +100,21 @@ export function createAwsAppOrApiService(
         };
         withAgentServiceUrl?: boolean;
         withStripeSecrets?: boolean;
+        withSlackSecrets?: boolean;
         withLogoDevSecrets?: boolean;
         withCookieNameSuffixOption?: boolean;
         importUploadsBucketName?: string;
+        importerService?: {
+            taskDefinitionArn: string;
+            subnetIds: Array<string>;
+            securityGroupId: string;
+            ebsVolumeRoleArn: string;
+        };
     },
 ) {
     const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
         instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
-        machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+        machineImage: EcsOptimizedImage.amazonLinux2023(AmiHardwareType.ARM),
         role: new Role(parentConstruct, "LaunchTemplateRole", {
             assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
 
@@ -114,7 +123,7 @@ export function createAwsAppOrApiService(
                 // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
                 ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
                 // Add the ability to send logs to CloudWatch.
-                //https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/prerequisites.html
+                // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/prerequisites.html
                 ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
             ],
         }),
@@ -133,32 +142,31 @@ export function createAwsAppOrApiService(
         minCapacity: autoScalingGroupOptions.minCapacity,
         maxCapacity: autoScalingGroupOptions.maxCapacity,
 
-        // Run our service instances on a public subnet. This means we can send
-        // outgoing connections to anyone on the internet, but it also means anyone on
-        // the internet has access to our instances!
+        // Run our service instances on a public subnet. This means we can send outgoing
+        // connections to anyone on the internet, but it also means anyone on the internet
+        // has access to our instances!
         //
         // We're ok with this tradeoff since the alternative is to create NAT gateways
-        // which can get quite expensive when sending data out to services like
-        // Honeycomb.
+        // which can get quite expensive when sending data out to services like Honeycomb.
         //
         // We gain back security by:
         //
         // - In application code, only allowing requests from a trusted proxy chain
         //   including the AWS load balancer and our Cloudflare proxy.
-        // - Only sending external HTTPS requests to trusted domains (e.g. Honeycomb
-        //   and Cloudflare). This means an attacker would need to guess IPs to send
-        //   them requests. Security by obscurity.
+        // - Only sending external HTTPS requests to trusted domains (e.g. Honeycomb and
+        //   Cloudflare). This means an attacker would need to guess IPs to send them
+        //   requests. Security by obscurity.
         //
-        // We should be very careful about sending HTTP requests to arbitrary domains!
-        // It probably should NOT be done from `AppService` but instead some other
-        // service inside a VPC. (We should add some protections to make sure outbound
-        // HTTP requests are only for certain domains.)
+        // We should be very careful about sending HTTP requests to arbitrary domains! It
+        // probably should NOT be done from `AppService` but instead some other service
+        // inside a VPC. (We should add some protections to make sure outbound HTTP
+        // requests are only for certain domains.)
         //
-        // This is probably fine for now but likely needs to be locked down in the
-        // future. e.g. Allowlist domains we can send outgoing requests to. Or only
-        // allow incoming requests at an infrastructure level instead of an application
-        // code level. Or putting our services behind a VPC and use VPC endpoints (for
-        // DynamoDB) + [PrivateLink][1] to connect to external partners.
+        // This is probably fine for now but likely needs to be locked down in the future.
+        // e.g. Allowlist domains we can send outgoing requests to. Or only allow incoming
+        // requests at an infrastructure level instead of an application code level. Or
+        // putting our services behind a VPC and use VPC endpoints (for DynamoDB) +
+        // [PrivateLink][1] to connect to external partners.
         //
         // [1]: https://docs.honeycomb.io/integrations/aws/aws-privatelink/
         //
@@ -166,10 +174,9 @@ export function createAwsAppOrApiService(
         // unknown origins in application code. This requires knowing Cloudflare IP
         // addresses and AWS load balancer IP addresses.
         //
-        // TODO(calebmer, 2023-11-05): As I'm learning more about what AWS has
-        // available, security groups seem like a way to only allow certain outgoing
-        // requests. More research is needed on whether they can replace our need for
-        // a VPC.
+        // TODO(calebmer, 2023-11-05): As I'm learning more about what AWS has available,
+        // security groups seem like a way to only allow certain outgoing requests. More
+        // research is needed on whether they can replace our need for a VPC.
         vpcSubnets: {subnetType: SubnetType.PUBLIC},
     });
 
@@ -199,8 +206,8 @@ export function createAwsAppOrApiService(
     const taskDefinition = new Ec2TaskDefinition(parentConstruct, "TaskDefinition", {
         // According to the docs:
         //
-        // > The host and awsvpc network modes offer the highest networking performance
-        // > for containers because they use the Amazon EC2 network stack.
+        // > The host and awsvpc network modes offer the highest networking performance for
+        // > containers because they use the Amazon EC2 network stack.
         //
         // Also:
         //
@@ -208,8 +215,7 @@ export function createAwsAppOrApiService(
         // > containers using the root user (UID 0) for better security.
         //
         // We use the host network mode for performance. We're running on public VPC
-        // subnets so that means anyone on the internet can send a request to our
-        // instance.
+        // subnets so that means anyone on the internet can send a request to our instance.
         //
         // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
         networkMode: NetworkMode.HOST,
@@ -228,26 +234,23 @@ export function createAwsAppOrApiService(
         ),
         cpu: 2048,
         // Memory available to our container. We can't use the full available memory
-        // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
-        // to function.
+        // because the ECS agent needs some memory to function. If you reserve too much
+        // memory you won't get an error. Instead the tasks are stuck in the "Provisioning"
+        // status forever.
         //
         // The right value is available on the container instance screen in the AWS
-        // console. Specifically under the "Resources & networking" tab. You want to
-        // look at "Total capacity" and make sure we're reserving all of it.
-        //
-        // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
-        // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
-        // stuck in the "Provisioning" status forever.
-        memoryLimitMiB: 3906,
-        // Send logs to AWS. Container logs are short-lived and used for debugging
-        // obscure machine-level issues. Our long-lived logs are in Honeycomb.
+        // console. Specifically under the "Resources & networking" tab. You want to look
+        // at "Total capacity" and make sure we're reserving all of it.
+        memoryLimitMiB: 3800,
+        // Send logs to AWS. Container logs are short-lived and used for debugging obscure
+        // machine-level issues. Our long-lived logs are in Honeycomb.
         logging: ecsCluster.shortLivedLogDriver,
-        // Increase stop timeout to two minutes so essential background processes
-        // have ample time to finish. For example, task action indexing which is done
-        // in the background with `context.process.waitUntil()`.
+        // Increase stop timeout to two minutes so essential background processes have
+        // ample time to finish. For example, task action indexing which is done in the
+        // background with `context.process.waitUntil()`.
         stopTimeout: Duration.millis(ecsStopTimeoutMs),
-        // For security, use the `www-data` user which exists on our Linux image. It
-        // only has read access and execute access to files on our system.
+        // For security, use the `www-data` user which exists on our Linux image. It only
+        // has read access and execute access to files on our system.
         user: "www-data",
         portMappings: [{containerPort: port, hostPort: port}],
         secrets: {
@@ -276,6 +279,10 @@ export function createAwsAppOrApiService(
             RESOURCE_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
                 secrets,
                 "resourceServicePublicKey",
+            ),
+            IMPORTER_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                secrets,
+                "importerServicePublicKey",
             ),
             TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
             HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
@@ -322,17 +329,27 @@ export function createAwsAppOrApiService(
                       ),
                   }
                 : {}),
+            ...(withSlackSecrets
+                ? {
+                      SLACK_CLIENT_ID: EcsSecret.fromSecretsManager(secrets, "slackClientId"),
+                      SLACK_CLIENT_SECRET: EcsSecret.fromSecretsManager(
+                          secrets,
+                          "slackClientSecret",
+                      ),
+                  }
+                : {}),
         },
         environment: {
             NODE_ENV: "production",
+            AWS_REGION: Stack.of(parentConstruct).region,
         },
         command: [
-            // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
-            // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
-            // (e.g. `sh -c`) not our process.
+            // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks
+            // ECS process termination. The `SIGTERM` signal is sent to the shell (e.g.
+            // `sh -c`) not our process.
             //
-            // `runService()` implements env variable substitution which is why we can use
-            // env variable syntax like `$HONEYCOMB_API_KEY`.
+            // `runService()` implements env variable substitution which is why we can use env
+            // variable syntax like `$HONEYCOMB_API_KEY`.
             taskDefinitionOptions.containerCommandPath,
             `--port=${port}`,
             "--edgeServiceUrl=https://alpine.inc",
@@ -361,12 +378,16 @@ export function createAwsAppOrApiService(
             "--fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
             "--apiServicePublicKey=$API_SERVICE_PUBLIC_KEY",
             "--resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY",
+            "--importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY",
             `--servicePrivateKey=$${secretKeyEnvironmentVariableName}`,
             "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
             "--apnsCertificate=$APNS_CERTIFICATE",
             "--apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY",
             "--webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY",
             "--webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY",
+            ...(withSlackSecrets
+                ? ["--slackClientId=$SLACK_CLIENT_ID", "--slackClientSecret=$SLACK_CLIENT_SECRET"]
+                : []),
             ...(withStripeSecrets
                 ? [
                       "--stripeSecretKey=$STRIPE_SECRET_KEY",
@@ -386,6 +407,14 @@ export function createAwsAppOrApiService(
                 : []),
             ...(importUploadsBucketName
                 ? [`--importUploadsBucketName=${importUploadsBucketName}`]
+                : []),
+            ...(importerService
+                ? [
+                      `--importerServiceEcsTaskDefinition=${importerService.taskDefinitionArn}`,
+                      `--importerServiceSubnets=${importerService.subnetIds.join(",")}`,
+                      `--importerServiceSecurityGroups=${importerService.securityGroupId}`,
+                      `--importerServiceEbsVolumeRoleArn=${importerService.ebsVolumeRoleArn}`,
+                  ]
                 : []),
         ],
         healthCheck: {
@@ -443,9 +472,9 @@ export function createAwsAppOrApiService(
     // NOTE(calebmer, 2024-11-13): This is `LoadBalancer2` because we had an old
     // `LoadBalancer` with an automatically generated `loadBalancerName`. When we
     // switched to an opinionated `loadBalancerName` in order to do a zero downtime
-    // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`,
-    // updated our DNS record, waited for all requests to move to `LoadBalancer2`
-    // then deleted `LoadBalancer`.
+    // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`, updated
+    // our DNS record, waited for all requests to move to `LoadBalancer2` then deleted
+    // `LoadBalancer`.
     const {applicationLoadBalancer: loadBalancer} = new AwsApplicationLoadBalancerFromCloudflare(
         parentConstruct,
         loadBalancerOptions.logicalName ?? "LoadBalancer",
@@ -472,8 +501,8 @@ export function createAwsAppOrApiService(
     const listener = loadBalancer.addListener("Listener", {
         protocol: ApplicationProtocol.HTTPS,
         port: 443,
-        // We only allow requests from Cloudflare IPs. This defaults to true and when
-        // true it updates the security group to allow connections from 0.0.0.0/0.
+        // We only allow requests from Cloudflare IPs. This defaults to true and when true
+        // it updates the security group to allow connections from 0.0.0.0/0.
         open: false,
         certificates: [
             new Certificate(parentConstruct, "Certificate", {
@@ -490,17 +519,16 @@ export function createAwsAppOrApiService(
         targets: [service],
         healthCheck: {
             path: loadBalancerOptions.healthCheckPath,
-            // Speed up deployment by requiring fewer healthy checks. Should only take
-            // ~10 seconds to consider the service healthy.
+            // Speed up deployment by requiring fewer healthy checks. Should only take ~10
+            // seconds to consider the service healthy.
             // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
             interval: Duration.seconds(5),
             timeout: Duration.seconds(2),
             healthyThresholdCount: 2,
             unhealthyThresholdCount: 2,
         },
-        // Break connections after 5 seconds when EC2 instances are being
-        // deregistered. Any long lived connections longer than 5 seconds will be
-        // aborted.
+        // Break connections after 5 seconds when EC2 instances are being deregistered. Any
+        // long lived connections longer than 5 seconds will be aborted.
         // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-connection-draining.html
         deregistrationDelay: Duration.seconds(5),
         ...loadBalancerOptions.listenerTarget,

@@ -1,4 +1,6 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {SitesInjection} from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -13,34 +15,78 @@ import {
     processAddFeedCandidateEntryJob,
 } from "~/server/feed/feed_actions.js";
 import {enableMockFileTaskCollectionEntityModelForTest} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
+import {enableMockFileTaskEntityModelForTest} from "~/server/files/data/get_file_task_entity_model_if_possible.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {addSearchAffinityEntityPointsForTest} from "~/server/search/data/table/search_entity_actions.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FeedPostEntryModel} from "~/shared/feed/feed_entry_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentId, SiteId, SiteSideBarId, SpaceId} from "~/shared/id/types/id_types.js";
+import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
-// Increase test timeout since some of these tests can take a while to setup
-// (e.g. they need to create hundreds of posts).
+// Increase test timeout since some of these tests can take a while to setup (e.g.
+// they need to create hundreds of posts).
 import.meta.jest.setTimeout(1000 * 30);
 
 import.meta.jest.useFakeTimers();
 
 enableMockFileTaskCollectionEntityModelForTest();
+enableMockFileTaskEntityModelForTest();
+
+// Mutable map that tests can configure for site access policies
+const siteAccessPolicies = new Map<SiteId, LocalAccessPolicy>();
+
+const sitesInjection: SitesInjection = {
+    dangerouslyGetSiteAccessPolicyWithoutAuthorization: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return policy;
+    },
+    getSitePreview: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return new SitePreviewModel({
+            id: siteId,
+            spaceId: generateId<SpaceId>(),
+            name: "Test Site",
+            firstEntityId: null,
+            createdTime: new Date(),
+            accessPolicy: policy,
+            version: 1,
+            rootContainerId: printSiteContainerId({
+                type: "SideBar",
+                id: generateId<SiteSideBarId>(),
+            }),
+            creatorId: generateId<AccountId>(),
+        });
+    },
+    // These tests don't exercise site membership writes — mock them as empty.
+    dangerouslyGetAddToSiteTransactionEntries: async () => [],
+    dangerouslyGetRemoveFromSiteTransactionEntries: async () => [],
+};
 
 const context = createTestContext({
     documentsInjection,
     forumInjection,
     tasksInjection,
+    sitesInjection,
     processJob: async (context, job) => {
         if (job.type === "AddFeedCandidateEntry") {
             await processAddFeedCandidateEntryJob(context, job);
@@ -52,9 +98,13 @@ const context = createTestContext({
     },
 });
 
-// This is unrelated to our feed tests but we want a sanity check in at least
-// one test file to make sure our Jest internals hack in `createTestContext()`
-// works and the timeout we set at the top of this file isn't lowered to 10s.
+beforeEach(() => {
+    siteAccessPolicies.clear();
+});
+
+// This is unrelated to our feed tests but we want a sanity check in at least one
+// test file to make sure our Jest internals hack in `createTestContext()` works
+// and the timeout we set at the top of this file isn't lowered to 10s.
 assert((globalThis as any)[Symbol.for("TEST_TIMEOUT_SYMBOL")] === 1000 * 30);
 
 test("creating a post will create a feed candidate", async () => {
@@ -443,7 +493,191 @@ test("private channels don\u2019t add feed candidates until made public", async 
     ]);
 });
 
-test("making a document public adds a feed candidate entry fifteen minutes later", async () => {
+test("public room chats add a feed candidate", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    const room = await TestChat.createRoom(session, {name: "Public Room"});
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+});
+
+test("public room chats don\u2019t add another feed candidate when reshared", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const room = await TestChat.createRoom(session, {
+        name: "Public Room",
+        access: "Public",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+
+    await room.roomAccess.revokeDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+
+    await room.roomAccess.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+});
+
+test("private room chats add an account feed candidate", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    const room = await TestChat.createRoom(session, {
+        name: "Private Room",
+        access: "Private",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        }),
+    ).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "Created",
+            },
+        },
+    ]);
+});
+
+test("private room chats add a feed candidate once when shared", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const room = await TestChat.createRoom(session, {
+        name: "Private Room",
+        access: "Private",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+
+    await room.roomAccess.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+
+    await room.roomAccess.revokeDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    await room.roomAccess.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "RoomChat",
+                chatId: room.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creatorId: session.account.id,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+});
+
+test("making a document public adds a feed candidate entry five minutes later", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -464,10 +698,7 @@ test("making a document public adds a feed candidate entry fifteen minutes later
 
     expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60 * 7);
-    await ProcessContextModule.waitForTestTasks();
-
-    import.meta.jest.advanceTimersByTime(1000 * 60 * 7);
+    import.meta.jest.advanceTimersByTime(1000 * 60 * 4);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
@@ -706,7 +937,37 @@ test("making a document public adds a feed candidate entry immediately if has ty
     ]);
 });
 
-test("making a public document adds a feed candidate entry fifteen minutes later", async () => {
+test("making a document public adds a feed candidate entry immediately for large pasted content", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    await document.type(session, "x".repeat(10_000));
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+
+    await document.access.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "Document",
+                documentId: document.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: session.account.id, from: null},
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+});
+
+test("making a public document adds a feed candidate entry five minutes later", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -729,13 +990,14 @@ test("making a public document adds a feed candidate entry fifteen minutes later
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
                 creator: {id: session.account.id, from: null},
+                excludeFromCreatorFeed: true,
                 event: "Created",
             },
         },
     ]);
 });
 
-test("private task collections don\u2019t add feed candidates until made public fifteen minutes later", async () => {
+test("private task collections don\u2019t add feed candidates until made public five minutes later", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -766,12 +1028,7 @@ test("private task collections don\u2019t add feed candidates until made public 
 
     expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60 * 7);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
-
-    import.meta.jest.advanceTimersByTime(1000 * 60 * 7);
+    import.meta.jest.advanceTimersByTime(1000 * 60 * 4);
     await ProcessContextModule.waitForTestTasks();
 
     expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
@@ -787,7 +1044,7 @@ test("private task collections don\u2019t add feed candidates until made public 
                 collectionId: collection1.id,
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
-                creatorId: session.account.id,
+                creator: {id: session.account.id, from: null},
                 event: "SharedWithAccessPolicyDefaultGrant",
             },
         },
@@ -843,7 +1100,8 @@ test("private task collections don\u2019t add feed candidates until made public 
                 collectionId: collection3.id,
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
-                creatorId: session.account.id,
+                creator: {id: session.account.id, from: null},
+                excludeFromCreatorFeed: true,
                 event: "Created",
             },
         },
@@ -854,7 +1112,7 @@ test("private task collections don\u2019t add feed candidates until made public 
                 collectionId: collection1.id,
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
-                creatorId: session.account.id,
+                creator: {id: session.account.id, from: null},
                 event: "SharedWithAccessPolicyDefaultGrant",
             },
         },
@@ -910,7 +1168,7 @@ test("private task collections don\u2019t add feed candidates until made public 
                 collectionId: collection2.id,
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
-                creatorId: session.account.id,
+                creator: {id: session.account.id, from: null},
                 event: "SharedWithAccessPolicyDefaultGrant",
             },
         },
@@ -921,8 +1179,9 @@ test("private task collections don\u2019t add feed candidates until made public 
                 collectionId: collection3.id,
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
-                creatorId: session.account.id,
+                creator: {id: session.account.id, from: null},
                 event: "Created",
+                excludeFromCreatorFeed: true,
             },
         },
         {
@@ -932,7 +1191,7 @@ test("private task collections don\u2019t add feed candidates until made public 
                 collectionId: collection1.id,
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
-                creatorId: session.account.id,
+                creator: {id: session.account.id, from: null},
                 event: "SharedWithAccessPolicyDefaultGrant",
             },
         },
@@ -980,7 +1239,7 @@ test("private task collections don\u2019t add feed candidates until made public 
                 collectionId: collection.id,
                 sharerId: session.account.id,
                 sharedTime: expect.any(Date),
-                creatorId: session.account.id,
+                creator: {id: session.account.id, from: null},
                 event: "SharedWithAccessPolicyDefaultGrant",
             },
         },
@@ -1201,9 +1460,18 @@ test("creating a private document adds entry to own feed then when shared to spa
     ).toEqual({
         wasFeedCreated: true,
         startCursor: [0, 0],
-        endCursor: [0, 0],
+        endCursor: [0, 1],
         hasMoreEntries: false,
         entries: [
+            {
+                type: "Document",
+                document: expect.objectContaining({
+                    id: document.id,
+                }),
+                sharer: await session1.get(),
+                sharedTime: expect.any(Date),
+                event: "Created",
+            },
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
@@ -1251,8 +1519,8 @@ test("creating a private document adds entry to own feed then when shared to spa
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         wasFeedCreated: false,
-        startCursor: [1, 0],
-        endCursor: [0, 0],
+        startCursor: [0, 0],
+        endCursor: [0, 1],
         hasMoreEntries: false,
         entries: [
             {
@@ -1311,8 +1579,8 @@ test("creating a private document adds entry to own feed then when shared to spa
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         wasFeedCreated: false,
-        startCursor: [1, 0],
-        endCursor: [0, 0],
+        startCursor: [0, 0],
+        endCursor: [0, 1],
         hasMoreEntries: false,
         entries: [
             {
@@ -1371,8 +1639,8 @@ test("creating a private document adds entry to own feed then when shared to spa
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         wasFeedCreated: false,
-        startCursor: [1, 0],
-        endCursor: [0, 0],
+        startCursor: [0, 0],
+        endCursor: [0, 1],
         hasMoreEntries: false,
         entries: [
             {
@@ -1456,9 +1724,18 @@ test("creating a private task collection adds entry to own feed then when shared
     ).toEqual({
         wasFeedCreated: true,
         startCursor: [0, 0],
-        endCursor: [0, 0],
+        endCursor: [0, 1],
         hasMoreEntries: false,
         entries: [
+            {
+                type: "TaskCollection",
+                collection: expect.objectContaining({
+                    collection: expect.objectContaining({id: collection.id}),
+                }),
+                sharer: await session1.get(),
+                sharedTime: expect.any(Date),
+                event: "Created",
+            },
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
@@ -1506,8 +1783,8 @@ test("creating a private task collection adds entry to own feed then when shared
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         wasFeedCreated: false,
-        startCursor: [1, 0],
-        endCursor: [0, 0],
+        startCursor: [0, 0],
+        endCursor: [0, 1],
         hasMoreEntries: false,
         entries: [
             {
@@ -1566,8 +1843,8 @@ test("creating a private task collection adds entry to own feed then when shared
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         wasFeedCreated: false,
-        startCursor: [1, 0],
-        endCursor: [0, 0],
+        startCursor: [0, 0],
+        endCursor: [0, 1],
         hasMoreEntries: false,
         entries: [
             {
@@ -1626,8 +1903,8 @@ test("creating a private task collection adds entry to own feed then when shared
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         wasFeedCreated: false,
-        startCursor: [1, 0],
-        endCursor: [0, 0],
+        startCursor: [0, 0],
+        endCursor: [0, 1],
         hasMoreEntries: false,
         entries: [
             {
@@ -1696,6 +1973,674 @@ test("creating a private task collection adds entry to own feed then when shared
             },
         ],
     });
+});
+
+test("create project task in same transaction adds account candidate entry with UpdatedToProjectLayout", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, otherSession] = await space.createSessions(2);
+
+    const projectTask = await TestTask.create(creatorSession, {layout: "Project"});
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === projectTask.id);
+    expect(taskCandidateEntries).toEqual([]);
+
+    const creatorTaskAccountCandidateEntries = (
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: creatorSession.account.id,
+            limit: 100,
+        })
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === projectTask.id);
+    expect(creatorTaskAccountCandidateEntries).toEqual([
+        {
+            index: expect.any(Number),
+            entry: {
+                type: "Task",
+                taskId: projectTask.id,
+                sharerId: creatorSession.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: creatorSession.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "UpdatedToProjectLayout",
+            },
+        },
+    ]);
+
+    const creatorFeedUpdate = await getAndUpdateFeedEntries(creatorSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(creatorFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: projectTask.id}),
+            }),
+            event: "UpdatedToProjectLayout",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+
+    const otherFeedUpdate = await getAndUpdateFeedEntries(otherSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(otherFeedUpdate.entries).toEqual([expect.objectContaining({type: "Welcome"})]);
+});
+
+test("update regular private task to project in separate transaction adds account candidate entry", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, otherSession] = await space.createSessions(2);
+
+    const task = await TestTask.create(creatorSession);
+    await task.updateLayout(creatorSession, "Project");
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntries).toEqual([]);
+
+    const creatorTaskAccountCandidateEntries = (
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: creatorSession.account.id,
+            limit: 100,
+        })
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(creatorTaskAccountCandidateEntries).toEqual([
+        {
+            index: expect.any(Number),
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: creatorSession.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: creatorSession.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "UpdatedToProjectLayout",
+            },
+        },
+    ]);
+
+    const otherTaskAccountCandidateEntries = (
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: otherSession.account.id,
+            limit: 100,
+        })
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(otherTaskAccountCandidateEntries).toEqual([]);
+});
+
+test("update regular public task to project adds space candidate entry", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, otherSession] = await space.createSessions(2);
+
+    const parentTask = await TestTask.create(creatorSession);
+    await parentTask.access.grantDefault(creatorSession);
+    const task = await TestTask.create(creatorSession);
+    await task.updateParentTask(creatorSession, parentTask);
+    await task.updateLayout(creatorSession, "Project");
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntries).toEqual([
+        {
+            index: expect.any(Number),
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: creatorSession.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: creatorSession.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "UpdatedToProjectLayout",
+            },
+        },
+    ]);
+
+    const creatorFeedUpdate = await getAndUpdateFeedEntries(creatorSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(creatorFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: task.id}),
+            }),
+            event: "UpdatedToProjectLayout",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+
+    const otherFeedUpdate = await getAndUpdateFeedEntries(otherSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(otherFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: task.id}),
+            }),
+            event: "UpdatedToProjectLayout",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+});
+
+test("update to project by non-creator adds account candidate for updater account", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, updaterSession] = await space.createSessions(2);
+
+    const task = await TestTask.create(creatorSession);
+    await task.access.grant(creatorSession, updaterSession, "Edit");
+    await task.updateLayout(updaterSession, "Project");
+    await ProcessContextModule.waitForTestTasks();
+
+    const creatorTaskAccountCandidateEntries = (
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: creatorSession.account.id,
+            limit: 100,
+        })
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(creatorTaskAccountCandidateEntries).toEqual([]);
+
+    const updaterTaskAccountCandidateEntries = (
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: updaterSession.account.id,
+            limit: 100,
+        })
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(updaterTaskAccountCandidateEntries).toEqual([
+        {
+            index: expect.any(Number),
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: updaterSession.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: creatorSession.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "UpdatedToProjectLayout",
+            },
+        },
+    ]);
+});
+
+test("updating to project twice is deduped", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+    await task.updateLayout(session, "Project");
+    await task.updateLayout(session, "Project");
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskAccountCandidateEntries = (
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: session.account.id,
+            limit: 100,
+        })
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskAccountCandidateEntries).toEqual([
+        {
+            index: expect.any(Number),
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: session.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "UpdatedToProjectLayout",
+            },
+        },
+    ]);
+});
+
+test("adding public collection to project task promotes to shared project entry", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, otherSession] = await space.createSessions(2);
+
+    const task = await TestTask.create(creatorSession, {layout: "Project"});
+    const collection = await TestTaskCollection.create(creatorSession, {access: "Public"});
+    await ProcessContextModule.waitForTestTasks();
+
+    await task.addCollection(creatorSession, collection);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntries).toEqual([
+        {
+            index: expect.any(Number),
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: creatorSession.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: creatorSession.account.id, from: null},
+                excludeFromCreatorFeed: true,
+                event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+
+    const creatorFeedUpdate = await getAndUpdateFeedEntries(creatorSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(creatorFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "TaskCollection",
+            collection: expect.objectContaining({
+                collection: expect.objectContaining({id: collection.id}),
+            }),
+            event: "Created",
+        }),
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: task.id}),
+            }),
+            event: "UpdatedToProjectLayout",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+
+    const otherFeedUpdate = await getAndUpdateFeedEntries(otherSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(otherFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: task.id}),
+            }),
+            event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+});
+
+test("adding private collection to project task does not add shared project entry", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session, {layout: "Project"});
+    const collection = await TestTaskCollection.create(session, {access: "Private"});
+    await task.addCollection(session, collection);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntries).toEqual([]);
+});
+
+test("updating parent to public parent promotes to shared project entry", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, otherSession] = await space.createSessions(2);
+
+    const parentTask = await TestTask.create(creatorSession);
+    const childTask = await TestTask.create(creatorSession, {layout: "Project"});
+    await parentTask.access.grantDefault(creatorSession);
+    await ProcessContextModule.waitForTestTasks();
+
+    await childTask.updateParentTask(creatorSession, parentTask);
+    await ProcessContextModule.waitForTestTasks();
+
+    const childTaskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === childTask.id);
+    expect(childTaskCandidateEntries).toEqual([
+        {
+            index: expect.any(Number),
+            entry: {
+                type: "Task",
+                taskId: childTask.id,
+                sharerId: creatorSession.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: creatorSession.account.id, from: null},
+                excludeFromCreatorFeed: true,
+                event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+
+    const creatorFeedUpdate = await getAndUpdateFeedEntries(creatorSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(creatorFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: childTask.id}),
+            }),
+            event: "UpdatedToProjectLayout",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+
+    const otherFeedUpdate = await getAndUpdateFeedEntries(otherSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(otherFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: childTask.id}),
+            }),
+            event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+});
+
+test("updating parent to private parent does not add shared project entry", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const parentTask = await TestTask.create(session);
+    const childTask = await TestTask.create(session, {layout: "Project"});
+    await childTask.updateParentTask(session, parentTask);
+    await ProcessContextModule.waitForTestTasks();
+
+    const childTaskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === childTask.id);
+    expect(childTaskCandidateEntries).toEqual([]);
+});
+
+test("inherited-share event is deduped once task already in AddedCandidate state", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session, {layout: "Project"});
+    const collection1 = await TestTaskCollection.create(session, {access: "Public"});
+    const collection2 = await TestTaskCollection.create(session, {access: "Public"});
+    await task.addCollection(session, collection1);
+    await task.addCollection(session, collection2);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(
+        item =>
+            item.entry.type === "Task" &&
+            item.entry.taskId === task.id &&
+            item.entry.event === "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+    );
+    expect(taskCandidateEntries).toEqual([
+        expect.objectContaining({
+            entry: expect.objectContaining({
+                type: "Task",
+                taskId: task.id,
+                event: "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+            }),
+        }),
+    ]);
+});
+
+test("direct share of regular task without children or collections is delayed 5 minutes", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+    await task.access.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntriesImmediately = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntriesImmediately).toEqual([]);
+
+    import.meta.jest.advanceTimersByTime(1000 * (4 * 60 + 59));
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntriesBeforeFiveMinutes = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntriesBeforeFiveMinutes).toEqual([]);
+
+    import.meta.jest.advanceTimersByTime(1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntriesAfterFiveMinutes = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntriesAfterFiveMinutes).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: session.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+});
+
+test("direct share of regular task with child is immediate", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const parentTask = await TestTask.create(session);
+    await TestTask.create(session, {parent: parentTask});
+    await ProcessContextModule.waitForTestTasks();
+
+    await parentTask.access.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === parentTask.id);
+    expect(taskCandidateEntries).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "Task",
+                taskId: parentTask.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: session.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+});
+
+test("direct share of regular task with collection is immediate", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+    const collection = await TestTaskCollection.create(session, {access: "Private"});
+    await task.addCollection(session, collection);
+    await ProcessContextModule.waitForTestTasks();
+
+    await task.access.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntries).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: session.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: session.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+});
+
+test("direct share of project task is immediate and excludes creator when creator already got account entry", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, otherSession] = await space.createSessions(2);
+
+    const task = await TestTask.create(creatorSession, {layout: "Project"});
+    await ProcessContextModule.waitForTestTasks();
+
+    await task.access.grantDefault(creatorSession);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntries).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: creatorSession.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: creatorSession.account.id, from: null},
+                excludeFromCreatorFeed: true,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+
+    const creatorFeedUpdate = await getAndUpdateFeedEntries(creatorSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(creatorFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: task.id}),
+            }),
+            event: "UpdatedToProjectLayout",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+
+    const otherFeedUpdate = await getAndUpdateFeedEntries(otherSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(otherFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: task.id}),
+            }),
+            event: "SharedWithAccessPolicyDefaultGrant",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+});
+
+test("direct share includes creator when no prior creator-only entry exists", async () => {
+    const space = await TestSpace.create(context);
+    const [creatorSession, otherSession] = await space.createSessions(2);
+
+    const task = await TestTask.create(creatorSession);
+    await TestTask.create(creatorSession, {parent: task});
+    await ProcessContextModule.waitForTestTasks();
+
+    await task.access.grantDefault(creatorSession);
+    await ProcessContextModule.waitForTestTasks();
+
+    const taskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(item => item.entry.type === "Task" && item.entry.taskId === task.id);
+    expect(taskCandidateEntries).toEqual([
+        {
+            index: 0,
+            entry: {
+                type: "Task",
+                taskId: task.id,
+                sharerId: creatorSession.account.id,
+                sharedTime: expect.any(Date),
+                creator: {id: creatorSession.account.id, from: null},
+                excludeFromCreatorFeed: false,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            },
+        },
+    ]);
+
+    const creatorFeedUpdate = await getAndUpdateFeedEntries(creatorSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(creatorFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: task.id}),
+            }),
+            event: "SharedWithAccessPolicyDefaultGrant",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+
+    const otherFeedUpdate = await getAndUpdateFeedEntries(otherSession.action(), {
+        spaceId: space.id,
+        limit: 500,
+    });
+    expect(otherFeedUpdate.entries).toEqual([
+        expect.objectContaining({
+            type: "Task",
+            task: expect.objectContaining({
+                task: expect.objectContaining({id: task.id}),
+            }),
+            event: "SharedWithAccessPolicyDefaultGrant",
+        }),
+        expect.objectContaining({type: "Welcome"}),
+    ]);
+});
+
+test("direct share is one-time across revoke and re-grant", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session, {layout: "Project"});
+    await task.access.grantDefault(session);
+    await task.access.revokeDefault(session);
+    await task.access.grantDefault(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    const sharedTaskCandidateEntries = (
+        await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})
+    ).filter(
+        item =>
+            item.entry.type === "Task" &&
+            item.entry.taskId === task.id &&
+            item.entry.event === "SharedWithAccessPolicyDefaultGrant",
+    );
+    expect(sharedTaskCandidateEntries).toEqual([
+        expect.objectContaining({
+            entry: expect.objectContaining({
+                type: "Task",
+                taskId: task.id,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            }),
+        }),
+    ]);
 });
 
 test("can add feed candidates", async () => {
@@ -2608,8 +3553,8 @@ test("get and update feed gets new entries every call", async () => {
         ],
     });
 
-    // Currently, we put entries initiated by a session in their own feed. Should
-    // we change this to only show other people's stuff?
+    // Currently, we put entries initiated by a session in their own feed. Should we
+    // change this to only show other people's stuff?
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
@@ -4292,7 +5237,8 @@ test("posts from high-affinity accounts appear before posts from low-affinity ac
     const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Add affinity points for session2's account (high affinity) from session3's perspective.
+    // Add affinity points for session2's account (high affinity) from session3's
+    // perspective.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session3.account.id,
@@ -4300,9 +5246,9 @@ test("posts from high-affinity accounts appear before posts from low-affinity ac
         points: 1000,
     });
 
-    // Create posts: session1 posts first (older), then session2 posts (newer).
-    // Without ranking, the feed would show session2's post first (chronological).
-    // With ranking, session2's post should still be first (high affinity + newer).
+    // Create posts: session1 posts first (older), then session2 posts (newer). Without
+    // ranking, the feed would show session2's post first (chronological). With
+    // ranking, session2's post should still be first (high affinity + newer).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
@@ -4331,7 +5277,8 @@ test("posts from high-affinity accounts appear before posts from low-affinity ac
     const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Add affinity points for session2's account (high affinity) from session3's perspective.
+    // Add affinity points for session2's account (high affinity) from session3's
+    // perspective.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session3.account.id,
@@ -4339,9 +5286,9 @@ test("posts from high-affinity accounts appear before posts from low-affinity ac
         points: 1000,
     });
 
-    // Create posts: session1 posts first (older), then session2 posts (newer).
-    // Without ranking, the feed would show session2's post first (chronological).
-    // With ranking, session2's post should still be first (high affinity + newer).
+    // Create posts: session1 posts first (older), then session2 posts (newer). Without
+    // ranking, the feed would show session2's post first (chronological). With
+    // ranking, session2's post should still be first (high affinity + newer).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel.createPost(session2);
     await ProcessContextModule.waitForTestTasks();
@@ -4371,9 +5318,9 @@ test("posts in high-affinity channels appear before posts in low-affinity channe
     const channel2 = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Add channel affinity points for channel1 (space-level affinity).
-    // Note: Channel affinity is space-level, not account-level, so any account
-    // viewing high-activity content from that channel increases its ranking.
+    // Add channel affinity points for channel1 (space-level affinity). Note: Channel
+    // affinity is space-level, not account-level, so any account viewing high-activity
+    // content from that channel increases its ranking.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session2.account.id,
@@ -4381,7 +5328,8 @@ test("posts in high-affinity channels appear before posts in low-affinity channe
         points: 1000,
     });
 
-    // Create posts: first in channel2 (older, low affinity), then channel1 (newer, high affinity).
+    // Create posts: first in channel2 (older, low affinity), then channel1 (newer,
+    // high affinity).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel2.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
@@ -4411,9 +5359,9 @@ test("posts in high-affinity channels appear before posts in low-affinity channe
     const channel2 = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Add channel affinity points for channel1 (space-level affinity).
-    // Note: Channel affinity is space-level, not account-level, so any account
-    // viewing high-activity content from that channel increases its ranking.
+    // Add channel affinity points for channel1 (space-level affinity). Note: Channel
+    // affinity is space-level, not account-level, so any account viewing high-activity
+    // content from that channel increases its ranking.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session2.account.id,
@@ -4421,7 +5369,8 @@ test("posts in high-affinity channels appear before posts in low-affinity channe
         points: 1000,
     });
 
-    // Create posts: first in channel2 (older, low affinity), then channel1 (newer, high affinity).
+    // Create posts: first in channel2 (older, low affinity), then channel1 (newer,
+    // high affinity).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel1.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
@@ -4450,8 +5399,8 @@ test("diversity: avoids consecutive posts from the same author", async () => {
     const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Give both session1 and session2 some affinity so their posts are ranked,
-    // but give session1 higher affinity so their posts would normally cluster.
+    // Give both session1 and session2 some affinity so their posts are ranked, but
+    // give session1 higher affinity so their posts would normally cluster.
     await addSearchAffinityEntityPointsForTest(space.systemAction(), {
         spaceId: space.id,
         accountId: session3.account.id,
@@ -4582,8 +5531,8 @@ test("zero-affinity entries use chronological order as tiebreaker", async () => 
     const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
-    // Create posts without any affinity data. They should appear in
-    // chronological order (newest first).
+    // Create posts without any affinity data. They should appear in chronological
+    // order (newest first).
     import.meta.jest.advanceTimersByTime(1000 * 60);
     const post1 = await channel.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
@@ -4637,5 +5586,339 @@ test("welcome entry always appears at the end of the feed", async () => {
     expect(lastEntry).toMatchObject({
         type: "Welcome",
         addedTime: expect.any(Date),
+    });
+});
+
+// =============================================================================
+// Site access policy feed candidate tests
+// =============================================================================
+
+describe("site access policy feed candidates", () => {
+    test("creating document in public site adds feed candidate with Created event", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const site = await TestSite.create(session, {access: "Private"});
+
+        // Create public site
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+
+        // Create entity with site access policy
+        const document = await TestDocument.create(session, {
+            access: {type: "Site", siteId: site.id},
+            sitePosition: {
+                siteId: site.id,
+                parentId: site.initialRootContainerId,
+                orderKey: assertOrderKey("a0"),
+            },
+        });
+
+        // Wait for delayed feed candidate entry (documents have a 15 min delay)
+        import.meta.jest.advanceTimersByTime(1000 * 60 * 15);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            {
+                index: 0,
+                entry: {
+                    type: "Document",
+                    documentId: document.id,
+                    sharerId: session.account.id,
+                    sharedTime: expect.any(Date),
+                    creator: {id: session.account.id, from: null},
+                    event: "Created",
+                    excludeFromCreatorFeed: true,
+                },
+            },
+        ]);
+    });
+
+    test("creating channel in public site adds feed candidate with Created event", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        // Create public site
+        const site = await TestSite.create(session, {access: "Private"});
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+
+        // Create channel with site access policy
+        const channel = await TestChannel.create(session, {
+            access: {
+                type: "Site",
+                siteId: site.id,
+                position: {
+                    parentId: site.initialRootContainerId,
+                    orderKey: assertOrderKey("a0"),
+                },
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            {
+                index: 0,
+                entry: {
+                    type: "Channel",
+                    channelId: channel.id,
+                    sharerId: session.account.id,
+                    sharedTime: expect.any(Date),
+                    creatorId: session.account.id,
+                    event: "Created",
+                },
+            },
+        ]);
+    });
+
+    test("creating room chat in public site adds feed candidate with Created event", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        // Create public site
+        const site = await TestSite.create(session, {access: "Private"});
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+
+        // Create room with site access policy
+        const room = await TestChat.createRoom(session, {
+            name: "Site Room",
+            access: {
+                type: "Site",
+                siteId: site.id,
+                position: {parentId: site.initialRootContainerId, orderKey: assertOrderKey("a0")},
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            {
+                index: 0,
+                entry: {
+                    type: "RoomChat",
+                    chatId: room.id,
+                    sharerId: session.account.id,
+                    sharedTime: expect.any(Date),
+                    creatorId: session.account.id,
+                    event: "Created",
+                },
+            },
+        ]);
+    });
+
+    test("creating task collection in public site adds feed candidate with Created event", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        // Create public site
+        const site = await TestSite.create(session, {access: "Private"});
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+
+        // Create task collection with site access policy
+        const taskCollection = await TestTaskCollection.create(session, {
+            access: {
+                type: "Site",
+                siteId: site.id,
+                position: {parentId: site.initialRootContainerId, orderKey: assertOrderKey("a0")},
+            },
+        });
+
+        // Wait for delayed feed candidate entry (task collections have a 15 min delay)
+        import.meta.jest.advanceTimersByTime(1000 * 60 * 15);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            {
+                index: 0,
+                entry: {
+                    type: "TaskCollection",
+                    collectionId: taskCollection.id,
+                    sharerId: session.account.id,
+                    sharedTime: expect.any(Date),
+                    creator: {id: session.account.id, from: null},
+                    event: "Created",
+                    excludeFromCreatorFeed: true,
+                },
+            },
+        ]);
+    });
+
+    test("adding private document to public site creates feed candidate with SharedWithAccessPolicyDefaultGrant", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        // Create a private document first
+        const document = await TestDocument.create(session, {access: "Private"});
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+
+        // Create public site
+        const site = await TestSite.create(session, {access: "Private"});
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        // Add document to site (changing from private to site access policy)
+        await document.access.set(session, {
+            type: "Site",
+            siteId: site.id,
+            position: {
+                parentId: site.initialRootContainerId,
+                orderKey: assertOrderKey("a0"),
+            },
+        });
+
+        // Wait for delayed feed candidate entry
+        import.meta.jest.advanceTimersByTime(1000 * 60 * 15);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            {
+                index: 0,
+                entry: {
+                    type: "Document",
+                    documentId: document.id,
+                    sharerId: session.account.id,
+                    sharedTime: expect.any(Date),
+                    creator: {id: session.account.id, from: null},
+                    event: "SharedWithAccessPolicyDefaultGrant",
+                },
+            },
+        ]);
+    });
+
+    test("adding private channel to public site creates feed candidate with SharedWithAccessPolicyDefaultGrant", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        // Create a private channel first
+        const channel = await TestChannel.create(session, {access: "Private"});
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+
+        // Create public site
+        const site = await TestSite.create(session, {access: "Private"});
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        // Add channel to site
+        await channel.access.set(session, {
+            type: "Site",
+            siteId: site.id,
+            position: {
+                parentId: site.initialRootContainerId,
+                orderKey: assertOrderKey("a0"),
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            {
+                index: 0,
+                entry: {
+                    type: "Channel",
+                    channelId: channel.id,
+                    sharerId: session.account.id,
+                    sharedTime: expect.any(Date),
+                    creatorId: session.account.id,
+                    event: "SharedWithAccessPolicyDefaultGrant",
+                },
+            },
+        ]);
+    });
+
+    test("adding private room chat to public site creates feed candidate with SharedWithAccessPolicyDefaultGrant", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        // Create a private room first
+        const room = await TestChat.createRoom(session, {
+            name: "Private Room",
+            access: "Private",
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual(
+            [],
+        );
+
+        // Create public site
+        const site = await TestSite.create(session, {access: "Private"});
+        siteAccessPolicies.set(site.id, {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        });
+
+        // Add room to site
+        await room.roomAccess.set(session, {
+            type: "Site",
+            siteId: site.id,
+            position: {
+                parentId: site.initialRootContainerId,
+                orderKey: assertOrderKey("a0"),
+            },
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([
+            {
+                index: 0,
+                entry: {
+                    type: "RoomChat",
+                    chatId: room.id,
+                    sharerId: session.account.id,
+                    sharedTime: expect.any(Date),
+                    creatorId: session.account.id,
+                    event: "SharedWithAccessPolicyDefaultGrant",
+                },
+            },
+        ]);
     });
 });

@@ -3,11 +3,10 @@
 /**
  * The typography styles available in our product.
  *
- * We only allow certain combinations of font families and weights
- * for performance.
+ * We only allow certain combinations of font families and weights for performance.
  *
- * Though for variable fonts we may provide more style variants since
- * they're free to add.
+ * Though for variable fonts we may provide more style variants since they're free
+ * to add.
  */
 export function createFontStyles({
     interFontFamily,
@@ -31,20 +30,19 @@ export function createFontStyles({
             fontStyle: "normal",
             // You must manually enable `calt` to get contextual alternatives.
             fontFeatureSettings: '"calt" off',
-            // Don't allow bold or italic synthesis. Bold/italic fonts must be
-            // explicitly defined by the `@font-face` rule.
+            // Don't allow bold or italic synthesis. Bold/italic fonts must be explicitly
+            // defined by the `@font-face` rule.
             //
-            // Inter is a variable font with an axis for bold text. There's a separate
-            // Inter file for italic text.
+            // Inter is a variable font with an axis for bold text. There's a separate Inter
+            // file for italic text.
             //
             // Commit Mono is a variable font with an axis for bold text and italic text.
             // `font-style: italic` won't work with Commit Mono and you need to set
             // `fontFeatureSettings: '"ital" 1'` with Commit Mono's other features.
             fontSynthesis: "none",
         },
-        // Usually `font-weight: 500` maps to the name "Medium" but since we want to
-        // make it clear the style is bold we name it "Semi Bold" so bold is in the
-        // name.
+        // Usually `font-weight: 500` maps to the name "Medium" but since we want to make
+        // it clear the style is bold we name it "Semi Bold" so bold is in the name.
         "semi-bold": {
             fontFamily: interFontFamily,
             fontWeight: 500,
@@ -52,8 +50,8 @@ export function createFontStyles({
             fontFeatureSettings: '"calt" off',
             fontSynthesis: "none",
         },
-        // Usually `font-weight: 600` maps to the name "Semi Bold" but since it is the
-        // most common heavy weight in our product we call it simply "Bold".
+        // Usually `font-weight: 600` maps to the name "Semi Bold" but since it is the most
+        // common heavy weight in our product we call it simply "Bold".
         bold: {
             fontFamily: interFontFamily,
             fontWeight: 600,
@@ -61,8 +59,8 @@ export function createFontStyles({
             fontFeatureSettings: '"calt" off',
             fontSynthesis: "none",
         },
-        // Usually `font-weight: 700` maps to the name "Bold" but since it is less
-        // common in our product than `font-weight: 600` we call it "Extra Bold".
+        // Usually `font-weight: 700` maps to the name "Bold" but since it is less common
+        // in our product than `font-weight: 600` we call it "Extra Bold".
         "extra-bold": {
             fontFamily: interFontFamily,
             fontWeight: 700,
@@ -70,9 +68,8 @@ export function createFontStyles({
             fontFeatureSettings: '"calt" off',
             fontSynthesis: "none",
         },
-        // `extra-bold` and `ultra-bold` usually refer to the same thing but since
-        // our bold weight starts at 600 we use `ultra-bold` as an intermediate value
-        // to catch up.
+        // `extra-bold` and `ultra-bold` usually refer to the same thing but since our bold
+        // weight starts at 600 we use `ultra-bold` as an intermediate value to catch up.
         "ultra-bold": {
             fontFamily: interFontFamily,
             fontWeight: 800,
@@ -93,13 +90,13 @@ export function createFontStyles({
             fontStyle: "normal",
             fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
             fontSynthesis: "none",
-            // Reduce letter spacing on monospace font. Commit Mono is wider than Inter
-            // because each letter (even "i" and "l") have the same width. Reduced letter
-            // spacing helps even things out.
+            // Reduce letter spacing on monospace font. Commit Mono is wider than Inter because
+            // each letter (even "i" and "l") have the same width. Reduced letter spacing helps
+            // even things out.
             //
-            // The custom `letter-spacing` does conflict with letter spacing from font
-            // sizes! We need to be careful when applying both code and font size to let
-            // the letter spacing from our font win.
+            // The custom `letter-spacing` does conflict with letter spacing from font sizes!
+            // We need to be careful when applying both code and font size to let the letter
+            // spacing from our font win.
             letterSpacing: "-0.02em",
         },
         code: {
@@ -108,13 +105,13 @@ export function createFontStyles({
             fontStyle: "normal",
             fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
             fontSynthesis: "none",
-            // Reduce letter spacing on monospace font. Commit Mono is wider than Inter
-            // because each letter (even "i" and "l") have the same width. Reduced letter
-            // spacing helps even things out.
+            // Reduce letter spacing on monospace font. Commit Mono is wider than Inter because
+            // each letter (even "i" and "l") have the same width. Reduced letter spacing helps
+            // even things out.
             //
-            // The custom `letter-spacing` does conflict with letter spacing from font
-            // sizes! We need to be careful when applying both code and font size to let
-            // the letter spacing from our font win.
+            // The custom `letter-spacing` does conflict with letter spacing from font sizes!
+            // We need to be careful when applying both code and font size to let the letter
+            // spacing from our font win.
             letterSpacing: "-0.02em",
         },
         "code-semi-bold": {
@@ -141,8 +138,8 @@ export function createFontStyles({
             fontSynthesis: "none",
             letterSpacing: "-0.02em",
         },
-        // Styles that truncates text to a single line and shows ellipsis for
-        // truncated characters.
+        // Styles that truncates text to a single line and shows ellipsis for truncated
+        // characters.
         truncate: {
             fontFamily: interFontFamily,
             fontWeight: 400,
@@ -279,10 +276,11 @@ export const fontSizesBySpacingScale = {
         },
         large: {
             // 17px is the default size for text on iOS according to the [Human Interface
-            // Guidelines][1]. According to our font scale math this value should be 18px
-            // but that looks a little too large so we manually adjust down to 17px.
+            // Guidelines][1]. According to our font scale math this value should be 18px but
+            // that looks a little too large so we manually adjust down to 17px.
             //
-            // [1]: https://developer.apple.com/design/human-interface-guidelines/typography#Specifications
+            // [1]:
+            //     https://developer.apple.com/design/human-interface-guidelines/typography#Specifications
             fontSize: 17,
             letterSpacing: "-0.0128em",
             lineHeight: "1.25rem",
@@ -322,9 +320,9 @@ export const fontSizesBySpacingScale = {
             lineHeight: "1.625rem",
         },
     },
-    // Font size in between 300 and 400 used for our heading scale on mobile.
-    // Should only be used for mobile headings, not considered a part of our
-    // general typography scale.
+    // Font size in between 300 and 400 used for our heading scale on mobile. Should
+    // only be used for mobile headings, not considered a part of our general
+    // typography scale.
     "350-narrow-heading": {
         small: {
             fontSize: 19,

@@ -13,15 +13,15 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
 /**
- * The token agent class is responsible for RSA key cryptography between
- * services in our system. This class does tasks related to private keys.
+ * The token agent class is responsible for RSA key cryptography between services
+ * in our system. This class does tasks related to private keys.
  * `TokenAgentPublicSide` does tasks related to public keys.
  *
- * A service has only its own private key and has the public keys for every
- * other service.
+ * A service has only its own private key and has the public keys for every other
+ * service.
  */
-// TODO(calebmer, #security): We should eventually implement key rotation. No
-// human should ever have access to our system's private keys.
+// TODO(calebmer, #security): We should eventually implement key rotation. No human
+// should ever have access to our system's private keys.
 export class TokenAgentPrivateSide {
     protected readonly _serviceName: TokenServiceName;
     protected readonly _servicePrivateKeyForRs256: KeyLike;
@@ -71,22 +71,21 @@ export class TokenAgentPrivateSide {
     }
 
     /**
-     * Sign a token for a specific audience that only lives for a short period of
-     * time. (Less than two minutes.)
+     * Sign a token for a specific audience that only lives for a short period of time.
+     * (Less than two minutes.)
      *
      * Uses RS256 as the signing algorithm. Which is an asymmetric cryptography
-     * algorithm. So each service has its own private key and other services verify
-     * it against their public key. If a service's private key is discovered by an
-     * attacker they still wouldn't be able to create keys that let them
-     * impersonate another service. (e.g. If `FileProcessorService` is compromised
-     * an attacker couldn't use that access to create a session token as
-     * `AppService`.)
+     * algorithm. So each service has its own private key and other services verify it
+     * against their public key. If a service's private key is discovered by an
+     * attacker they still wouldn't be able to create keys that let them impersonate
+     * another service. (e.g. If `FileProcessorService` is compromised an attacker
+     * couldn't use that access to create a session token as `AppService`.)
      *
      * This is used to authenticate the execution of a single action.
      *
-     * Dangerous since if an attacker can call this function with whatever input
-     * they want, then they can impersonate any account! So be careful with what
-     * you call this function with.
+     * Dangerous since if an attacker can call this function with whatever input they
+     * want, then they can impersonate any account! So be careful with what you call
+     * this function with.
      */
     public dangerouslySignShortLivedToken(
         audience: TokenServiceName | Array<TokenServiceName>,
@@ -125,35 +124,34 @@ export class TokenAgentPrivateSide {
     }
 
     /**
-     * Sign a URL for a specific audience that only lives for a short period of
-     * time. (Less than two minutes by default.) We only sign the `pathname` and
-     * `search` part of the URL.
+     * Sign a URL for a specific audience that only lives for a short period of time.
+     * (Less than two minutes by default.) We only sign the `pathname` and `search`
+     * part of the URL.
      *
      * Uses HS256 as the signing algorithm. Unlike RS256 (used by
-     * `dangerouslySignUrl()`) HS256 is a symmetric signing algorithm.
-     * This means all instances of `TokenAgent` across all our services have the
-     * same HS256 secret key. To learn more about these two algorithms read "[RS256
-     * vs HS256: What's The Difference?][1]". If an attacker gets access to
-     * `FileProcessorService` than they'll be able to sign URLs same as
-     * `AppService` since they have the secret key.
+     * `dangerouslySignUrl()`) HS256 is a symmetric signing algorithm. This means all
+     * instances of `TokenAgent` across all our services have the same HS256 secret
+     * key. To learn more about these two algorithms read "[RS256 vs HS256: What's The
+     * Difference?][1]". If an attacker gets access to `FileProcessorService` than
+     * they'll be able to sign URLs same as `AppService` since they have the secret
+     * key.
      *
-     * So HS256 is a little less secure than RS256 (but not by much, practically).
-     * We use it because it generates much shorter signatures (2.5x smaller!).
-     * Which is useful if you're signing a bunch of URLs and sending them all to
-     * the client. Like we do for file URLs.
+     * So HS256 is a little less secure than RS256 (but not by much, practically). We
+     * use it because it generates much shorter signatures (2.5x smaller!). Which is
+     * useful if you're signing a bunch of URLs and sending them all to the client.
+     * Like we do for file URLs.
      *
-     * Useful if you need to make a `GET` request and the data you need to sign is
-     * all in the URL. We use this for signing file URLs (e.g. images) that the
-     * client needs to download with a separate HTTP request to `EdgeService`. By
-     * providing the client a signed URL, `EdgeService` doesn't have to reauthorize
-     * the client's access to a file.
+     * Useful if you need to make a `GET` request and the data you need to sign is all
+     * in the URL. We use this for signing file URLs (e.g. images) that the client
+     * needs to download with a separate HTTP request to `EdgeService`. By providing
+     * the client a signed URL, `EdgeService` doesn't have to reauthorize the client's
+     * access to a file.
      *
-     * The signed URL has all the same behaviors as a JWT. The URL expires, can
-     * only be verified by an audience, and includes the issuer so we know which
-     * public key to verify with. We add a `sig` parameter which is a detached JWT.
-     * Taking inspiration from the [detached JWS format][2] which is
-     * `${protected}..${signature}` instead of
-     * `${protected}.${payload}.${signature}`.
+     * The signed URL has all the same behaviors as a JWT. The URL expires, can only be
+     * verified by an audience, and includes the issuer so we know which public key to
+     * verify with. We add a `sig` parameter which is a detached JWT. Taking
+     * inspiration from the [detached JWS format][2] which is
+     * `${protected}..${signature}` instead of `${protected}.${payload}.${signature}`.
      *
      * [1]: https://auth0.com/blog/rs256-vs-hs256-whats-the-difference/
      * [2]: https://datatracker.ietf.org/doc/html/rfc7797#section-4.2
@@ -217,8 +215,8 @@ export class TokenAgentPrivateSide {
     }
 
     /**
-     * Decrypt some sensitive data that was encrypted with `encrypt()` (a JWE
-     * string) with our token agent's private key.
+     * Decrypt some sensitive data that was encrypted with `encrypt()` (a JWE string)
+     * with our token agent's private key.
      */
     public async decrypt(encryptedPayload: string): Promise<string> {
         const {plaintext} = await compactDecrypt(
@@ -274,24 +272,23 @@ export class TokenAgentAppServicePrivateSide extends TokenAgentPrivateSide {
     }
 
     /**
-     * Sign a token that will live forever as a session cookie. Given having access
-     * to an eternal session can be dangerous, we take the following extra
-     * precautions:
+     * Sign a token that will live forever as a session cookie. Given having access to
+     * an eternal session can be dangerous, we take the following extra precautions:
      *
      * - Only `AppService` can sign these tokens
      * - They must be `Session` tokens (no `System` tokens)
      * - Only `AppService` and `EdgeService` may verify these tokens
-     * - You may invalidate a session at any time by deleting its `SessionId` from
-     *   the database
+     * - You may invalidate a session at any time by deleting its `SessionId` from the
+     *   database
      *
-     * Dangerous since if an attacker can call this function with whatever input
-     * they want, then they can impersonate any account! So be careful with what
-     * you call this function with.
+     * Dangerous since if an attacker can call this function with whatever input they
+     * want, then they can impersonate any account! So be careful with what you call
+     * this function with.
      *
-     * Also dangerous in that if this token leaks an attacker can use it for
-     * however long they please! Generally you should be using
-     * `dangerouslySignShortLivedToken()` unless for user experience reasons you
-     * want the token to be valid for a while.
+     * Also dangerous in that if this token leaks an attacker can use it for however
+     * long they please! Generally you should be using
+     * `dangerouslySignShortLivedToken()` unless for user experience reasons you want
+     * the token to be valid for a while.
      */
     public async dangerouslySignEternalSessionToken(payload: SessionTokenPayload): Promise<string> {
         assert(payload.type === "Session");
@@ -307,25 +304,24 @@ export class TokenAgentAppServicePrivateSide extends TokenAgentPrivateSide {
                 tokenServiceShortNameByName.EdgeService,
             ]);
 
-        return signer.sign(this._servicePrivateKeyForRs256);
+        return await signer.sign(this._servicePrivateKeyForRs256);
     }
 
     /**
-     * Sign a bot token for `AgentService` to pass through to `ApiService`.
-     * The token expires after 2 minutes, which should leave plenty of time
-     * for the bot to receive the request and make its api.alpine.inc request
+     * Sign a bot token for `AgentService` to pass through to `ApiService`. The token
+     * expires after 2 minutes, which should leave plenty of time for the bot to
+     * receive the request and make its api.alpine.inc request
      *
      * Uses RS256 as the signing algorithm. Which is an asymmetric cryptography
-     * algorithm. So each service has its own private key and other services verify
-     * it against their public key. If a service's private key is discovered by an
-     * attacker they still wouldn't be able to create keys that let them
-     * impersonate another service. (e.g. If `FileProcessorService` is compromised
-     * an attacker couldn't use that access to create a session token as
-     * `AppService`.)
+     * algorithm. So each service has its own private key and other services verify it
+     * against their public key. If a service's private key is discovered by an
+     * attacker they still wouldn't be able to create keys that let them impersonate
+     * another service. (e.g. If `FileProcessorService` is compromised an attacker
+     * couldn't use that access to create a session token as `AppService`.)
      *
-     * Dangerous since if an attacker can call this function with whatever input
-     * they want, then they can impersonate any account! So be careful with what
-     * you call this function with.
+     * Dangerous since if an attacker can call this function with whatever input they
+     * want, then they can impersonate any account! So be careful with what you call
+     * this function with.
      */
     public dangerouslySignShortLivedTokenForBotConversationState(payload: BotTokenPayload) {
         // Double check this is a bot token.
@@ -385,30 +381,29 @@ export class TokenAgentJobQueueServicePrivateSide extends TokenAgentPrivateSide 
     }
 
     /**
-     * Sign a bot token for `ApiService`. The token expires after 8 hours. Which
-     * lets the bot cook for a while in response to the webhook in case it's
-     * entering a deep research style flow.
+     * Sign a bot token for `ApiService`. The token expires after 8 hours. Which lets
+     * the bot cook for a while in response to the webhook in case it's entering a deep
+     * research style flow.
      *
-     * If you need to immediately revoke the bot's access you can remove the bot
-     * from your space.
+     * If you need to immediately revoke the bot's access you can remove the bot from
+     * your space.
      *
      * If a bot needs to run for more than 8 hours then we should maybe consider an
-     * access token + refresh token setup. Extending the timeout may be fine too.
-     * Need to think through the cancellation model (e.g. should you be able to
-     * cancel an individual "token" or just remove a bad bot from the space
-     * immediately revoking access?)
+     * access token + refresh token setup. Extending the timeout may be fine too. Need
+     * to think through the cancellation model (e.g. should you be able to cancel an
+     * individual "token" or just remove a bad bot from the space immediately revoking
+     * access?)
      *
      * Uses RS256 as the signing algorithm. Which is an asymmetric cryptography
-     * algorithm. So each service has its own private key and other services verify
-     * it against their public key. If a service's private key is discovered by an
-     * attacker they still wouldn't be able to create keys that let them
-     * impersonate another service. (e.g. If `FileProcessorService` is compromised
-     * an attacker couldn't use that access to create a session token as
-     * `AppService`.)
+     * algorithm. So each service has its own private key and other services verify it
+     * against their public key. If a service's private key is discovered by an
+     * attacker they still wouldn't be able to create keys that let them impersonate
+     * another service. (e.g. If `FileProcessorService` is compromised an attacker
+     * couldn't use that access to create a session token as `AppService`.)
      *
-     * Dangerous since if an attacker can call this function with whatever input
-     * they want, then they can impersonate any account! So be careful with what
-     * you call this function with.
+     * Dangerous since if an attacker can call this function with whatever input they
+     * want, then they can impersonate any account! So be careful with what you call
+     * this function with.
      */
     public dangerouslySignLongLivedTokenForBotWebhook(payload: BotTokenPayload) {
         // Double check this is a bot token.

@@ -1,9 +1,8 @@
 /**
- * Creates a new object where all the values are transformed by the map
- * function.
+ * Creates a new object where all the values are transformed by the map function.
  *
- * We only transform own properties on the object. That means the type
- * signature of this function is technically unsound.
+ * We only transform own properties on the object. That means the type signature of
+ * this function is technically unsound.
  */
 export function mapObjectValues<Value, NewKeyValue>(
     value: Value,

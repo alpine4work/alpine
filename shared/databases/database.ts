@@ -50,40 +50,32 @@ let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 /**
  * Read-only page storage backing a {@link Database}.
  *
- * The {@link Database} layers an in-memory write buffer
- * over this interface; writes never touch storage
- * directly. Callers drain the buffer via
- * {@link Database.getBufferedWrites} and persist it
- * however they choose — committing it server-side,
- * fanning it out to OPFS, etc. — then call
- * {@link Database.markCommitted} to acknowledge or
- * {@link Database.discardBuffer} to throw it away.
+ * The {@link Database} layers an in-memory write buffer over this interface;
+ * writes never touch storage directly. Callers drain the buffer via {@link
+ * Database.getBufferedWrites} and persist it however they choose — committing it
+ * server-side, fanning it out to OPFS, etc. — then call {@link
+ * Database.markCommitted} to acknowledge or {@link Database.discardBuffer} to
+ * throw it away.
  *
- * Pages are partitioned by {@link DatabaseTableId} so a
- * single backend can host many independent SQLite
- * databases. The {@link Database} currently only opens
- * {@link databaseMainTableId}, but the partitioned shape
- * is preserved here for the per-table backends server
- * and client both run.
+ * Pages are partitioned by {@link DatabaseTableId} so a single backend can host
+ * many independent SQLite databases. The {@link Database} currently only opens
+ * {@link databaseMainTableId}, but the partitioned shape is preserved here for the
+ * per-table backends server and client both run.
  *
- * All methods are synchronous because the SQLite VFS
- * calls them directly from `xRead`/`xFileSize`.
+ * All methods are synchronous because the SQLite VFS calls them directly from
+ * `xRead`/`xFileSize`.
  */
 export interface ReadonlyDatabaseStorage {
     /**
-     * Read a single page by its zero-based index from
-     * the given table.
+     * Read a single page by its zero-based index from the given table.
      *
-     * - `null` — no page at that index (read returns
-     *   zero-filled bytes; SQLite uses {@link getFileSize}
-     *   to determine EOF).
-     * - `{data, version}` — the durable page and the
-     *   version it was last written at.
+     * - `null` — no page at that index (read returns zero-filled bytes; SQLite uses
+     *   {@link getFileSize} to determine EOF).
+     * - `{data, version}` — the durable page and the version it was last written at.
      *
-     * Implementers may also throw to signal a transient
-     * failure (e.g. a missing local cache entry that
-     * needs server fallback). The error propagates out
-     * of the SQL execution.
+     * Implementers may also throw to signal a transient failure (e.g. a missing local
+     * cache entry that needs server fallback). The error propagates out of the SQL
+     * execution.
      */
     readPage(tableId: DatabaseTableId, index: number): {data: Uint8Array; version: number} | null;
 
@@ -92,29 +84,25 @@ export interface ReadonlyDatabaseStorage {
 }
 
 /**
- * The pending in-memory writes buffered by a
- * {@link Database} since its creation or its last
- * {@link Database.markCommitted}/{@link Database.discardBuffer}.
+ * The pending in-memory writes buffered by a {@link Database} since its creation
+ * or its last {@link Database.markCommitted}/{@link Database.discardBuffer}.
  */
 export interface DatabaseBufferedWrites {
     /**
-     * Per-table page writes, keyed by zero-based page
-     * index. Each value is the page's full
-     * {@link sqlitePageSize}-byte after-image.
+     * Per-table page writes, keyed by zero-based page index. Each value is the page's
+     * full {@link sqlitePageSize}-byte after-image.
      */
     readonly pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>;
     /**
-     * Per-table file truncates, keyed by table. Each
-     * value is the new file size in bytes.
+     * Per-table file truncates, keyed by table. Each value is the new file size in
+     * bytes.
      */
     readonly truncates: ReadonlyMap<DatabaseTableId, number>;
     /**
-     * Post-buffer logical file size in pages, keyed by
-     * table. Populated for every table present in
-     * {@link pages} or {@link truncates} so callers can
-     * supply it as the canonical `fileSizeInPages` when
-     * persisting the buffer to durable storage — without
-     * a follow-up call back into {@link Database}.
+     * Post-buffer logical file size in pages, keyed by table. Populated for every
+     * table present in {@link pages} or {@link truncates} so callers can supply it as
+     * the canonical `fileSizeInPages` when persisting the buffer to durable storage —
+     * without a follow-up call back into {@link Database}.
      */
     readonly fileSizesInPages: ReadonlyMap<DatabaseTableId, number>;
 }
@@ -123,8 +111,8 @@ export interface DatabaseBufferedWrites {
 export interface DatabaseExecuteResult {
     readonly rows: Array<Record<string, unknown>>;
     /**
-     * Pages SQLite read while running this call. Includes
-     * cache hits, captured via the page-access hook.
+     * Pages SQLite read while running this call. Includes cache hits, captured via the
+     * page-access hook.
      */
     readonly readPages: ReadonlyDatabasePageSet;
     /** Pages buffered by writes that ran during this call. */
@@ -141,25 +129,20 @@ export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
 /**
  * SQLite database that buffers writes in memory.
  *
- * Built around a {@link ReadonlyDatabaseStorage}: every
- * write goes into an in-memory buffer rather than the
- * underlying storage, and the caller decides what to do
- * with it. Drain the buffer via
- * {@link getBufferedWrites} and persist it however you
- * like; once the writes are durable, call
- * {@link markCommitted} to clear the buffer. To throw
- * the buffer away instead, call {@link discardBuffer} —
- * that clears the buffer and invalidates SQLite's page
- * cache so future reads fall back to storage.
+ * Built around a {@link ReadonlyDatabaseStorage}: every write goes into an
+ * in-memory buffer rather than the underlying storage, and the caller decides what
+ * to do with it. Drain the buffer via {@link getBufferedWrites} and persist it
+ * however you like; once the writes are durable, call {@link markCommitted} to
+ * clear the buffer. To throw the buffer away instead, call {@link discardBuffer} —
+ * that clears the buffer and invalidates SQLite's page cache so future reads fall
+ * back to storage.
  *
- * The class does not own connection lifecycle for the
- * underlying storage — the caller stays responsible for
- * opening/closing the storage backing and for applying
- * any externally received writes (e.g. server-pushed
- * page diffs) before resuming execution. After the
- * caller mutates storage out from under the database,
- * call {@link discardBuffer} to make sure SQLite sees
- * the new state on the next access.
+ * The class does not own connection lifecycle for the underlying storage — the
+ * caller stays responsible for opening/closing the storage backing and for
+ * applying any externally received writes (e.g. server-pushed page diffs) before
+ * resuming execution. After the caller mutates storage out from under the
+ * database, call {@link discardBuffer} to make sure SQLite sees the new state on
+ * the next access.
  */
 export class Database {
     private readonly db: SqliteDatabase;
@@ -168,25 +151,20 @@ export class Database {
     private readonly tables = new Map<DatabaseTableId, DatabaseTableState>();
     private readonly tempFiles = new Map<string, VfsTempFile>();
     /**
-     * Maps SQLite schema names (the AS-name supplied to
-     * each VFS open / ATTACH) back to the table they back.
-     * Used by the page-access hook to demux events from
-     * any of the currently-attached databases. The main
-     * connection is opened with the schema name `"main"`,
-     * which SQLite reserves for `aDb[0]`; callers must use
-     * the table id as the schema name for ATTACH-ed
-     * databases (and re-install the hook afterwards).
+     * Maps SQLite schema names (the AS-name supplied to each VFS open / ATTACH) back
+     * to the table they back. Used by the page-access hook to demux events from any of
+     * the currently-attached databases. The main connection is opened with the schema
+     * name `"main"`, which SQLite reserves for `aDb[0]`; callers must use the table id
+     * as the schema name for ATTACH-ed databases (and re-install the hook afterwards).
      */
     private readonly schemaToTable = new Map<string, DatabaseTableId>();
     private writeLevel: InternalSqliteWriteLevel | null = null;
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
     /**
-     * Server-only action capabilities, or `null` on the
-     * client. Lets server-only schema actions (e.g.
-     * createTable) attach their own per-table file
-     * mid-execute; absent on the client so client-side
-     * actions can't attach.
+     * Server-only action capabilities, or `null` on the client. Lets server-only
+     * schema actions (e.g. createTable) attach their own per-table file mid-execute;
+     * absent on the client so client-side actions can't attach.
      */
     private readonly serverContext: DatabaseActionServerContext | null;
 
@@ -198,9 +176,8 @@ export class Database {
         this.storage = storage;
         this.serverContext = isServer ? {attach: tableId => this.attachIfNeeded(tableId)} : null;
         this.tables.set(databaseMainTableId, new DatabaseTableState());
-        // SQLite reserves the schema name "main" for
-        // `aDb[0]`, so the connection's main table is
-        // always reachable under that name.
+        // SQLite reserves the schema name "main" for `aDb[0]`, so the connection's main
+        // table is always reachable under that name.
         this.schemaToTable.set("main", databaseMainTableId);
 
         const capi = sqlite3.capi;
@@ -238,9 +215,8 @@ export class Database {
             (_cbArg: WasmPointer, actionCode: number, actionArg: string | 0) => {
                 const action = sqliteAuthorizerActionName(actionCode);
                 if (action === undefined) return capi.SQLITE_DENY;
-                // SQLite passes the C null pointer (`0`) when an
-                // action has no string argument; normalize to
-                // `null` for the authorizer.
+                // SQLite passes the C null pointer (`0`) when an action has no string argument;
+                // normalize to `null` for the authorizer.
                 const arg = typeof actionArg === "string" ? actionArg : null;
                 return isSqliteActionAllowed(action, arg, this.writeLevel)
                     ? capi.SQLITE_OK
@@ -259,10 +235,9 @@ export class Database {
     }
 
     /**
-     * Open a {@link Database} backed by `storage`. Pass
-     * `{server: true}` to grant server-only action
-     * capabilities (attaching per-table files); the client
-     * leaves it off so its actions can't attach.
+     * Open a {@link Database} backed by `storage`. Pass `{server: true}` to grant
+     * server-only action capabilities (attaching per-table files); the client leaves
+     * it off so its actions can't attach.
      */
     static async create(
         storage: ReadonlyDatabaseStorage,
@@ -277,17 +252,14 @@ export class Database {
     }
 
     /**
-     * Run an arbitrary callback against the underlying
-     * SQLite handle with read/write tracking and authorizer
-     * enforcement. The callback is the lowest-level entry
-     * point; {@link executeSql} and {@link executeAction}
-     * are thin wrappers.
+     * Run an arbitrary callback against the underlying SQLite handle with read/write
+     * tracking and authorizer enforcement. The callback is the lowest-level entry
+     * point; {@link executeSql} and {@link executeAction} are thin wrappers.
      *
-     * `allowWrites` controls which classes of statement
-     * the authorizer permits while `fn` runs. On the
-     * canonical (server) database, a schema change also
-     * triggers `PRAGMA optimize` inside the same tracked
-     * call (see {@link maybeOptimizeAfterWrites}).
+     * `allowWrites` controls which classes of statement the authorizer permits while
+     * `fn` runs. On the canonical (server) database, a schema change also triggers
+     * `PRAGMA optimize` inside the same tracked call (see {@link
+     * maybeOptimizeAfterWrites}).
      */
     execute<T>(
         fn: (db: SqliteDatabase) => T,
@@ -301,9 +273,8 @@ export class Database {
     }
 
     /**
-     * Run a {@link SqlQuery} (built with the {@link sql}
-     * tagged template) against the database. `allowWrites`
-     * controls which classes of statement the authorizer
+     * Run a {@link SqlQuery} (built with the {@link sql} tagged template) against the
+     * database. `allowWrites` controls which classes of statement the authorizer
      * permits.
      */
     executeSql(query: SqlQuery, options: {allowWrites: SqliteWriteLevel}): DatabaseExecuteResult {
@@ -315,8 +286,8 @@ export class Database {
     }
 
     /**
-     * Run a named {@link DatabaseActionObject}. Uses the
-     * action's declared `writeLevel` for authorization.
+     * Run a named {@link DatabaseActionObject}. Uses the action's declared
+     * `writeLevel` for authorization.
      */
     executeAction<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
@@ -331,12 +302,11 @@ export class Database {
     }
 
     /**
-     * Refresh query-planner statistics after a schema change.
-     * Only the canonical (server) database does this — a
-     * client running `PRAGMA optimize` would just produce
-     * `sqlite_stat` writes that diverge from the server and
-     * create rebase churn. Runs inside {@link execute} so any
-     * stat updates ride along in the same buffer and broadcast.
+     * Refresh query-planner statistics after a schema change. Only the canonical
+     * (server) database does this — a client running `PRAGMA optimize` would just
+     * produce `sqlite_stat` writes that diverge from the server and create rebase
+     * churn. Runs inside {@link execute} so any stat updates ride along in the same
+     * buffer and broadcast.
      */
     private maybeOptimizeAfterWrites(writeLevel: SqliteWriteLevel): void {
         if (writeLevel === "schema+data" && this.serverContext !== null) {
@@ -345,11 +315,9 @@ export class Database {
     }
 
     /**
-     * Snapshot of every write buffered since the last
-     * {@link markCommitted} or {@link discardBuffer}, or
-     * `null` if nothing is currently buffered. The
-     * returned maps reference live state; do not mutate
-     * them.
+     * Snapshot of every write buffered since the last {@link markCommitted} or {@link
+     * discardBuffer}, or `null` if nothing is currently buffered. The returned maps
+     * reference live state; do not mutate them.
      */
     getBufferedWrites(): DatabaseBufferedWrites | null {
         const pages = new Map<DatabaseTableId, ReadonlyMap<number, Uint8Array>>();
@@ -374,14 +342,11 @@ export class Database {
     }
 
     /**
-     * Throw if any writes are currently buffered. Callers
-     * that mutate the underlying storage out from under
-     * the database (e.g. applying server-pushed pages)
-     * must clear the buffer first via
-     * {@link markCommitted} or {@link discardBuffer};
-     * otherwise the next read will serve a stale mix of
-     * SQLite's pager cache, the buffer, and the just-
-     * mutated storage.
+     * Throw if any writes are currently buffered. Callers that mutate the underlying
+     * storage out from under the database (e.g. applying server-pushed pages) must
+     * clear the buffer first via {@link markCommitted} or {@link discardBuffer};
+     * otherwise the next read will serve a stale mix of SQLite's pager cache, the
+     * buffer, and the just- mutated storage.
      */
     assertBufferIsEmpty(reason: string): void {
         for (const state of this.tables.values()) {
@@ -395,12 +360,10 @@ export class Database {
     }
 
     /**
-     * Acknowledge that the current buffer has been
-     * persisted to storage. Clears the buffer; subsequent
-     * reads will see the durable post-commit state via
-     * the read-only storage. No SQLite cache invalidation
-     * is needed because the pager cache already holds the
-     * same after-image the caller just persisted.
+     * Acknowledge that the current buffer has been persisted to storage. Clears the
+     * buffer; subsequent reads will see the durable post-commit state via the
+     * read-only storage. No SQLite cache invalidation is needed because the pager
+     * cache already holds the same after-image the caller just persisted.
      */
     markCommitted(): void {
         for (const state of this.tables.values()) {
@@ -409,29 +372,22 @@ export class Database {
     }
 
     /**
-     * Throw away the in-memory buffer and invalidate
-     * SQLite's page cache so future reads fall back to
-     * storage. Call this after the caller has changed
-     * `storage` out from under the database (e.g.
-     * applied externally received page diffs) or after
-     * a failed action whose buffered writes should not
-     * be persisted.
+     * Throw away the in-memory buffer and invalidate SQLite's page cache so future
+     * reads fall back to storage. Call this after the caller has changed `storage` out
+     * from under the database (e.g. applied externally received page diffs) or after a
+     * failed action whose buffered writes should not be persisted.
      *
-     * SQLite's pager may be holding the buffered
-     * after-images in its own cache; without this call
-     * those would still be served by the next read.
-     * `PRAGMA shrink_memory` releases the pager cache —
-     * subsequent reads re-issue `xRead` and pick up the
-     * underlying storage.
+     * SQLite's pager may be holding the buffered after-images in its own cache;
+     * without this call those would still be served by the next read.
+     * `PRAGMA shrink_memory` releases the pager cache — subsequent reads re-issue
+     * `xRead` and pick up the underlying storage.
      */
     discardBuffer(options?: {skipClearCacheForTests?: boolean}): void {
         for (const state of this.tables.values()) {
             state.reset();
         }
-        // `skipClearCacheForTests` exists so the cache-
-        // invalidation regression test can prove this
-        // pragma is load-bearing — never set it in
-        // production code.
+        // `skipClearCacheForTests` exists so the cache- invalidation regression test can
+        // prove this pragma is load-bearing — never set it in production code.
         if (options?.skipClearCacheForTests === true) {
             assert(import.meta.jest, "skipClearCacheForTests is test-only");
             return;
@@ -452,46 +408,36 @@ export class Database {
     }
 
     /**
-     * Attach an additional per-table SQLite database to
-     * this connection so its pages flow through the same
-     * VFS / page-access hook plumbing as the main table.
+     * Attach an additional per-table SQLite database to this connection so its pages
+     * flow through the same VFS / page-access hook plumbing as the main table.
      *
-     * The patched authorizer denies `ATTACH` at every
-     * normal write level; this method briefly flips
-     * `writeLevel` to the internal `"attach"` value so
-     * the SQL it issues itself is permitted, then restores
-     * whatever level was in effect. Schema name and VFS
-     * filename are both `tableId`, so `schemaToTable` maps
-     * `tableId → tableId`.
+     * The patched authorizer denies `ATTACH` at every normal write level; this method
+     * briefly flips `writeLevel` to the internal `"attach"` value so the SQL it issues
+     * itself is permitted, then restores whatever level was in effect. Schema name and
+     * VFS filename are both `tableId`, so `schemaToTable` maps `tableId → tableId`.
      *
-     * Safe to call mid-`execute()` (e.g. from a server-only
-     * action that creates a new table): `execute()` opens no
-     * explicit transaction, so `ATTACH` between statements is
-     * legal, and the surrounding write level is saved and
-     * restored. The caller is responsible for ensuring the
-     * backing `storage` already has a page store for `tableId`
-     * before this is invoked.
+     * Safe to call mid-`execute()` (e.g. from a server-only action that creates a new
+     * table): `execute()` opens no explicit transaction, so `ATTACH` between
+     * statements is legal, and the surrounding write level is saved and restored. The
+     * caller is responsible for ensuring the backing `storage` already has a page
+     * store for `tableId` before this is invoked.
      */
     attach(tableId: DatabaseTableId): void {
         assert(!this.tables.has(tableId), `attach: table already attached: ${tableId}`);
 
-        // The VFS open callback runs synchronously during
-        // ATTACH and looks up state by tableId, so the
-        // entry must exist before the SQL runs.
+        // The VFS open callback runs synchronously during ATTACH and looks up state by
+        // tableId, so the entry must exist before the SQL runs.
         this.tables.set(tableId, new DatabaseTableState());
 
-        // The VFS filename is the raw table id; the SQLite
-        // schema name is `_`-prefixed to mark it internal
-        // (see {@link databaseTableSchemaName}).
+        // The VFS filename is the raw table id; the SQLite schema name is `_`-prefixed to
+        // mark it internal (see {@link databaseTableSchemaName}).
         const schemaName = databaseTableSchemaName(tableId);
         const previousWriteLevel = this.writeLevel;
         this.writeLevel = "attach";
         try {
-            // The filename is the raw table id, bound as a
-            // parameter; the schema name is quoted via
-            // `sql.identifier`. Pin page_size on the fresh
-            // schema immediately so its first write matches
-            // the VFS's per-page contract.
+            // The filename is the raw table id, bound as a parameter; the schema name is
+            // quoted via `sql.identifier`. Pin page_size on the fresh schema immediately so
+            // its first write matches the VFS's per-page contract.
             sql`ATTACH DATABASE ${`/${tableId}`} AS ${sql.identifier(schemaName)}`.exec(this.db);
             this.db.exec(sqliteAttachPagePragma(schemaName));
             this.schemaToTable.set(schemaName, tableId);
@@ -502,9 +448,8 @@ export class Database {
             this.writeLevel = previousWriteLevel;
         }
 
-        // The new pager exists now; re-install the hook so
-        // the C side loops over the updated `aDb[]` and
-        // covers it too.
+        // The new pager exists now; re-install the hook so the C side loops over the
+        // updated `aDb[]` and covers it too.
         this.installPageAccessHook();
     }
 
@@ -521,17 +466,13 @@ export class Database {
     // -- Internal -----------------------------------------------------------
 
     /**
-     * Captures cache-hit reads via the page access hook
-     * so {@link execute} returns a complete read set even
-     * when SQLite serves pages from its pager cache
-     * without going through `xRead`. The hook fires for
-     * every attached database; demux on schema name.
-     * Reads from schemas we don't own (e.g. SQLite's
-     * `temp`) are ignored.
+     * Captures cache-hit reads via the page access hook so {@link execute} returns a
+     * complete read set even when SQLite serves pages from its pager cache without
+     * going through `xRead`. The hook fires for every attached database; demux on
+     * schema name. Reads from schemas we don't own (e.g. SQLite's `temp`) are ignored.
      *
-     * Stored as an arrow-function field so re-installs
-     * pass the same JS reference and the FuncPtrAdapter
-     * doesn't churn wasm thunks.
+     * Stored as an arrow-function field so re-installs pass the same JS reference and
+     * the FuncPtrAdapter doesn't churn wasm thunks.
      */
     private readonly handlePageAccess = (schemaName: string, pgno: number, flags: number): void => {
         if (flags !== pageAccessFlagRead) return;
@@ -543,9 +484,8 @@ export class Database {
     };
 
     /**
-     * (Re-)install the page-access hook on every
-     * currently-attached database's pager. Call after any
-     * operation that grows `db->aDb[]` (i.e. ATTACH).
+     * (Re-)install the page-access hook on every currently-attached database's pager.
+     * Call after any operation that grows `db->aDb[]` (i.e. ATTACH).
      */
     private installPageAccessHook(): void {
         this.db.pageAccessHook(this.handlePageAccess);
@@ -576,17 +516,16 @@ export class Database {
                 }
                 throw stashed;
             }
-            // A query against a table whose per-db file isn't attached (e.g.
-            // a table this client learned about mid-session but hasn't
-            // attached yet) fails at statement preparation with "no such
-            // table" / "unknown database" — before any page read. Recover the
-            // tableId from the error text and rethrow as TableNotAttachedError
-            // so the client can attach the file on demand and retry.
+            // A query against a table whose per-db file isn't attached (e.g. a table this
+            // client learned about mid-session but hasn't attached yet) fails at statement
+            // preparation with "no such table" / "unknown database" — before any page read.
+            // Recover the tableId from the error text and rethrow as TableNotAttachedError so
+            // the client can attach the file on demand and retry.
             //
-            // Client-only: the canonical server attaches every per-db file it
-            // touches, so the same error there is a genuine bug and must
-            // surface as-is. Bail too when the named schema *is* attached —
-            // then it's a missing inner table, not an unattached file.
+            // Client-only: the canonical server attaches every per-db file it touches, so the
+            // same error there is a genuine bug and must surface as-is. Bail too when the
+            // named schema _is_ attached — then it's a missing inner table, not an unattached
+            // file.
             if (this.serverContext === null && error instanceof Error) {
                 const tableId = parseUnattachedTableMessage(error.message);
                 if (tableId !== null && !this.tables.has(tableId)) {
@@ -629,10 +568,9 @@ export class Database {
                     return true;
                 }
 
-                // Page is in the gap created by a buffered
-                // truncate that a later write past the truncate
-                // re-extended over. Treat as missing so storage
-                // doesn't return pre-truncate data.
+                // Page is in the gap created by a buffered truncate that a later write past the
+                // truncate re-extended over. Treat as missing so storage doesn't return
+                // pre-truncate data.
                 if (state.bufferedTruncate !== null && offset >= state.bufferedTruncate) {
                     data.fill(0);
                     return false;
@@ -661,13 +599,10 @@ export class Database {
                 if (state.bufferedMaxPageIndex === null || pageIndex > state.bufferedMaxPageIndex) {
                     state.bufferedMaxPageIndex = pageIndex;
                 }
-                // A write past a buffered truncate is fine —
-                // the consumer drains truncate first, so the
-                // post-truncate file is what this write
-                // extends. The truncate stays buffered so its
-                // shrinking effect (zeroing pages between the
-                // truncate boundary and this write) is
-                // preserved.
+                // A write past a buffered truncate is fine — the consumer drains truncate first,
+                // so the post-truncate file is what this write extends. The truncate stays
+                // buffered so its shrinking effect (zeroing pages between the truncate boundary
+                // and this write) is preserved.
                 if (this.currentWriteSet !== null) {
                     addToTablePageSet(this.currentWriteSet, tableId, pageIndex);
                 }
@@ -686,8 +621,8 @@ export class Database {
                 state.bufferedMaxPageIndex = newMax;
             },
 
-            // No-op: the buffer is what `getBufferedWrites`
-            // returns. Persistence is the caller's job.
+            // No-op: the buffer is what `getBufferedWrites` returns. Persistence is the
+            // caller's job.
             sync: () => {},
 
             fileSize: () => this.getFileSizeForTable(tableId, state),
@@ -713,15 +648,14 @@ class DatabaseTableState {
     /** Buffered writes, keyed by zero-based page index. */
     readonly bufferedPages = new Map<number, Uint8Array>();
     /**
-     * Buffered truncate-to-size in bytes, or `null` if
-     * no truncate is currently buffered.
+     * Buffered truncate-to-size in bytes, or `null` if no truncate is currently
+     * buffered.
      */
     bufferedTruncate: number | null = null;
     /**
-     * Highest page index in {@link bufferedPages}, or
-     * `null` if empty. Tracked incrementally so
-     * {@link Database} can compute file size in O(1)
-     * instead of scanning the buffer on every read.
+     * Highest page index in {@link bufferedPages}, or `null` if empty. Tracked
+     * incrementally so {@link Database} can compute file size in O(1) instead of
+     * scanning the buffer on every read.
      */
     bufferedMaxPageIndex: number | null = null;
 
@@ -740,19 +674,16 @@ function addToTablePageSet(
     getOrSetDefaultMapValue(target, tableId, () => new Set<number>()).add(pageIndex);
 }
 
-// SQLite reports a reference to an unattached per-db file in
-// one of two shapes, both naming the schema we generated via
-// `databaseTableSchemaName`:
+// SQLite reports a reference to an unattached per-db file in one of two shapes,
+// both naming the schema we generated via `databaseTableSchemaName`:
 //
-// - `no such table: _alpine_schema_<tableId>.<inner>` — for
-//   DML/SELECT/ALTER.
-// - `unknown database "_alpine_schema_<tableId>"` — for some
-//   DDL (e.g. CREATE INDEX).
+// - `no such table: _alpine_schema_<tableId>.<inner>` — for DML/SELECT/ALTER.
+// - `unknown database "_alpine_schema_<tableId>"` — for some DDL (e.g. CREATE
+//   INDEX).
 //
-// Ids are 26-char Crockford base-32; matching `[0-9a-z]+` up
-// to the `.`/`"` boundary recovers the id without depending
-// on its exact length. These message formats are stable
-// across SQLite versions and not localized.
+// Ids are 26-char Crockford base-32; matching `[0-9a-z]+` up to the `.`/`"`
+// boundary recovers the id without depending on its exact length. These message
+// formats are stable across SQLite versions and not localized.
 const unattachedSchemaErrorPatterns = [
     new RegExp(`no such table: ${databaseTableSchemaNamePrefix}([0-9a-z]+)\\.`),
     // eslint-disable-next-line cyberworlds/string-quotes -- matches SQLite error text
@@ -760,9 +691,9 @@ const unattachedSchemaErrorPatterns = [
 ];
 
 /**
- * Recover the {@link DatabaseTableId} of an unattached per-db
- * file from a SQLite name-resolution error message, or `null`
- * if the message isn't one of those errors.
+ * Recover the {@link DatabaseTableId} of an unattached per-db file from a SQLite
+ * name-resolution error message, or `null` if the message isn't one of those
+ * errors.
  */
 function parseUnattachedTableMessage(message: string): DatabaseTableId | null {
     for (const pattern of unattachedSchemaErrorPatterns) {

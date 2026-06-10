@@ -4,30 +4,33 @@ import {Store} from "~/shared/store/internal/store.js";
 
 /**
  * A reduce combinator that lets you observe the previous store value when
- * computing the next store value. It's similar conceptually to
- * `Array.reduce()` and has a similar signature but instead of reducing an
- * array of values we're reducing a store's values over time.
+ * computing the next store value. It's similar conceptually to `Array.reduce()`
+ * and has a similar signature but instead of reducing an array of values we're
+ * reducing a store's values over time.
  *
- * The reduce function doesn't reliably observe every value from the base
- * store! Like other stores we compute `getSnapshot()` lazily. So the reduce
- * function only observes values from the base store when `getSnapshot()` is
- * called. If whatever pulls values from our stores (e.g. `useStore()` hook)
- * calls `getSnapshot()` whenever a changes is reported by a `subscribe()`
- * listener the reduce function will end up seeing every base store value over
- * time while the component is `subscribe()`d. If `getSnapshot()` is called
- * less frequently the reduce function might not see every base store value.
+ * The reduce function doesn't reliably observe every value from the base store!
+ * Like other stores we compute `getSnapshot()` lazily. So the reduce function only
+ * observes values from the base store when `getSnapshot()` is called. If whatever
+ * pulls values from our stores (e.g. `useStore()` hook) calls `getSnapshot()`
+ * whenever a changes is reported by a `subscribe()` listener the reduce function
+ * will end up seeing every base store value over time while the component is
+ * `subscribe()`d. If `getSnapshot()` is called less frequently the reduce function
+ * might not see every base store value.
  */
-export class ReducedStore<BaseValue, Value> extends Store<Value> {
+export class ReducedStore<BaseValue, Value, InitialValue> extends Store<Value> {
     private readonly _store: Store<BaseValue>;
-    private readonly _reduce: (previousValue: Value, currentValue: BaseValue) => Value;
+    private readonly _reduce: (
+        previousValue: Value | InitialValue,
+        currentValue: BaseValue,
+    ) => Value;
     private _hasReduced = false;
     private _baseValue: BaseValue | null = null;
-    private _valueResult: Result<Value>;
+    private _valueResult: Result<Value | InitialValue>;
 
     constructor(
         store: Store<BaseValue>,
-        reduce: (previousValue: Value, currentValue: BaseValue) => Value,
-        initialValue: Value,
+        reduce: (previousValue: Value | InitialValue, currentValue: BaseValue) => Value,
+        initialValue: InitialValue,
     ) {
         super();
         this._store = store;
@@ -40,13 +43,13 @@ export class ReducedStore<BaseValue, Value> extends Store<Value> {
     }
 
     public readonly getSnapshot = () => {
-        // If `reduce()` threw previously then the reduced store will keep throwing
-        // the same error. There's currently no way to recover. We could have an
-        // optional `reduceError` option to recover from errors if that's useful.
+        // If `reduce()` threw previously then the reduced store will keep throwing the
+        // same error. There's currently no way to recover. We could have an optional
+        // `reduceError` option to recover from errors if that's useful.
         const value = unwrapResult(this._valueResult);
 
-        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
-        // partial state.
+        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad partial
+        // state.
         const baseValue = this._store.getSnapshot();
 
         if (this._hasReduced === false) {
@@ -58,7 +61,8 @@ export class ReducedStore<BaseValue, Value> extends Store<Value> {
             this._valueResult = captureResult(() => this._reduce(value, baseValue));
         }
 
-        return unwrapResult(this._valueResult);
+        // We never return the `initialValue`. We always call `reduce()` before returning.
+        return unwrapResult(this._valueResult) as Value;
     };
 
     public addListener(listener: () => void) {

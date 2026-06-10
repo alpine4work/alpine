@@ -50,28 +50,27 @@ export function getSelectionStartNodeAndEndNode(selection: {
             ? anchorParentNodes[anchorParentNodes.length - commonParentReverseIndex]!
             : null;
 
-    // The selection must start and end in the same document which means there
-    // should be a common parent node.
+    // The selection must start and end in the same document which means there should
+    // be a common parent node.
     assert(commonParentNode);
 
     let start: "Anchor" | "Focus" | undefined;
 
-    // If `commonParentNode` is the focus node AND the anchor node then the value
-    // of `start` depends on the text offset.
+    // If `commonParentNode` is the focus node AND the anchor node then the value of
+    // `start` depends on the text offset.
     if (commonParentNode === selection.focusNode && commonParentNode === selection.anchorNode) {
         start = selection.anchorOffset <= selection.focusOffset ? "Anchor" : "Focus";
     }
     // If `commonParentNode` is the focus node OR the anchor node then the value of
-    // `start` is ambiguous. We can pick either direction. We don't believe the
-    // browser will every create a selection like this because of its ambiguity.
+    // `start` is ambiguous. We can pick either direction. We don't believe the browser
+    // will every create a selection like this because of its ambiguity.
     else if (
         commonParentNode === selection.focusNode ||
         commonParentNode === selection.anchorNode
     ) {
         start = "Anchor";
     }
-    // `commonParentNode` has a child node for both the focus node and the anchor
-    // node.
+    // `commonParentNode` has a child node for both the focus node and the anchor node.
     else {
         const anchorCommonParentChildNode =
             anchorParentNodes[anchorParentNodes.length - (commonParentReverseIndex + 1)]!;

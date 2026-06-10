@@ -1,8 +1,7 @@
 /**
- * Serializes async work by chaining promises. Each
- * enqueued function waits for the previous one to
- * finish before starting. A rejection in one task does
- * not prevent subsequent tasks from running.
+ * Serializes async work by chaining promises. Each enqueued function waits for the
+ * previous one to finish before starting. A rejection in one task does not prevent
+ * subsequent tasks from running.
  */
 export class PromiseQueue {
     private _tail: Promise<void> = Promise.resolve();

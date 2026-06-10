@@ -24,7 +24,8 @@ const namedQueries = new Map<string, string>([
     ],
     [
         "set-last-request-used-80-percent",
-        // Dynamic limit is currently $1 (see agent_usage_limits.ts). 80% of $1 is $0.80, then converted to millicents
+        // Dynamic limit is currently $1 (see agent_usage_limits.ts). 80% of $1 is $0.80,
+        // then converted to millicents
         `UPDATE agent_requests SET used_millicents = ${
             1 * 0.8 * 100 * 1000
         } WHERE created_time = (SELECT MAX(created_time) FROM agent_requests);`,
@@ -63,6 +64,9 @@ async function runDevAgentsD1Process(
 
     try {
         if (consumeOutput) {
+            // TODO: Re-enable `@typescript-eslint/return-await` after deciding whether this
+            // `try`/`catch` should handle async process failures.
+            // eslint-disable-next-line @typescript-eslint/return-await
             return runProcess(wranglerPath, wranglerArguments, options);
         } else {
             await runProcessWithInheritedStdio(wranglerPath, wranglerArguments, options);

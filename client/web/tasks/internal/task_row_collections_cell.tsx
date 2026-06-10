@@ -36,7 +36,7 @@ import {createDisplayTaskCollectionsStore} from "~/client/web/tasks/internal/cre
 import {TaskCollectionChip} from "~/client/web/tasks/internal/task_collection_chip.js";
 import {TaskRowCollectionsCellOverlay} from "~/client/web/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/web/tasks/internal/task_row_view.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
@@ -71,14 +71,44 @@ const Box = null;
 const TaskRowCollectionsCellForwardRefMemo = memo(forwardRef(TaskRowCollectionsCell));
 export {TaskRowCollectionsCellForwardRefMemo as TaskRowCollectionsCell};
 
+function TaskCollectionChipWithNavigation({
+    store,
+    collection,
+    nameMaxWidth,
+}: {
+    store: TaskClientReadonlyStore;
+    collection: TaskCollectionModel;
+    nameMaxWidth?: Spacing;
+}) {
+    const navigate = useNavigate();
+    const [isPendingNavigation, setIsPendingNavigation] = useState(false);
+
+    return (
+        <TaskCollectionChip
+            store={store}
+            collection={collection}
+            nameMaxWidth={nameMaxWidth}
+            onPress={() => {
+                if (isPendingNavigation) return;
+
+                setIsPendingNavigation(true);
+
+                navigate(`/task-collection/${collection.id}`).finally(() => {
+                    setIsPendingNavigation(false);
+                });
+            }}
+        />
+    );
+}
+
 const cellRowGap = "3";
 
 const cellClassName = sprinkles({
     flexShrink: "0",
     paddingLeft: taskRowViewColumnPaddingX,
     paddingRight: taskRowViewLastColumnPaddingRight,
-    // Important not to set `overflow="hidden"` here so that the editable
-    // collections overlay can render outside the bounds of this cell.
+    // Important not to set `overflow="hidden"` here so that the editable collections
+    // overlay can render outside the bounds of this cell.
     overflow: undefined,
     position: "relative",
     height: taskRowViewMinHeight,
@@ -99,6 +129,7 @@ const collectionChipContainerClassName = sprinkles({
     marginY: "-0.5",
     marginLeft: "-0.5",
     cursor: "default",
+    minWidth: "flex-fit",
 });
 
 const extraCollectionsWidth = "4";
@@ -116,6 +147,7 @@ function TaskRowCollectionsCell(
         store,
         query,
         task,
+        isCreatedCollectionPrivate,
         onCellKeyDown,
         onCellKeyDownCapture,
         focusPreviousCell,
@@ -125,6 +157,7 @@ function TaskRowCollectionsCell(
         store: TaskClientReadonlyStore;
         query: TaskClientQuery | null;
         task: TaskModel | null;
+        isCreatedCollectionPrivate: boolean;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
@@ -150,8 +183,7 @@ function TaskRowCollectionsCell(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const {currentAccount, space} = useSpaceContext();
-    const navigate = useNavigate();
+    const {currentAccount} = useSpaceContext();
     const cellId = useId();
 
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
@@ -163,10 +195,11 @@ function TaskRowCollectionsCell(
                     ? createDisplayTaskCollectionsStore({
                           currentAccount,
                           referencesSubscription: query,
+                          store,
                           collections,
                       })
                     : emptyArrayStore,
-            [collections, currentAccount, query],
+            [collections, currentAccount, query, store],
         ),
     );
 
@@ -177,8 +210,8 @@ function TaskRowCollectionsCell(
               )
             : emptySet;
 
-    // We want to show collections that are not required by the query first, then
-    // if we still have room show collections required by the query.
+    // We want to show collections that are not required by the query first, then if we
+    // still have room show collections required by the query.
     const {previewDisplayCollections, doesPreviewDisplayCollectionsHaveRequiredCollection} =
         useMemo(() => {
             const maxPreviewDisplayCollectionCount = 2;
@@ -358,24 +391,19 @@ function TaskRowCollectionsCell(
                                 key={collection.id}
                                 className={collectionChipContainerClassName}
                                 style={{
-                                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                    // have `min-width: auto` which extends with content.
-                                    // https://stackoverflow.com/a/66689926/1568890
-                                    minWidth: 0,
-                                    // We want short collection names like "Bugs" to be visible even if the
-                                    // other preview collection name is very long. Constrain collection chip width
-                                    // and set a relative shrink that shrinks longer collection names more than
-                                    // shorter collection names.
+                                    // We want short collection names like "Bugs" to be visible even if the other
+                                    // preview collection name is very long. Constrain collection chip width and set a
+                                    // relative shrink that shrinks longer collection names more than shorter
+                                    // collection names.
                                     //
-                                    // Also shrink collection chips required by the query more than collection
-                                    // chips which aren't required.
+                                    // Also shrink collection chips required by the query more than collection chips
+                                    // which aren't required.
                                     //
-                                    // These constants were picked so that if you have two very long task
-                                    // collection names (with colors) and the second is a required task collection,
-                                    // then we'll show at least two characters from the shrunk required task
-                                    // collection. e.g. In one test two collections named
-                                    // "Test Very Very Very Very Very Very Long" truncated like this (remember the
-                                    // second needs to be a required collection):
+                                    // These constants were picked so that if you have two very long task collection
+                                    // names (with colors) and the second is a required task collection, then we'll
+                                    // show at least two characters from the shrunk required task collection. e.g. In
+                                    // one test two collections named "Test Very Very Very Very Very Very Long"
+                                    // truncated like this (remember the second needs to be a required collection):
                                     //
                                     // ```
                                     // ┌──────────────────────┐ ┌─────────┐
@@ -397,17 +425,13 @@ function TaskRowCollectionsCell(
                                     ),
                                 }}
                             >
-                                <TaskCollectionChip
+                                <TaskCollectionChipWithNavigation
+                                    store={store}
                                     collection={collection}
                                     // We need to set a max width for the name or else really really long names will
-                                    // cause flex items with a ridiculously large `flex-basis` (given `flex-basis`
-                                    // is the default, `auto`).
+                                    // cause flex items with a ridiculously large `flex-basis` (given `flex-basis` is
+                                    // the default, `auto`).
                                     nameMaxWidth={maxTaskRowViewCollectionsColumnWidth}
-                                    onPress={() => {
-                                        navigate(
-                                            `/s/${space.id}/tasks/collections/${collection.id}`,
-                                        );
-                                    }}
                                 />
                             </div>
                         ))}
@@ -430,6 +454,7 @@ function TaskRowCollectionsCell(
                     store={store}
                     query={query}
                     task={task}
+                    isCreatedCollectionPrivate={isCreatedCollectionPrivate}
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
                     onClose={() => {

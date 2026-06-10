@@ -39,10 +39,9 @@ interface OptimisticMutation {
 }
 
 /**
- * Represents a connected tab's route to the server.
- * Passed into {@link DatabaseClient.executeAction} so
- * server fallbacks route through the correct tab's
- * WebSocket connection.
+ * Represents a connected tab's route to the server. Passed into {@link
+ * DatabaseClient.executeAction} so server fallbacks route through the correct
+ * tab's WebSocket connection.
  */
 export interface DatabaseClientConnection {
     executeActionServer(
@@ -63,16 +62,14 @@ export interface DatabaseClientConnection {
 /**
  * Client-side SQLite database.
  *
- * Wraps a {@link Database} that reads through a
- * {@link OpfsDatabaseStorage} adapter over OPFS-backed
- * page storage. Optimistic SQL writes accumulate in the
- * underlying {@link Database}'s in-memory buffer and only
- * land on disk once the server confirms them via
- * {@link writePageDiffsFromRealtime} (or are dropped on
+ * Wraps a {@link Database} that reads through a {@link OpfsDatabaseStorage}
+ * adapter over OPFS-backed page storage. Optimistic SQL writes accumulate in the
+ * underlying {@link Database}'s in-memory buffer and only land on disk once the
+ * server confirms them via {@link writePageDiffsFromRealtime} (or are dropped on
  * server error / discarded after a server fallback).
  *
- * Inject the result of `navigator.storage.getDirectory()`
- * to construct. For tests, pass an in-memory mock.
+ * Inject the result of `navigator.storage.getDirectory()` to construct. For tests,
+ * pass an in-memory mock.
  */
 export class DatabaseClient {
     private readonly database: Database;
@@ -86,12 +83,10 @@ export class DatabaseClient {
     }
 
     /**
-     * Open the SQLite database for a database group. The
-     * given `groupDir` is the per-group OPFS directory:
-     * each table's page store lives in a `{tableId}/`
-     * subdirectory inside it. Today only the main table
-     * is opened; future work will attach additional table
-     * databases under the same SQLite connection.
+     * Open the SQLite database for a database group. The given `groupDir` is the
+     * per-group OPFS directory: each table's page store lives in a `{tableId}/`
+     * subdirectory inside it. Today only the main table is opened; future work will
+     * attach additional table databases under the same SQLite connection.
      */
     static async create(groupDir: OpfsDirectoryHandle): Promise<DatabaseClient> {
         const storage = new OpfsDatabaseStorage(groupDir);
@@ -100,9 +95,8 @@ export class DatabaseClient {
         try {
             database = await Database.create(storage);
         } catch (error) {
-            // The main store's OPFS handles are already open;
-            // release them so a retry isn't blocked by OPFS's
-            // exclusive sync-access-handle lock.
+            // The main store's OPFS handles are already open; release them so a retry isn't
+            // blocked by OPFS's exclusive sync-access-handle lock.
             storage.close();
             throw error;
         }
@@ -110,11 +104,10 @@ export class DatabaseClient {
     }
 
     /**
-     * Close the SQLite connection and release every OPFS
-     * sync-access handle held by the page stores. Call when
-     * discarding this client (e.g. after a failed cold-open)
-     * so a later re-open of the same group isn't blocked by
-     * OPFS's exclusive sync-access-handle lock.
+     * Close the SQLite connection and release every OPFS sync-access handle held by
+     * the page stores. Call when discarding this client (e.g. after a failed
+     * cold-open) so a later re-open of the same group isn't blocked by OPFS's
+     * exclusive sync-access-handle lock.
      */
     close(): void {
         this.database.close();
@@ -122,25 +115,20 @@ export class DatabaseClient {
     }
 
     /**
-     * Validate the local OPFS page cache against the
-     * server, across every open table. Sends the
-     * `tableId → pageIndex → version` map the client
-     * has cached and receives back, per table:
+     * Validate the local OPFS page cache against the server, across every open table.
+     * Sends the `tableId → pageIndex → version` map the client has cached and receives
+     * back, per table:
      *
-     * - `updatedPages` — pages whose server data is
-     *   newer; written directly into that table's store.
-     * - `stalePageIndexes` — pages the client should
-     *   delete (re-fetched on demand).
+     * - `updatedPages` — pages whose server data is newer; written directly into that
+     *   table's store.
+     * - `stalePageIndexes` — pages the client should delete (re-fetched on demand).
      *
-     * Both empty for a table means its cache is already
-     * up to date.
+     * Both empty for a table means its cache is already up to date.
      */
     async ensureCacheIsUpToDate(conn: DatabaseClientConnection): Promise<void> {
-        // Called once at startup before any executeAction,
-        // so the buffer must be empty and SQLite's pager
-        // cache holds no user pages — meaning we can write
-        // straight to durable storage without invalidating
-        // the cache.
+        // Called once at startup before any executeAction, so the buffer must be empty and
+        // SQLite's pager cache holds no user pages — meaning we can write straight to
+        // durable storage without invalidating the cache.
         this.database.assertBufferIsEmpty("ensureCacheIsUpToDate");
 
         const pageVersionsByIndex = new Map<DatabaseTableId, Map<number, number>>();
@@ -181,17 +169,14 @@ export class DatabaseClient {
     }
 
     /**
-     * Execute a named action. Detects reads vs writes
-     * via the action's effect on storage: if local
-     * execution writes no pages, the result is returned
-     * immediately. If pages are written, the action is
-     * treated as a mutation with optimistic local
+     * Execute a named action. Detects reads vs writes via the action's effect on
+     * storage: if local execution writes no pages, the result is returned immediately.
+     * If pages are written, the action is treated as a mutation with optimistic local
      * execution and background server confirmation.
      *
-     * Falls back to the server when the local store is
-     * empty or missing pages. Actions defined with
-     * `serverOnly: true` skip the local optimistic path
-     * entirely and go straight to the server.
+     * Falls back to the server when the local store is empty or missing pages. Actions
+     * defined with `serverOnly: true` skip the local optimistic path entirely and go
+     * straight to the server.
      */
     async executeAction<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
@@ -199,11 +184,10 @@ export class DatabaseClient {
     ): Promise<DatabaseActionOutput<N>> {
         const mutationId = generateId<DatabaseMutationId>();
 
-        // Server-only actions (e.g. createTable) never run
-        // optimistically: they mint ids and attach new
-        // per-table files server-side, so the client just
-        // routes them straight to the server and applies the
-        // resulting pages (attaching any new table).
+        // Server-only actions (e.g. createTable) never run optimistically: they mint ids
+        // and attach new per-table files server-side, so the client just routes them
+        // straight to the server and applies the resulting pages (attaching any new
+        // table).
         if (databaseActions[actionObject.name].serverOnly) {
             return await this.executeActionViaServer(conn, actionObject, mutationId);
         }
@@ -251,12 +235,11 @@ export class DatabaseClient {
     }
 
     /**
-     * Execute a read-only action while tracking which
-     * database pages are read. Asserts the action's
-     * `writeLevel` is `"none"`.
+     * Execute a read-only action while tracking which database pages are read. Asserts
+     * the action's `writeLevel` is `"none"`.
      *
-     * On missing pages, falls back to the server, then
-     * retries locally to build an accurate read-set.
+     * On missing pages, falls back to the server, then retries locally to build an
+     * accurate read-set.
      */
     async executeActionWithTracking<N extends DatabaseActionName>(
         conn: DatabaseClientConnection,
@@ -292,16 +275,14 @@ export class DatabaseClient {
     }
 
     /**
-     * Run an action against the local database, attaching any
-     * referenced per-db file we have cached locally and
-     * retrying. A table whose pages aren't cached surfaces as
-     * {@link PageMissingError} so callers fall back to the
-     * server, which attaches and populates it.
+     * Run an action against the local database, attaching any referenced per-db file
+     * we have cached locally and retrying. A table whose pages aren't cached surfaces
+     * as {@link PageMissingError} so callers fall back to the server, which attaches
+     * and populates it.
      *
-     * Assumes a failed attempt left no buffered writes: every
-     * action targets a single per-db file and references it
-     * before writing, so an unattached table throws before any
-     * write — making the retry safe to re-run from scratch.
+     * Assumes a failed attempt left no buffered writes: every action targets a single
+     * per-db file and references it before writing, so an unattached table throws
+     * before any write — making the retry safe to re-run from scratch.
      */
     private async executeActionAttachingTables<N extends DatabaseActionName>(
         actionObject: DatabaseActionObject<N>,
@@ -312,10 +293,9 @@ export class DatabaseClient {
             } catch (error) {
                 if (!(error instanceof TableNotAttachedError)) throw error;
                 if (!(await this.tryAttachCachedTable(error.tableId))) {
-                    // We hold none of this table's pages locally, so we
-                    // can't attach it (ATTACH reads the header page).
-                    // Signal a page miss so the caller routes to the
-                    // server, which attaches and populates the table.
+                    // We hold none of this table's pages locally, so we can't attach it (ATTACH reads
+                    // the header page). Signal a page miss so the caller routes to the server, which
+                    // attaches and populates the table.
                     throw new PageMissingError(0, error.tableId);
                 }
             }
@@ -323,17 +303,16 @@ export class DatabaseClient {
     }
 
     /**
-     * Attach `tableId`'s per-db file from the local cache so the
-     * current action can read it without a server round-trip.
-     * Returns `false` — leaving the table unattached — when the
-     * header page (page 0) isn't cached locally, since ATTACH
+     * Attach `tableId`'s per-db file from the local cache so the current action can
+     * read it without a server round-trip. Returns `false` — leaving the table
+     * unattached — when the header page (page 0) isn't cached locally, since ATTACH
      * reads it.
      */
     private async tryAttachCachedTable(tableId: DatabaseTableId): Promise<boolean> {
         if (this.database.isAttached(tableId)) return true;
         const store = await this.openStore(tableId);
-        // Re-check: a concurrent action may have attached it while we
-        // awaited the store open.
+        // Re-check: a concurrent action may have attached it while we awaited the store
+        // open.
         if (this.database.isAttached(tableId)) return true;
         if (store.readPage(0) === null) return false;
         this.database.attach(tableId);
@@ -357,12 +336,10 @@ export class DatabaseClient {
     private invalidationScheduled = false;
 
     /**
-     * Register a reactive action. Executes the action
-     * with page tracking and returns the initial output.
-     * When pages in the action's read-set are subsequently
-     * written, the action re-executes and {@link notify}
-     * is called with the new output. If re-execution
-     * fails, {@link reportError} is called with the error.
+     * Register a reactive action. Executes the action with page tracking and returns
+     * the initial output. When pages in the action's read-set are subsequently
+     * written, the action re-executes and {@link notify} is called with the new
+     * output. If re-execution fails, {@link reportError} is called with the error.
      *
      * The action's `writeLevel` must be `"none"`.
      */
@@ -375,7 +352,7 @@ export class DatabaseClient {
     ): Promise<Result<DatabaseActionOutput<N>>> {
         assert(
             databaseActions[actionObject.name].writeLevel === "none",
-            "reactive actions must have writeLevel ‘none’",
+            "reactive actions must have writeLevel \u2018none\u2019",
         );
         try {
             const {output, readPages} = await this.executeActionWithTracking(conn, actionObject);
@@ -402,8 +379,7 @@ export class DatabaseClient {
     }
 
     /**
-     * Unregister a reactive action. Stops future
-     * invalidation notifications.
+     * Unregister a reactive action. Stops future invalidation notifications.
      */
     unregisterReactiveAction(id: string): void {
         this.reactiveActions.delete(id);
@@ -446,13 +422,11 @@ export class DatabaseClient {
     // -- Page writes ---------------------------------------------------------
 
     /**
-     * Write page diffs received from realtime events into
-     * the local OPFS stores, skipping pages already at a
-     * newer version. If the `mutationId` matches a queued
-     * optimistic mutation, removes it from the queue and
-     * replays the remaining mutations. Automatically
-     * schedules invalidation for any reactive queries
-     * whose read-set overlaps the written pages.
+     * Write page diffs received from realtime events into the local OPFS stores,
+     * skipping pages already at a newer version. If the `mutationId` matches a queued
+     * optimistic mutation, removes it from the queue and replays the remaining
+     * mutations. Automatically schedules invalidation for any reactive queries whose
+     * read-set overlaps the written pages.
      */
     writePageDiffsFromRealtime(pageDiffs: DatabasePageDiffs, mutationId: DatabaseMutationId): void {
         const headIndex = this.optimisticQueue.findIndex(m => m.mutationId === mutationId);
@@ -465,9 +439,8 @@ export class DatabaseClient {
             this.optimisticQueue.shift();
         }
 
-        // Drop the buffer (and SQLite's pager cache) so
-        // the pages we're about to write to durable
-        // storage are observed on the next read.
+        // Drop the buffer (and SQLite's pager cache) so the pages we're about to write to
+        // durable storage are observed on the next read.
         this.database.discardBuffer();
 
         let anyWritten = false;
@@ -496,10 +469,9 @@ export class DatabaseClient {
     }
 
     private applyServerPages(readPages: DatabasePages): void {
-        // Caller is expected to have cleared the buffer
-        // (executeActionViaServer calls discardBuffer
-        // before us) so storage mutations don't conflict
-        // with stale buffered writes.
+        // Caller is expected to have cleared the buffer (executeActionViaServer calls
+        // discardBuffer before us) so storage mutations don't conflict with stale buffered
+        // writes.
         this.database.assertBufferIsEmpty("applyServerPages");
         let anyWritten = false;
         for (const [tableId, tablePages] of readPages) {
@@ -523,10 +495,9 @@ export class DatabaseClient {
 
     private removeOptimisticMutation(mutationId: DatabaseMutationId): void {
         this.optimisticQueue = this.optimisticQueue.filter(m => m.mutationId !== mutationId);
-        // The buffer still holds writes from the failed
-        // mutation (and any subsequent queued mutations
-        // that ran on top of it). Drop it and rebuild from
-        // the remaining queue.
+        // The buffer still holds writes from the failed mutation (and any subsequent
+        // queued mutations that ran on top of it). Drop it and rebuild from the remaining
+        // queue.
         this.database.discardBuffer();
         this.replayOptimisticQueue();
     }
@@ -550,10 +521,8 @@ export class DatabaseClient {
     }
 
     /**
-     * Adds optimistically written pages to
-     * {@link pagesToInvalidate}, filtering out noise-only
-     * changes on page 0. Returns true if any pages were
-     * marked.
+     * Adds optimistically written pages to {@link pagesToInvalidate}, filtering out
+     * noise-only changes on page 0. Returns true if any pages were marked.
      */
     private markWrittenPages(writtenPages: ReadonlyDatabasePageSet): boolean {
         let anyMarked = false;
@@ -588,15 +557,13 @@ export class DatabaseClient {
     }
 
     /**
-     * Write loader-provided pages into the local OPFS
-     * stores before cache validation, opening per-table
-     * stores on demand for tables that haven't been seen
-     * yet. No invalidation is scheduled because no
-     * reactive actions exist yet.
+     * Write loader-provided pages into the local OPFS stores before cache validation,
+     * opening per-table stores on demand for tables that haven't been seen yet. No
+     * invalidation is scheduled because no reactive actions exist yet.
      */
     async seedPages(pages: DatabasePages): Promise<void> {
-        // seedPages runs at startup before ensureCacheIsUpToDate
-        // and any executeAction, so the buffer must be empty.
+        // seedPages runs at startup before ensureCacheIsUpToDate and any executeAction, so
+        // the buffer must be empty.
         this.database.assertBufferIsEmpty("seedPages");
         for (const [tableId, tablePages] of pages) {
             const store = this.storage.get(tableId) ?? (await this.storage.create(tableId));
@@ -608,9 +575,9 @@ export class DatabaseClient {
     }
 
     /**
-     * Open `tableId`'s per-db page store, registering it on the
-     * storage if it isn't already. Deduped so concurrent callers
-     * share one async `storage.create` (which yields).
+     * Open `tableId`'s per-db page store, registering it on the storage if it isn't
+     * already. Deduped so concurrent callers share one async `storage.create` (which
+     * yields).
      */
     private readonly openingStores = new Map<DatabaseTableId, Promise<OpfsPageStore>>();
 
@@ -625,21 +592,19 @@ export class DatabaseClient {
     }
 
     /**
-     * Ensure `tableId`'s per-db file has a local page store and
-     * is attached to the SQLite connection. No-op if it is
-     * already attached. Used by the server-fallback path, which
-     * supplies the table's pages, so it attaches unconditionally
-     * (unlike {@link tryAttachCachedTable}, which only attaches
-     * when the header page is already cached).
+     * Ensure `tableId`'s per-db file has a local page store and is attached to the
+     * SQLite connection. No-op if it is already attached. Used by the server-fallback
+     * path, which supplies the table's pages, so it attaches unconditionally (unlike
+     * {@link tryAttachCachedTable}, which only attaches when the header page is
+     * already cached).
      */
     private readonly attachingTables = new Map<DatabaseTableId, Promise<void>>();
 
     private ensureTableAttached(tableId: DatabaseTableId): Promise<void> {
         if (this.database.isAttached(tableId)) return Promise.resolve();
-        // Dedupe concurrent attaches of the same table:
-        // `openStore` yields, so without this two callers could
-        // both pass the `isAttached` check and the second
-        // `attach` would throw "already attached".
+        // Dedupe concurrent attaches of the same table: `openStore` yields, so without
+        // this two callers could both pass the `isAttached` check and the second `attach`
+        // would throw "already attached".
         return getOrSetDefaultMapValue(this.attachingTables, tableId, () =>
             (async () => {
                 await this.openStore(tableId);
@@ -675,28 +640,24 @@ export class DatabaseClient {
             returnResult,
         });
 
-        // Attach any table the server just told us about (e.g. a
-        // table this client created) before touching the buffer.
-        // `ensureTableAttached` can await (it creates the OPFS
-        // store), and there must be no `await` between
-        // `discardBuffer()` and `applyServerPages()` below: a
-        // concurrent RPC handler (RPC handlers aren't serialized,
-        // see DatabaseActiveTabWorker) could re-dirty the buffer in
-        // that window and trip `assertBufferIsEmpty`. Attaching here
-        // is safe while the optimistic buffer is still live — attach
-        // only adds the new table's empty page store, never writes.
+        // Attach any table the server just told us about (e.g. a table this client
+        // created) before touching the buffer. `ensureTableAttached` can await (it creates
+        // the OPFS store), and there must be no `await` between `discardBuffer()` and
+        // `applyServerPages()` below: a concurrent RPC handler (RPC handlers aren't
+        // serialized, see DatabaseActiveTabWorker) could re-dirty the buffer in that
+        // window and trip `assertBufferIsEmpty`. Attaching here is safe while the
+        // optimistic buffer is still live — attach only adds the new table's empty page
+        // store, never writes.
         if (serverResult.readPages !== null) {
             for (const tableId of serverResult.readPages.keys()) {
                 await this.ensureTableAttached(tableId);
             }
         }
 
-        // Writes from any pending optimistic mutations still live in
-        // the buffer; drop them so the server pages we're about to
-        // apply are visible before we replay the queue on top. From
-        // here through `replayOptimisticQueue()` runs synchronously —
-        // no `await` — so the buffer can't be re-dirtied underneath
-        // us.
+        // Writes from any pending optimistic mutations still live in the buffer; drop them
+        // so the server pages we're about to apply are visible before we replay the queue
+        // on top. From here through `replayOptimisticQueue()` runs synchronously — no
+        // `await` — so the buffer can't be re-dirtied underneath us.
         this.database.discardBuffer();
         if (serverResult.readPages !== null) {
             this.applyServerPages(serverResult.readPages);
@@ -717,18 +678,16 @@ export class DatabaseClient {
     }
 
     /**
-     * Execute a migration locally without server
-     * interaction. Writes land in the {@link Database}
-     * buffer; pair with {@link commitOptimisticPagesForTests}
-     * to materialize them on disk. Use for test setup only.
+     * Execute a migration locally without server interaction. Writes land in the
+     * {@link Database} buffer; pair with {@link commitOptimisticPagesForTests} to
+     * materialize them on disk. Use for test setup only.
      */
     executeLocallyForTests(migration: SqliteMigration): void {
         assert(import.meta.jest, "executeLocallyForTests is test-only");
-        // The Database authorizer is permissive while idle
-        // (writeLevel === null), so calling SQL directly
-        // on the underlying handle works for setup. Writes
-        // route through the VFS and accumulate in the
-        // Database buffer — same as a real action would.
+        // The Database authorizer is permissive while idle (writeLevel === null), so
+        // calling SQL directly on the underlying handle works for setup. Writes route
+        // through the VFS and accumulate in the Database buffer — same as a real action
+        // would.
         const db = this.database.unsafeGetDbForTests();
         if (typeof migration === "function") {
             migration(db);
@@ -738,11 +697,9 @@ export class DatabaseClient {
     }
 
     /**
-     * Drain the buffered writes onto disk so subsequent
-     * realtime/server events don't clear test-setup writes
-     * and {@link extractOpfsPages}-style helpers can see
-     * them. Test-only counterpart to
-     * {@link executeLocallyForTests}.
+     * Drain the buffered writes onto disk so subsequent realtime/server events don't
+     * clear test-setup writes and {@link extractOpfsPages}-style helpers can see them.
+     * Test-only counterpart to {@link executeLocallyForTests}.
      */
     commitOptimisticPagesForTests(): void {
         assert(import.meta.jest, "commitOptimisticPagesForTests is test-only");
@@ -770,9 +727,8 @@ export class DatabaseClient {
 }
 
 /**
- * Whether any page in `readPages` (per table) was also
- * written in `writtenPages`. Used to decide if a reactive
- * action's result is stale.
+ * Whether any page in `readPages` (per table) was also written in `writtenPages`.
+ * Used to decide if a reactive action's result is stale.
  */
 function pageSetsOverlap(
     readPages: ReadonlyDatabasePageSet,

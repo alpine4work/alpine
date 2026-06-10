@@ -35,7 +35,7 @@ export async function updateSpaceAccountRole(
         );
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const [spaceItem, spaceAccountItem, account] = await runAllPromises([
             SpacesTable.getItem(context, {
                 partitionType: "Space",
@@ -69,9 +69,9 @@ export async function updateSpaceAccountRole(
         });
 
         await DynamoTableSchema.executeTransaction(context, [
-            // Since this transaction is security sensitive, make sure the account and
-            // space didn't update when we commit. This also makes sure both the space and
-            // account exist.
+            // Since this transaction is security sensitive, make sure the account and space
+            // didn't update when we commit. This also makes sure both the space and account
+            // exist.
             SpacesTable.transactionUpdateLockVersionConditionCheck(
                 spaceItem,
                 spaceItem.updateLockVersion,

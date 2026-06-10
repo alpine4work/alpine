@@ -16,17 +16,23 @@ import {Schema} from "~/shared/schema/schema.js";
 export type SessionTokenPayload = {
     readonly type: "Session";
     readonly sessionId: SessionId;
-    // Though we could load the `AccountId` from the database item for our
-    // `SessionId`, it saves us database roundtrips to include it in the token
-    // given the `AccountId` for a session will never change.
+    // Though we could load the `AccountId` from the database item for our `SessionId`,
+    // it saves us database roundtrips to include it in the token given the `AccountId`
+    // for a session will never change.
     //
-    // When verifying the session still exists, we also need to verify the
-    // `AccountId` for the session is correct.
+    // When verifying the session still exists, we also need to verify the `AccountId`
+    // for the session is correct.
     readonly accountId: AccountId;
 };
 
 export type SystemTokenPayload = {
     readonly type: "System";
+    readonly spaceId: SpaceId;
+};
+
+export type ImpersonatedAccountTokenPayload = {
+    readonly type: "ImpersonatedAccount";
+    readonly accountId: AccountId;
     readonly spaceId: SpaceId;
 };
 
@@ -46,8 +52,8 @@ export type BotTokenPayload = {
 export type BotTokenPayloadScope =
     // The bot has access to everything this account has access to.
     //
-    // Theoretically, this is the same as `Chat` for a 1:1 chat between just the
-    // bot and the account.
+    // Theoretically, this is the same as `Chat` for a 1:1 chat between just the bot
+    // and the account.
     | {readonly type: "Account"; readonly accountId: AccountId}
     // The bot has access to everything that everyone with view access to these
     // entities has access to.
@@ -55,13 +61,14 @@ export type BotTokenPayloadScope =
     | {readonly type: "Document"; readonly documentId: DocumentId}
     | {readonly type: "Post"; readonly postId: PostId}
     | {readonly type: "Task"; readonly taskId: TaskId}
-    // The bot has access to only things that are shared with everyone in the
-    // space. So only what's been shared with `AccessPolicy`'s `defaultGrant`.
+    // The bot has access to only things that are shared with everyone in the space. So
+    // only what's been shared with `AccessPolicy`'s `defaultGrant`.
     | {readonly type: "Space"};
 
 export type TokenPayload =
     | SessionTokenPayload
     | SystemTokenPayload
+    | ImpersonatedAccountTokenPayload
     | AnonymousTokenPayload
     | BotTokenPayload;
 
@@ -70,6 +77,8 @@ export const TokenPayloadSchema = Schema.object({
     aid: Schema.id<AccountId>().optional(),
     // "w" stands for "workspace" since "s" for "space" is taken.
     wid: Schema.id<SpaceId>().optional(),
+    // "i" stands for "impersonated account".
+    iid: Schema.id<AccountId>().optional(),
     ano: Schema.value(1).optional(),
     sco: Schema.string.optional(),
 })
@@ -80,6 +89,8 @@ export const TokenPayloadSchema = Schema.object({
                     return {sid: payload.sessionId, aid: payload.accountId};
                 case "System":
                     return {wid: payload.spaceId};
+                case "ImpersonatedAccount":
+                    return {iid: payload.accountId, wid: payload.spaceId};
                 case "Anonymous":
                     return {ano: 1};
                 case "Bot": {
@@ -114,6 +125,19 @@ export const TokenPayloadSchema = Schema.object({
                     spaceId: payload.wid,
                     accountId: payload.aid,
                     scope,
+                };
+            }
+            if (payload.iid !== undefined) {
+                if (payload.wid === undefined)
+                    throw new InvalidArgumentError("Token payload is missing required `wid` claim");
+
+                if (payload.aid !== undefined)
+                    throw new InvalidArgumentError("Token payload has unexpected `aid` claim");
+
+                return {
+                    type: "ImpersonatedAccount",
+                    accountId: payload.iid,
+                    spaceId: payload.wid,
                 };
             }
 

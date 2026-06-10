@@ -1,4 +1,3 @@
-import {jest} from "@jest/globals";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
@@ -7,9 +6,14 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {InboxEntryItem, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
+import {createOrUpdateAccountWebPushSubscriptionWithoutAuthorization} from "~/server/notifications/data/internal/push/create_or_update_web_push_subscription_without_authorization.js";
 import {getInitialWebPushSubscriptionItem} from "~/server/notifications/data/internal/push/get_initial_web_push_subscription_item.js";
 import {PendingSubtleNotificationStub} from "~/server/notifications/data/internal/push/pending_subtle_notification_stub.js";
 import {queuePendingSubtleNotification} from "~/server/notifications/data/internal/push/queue_pending_subtle_notification.js";
+import {
+    getPendingSubtleNotificationSummaryContent,
+    sendPendingSubtleNotificationsForInbox,
+} from "~/server/notifications/data/internal/push/send_pending_subtle_notifications_for_inbox.js";
 import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {processNotificationEvent} from "~/server/notifications/data/process/process_notification_event.js";
 import {createTestWebPushSubscription} from "~/server/notifications/data/push/test_helpers/create_test_web_push_subscription.js";
@@ -17,7 +21,7 @@ import {addSearchAffinityEntityPointsForTest} from "~/server/search/data/table/s
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -25,18 +29,6 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BrowserId, ChatId, NotificationEventId} from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
-
-const sendWebPushNotificationToAllSubscriptionsMock = jest.fn();
-
-jest.unstable_mockModule("../push/send_web_push_notification_to_all_subscriptions.js", () => ({
-    sendWebPushNotificationToAllSubscriptions: sendWebPushNotificationToAllSubscriptionsMock,
-}));
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const sendWebPushNotificationToAllSubscriptionsModule =
-    await import("./send_web_push_notification_to_all_subscriptions.js");
-const {getPendingSubtleNotificationSummaryContent, sendPendingSubtleNotificationsForInbox} =
-    await import("~/server/notifications/data/internal/push/send_pending_subtle_notifications_for_inbox.js");
 
 const sendWebPushNotificationMock = import.meta.jest.fn();
 
@@ -122,10 +114,46 @@ function createChatMessageNotificationEvent(
 
 describe("sendPendingSubtleNotificationsForInbox", () => {
     beforeEach(() => {
-        sendWebPushNotificationToAllSubscriptionsMock.mockClear();
+        sendWebPushNotificationMock.mockClear();
     });
 
     test("returns early when account has no web push subscriptions", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const otherSession = await space.createSession();
+
+        // Create a chat and message
+        const chat = await TestChat.get(session, otherSession);
+        const message = await chat.sendMessage(otherSession, "Hello");
+        await ProcessContextModule.waitForTestTasks();
+
+        const inboxEntry = await getChatInboxEntry(session, space, chat.id);
+        const notificationEvent = createChatMessageNotificationEvent(
+            space,
+            chat,
+            otherSession.account.id,
+            message.index,
+            message.createdTime,
+        );
+        await queuePendingSubtleNotification(space.systemAction(), {
+            accountId: session.account.id,
+            spaceId: space.id,
+            notificationEvent,
+            inboxEntry,
+        });
+
+        // Should not throw and should return early (no web push subscription)
+        await sendPendingSubtleNotificationsForInbox(
+            space.systemAction().clone({webPush: new TestWebPushContextModule()}),
+            {
+                accountId: session.account.id,
+                spaceId: space.id,
+            },
+        );
+        expect(sendWebPushNotificationMock).not.toHaveBeenCalled();
+    });
+
+    test("clears pending notifications and returns when account has no push subscriptions", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const otherSession = await space.createSession();
@@ -169,8 +197,7 @@ describe("sendPendingSubtleNotificationsForInbox", () => {
                 accountId: session.account.id,
             },
         );
-        expect(subtleNotificationsItem?.pendingSubtleNotifications.size).toBe(1);
-        expect(sendWebPushNotificationToAllSubscriptionsMock).not.toHaveBeenCalled();
+        expect(subtleNotificationsItem?.pendingSubtleNotifications.size).toBe(0);
     });
 
     test("returns early when there are no pending quiet notifications", async () => {
@@ -186,7 +213,7 @@ describe("sendPendingSubtleNotificationsForInbox", () => {
                 spaceId: space.id,
             },
         );
-        expect(sendWebPushNotificationToAllSubscriptionsMock).not.toHaveBeenCalled();
+        expect(sendWebPushNotificationMock).not.toHaveBeenCalled();
     });
 
     test("clears pending notifications and returns when there is no content to send", async () => {
@@ -243,7 +270,62 @@ describe("sendPendingSubtleNotificationsForInbox", () => {
             },
         );
         expect(subtleNotificationsItem?.pendingSubtleNotifications.size).toBe(0);
-        expect(sendWebPushNotificationToAllSubscriptionsMock).not.toHaveBeenCalled();
+        expect(sendWebPushNotificationMock).not.toHaveBeenCalled();
+    });
+    test("sends web push notification when there is content to send and a web push subscription exists", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const otherSession = await space.createSession();
+
+        // Create a chat and message
+        const chat = await TestChat.get(session, otherSession);
+        const message = await chat.sendMessage(otherSession, "Hello");
+        await ProcessContextModule.waitForTestTasks();
+
+        const inboxEntry = await getChatInboxEntry(session, space, chat.id);
+        const notificationEvent = createChatMessageNotificationEvent(
+            space,
+            chat,
+            otherSession.account.id,
+            message.index,
+            message.createdTime,
+        );
+
+        await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
+            accountId: session.account.id,
+            browserId: generateId<BrowserId>(),
+            subscription: createTestWebPushSubscription(
+                `https://push.cyberworlds.dev/endpoint-${generateId<BrowserId>()}}`,
+            ),
+        });
+
+        await queuePendingSubtleNotification(space.systemAction(), {
+            accountId: session.account.id,
+            spaceId: space.id,
+            notificationEvent,
+            inboxEntry,
+        });
+
+        // Should not throw and should return early (no web push subscription)
+        await sendPendingSubtleNotificationsForInbox(
+            space.systemAction().clone({webPush: new TestWebPushContextModule()}),
+            {
+                accountId: session.account.id,
+                spaceId: space.id,
+            },
+        );
+
+        // Verify pending notifications were not cleared (since we returned early)
+        const subtleNotificationsItem = await NotificationsTable.getItemIfExists(
+            space.systemAction(),
+            {
+                partitionType: "Inbox",
+                sortRangeType: "PendingSubtleNotifications",
+                spaceId: space.id,
+                accountId: session.account.id,
+            },
+        );
+        expect(subtleNotificationsItem?.pendingSubtleNotifications.size).toBe(0);
     });
 });
 
@@ -355,6 +437,55 @@ describe("getPendingSubtleNotificationSummaryContent", () => {
 
         const chat = await TestChat.get(session, otherSession);
         const message1 = await chat.sendMessage(otherSession, "Hello");
+        await ProcessContextModule.waitForTestTasks();
+
+        await createAffinityForAccount(session, space, otherSession.account.id, 100);
+
+        // Use two distinct inbox entries so the title counts 2 updates.
+        const pendingSubtleNotifications = new Map<string, PendingSubtleNotificationStub>([
+            [
+                "notification-1",
+                {
+                    eventAuthorId: otherSession.account.id,
+                    eventTime: message1.createdTime,
+                    inboxEntryKey: {type: "Chat", chatId: chat.id},
+                },
+            ],
+            [
+                "notification-2",
+                {
+                    eventAuthorId: otherSession.account.id,
+                    eventTime: new Date(message1.createdTime.getTime() - 1),
+                    inboxEntryKey: {type: "Chat", chatId: generateId<ChatId>()},
+                },
+            ],
+        ]);
+
+        const result = await getPendingSubtleNotificationSummaryContent({
+            context: space.systemAction().clone({webPush: new TestWebPushContextModule()}),
+            spaceId: space.id,
+            currentAccount,
+            pendingSubtleNotifications,
+        });
+
+        expect(result).not.toBeNull();
+        expect(result!.title).toBe(
+            `2 updates from ${otherSession.account.initialName.split(" ")[0]}`,
+        );
+    });
+
+    test("collapses multiple notifications for the same inbox entry into one update", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const otherSession = await space.createSession();
+        const currentAccount = await getAccountWithoutAvatar(
+            space.systemAction(),
+            space.id,
+            session.account.id,
+        );
+
+        const chat = await TestChat.get(session, otherSession);
+        const message1 = await chat.sendMessage(otherSession, "Hello");
         const message2 = await chat.sendMessage(otherSession, "Hello again");
         await ProcessContextModule.waitForTestTasks();
 
@@ -387,9 +518,7 @@ describe("getPendingSubtleNotificationSummaryContent", () => {
         });
 
         expect(result).not.toBeNull();
-        expect(result!.title).toBe(
-            `2 updates from ${otherSession.account.initialName.split(" ")[0]}`,
-        );
+        expect(result!.title).toBe(`Update from ${otherSession.account.initialName.split(" ")[0]}`);
     });
 
     test("returns title with updates from two authors", async () => {
@@ -787,13 +916,21 @@ describe("getPendingSubtleNotificationSummaryContent", () => {
 
         await createAffinityForAccount(session, space, otherSession.account.id, 100);
 
-        // Create 15 notifications to test the 10+ formatting
+        // Create 15 notifications across 15 distinct inbox entries to test the 10+
+        // formatting. The real chat entry (used for the most recent notification) supplies
+        // the body; the other entries don't need to exist in the database since the title
+        // only depends on the entry key.
         const pendingSubtleNotifications = new Map<string, PendingSubtleNotificationStub>();
-        for (let i = 0; i < 15; i++) {
+        pendingSubtleNotifications.set("notification-0", {
+            eventAuthorId: otherSession.account.id,
+            eventTime: new Date(message.createdTime.getTime() + 14),
+            inboxEntryKey: {type: "Chat", chatId: chat.id},
+        });
+        for (let i = 1; i < 15; i++) {
             pendingSubtleNotifications.set(`notification-${i}`, {
                 eventAuthorId: otherSession.account.id,
-                eventTime: new Date(message.createdTime.getTime() + i),
-                inboxEntryKey: {type: "Chat", chatId: chat.id},
+                eventTime: new Date(message.createdTime.getTime() + i - 1),
+                inboxEntryKey: {type: "Chat", chatId: generateId<ChatId>()},
             });
         }
 
@@ -979,9 +1116,12 @@ describe("getPendingSubtleNotificationSummaryContent", () => {
         expect(result).not.toBeNull();
         const author1FirstName = author1.account.initialName.split(" ")[0];
         const author2FirstName = author2.account.initialName.split(" ")[0];
-        // 4 authors - 2 shown = 2 others
+        // The 9 notifications collapse into 6 distinct inbox entries (the chat, the
+        // channel posts entry, the post comments entry, the document new comment threads
+        // entry, the document comment thread entry, and the task). 4 authors - 2 shown = 2
+        // others.
         expect(result!.title).toBe(
-            `9 updates from ${author1FirstName}, ${author2FirstName}, and 2 others`,
+            `6 updates from ${author1FirstName}, ${author2FirstName}, and 2 others`,
         );
     });
 });

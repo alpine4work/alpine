@@ -4,8 +4,9 @@ import {BrowserId} from "~/shared/id/types/id_types.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**
- * Registers a web push subscription for an account to the database and does not change the opt out
- * status for any spaces. By default, all of an account's spaces begin opted in.
+ * Registers a web push subscription for an account to the database and does not
+ * change the opt out status for any spaces. By default, all of an account's spaces
+ * begin opted in.
  */
 export async function registerOurAccountWebPushSubscription(
     context: ServerSessionActionContext,

@@ -14,10 +14,9 @@ export function iterateEmojis(string: string): Iterable<{index: number; emoji: s
         const index = match.index;
         let emoji = match[0];
 
-        // It would appear that `emoji-regex` has a bug where it does not consider
-        // emojis that end in the text variant selector as an emoji. However
-        // `text_presentation_sequence` is a valid form in the spec we'd like to
-        // consider:
+        // It would appear that `emoji-regex` has a bug where it does not consider emojis
+        // that end in the text variant selector as an emoji. However
+        // `text_presentation_sequence` is a valid form in the spec we'd like to consider:
         // http://unicode.org/reports/tr51/#Emoji_Presentation
         if (/\p{Emoji}$/u.test(emoji) && string[index + emoji.length] === "\u{FE0E}")
             emoji += "\u{FE0E}";
@@ -25,18 +24,18 @@ export function iterateEmojis(string: string): Iterable<{index: number; emoji: s
         // We do not consider emojis that render as text to be emojis (unlike the
         // `emoji-regex` package).
         //
-        // Filter out emojis that default to text presentation (characters that have
-        // the `Emoji` character class but do not have the `Emoji_Presentation`
-        // character class) and filter out emoji text presentation sequences (an
-        // `Emoji` character class followed by U+FE0E) ([spec][1]).
+        // Filter out emojis that default to text presentation (characters that have the
+        // `Emoji` character class but do not have the `Emoji_Presentation` character
+        // class) and filter out emoji text presentation sequences (an `Emoji` character
+        // class followed by U+FE0E) ([spec][1]).
         //
         // More information on this topic:
         //
         // - [Emojis with both emoji presentation and text presentations][2]
         // - [Variation selector Unicode code points][3]
         // - [Good blog post on OS presentation differences][4]
-        // - [Another good blog post on OS presentation differences][5] (TL;DR of both
-        //   of these is mobile Safari on iOS does something different than the Unicode
+        // - [Another good blog post on OS presentation differences][5] (TL;DR of both of
+        //   these is mobile Safari on iOS does something different than the Unicode
         //   specification when you don't have a variant selector)
         //
         // [1]: http://unicode.org/reports/tr51/#Emoji_Presentation

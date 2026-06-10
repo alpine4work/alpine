@@ -1,9 +1,10 @@
-import {useCallback, useMemo} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {FeedViewSideBar} from "~/client/web/feed/internal/feed_view_side_bar.js";
 import {PostFeedList} from "~/client/web/forum/post_feed_list.js";
 import {PostListView} from "~/client/web/forum/post_list_view.js";
+import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
@@ -14,10 +15,9 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     feedViewSideBarLeftFlex,
     feedViewSideBarRightFlex,
-    feedViewSideBarRightMaxWidth,
+    feedViewSideBarWidth,
 } from "~/client/web/styles/feed_shared_styles.js";
 import {postViewFlex} from "~/client/web/styles/forum_shared_styles.js";
-import {searchEntitySideBarWidth} from "~/client/web/styles/search_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
 import {FeedEntryModel} from "~/shared/feed/feed_entry_model.js";
@@ -28,6 +28,7 @@ import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 export function FeedView({
     initialAffinitySearch,
     initialFeed,
+    withMarginBottom,
 }: {
     initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
     initialFeed: {
@@ -35,6 +36,7 @@ export function FeedView({
         hasMoreEntries: boolean;
         entries: ReadonlyArray<FeedEntryModel>;
     };
+    withMarginBottom?: boolean;
 }) {
     const context = useAppContext();
     const clientInfo = useClientInfo();
@@ -48,12 +50,20 @@ export function FeedView({
         PostFeedList.new(initialFeed),
     );
 
+    const [isLeftSideBarHiddenForDev, setIsLeftSideBarHiddenForDev] = useState(false);
+
+    useDevConsoleTool("feed", () => ({
+        toggleLeftSideBarVisibility: () => {
+            setIsLeftSideBarHiddenForDev(isVisible => !isVisible);
+        },
+    }));
+
     const sideBarLeftSize = useMemo(
         () =>
-            routeLayout !== "narrow"
-                ? ({maxWidth: searchEntitySideBarWidth, flex: feedViewSideBarLeftFlex} as const)
+            routeLayout !== "narrow" && !isLeftSideBarHiddenForDev
+                ? ({maxWidth: feedViewSideBarWidth, flex: feedViewSideBarLeftFlex} as const)
                 : undefined,
-        [routeLayout],
+        [isLeftSideBarHiddenForDev, routeLayout],
     );
 
     // While we don't actually render a right sidebar, on large screens (where
@@ -63,13 +73,10 @@ export function FeedView({
     // visual whitespace to the left of the post content.
     const sideBarRightSize = useMemo(
         () =>
-            routeLayout !== "narrow"
-                ? ({
-                      maxWidth: feedViewSideBarRightMaxWidth,
-                      flex: feedViewSideBarRightFlex,
-                  } as const)
+            routeLayout !== "narrow" && !isLeftSideBarHiddenForDev
+                ? ({maxWidth: feedViewSideBarWidth, flex: feedViewSideBarRightFlex} as const)
                 : undefined,
-        [routeLayout],
+        [isLeftSideBarHiddenForDev, routeLayout],
     );
 
     const navigationBar = useNavigationBar({
@@ -77,14 +84,14 @@ export function FeedView({
         title: space.name,
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
-        // This is a route for a root tab in our mobile app so don't show the back
-        // button. It wouldn't work.
+        // This is a route for a root tab in our mobile app so don't show the back button.
+        // It wouldn't work.
         withoutMobileBackButton: true,
     });
 
-    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
-    // post in a new route. `<PostListView>` will throw if you pass in `posts` with
-    // expanded comments on mobile. So make sure to close them all.
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the post
+    // in a new route. `<PostListView>` will throw if you pass in `posts` with expanded
+    // comments on mobile. So make sure to close them all.
     if (platform === "mobile" && feed.hasOpenPostComments()) {
         setFeed(feed => feed.closeAllPostComments());
     }
@@ -97,6 +104,10 @@ export function FeedView({
                     () => ({type: "FeedCreateSection", initialAffinitySearch}),
                     [initialAffinitySearch],
                 )}
+                footer={useMemo(() => {
+                    if (!withMarginBottom) return;
+                    return {type: "MarginBottom"};
+                }, [withMarginBottom])}
                 posts={feed}
                 onTogglePostComments={useCallback(
                     postId => {
@@ -129,19 +140,19 @@ export function FeedView({
                     setFeed(feed => feed.loadMoreEntries(output));
                 }}
                 shouldBeConnectedToChannelRealtime={false}
-                onPostRealtimeEventTransaction={useCallback(
-                    eventTransaction => {
-                        setFeed(feed => feed.handleEventTransaction(eventTransaction));
+                onPostRealtimeEvents={useCallback(
+                    events => {
+                        setFeed(feed => feed.handleEvents(events));
                     },
                     [setFeed],
                 )}
-                onOptimisticPostRealtimeEventTransaction={useCallback(
+                onOptimisticPostRealtimeEvents={useCallback(
                     (promise, postId, update) => {
                         setFeedOptimistically(promise, (feed, promiseValue) => {
-                            // Once `promise` resolves, use the event transaction from `promise` to update
-                            // the posts instead of our optimistic updater.
+                            // Once `promise` resolves, use the event transaction from `promise` to update the
+                            // posts instead of our optimistic updater.
                             if (promiseValue) {
-                                return feed.handleEventTransaction(promiseValue);
+                                return feed.handleEvents(promiseValue);
                             }
 
                             const oldPostItem = feed.getPostRealtimeItemIfExists(postId);
@@ -151,26 +162,27 @@ export function FeedView({
                             const newPostItem = {
                                 ...oldPostItem,
                                 // Always pretend like our optimistic update is one version higher than what's
-                                // currently in state. Once `promise` resolves then we'll update the item with
-                                // the real version.
+                                // currently in state. Once `promise` resolves then we'll update the item with the
+                                // real version.
                                 version: oldPostItem.version + 1,
                                 model: newPost,
                             };
 
-                            return feed.handleEventTransaction([
+                            return feed.handleEvents([
                                 {type: "PutItem", item: newPostItem, indexes: new Map()},
                             ]);
                         });
                     },
                     [setFeedOptimistically],
                 )}
-                // The amount of space to reserve for our left sidebar. We render the sidebar
-                // using `extraChildren`. We also reserve some right sidebar space on large
-                // screens to visually center our post content.
+                // The amount of space to reserve for our left sidebar. We render the sidebar using
+                // `extraChildren`. We also reserve some right sidebar space on large screens to
+                // visually center our post content.
                 sideBarLeftSize={sideBarLeftSize}
                 sideBarRightSize={sideBarRightSize}
                 extraChildren={
-                    sideBarLeftSize && (
+                    sideBarLeftSize &&
+                    sideBarRightSize && (
                         <Box
                             zIndex="10"
                             position="sticky"
@@ -182,8 +194,10 @@ export function FeedView({
                             <Box
                                 overflow="hidden"
                                 width="full"
-                                maxWidth={sideBarLeftSize.maxWidth}
-                                style={{flex: sideBarLeftSize.flex}}
+                                style={{
+                                    flex: sideBarLeftSize.flex,
+                                    maxWidth: sideBarLeftSize.maxWidth,
+                                }}
                             >
                                 <FeedViewSideBar
                                     height={size?.height ?? clientInfo.screenHeight}
@@ -195,13 +209,13 @@ export function FeedView({
                                 maxWidth={contentStyles.contentMaxWidth}
                                 style={{flex: postViewFlex}}
                             />
-                            {sideBarRightSize && (
-                                <Box
-                                    width="full"
-                                    maxWidth={sideBarRightSize.maxWidth}
-                                    style={{flex: sideBarRightSize.flex}}
-                                />
-                            )}
+                            <Box
+                                width="full"
+                                style={{
+                                    flex: sideBarRightSize.flex,
+                                    maxWidth: sideBarRightSize.maxWidth,
+                                }}
+                            />
                         </Box>
                     )
                 }

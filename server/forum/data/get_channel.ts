@@ -2,8 +2,11 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelItemAccessIfPossible} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
-import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {
+    ChannelPreviewItemAuthorizationCache,
+    convertChannelModelToChannelPreviewAttributesItem,
+} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
@@ -24,7 +27,7 @@ export async function getChannelIfPossible(
     context: ServerActionContext,
     channelId: ChannelId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = emptyObject,
-): Promise<Result<DynamoGeneralRealtimeItem<ChannelModel>, ErrorBase> | null> {
+): Promise<Result<RynamoItem<ChannelModel>, ErrorBase> | null> {
     const getPromise = ForumRealtimeTable.getRealtimeItemIfExists(
         context,
         {
@@ -35,10 +38,12 @@ export async function getChannelIfPossible(
         {consistency},
     );
 
-    const cachedGetPromise = getPromise.then(channel => (channel ? channel.model : null));
+    const cachedGetPromise = getPromise.then(channel =>
+        channel ? convertChannelModelToChannelPreviewAttributesItem(channel.model) : null,
+    );
 
-    // Make sure errors thrown by this promise aren't treated as uncaught
-    // exceptions. We catch them below when we await `getPromise`.
+    // Make sure errors thrown by this promise aren't treated as uncaught exceptions.
+    // We catch them below when we await `getPromise`.
     cachedGetPromise.catch(() => {});
 
     // If we're loading the channel, we can use the channel item in our
@@ -48,7 +53,11 @@ export async function getChannelIfPossible(
     const channel = await getPromise;
     if (!channel) return null;
 
-    const result = await authorizeChannelItemAccessIfPossible(context, channel.model, "View");
+    const result = await authorizeChannelItemAccessIfPossible(
+        context,
+        convertChannelModelToChannelPreviewAttributesItem(channel.model),
+        "View",
+    );
     if (!result.ok) return result;
 
     return {ok: true, value: channel};
@@ -62,7 +71,7 @@ export async function getChannelIfExists(
     context: ServerActionContext,
     channelId: ChannelId,
     options?: {consistency?: DynamoReadConsistency},
-): Promise<DynamoGeneralRealtimeItem<ChannelModel> | null> {
+): Promise<RynamoItem<ChannelModel> | null> {
     const channel = await getChannelIfPossible(context, channelId, options);
     if (!channel) return null;
     return unwrapResult(channel);
@@ -76,7 +85,7 @@ export async function getChannel(
     context: ServerActionContext,
     channelId: ChannelId,
     options?: {consistency?: DynamoReadConsistency},
-): Promise<DynamoGeneralRealtimeItem<ChannelModel>> {
+): Promise<RynamoItem<ChannelModel>> {
     const channel = await getChannelIfExists(context, channelId, options);
     if (!channel) throw createChannelNotFoundError(channelId);
     return channel;

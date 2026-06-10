@@ -113,19 +113,19 @@ export function NativeMobileOutlet({
                 fetch: () => {
                     // NOTE(calebmer): Maybe there's a use-case for fetching in an inert route? For
                     // example if we implement something like combobox data loading with fetchers
-                    // instead of `useLazyLoadRpc()`. Maybe if revalidate is called we should hold
-                    // it until the user pops back. I have no intention of supporting this use case
-                    // but we could add in the future.
+                    // instead of `useLazyLoadRpc()`. Maybe if revalidate is called we should hold it
+                    // until the user pops back. I have no intention of supporting this use case but we
+                    // could add in the future.
                     tracer.logException(
                         "Inert route activity",
                         new InternalError("Can\u2019t fetch in an inert route"),
                     );
                 },
                 revalidate: () => {
-                    // NOTE(calebmer): Maybe there's a use-case for revalidating an inert route?
-                    // e.g. Polling? Maybe if revalidate is called we should hold it until the user
-                    // pops back. I have no intention of supporting this use case but we could add
-                    // in the future.
+                    // NOTE(calebmer): Maybe there's a use-case for revalidating an inert route? e.g.
+                    // Polling? Maybe if revalidate is called we should hold it until the user pops
+                    // back. I have no intention of supporting this use case but we could add in the
+                    // future.
                     tracer.logException(
                         "Inert route activity",
                         new InternalError("Can\u2019t revalidate in an inert route"),
@@ -137,9 +137,9 @@ export function NativeMobileOutlet({
                     return inertRouterState.fetchers.get(key as any) ?? IDLE_FETCHER;
                 },
                 deleteFetcher: key => {
-                    // If the fetcher is already deleted. This is a noop. This method is called by
-                    // an effect in `useFetcher()` when the `router` object changes. Our inert
-                    // fetcher does no work so we don't need to garbage collect fetchers.
+                    // If the fetcher is already deleted. This is a noop. This method is called by an
+                    // effect in `useFetcher()` when the `router` object changes. Our inert fetcher
+                    // does no work so we don't need to garbage collect fetchers.
                     if (!inertRouterState.fetchers.has(key)) {
                         return;
                     }
@@ -270,12 +270,12 @@ export function NativeMobileOutlet({
                               disableErrorBoundaryForFirstMatch: true,
                           },
                       )
-                    : // If there's an error in the parent route, we render nothing for our inert
-                      // route. If the inert route becomes the primary route again then the error
-                      // component is completely remounted.
+                    : // If there's an error in the parent route, we render nothing for our inert route.
+                      // If the inert route becomes the primary route again then the error component is
+                      // completely remounted.
                       //
-                      // `renderMatches()` throws an error if you try to render with errors in a
-                      // parent route.
+                      // `renderMatches()` throws an error if you try to render with errors in a parent
+                      // route.
                       null,
             };
         }, [
@@ -294,9 +294,8 @@ export function NativeMobileOutlet({
             className={className}
             style={{
                 ...style,
-                // While inert, remove the document from the content flow and make
-                // it invisible. `bottom: 0` is so that a tall inert route doesn't grow
-                // our `<body>`'s height.
+                // While inert, remove the document from the content flow and make it invisible.
+                // `bottom: 0` is so that a tall inert route doesn't grow our `<body>`'s height.
                 position: isInert ? "absolute" : "relative",
                 bottom: isInert ? "0" : undefined,
                 visibility: isInert ? "hidden" : undefined,
@@ -305,9 +304,9 @@ export function NativeMobileOutlet({
                 left: isInert ? "0" : undefined,
                 right: isInert ? "0" : undefined,
             }}
-            // The [`<Offscreen>` component][1] React claims is coming may be a better
-            // fit here so we don't actually render content in the DOM. `inert` has good
-            // browser support though!
+            // The [`<Offscreen>` component][1] React claims is coming may be a better fit here
+            // so we don't actually render content in the DOM. `inert` has good browser support
+            // though!
             //
             // [1]: https://react.dev/blog/2022/03/29/react-v18
             // [2]: https://caniuse.com/?search=inert
@@ -343,30 +342,32 @@ export function NativeMobileOutlet({
                     position="absolute"
                     zIndex="10"
                     bottom="0"
-                    // We need to add enough padding that we're not clipped by the edge of the
-                    // screen when rendering in safe area.
+                    // We need to add enough padding that we're not clipped by the edge of the screen
+                    // when rendering in safe area.
                     right="6"
                     borderTopRadius="1"
                     backgroundColor="grey-0"
                     style={{
-                        // Our native mobile wrapper looks for compositing layers created from an
-                        // element with an ID that starts with `nmbb-` and ties their position to
-                        // the tab bar and software keyboard. So we get smooth animations while the
-                        // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                        // layer we need to set `will-change: transform`. It's not specified that
-                        // `will-change: transform` MUST create a compositing layer, instead some
-                        // browser engines implement this hint themselves as an optimization.
+                        // Our native mobile wrapper looks for compositing layers created from an element
+                        // with an ID that starts with `nmbb-` and ties their position to the tab bar and
+                        // software keyboard. So we get smooth animations while the keyboard opens or the
+                        // tab bar shifts offscreen. To create a compositing layer we need to set
+                        // `will-change: transform`. It's not specified that `will-change: transform` MUST
+                        // create a compositing layer, instead some browser engines implement this hint
+                        // themselves as an optimization.
                         //
-                        // It so happens that WebKit is one of those browsers. Here's the code in
-                        // WebKit that does this: [part 1][1], [part 2][2].
+                        // It so happens that WebKit is one of those browsers. Here's the code in WebKit
+                        // that does this: [part 1][1], [part 2][2].
                         //
-                        // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                        // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                        // [1]:
+                        //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                        // [2]:
+                        //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                         willChange: "transform",
                     }}
-                    // Suppress React hydration warnings in our native mobile app. The native
-                    // mobile app sets the `transform` property on this element. Sometimes before
-                    // React finishes hydrating. This is expected, React can ignore the difference.
+                    // Suppress React hydration warnings in our native mobile app. The native mobile
+                    // app sets the `transform` property on this element. Sometimes before React
+                    // finishes hydrating. This is expected, React can ignore the difference.
                     suppressHydrationWarning={true}
                 >
                     <GlobalLoadingIndicatorChip indicator={globalLoadingIndicator} />

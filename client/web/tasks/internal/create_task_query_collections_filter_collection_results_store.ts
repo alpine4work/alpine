@@ -20,14 +20,13 @@ import {
 /**
  * Get the collection result objects for all the `collectionIds` in our filter
  * operation. We expect that `<TaskQueryCollectionsFilterOperationEditor>` will
- * setup a subscription to all collections referenced by our filters. But it
- * may take a second since the subscriptions are setup in a `useEffect()`. So
- * subscribe to our subscription store and wait for the collection
- * subscriptions to become available.
+ * setup a subscription to all collections referenced by our filters. But it may
+ * take a second since the subscriptions are setup in a `useEffect()`. So subscribe
+ * to our subscription store and wait for the collection subscriptions to become
+ * available.
  *
  * Returns both a `TaskCollectionModelSearchResult` object and a
- * `TaskClientStoreCollectionEntry` object depending on what you're
- * looking for.
+ * `TaskClientStoreCollectionEntry` object depending on what you're looking for.
  */
 export function createTaskQueryCollectionsFilterCollectionResultsStore({
     store,
@@ -68,8 +67,8 @@ export function createTaskQueryCollectionsFilterCollectionResultStore({
     return (
         store
             .getSubscriptionsStore()
-            // Optimization: If subscriptions change but our `collectionEntryStore` stays
-            // the same then we don't want to recompute the full collection results array.
+            // Optimization: If subscriptions change but our `collectionEntryStore` stays the
+            // same then we don't want to recompute the full collection results array.
             .flatMap(
                 ({collectionSubscriptionsById}) =>
                     iterableFirst(collectionSubscriptionsById.get(collectionId)?.keys() ?? [])

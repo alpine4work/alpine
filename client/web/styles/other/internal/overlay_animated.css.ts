@@ -5,8 +5,8 @@ import {spacing} from "~/shared/design/core/spacing.js";
 // On fade-in the animation moves towards the component. This makes it feel like
 // the overlay is "pulled in" to the target.
 //
-// This is opposed to the fade-out animation moving away from the component
-// making it feel like the overlay is coming out of the target.
+// This is opposed to the fade-out animation moving away from the component making
+// it feel like the overlay is coming out of the target.
 
 export const overlayFadeInOutTranslate = "1";
 
@@ -55,9 +55,9 @@ export const overlayFadeOutAnimationDurationMs = 200;
 
 export const overlayFadeInOutTimingFunction = easeInOutQuad.cubicBezier;
 
-// We use this instead of `overlayClassName` for other overlays that want to
-// use the animation. If this becomes a common animation, we should figure out
-// a better abstraction.
+// We use this instead of `overlayClassName` for other overlays that want to use
+// the animation. If this becomes a common animation, we should figure out a better
+// abstraction.
 export const overlayAnimateContainerClassName = style({});
 
 export const overlayAnimateFadeInFromTopAnimation = `${overlayFadeInTopKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;

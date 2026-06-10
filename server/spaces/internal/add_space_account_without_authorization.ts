@@ -13,20 +13,19 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 /**
- * Adds an account to a space without authorizing the actor has permission to
- * add accounts to the space.
+ * Adds an account to a space without authorizing the actor has permission to add
+ * accounts to the space.
  *
- * The added space account will have a "Member" role by default. But we use
- * this function in the test environment to add the accounts with "Admin" role
- * as well.
+ * The added space account will have a "Member" role by default. But we use this
+ * function in the test environment to add the accounts with "Admin" role as well.
  *
  * If role is "Owner" we check that there are no other owners in the space,
  * otherwise we throw an error.
  *
- * This is a very very dangerous function! If arbitrary users got the ability
- * to add any user to any space they could easily compromise the data privacy
- * of spaces. You must authorize the actor is allowed to add accounts when
- * calling this function from an exported function.
+ * This is a very very dangerous function! If arbitrary users got the ability to
+ * add any user to any space they could easily compromise the data privacy of
+ * spaces. You must authorize the actor is allowed to add accounts when calling
+ * this function from an exported function.
  */
 export async function addSpaceAccountWithoutAuthorization(
     context: Context<
@@ -40,21 +39,25 @@ export async function addSpaceAccountWithoutAuthorization(
         spaceId,
         accountId,
         role = "Member",
+        inviterAccountId,
+        overrideCurrentTimeForTest,
         withoutInviteForTest = false,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
         role?: SpaceRole;
+        inviterAccountId: AccountId | null;
+        overrideCurrentTimeForTest?: Date;
         withoutInviteForTest?: boolean;
     },
 ): Promise<AccountModel> {
     // Only allow setting this option in test environments.
-    if (withoutInviteForTest) {
+    if (overrideCurrentTimeForTest || withoutInviteForTest) {
         assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
     const createdAccount: AccountModel = await context.dynamo.retryTransaction(async context => {
-        const currentTime = new Date();
+        const currentTime = overrideCurrentTimeForTest ?? new Date();
 
         const {account, newSpaceAccountItem, transactionEntries} =
             await getAddSpaceAccountTransactionEntries(context, {
@@ -66,6 +69,7 @@ export async function addSpaceAccountWithoutAuthorization(
                     dangerouslyWithoutInvite: withoutInviteForTest,
                 },
                 role,
+                inviterAccountId,
             });
 
         await DynamoTableSchema.executeTransaction(context, transactionEntries);

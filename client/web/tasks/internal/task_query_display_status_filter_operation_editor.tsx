@@ -286,8 +286,8 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                     paddingX: "1",
                                     display: "flex",
                                     alignItems: "center",
-                                    // The hit radius for this button extends within the entire filter editor but
-                                    // the background color style has some inset.
+                                    // The hit radius for this button extends within the entire filter editor but the
+                                    // background color style has some inset.
                                     backgroundColor: isPressed
                                         ? "grey-10"
                                         : isHovered || isVisible

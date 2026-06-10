@@ -34,4 +34,9 @@ export const documentCommentThreadCountAgainstLimit = createObjectFromKeys(allPl
     ),
 );
 
-export const documentContentEditorSidebarWidth = "128";
+export const documentContentEditorSidebarMaxWidth = "128";
+
+// We found this to be a nice aesthetic width at smaller screen sizes. It's
+// intentionally a power of 8 so we round to the nearest pixel or half pixel as
+// often as possible.
+export const documentContentEditorSidebarWidth = `${(3 / 8) * 100}%`;

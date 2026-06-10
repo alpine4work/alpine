@@ -46,9 +46,9 @@ export type MessageItem = {
 };
 
 /**
- * Takes a DynamoDB async iterable query for some messages in either ascending
- * or descending order and groups them so stream parts are added to a single
- * message object.
+ * Takes a DynamoDB async iterable query for some messages in either ascending or
+ * descending order and groups them so stream parts are added to a single message
+ * object.
  *
  * `processCommentsQuery()` is the exact same but uses the identifier "comment"
  * instead of "message" where appropriate.

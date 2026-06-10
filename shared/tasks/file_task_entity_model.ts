@@ -1,5 +1,8 @@
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -23,4 +26,20 @@ export const FileTaskEntityModelSchema = FileEntityModel.implement({
         depth: Schema.integer,
     }).nullable(),
     collections: Schema.array(TaskCollectionModel.schema),
+    referencedSites: Schema.array(
+        Schema.result(
+            Schema.object({ok: Schema.value(true), value: SitePreviewModel.schema}),
+            Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+        ),
+    ).default(emptyArray),
+    /**
+     * The site this task directly belongs to, if any. Populated when the task's own
+     * access policy resolves to a `Site` policy. Used by the file entity preview to
+     * render a site breadcrumb above the task title.
+     *
+     * Separate from `referencedSites` (which covers sites referenced by collections
+     * and other related entities) so the breadcrumb logic doesn't have to filter the
+     * larger list.
+     */
+    site: SitePreviewModel.schema.nullable().default(null),
 });

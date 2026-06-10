@@ -55,9 +55,9 @@ export class DocumentCollaborationStepCache {
     /**
      * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
      *
-     * We cache steps in memory so we return steps from our in-memory cache if we
-     * have them. If we don't have the steps in our cache then we load steps from
-     * the database and put them in our in-memory cache for future requests.
+     * We cache steps in memory so we return steps from our in-memory cache if we have
+     * them. If we don't have the steps in our cache then we load steps from the
+     * database and put them in our in-memory cache for future requests.
      */
     public async getSteps(
         context: WorkerActionContext,
@@ -86,8 +86,8 @@ export class DocumentCollaborationStepCache {
             clientId: ContentEditorClientId;
         }> = [];
 
-        // If we are trying to get steps not in our store, then first we need to load
-        // those steps.
+        // If we are trying to get steps not in our store, then first we need to load those
+        // steps.
         if (startVersion < this._startVersion) await this._loadOldSteps(context, startVersion);
         assert(startVersion >= this._startVersion);
 
@@ -112,9 +112,9 @@ export class DocumentCollaborationStepCache {
             return this._loadOldStepsState.promise;
         }
 
-        // If we are currently loading steps, then load more steps up to the version we
-        // are loading. (So we don't load steps twice.) Otherwise load steps up to the
-        // current stored start version.
+        // If we are currently loading steps, then load more steps up to the version we are
+        // loading. (So we don't load steps twice.) Otherwise load steps up to the current
+        // stored start version.
         const lastLoadOldStepsState = this._loadOldStepsState;
         const endVersion = lastLoadOldStepsState?.startVersionAfterPromise ?? this._startVersion;
 

@@ -131,8 +131,8 @@ describe("BrowserPageTracker", () => {
         ]);
         const filtered = tracker.filterReadPages(b, pages);
 
-        // Page 0 should now be returned (not in new set),
-        // pages 3 and 4 should be filtered out.
+        // Page 0 should now be returned (not in new set), pages 3 and 4 should be filtered
+        // out.
         expect(filtered.get(t)?.size).toBe(1);
         expect(filtered.get(t)?.has(0)).toBe(true);
     });
@@ -146,8 +146,8 @@ describe("BrowserPageTracker", () => {
         tracker.addPendingPages(b, singleTableIndexes(t, [5, 6]));
         tracker.setPages(b, singleTableIndexes(t, [0]));
 
-        // Page 5 was pending, now gone. Should be included
-        // in filtered results (not skipped).
+        // Page 5 was pending, now gone. Should be included in filtered results (not
+        // skipped).
         const pages = singleTable(t, [
             [0, pageData(0)],
             [5, pageData(5)],
@@ -192,8 +192,7 @@ describe("BrowserPageTracker", () => {
         tracker.registerConnection(b, cid());
 
         tracker.setPages(b, singleTableIndexes(t, [0]));
-        // The server sends pages 1 and 2 before the client
-        // can acknowledge them.
+        // The server sends pages 1 and 2 before the client can acknowledge them.
         tracker.addPendingPages(b, singleTableIndexes(t, [1, 2]));
         tracker.addPages(b, singleTableArray(t, [1, 2]));
 
@@ -215,9 +214,8 @@ describe("BrowserPageTracker", () => {
         const t = tid();
         tracker.registerConnection(b, cid());
 
-        // Only page 0 was ever sent (pending). A client that
-        // acknowledges an unsent index must not add it — that
-        // would let untrusted input grow the page map.
+        // Only page 0 was ever sent (pending). A client that acknowledges an unsent index
+        // must not add it — that would let untrusted input grow the page map.
         tracker.addPendingPages(b, singleTableIndexes(t, [0]));
         tracker.addPages(b, singleTableArray(t, [0, 999]));
 

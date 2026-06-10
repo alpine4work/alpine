@@ -7,16 +7,16 @@ export type TracerEventFlatData = {
 };
 
 /**
- * Takes a nested `TracerEventData` object and builds the flat, snake case
- * keyed, object we transport over the wire and report to our observability
- * provider.
+ * Takes a nested `TracerEventData` object and builds the flat, snake case keyed,
+ * object we transport over the wire and report to our observability provider.
  *
- * We use a flat, snake case, event format since that's the most universal
- * format for this kind of event based instrumentation. It's used across
- * programming languages, observability vendors, and (perhaps most importantly)
- * [OpenTelemetry semantic conventions][1].
+ * We use a flat, snake case, event format since that's the most universal format
+ * for this kind of event based instrumentation. It's used across programming
+ * languages, observability vendors, and (perhaps most importantly) [OpenTelemetry
+ * semantic conventions][1].
  *
- * [1]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/trace.md
+ * [1]:
+ *     https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/trace.md
  */
 export function buildTracerEventFlatData(
     nestedDataList: LinkedList<TracerEventDataBase>,
@@ -58,22 +58,21 @@ export function buildTracerEventFlatData(
 
     if (propagatedFlatData !== null) {
         for (const [key, value] of Object.entries(propagatedFlatData)) {
-            // If the flattened data was flattened with a different join operator,
-            // convert the key to the new join operator.
+            // If the flattened data was flattened with a different join operator, convert the
+            // key to the new join operator.
             let newKey = key;
 
-            // TODO(ifitzsimmons) To avoid adding O(n) replace calls to our logging
-            // processes, we can/should precompute the key conversion map and use it
-            // here.
+            // TODO(ifitzsimmons) To avoid adding O(n) replace calls to our logging processes,
+            // we can/should precompute the key conversion map and use it here.
             if (joinOperator === ".") {
                 newKey = key.replace(/__/g, ".");
             } else if (joinOperator === "__") {
                 newKey = key.replace(/\./g, "__");
             }
 
-            // Propagated event data is overridden by event data defined in this
-            // process. So make sure the key doesn't have a value already before
-            // copying over propagated flat data.
+            // Propagated event data is overridden by event data defined in this process. So
+            // make sure the key doesn't have a value already before copying over propagated
+            // flat data.
             if (data[newKey] === undefined) {
                 data[newKey] = value;
             }

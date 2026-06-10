@@ -6,8 +6,8 @@ import {
 } from "~/admin/aws/internal/constructs/internal/aws_lambda_base.js";
 
 /**
- * A construct that wraps the AWS CDK LambdaFunction and deploys Container-based Lambdas
- * by default.
+ * A construct that wraps the AWS CDK LambdaFunction and deploys Container-based
+ * Lambdas by default.
  */
 export class AwsLambda extends AwsLambdaBase {
     constructor(scope: Construct, id: string, options: AwsLambdaBaseOptions) {

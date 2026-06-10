@@ -9,7 +9,7 @@ export function getElementSafeAreaInsetTopPx(element: Element): number {
     if (!safeAreaInsetTop) return 0;
 
     // Detect the `calc()` syntax used by when the `inbox=show` search param is set
-    // (see `s.$spaceId.peek.tsx`).
+    // (see `_space.peek.tsx`).
     const safeAreaInsetTopCalcMatch = safeAreaInsetTop.match(
         /^calc\((\d+\.?\d*)(rem|px) \+ (\d+\.?\d*)(rem|px)\)$/,
     );
@@ -50,8 +50,7 @@ export function getElementSafeAreaInsetBottomPx(element: Element): number {
 }
 
 /**
- * Get the value of the `--window-safe-area-inset-bottom` CSS variable in
- * pixels.
+ * Get the value of the `--window-safe-area-inset-bottom` CSS variable in pixels.
  */
 export function getElementWindowSafeAreaInsetBottomPx(element: Element): number {
     const windowSafeAreaInsetBottom = getComputedStyle(element).getPropertyValue(

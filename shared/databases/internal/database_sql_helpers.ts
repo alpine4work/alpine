@@ -1,12 +1,11 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * Slugify a human-readable name into a SQL-safe
- * identifier, then deduplicate against `existing` by
- * appending `_2`, `_3`, etc. as needed.
+ * Slugify a human-readable name into a SQL-safe identifier, then deduplicate
+ * against `existing` by appending `_2`, `_3`, etc. as needed.
  *
- * The slug will never start with `_` (leading
- * underscores are stripped during slugification).
+ * The slug will never start with `_` (leading underscores are stripped during
+ * slugification).
  */
 export function formatUniqueSqlName(name: string, existing: ReadonlySet<string>): string {
     let slug = name

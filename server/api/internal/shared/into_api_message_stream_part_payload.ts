@@ -1,11 +1,11 @@
 import {intoApiMessageContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
-import {parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
+import {parseApiMentionTarget} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiMentionTargetResponse,
     ApiMessageStreamPartPayloadResponse,
     ApiMessageStreamToolCallPartCreateCallTargetResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
@@ -23,12 +23,11 @@ export async function intoApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Read",
-                            // TODO(ifitzsimmons, 2026-01-26): This is what we were doing before, just
-                            // within `printApiMentionTargetResponse`. This is not type safe and I'm
-                            // not really sure how this working before. For example, tasks require the
-                            // task status in the response, but that's not available on the `targetPath`.
-                            // I would expect this to break any time we try to return this response via
-                            // the API.
+                            // TODO(ifitzsimmons, 2026-01-26): This is what we were doing before, just within
+                            // `printApiMentionTargetResponse`. This is not type safe and I'm not really sure
+                            // how this working before. For example, tasks require the task status in the
+                            // response, but that's not available on the `targetPath`. I would expect this to
+                            // break any time we try to return this response via the API.
                             target: parseApiMentionTarget(
                                 payload.call.targetPath,
                             ) as ApiMentionTargetResponse,
@@ -49,10 +48,10 @@ export async function intoApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Create",
-                            // TODO(ifitzsimmons, 2026-01-26): This is not type safe. For example,
-                            // tasks require the task status in the response, but that's not
-                            // available on the target I would expect this to break any time
-                            // we try to return this response via the API.
+                            // TODO(ifitzsimmons, 2026-01-26): This is not type safe. For example, tasks
+                            // require the task status in the response, but that's not available on the target
+                            // I would expect this to break any time we try to return this response via the
+                            // API.
                             target: payload.call
                                 .target as ApiMessageStreamToolCallPartCreateCallTargetResponse,
                         },

@@ -9,13 +9,20 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {
+    generateOrderKeyBetween,
+    generateOrderKeysBetween,
+} from "~/shared/helpers/sort/order_key.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const devConsole = {
+    // Some helper functions that are useful to have easily accessible.
     generateId,
     generateChronologicalId,
+    generateOrderKeyBetween,
+    generateOrderKeysBetween,
     toggleColorScheme,
 };
 
@@ -30,14 +37,14 @@ defineSchemaProperty<ColorScheme>(
 /**
  * Attach the developer console object to window under `dev`.
  *
- * In non-production environments the dev console is always available so this
- * can be called unconditionally. In production environments only accounts with
+ * In non-production environments the dev console is always available so this can
+ * be called unconditionally. In production environments only accounts with
  * internal access can use the dev console.
  *
- * We don't allow every account to use the dev console since it would simplify
- * the ability for people to write scripts automating our product. An attacker
- * could write malicious scripts but even a well intentioned person shouldn't
- * be using an undocumented, unversioned API.
+ * We don't allow every account to use the dev console since it would simplify the
+ * ability for people to write scripts automating our product. An attacker could
+ * write malicious scripts but even a well intentioned person shouldn't be using an
+ * undocumented, unversioned API.
  */
 export function attachDevConsoleNotInProduction() {
     if (process.env.NODE_ENV !== "production" && !("dev" in window)) {
@@ -47,8 +54,8 @@ export function attachDevConsoleNotInProduction() {
 }
 
 /**
- * Attach the developer console object to window under `dev` if the
- * provided account has internal system access.
+ * Attach the developer console object to window under `dev` if the provided
+ * account has internal system access.
  */
 export function attachDevConsoleForAccountInProduction() {
     if (process.env.NODE_ENV === "production" && !("dev" in window)) {
@@ -75,16 +82,16 @@ function defineSchemaProperty<T>(
 }
 
 /**
- * Small utility for attaching debug tools to a global `cyberworlds` (or `c`
- * for short) object in development.
+ * Small utility for attaching debug tools to a global `cyberworlds` (or `c` for
+ * short) object in development.
  *
- * These tools are useful for manipulating the application in development from
- * the browser console.
+ * These tools are useful for manipulating the application in development from the
+ * browser console.
  */
 export function useDevConsoleTool(key: string, createTools: () => unknown) {
     useEffect(() => {
-        // If the tools already exist, don't add them again. Only the first component
-        // to attach debug tools will be usable.
+        // If the tools already exist, don't add them again. Only the first component to
+        // attach debug tools will be usable.
         if (hasOwnProperty(devConsole, key)) return;
 
         Object.defineProperty(devConsole, key, {
@@ -128,8 +135,8 @@ function getDefaultsFromConfig<Config extends UnknownDevConsoleSettingsObjectCon
  * Expose an object on the developer console. Properties can be read and written
  * and are kept automatically in sync with the react component.
  *
- * @deprecated Currently only used in one place. Could we replace with a
- * one-off `useDevConsoleTool()`?
+ * @deprecated Currently only used in one place. Could we replace with a one-off
+ * `useDevConsoleTool()`?
  */
 export function useDevConsoleSettingsObject<Config extends UnknownDevConsoleSettingsObjectConfig>(
     groupKey: string,
@@ -142,9 +149,9 @@ export function useDevConsoleSettingsObject<Config extends UnknownDevConsoleSett
     useDevConsoleTool(
         groupKey,
         useCallback(() => {
-            // These methods are in the prototype so when debugging from the Chrome
-            // console, they are initially hidden. Also so `Object.keys()` on the options
-            // object won't reveal them.
+            // These methods are in the prototype so when debugging from the Chrome console,
+            // they are initially hidden. Also so `Object.keys()` on the options object won't
+            // reveal them.
             const wrappedState: Record<string, unknown> = Object.create({
                 reset: () => {
                     clearSessionStoragePrefix(groupKey);

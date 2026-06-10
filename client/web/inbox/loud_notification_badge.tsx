@@ -23,12 +23,12 @@ const badgeMaxWidth = fontDigitMaxWidth * 3 + badgePaddingX * 2;
 const badgeRadius = badgeHeight / 2;
 
 /**
- * The red dot with a notification count we render next to the notifications
- * icon or an inbox entry.
+ * The red dot with a notification count we render next to the notifications icon
+ * or an inbox entry.
  *
- * The `setInboxLoudNotificationBadge()` function in
- * `RootTabBarController.swift` renders identical UI in Swift code. If we make
- * a change here we also probably need to make a change there.
+ * The `setInboxLoudNotificationBadge()` function in `RootTabBarController.swift`
+ * renders identical UI in Swift code. If we make a change here we also probably
+ * need to make a change there.
  */
 export function LoudNotificationBadge({
     top,
@@ -147,8 +147,7 @@ export function LoudNotificationBadgeSvg({
                 const badgeClipRadius = badgeClipHeight / 2;
 
                 // Draws a rectangle with a cutout of the notification badge (plus the
-                // `strokeWidth`) to use in the `clipPath` attribute of some other
-                // element.
+                // `strokeWidth`) to use in the `clipPath` attribute of some other element.
                 return (
                     <clipPath id={clipPath.id}>
                         <path

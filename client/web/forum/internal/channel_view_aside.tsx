@@ -9,7 +9,7 @@ import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
-import {DynamoGeneralRealtimeQuery} from "~/client/web/dynamo/dynamo_general_realtime_query.js";
+import {RynamoQuery} from "~/client/web/dynamo/rynamo_query.js";
 import {ChannelViewContentFilePreview} from "~/client/web/forum/internal/channel_view_content_file_preview.js";
 import {ChannelViewContributorsSection} from "~/client/web/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -21,7 +21,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewAsideFileGap,
-    channelViewAsideFileHeight,
+    channelViewAsideFileHeightRem,
     channelViewAsidePaddingTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileMaxCount,
@@ -31,6 +31,8 @@ import {
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
     postListViewAsideMaxWidth,
+    postListViewAsidePaddingLeft,
+    postListViewAsidePaddingRight,
 } from "~/client/web/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/web/styles/styles.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
@@ -41,7 +43,8 @@ import {
     MessageContentWithReferences,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
@@ -64,7 +67,7 @@ export function ChannelViewAside({
     onAddAccountGrantsToAccessPolicy,
 }: {
     channel: ChannelModel;
-    channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel>;
+    channelAndMetadataQuery: RynamoQuery<ChannelOrMetadataModel>;
     isEditingDescription: boolean;
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
@@ -75,7 +78,7 @@ export function ChannelViewAside({
 }) {
     const spacingScale = useSpacingScale();
 
-    const fileSizePx = convertRemLengthToPx(channelViewAsideFileHeight, spacingScale);
+    const fileSizePx = channelViewAsideFileHeightRem * remPxBySpacingScale[spacingScale];
 
     let contributors: ChannelContributorsModel | null = null;
     const fileReferences: Array<{postId: PostId; signedUrlSearch: string; file: FileModel}> = [];
@@ -103,14 +106,14 @@ export function ChannelViewAside({
     }
 
     return (
-        // Put overlays (e.g. the `<FocusRing>`) in the aside so they move smoothly
-        // inside this `position: sticky` element.
+        // Put overlays (e.g. the `<FocusRing>`) in the aside so they move smoothly inside
+        // this `position: sticky` element.
         <OverlayScopeContextProvider>
             <Box
                 position="relative"
                 maxWidth={postListViewAsideMaxWidth}
-                paddingLeft="5"
-                paddingRight={screenPaddingX}
+                paddingLeft={postListViewAsidePaddingLeft}
+                paddingRight={postListViewAsidePaddingRight}
                 paddingBottom={screenPaddingX}
                 display="flex"
                 flexDirection="column"
@@ -123,9 +126,8 @@ export function ChannelViewAside({
                     onAddAccountGrantsToAccessPolicy={onAddAccountGrantsToAccessPolicy}
                 />
                 <Box
-                    // Negative margin bottom to optically align our description. Visually, the
-                    // bottom of the text in our `<ContentView>` should be the bottom of our
-                    // element.
+                    // Negative margin bottom to optically align our description. Visually, the bottom
+                    // of the text in our `<ContentView>` should be the bottom of our element.
                     marginBottom="-1.5"
                 >
                     <h3
@@ -178,7 +180,7 @@ export function ChannelViewAside({
                                 gridTemplateRows: `repeat(${Math.min(
                                     Math.ceil(fileReferences.length / 2),
                                     channelViewAsidePostFileRowCount,
-                                )}, ${channelViewAsideFileHeight})`,
+                                )}, ${channelViewAsideFileHeightRem}rem)`,
                             }}
                         >
                             {mapIterable(
@@ -214,10 +216,9 @@ function ChannelViewAsideDescription({channel}: {channel: ChannelModel}) {
                     channel.description.doc.resolve(0),
                     {linesAbove: 0, linesBelow: 7},
                     {
-                        // 1.125x the number of "x"s we can fit in a single line in the channel aside
-                        // (45). We want to be slightly more aggressive than the default grapheme count
-                        // (which counts the "l" character which is narrower) since we render the entire
-                        // snippet.
+                        // 1.125x the number of "x"s we can fit in a single line in the channel aside (45).
+                        // We want to be slightly more aggressive than the default grapheme count (which
+                        // counts the "l" character which is narrower) since we render the entire snippet.
                         maxLineGraphemeCount: 51,
                     },
                 ),
@@ -261,11 +262,16 @@ function ChannelViewAsideDescriptionEditor({
     const reporter = useReporter();
     const clientInfo = useClientInfo();
     const currentDate = useCurrentDate();
+    const {space} = useSpaceContext();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(channel.description, {selection: "end"}),
+        ContentEditorState.create({
+            spaceId: space.id,
+            content: channel.description,
+            selection: "end",
+        }),
     );
 
     const [isSaving, setIsSaving] = useState(false);
@@ -305,8 +311,8 @@ function ChannelViewAsideDescriptionEditor({
                     marginBottom="-1"
                     borderRadius="1.5"
                     style={{
-                        // Use box shadow to draw the border so it doesn't add 1px to layout like
-                        // `border` CSS would.
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like `border`
+                        // CSS would.
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
@@ -365,8 +371,8 @@ function ChannelViewAsideDescriptionEditor({
                     title="Save channel description"
                     description="Would you like to save the channel description?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmSaveDialog(false);
                     }}
@@ -384,11 +390,10 @@ function ChannelViewAsideDescriptionEditor({
 
 function ChannelViewAsideSeeAllFilesButton({channel}: {channel: ChannelModel}) {
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            navigate(`/s/${space.id}/channels/${channel.id}/files?from=channel`, {
+            navigate(`/channel/${channel.id}/files?from=channel`, {
                 // Don't open in a peek when in desktop layout. Instead perform a full page
                 // navigation.
                 stopPropagation: true,

@@ -1,4 +1,5 @@
 import {AccountSettingsItem, AccountsTable} from "~/server/accounts/internal/accounts_table.js";
+import {AccountItemAndSettingsItemContextCache} from "~/server/accounts/internal/get_account_item_and_settings_item.js";
 import {getInitialAccountSettingsItem} from "~/server/accounts/internal/get_initial_account_settings_item.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
@@ -9,8 +10,7 @@ import {Context} from "~/shared/context/context.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 const AccountSettingsItemContextCache = new DynamoContextCache<AccountId, AccountSettingsItem>({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
+    // Allow sharing this cache because the results do not depend on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
@@ -24,17 +24,28 @@ export async function getAccountSettingsItem(
     accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountSettingsItem> {
-    // Pretend like the unknown account doesn't exist. We do have an unknown
-    // account record in our database as a safety precaution to make sure we
-    // don't accidentally create an account with the unknown `AccountId`. But we
-    // should never return that data. Instead if you want data for an unknown
-    // account call `AccountModel.getUnknown()`.
+    // Pretend like the unknown account doesn't exist. We do have an unknown account
+    // record in our database as a safety precaution to make sure we don't accidentally
+    // create an account with the unknown `AccountId`. But we should never return that
+    // data. Instead if you want data for an unknown account call
+    // `AccountModel.getUnknown()`.
     //
-    // Calling `getAccount(unknownAccountId)` should always fail with a not
-    // found error.
+    // Calling `getAccount(unknownAccountId)` should always fail with a not found
+    // error.
     if (accountId === unknownAccountId) return getInitialAccountSettingsItem(accountId);
 
-    return AccountSettingsItemContextCache.get(
+    {
+        // If we've already loaded the account item with its avatar then we don't need to
+        // load the attributes item separately.
+        const item = await AccountItemAndSettingsItemContextCache.getIfExists(
+            context,
+            consistency,
+            accountId,
+        );
+        if (item) return item.settingsItem;
+    }
+
+    return await AccountSettingsItemContextCache.get(
         context,
         consistency,
         accountId,

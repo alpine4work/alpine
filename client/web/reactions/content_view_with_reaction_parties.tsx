@@ -49,6 +49,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     getClipboardSerializerAuthorPrefix,
     jumpAnimation = null,
     reactionsByPos,
+    isReadOnly,
     onSetReaction,
     onDeleteReaction,
     onPressSeeReactions,
@@ -63,12 +64,13 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     | ContentViewWithReactionPartiesSupportedPropsKey
 > & {
     reactionsByPos: ReadonlyMap<number, ReactionSet>;
+    isReadOnly: boolean;
     onSetReaction: (pos: number | "Files", reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number | "Files") => void;
     onPressSeeReactions: (pos: number | "Files") => Promise<void>;
 }) {
-    // Shared ordered list item number cache for reaction party parts. Reset the
-    // cache whenever the content changes.
+    // Shared ordered list item number cache for reaction party parts. Reset the cache
+    // whenever the content changes.
     const orderedListItemNumberByNode = useStateWithDependenciesWithoutDispatch(
         () => new Map<Node, number>(),
         [content.doc],
@@ -106,6 +108,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
                     previousPos={orderedReactionsByPosEntries[index - 1]?.[0] ?? 0}
                     pos={pos}
                     reactions={reactions}
+                    isReadOnly={isReadOnly}
                     onSetReaction={onSetReaction}
                     onDeleteReaction={onDeleteReaction}
                     onPressSeeReactions={onPressSeeReactions}
@@ -128,6 +131,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     previousPos,
     pos,
     reactions,
+    isReadOnly,
     onSetReaction,
     onDeleteReaction,
     onPressSeeReactions,
@@ -144,6 +148,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     previousPos: number;
     pos: number;
     reactions: ReactionSet | null;
+    isReadOnly: boolean;
     onSetReaction: (pos: number | "Files", reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number | "Files") => void;
     onPressSeeReactions: (pos: number | "Files") => Promise<void>;
@@ -171,8 +176,8 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
             startTime: originalJumpAnimation.startTime,
         };
 
-        // If after offsetting, the jump animation doesn't make sense then we don't
-        // have a jump animation for this part.
+        // If after offsetting, the jump animation doesn't make sense then we don't have a
+        // jump animation for this part.
         if (jumpAnimation.from !== null && jumpAnimation.from > content.doc.content.size)
             return null;
         if (jumpAnimation.to !== null && jumpAnimation.to < 0) return null;
@@ -208,12 +213,13 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                 <ContentViewReactionParty
                     pos={pos}
                     reactions={reactions}
+                    isReadOnly={isReadOnly}
                     onSetReaction={onSetReaction}
                     onDeleteReaction={onDeleteReaction}
                     onPressSeeReactions={onPressSeeReactions}
-                    // This works well in `<MessageView>` where `data-room` and `data-index` are
-                    // passed in as props. Currently this component is only used in `<MessageView>`
-                    // so we don't care about finding an alternative sufficient entropy source.
+                    // This works well in `<MessageView>` where `data-room` and `data-index` are passed
+                    // in as props. Currently this component is only used in `<MessageView>` so we
+                    // don't care about finding an alternative sufficient entropy source.
                     randomSeed={`ContentView:${dataRoom}-${dataIndex}-${partIndex}`}
                     withMarginBottom={partIndex < partCount - 1}
                 />
@@ -225,6 +231,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
 export function ContentViewReactionParty({
     pos,
     reactions,
+    isReadOnly,
     onSetReaction,
     onDeleteReaction,
     onPressSeeReactions,
@@ -233,6 +240,7 @@ export function ContentViewReactionParty({
 }: {
     pos: number | "Files";
     reactions: ReactionSet;
+    isReadOnly: boolean;
     onSetReaction: (pos: number | "Files", reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number | "Files") => void;
     onPressSeeReactions: (pos: number | "Files") => Promise<void>;
@@ -265,8 +273,7 @@ export function ContentViewReactionParty({
                 paddingRight={postContentViewFooterReactionButtonAreaWidth}
             >
                 <ReactionParty
-                    // The reaction party runs into the previous text if it's not offset
-                    // a little.
+                    // The reaction party runs into the previous text if it's not offset a little.
                     offsetTopIfManyReactions="1.5"
                     reactions={reactions}
                     randomSeed={randomSeed}
@@ -298,6 +305,7 @@ export function ContentViewReactionParty({
             >
                 <ReactionButton
                     reactions={reactions}
+                    isReadOnly={isReadOnly}
                     onSetReaction={reaction => onSetReaction(pos, reaction)}
                     onDeleteReaction={() => onDeleteReaction(pos)}
                     onPressSeeReactions={() => onPressSeeReactions(pos)}

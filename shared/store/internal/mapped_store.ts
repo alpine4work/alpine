@@ -22,8 +22,8 @@ export class MappedStore<OldValue, NewValue> extends Store<NewValue> {
     }
 
     public readonly getSnapshot = () => {
-        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
-        // partial state.
+        // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad partial
+        // state.
         const oldValue = this._store.getSnapshot();
 
         if (this._newValueResult === null) {

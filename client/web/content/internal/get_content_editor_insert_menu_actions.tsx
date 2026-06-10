@@ -1,5 +1,6 @@
 import {
     File,
+    Gif,
     Image,
     ListBullets,
     ListChecks,
@@ -45,6 +46,11 @@ export type ContentEditorInsertMenuAction = {
     readonly icon: ReactNode;
     readonly isSuggestedInMentionFloater: boolean;
     readonly onPress: () => void;
+    /**
+     * Additional keywords that should match this action in fuzzy search. For example,
+     * `["meme"]` on the GIF action lets users type `@meme` to find it.
+     */
+    readonly searchKeywords?: ReadonlyArray<string>;
 };
 
 assertAssignableTypes<ContentEditorInsertMenuAction, MenuStandardAction>();
@@ -52,15 +58,16 @@ assertAssignableTypes<ContentEditorInsertMenuAction, MenuStandardAction>();
 /**
  * Return menu actions for the right click insert submenu. These insert actions
  * also show up when you hit @ and start typing (but without dividers between
- * sections). When you hit @ we show some suggested items. We only suggest
- * insert actions with `isSuggestedInMentionFloater: true`. The goal is to have
- * less than one full scroll window of suggested insert actions.
+ * sections). When you hit @ we show some suggested items. We only suggest insert
+ * actions with `isSuggestedInMentionFloater: true`. The goal is to have less than
+ * one full scroll window of suggested insert actions.
  */
 export function getContentEditorInsertMenuActions({
     schema,
     viewRef,
     getSelection,
     alwaysDeleteSelection,
+    onOpenGifPicker,
 }: {
     schema: ProsemirrorSchema;
     viewRef: RefObject<
@@ -71,6 +78,7 @@ export function getContentEditorInsertMenuActions({
     >;
     getSelection?: () => Selection;
     alwaysDeleteSelection?: boolean;
+    onOpenGifPicker?: () => void;
 }): ReadonlyArray<ReadonlyArray<ContentEditorInsertMenuAction>> {
     const insertMenuActions: Array<Array<ContentEditorInsertMenuAction>> = [];
 
@@ -141,6 +149,26 @@ export function getContentEditorInsertMenuActions({
                             insertContentFiles(viewRef.current, files, getSelection?.());
                         })
                         .catch(scheduleUncaughtError);
+                },
+            },
+        ]);
+    }
+
+    if (onOpenGifPicker) {
+        insertMenuActions.push([
+            {
+                label: "GIF",
+                icon: <Gif />,
+                isSuggestedInMentionFloater: false,
+                searchKeywords: ["meme"],
+                onPress: () => {
+                    // Delete the `@gif` text before opening the picker.
+                    const selection = getSelection?.();
+                    if (selection) {
+                        const view = assertExists(viewRef.current);
+                        view.dispatch(view.state.tr.deleteRange(selection.from, selection.to));
+                    }
+                    onOpenGifPicker();
                 },
             },
         ]);

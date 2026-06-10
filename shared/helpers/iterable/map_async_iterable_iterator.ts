@@ -1,6 +1,6 @@
 /**
- * Map each individual value of an async iterator. Same as `Array.map()` but
- * for async iterators.
+ * Map each individual value of an async iterator. Same as `Array.map()` but for
+ * async iterators.
  */
 export async function* mapAsyncIterableIterator<Value, NewValue>(
     iterator: AsyncIterableIterator<Value>,

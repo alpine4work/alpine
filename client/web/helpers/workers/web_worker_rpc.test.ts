@@ -118,8 +118,8 @@ describe("WebWorkerRpc", () => {
 
     describe("round-trip", () => {
         test("two instances wired together", async () => {
-            // Create two RPC instances that forward messages to each
-            // other, simulating a main-thread <-> worker connection.
+            // Create two RPC instances that forward messages to each other, simulating a
+            // main-thread <-> worker connection.
             const channel: {
                 a?: WebWorkerRpc<typeof testMethods>;
                 b?: WebWorkerRpc<typeof testMethods>;

@@ -6,9 +6,9 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryKey} from "~/shared/notifications/inbox_model.js";
 
 /**
- * Unarchives an inbox entry. Moves the entry out of an account's archive and
- * into their primary inbox. Puts the unarchived entry at the top of the
- * primary inbox so the user can easily find it.
+ * Unarchives an inbox entry. Moves the entry out of an account's archive and into
+ * their primary inbox. Puts the unarchived entry at the top of the primary inbox
+ * so the user can easily find it.
  */
 export async function unarchiveInboxEntry(
     context: ServerSessionActionContext,

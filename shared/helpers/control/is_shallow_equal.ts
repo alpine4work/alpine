@@ -3,9 +3,9 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
 /**
- * Determines if two plain objects or arrays are shallowly equal to one
- * another. Looks at both objects own keys and makes sure they are exactly
- * equal with `Object.is()` (which behaves the same as `===` except for `NaN`).
+ * Determines if two plain objects or arrays are shallowly equal to one another.
+ * Looks at both objects own keys and makes sure they are exactly equal with
+ * `Object.is()` (which behaves the same as `===` except for `NaN`).
  *
  * Returns false if either object is not a plain object or array.
  */
@@ -24,9 +24,9 @@ export function isShallowEqual(
             if (!hasOwnProperty(object1, key)) return false;
             const value1 = object1[key];
 
-            // For numbers, `Object.is()` considers `NaN` as equal to `NaN`. This is the
-            // same algorithm used by `Set.has()` and `Map.has()`.
-            // See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
+            // For numbers, `Object.is()` considers `NaN` as equal to `NaN`. This is the same
+            // algorithm used by `Set.has()` and `Map.has()`. See:
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
             if (!Object.is(value1, value2)) return false;
         }
 
@@ -37,9 +37,9 @@ export function isShallowEqual(
         if (object1.length !== object2.length) return false;
 
         for (let i = 0; i < object1.length; i++) {
-            // For numbers, `Object.is()` considers `NaN` as equal to `NaN`. This is the
-            // same algorithm used by `Set.has()` and `Map.has()`.
-            // See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
+            // For numbers, `Object.is()` considers `NaN` as equal to `NaN`. This is the same
+            // algorithm used by `Set.has()` and `Map.has()`. See:
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
             if (!Object.is(object1[i], object2[i])) return false;
         }
 

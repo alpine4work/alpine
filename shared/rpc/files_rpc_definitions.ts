@@ -9,8 +9,8 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export const startUploadingFile = defineRpc({
     name: "startUploadingFile",
-    // Fails if the file already exists (when `fileId` is provided).
-    // Generates a new `fileId` otherwise.
+    // Fails if the file already exists (when `fileId` is provided). Generates a new
+    // `fileId` otherwise.
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
@@ -43,7 +43,6 @@ export const getFileAsUploader = defineRpc({
     name: "getFileAsUploader",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
     },
     output: {
@@ -56,7 +55,6 @@ export const getFileFromAttachment = defineRpc({
     name: "getFileFromAttachment",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
@@ -70,7 +68,6 @@ export const getFileWithoutSignedUrlAsUploader = defineRpc({
     name: "getFileWithoutSignedUrlAsUploader",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
     },
     output: {
@@ -82,7 +79,6 @@ export const getFileWithoutSignedUrlFromAttachment = defineRpc({
     name: "getFileWithoutSignedUrlFromAttachment",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
@@ -95,7 +91,6 @@ export const getFileSignedUrlAsUploader = defineRpc({
     name: "getFileSignedUrlAsUploader",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
     },
     output: {
@@ -107,7 +102,6 @@ export const getFileSignedUrlFromAttachment = defineRpc({
     name: "getFileSignedUrlFromAttachment",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
@@ -120,7 +114,6 @@ export const attachFileAsUploader = defineRpc({
     name: "attachFileAsUploader",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
@@ -134,7 +127,6 @@ export const attachFileFromAttachment = defineRpc({
     name: "attachFileFromAttachment",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
         fromTarget: FileAttachmentTargetSchema,
         toTarget: FileAttachmentTargetSchema,

@@ -18,9 +18,8 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 export type TaskRealtimeCollectionSubscriptionCallbacks = {
     /**
      * An unexpected internal server error has occurred which has caused the
-     * subscription to disconnect. The subscription will receive no more events
-     * after this. Subscribers should present an error to users or attempt to
-     * reconnect.
+     * subscription to disconnect. The subscription will receive no more events after
+     * this. Subscribers should present an error to users or attempt to reconnect.
      */
     onFatalError(context: TaskRealtimeProcessContext, error: InternalError): void;
 
@@ -109,8 +108,7 @@ export class TaskRealtimeCollectionSubscriptionInternal {
         this._isSubscribed = false;
         this.collectionEntry.removeCollectionSubscriptionDependent(this);
 
-        // We construct an event builder just so we can wait out `waitUntil()`
-        // promises.
+        // We construct an event builder just so we can wait out `waitUntil()` promises.
         const eventBuilder = new TaskRealtimeUnsubscribeUpdateEventBuilder(
             this.collectionEntry.store.spaceId,
         );

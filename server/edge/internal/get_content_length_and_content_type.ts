@@ -31,8 +31,8 @@ export function getContentLengthAndCanonicalContentType(request: Request): {
         throw new InvalidArgumentError("`Content-Length` header must be an integer");
     }
 
-    // If `Content-Length` is 0 there's probably a bug somewhere and data isn't reaching
-    // `EdgeService`.
+    // If `Content-Length` is 0 there's probably a bug somewhere and data isn't
+    // reaching `EdgeService`.
     if (contentLength <= 0) {
         throw new InvalidArgumentError(
             `Can\u2019t upload file with \`Content-Length\` of ${prettyBytes(contentLength)}`,

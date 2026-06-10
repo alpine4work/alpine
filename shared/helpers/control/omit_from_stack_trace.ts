@@ -1,8 +1,8 @@
 /**
  * When a function is wrapped in `omitFromStackTrace`, if it throws an error the
  * stack trace won't include the function itself or any stack frames above it.
- * Useful for assertion-style function where the error will ideally originate
- * from the call-site rather than within the implementation of the assert fn.
+ * Useful for assertion-style function where the error will ideally originate from
+ * the call-site rather than within the implementation of the assert fn.
  *
  * Only works in platforms that support `Error.captureStackTrace` (ie v8).
  */

@@ -1,7 +1,7 @@
 // We build this file as `~/client/styles/styles_core.js` and
 // `~/client/styles/styles_core.css`. The JavaScript file has the real runtime
-// interface, the CSS file is the styles we include in our root layout, and we
-// have a `~/client/styles/styles_core.d.ts` file that re-exports this file for
+// interface, the CSS file is the styles we include in our root layout, and we have
+// a `~/client/styles/styles_core.d.ts` file that re-exports this file for
 // TypeScript.
 
 import "~/client/web/styles/core/internal/helpers/register_constant_class_names.js";

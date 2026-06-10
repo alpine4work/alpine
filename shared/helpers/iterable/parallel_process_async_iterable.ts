@@ -3,21 +3,24 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * Processes items from an async iterable in parallel with a configurable concurrency limit.
+ * Processes items from an async iterable in parallel with a configurable
+ * concurrency limit.
  *
- * This function iterates through the provided async iterable and processes each value using
- * the provided async function. Processing happens concurrently up to the specified concurrency
- * limit, ensuring that no more than `concurrency` items are being processed simultaneously.
+ * This function iterates through the provided async iterable and processes each
+ * value using the provided async function. Processing happens concurrently up to
+ * the specified concurrency limit, ensuring that no more than `concurrency` items
+ * are being processed simultaneously.
  *
- * If any processing operations fail, all errors are collected and thrown as an aggregate error
- * after all operations complete (or fail). This ensures that all items are attempted even if
- * some fail.
+ * If any processing operations fail, all errors are collected and thrown as an
+ * aggregate error after all operations complete (or fail). This ensures that all
+ * items are attempted even if some fail.
  *
- * @returns A Promise that resolves when all items have been processed
- * @throws {AggregateError} If any processing operations fail, throws an aggregate error
- *         containing all errors that occurred
+ * @returns A Promise that resolves when all items have been processed @throws
+ * {AggregateError} If any processing operations fail, throws an aggregate error
+ * containing all errors that occurred
  *
  * @example
+ *
  * ```ts
  * await parallelProcessAsyncIterable(
  *     dangerouslyGetAllAccountIdsForBot(context, botId, options),

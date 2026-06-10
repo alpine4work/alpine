@@ -91,11 +91,10 @@ const context = createTestContext({
     },
 });
 
-// Exercise idempotency by running the test suite again with jobs
-// processed twice.
+// Exercise idempotency by running the test suite again with jobs processed twice.
 for (const {type: currentProcessingType, processingMultiple} of testSuites) {
-    // If another suite has `only` set then skip this suite so we only run the
-    // suite with `only` set.
+    // If another suite has `only` set then skip this suite so we only run the suite
+    // with `only` set.
     if (
         testSuites.some(testSuite => !!testSuite.only && testSuite.type !== currentProcessingType)
     ) {
@@ -1146,7 +1145,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             expect(
                 await NotificationsTable.getItem(context, {
@@ -1189,7 +1188,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             expect(
                 await NotificationsTable.getItem(context, {
@@ -1320,7 +1319,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             const comment = await commentThread.createComment(session2, "test2");
 
@@ -1328,7 +1327,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1371,7 +1370,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1392,7 +1391,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1434,7 +1433,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     firstCommentThread: {commentThread, contentTextSnippet: "test1"},
                 }),
             ]);
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             const comment = await commentThread.createComment(
                 session1,
@@ -1467,7 +1466,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
 
         test("being mentioned in every comment thread in a new comment threads entry archives the new comment threads entry", async () => {
@@ -1554,7 +1553,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             const comment3 = await commentThread2.createComment(
                 session1,
@@ -1608,7 +1607,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
 
         test("comment notification event is processed before create comment thread notification event", async () => {
@@ -1651,7 +1650,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             unpauseBeforeCreateCommentThread();
 
@@ -1665,7 +1664,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
 
         test("comment notification event is processed before create comment thread notification event when there\u2019s an existing new comment threads entry", async () => {
@@ -1690,7 +1689,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             const pauseBeforeCreateCommentThreadPromise =
                 notificationEventBeforeProcessingTestCheckpoint.pauseForTest(session1.account.id);
@@ -1731,7 +1730,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             unpauseBeforeCreateCommentThread();
 
@@ -1753,7 +1752,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
 
         test("comment notification event processing starts before create comment thread event processing is finished", async () => {
@@ -1796,7 +1795,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             unpauseBeforeCreateCommentThread();
 
@@ -1806,7 +1805,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             unpauseBeforeCreateSecondComment();
 
@@ -1820,7 +1819,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
 
         test("comment notification event processing starts before create comment thread event processing is finished (when there are multiple comment threads in a new comment threads notification)", async () => {
@@ -1899,7 +1898,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             unpauseBeforeCreateCommentThread();
 
@@ -1920,7 +1919,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             unpauseBeforeCreateSecondComment();
 
@@ -1944,7 +1943,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
 
         test("archiving a new comment threads entry with one comment thread archives that one comment thread as well", async () => {
@@ -1967,7 +1966,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 },
             });
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     isArchived: true,
                     session: session2,
@@ -1999,7 +1998,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 },
             });
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2134,7 +2133,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2188,7 +2187,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2242,7 +2241,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2309,7 +2308,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2371,7 +2370,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2433,7 +2432,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2493,7 +2492,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             await comment3.setReaction(session2);
 
@@ -2501,7 +2500,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2566,7 +2565,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2584,7 +2583,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2618,7 +2617,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2660,7 +2659,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2702,7 +2701,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             unpause1();
 
@@ -2710,7 +2709,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
 
         test("reacting to a document comment archives the associated comment thread in a new document comment threads entry even if the reaction is processed before the create document comment notification event", async () => {
@@ -2756,7 +2755,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
 
             unpause1();
 
@@ -2774,7 +2773,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
 
         test("commenting on a comment thread in a new comment threads entry with a single comment thread deletes the new comment threads entry", async () => {
@@ -2801,7 +2800,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     isArchived: true,
                     session: session2,
@@ -2842,7 +2841,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Done"})).toEqual([]);
         });
     });
 }

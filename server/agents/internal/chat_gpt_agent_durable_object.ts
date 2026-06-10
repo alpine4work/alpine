@@ -4,8 +4,8 @@ import {Link, PhrasingContent} from "mdast";
 import OpenAi from "openai";
 import {
     createApiClient,
+    getApiMention,
     getApiMessagesFromStart,
-    getApiSearchMention,
 } from "~/server/agents/api/api_client.js";
 import {
     AgentContext,
@@ -68,8 +68,8 @@ import {
     agentMillicentsPerToken,
 } from "~/server/agents/internal/supported_agent_models.js";
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
-import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
+import {AgentMessageStream} from "~/shared/api/markdown/agent_message_stream.js";
 import {
     getApiMentionTargetPathIfExists,
     isApiMessageRoom,
@@ -77,18 +77,19 @@ import {
     parseApiMentionTarget,
     parseApiPath,
     printApiMessageRoomPath,
-} from "~/shared/api/parse_api_path.js";
+} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElement,
+    ApiMentionResponse,
     ApiMessageRoomTarget,
-    ApiSearchMentionResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {
     DataLossError,
     ErrorBase,
     FailedPreconditionError,
     InvalidArgumentError,
+    NotFoundError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
@@ -159,7 +160,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
     ): Promise<Response> {
         switch (route) {
             case "FetchConversationState": {
-                return this._fetchConversationState(context, request, span);
+                return await this._fetchConversationState(context, request, span);
             }
             case "NotFound": {
                 return new Response("404 Not Found", {
@@ -233,7 +234,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
         const agentUsageLimitWindowsPromise = span.withSpan(
             "Get agent usage limit windows",
             async span =>
-                getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
+                await getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
                     accountId: request.event.authorId,
                     currentTimestamp: currentTime.getTime(),
                 }),
@@ -272,9 +273,9 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
                     );
 
                     // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
-                    // message while the agent is responding to a previous request?
-                    // NOTE(ifitzsimmons, 2026-01-21): We retry here because after clearing state, we
-                    // must re-initialize the conversation state before sending the request to OpenAI.
+                    // message while the agent is responding to a previous request? NOTE(ifitzsimmons,
+                    // 2026-01-21): We retry here because after clearing state, we must re-initialize
+                    // the conversation state before sending the request to OpenAI.
                     // `requestChatGptAgent()` loads messages into the conversation state.
                     return await requestChatGptAgentWithRetry(span, request, {
                         env: this._env,
@@ -347,9 +348,8 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
 
             const items = Array.from(conversationState.values(), ({item}) => item);
 
-            // NOTE(calebmer): We don't use our `Schema` library here since we don't want
-            // to open source our `Schema` code. (Though we will open source
-            // `serializeError()`.)
+            // NOTE(calebmer): We don't use our `Schema` library here since we don't want to
+            // open source our `Schema` code. (Though we will open source `serializeError()`.)
             return new Response(JSON.stringify({ok: true, items}), {
                 status: 200,
                 headers: {"content-type": "application/json"},
@@ -388,8 +388,8 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
             cursor: null,
         });
 
-        // Sanity check: Make sure we received at least one message from the API.
-        // Verifying we have access to messages in the provided messaging room.
+        // Sanity check: Make sure we received at least one message from the API. Verifying
+        // we have access to messages in the provided messaging room.
         if (messages.length === 0) {
             throw new FailedPreconditionError(
                 "Can\u2019t fetch conversation state for empty messaging room",
@@ -399,15 +399,15 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
 
     /**
      * We maintain an alarm that'll run a 6 hours from now that deletes all storage
-     * associated with the Durable Object. This function checks if the alarm will
-     * run soon and if so resets the alarm to a point later in the future.
+     * associated with the Durable Object. This function checks if the alarm will run
+     * soon and if so resets the alarm to a point later in the future.
      */
     private async _maybeResetTimeToLive() {
         const currentTime = new Date();
 
         await this._alarmTimeMutex.withLock(async alarmTimeRef => {
-            // If no alarm time is set, read the alarm time from storage. If there's no
-            // alarm time in storage then set an alarm to cleanup the durable object.
+            // If no alarm time is set, read the alarm time from storage. If there's no alarm
+            // time in storage then set an alarm to cleanup the durable object.
             if (alarmTimeRef.current === null) {
                 const scheduleEvents = await getAgentScheduleEvents(this._state.storage);
                 const clearStorageEvent = scheduleEvents.find(
@@ -445,8 +445,8 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
 
         // TODO(calebmer): This method mucks around with the internal scheduled events
         // state and manually schedules the next alarm. Ideally we'd have a nice
-        // abstraction for event scheduling that supports this use case without us
-        // needing to much around in internals.
+        // abstraction for event scheduling that supports this use case without us needing
+        // to much around in internals.
         await this._scheduleNextAlarm();
     }
 }
@@ -455,7 +455,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
  * Sends a limit error message to the user when agent limits are exceeded.
  *
  * TODO: finalize messaging and format
- *   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
+ * https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
  */
 function sendLimitErrorMessage(
     span: TracerSpan,
@@ -484,10 +484,11 @@ function sendLimitErrorMessage(
 }
 
 /**
- * Send a downgrade warning message to the user when they hit the premium model usage limit.
+ * Send a downgrade warning message to the user when they hit the premium model
+ * usage limit.
  *
  * TODO: finalize messaging and format
- *   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
+ * https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
  */
 function sendDowngradeWarningMessage(
     span: TracerSpan,
@@ -528,14 +529,14 @@ async function requestChatGptAgent(
         sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
     },
 ): Promise<ChatGptAgentRequestResult> {
-    // Make sure we have the latest messages from the messaging room in
-    // conversation history.
+    // Make sure we have the latest messages from the messaging room in conversation
+    // history.
     //
     // TODO(calebmer, #ai): How should we handle the reply feature for the AI?
     await ensureMessagesInChatGptAgentConversation(span, request, session.newMessageIndex);
 
     // Send a message from ChatGPT.
-    return createChatGptAgentMessage(span, request, {
+    return await createChatGptAgentMessage(span, request, {
         env,
         model,
         session,
@@ -560,22 +561,21 @@ async function ensureMessagesInChatGptAgentConversation(
             transaction,
             request,
             state,
-            // We're going to update our conversation with the output directly from OpenAI
-            // and set `lastMessageIndex` to the new message's index. Make sure if there
-            // were any messages added prior to invoking the OpenAI API that we add
-            // them to the conversation so they're not missed.
+            // We're going to update our conversation with the output directly from OpenAI and
+            // set `lastMessageIndex` to the new message's index. Make sure if there were any
+            // messages added prior to invoking the OpenAI API that we add them to the
+            // conversation so they're not missed.
             newMessageIndex - 1,
         );
 
-        // Inject context about what the user is currently viewing, if available.
-        // This helps the agent understand the user's context when they send a message.
-        // Note: currentlyViewingTarget is only available on NewMessage events, not NewPost.
+        // Inject context about what the user is currently viewing, if available. This
+        // helps the agent understand the user's context when they send a message. Note:
+        // currentlyViewingTarget is only available on NewMessage events, not NewPost.
         await injectCurrentlyViewedEntityIntoContextIfNeeded(tracer, request, transaction, state);
 
-        // Set `lastMessageIndex` so we don't load the `ApiContent` for the agent's
-        // message into the conversation history. That would be redundant given we'll
-        // be adding the exact `output_item`s generated by OpenAI to our conversation
-        // history.
+        // Set `lastMessageIndex` so we don't load the `ApiContent` for the agent's message
+        // into the conversation history. That would be redundant given we'll be adding the
+        // exact `output_item`s generated by OpenAI to our conversation history.
         await state.setState(transaction, {
             lastMessageIndex: newMessageIndex,
         });
@@ -600,8 +600,8 @@ async function initializeInChatGptAgentConversationIfNeeded(
     // maybe another process was killed during initialization?
     assert(conversation.getState().lastOrderKey === null);
 
-    // These both act on ChatGptAgentConversationItemCollection and the insertion
-    // order matters, so they must be serialized.
+    // These both act on ChatGptAgentConversationItemCollection and the insertion order
+    // matters, so they must be serialized.
     await initializeInstructionsInChatGptAgentConversation(
         tracer,
         transaction,
@@ -717,12 +717,11 @@ async function createChatGptAgentResponse(
     // - [ ] Update/create documents
     // - [ ] Update/create tasks, task collections, and subtasks
     // - [ ] View uploaded files (images mostly)
-    // - [ ] Forget context tool or force compaction tool (if user feels like
-    //       bot is going off the rails)
+    // - [ ] Forget context tool or force compaction tool (if user feels like bot is
+    //       going off the rails)
     //
-    // TODO(calebmer, #ai): How do we enable the AI to mention users and other
-    // content? We can include a mention database but what if they try to mention
-    // something new?
+    // TODO(calebmer, #ai): How do we enable the AI to mention users and other content?
+    // We can include a mention database but what if they try to mention something new?
     //
     // [1]: https://platform.openai.com/docs/guides/tools-web-search
     const responseStream = request.openAiClient.get().createResponseWithStreaming(span, {
@@ -734,24 +733,28 @@ async function createChatGptAgentResponse(
             parseApiBotWebhookEventIntoMessageRoom(request.event),
         ),
         safety_identifier: request.event.authorId,
-        // NOTE(ifitzsimmons, 2026-01-10): We had originally planned to add the web search [1] tool to
-        // our agent but decided against it for several reasons:
-        // 1. **Security/Privacy**: Perhaps the most compelling reason to omit web search calls.
-        //    Ultimately, our users (and us admins) have no control over the information the agent may
-        //    come across while searching the world wide web. Bad actors can expose this by simply
-        //    injecting malicious content into a web page, for instance, and "trick" our agent into
-        //    doing something dangerous. Read this article on agent security [2] for more on the
-        //    topic – it's a super interesting read!
-        // 2. **Cost**: The web search tool is actually quite expensive. Every 1000 calls costs $10 [3].
-        //     By comparison, GPT-5.1 costs $1.25 per million output tokens. Users may not understand
-        //     the comparitive cost of making web search calls (e.g. "What's the weather today?") and
-        //     we don't want them to blow all of their token budget on these types of queries – they're
-        //     not where our agent shines.
-        // 3. **Tracking**: We didn't build a way to track Web Search tool call usage in our agent usage
-        //    database. Even if we were comfortable with the cost, we'd need to calculate and include
-        //    the cost of those calls in our agent usage database.
-        // 4. **UX**: We weren't able to build a solid UI for web search tool calls pre-launch (no API
-        //    compatibility and no UI).
+        // NOTE(ifitzsimmons, 2026-01-10): We had originally planned to add the web search
+        // [1] tool to our agent but decided against it for several reasons:
+        //
+        // 1. **Security/Privacy**: Perhaps the most compelling reason to omit web search
+        //    calls. Ultimately, our users (and us admins) have no control over the
+        //    information the agent may come across while searching the world wide web. Bad
+        //    actors can expose this by simply injecting malicious content into a web page,
+        //    for instance, and "trick" our agent into doing something dangerous. Read this
+        //    article on agent security [2] for more on the topic – it's a super
+        //    interesting read!
+        // 2. **Cost**: The web search tool is actually quite expensive. Every 1000 calls
+        //    costs $10 [3]. By comparison, GPT-5.1 costs $1.25 per million output tokens.
+        //    Users may not understand the comparitive cost of making web search calls
+        //    (e.g. "What's the weather today?") and we don't want them to blow all of
+        //    their token budget on these types of queries – they're not where our agent
+        //    shines.
+        // 3. **Tracking**: We didn't build a way to track Web Search tool call usage in
+        //    our agent usage database. Even if we were comfortable with the cost, we'd
+        //    need to calculate and include the cost of those calls in our agent usage
+        //    database.
+        // 4. **UX**: We weren't able to build a solid UI for web search tool calls
+        //    pre-launch (no API compatibility and no UI).
         //
         // [1]: https://platform.openai.com/docs/guides/tools-web-search
         // [2]: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
@@ -775,9 +778,9 @@ async function createChatGptAgentResponse(
     for await (const {span, event} of responseStream) {
         switch (event.type) {
             case "response.output_item.done": {
-                // TODO(calebmer, #ai): If OpenAI gives us a `reasoning` output item then we
-                // should render that. So far I haven't seen any reasoning summary in the
-                // output item. Can we add one?
+                // TODO(calebmer, #ai): If OpenAI gives us a `reasoning` output item then we should
+                // render that. So far I haven't seen any reasoning summary in the output item. Can
+                // we add one?
 
                 // If there are function calls, we'll need to execute the function calls and
                 // generate a new response.
@@ -785,9 +788,8 @@ async function createChatGptAgentResponse(
                     hasFunctionCallOutputItem = true;
                 }
 
-                // Add every output item from OpenAI to the conversation history. So when we
-                // invoke OpenAI again it's previous messages, function calls, reasoning
-                // tokens, etc.
+                // Add every output item from OpenAI to the conversation history. So when we invoke
+                // OpenAI again it's previous messages, function calls, reasoning tokens, etc.
                 await request.storage.transaction(async transaction => {
                     const state = await ChatGptAgentConversationStore.new(transaction, {
                         initialTimeZone: request.event.createdTimeZone,
@@ -806,11 +808,10 @@ async function createChatGptAgentResponse(
             case "response.output_text.delta": {
                 session.pushText(span, event.delta);
 
-                // Micro-optimization, `waitForTest()` is noops if `!import.meta.jest` anyway
-                // but `response.output_text.delta` is a hot code path in production. So add an
-                // extra `import.meta.jest` check here to make sure we don't pay the microtask
-                // price in production (an `await` schedules a microtask even when immediately
-                // resolved).
+                // Micro-optimization, `waitForTest()` is noops if `!import.meta.jest` anyway but
+                // `response.output_text.delta` is a hot code path in production. So add an extra
+                // `import.meta.jest` check here to make sure we don't pay the microtask price in
+                // production (an `await` schedules a microtask even when immediately resolved).
                 if (import.meta.jest) {
                     await createChatGptAgentResponseAfterPushTextTestCheckpoint.waitForTest(
                         session.newMessageIndex,
@@ -818,13 +819,14 @@ async function createChatGptAgentResponse(
                 }
                 break;
             }
-            // NOTE(ifitzsimmons, 2025-11-13): At some point, we should think about storing response
-            // additions. So instead of pushing data to our database when we get the reasoning
-            // summary, we should somehow store the time that the reasoning began. That way, we can
-            // provide a better representation of what the agent is doing for the user. As is, the
-            // current UX is pretty solid and I don't think that this is something that users will
-            // even notice so I'm comfortable shipping. If we get feedback about this, we can
-            // revisit. This same argument would go for tool calls as well.
+            // NOTE(ifitzsimmons, 2025-11-13): At some point, we should think about storing
+            // response additions. So instead of pushing data to our database when we get the
+            // reasoning summary, we should somehow store the time that the reasoning began.
+            // That way, we can provide a better representation of what the agent is doing for
+            // the user. As is, the current UX is pretty solid and I don't think that this is
+            // something that users will even notice so I'm comfortable shipping. If we get
+            // feedback about this, we can revisit. This same argument would go for tool calls
+            // as well.
             //
             // NOTE(ifitzsimmons, 2025-11-07): Opted to use this event instead of
             // `response.reasoning_summary_text.done`. They do the same exact thing.
@@ -849,12 +851,19 @@ async function createChatGptAgentResponse(
         }
     }
 
-    // If there was a tool call, then try generating the response again! When we
-    // load the conversation history, it'll include the incomplete function call.
+    // If there was a tool call, then try generating the response again! When we load
+    // the conversation history, it'll include the incomplete function call.
     //
     // Keep calling recursively until there are no more function calls.
     if (hasFunctionCallOutputItem) {
-        return createChatGptAgentResponse(span, env, request, model, session, totalUsedMillicents);
+        return await createChatGptAgentResponse(
+            span,
+            env,
+            request,
+            model,
+            session,
+            totalUsedMillicents,
+        );
     }
 
     return {usedMillicents: totalUsedMillicents, model};
@@ -865,8 +874,8 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
     request: AgentWebhookRequest,
     session: AgentMessageStreamSession,
 ) {
-    // Perform all function calls in a transaction so we only call each function
-    // once. There won't be any concurrent function calling.
+    // Perform all function calls in a transaction so we only call each function once.
+    // There won't be any concurrent function calling.
     return request.storage.transaction(async transaction => {
         const input = Array.from(
             (await ChatGptAgentConversationItemCollection.list(transaction)).values(),
@@ -916,15 +925,15 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                             span.addException(result.error);
                         }
 
-                        // If the call fails then we tell our LLM the error message using
-                        // `displayMessage`. This is the same information a human would get.
+                        // If the call fails then we tell our LLM the error message using `displayMessage`.
+                        // This is the same information a human would get.
                         let output: string;
 
                         if (result.ok) {
                             output = result.value;
                         } else {
-                            // Log errors in development since function call error stack traces aren't shown to the user in
-                            // the UI. So we show function call errors in our logs.
+                            // Log errors in development since function call error stack traces aren't shown to
+                            // the user in the UI. So we show function call errors in our logs.
                             if (process.env.NODE_ENV !== "production") {
                                 // eslint-disable-next-line no-console
                                 console.error("Agent function call failed:", result.error);
@@ -958,8 +967,8 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
             functionCallOutputs.length,
         );
 
-        // Write the result of our function calls both to storage and to the `input`
-        // we'll use to generate the next response.
+        // Write the result of our function calls both to storage and to the `input` we'll
+        // use to generate the next response.
         for (let i = 0; i < functionCallOutputs.length; i++) {
             const orderKey = orderKeys[i]!;
             const functionCallOutput = functionCallOutputs[i]!;
@@ -1045,8 +1054,8 @@ async function callChatGptAgentFunction({
 
             const link = await getAgentLink(transaction, path);
 
-            // If we can't find the link reference for the provided label, then throw a
-            // nice error for ChatGPT so it can retry.
+            // If we can't find the link reference for the provided label, then throw a nice
+            // error for ChatGPT so it can retry.
             if (!link) {
                 throw createAgentLinkNotFoundError(path);
             }
@@ -1054,11 +1063,10 @@ async function callChatGptAgentFunction({
             const targetApiPath = printApiPathForAgentLink(link);
             const mentionApiPath = getApiMentionTargetPathIfExists(targetApiPath);
 
-            // TODO(ifitzsimmons, #ai): Change the read tool call interface such that
-            // we pass in the SearchEntityId. Then we can load the content for that entity
-            // when streaming the messages back to the client.
-            // As it stands right now, we won't stream Chat, ChatMessage, And ChatMessages
-            // reads back to the client at all.
+            // TODO(ifitzsimmons, #ai): Change the read tool call interface such that we pass
+            // in the SearchEntityId. Then we can load the content for that entity when
+            // streaming the messages back to the client. As it stands right now, we won't
+            // stream Chat, ChatMessage, And ChatMessages reads back to the client at all.
             if (mentionApiPath) {
                 session.pushToolCall(span, {
                     type: "Read",
@@ -1117,12 +1125,12 @@ async function callChatGptAgentFunction({
                 throw new InvalidArgumentError(
                     "Missing required `title` and `content` in function call arguments",
                     {
-                        displayMessage: errorDisplayMessage`The function call’s arguments must include \`title\` and \`content\` strings.`,
+                        displayMessage: errorDisplayMessage`The function call\u2019s arguments must include \`title\` and \`content\` strings.`,
                     },
                 );
             }
 
-            return handleCreateDocumentFunctionCall(span, request, session, {
+            return await handleCreateDocumentFunctionCall(span, request, session, {
                 title: functionCallArguments.title,
                 content: functionCallArguments.content,
             });
@@ -1143,10 +1151,10 @@ function checkChatGptFunctionCallOutputTokenCount(session: AgentMessageStreamSes
     }
 }
 
-// NOTE(ifitzsimmons, 2025-11-14): The maximum length of a prompt_cache_key is 64 characters. Our
-// IDs are 26 characters long, so we can't fit more than two IDs in a prompt_cache_key.
-// Document comment threads are uniquely identified by their DocumentId x ThreadId combination,
-// so we can drop the Space ID.
+// NOTE(ifitzsimmons, 2025-11-14): The maximum length of a prompt_cache_key is 64
+// characters. Our IDs are 26 characters long, so we can't fit more than two IDs in
+// a prompt_cache_key. Document comment threads are uniquely identified by their
+// DocumentId x ThreadId combination, so we can drop the Space ID.
 function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomTarget): string {
     switch (room.type) {
         case "Chat":
@@ -1154,7 +1162,8 @@ function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomTarg
         case "Task":
             return `${spaceId}:${printApiMessageRoomPath(room)}`;
         case "DocumentCommentThread":
-            // "thread/" (7 characters) + ID * 2 (52 characters + "-" (1 character)) = 60 characters
+            // "thread/" (7 characters) + ID \* 2 (52 characters + "-" (1 character)) = 60
+            // characters
             return `thread/${room.id}-${room.threadId}`;
         default:
             throw exhaustive(room);
@@ -1162,14 +1171,14 @@ function getRoomPathForPromptCacheKey(spaceId: SpaceId, room: ApiMessageRoomTarg
 }
 
 /**
- * It's cost-efficient to use concise reasoning summaries for the GPT agent. However, not
- * all models support concise reasoning summaries.
+ * It's cost-efficient to use concise reasoning summaries for the GPT agent.
+ * However, not all models support concise reasoning summaries.
  *
- * When adding or changing supported OpenAI models, make sure to test that the model
- * supports concise summaries. If it doesn't we should discuss the tradeoffs of using
- * the model as a team. Longer reasoning summaries ultimately limit the number of requests
- * users can make to our agents. We're betting that users prefer more agent usage over
- * more descriptive reasoning summaries.
+ * When adding or changing supported OpenAI models, make sure to test that the
+ * model supports concise summaries. If it doesn't we should discuss the tradeoffs
+ * of using the model as a team. Longer reasoning summaries ultimately limit the
+ * number of requests users can make to our agents. We're betting that users prefer
+ * more agent usage over more descriptive reasoning summaries.
  */
 function getReasoningSummaryForModel(model: SupportedAgentModels["openai"]): "concise" {
     switch (model) {
@@ -1250,35 +1259,37 @@ async function requestChatGptAgentWithRetry(
     try {
         return await requestChatGptAgent(span, request, options);
     } catch (error) {
-        // NOTE(ifitzsimmons, 2025-12-04): We observed an issue [1] where a request persisted
-        // some bad state (a corrupt reasoning ID) into local storage and threw a 400 error
-        // (`BadRequestError`). Every subsequent request failed with a 404 (`NotFoundError`)
-        // as a result until the durable object was eventually cleared (after 8 hours).
-        // If the response API returns a 400 or 404 even after retrying with backoff, then we
-        // should clear the durable object state so that subsequent requests will not be impacted
-        // by any potentially corrupted state.
+        // NOTE(ifitzsimmons, 2025-12-04): We observed an issue [1] where a request
+        // persisted some bad state (a corrupt reasoning ID) into local storage and threw a
+        // 400 error (`BadRequestError`). Every subsequent request failed with a 404
+        // (`NotFoundError`) as a result until the durable object was eventually cleared
+        // (after 8 hours). If the response API returns a 400 or 404 even after retrying
+        // with backoff, then we should clear the durable object state so that subsequent
+        // requests will not be impacted by any potentially corrupted state.
         //
-        // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t6adyjshd5qaq256ks12yp395w
+        // [1]:
+        //     https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t6adyjshd5qaq256ks12yp395w
         const isStateMaybeCorruptedError =
             error instanceof OpenAi.BadRequestError || error instanceof OpenAi.NotFoundError;
 
         // NOTE(ifitzsimmons, 2026-01-21): If the context length is exceeded, we can
         // actually retry the request. We just need to clear the conversation state, and
-        // then  re-initialize the conversation.
+        // then re-initialize the conversation.
         const isContextLengthExceededError =
             error instanceof OpenAi.APIError && error.code === "context_length_exceeded";
 
         const isRetryableError = isStateMaybeCorruptedError || isContextLengthExceededError;
 
         // NOTE(ifitzsimmons, 2026-01-21): We set max retry count to 2 because clearing the
-        // conversation state and retrying *should* fix the issue. If it doesn't we don't
+        // conversation state and retrying _should_ fix the issue. If it doesn't we don't
         // want to waste resources while retrying.
         if (isRetryableError && attemptCount < 1) {
             await request.storage.deleteAll();
             return await requestChatGptAgentWithRetry(span, request, options, attemptCount + 1);
         }
 
-        // Error is not retryable or we've exceeded the max retry count, push error and throw
+        // Error is not retryable or we've exceeded the max retry count, push error and
+        // throw
         options.session.pushText(span, defaultAgentErrorDisplayMessage);
         throw error;
     }
@@ -1297,8 +1308,8 @@ async function handleCreateDocumentFunctionCall(
 
     const elements: Array<ApiContentBlockElement> = [];
 
-    // We use `AgentMessageStream` even though there's no streaming so we parse
-    // content from LLMs consistently across all our agents.
+    // We use `AgentMessageStream` even though there's no streaming so we parse content
+    // from LLMs consistently across all our agents.
     const documentContentMessageStream = new AgentMessageStream({
         spaceId: request.spaceId,
         getTargetPathIfExists: async linkPath => {
@@ -1357,12 +1368,12 @@ async function handleCreateDocumentFunctionCall(
 
 /**
  * Injects context about what entity the user is currently viewing into the
- * conversation. This helps the agent understand the user's context when they
- * send a message.
+ * conversation. This helps the agent understand the user's context when they send
+ * a message.
  *
- * Adds a developer message like:
- * "Context: The user is currently viewing [Document Title](/documents/doc-title).
- * You can use the read_link tool to learn more about it."
+ * Adds a developer message like: "Context: The user is currently viewing
+ * [Document Title](/documents/doc-title). You can use the read_link tool to learn
+ * more about it."
  */
 async function injectCurrentlyViewedEntityIntoContextIfNeeded(
     tracer: TracerBase,
@@ -1374,19 +1385,27 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
 
     const currentlyViewingTargetState = conversation.getState().currentlyViewingTarget;
 
-    let newViewingTarget: ApiSearchMentionResponse | null = null;
+    let newViewingTarget: ApiMentionResponse | null = null;
 
     // If the user is looking at a new entity, load the entity mention from the API.
     if (
         request.event.viewingTarget &&
         !isDeepEqual(request.event.viewingTarget, currentlyViewingTargetState?.target)
     ) {
-        const {data} = await getApiSearchMention(
-            tracer,
-            request.apiClient,
-            request.event.viewingTarget,
+        const mentionResult = await captureResultPromise(
+            getApiMention(tracer, request.apiClient, request.event.viewingTarget),
         );
-        newViewingTarget = data.mention;
+
+        // Some `viewingTarget`s can't be resolved by `/{type}/{id}/mention` (most notably
+        // 1:1 chats, including the user's chat with the agent itself), which the API
+        // returns as a 404. Context injection is best-effort, so skip it rather than
+        // failing the whole webhook.
+        if (!mentionResult.ok) {
+            if (mentionResult.error instanceof NotFoundError) return;
+            throw mentionResult.error;
+        }
+
+        newViewingTarget = mentionResult.value.data.mention;
     }
 
     const previousEntity = currentlyViewingTargetState?.target ?? null;
@@ -1428,8 +1447,8 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
     const content: Array<PhrasingContent> = [{type: "text", value: author.account.shortName}];
 
     if (newViewingTarget === null) {
-        // If the previous entity was also null, we would have returned early, so we
-        // know for sure that the previous entity is not null.s
+        // If the previous entity was also null, we would have returned early, so we know
+        // for sure that the previous entity is not null.s
         assert(previousEntityLink !== null);
 
         content.push({type: "text", value: ` is no longer looking at `});
@@ -1438,14 +1457,15 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
     // The previous entity is null, so the user has started looking at Alpine content
     // after not looking at anything.
     else if (previousEntity === null) {
-        // If the new entity was also null, we would have returned early, so we
-        // know for sure that the new entity is not null.
+        // If the new entity was also null, we would have returned early, so we know for
+        // sure that the new entity is not null.
         assert(entityLink !== null);
 
         content.push({type: "text", value: ` is looking at `});
         content.push(getEntityMarkdownLink(entityLink));
     }
     // The previous entity is the same as the new entity. We know for sure that
+    //
     // 1. Previous and new are non-null
     // 2. It has been more than 10 minutes since the last injection
     else if (isDeepEqual(newViewingTarget, previousEntity)) {
@@ -1455,8 +1475,8 @@ async function injectCurrentlyViewedEntityIntoContextIfNeeded(
         content.push({type: "text", value: ` is still looking at `});
         content.push(getEntityMarkdownLink(entityLink));
     }
-    // The user is looking at a different entity than the one they were viewing
-    // during the last request.
+    // The user is looking at a different entity than the one they were viewing during
+    // the last request.
     else {
         assert(entityLink !== null);
         assert(previousEntityLink !== null);
@@ -1508,9 +1528,27 @@ export async function injectCurrentlyViewedEntityIntoContextIfNeededForTest(
 /**
  * Converts an `ApiCurrentlyViewedEntity` into options for `createAgentLink`.
  */
-function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAgentLinkOptions {
+function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLinkOptions {
     switch (entity.target.type) {
-        case "Document":
+        case "Account": {
+            return {
+                type: "Account",
+                account: {
+                    id: entity.target.id,
+                    name: entity.title,
+                },
+            };
+        }
+        case "Chat": {
+            return {
+                type: "Chat",
+                chat: {
+                    id: entity.target.id,
+                    name: entity.title,
+                },
+            };
+        }
+        case "Document": {
             return {
                 type: "Document",
                 document: {
@@ -1518,7 +1556,8 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     title: entity.title,
                 },
             };
-        case "Task":
+        }
+        case "Task": {
             return {
                 type: "Task",
                 task: {
@@ -1527,7 +1566,8 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     status: entity.target.status,
                 },
             };
-        case "Post":
+        }
+        case "Post": {
             return {
                 type: "Post",
                 post: {
@@ -1535,7 +1575,8 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     contentPreview: entity.title,
                 },
             };
-        case "Channel":
+        }
+        case "Channel": {
             return {
                 type: "Channel",
                 channel: {
@@ -1543,7 +1584,8 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     name: entity.title,
                 },
             };
-        case "TaskCollection":
+        }
+        case "TaskCollection": {
             return {
                 type: "TaskCollection",
                 taskCollection: {
@@ -1551,6 +1593,7 @@ function intoCreateAgentLinkOptions(entity: ApiSearchMentionResponse): CreateAge
                     name: entity.title,
                 },
             };
+        }
         default:
             throw exhaustive(entity.target);
     }

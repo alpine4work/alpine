@@ -20,7 +20,7 @@ test("can comment on a document and use the comment thread sidebar", async ({
     context: browserContext1,
     viewport,
     isMobile,
-}) => {
+}, {project}) => {
     assert(viewport);
 
     const space = await TestSpace.create(context);
@@ -42,12 +42,12 @@ test("can comment on a document and use the comment thread sidebar", async ({
     await document.access.grantDefault(session1);
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     // Make pages a bit wider so comment thread decorations show up even when the
     // comment sidebar is open.
@@ -83,8 +83,8 @@ test("can comment on a document and use the comment thread sidebar", async ({
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeHidden();
 
     if (isMobile) {
-        // Comment button doesn't use a `<button>` element on mobile so it doesn't
-        // move focus.
+        // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+        // focus.
         await page1.getByLabel("Comment").click();
     } else {
         await page1.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
@@ -114,7 +114,12 @@ test("can comment on a document and use the comment thread sidebar", async ({
     }
 
     await expect(page1.getByRole("textbox", {name: "New comment"})).toBeVisible();
-    await page1.getByRole("button", {name: "Save comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page1.getByRole("textbox", {name: "New comment"}).blur();
+        await page1.getByRole("button", {name: "Save comment"}).tap();
+    } else {
+        await page1.getByRole("button", {name: "Save comment"}).click();
+    }
     await expect(page1.getByRole("textbox", {name: "New comment"})).toBeHidden();
 
     await expect(
@@ -167,8 +172,8 @@ test("can comment on a document and use the comment thread sidebar", async ({
     if (isMobile) {
         await page1.locator("[data-comment]").click();
     } else {
-        // Test once that we can click the side decoration. From here on out we'll
-        // click the comment itself which works on desktop and mobile.
+        // Test once that we can click the side decoration. From here on out we'll click
+        // the comment itself which works on desktop and mobile.
         await page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).click();
     }
 
@@ -230,7 +235,12 @@ test("can comment on a document and use the comment thread sidebar", async ({
     }
 
     await page1.getByRole("textbox", {name: "New comment"}).fill("Test comment content 2");
-    await page1.getByRole("button", {name: "Send comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page1.getByRole("textbox", {name: "New comment"}).blur();
+        await page1.getByRole("button", {name: "Send comment"}).tap();
+    } else {
+        await page1.getByRole("button", {name: "Send comment"}).click();
+    }
     await expect(page1.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await expect(
@@ -343,7 +353,12 @@ test("can comment on a document and use the comment thread sidebar", async ({
 
     await page2.getByRole("textbox", {name: "New comment"}).fill("Test comment content 3");
     await expect(page2.getByRole("button", {name: "Send comment"})).toBeEnabled();
-    await page2.getByRole("button", {name: "Send comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page2.getByRole("textbox", {name: "New comment"}).blur();
+        await page2.getByRole("button", {name: "Send comment"}).tap();
+    } else {
+        await page2.getByRole("button", {name: "Send comment"}).click();
+    }
     await expect(page2.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await expect(
@@ -506,7 +521,7 @@ test("can leave multiple comments on a document and navigate between them", asyn
     context: browserContext,
     viewport,
     isMobile,
-}) => {
+}, {project}) => {
     assert(viewport);
 
     const space = await TestSpace.create(context);
@@ -528,7 +543,7 @@ test("can leave multiple comments on a document and navigate between them", asyn
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const canPrimaryInputHover = await page.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
@@ -554,15 +569,20 @@ test("can leave multiple comments on a document and navigate between them", asyn
     }
 
     if (isMobile) {
-        // Comment button doesn't use a `<button>` element on mobile so it doesn't
-        // move focus.
+        // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+        // focus.
         await page.getByLabel("Comment").click();
     } else {
         await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
     }
 
     await page.getByRole("textbox", {name: "New comment"}).fill("Test comment content 1");
-    await page.getByRole("button", {name: "Save comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page.getByRole("textbox", {name: "New comment"}).blur();
+        await page.getByRole("button", {name: "Save comment"}).tap();
+    } else {
+        await page.getByRole("button", {name: "Save comment"}).click();
+    }
 
     await expect(page.getByText("Test comment content 1")).toBeHidden();
 
@@ -597,8 +617,8 @@ test("can leave multiple comments on a document and navigate between them", asyn
     }
 
     if (isMobile) {
-        // Comment button doesn't use a `<button>` element on mobile so it doesn't
-        // move focus.
+        // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+        // focus.
         await page.getByLabel("Comment").click();
     } else {
         await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
@@ -615,7 +635,12 @@ test("can leave multiple comments on a document and navigate between them", asyn
             .fill("Test comment content 2");
     }
 
-    await page.getByRole("button", {name: "Save comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page.getByRole("textbox", {name: "New comment"}).blur();
+        await page.getByRole("button", {name: "Save comment"}).tap();
+    } else {
+        await page.getByRole("button", {name: "Save comment"}).click();
+    }
 
     if (isMobile) {
         // On mobile we closed the comment thread so reopen it now.
@@ -679,7 +704,7 @@ test("can leave a document comment across multiple paragraphs", async ({
     context: browserContext,
     viewport,
     isMobile,
-}) => {
+}, {project}) => {
     assert(viewport);
 
     const space = await TestSpace.create(context);
@@ -701,7 +726,7 @@ test("can leave a document comment across multiple paragraphs", async ({
     });
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     const canPrimaryInputHover = await page.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
@@ -727,15 +752,20 @@ test("can leave a document comment across multiple paragraphs", async ({
     }
 
     if (isMobile) {
-        // Comment button doesn't use a `<button>` element on mobile so it doesn't
-        // move focus.
+        // Comment button doesn't use a `<button>` element on mobile so it doesn't move
+        // focus.
         await page.getByLabel("Comment").click();
     } else {
         await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
     }
 
     await page.getByRole("textbox", {name: "New comment"}).fill("Test comment content 3");
-    await page.getByRole("button", {name: "Save comment"}).click();
+    if (project.name === "webkit_mobile") {
+        await page.getByRole("textbox", {name: "New comment"}).blur();
+        await page.getByRole("button", {name: "Save comment"}).tap();
+    } else {
+        await page.getByRole("button", {name: "Save comment"}).click();
+    }
 
     await expect(page.getByText("Test comment content 3")).toBeHidden();
 

@@ -6,8 +6,8 @@ import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * No-ops all email rendering and sending.
- * Only to be used outside of production when we don't actually care at all about emails.
+ * No-ops all email rendering and sending. Only to be used outside of production
+ * when we don't actually care at all about emails.
  */
 export class NoopEmailContextModule extends EmailContextModuleBase {
     public override async send(): Promise<void> {

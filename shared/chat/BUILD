@@ -4,12 +4,15 @@ ts_project(
     name = "chat",
     visibility = ["//visibility:public"],
     deps = [
+        "//shared/access",
+        "//shared/access/model",
         "//shared/accounts",
         "//shared/content",
         "//shared/error",
         "//shared/id",
         "//shared/messaging",
         "//shared/schema",
+        "//shared/sites",
         "//shared/web_socket",
     ],
 )

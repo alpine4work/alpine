@@ -1,7 +1,7 @@
 import classNames from "classnames";
-import {useContext, useMemo, useRef} from "react";
+import {useMemo, useRef} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
-import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {useContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/web/content/internal/content_base_schema_with_files.js";
 import {
@@ -20,6 +20,7 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -56,8 +57,9 @@ export function ContentFileEntityPreview({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
+    const siteRegistry = useSiteRegistry();
     const currentDate = useCurrentDate();
-    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const fileEntityRenderers = useContentFileEntityRenderers();
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -82,6 +84,7 @@ export function ContentFileEntityPreview({
                 accountRegistry,
                 searchEntityRegistry,
                 fileRegistry,
+                siteRegistry,
                 currentAccount,
                 blockWidth,
                 transformScale: 1,
@@ -122,6 +125,7 @@ export function ContentFileEntityPreview({
         platform,
         routeLayout,
         searchEntityRegistry,
+        siteRegistry,
         space.id,
         spacingScale,
         width,
@@ -142,8 +146,8 @@ export function ContentFileEntityPreview({
         if (previousHtmlGenerator === htmlGenerator) return;
 
         if (!previousHtmlGenerator) {
-            // This case happens during a hot reload. We need to remove the children
-            // currently in the DOM.
+            // This case happens during a hot reload. We need to remove the children currently
+            // in the DOM.
             while (containerElement.hasChildNodes()) {
                 containerElement.firstChild!.remove();
             }

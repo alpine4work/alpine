@@ -30,8 +30,8 @@ function InputWithAutoGrowingWidth(
                 ...containerStyle,
                 maxWidth: "100%",
                 overflow: "hidden",
-                // The width of this element is determined by nested text boxes. The `<input>`
-                // then uses the parent width as its own width.
+                // The width of this element is determined by nested text boxes. The `<input>` then
+                // uses the parent width as its own width.
                 display: "inline-block",
             }}
         >
@@ -70,8 +70,8 @@ function InputWithAutoGrowingWidth(
                 ref={ref}
                 type="text"
                 // By default `<input>` elements have a `min-width` determined by the `size`
-                // property. We want our `<input>`s `min-width` to be determined by our CSS
-                // so set it to a small value as not to matter.
+                // property. We want our `<input>`s `min-width` to be determined by our CSS so set
+                // it to a small value as not to matter.
                 // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
                 size={1}
                 style={{

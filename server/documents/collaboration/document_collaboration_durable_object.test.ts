@@ -9,6 +9,7 @@ import {
     DocumentCollaborationEventStub,
 } from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {
+    documentCollaborationContentManagerAfterPersistenceWaitTestCheckpoint,
     documentCollaborationContentManagerBeforePersist1TestCheckpoint,
     documentCollaborationContentManagerBeforePersist2TestCheckpoint,
     documentCollaborationContentManagerBeforeUpdateTestCheckpoint,
@@ -28,6 +29,11 @@ import {
     testMessagingRealtimeImplementation,
     testMessagingRealtimeImplementationSearchInjection,
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
+import {createSite} from "~/server/sites/data/create_site.js";
+import {getSite} from "~/server/sites/data/get_site.js";
+import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
+import {sitesInjection} from "~/server/sites/data/sites_injection.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
@@ -56,9 +62,15 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
-import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    SiteId,
+    SiteSideBarId,
+} from "~/shared/id/types/id_types.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -69,10 +81,14 @@ import {
     deleteDocumentComment,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
+import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
+import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
+import {SiteEntityModel} from "~/shared/sites/site_model.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const context = createTestWorkerContext({
     documentsInjection,
+    sitesInjection,
     searchInjection: testMessagingRealtimeImplementationSearchInjection,
 });
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);
@@ -134,6 +150,7 @@ test("can not connect to a document in a different space", async () => {
 
     const document = await TestDocument.create(session, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -153,6 +170,7 @@ test("can not connect to an existing document durable object in a different spac
 
     const document = await TestDocument.create(session, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -257,6 +275,7 @@ test("will optimistically update the document and then persist later", async () 
     const [session1, session2] = await space.createSessions(2);
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -377,12 +396,299 @@ test("will optimistically update the document and then persist later", async () 
     ]);
 });
 
+test("updateContentWithoutOptimisticBroadcast persists before broadcasting", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const document = await TestDocument.create(session1, {
+        access: {
+            type: "Local",
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
+
+    const client1Id = generateId<ContentEditorClientId>();
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
+
+    await connection1.procedures.backfill({version: 0});
+    await connection2.procedures.backfill({version: 0});
+
+    // Pause right before the synchronous path would call `updateDocumentContent`. In
+    // the optimistic path the broadcast to other clients has already happened by this
+    // point; the synchronous path must not have broadcast anything yet.
+    const pausePromise =
+        documentCollaborationContentManagerBeforePersist1TestCheckpoint.pauseForTest(document.id);
+
+    const updatePromise = connection1.procedures.updateContentWithoutOptimisticBroadcast({
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId: client1Id,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    const {unpause} = await pausePromise;
+
+    // No events have been broadcast to other connections yet, and the document hasn't
+    // been persisted. This is the inverse of the optimistic test above, which sees
+    // `UpdateContentWithoutPersistence` already delivered at this checkpoint.
+    expect(connection2.takeEvents()).toEqual([]);
+    expect(massageDocument(await document.get())).toEqual({
+        version: 0,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, []),
+            ])
+            .toJSON(),
+    });
+
+    unpause();
+    const result = await updatePromise;
+
+    expect(result.newVersion).toBe(1);
+
+    expect(connection2.takeEvents()).toEqual([
+        // `PersistedContent` is sent before `UpdateContentWithoutPersistence` on the
+        // synchronous path so a client that processes events in order knows the new
+        // version is already persisted by the time the steps land.
+        {
+            type: "PersistedContent",
+            newVersion: 1,
+            updatedCommentThreads: [],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 1,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("a")]),
+            ])
+            .toJSON(),
+    });
+});
+
+// Locks down the failure-recovery invariant in `updateAndWaitForPersistence`'s
+// JSDoc: "Persist before mutating any in-memory state. If this throws we release
+// the lock with state untouched and propagate the error to the caller". A failed
+// synchronous update must leave both the durable object's in-memory state AND the
+// step cache untouched, so a follow-up update can succeed and a backfill from an
+// earlier version returns only the legitimately-persisted steps — not the failed
+// steps from the doomed call.
+test("updateContentWithoutOptimisticBroadcast failure leaves state untouched and another update can succeed", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const document = await TestDocument.create(session, {
+        access: {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
+
+    const clientId = generateId<ContentEditorClientId>();
+    const connection = await connectForTest(context.action(session), document.id);
+
+    await connection.procedures.backfill({version: 0});
+
+    // First persist a legitimate update so we have a non-trivial version to backfill
+    // from later. After this the durable object is at version 1 with content "a".
+    await connection.procedures.updateContent({
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+    await waitForPersistence(connection, 1);
+
+    // Now drive a synchronous update that _will_ fail in `updateDocumentContent`.
+    // `intentionallyUpdateAccessPolicy` for a non-existent `siteId` causes
+    // `dangerouslyGetAddToSiteTransactionEntries` → `getSiteTreeForUpdate` to throw
+    // because no site rows exist for that id. The throw propagates back through
+    // `updateAndWaitForPersistence` after `withLock` is held.
+    const fakeSiteId = generateId<SiteId>();
+
+    await expect(
+        connection.procedures.updateContentWithoutOptimisticBroadcast({
+            version: 1,
+            steps: [new ReplaceStep(4, 4, textSlice("X"))],
+            clientId,
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: {
+                    type: "Site",
+                    siteId: fakeSiteId,
+                    position: {
+                        parentId: `SideBar:${generateId<SiteSideBarId>()}`,
+                        orderKey: assertOrderKey("a0"),
+                    },
+                },
+                notification: null,
+            },
+            updateOurPresenceState: {state: null},
+        }),
+    ).rejects.toThrow();
+
+    // State invariant 1: persisted document is still at version 1 with the original
+    // "a" — the failed update must NOT have written "X".
+    expect(massageDocument(await document.get())).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("a")]),
+            ])
+            .toJSON(),
+    });
+
+    // State invariant 2: a follow-up update succeeds. If the failed call had partially
+    // mutated the lock state, the step cache, or `_persistenceState` we'd see version
+    // conflicts or stale rebase results here.
+    await connection.procedures.updateContent({
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+    await waitForPersistence(connection, 2);
+
+    expect(massageDocument(await document.get())).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {accessPolicy: document.initialAccessPolicy}, [
+                schema.node("title", {}, []),
+                schema.node("paragraph", {}, [schema.text("ab")]),
+            ])
+            .toJSON(),
+    });
+
+    // State invariant 3: backfill from version 1 returns only the surviving v1→v2
+    // step. The failed update's step ("X") must not appear in the step cache.
+    const backfillResult = await connection.procedures.backfill({version: 1});
+    expect(backfillResult.newVersion).toBe(2);
+    expect(backfillResult.steps).toEqual([
+        {
+            step: new ReplaceStep(4, 4, textSlice("b")),
+            invertedStep: expect.any(ReplaceStep),
+            clientId,
+        },
+    ]);
+});
+
+// Locks down the `await this._persistenceState?.promise;` await inside
+// `updateAndWaitForPersistence`. The synchronous path must not race ahead of
+// in-flight optimistic persistence — otherwise the DynamoDB version would lag the
+// in-memory `stateRef.current.version` and `updateDocumentContent` would be called
+// with a stale `oldVersion`. Uses the `AfterPersistenceWaitTestCheckpoint` (added
+// specifically for this test) to observe deterministically that the synchronous
+// path is still blocked while optimistic persistence is paused.
+test("updateContentWithoutOptimisticBroadcast waits for in-flight optimistic persistence", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const document = await TestDocument.create(session, {
+        access: {
+            type: "Local",
+            accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
+
+    const clientId = generateId<ContentEditorClientId>();
+    const connection = await connectForTest(context.action(session), document.id);
+
+    await connection.procedures.backfill({version: 0});
+
+    // Pause optimistic persistence at `BeforePersist1` so `_persistenceState.promise`
+    // stays unresolved until we explicitly let it through.
+    const beforePersist1Pause =
+        documentCollaborationContentManagerBeforePersist1TestCheckpoint.pauseForTest(document.id);
+
+    // Pause the new "after persistence wait" checkpoint. We use this to detect whether
+    // the synchronous path got past `await this._persistenceState?.promise;`.
+    const afterPersistenceWaitPause =
+        documentCollaborationContentManagerAfterPersistenceWaitTestCheckpoint.pauseForTest(
+            document.id,
+        );
+
+    // Optimistic update: applies in-memory at v1 and schedules persistence (paused at
+    // BeforePersist1).
+    await connection.procedures.updateContent({
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("a"))],
+        clientId,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    // Confirm the optimistic persistence is in fact paused at BeforePersist1.
+    const {unpause: unpauseBeforePersist1} = await beforePersist1Pause;
+
+    // Kick off the synchronous update. It should acquire the state lock, validate, and
+    // then block at `await this._persistenceState?.promise;` — never reaching the
+    // AfterPersistenceWait checkpoint until we let the optimistic persistence through.
+    const syncUpdatePromise = connection.procedures.updateContentWithoutOptimisticBroadcast({
+        version: 1,
+        steps: [new ReplaceStep(4, 4, textSlice("b"))],
+        clientId,
+        createCommentThreads: [],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    // Race the AfterPersistenceWait pause against a wait. If the wait wins, the
+    // synchronous update is still blocked on optimistic persistence — which is exactly
+    // the invariant we want. If the pause wins (i.e., the synchronous update raced
+    // ahead), this test fails.
+    const afterPersistenceWaitFiredEarly = await Promise.race([
+        afterPersistenceWaitPause.then(() => true),
+        wait(500).then(() => false),
+    ]);
+    expect(afterPersistenceWaitFiredEarly).toBe(false);
+
+    // Let the optimistic persistence complete. After `updateDocumentContent` finishes,
+    // `_persistenceState.promise` resolves and the synchronous update proceeds past
+    // its await — firing AfterPersistenceWait.
+    unpauseBeforePersist1();
+
+    const {unpause: unpauseAfterPersistenceWait} = await afterPersistenceWaitPause;
+    unpauseAfterPersistenceWait();
+
+    const result = await syncUpdatePromise;
+
+    // Sync update committed at v2 — confirming it ran _after_ optimistic v1 persisted,
+    // not in parallel with it.
+    expect(result.newVersion).toBe(2);
+});
+
 test("will not batch updates from different accounts when persisting", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -516,6 +822,7 @@ test("will respond optimistically with a comment thread even if it has not been 
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -802,6 +1109,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -949,6 +1257,7 @@ test("will respond optimistically with a comment thread with files even if it ha
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -987,13 +1296,11 @@ test("will respond optimistically with a comment thread with files even if it ha
     await runAllPromises([
         attachFileAsUploader(
             session1.action(),
-            space.id,
             file1Id,
             FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: document.id}),
         ),
         attachFileAsUploader(
             session1.action(),
-            space.id,
             file2Id,
             FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: document.id}),
         ),
@@ -1110,6 +1417,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1122,6 +1430,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1171,6 +1480,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1183,6 +1493,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1259,6 +1570,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1271,6 +1583,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1320,6 +1633,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1332,6 +1646,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
+                                spaceId: space.id,
                                 contentType: "image/png",
                                 contentLength: 5232,
                                 isUploading: false,
@@ -1355,6 +1670,7 @@ test("when comment threads are added back to the document they will be loaded", 
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -1425,8 +1741,8 @@ test("when comment threads are added back to the document they will be loaded", 
     await waitForPersistence(connection1, 4);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1461,8 +1777,8 @@ test("when comment threads are added back to the document they will be loaded", 
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1503,6 +1819,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -1580,8 +1897,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
     await waitForPersistence(connection1, 4);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1659,8 +1976,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1744,6 +2061,7 @@ test("can create comments in comment threads", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -1800,8 +2118,8 @@ test("can create comments in comment threads", async () => {
     await waitForPersistence(connection1, 2);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -1835,8 +2153,8 @@ test("can create comments in comment threads", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -2177,6 +2495,7 @@ test("if comment thread is persisting we will wait to create messages but respon
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -2470,6 +2789,7 @@ test("if comment thread update message hasn\u2019t been processed we will wait t
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -2541,12 +2861,11 @@ test("if comment thread update message hasn\u2019t been processed we will wait t
     });
 
     // NOTE(calebmer): This is a little janky but what we want to test is that
-    // `backfillMessagePromise` waits for `updateMessagePromise` before processing.
-    // If there's no async gap here then we immediately unpause
-    // `updateMessagePromise` and can't observe whether `backfillMessagePromise`
-    // waited. I can't find a good place to put a test checkpoint in the code to
-    // test this behavior so a fine option is putting a timeout here and checking
-    // that we got no new messages.
+    // `backfillMessagePromise` waits for `updateMessagePromise` before processing. If
+    // there's no async gap here then we immediately unpause `updateMessagePromise` and
+    // can't observe whether `backfillMessagePromise` waited. I can't find a good place
+    // to put a test checkpoint in the code to test this behavior so a fine option is
+    // putting a timeout here and checking that we got no new messages.
     await wait(1000);
 
     expect(connection1.takeEvents()).toEqual([]);
@@ -2785,6 +3104,7 @@ test("while comment thread is persisting we will respond to comment load request
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3689,6 +4009,7 @@ test("will cleanup comment thread marks if from a different document", async () 
 
     const document1 = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3697,6 +4018,7 @@ test("will cleanup comment thread marks if from a different document", async () 
 
     const document2 = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -3753,8 +4075,8 @@ test("will cleanup comment thread marks if from a different document", async () 
     await waitForPersistence(connection1, 2);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -3788,8 +4110,8 @@ test("will cleanup comment thread marks if from a different document", async () 
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -3847,8 +4169,8 @@ test("will cleanup comment thread marks if from a different document", async () 
     await waitForPersistence(connection1, 3);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -3897,8 +4219,8 @@ test("will cleanup comment thread marks if from a different document", async () 
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -3970,13 +4292,12 @@ test("will cleanup comment thread marks if from a different document", async () 
     await waitForPersistence(connection3, 2);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) =>
-            // We don't compare `newVersion` since we do specifically want to test the
-            // ordering of `UpdateContentWithoutPersistence` events here. The
-            // `RemoveAllMarksStep` event should always come first despite being at a
-            // later version.
+            // We don't compare `newVersion` since we do specifically want to test the ordering
+            // of `UpdateContentWithoutPersistence` events here. The `RemoveAllMarksStep` event
+            // should always come first despite being at a later version.
             defaultCompareStrings(a.type, b.type),
         ),
     ).toEqual([
@@ -4027,13 +4348,12 @@ test("will cleanup comment thread marks if from a different document", async () 
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection4.takeEvents().sort((a, b) =>
-            // We don't compare `newVersion` since we do specifically want to test the
-            // ordering of `UpdateContentWithoutPersistence` events here. The
-            // `RemoveAllMarksStep` event should always come first despite being at a
-            // later version.
+            // We don't compare `newVersion` since we do specifically want to test the ordering
+            // of `UpdateContentWithoutPersistence` events here. The `RemoveAllMarksStep` event
+            // should always come first despite being at a later version.
             defaultCompareStrings(a.type, b.type),
         ),
     ).toEqual([
@@ -4090,6 +4410,7 @@ test("can add comment thread marks back to document after they\u2019ve been remo
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4136,8 +4457,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     await waitForPersistence(connection1, 2);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4171,8 +4492,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4217,8 +4538,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     await waitForPersistence(connection1, 3);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4239,8 +4560,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4286,8 +4607,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     await waitForPersistence(connection1, 4);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4335,8 +4656,8 @@ test("can add comment thread marks back to document after they\u2019ve been remo
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4391,6 +4712,7 @@ test("can resolve a comment thread", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4418,8 +4740,8 @@ test("can resolve a comment thread", async () => {
     await waitForPersistence(connection1, 4);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4453,8 +4775,8 @@ test("can resolve a comment thread", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4495,6 +4817,7 @@ test("can unresolve a comment thread", async () => {
 
     const document = await TestDocument.create(session1, {
         access: {
+            type: "Local",
             accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
             defaultGrant: {level: "Manage", generation: 1},
             urlGrant: null,
@@ -4524,8 +4847,8 @@ test("can unresolve a comment thread", async () => {
     await waitForPersistence(connection1, 5);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4567,8 +4890,8 @@ test("can unresolve a comment thread", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -4923,6 +5246,55 @@ test("can\u2019t update content as a viewer", async () => {
     expect(connection2.takeEvents()).toEqual([]);
 });
 
+test("commenter can only update comment marks", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1);
+    await document.access.grant(session1, session2, "Comment");
+
+    await document.type(session1, "Hello, world!");
+
+    const connection = await connectForTest(
+        context.action(session2, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {accessLevel: "Comment"},
+    );
+
+    const {newVersion} = await connection.procedures.backfill({
+        version: 2,
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await connection.procedures.updateContent({
+        version: newVersion,
+        steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
+        clientId: generateId<ContentEditorClientId>(),
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test comment"),
+                initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
+            },
+        ],
+        intentionallyUpdateAccessPolicy: null,
+        updateOurPresenceState: {state: null},
+    });
+
+    await expect(
+        connection.procedures.updateContent({
+            version: newVersion + 1,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId<ContentEditorClientId>(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            updateOurPresenceState: {state: null},
+        }),
+    ).rejects.toThrow("Can\u2019t update document");
+});
+
 test("can\u2019t call comment procedures as viewer", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
@@ -5194,8 +5566,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5216,8 +5588,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5238,8 +5610,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5271,8 +5643,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5293,8 +5665,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5315,8 +5687,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5357,8 +5729,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5384,8 +5756,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5411,8 +5783,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5472,8 +5844,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5488,8 +5860,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5504,8 +5876,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([]);
 
@@ -5516,8 +5888,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5538,8 +5910,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5560,8 +5932,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5588,8 +5960,8 @@ test("viewer receives update events without comment data", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5625,8 +5997,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5662,8 +6034,8 @@ test("viewer receives update events without comment data", async () => {
     ]);
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection3.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5705,12 +6077,14 @@ test("can update access policy", async () => {
     );
 
     const accessPolicy1: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: null,
         urlGrant: null,
     };
 
     const accessPolicy2: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Comment"},
         urlGrant: null,
@@ -5836,6 +6210,7 @@ test("can\u2019t update access policy unintentionally", async () => {
     );
 
     const accessPolicy2: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Comment"},
         urlGrant: null,
@@ -5853,8 +6228,8 @@ test("can\u2019t update access policy unintentionally", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -5903,12 +6278,14 @@ test("can\u2019t update access policy with the wrong intentional policy", async 
     );
 
     const accessPolicy2a: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Comment"},
         urlGrant: null,
     };
 
     const accessPolicy2b: AccessPolicy = {
+        type: "Local",
         accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
         defaultGrant: {level: "Edit"},
         urlGrant: null,
@@ -5926,8 +6303,8 @@ test("can\u2019t update access policy with the wrong intentional policy", async 
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        // Message order is not deterministic. We do not delay persistence on loading
-        // data necessary from the database.
+        // Message order is not deterministic. We do not delay persistence on loading data
+        // necessary from the database.
         connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
@@ -6247,4 +6624,283 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             commentIndex,
         });
     },
+});
+
+// =============================================================================
+// Site addition and removal via intentionallyUpdateAccessPolicy
+// =============================================================================
+
+// TODO(#sites): Create testing framework for adding/removing from sites similar to
+// the way we have "messaging" tests
+describe("adding and removing documents from sites", () => {
+    test("adding a document to a site persists the site entity ref and updates the document\u2019s access policy", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        // Create a site
+        const site = await TestSite.create(session, {access: "Private"});
+
+        // Create a document and connect to the DO
+        const document = await TestDocument.create(session, {title: "Site Doc"});
+        const entityId: SiteItemSearchEntityId = `Document:${document.id}`;
+        const clientId = generateId<ContentEditorClientId>();
+        const connection = await connectForTest(context.action(session), document.id);
+
+        const siteAccessPolicy = {
+            type: "Site" as const,
+            siteId: site.id,
+            position: {
+                parentId: site.initialRootContainerId,
+                orderKey: assertOrderKey("a0"),
+            },
+        };
+
+        // Update content with a DocAttrStep that changes the access policy to Site, plus
+        // intentionallyUpdateAccessPolicy so the server commits the site entity ref in the
+        // same transaction.
+        const result = await connection.procedures.updateContentWithoutOptimisticBroadcast({
+            version: 0,
+            steps: [new DocAttrStep("accessPolicy", {type: "Site", siteId: site.id})],
+            clientId,
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: siteAccessPolicy,
+                notification: null,
+            },
+            updateOurPresenceState: {state: null},
+        });
+
+        await waitForPersistence(connection, result.newVersion);
+
+        // Verify the document's access policy is now Site
+        const documentAccessPolicy = await document.access.get();
+        expect(documentAccessPolicy).toMatchObject({type: "Site", siteId: site.id});
+
+        // Verify the site contains the entity ref
+        const [siteItems, sitePreview] = await runAllPromises([
+            getSite(session.action(), {siteId: site.id}),
+            getSitePreview(session.action(), site.id),
+        ]);
+
+        expect(sitePreview.initialData).toEqual(
+            expect.objectContaining({
+                id: site.id,
+                firstEntityId: entityId,
+                rootContainerId: site.initialRootContainerId,
+            }),
+        );
+
+        const entityModels = siteItems.items
+            .map(item => item.model)
+            .filter(model => model instanceof SiteEntityModel);
+        expect(entityModels).toHaveLength(1);
+        expect(entityModels[0]).toEqual(
+            expect.objectContaining({
+                id: entityId,
+                parentId: site.initialRootContainerId,
+                type: "Entity",
+            }),
+        );
+
+        // Verify site events were returned in the response
+        expect(result.eventsForSite.length).toBeGreaterThan(0);
+    });
+
+    test("removing a document from a site removes the entity ref and restores Local access policy", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const siteId = generateId<SiteId>();
+        const rootSideBarId = generateId<SiteSideBarId>();
+        await createSite(session.action(), {
+            spaceId: space.id,
+            siteId,
+            name: "Test Site",
+            root: {type: "SideBar", id: rootSideBarId},
+        });
+        const rootContainerId = printSiteContainerId({type: "SideBar", id: rootSideBarId});
+
+        const document = await TestDocument.create(session, {title: "Site Doc"});
+        const clientId = generateId<ContentEditorClientId>();
+        const connection = await connectForTest(context.action(session), document.id);
+
+        const siteAccessPolicy = {
+            type: "Site" as const,
+            siteId,
+            position: {
+                parentId: rootContainerId,
+                orderKey: assertOrderKey("a0"),
+            },
+        };
+
+        // Add to site
+        const addResult = await connection.procedures.updateContentWithoutOptimisticBroadcast({
+            version: 0,
+            steps: [new DocAttrStep("accessPolicy", {type: "Site", siteId})],
+            clientId,
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: siteAccessPolicy,
+                notification: null,
+            },
+            updateOurPresenceState: {state: null},
+        });
+
+        await waitForPersistence(connection, addResult.newVersion);
+
+        // Verify entity was added
+        const siteItemsAfterAdd = await getSite(session.action(), {siteId});
+        const entitiesAfterAdd = siteItemsAfterAdd.items
+            .map(item => item.model)
+            .filter(model => model instanceof SiteEntityModel);
+        expect(entitiesAfterAdd).toHaveLength(1);
+
+        // Now remove from site \u2014 set access policy back to Local
+        const sitePreview = await getSitePreview(session.action(), siteId);
+        const localAccessPolicy = sitePreview.initialData.accessPolicy;
+
+        const removeResult = await connection.procedures.updateContent({
+            version: addResult.newVersion,
+            steps: [new DocAttrStep("accessPolicy", localAccessPolicy)],
+            clientId,
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: localAccessPolicy,
+                notification: null,
+            },
+            updateOurPresenceState: {state: null},
+        });
+
+        await waitForPersistence(connection, removeResult.newVersion);
+
+        // Verify the document's access policy is now Local
+        const restoredAccessPolicy = await document.access.get();
+        expect(restoredAccessPolicy.type).toBe("Local");
+
+        // Verify the entity ref was removed from the site
+        const siteItemsAfterRemove = await getSite(session.action(), {siteId});
+        const entitiesAfterRemove = siteItemsAfterRemove.items
+            .map(item => item.model)
+            .filter(model => model instanceof SiteEntityModel);
+        expect(entitiesAfterRemove).toHaveLength(0);
+
+        // Verify firstEntityId was cleared
+        const sitePreviewAfterRemove = await getSitePreview(session.action(), siteId);
+        expect(sitePreviewAfterRemove.initialData.firstEntityId).toBeNull();
+    });
+
+    test("cannot add a document to a site when the actor lacks `Manage` on the site", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        // session1 creates a site session2 only has `View` on.
+        const siteId = generateId<SiteId>();
+        const rootSideBarId = generateId<SiteSideBarId>();
+        await createSite(session1.action(), {
+            spaceId: space.id,
+            siteId,
+            name: "session1\u2019s site",
+            accessPolicy: {
+                type: "Local",
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: {level: "View"},
+                urlGrant: null,
+            },
+            root: {type: "SideBar", id: rootSideBarId},
+        });
+        const rootContainerId = printSiteContainerId({type: "SideBar", id: rootSideBarId});
+
+        // session2 creates a doc they manage.
+        const document = await TestDocument.create(session2, {
+            access: {
+                type: "Local",
+                accountGrantById: new Map([
+                    [session2.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+            title: "session2\u2019s doc",
+        });
+        const clientId = generateId<ContentEditorClientId>();
+        const connection = await connectForTest(context.action(session2), document.id);
+
+        const siteAccessPolicy = {
+            type: "Site" as const,
+            siteId,
+            position: {parentId: rootContainerId, orderKey: assertOrderKey("a0")},
+        };
+
+        await expect(
+            connection.procedures.updateContentWithoutOptimisticBroadcast({
+                version: 0,
+                steps: [new DocAttrStep("accessPolicy", {type: "Site", siteId})],
+                clientId,
+                createCommentThreads: [],
+                intentionallyUpdateAccessPolicy: {
+                    accessPolicy: siteAccessPolicy,
+                    notification: null,
+                },
+                updateOurPresenceState: {state: null},
+            }),
+        ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
+    });
+
+    test("cannot add a document to a site when the actor lacks `Manage` on the document", async () => {
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await space.createSessions(2);
+
+        // session1 creates a doc session2 can only `Edit` (connect + modify content, but
+        // not change access policy).
+        const document = await TestDocument.create(session1, {
+            access: {
+                type: "Local",
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Edit", generation: 0}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+            title: "session1\u2019s doc",
+        });
+
+        // session2 creates their own site that they manage.
+        const siteId = generateId<SiteId>();
+        const rootSideBarId = generateId<SiteSideBarId>();
+        await createSite(session2.action(), {
+            spaceId: space.id,
+            siteId,
+            name: "session2\u2019s site",
+            root: {type: "SideBar", id: rootSideBarId},
+        });
+        const rootContainerId = printSiteContainerId({type: "SideBar", id: rootSideBarId});
+
+        const clientId = generateId<ContentEditorClientId>();
+        const connection = await connectForTest(context.action(session2), document.id, {
+            accessLevel: "Edit",
+        });
+
+        const siteAccessPolicy = {
+            type: "Site" as const,
+            siteId,
+            position: {parentId: rootContainerId, orderKey: assertOrderKey("a0")},
+        };
+
+        await expect(
+            connection.procedures.updateContentWithoutOptimisticBroadcast({
+                version: 0,
+                steps: [new DocAttrStep("accessPolicy", {type: "Site", siteId})],
+                clientId,
+                createCommentThreads: [],
+                intentionallyUpdateAccessPolicy: {
+                    accessPolicy: siteAccessPolicy,
+                    notification: null,
+                },
+                updateOurPresenceState: {state: null},
+            }),
+        ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
+    });
 });

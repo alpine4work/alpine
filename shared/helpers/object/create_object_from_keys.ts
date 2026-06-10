@@ -1,6 +1,6 @@
 /**
- * Creates an object from an array of keys. Where the value of each key is
- * created by the provided function.
+ * Creates an object from an array of keys. Where the value of each key is created
+ * by the provided function.
  */
 export function createObjectFromKeys<const Keys extends ReadonlyArray<string | number>, Value>(
     keys: Keys,

@@ -12,8 +12,9 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
         "//server/forum/test_helpers",
+        "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/spaces/test_helpers",
         "//shared/test_helpers",
     ],
@@ -49,9 +50,22 @@ ts_project(
             # process.
             "tags": ["cpu:3"],
         },
+        "get_message_references_for_multiple_accounts_test": {
+            "size": "medium",
+        },
+        "search_entity_index_sites_test": {
+            "size": "medium",
+            # Give this test at least three CPUs. Two for OpenSearch, one for the test
+            # process.
+            "tags": ["cpu:3"],
+            "data": ["//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data_testonly"],
+        },
     },
     visibility = [
         "//admin:__subpackages__",
+        # Lets the search modal screenshot test index entities and refresh the
+        # keyword index so search results are available when the page loads.
+        "//app/screenshot_tests:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [
@@ -68,7 +82,6 @@ ts_project(
         "//:node_modules/stemmer",
         "//server/access",
         "//server/accounts",
-        "//server/api/content",
         "//server/chat/data",
         "//server/content",
         "//server/context",
@@ -83,11 +96,13 @@ ts_project(
         "//server/opensearch",
         "//server/search/core",
         "//server/search/data/table",
+        "//server/sites/data",
         "//server/spaces",
         "//server/tasks/data",
         "//server/tokens",
         "//shared/access",
         "//shared/accounts",
+        "//shared/api/content",
         "//shared/content",
         "//shared/context",
         "//shared/databases",

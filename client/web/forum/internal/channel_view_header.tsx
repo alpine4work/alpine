@@ -1,4 +1,5 @@
 import {useMemo, useRef, useState} from "react";
+import {createAccessPolicyStore} from "~/client/web/access/create_access_policy_store.js";
 import {ContentEditor, ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/web/content/content_view_with_see_more_toggle.js";
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
@@ -13,12 +14,14 @@ import {ChannelViewSubscribeButton} from "~/client/web/forum/internal/channel_vi
 import {PostFauxInputCreateButton} from "~/client/web/forum/internal/post_faux_input_create_button.js";
 import {PostListHeader} from "~/client/web/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
 import {InlineEditorToolbar} from "~/client/web/messaging/inline_editor_toolbar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {PostShimmer} from "~/client/web/shimmer/post_shimmer.js";
+import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     channelViewHeaderNarrowRouteLayoutMarginTop,
@@ -52,14 +55,17 @@ export function ChannelViewHeader({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
+    const siteRegistry = useSiteRegistry();
+    const accessPolicy = useStore(
+        useMemo(
+            () => createAccessPolicyStore(header.channel.accessPolicy, siteRegistry),
+            [header.channel.accessPolicy, siteRegistry],
+        ),
+    );
 
     const accessLevel = useMemo(
-        () =>
-            getAccountAccessLevelAssumingSpaceAccess(
-                header.channel.accessPolicy,
-                currentAccount?.id,
-            ),
-        [header.channel.accessPolicy, currentAccount?.id],
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
     );
 
     let contributors: ChannelContributorsModel | null = null;
@@ -173,10 +179,9 @@ function ChannelViewHeaderMobileDescription({channel}: {channel: ChannelModel}) 
                     channel.description.doc.resolve(0),
                     {linesAbove: 0, linesBelow: 3},
                     {
-                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
-                        // want to be slightly more aggressive than the default grapheme count (which
-                        // counts the "l" character which is narrower) since we render the entire
-                        // snippet.
+                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We want to
+                        // be slightly more aggressive than the default grapheme count (which counts the
+                        // "l" character which is narrower) since we render the entire snippet.
                         maxLineGraphemeCount: 72,
                     },
                 ),
@@ -204,10 +209,10 @@ function ChannelViewHeaderMobileDescription({channel}: {channel: ChannelModel}) 
     );
 }
 
-// `<ChannelViewHeaderMobileDescriptionEditor>` is not used on desktop. Instead
-// the channel description is in an aside. We forked this component from
-// `<ChannelViewAsideDescriptionEditor>`. Any changes made here should probably
-// be made there too.
+// `<ChannelViewHeaderMobileDescriptionEditor>` is not used on desktop. Instead the
+// channel description is in an aside. We forked this component from
+// `<ChannelViewAsideDescriptionEditor>`. Any changes made here should probably be
+// made there too.
 function ChannelViewHeaderMobileDescriptionEditor({
     channel,
     onCancel,
@@ -220,11 +225,16 @@ function ChannelViewHeaderMobileDescriptionEditor({
     const reporter = useReporter();
     const clientInfo = useClientInfo();
     const currentDate = useCurrentDate();
+    const {space} = useSpaceContext();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(channel.description, {selection: "start"}),
+        ContentEditorState.create({
+            spaceId: space.id,
+            content: channel.description,
+            selection: "start",
+        }),
     );
 
     const [isSaving, setIsSaving] = useState(false);
@@ -264,8 +274,8 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     marginBottom="-1"
                     borderRadius="1.5"
                     style={{
-                        // Use box shadow to draw the border so it doesn't add 1px to layout like
-                        // `border` CSS would.
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like `border`
+                        // CSS would.
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
@@ -324,8 +334,8 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     title="Save channel description"
                     description="Would you like to save the channel description?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmSaveDialog(false);
                     }}

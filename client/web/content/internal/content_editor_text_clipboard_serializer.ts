@@ -6,9 +6,8 @@ import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_re
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-// We fork these two functions `textBetween`
-// from Prosemirror's prosemirror-model Fragment class.
-// We add our own behavior for serializing the text content when
+// We fork these two functions `textBetween` from Prosemirror's prosemirror-model
+// Fragment class. We add our own behavior for serializing the text content when
 // copying to our clipboard.
 //
 // https://github.com/ProseMirror/prosemirror-model/blob/b71f73f193b15ab1661451636352905b06a6fb0d/src/fragment.ts#L54-L69

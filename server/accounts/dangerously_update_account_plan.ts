@@ -5,11 +5,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * You should not call this function! It does not authorize that you are
- * allowed to update the account's plan. This function bypasses normal
- * authorization checks and should only be used in administrative or
- * system-level operations where you have already verified the operation
- * is permitted.
+ * You should not call this function! It does not authorize that you are allowed to
+ * update the account's plan. This function bypasses normal authorization checks
+ * and should only be used in administrative or system-level operations where you
+ * have already verified the operation is permitted.
  */
 export async function dangerouslyUpdateAccountPlan(
     context: Context<DynamoContextModules>,

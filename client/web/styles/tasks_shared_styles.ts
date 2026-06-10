@@ -22,9 +22,9 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const taskDetailViewSectionGap = "10";
 
-// A little extra margin at the bottom of the header so when we render the
-// subtasks button (which renders in the margin bottom to avoid changing the
-// layout) it looks good.
+// A little extra margin at the bottom of the header so when we render the subtasks
+// button (which renders in the margin bottom to avoid changing the layout) it
+// looks good.
 export const taskDetailViewHeaderMarginBottom = addRemLengths(taskDetailViewSectionGap, "1");
 
 export const taskDetailViewDenseFieldGap = "5";
@@ -102,15 +102,13 @@ export const taskRowTitleInputPaddingYPx = createObjectFromKeys(
 );
 
 export const taskGridViewPaddingBottomWithNext = "6";
-export const taskGridViewPaddingBottomWithoutNext = "12";
+export const taskGridViewPaddingBottomWithoutNext = "8";
 
 export const taskGridViewMoreUnloadedTasksHeight = addRemLengths(
     taskRowViewMinHeight,
     taskRowViewMinHeight,
     taskRowViewMinHeight,
-    "4",
-    "6",
-    "4",
+    taskGridViewPaddingBottomWithoutNext,
 );
 
 export const taskGridViewExplicitLoadMoreButtonHeight = addRemLengths(
@@ -118,6 +116,10 @@ export const taskGridViewExplicitLoadMoreButtonHeight = addRemLengths(
     taskRowViewMinHeight,
     taskGridViewPaddingBottomWithoutNext,
 );
+
+export const taskGridViewColumnHeaderLabelFontSize = "50";
+export const taskGridViewColumnHeaderLabelColor = "grey-40";
+export const taskGridViewColumnHeaderLabelMarginBottom = "1";
 
 export const taskCardViewMinHeight = "5.375rem";
 export const taskCardViewMaxWidth = "96";
@@ -190,6 +192,25 @@ export const taskDetailViewMainMinHeightPx = createObjectFromKeys(
         ),
 );
 
+export const taskProjectDetailViewMarginTop = "8";
+
+export const taskProjectDetailViewMainMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(
+            addRemLengths(
+                taskProjectDetailViewMarginTop,
+                taskDetailViewDenseFieldMinHeight,
+                taskDetailViewDenseFieldGap,
+                taskDetailViewDenseFieldMinHeight,
+                taskDetailViewSectionGap,
+                fontSizes[taskDetailViewFieldLabelFontSize].lineHeight,
+                taskDetailNotesFieldLabelPaddingBottom,
+            ),
+            spacingScale,
+        ) + tasksStyles.projectDetailNotesContentEditorMinHeightPx[spacingScale],
+);
+
 export const taskDetailViewCommentSectionHeaderHeightPx = createObjectFromKeys(
     allPlatforms,
     platform =>
@@ -217,4 +238,14 @@ export const taskDetailViewCommentSectionHeaderHeightPx = createObjectFromKeys(
                 );
             },
         ),
+);
+
+export const taskProjectDetailViewCommentSectionHeaderHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(
+            addRemLengths(taskDetailViewSectionGap, taskGridViewColumnHeaderHeight),
+            spacingScale,
+            // Add one for the `grey-5` border which is rendered outside the column header.
+        ) + 1,
 );

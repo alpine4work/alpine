@@ -31,8 +31,8 @@ export type WebSocketProtocol<
 > = {
     /**
      * Client to server communication is done by executing procedures. WebSocket
-     * servers always acknowledge whether a procedure call succeeded or failed. A
-     * call may optionally return some data to the client.
+     * servers always acknowledge whether a procedure call succeeded or failed. A call
+     * may optionally return some data to the client.
      *
      * Name comes from [Remote Procedure Calls or RPCs][1].
      *

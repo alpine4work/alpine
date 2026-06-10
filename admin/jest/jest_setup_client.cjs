@@ -2,8 +2,8 @@
 
 /* globals jest */
 
-// `jest-dom` adds custom jest matchers for asserting on DOM nodes. Allows you
-// to do things like:
+// `jest-dom` adds custom jest matchers for asserting on DOM nodes. Allows you to
+// do things like:
 //
 // ```
 // expect(element).toHaveTextContent(/react/i)
@@ -14,13 +14,13 @@ const crypto = require("crypto");
 const {ResizeObserver: ResizeObserverPolyfill} = require("@juggle/resize-observer");
 const {TextEncoder, TextDecoder} = require("util");
 
-// Set the Node.js `webcrypto` implementation to the `crypto` global so that
-// client code which runs in a browser has access to the web Crypto API.
+// Set the Node.js `webcrypto` implementation to the `crypto` global so that client
+// code which runs in a browser has access to the web Crypto API.
 globalThis.crypto = crypto.webcrypto;
 
-// NOTE(calebmer): It would appear that when upgrading to Node.js v20 there is
-// now a read-only global `performance` property. Reassign the property but
-// make it writable so `jest.useFakeTimers()` can override it.
+// NOTE(calebmer): It would appear that when upgrading to Node.js v20 there is now
+// a read-only global `performance` property. Reassign the property but make it
+// writable so `jest.useFakeTimers()` can override it.
 const performance = globalThis.performance;
 Object.defineProperty(globalThis, "performance", {value: performance, writable: true});
 
@@ -31,7 +31,8 @@ globalThis.TextDecoder = TextDecoder;
 // Pretend we are on a Mac for tests. Most of our programmers use Mac for
 // development so it's more natural to use those platform conventions.
 //
-// Learn more: https://developer.mozilla.org/en-US/docs/Web/API/NavigatorID/platform
+// Learn more:
+// https://developer.mozilla.org/en-US/docs/Web/API/NavigatorID/platform
 Object.defineProperty(navigator, "platform", {
     get: () => "MacIntel",
 });
@@ -48,7 +49,8 @@ if (!Range.prototype.getClientRects) {
     throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }
 
-// Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Range/getBoundingClientRect
+// Polyfill:
+// https://developer.mozilla.org/en-US/docs/Web/API/Range/getBoundingClientRect
 if (!Range.prototype.getBoundingClientRect) {
     Range.prototype.getBoundingClientRect = function () {
         const clientRects = this.getClientRects();
@@ -103,7 +105,8 @@ if (!window.ResizeObserver) {
     throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }
 
-// Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Document/elementFromPoint
+// Polyfill:
+// https://developer.mozilla.org/en-US/docs/Web/API/Document/elementFromPoint
 if (!Document.prototype.elementFromPoint) {
     Document.prototype.elementFromPoint = () => null;
 } else {

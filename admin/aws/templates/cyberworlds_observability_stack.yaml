@@ -109,7 +109,7 @@ Resources:
             Name: AmazonCloudWatch-linux-config
             Tier: Standard
             Type: String
-            Value: '{"agent":{"metrics_collection_interval":30},"metrics":{"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}","InstanceId":"${aws:InstanceId}","InstanceType":"${aws:InstanceType}"},"aggregation_dimensions":[["AutoScalingGroupName"]],"metrics_collected":{"mem":{"measurement":["total","used","used_percent"],"metrics_collection_interval":5},"cpu":{"measurement":["usage_idle","usage_iowait","usage_system","usage_user"],"metrics_collection_interval":5},"disk":{"measurement":["total","used","used_percent","inodes_used","inodes_total"],"metrics_collection_interval":60,"resources":["/"]},"swap":{"measurement":["free","used","used_percent"]},"diskio":{"measurement":["reads","writes","io_time","read_time","write_time"],"resources":["/"]}}},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/var/log/messages","log_group_name":"/ec2/instance/messages","timezone":"UTC"},{"file_path":"/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log","log_group_name":"/ec2/instance/amazon-cloudwatch-agent","timezone":"UTC"},{"file_path":"/var/log/ecs/ecs-init.log","log_group_name":"/ec2/instance/ecs-agent","timezone":"UTC"}]}}}}'
+            Value: '{"agent":{"metrics_collection_interval":10},"metrics":{"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}","InstanceId":"${aws:InstanceId}"},"aggregation_dimensions":[["AutoScalingGroupName"]],"metrics_collected":{"mem":{"measurement":["total","used","used_percent"],"metrics_collection_interval":5},"disk":{"measurement":["used_percent","inodes_free"],"metrics_collection_interval":20,"resources":["/"]},"swap":{"measurement":["used_percent"]}}},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/var/log/messages","log_group_name":"/ec2/instance/messages","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/syslog","log_group_name":"/ec2/instance/syslog","timezone":"UTC","retention_in_days":14},{"file_path":"/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log","log_group_name":"/ec2/instance/amazon-cloudwatch-agent","timezone":"UTC","retention_in_days":14},{"file_path":"/var/log/ecs/ecs-init.log","log_group_name":"/ec2/instance/ecs-agent","timezone":"UTC","retention_in_days":14}]}}}}'
         Metadata:
             aws:cdk:path: CyberworldsObservabilityStack/AwsObservability/CloudWatchAgentConfigParam/Resource
     AwsObservabilityInstallAndManageCloudWatchAgent34FEFA50:
@@ -422,6 +422,14 @@ Resources:
                           Type: string
                         - Name: http__request__header__cyberworlds_transient_error
                           Type: string
+                        - Name: http__request__header__cyberworlds_fixed_time_for_test
+                          Type: string
+                        - Name: http__request__header__cyberworlds_active_site_id
+                          Type: string
+                        - Name: http__request__header__x_ratelimit_limit
+                          Type: string
+                        - Name: http__request__header__x_ratelimit_remaining
+                          Type: string
                         - Name: http__request__obfuscated_cookie_header
                           Type: string
                         - Name: http__response__header__accept
@@ -590,6 +598,14 @@ Resources:
                           Type: string
                         - Name: http__response__header__cyberworlds_transient_error
                           Type: string
+                        - Name: http__response__header__cyberworlds_fixed_time_for_test
+                          Type: string
+                        - Name: http__response__header__cyberworlds_active_site_id
+                          Type: string
+                        - Name: http__response__header__x_ratelimit_limit
+                          Type: string
+                        - Name: http__response__header__x_ratelimit_remaining
+                          Type: string
                         - Name: http__response__obfuscated_set_cookie_header
                           Type: string
                         - Name: http__url
@@ -631,6 +647,20 @@ Resources:
                         - Name: http__search__cursor
                           Type: string
                         - Name: http__search__from
+                          Type: string
+                        - Name: http__search__www_referrer
+                          Type: string
+                        - Name: http__search__utm_source
+                          Type: string
+                        - Name: http__search__utm_medium
+                          Type: string
+                        - Name: http__search__utm_campaign
+                          Type: string
+                        - Name: http__search__utm_term
+                          Type: string
+                        - Name: http__search__utm_content
+                          Type: string
+                        - Name: http__search__gclid
                           Type: string
                         - Name: http__client_ip
                           Type: string
@@ -852,6 +882,8 @@ Resources:
                           Type: string
                         - Name: context__actor
                           Type: string
+                        - Name: context__browser_id
+                          Type: string
                         - Name: context__account_id
                           Type: string
                         - Name: context__space_id
@@ -876,7 +908,11 @@ Resources:
                           Type: string
                         - Name: context__chat_id
                           Type: string
+                        - Name: context__site_id
+                          Type: string
                         - Name: context__file_id
+                          Type: string
+                        - Name: context__notion_import_id
                           Type: string
                         - Name: context__peek__above_document_id
                           Type: string
@@ -956,6 +992,10 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__inbox__write_capacity_units
                           Type: double
+                        - Name: dynamodb__consumed_capacity__integrations__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__integrations__write_capacity_units
+                          Type: double
                         - Name: dynamodb__consumed_capacity__notifications__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__notifications__write_capacity_units
@@ -967,6 +1007,10 @@ Resources:
                         - Name: dynamodb__consumed_capacity__search_entities__read_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__search_entities__write_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__sites__read_capacity_units
+                          Type: double
+                        - Name: dynamodb__consumed_capacity__sites__write_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__spaces__read_capacity_units
                           Type: double
@@ -1104,6 +1148,8 @@ Resources:
                           Type: string
                         - Name: dynamodb__table__files__partition__file__sort_range_type
                           Type: string
+                        - Name: dynamodb__table__files__partition__file2__sort_range_type
+                          Type: string
                         - Name: dynamodb__table__forum__partition_type
                           Type: string
                         - Name: dynamodb__table__forum__partition__channel__sort_range_type
@@ -1132,6 +1178,10 @@ Resources:
                           Type: string
                         - Name: dynamodb__table__inbox__partition__graveyard__sort_range_type
                           Type: string
+                        - Name: dynamodb__table__integrations__partition_type
+                          Type: string
+                        - Name: dynamodb__table__integrations__partition__slack_space_integration__sort_range_type
+                          Type: string
                         - Name: dynamodb__table__notifications__partition_type
                           Type: string
                         - Name: dynamodb__table__notifications__partition__inbox__sort_range_type
@@ -1151,6 +1201,14 @@ Resources:
                         - Name: dynamodb__table__search_entities__partition__space_task_collections__sort_range_type
                           Type: string
                         - Name: dynamodb__table__search_entities__partition__index_search_entity_embedding_chunks_job__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__sites__partition_type
+                          Type: string
+                        - Name: dynamodb__table__sites__partition__site__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__sites__partition__realtime__sort_range_type
+                          Type: string
+                        - Name: dynamodb__table__sites__partition__graveyard__sort_range_type
                           Type: string
                         - Name: dynamodb__table__spaces__partition_type
                           Type: string
@@ -1422,6 +1480,8 @@ Resources:
                           Type: string
                         - Name: web_push__response_status_code
                           Type: int
+                        - Name: slack__workspace_id
+                          Type: string
                         - Name: cloudflare__r2__action
                           Type: string
                         - Name: cloudflare__r2__bucket
@@ -1548,6 +1608,8 @@ Resources:
                           Type: int
                         - Name: space__members__invite__already_member_email_address_count
                           Type: int
+                        - Name: space__members__invite__requires_admin_access_email_address_count
+                          Type: int
                         - Name: space__members__invite__invited_email_address_count
                           Type: int
                         - Name: space__members__invite__unexpected_failure_email_address_count
@@ -1555,6 +1617,10 @@ Resources:
                         - Name: libreoffice__output_filter
                           Type: string
                         - Name: ffmpeg__codecs
+                          Type: string
+                        - Name: ffmpeg__video_mp4__relevant_atoms
+                          Type: string
+                        - Name: ffmpeg__audio_mp4__relevant_atoms
                           Type: string
                         - Name: sharp__avif__quality
                           Type: int
@@ -1644,6 +1710,12 @@ Resources:
                           Type: int
                         - Name: auth__sign_up__auto_add_accounts_from_email_domain
                           Type: string
+                        - Name: auth__sign_up__is_email_address_possibly_generic
+                          Type: boolean
+                        - Name: auth__sign_up__has_changed_reaction_character
+                          Type: boolean
+                        - Name: auth__sign_up__invite_email_address_count
+                          Type: int
                         - Name: reaction__character__type
                           Type: string
                         - Name: reaction__character__variant
@@ -1670,6 +1742,38 @@ Resources:
                           Type: string
                         - Name: cursor__cloud_agents__webhook__event
                           Type: string
+                        - Name: loops__contact_id
+                          Type: string
+                        - Name: importer__type
+                          Type: string
+                        - Name: importer__site__notion_id
+                          Type: string
+                        - Name: importer__created__sites
+                          Type: int
+                        - Name: importer__created__documents
+                          Type: int
+                        - Name: importer__uploaded__file_count
+                          Type: int
+                        - Name: importer__uploaded__file_total_size
+                          Type: int
+                        - Name: importer__uploaded__image_count
+                          Type: int
+                        - Name: importer__uploaded__image_total_size
+                          Type: int
+                        - Name: importer__uploaded__video_count
+                          Type: int
+                        - Name: importer__uploaded__video_total_size
+                          Type: int
+                        - Name: importer__uploaded__audio_count
+                          Type: int
+                        - Name: importer__uploaded__audio_total_size
+                          Type: int
+                        - Name: search__entity_id
+                          Type: string
+                        - Name: search__index__embedding_chunks__scheduled
+                          Type: boolean
+                        - Name: search__index__embedding_chunks__force_metadata_update
+                          Type: boolean
                     InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
                     Location:
                         Fn::Join:

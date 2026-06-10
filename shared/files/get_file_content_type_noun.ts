@@ -2,8 +2,8 @@ import {FileContentType} from "~/shared/files/file_content_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
- * Get a user friendly noun for the file content type. For example a `.png`
- * file will be called "image".
+ * Get a user friendly noun for the file content type. For example a `.png` file
+ * will be called "image".
  */
 export function getFileContentTypeNoun(contentType: FileContentType | undefined): string {
     switch (contentType) {
@@ -84,8 +84,8 @@ export function getFileContentTypeNoun(contentType: FileContentType | undefined)
 }
 
 /**
- * Get a capitalized user friendly noun for the file content type to be used at
- * the start of sentences. For example a `.png` file will be called "Image".
+ * Get a capitalized user friendly noun for the file content type to be used at the
+ * start of sentences. For example a `.png` file will be called "Image".
  */
 export function getFileContentTypeStartOfSentenceNoun(
     contentType: FileContentType | undefined,

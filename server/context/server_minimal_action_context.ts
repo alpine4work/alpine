@@ -1,12 +1,20 @@
+import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    SitesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {ActorContextModule, BotActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {
+    AccountActorContextModule,
+    ActorContextModule,
+    BotActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -16,8 +24,8 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {Replace} from "~/shared/helpers/types/replace.js";
 
 /**
- * A lightweight action context that's compatible with the minimal action
- * context of `TaskRealtimeService` and `FileProcessorService`.
+ * A lightweight action context that's compatible with the minimal action context
+ * of `TaskRealtimeService` and `FileProcessorService`.
  */
 export type ServerMinimalActionContext = Context<ServerMinimalActionContextModules>;
 
@@ -29,12 +37,24 @@ export type ServerMinimalActionContextModules = {
     cache: CacheContextModule;
     batch: BatchContextModule;
     dynamo: DynamoContextModule;
+    jobs: JobsContextModule;
     actor: ActorContextModule;
+    discovery?: DiscoveryContextModule;
     chatInjection: ChatInjectionContextModule;
     documentsInjection: DocumentsInjectionContextModule;
     forumInjection: ForumInjectionContextModule;
     tasksInjection: TasksInjectionContextModule;
+    sitesInjection: SitesInjectionContextModule;
 };
+
+export type ServerMinimalSystemActionContext = Context<ServerMinimalSystemActionContextModules>;
+
+export type ServerMinimalSystemActionContextModules = Replace<
+    ServerMinimalActionContextModules,
+    {
+        actor: SystemActorContextModule;
+    }
+>;
 
 export type ServerMinimalBotActionContext = Context<ServerMinimalBotActionContextModules>;
 
@@ -42,5 +62,14 @@ export type ServerMinimalBotActionContextModules = Replace<
     ServerMinimalActionContextModules,
     {
         actor: BotActorContextModule;
+    }
+>;
+
+export type ServerMinimalAccountActionContext = Context<ServerMinimalAccountActionContextModules>;
+
+export type ServerMinimalAccountActionContextModules = Replace<
+    ServerMinimalActionContextModules,
+    {
+        actor: AccountActorContextModule;
     }
 >;

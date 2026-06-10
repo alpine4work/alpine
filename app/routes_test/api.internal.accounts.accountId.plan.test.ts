@@ -34,14 +34,15 @@ async function requestAccountPlanLoader(
 
     const response = await loader({
         request,
-        // Hack the context a bit just to get the loader happy with our test context
-        // TODO: if we ever generalize loader testing we can make this cleaner
+        // Hack the context a bit just to get the loader happy with our test context TODO:
+        // if we ever generalize loader testing we can make this cleaner
         context: {
             ...context,
             cache: CacheContextModule.new(),
         } as unknown as LoaderContext,
         span,
         params: {accountId: accountId},
+        matches: [],
         serverRoutes: [],
     });
 

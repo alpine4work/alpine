@@ -12,14 +12,11 @@ ts_project(
         "//server/messaging/helpers",
         "//server/spaces",
         "//server/spaces/test_helpers",
-        "//server/tasks/test_helpers",
+        "//server/tasks/data/test_helpers",
         "//shared/helpers:helpers_core",
         "//shared/messaging",
         "//shared/test_helpers",
     ],
-    tests = {
-        "get_message_references_for_multiple_accounts_test": {"size": "medium"},
-    },
     visibility = [
         "//app:__pkg__",
         "//server:__subpackages__",

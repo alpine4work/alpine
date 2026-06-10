@@ -1,5 +1,8 @@
-import {TaskClientStoreCollectionEntry} from "~/client/web/tasks/core/task_client_store.js";
-import {getTaskCollectionEntryAccess} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
+import {
+    TaskClientReadonlyStore,
+    TaskClientStoreCollectionEntry,
+} from "~/client/web/tasks/core/task_client_store.js";
+import {getAccountAccessLevelAssumingSpaceAccess} from "~/shared/access/access_policy.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -16,6 +19,7 @@ import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 export function createDisplayTaskCollectionsStore({
     currentAccount,
     referencesSubscription,
+    store,
     collections,
 }: {
     currentAccount: AccountModel | null;
@@ -24,6 +28,7 @@ export function createDisplayTaskCollectionsStore({
             collectionId: TaskCollectionId,
         ): Store<TaskClientStoreCollectionEntry>;
     };
+    store: TaskClientReadonlyStore;
     collections: TaskCollectionSet;
 }): Store<ReadonlyArray<TaskCollectionModel>> {
     return computeStore(get => {
@@ -32,11 +37,17 @@ export function createDisplayTaskCollectionsStore({
                 referencesSubscription.getReferencedCollectionEntryStore(collectionId),
             );
             if (!collectionEntry.collection) return;
+            if (collectionEntry.collection.isDeleted()) return;
 
-            // Test that the collection is not deleted and we have access via the
-            // access policy.
-            const access = getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry);
-            if (access.type !== "PermissionGranted") return;
+            // Make sure we don't show task collections the user isn't allowed to see. If the
+            // user changes the collection's access policy it may take a minute or so before
+            // the server sends an update marking the collection as unauthorized. We want to
+            // hide the collection immediately, though.
+            const accessLevel = getAccountAccessLevelAssumingSpaceAccess(
+                get(store.getCollectionResolvedAccessPolicy(collectionEntry.collection)),
+                currentAccount?.id,
+            );
+            if (accessLevel === null) return;
 
             return collectionEntry.collection;
         });

@@ -11,8 +11,7 @@ def ts_playwright_tests(
         lib_srcs = None,
         deps = [],
         data = [],
-        node_options = [],
-        skip_projects_by_src = {}):
+        node_options = []):
     """
     Sets up Playwright tests for the provided test files.
 
@@ -30,8 +29,6 @@ def ts_playwright_tests(
         deps: Dependencies of the sources we're testing.
         data: Data to be made available through the file system at runtime.
         node_options: Extra options to pass to Node.js.
-        skip_projects_by_src: Skip projects for specified source files. Can not
-        skip Chromium.
     """
 
     if srcs == None:
@@ -75,27 +72,24 @@ def ts_playwright_tests(
     )
 
     for src in srcs:
-        playwright_test(
+        _playwright_test(
             name = src[:len(src) - 9] if src.endswith(".spec.tsx") else src[:len(src) - 8],
             src = src,
             deps = deps,
             data = data,
             node_options = node_options,
-            skip_projects = skip_projects_by_src[src] if src in skip_projects_by_src else [],
         )
 
-def playwright_test(
+def _playwright_test(
         name,
         src,
         deps = [],
         data = [],
-        node_options = [],
-        skip_projects = []):
+        node_options = []):
     """
     Generate Playwright test rules for the provided source file.
 
-    We generate one Playwright test rule for each platform we run tests on. So
-    Chromium, Firefox, WebKit desktop, and WebKit mobile.
+    We generate one Playwright test rule for each platform we run tests on.
 
     Args:
         name: The base name of the test.
@@ -103,14 +97,10 @@ def playwright_test(
         deps: Dependencies the test needs to run.
         data: Data to be made available at runtime in runfiles.
         node_options: Extra options to pass to Node.js.
-        skip_projects: Projects to skip when running this test. Can not skip Chromium.
     """
 
     if not src.endswith(".spec.ts") and not src.endswith(".spec.tsx"):
         fail("test source must end in `.spec.{ts,tsx}`")
-
-    # Extract directory name from src path to use as a tag
-    directory_tag = "playwright_" + (src.split("/")[0] if "/" in src else "root")
 
     src_js = "{}.js".format(src[:len(src) - 4] if src.endswith(".spec.tsx") else src[:len(src) - 3])
 
@@ -146,64 +136,45 @@ def playwright_test(
         preserve_symlinks_main = False,
     )
 
+    all_tests = []
+
+    _playwright_project_test(
+        name = name,
+        project = "chromium",
+    )
+
+    all_tests.append("{}_chromium_test".format(name))
+
+    if not name.endswith("_desktop"):
+        _playwright_project_test(
+            name = name,
+            project = "webkit_mobile",
+        )
+
+        all_tests.append("{}_webkit_mobile_test".format(name))
+
     # Alias that defaults to running our Chromium test for the file.
     native.test_suite(
         name = "{}_test".format(name),
         tests = ["{}_chromium_test".format(name)],
+        tags = ["manual"],
     )
 
     # Alias that runs all platforms for this test file.
     native.test_suite(
         name = "{}_all_tests".format(name),
-        tests =
-            ["{}_chromium_test".format(name)] +
-            (["{}_firefox_test".format(name)] if not ("firefox" in skip_projects) else []) +
-            (["{}_webkit_desktop_test".format(name)] if not ("webkit_desktop" in skip_projects) else []) +
-            (["{}_webkit_mobile_test".format(name)] if not ("webkit_mobile" in skip_projects) else []),
-        # Contains manual tests so must be manually invoked instead of running as a
-        # part of `bazel test //...`.
+        tests = all_tests,
         tags = ["manual"],
     )
-
-    _playwright_project_test(
-        name = name,
-        project = "chromium",
-        tags = [directory_tag],
-    )
-
-    if not ("firefox" in skip_projects):
-        _playwright_project_test(
-            name = name,
-            project = "firefox",
-            # Don't run as a part of `bazel test //...`. This means the test won't run in
-            # CI. To save time and reduce flakes, we only run integration tests on the
-            # browsers we focus support on. (Chrome and Safari Mobile.)
-            tags = ["manual", directory_tag],
-        )
-
-    if not ("webkit_desktop" in skip_projects):
-        _playwright_project_test(
-            name = name,
-            project = "webkit_desktop",
-            # Don't run as a part of `bazel test //...`. This means the test won't run in
-            # CI. To save time and reduce flakes, we only run integration tests on the
-            # browsers we focus support on. (Chrome and Safari Mobile.)
-            tags = ["manual", directory_tag],
-        )
-
-    if not ("webkit_mobile" in skip_projects):
-        _playwright_project_test(
-            name = name,
-            project = "webkit_mobile",
-            tags = [directory_tag],
-        )
 
 def _playwright_project_test(
         name,
         project,
         tags = []):
+    test_name = "{}_{}_test".format(name, project)
+
     native.sh_test(
-        name = "{}_{}_test".format(name, project),
+        name = test_name,
         srcs = ["//admin/playwright:playwright_test.sh"],
         data = [
             "@playwright_browsers//:browsers",
@@ -229,23 +200,16 @@ def _playwright_project_test(
             "FORCE_COLOR": "true",
         },
         tags = tags + [
-                   "playwright",
-                   # Playwright tests are chunky, increase CPU requirements to reduce parallelism
-                   # while one is running. We need CPU to run all our databases, services, and the
-                   # browser.
-                   #
-                   # CPU requirement of 4 so two Playwright tests can run in parallel in CI given
-                   # our CI runners have 8 cores.
-                   "cpu:4",
-               ] +
-               # Firefox creates sandboxes for web content and you can't nest sandboxes. So
-               # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at
-               # runtime and have the entire Firefox process run in the Bazel sandbox but it's
-               # unclear if that's possible. Or if the Bazel sandbox is as strong as the
-               # Firefox sandbox.
-               #
-               # See: https://bugzilla.mozilla.org/show_bug.cgi?id=1415159
-               (["no-sandbox"] if project == "firefox" else []),
+            "playwright",
+            "integration_test",
+            # Playwright tests are chunky, increase CPU requirements to reduce parallelism
+            # while one is running. We need CPU to run all our databases, services, and the
+            # browser.
+            #
+            # CPU requirement of 4 so two Playwright tests can run in parallel in CI given
+            # our CI runners have 8 cores.
+            "cpu:4",
+        ],
         # End-to-end tests are considered to be large sized.
         # https://bazel.build/reference/be/common-definitions
         size = "large",

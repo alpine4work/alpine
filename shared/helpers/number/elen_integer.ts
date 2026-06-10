@@ -7,13 +7,12 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * underlying integer order. The format is based on the one described in Peter
  * Seymour's paper "[Efficient Lexicographic Encoding of Numbers][1]".
  *
- * Useful for databases like DynamoDB where we want to build compound keys
- * using numbers that still maintain the ordering of the underlying number.
+ * Useful for databases like DynamoDB where we want to build compound keys using
+ * numbers that still maintain the ordering of the underlying number.
  *
- * This type only supports safe JavaScript integers. We also have `ElenFloat`
- * which supports all JavaScript numbers. But the `ElenFloat` encoding is much
- * longer for integers since it encodes the floats underlying binary
- * representation.
+ * This type only supports safe JavaScript integers. We also have `ElenFloat` which
+ * supports all JavaScript numbers. But the `ElenFloat` encoding is much longer for
+ * integers since it encodes the floats underlying binary representation.
  *
  * [1]: https://www.zanopha.com/docs/elen.pdf
  */
@@ -22,13 +21,13 @@ export type ElenInteger = string & {readonly _ElenInteger: never};
 /**
  * Character we use for denoting a positive `ElenInteger`.
  *
- * In Peter Seymour's paper "[Efficient Lexicographic Encoding of Numbers][1]"
- * he uses the `+` character. However the ASCII character code for `+` is less
- * than the ASCII character code for `-` and less than the ASCII character code
- * for all digits.
+ * In Peter Seymour's paper "[Efficient Lexicographic Encoding of Numbers][1]" he
+ * uses the `+` character. However the ASCII character code for `+` is less than
+ * the ASCII character code for `-` and less than the ASCII character code for all
+ * digits.
  *
- * We need a character that ASCII orders after both `-` and all digits to
- * preserve lexicographic ordering.
+ * We need a character that ASCII orders after both `-` and all digits to preserve
+ * lexicographic ordering.
  *
  * [1]: https://www.zanopha.com/docs/elen.pdf
  */
@@ -51,8 +50,8 @@ export function isElenInteger(string: string): string is ElenInteger {
 }
 
 /**
- * Encodes an integer into an `ElenInteger`. Throws if the provided number is
- * not an integer.
+ * Encodes an integer into an `ElenInteger`. Throws if the provided number is not
+ * an integer.
  */
 export function encodeElenInteger(integer: number): ElenInteger {
     assert(Number.isSafeInteger(integer));
@@ -112,8 +111,8 @@ export function decodeElenInteger(elenInteger: ElenInteger): number {
 }
 
 /**
- * Decodes a string that might be an `ElenInteger` back into a JavaScript
- * number. If the string is not an `ElenInteger` then we will return null.
+ * Decodes a string that might be an `ElenInteger` back into a JavaScript number.
+ * If the string is not an `ElenInteger` then we will return null.
  */
 export function decodeElenIntegerIfPossible(string: string): number | null {
     const result = decodeElenIntegerIfPossibleIgnoringEndIndex(string);
@@ -123,8 +122,8 @@ export function decodeElenIntegerIfPossible(string: string): number | null {
 }
 
 /**
- * Decodes a string that might be an `ElenInteger` back into a JavaScript
- * number. If the string is not an `ElenInteger` then we will return null.
+ * Decodes a string that might be an `ElenInteger` back into a JavaScript number.
+ * If the string is not an `ElenInteger` then we will return null.
  *
  * Unless the string is prefixed with an `ElenInteger` then continues with some
  * other content. In this case we will return the integer and an `endIndex` for
@@ -186,9 +185,9 @@ function decodeNegativeElenIntegerIfPossible(
         let integerString = string.slice(index, index + integer);
         if (integerString.length !== integer) return null;
 
-        // Make sure the integer string is actually an integer before we flip its
-        // digits and parse for real. The flip digit function will throw if any of the
-        // characters in the string are not a digit.
+        // Make sure the integer string is actually an integer before we flip its digits
+        // and parse for real. The flip digit function will throw if any of the characters
+        // in the string are not a digit.
         if (isNaN(parseInt(integerString))) return null;
 
         integerString = Array.from(integerString, flipDigitChar).join("");

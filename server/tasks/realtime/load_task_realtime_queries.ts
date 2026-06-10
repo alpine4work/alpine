@@ -1,8 +1,12 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {authorizeTaskCollectionIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_index_doc_access_if_possible.js";
+import {authorizeTaskIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_index_doc_access_if_possible.js";
+import {getTaskGridViewExpansionState} from "~/server/tasks/data/get_task_grid_view_expansion_state.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
@@ -11,11 +15,6 @@ import {
     TaskRealtimeActionContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
-import {
-    authorizeTaskCollectionIndexDocAccessIfPossible,
-    authorizeTaskIndexDocAccessIfPossible,
-    getTaskGridViewExpansionState,
-} from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -32,11 +31,13 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {
     AccountId,
     BrowserId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
+import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -55,14 +56,13 @@ import {
  * In addition to loading queries you may load individual `TaskId`s and
  * `TaskCollectionId`s.
  *
- * Different from `server.loadQuery()` because we run authorization checks so
- * the data is safe to return to an end user.
+ * Different from `server.loadQuery()` because we run authorization checks so the
+ * data is safe to return to an end user.
  *
  * Loading a query loads data from OpenSearch, catches it up with our realtime
- * action history, and puts it in our store. Data stays in the store for at
- * least 1min before it's evicted if there are no subscribers. If a client
- * connects with a WebSocket then it keeps the query and its referenced data
- * from being evicted.
+ * action history, and puts it in our store. Data stays in the store for at least
+ * 1min before it's evicted if there are no subscribers. If a client connects with
+ * a WebSocket then it keeps the query and its referenced data from being evicted.
  *
  * We should return one `loadedState` for every `query`.
  */
@@ -183,8 +183,8 @@ export async function loadTaskRealtimeQueries(
                     backfillUnauthorizedCollectionIds.set(collection.id, result.error.code);
 
                     // Logically, this should remove a backfilled authorized collection. However we
-                    // don't have a way to address authorized collections by `TaskCollectionId`
-                    // during the event building phase. So we remove conflicting tasks in the event
+                    // don't have a way to address authorized collections by `TaskCollectionId` during
+                    // the event building phase. So we remove conflicting tasks in the event
                     // finalization phase.
                 } else {
                     backfillAuthorizedCollectionSet.add(collection);
@@ -251,8 +251,8 @@ export async function loadTaskRealtimeQueries(
         for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
             const task = tasks[taskIndex]!;
 
-            // If another query references this task we don't have to authorize it because
-            // it's a loaded task. Yay!
+            // If another query references this task we don't have to authorize it because it's
+            // a loaded task. Yay!
             if (loadTaskPromiseById.has(task.id)) {
                 loadTaskPromiseById.set(task.id, Promise.resolve());
             }
@@ -293,8 +293,8 @@ export async function loadTaskRealtimeQueries(
         return {loadedState, gridViewExpansionState};
     };
 
-    // Escalation is safe since we authorize that our session has access to
-    // the query before using the escalated context.
+    // Escalation is safe since we authorize that our session has access to the query
+    // before using the escalated context.
     //
     // We escalate at this level to share an action cache across all query loads.
     const {queryOutputs, extraQueries} = await dangerouslyEscalateToSystemContext(
@@ -322,8 +322,8 @@ export async function loadTaskRealtimeQueries(
                             backfillUnauthorizedTaskIds.delete(task.id);
                         })();
 
-                        // If someone else references this task we don't have to authorize it because
-                        // it's directly loaded.
+                        // If someone else references this task we don't have to authorize it because it's
+                        // directly loaded.
                         if (loadTaskPromiseById.has(taskId)) {
                             loadTaskPromiseById.set(taskId, promise);
                         }
@@ -353,8 +353,8 @@ export async function loadTaskRealtimeQueries(
                             backfillUnauthorizedCollectionIds.delete(collection.id);
                         })();
 
-                        // If someone else references this collection we don't have to authorize it
-                        // because it's directly loaded.
+                        // If someone else references this collection we don't have to authorize it because
+                        // it's directly loaded.
                         if (loadCollectionPromiseById.has(collectionId)) {
                             loadCollectionPromiseById.set(collectionId, promise);
                         }
@@ -373,6 +373,7 @@ export async function loadTaskRealtimeQueries(
     );
 
     const referencedAccountIds = new Set<AccountId>();
+    const referencedSiteIds = new Set<SiteId>();
 
     const prepareContext = {
         actor,
@@ -386,7 +387,11 @@ export async function loadTaskRealtimeQueries(
         mapIterable(backfillAuthorizedTaskSet, async task => {
             const taskModel = await prepareTaskForClient(task, prepareContext);
 
-            collectReferencedAccountIdsFromTaskModelData(referencedAccountIds, taskModel.rawData);
+            collectReferencedIdsFromTaskModelData(
+                referencedAccountIds,
+                referencedSiteIds,
+                taskModel.rawData,
+            );
 
             return {
                 type: "Authorized" as const,
@@ -407,19 +412,42 @@ export async function loadTaskRealtimeQueries(
     );
 
     const referenceContext = context.dynamo.unexpectStrongReadConsistency();
-    const referencedAccounts = await runAllPromises(
-        mapIterable(referencedAccountIds, accountId =>
-            prepareContext.isSpaceAccessAuthorized
-                ? getAccount(referenceContext, spaceId, accountId, {consistency})
-                : // Granting link access to a task collection means the user is implicitly
-                  // granting access to the names of all referenced accounts.
-                  dangerouslyGetAccountStubIfExistsWithoutAuthorization(
-                      referenceContext,
-                      spaceId,
-                      accountId,
-                  ),
-        ),
+
+    const backfillAuthorizedCollections = Array.from(
+        backfillAuthorizedCollectionSet,
+        collection => {
+            const collectionModel = prepareTaskCollectionForClient(collection);
+            collectReferencedIdsFromTaskCollectionModelData(
+                referencedSiteIds,
+                collectionModel.rawData,
+            );
+            return {
+                type: "Authorized" as const,
+                collection: collectionModel,
+            };
+        },
     );
+
+    const [referencedAccounts, referencedSites] = await runAllPromises([
+        runAllPromises(
+            mapIterable(referencedAccountIds, accountId =>
+                prepareContext.isSpaceAccessAuthorized
+                    ? getAccount(referenceContext, spaceId, accountId, {consistency})
+                    : // Granting link access to a task collection means the user is implicitly granting
+                      // access to the names of all referenced accounts.
+                      dangerouslyGetAccountStubIfExistsWithoutAuthorization(
+                          referenceContext,
+                          spaceId,
+                          accountId,
+                      ),
+            ),
+        ),
+        runAllPromises(
+            mapIterable(referencedSiteIds, siteId =>
+                getSitePreviewIfPossible(referenceContext, siteId, {consistency}),
+            ),
+        ),
+    ]);
 
     return {
         queries: queryOutputs,
@@ -430,37 +458,32 @@ export async function loadTaskRealtimeQueries(
             backfillTasks,
             // TODO(calebmer, #task-correctness): There's a correctness bug here. We don't
             // return unauthorized collections in `backfillCollections`. This is because we
-            // filter out any unauthorized collection references in
-            // `prepareTaskForClient()`. But if the client received the collection in a
-            // previous request, went offline, the collection becomes authorized, then the
-            // client reconnects the client will permanently think the collection is
-            // authorized since `TaskRealtimeService` won't send an update telling the
-            // client the collection is now unauthorized. If we always sent the
-            // unauthorized backfill message that would fix our correctness bug but
-            // introduce a security bug!
+            // filter out any unauthorized collection references in `prepareTaskForClient()`.
+            // But if the client received the collection in a previous request, went offline,
+            // the collection becomes authorized, then the client reconnects the client will
+            // permanently think the collection is authorized since `TaskRealtimeService` won't
+            // send an update telling the client the collection is now unauthorized. If we
+            // always sent the unauthorized backfill message that would fix our correctness bug
+            // but introduce a security bug!
             //
             // The security bug is an attacker could determine, by loading a query with one
-            // task at a time, the unauthorized `TaskCollectionId`s referenced by a task.
-            // This information could be used maliciously be an attacker (e.g. an attacker
-            // might be able to intuit a manager is collecting evidence for firing someone
-            // in a private collection based on seeing the `TaskCollectionId` on certain
-            // tasks). Right now we're trading a correctness bug for a security bug. In the
-            // future, we should find a way to fix the correctness bug without opening a
-            // security hole.
+            // task at a time, the unauthorized `TaskCollectionId`s referenced by a task. This
+            // information could be used maliciously be an attacker (e.g. an attacker might be
+            // able to intuit a manager is collecting evidence for firing someone in a private
+            // collection based on seeing the `TaskCollectionId` on certain tasks). Right now
+            // we're trading a correctness bug for a security bug. In the future, we should
+            // find a way to fix the correctness bug without opening a security hole.
             //
-            // My current idea to fix this is when the client starts a realtime connection
-            // for it to send a procedure in the background with all visible
-            // `TaskCollectionId`s and then the server will respond with which are
-            // authorized/unauthorized. This fixes the correctness issue without
-            // introducing a security flaw. The client already knows the
-            // `TaskCollectionId`s so we're not sharing any new information with the
-            // client.
-            backfillCollections: Array.from(backfillAuthorizedCollectionSet, collection => ({
-                type: "Authorized",
-                collection: prepareTaskCollectionForClient(collection),
-            })),
+            // My current idea to fix this is when the client starts a realtime connection for
+            // it to send a procedure in the background with all visible `TaskCollectionId`s
+            // and then the server will respond with which are authorized/unauthorized. This
+            // fixes the correctness issue without introducing a security flaw. The client
+            // already knows the `TaskCollectionId`s so we're not sharing any new information
+            // with the client.
+            backfillCollections: backfillAuthorizedCollections,
             defaultAuthorizationStateVersion,
             referencedAccounts: referencedAccounts.filter(isNonNullable),
+            referencedSites: referencedSites.filter(isNonNullable),
             originClientId: null,
         },
     };

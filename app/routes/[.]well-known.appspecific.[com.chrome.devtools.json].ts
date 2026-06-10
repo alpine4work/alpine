@@ -5,8 +5,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 
 // Chrome has started asking for a new `devtools.json` file to enable certain
-// features in developer tools. Provide an implementation of this route for
-// Chrome.
+// features in developer tools. Provide an implementation of this route for Chrome.
 //
 // Resources:
 //

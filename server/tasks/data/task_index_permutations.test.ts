@@ -60,8 +60,8 @@ testTaskActionPermutations({
     applyTaskAction: async (action, next) => {
         let hasCalledNext = false;
 
-        // We need to update the account name in DynamoDB first before we can index
-        // the action.
+        // We need to update the account name in DynamoDB first before we can index the
+        // action.
         if (action.type === "UpdateAccountName") {
             const account = await getAccount(
                 context.systemAction(space.id),
@@ -144,6 +144,7 @@ testTaskActionPermutations({
             title: task.title.raw,
             dueDate: task.dueDate.value,
             priority: task.priority.value,
+            layout: task.layout?.value ?? null,
         };
     },
     getTaskCollection: async (collectionId): Promise<TaskCollectionTestInterface> => {

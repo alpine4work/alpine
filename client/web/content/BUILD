@@ -15,6 +15,8 @@ ts_project(
         "//client/web:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@giphy/js-fetch-api",
+        "//:node_modules/@giphy/js-types",
         "//:node_modules/@internationalized/date",
         "//:node_modules/@lezer/common",
         "//:node_modules/@lezer/highlight",
@@ -55,6 +57,7 @@ ts_project(
         "//client/web/remix",
         "//client/web/rpc",
         "//client/web/search/core",
+        "//client/web/sites/context",
         "//client/web/spaces",
         "//client/web/styles",
         "//client/web/tracer",

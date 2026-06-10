@@ -14,7 +14,7 @@ import {
     ApiContentUnorderedListBlockElement,
     ApiMentionTarget,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 

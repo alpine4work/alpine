@@ -1,18 +1,14 @@
 import createTree, {Tree, Node as TreeNode} from "functional-red-black-tree";
 import {SetStateAction} from "react";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/web/dynamo/dynamo_general_realtime_index_query.js";
-import {DynamoGeneralRealtimeQuery} from "~/client/web/dynamo/dynamo_general_realtime_query.js";
+import {RynamoIndexQuery} from "~/client/web/dynamo/rynamo_index_query.js";
+import {RynamoQuery} from "~/client/web/dynamo/rynamo_query.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
 import {VirtualizedTreeBase} from "~/client/web/virtualized/helpers/virtualized_tree.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoEvent, RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -36,21 +32,20 @@ import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
-// All this post list code is the result of incremental evolution over time
-// which means it's not as clean as it could be. It's gone through a couple
-// refactors without fundamentally rethinking the structure. A brief history:
+// All this post list code is the result of incremental evolution over time which
+// means it's not as clean as it could be. It's gone through a couple refactors
+// without fundamentally rethinking the structure. A brief history:
 //
 // 1. [2023-01-26] `PostList` was created.
 //
-// 2. [2023-03-31] `VirtualizedTree` was created by refactoring the relevant
-//    code out of `PostList` so it could be used in other places.
+// 2. [2023-03-31] `VirtualizedTree` was created by refactoring the relevant code
+//    out of `PostList` so it could be used in other places.
 //
-// 3. [2024-04-15] `PostList` was split into `PostBasicList` and
-//    `PostQueryList` so we could power a `<PostListView>` with a DynamoDB
-//    general realtime query.
+// 3. [2024-04-15] `PostList` was split into `PostBasicList` and `PostQueryList` so
+//    we could power a `<PostListView>` with a DynamoDB general realtime query.
 //
-// 4. [2025-05-20] `PostFeedList` was added (in `post_feed_list.ts`) since now
-//    we want to render a `<PostListView>` with both posts and non-posts.
+// 4. [2025-05-20] `PostFeedList` was added (in `post_feed_list.ts`) since now we
+//    want to render a `<PostListView>` with both posts and non-posts.
 
 export type PostListHeader =
     | {
@@ -60,7 +55,7 @@ export type PostListHeader =
     | {
           readonly type: "Channel";
           readonly channel: ChannelModel;
-          readonly channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel> | null;
+          readonly channelAndMetadataQuery: RynamoQuery<ChannelOrMetadataModel> | null;
           readonly initialIsSubscribed: boolean;
           readonly isEditingDescription: boolean;
           readonly onCancelDescriptionEditing: () => void;
@@ -75,19 +70,22 @@ export type PostListHeader =
           readonly initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
       };
 
+export type PostListFooter = {
+    readonly type: "MarginBottom";
+};
+
 export type PostCommentsState = PostCommentsOpenState | "Closed";
 type PostCommentsOpenState = "Open" | "AlwaysOpen";
 
 /**
  * The immutable interface for the backing state of a `<PostListView>`. We have
  * different implementations depending on the backing data. For example, when
- * viewing a channel, posts are backed by a `DynamoGeneralRealtimeIndexQuery`.
- * Whereas a channel post notification is backed by a static list of `PostId`s.
+ * viewing a channel, posts are backed by a `RynamoIndexQuery`. Whereas a channel
+ * post notification is backed by a static list of `PostId`s.
  *
- * Our `<PostListView>` component virtualizes our list of posts since we may
- * have too many to render on screen at once. Posts may also expand their
- * comments inline so if comments are expanded then we also need to virtualize
- * those!
+ * Our `<PostListView>` component virtualizes our list of posts since we may have
+ * too many to render on screen at once. Posts may also expand their comments
+ * inline so if comments are expanded then we also need to virtualize those!
  *
  * Keeping track of which posts are open/closed and how that affects comment
  * indexing is a little complex. This class manages that complexity.
@@ -98,8 +96,8 @@ export interface PostListInterface {
      *
      * If this is true then `getPostContentItemIfExists(0)` must be non-null.
      *
-     * May return false even if there's only one post and the post's comments
-     * because we don't want special single post treatment.
+     * May return false even if there's only one post and the post's comments because
+     * we don't want special single post treatment.
      */
     isSinglePost(): boolean;
 
@@ -109,16 +107,15 @@ export interface PostListInterface {
     getItemCount(): number;
 
     /**
-     * Get the item at the provided index. Throws if the index is out
-     * of bounds.
+     * Get the item at the provided index. Throws if the index is out of bounds.
      */
     getItem(index: number): PostListItem;
 
     /**
-     * Get the post content item for the provided index. If this index is pointing
-     * at a comment then we will return the item for the post the comment is a part
-     * of. Will return null if the index is out of bounds or if the item is not
-     * associated with a post (e.g. channel header or feed entry).
+     * Get the post content item for the provided index. If this index is pointing at a
+     * comment then we will return the item for the post the comment is a part of. Will
+     * return null if the index is out of bounds or if the item is not associated with
+     * a post (e.g. channel header or feed entry).
      */
     getPostContentItemIfExists(index: number): PostListPostContentItem | null;
 
@@ -131,15 +128,20 @@ export interface PostListInterface {
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
         /**
-         * Get the index of the post comment in our list. If comments are not open on
-         * this post or if the comment index is out of bounds this will throw an error.
+         * Get the index of the post comment in our list. If comments are not open on this
+         * post or if the comment index is out of bounds this will throw an error.
          */
         getPostCommentIndex: (postCommentIndex: number) => number;
     } | null;
 
     /**
-     * Does the post list have any posts with open comments? Used by mobile since
-     * in a list of posts, no post should have open comments.
+     * Are there more posts we can load from this post list?
+     */
+    hasMorePosts(): boolean;
+
+    /**
+     * Does the post list have any posts with open comments? Used by mobile since in a
+     * list of posts, no post should have open comments.
      */
     hasOpenPostComments(): boolean;
 }
@@ -152,13 +154,21 @@ export type PostListItemExtra = {
 /**
  * Adds a header item to the beginning of a post list.
  */
-export class PostListWithHeader implements PostListInterface {
-    private readonly _header: PostListHeader;
+export class PostListWithHeaderOrWithFooter implements PostListInterface {
+    private readonly _header: PostListHeader | null;
+    private readonly _footer: PostListFooter | null;
     private readonly _posts: PostListInterface;
+    private readonly _postsItemCount: number;
 
-    constructor(header: PostListHeader, posts: PostListInterface) {
+    constructor(
+        header: PostListHeader | null,
+        footer: PostListFooter | null,
+        posts: PostListInterface,
+    ) {
         this._header = header;
+        this._footer = footer;
         this._posts = posts;
+        this._postsItemCount = posts.getItemCount();
     }
 
     // After adding a header, the post list is not a single post anymore.
@@ -167,67 +177,106 @@ export class PostListWithHeader implements PostListInterface {
     }
 
     public getItemCount(): number {
-        return this._posts.getItemCount() + 1;
+        return (
+            this._postsItemCount +
+            (this._header !== null ? 1 : 0) +
+            (this._footer !== null && !this._posts.hasMorePosts() ? 1 : 0)
+        );
     }
 
     public getItem(index: number): PostListItem {
-        if (index === 0) {
-            return {
-                type: "Header",
-                header: this._header,
-            };
+        let offset = 0;
+
+        if (this._header !== null) {
+            if (index === 0) {
+                return {
+                    type: "Header",
+                    header: this._header,
+                };
+            }
+
+            index -= 1;
+            offset += 1;
         }
 
-        const item = this._posts.getItem(index - 1);
+        if (index < this._postsItemCount) {
+            const item = this._posts.getItem(index);
 
-        // Adjust any item indexes to consider items that come before posts in
-        // our `PostList`.
-        switch (item.type) {
-            case "Header":
-            case "MoreUnloadedPosts":
-            case "FeedEntry":
-                return item;
-            case "PostContent": {
-                return {
-                    ...item,
-                    postContentItemIndex: item.postContentItemIndex + 1,
-                    postCommentInputItemIndex:
-                        item.postCommentInputItemIndex !== null
-                            ? item.postCommentInputItemIndex + 1
-                            : null,
-                };
+            // Adjust any item indexes to consider items that come before posts in our
+            // `PostList`.
+            switch (item.type) {
+                case "Header":
+                case "Footer":
+                case "MoreUnloadedPosts":
+                case "FeedEntry": {
+                    return item;
+                }
+                case "PostContent": {
+                    return {
+                        ...item,
+                        postContentItemIndex: item.postContentItemIndex + offset,
+                        postCommentInputItemIndex:
+                            item.postCommentInputItemIndex !== null
+                                ? item.postCommentInputItemIndex + offset
+                                : null,
+                    };
+                }
+                case "LoadedPostComment":
+                case "UnloadedPostComment":
+                case "OptimisticPostComment":
+                case "PostCommentsTypingIndicator": {
+                    return {
+                        ...item,
+                        postCommentInputItemIndex: item.postCommentInputItemIndex + offset,
+                    };
+                }
+                case "PostCommentInput": {
+                    return {
+                        ...item,
+                        postContentItemIndex: item.postContentItemIndex + offset,
+                    };
+                }
+                default:
+                    throw exhaustive(item);
             }
-            case "LoadedPostComment":
-            case "UnloadedPostComment":
-            case "OptimisticPostComment":
-            case "PostCommentsTypingIndicator": {
-                return {
-                    ...item,
-                    postCommentInputItemIndex: item.postCommentInputItemIndex + 1,
-                };
-            }
-            case "PostCommentInput": {
-                return {
-                    ...item,
-                    postContentItemIndex: item.postContentItemIndex + 1,
-                };
-            }
-            default:
-                throw exhaustive(item);
         }
+
+        index -= this._postsItemCount;
+
+        if (this._footer !== null && !this._posts.hasMorePosts()) {
+            if (index === 0) {
+                return {
+                    type: "Footer",
+                    footer: this._footer,
+                };
+            }
+            index--;
+        }
+
+        throw new OutOfRangeError("Index out of bounds");
     }
 
     public getPostContentItemIfExists(index: number): PostListPostContentItem | null {
-        if (index === 0) return null;
+        let offset = 0;
 
-        const item = this._posts.getPostContentItemIfExists(index - 1);
+        if (this._header !== null) {
+            if (index === 0) return null;
+            index--;
+            offset++;
+        }
+
+        if (index >= this._postsItemCount) return null;
+
+        const item = this._posts.getPostContentItemIfExists(index);
         if (!item) return null;
 
         return {
             ...item,
-            postContentItemIndex: item.postContentItemIndex + 1,
+            postContentItemIndex: item.postContentItemIndex + offset,
             postCommentInputItemIndex:
-                item.postCommentInputItemIndex !== null ? item.postCommentInputItemIndex + 1 : null,
+                item.postCommentInputItemIndex !== null
+                    ? item.postCommentInputItemIndex + offset
+                    : null,
         };
     }
 
@@ -244,13 +293,19 @@ export class PostListWithHeader implements PostListInterface {
         const {post, postCommentsState, postComments, postContentItemIndex, getPostCommentIndex} =
             postResult;
 
+        const offset = this._header !== null ? 1 : 0;
+
         return {
             post,
             postCommentsState,
             postComments,
-            postContentItemIndex: postContentItemIndex + 1,
-            getPostCommentIndex: postCommentIndex => getPostCommentIndex(postCommentIndex) + 1,
+            postContentItemIndex: postContentItemIndex + offset,
+            getPostCommentIndex: postCommentIndex => getPostCommentIndex(postCommentIndex) + offset,
         };
+    }
+
+    public hasMorePosts() {
+        return this._posts.hasMorePosts();
     }
 
     public hasOpenPostComments(): boolean {
@@ -259,10 +314,10 @@ export class PostListWithHeader implements PostListInterface {
 }
 
 /**
- * The base of a post list where posts are held in a
- * `PostListVirtualizedTreeBase` subclass. The main contribution of this class
- * is providing a public interface that doesn't include `VirtualizedTree`
- * methods and returning a `MoreUnloadedPosts` item if data is still loading.
+ * The base of a post list where posts are held in a `PostListVirtualizedTreeBase`
+ * subclass. The main contribution of this class is providing a public interface
+ * that doesn't include `VirtualizedTree` methods and returning a
+ * `MoreUnloadedPosts` item if data is still loading.
  */
 abstract class PostListBase<NodeOrderKey> implements PostListInterface {
     protected abstract readonly _posts: PostListVirtualizedTreeBase<NodeOrderKey>;
@@ -344,9 +399,7 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
         };
     }
 
-    public getPostRealtimeItemIfExists(
-        postId: PostId,
-    ): DynamoGeneralRealtimeItem<PostModel> | null {
+    public getPostRealtimeItemIfExists(postId: PostId): RynamoItem<PostModel> | null {
         return this._posts.getPostRealtimeItemIfExists(postId);
     }
 
@@ -378,7 +431,7 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
 
 abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTreeBase<
     NodeOrderKey,
-    DynamoGeneralRealtimeItem<PostModel> & {
+    RynamoItem<PostModel> & {
         readonly extra: PostListItemExtra | null;
     },
     Exclude<
@@ -387,7 +440,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
     >
 > {
     protected override _getNodeItemCount(
-        node: DynamoGeneralRealtimeItem<PostModel> & {
+        node: RynamoItem<PostModel> & {
             readonly extra: PostListItemExtra | null;
         },
     ): number {
@@ -396,7 +449,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
     }
 
     protected override _getNodeItem(
-        node: DynamoGeneralRealtimeItem<PostModel> & {
+        node: RynamoItem<PostModel> & {
             readonly extra: PostListItemExtra | null;
         },
         index: number,
@@ -467,9 +520,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
         };
     }
 
-    public getPostRealtimeItemIfExists(
-        postId: PostId,
-    ): DynamoGeneralRealtimeItem<PostModel> | null {
+    public getPostRealtimeItemIfExists(postId: PostId): RynamoItem<PostModel> | null {
         const nodeKey = this._getNodeOrderKeyByKeyIfExists(postId);
         if (nodeKey === null) return null;
 
@@ -482,7 +533,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
 }
 
 export function getPostListVirtualizedTreeNodeItem(
-    node: DynamoGeneralRealtimeItem<PostModel> & {
+    node: RynamoItem<PostModel> & {
         readonly extra: PostListItemExtra | null;
     },
     index: number,
@@ -573,10 +624,10 @@ export function getPostListVirtualizedTreeNodeItem(
 }
 
 /**
- * A basic post list you can initialize with whatever posts you want wherever
- * you want. The class automatically maintains a simple backing list. Unlike
- * the realtime query post list which is backed, specifically, by the DynamoDB
- * general realtime query data structure.
+ * A basic post list you can initialize with whatever posts you want wherever you
+ * want. The class automatically maintains a simple backing list. Unlike the
+ * realtime query post list which is backed, specifically, by the DynamoDB general
+ * realtime query data structure.
  */
 export class PostBasicList extends PostListBase<number> {
     private readonly _hasMorePosts: boolean;
@@ -599,12 +650,12 @@ export class PostBasicList extends PostListBase<number> {
             | {
                   type: "Many";
                   hasMorePosts: boolean;
-                  posts: ReadonlyArray<DynamoGeneralRealtimeItem<PostModel>>;
+                  posts: ReadonlyArray<RynamoItem<PostModel>>;
               }
             | {
                   type: "One";
                   checkpoint: ServerSynchronizationCheckpoint;
-                  post: DynamoGeneralRealtimeItem<PostModel>;
+                  post: RynamoItem<PostModel>;
                   postCommentsState?: PostCommentsState;
                   postComments?: {
                       comments: ReadonlyArray<PostCommentModel>;
@@ -673,7 +724,7 @@ export class PostBasicList extends PostListBase<number> {
         posts,
     }: {
         hasMorePosts: boolean;
-        posts: ReadonlyArray<DynamoGeneralRealtimeItem<PostModel>>;
+        posts: ReadonlyArray<RynamoItem<PostModel>>;
     }) {
         const newPosts = this._posts.addPosts(posts.map(post => ({...post, extra: null})));
 
@@ -687,10 +738,8 @@ export class PostBasicList extends PostListBase<number> {
         });
     }
 
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ) {
-        const newPosts = this._posts.handleEventTransaction(eventTransaction);
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>) {
+        const newPosts = this._posts.handleEvents(events);
 
         if (newPosts === this._posts) return this;
 
@@ -742,16 +791,14 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         PostId,
         | {isVisible: true; index: number}
         // We keep track of every post realtime tells us about in `postVisibilityById`
-        // whether or not it's in our `posts` list. That's because in some race
-        // conditions if we load more posts from the server we might load a stale
-        // version of the post so we'll need to replace it with the newer version we
-        // got from realtime.
+        // whether or not it's in our `posts` list. That's because in some race conditions
+        // if we load more posts from the server we might load a stale version of the post
+        // so we'll need to replace it with the newer version we got from realtime.
         //
         // TODO(calebmer): We could throw away unreferenced posts after a timeout when
-        // we're confident the server won't return us stale data for the post (~3
-        // minutes). For now we don't think `postVisibilityById` will get unreasonably
-        // large.
-        | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+        // we're confident the server won't return us stale data for the post (~3 minutes).
+        // For now we don't think `postVisibilityById` will get unreasonably large.
+        | {isVisible: false; item: RynamoItem<PostModel>}
     >;
 
     private constructor({
@@ -761,19 +808,18 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }: {
         postVisibilityById: ImmutableMap<
             PostId,
-            | {isVisible: true; index: number}
-            | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+            {isVisible: true; index: number} | {isVisible: false; item: RynamoItem<PostModel>}
         >;
         nodeByOrderKey: Tree<
             number,
-            DynamoGeneralRealtimeItem<PostModel> & {
+            RynamoItem<PostModel> & {
                 readonly extra: PostListItemExtra | null;
             }
         >;
         itemCountSubtreeCache: WeakMap<
             TreeNode<
                 number,
-                DynamoGeneralRealtimeItem<PostModel> & {
+                RynamoItem<PostModel> & {
                     readonly extra: PostListItemExtra | null;
                 }
             >,
@@ -786,7 +832,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
 
     public static new(
         posts: Array<
-            DynamoGeneralRealtimeItem<PostModel> & {
+            RynamoItem<PostModel> & {
                 readonly extra: PostListItemExtra | null;
             }
         >,
@@ -805,12 +851,12 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
-     * Add posts to the end of the virtualized tree. Only one post may exist for
-     * each `PostId`.
+     * Add posts to the end of the virtualized tree. Only one post may exist for each
+     * `PostId`.
      */
     public addPosts(
         posts: ReadonlyArray<
-            DynamoGeneralRealtimeItem<PostModel> & {
+            RynamoItem<PostModel> & {
                 readonly extra: PostListItemExtra | null;
             }
         >,
@@ -821,7 +867,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         for (const post of posts) {
             let oldPostVisibility:
                 | {isVisible: true; index: number}
-                | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+                | {isVisible: false; item: RynamoItem<PostModel>}
                 | undefined;
 
             postVisibilityById = postVisibilityById.update(post.model.id, _oldPostVisibility => {
@@ -849,8 +895,8 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
                 const iterator = nodeByOrderKey.find(oldPostVisibility.index);
                 assert(iterator.value);
                 nodeByOrderKey =
-                    // If the currently visible item has a higher version then don't update with
-                    // the newly loaded post.
+                    // If the currently visible item has a higher version then don't update with the
+                    // newly loaded post.
                     iterator.value.version > post.version
                         ? nodeByOrderKey
                         : iterator.update({...post, extra: iterator.value.extra});
@@ -865,37 +911,33 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
-     * Handle a realtime update event transaction from our DynamoDB general
-     * realtime system. Will update any visible posts and keep a record of any
-     * other posts realtime tells us about. So if later that post is added (via
-     * `addPosts()`) but with a stale version then we'll actually have the latest
-     * version.
+     * Handle a realtime update event transaction from our DynamoDB general realtime
+     * system. Will update any visible posts and keep a record of any other posts
+     * realtime tells us about. So if later that post is added (via `addPosts()`) but
+     * with a stale version then we'll actually have the latest version.
      */
-    public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ): PostBasicListVirtualizedTree {
+    public handleEvents(events: ReadonlyArray<RynamoEvent<unknown>>): PostBasicListVirtualizedTree {
         let postVisibilityById = this._postVisibilityById;
         let nodeByOrderKey = this._nodeByOrderKey;
 
-        for (const event of eventTransaction) {
+        for (const event of events) {
             // The `deleteItem()` operation is disabled for posts.
             //
-            // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the
-            // future. But right now my idea for deleting posts is to leave the post in the
-            // database but delete its content. Since we don't want to delete comments on
-            // the post. If that's the case we should never receive a `DeleteItem` event
-            // for a post.
+            // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the future.
+            // But right now my idea for deleting posts is to leave the post in the database
+            // but delete its content. Since we don't want to delete comments on the post. If
+            // that's the case we should never receive a `DeleteItem` event for a post.
             if (event.type === "DeleteItem") continue;
 
             cast<"PutItem">(event.type);
 
             // We only care about posts...
             if (!(event.item.model instanceof PostModel)) continue;
-            const item = event.item as DynamoGeneralRealtimeItem<PostModel>;
+            const item = event.item as RynamoItem<PostModel>;
 
             let postVisibility:
                 | {isVisible: true; index: number}
-                | {isVisible: false; item: DynamoGeneralRealtimeItem<PostModel>}
+                | {isVisible: false; item: RynamoItem<PostModel>}
                 | undefined;
 
             postVisibilityById = postVisibilityById.update(item.model.id, _postVisibility => {
@@ -971,8 +1013,8 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
-     * Update the comments list for a post. If the post id is not in the list this
-     * is a noop.
+     * Update the comments list for a post. If the post id is not in the list this is a
+     * noop.
      */
     public updatePostComments(
         postId: PostId,
@@ -1007,8 +1049,8 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
-     * Iterate through every post in our list updating each `PostCommentsState`
-     * to `Closed`.
+     * Iterate through every post in our list updating each `PostCommentsState` to
+     * `Closed`.
      */
     public closeAllPostComments(): PostBasicListVirtualizedTree {
         let nodeByOrderKey = this._nodeByOrderKey;
@@ -1041,18 +1083,15 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 }
 
-export type PostQueryListDynamoGeneralRealtimeIndexQuery = DynamoGeneralRealtimeIndexQuery<
-    PostModel,
-    PostListItemExtra
->;
+export type PostQueryListRynamoIndexQuery = RynamoIndexQuery<PostModel, PostListItemExtra>;
 
 /**
- * Post list backed by a DynamoDB general realtime query. The query is
- * presented in reverse order since it should be loaded from the end. Since the
- * end is where the latest channel posts are.
+ * Post list backed by a DynamoDB general realtime query. The query is presented in
+ * reverse order since it should be loaded from the end. Since the end is where the
+ * latest channel posts are.
  */
 export class PostQueryList extends PostListBase<DynamoIndexCursor> {
-    public readonly query: PostQueryListDynamoGeneralRealtimeIndexQuery;
+    public readonly query: PostQueryListRynamoIndexQuery;
     protected readonly _posts: PostQueryListVirtualizedTree;
 
     private constructor(posts: PostQueryListVirtualizedTree) {
@@ -1061,7 +1100,7 @@ export class PostQueryList extends PostListBase<DynamoIndexCursor> {
         this._posts = posts;
     }
 
-    public static new(result: DynamoGeneralRealtimeIndexQueryResult<PostModel>): PostQueryList {
+    public static new(result: RynamoIndexQueryResult<PostModel>): PostQueryList {
         const posts = PostQueryListVirtualizedTree.new(result);
         return new PostQueryList(posts);
     }
@@ -1071,7 +1110,7 @@ export class PostQueryList extends PostListBase<DynamoIndexCursor> {
     }
 
     public updateQuery(
-        query: SetStateAction<DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>>,
+        query: SetStateAction<RynamoIndexQuery<PostModel, PostListItemExtra>>,
     ): PostQueryList {
         const newPosts = this._posts.updateQuery(query);
         if (newPosts === this._posts) return this;
@@ -1104,11 +1143,10 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     /**
      * The backing realtime DynamoDB query for this `PostList`.
      */
-    public readonly query: DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>;
+    public readonly query: RynamoIndexQuery<PostModel, PostListItemExtra>;
 
-    // Iterate through `nodeByOrderKey` in reverse order. The most recent posts are
-    // at the end of the query but we want to display them at the top of our
-    // channel.
+    // Iterate through `nodeByOrderKey` in reverse order. The most recent posts are at
+    // the end of the query but we want to display them at the top of our channel.
     protected override readonly _isNodeByOrderKeyReversed = true;
 
     private constructor({
@@ -1116,17 +1154,17 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
         nodeByOrderKey,
         itemCountSubtreeCache,
     }: {
-        query: DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>;
+        query: RynamoIndexQuery<PostModel, PostListItemExtra>;
         nodeByOrderKey: Tree<
             DynamoIndexCursor,
-            DynamoGeneralRealtimeItem<PostModel> & {
+            RynamoItem<PostModel> & {
                 readonly extra: PostListItemExtra | null;
             }
         >;
         itemCountSubtreeCache: WeakMap<
             TreeNode<
                 DynamoIndexCursor,
-                DynamoGeneralRealtimeItem<PostModel> & {
+                RynamoItem<PostModel> & {
                     readonly extra: PostListItemExtra | null;
                 }
             >,
@@ -1137,8 +1175,8 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
         this.query = query;
     }
 
-    public static new(result: DynamoGeneralRealtimeIndexQueryResult<PostModel>) {
-        const query = DynamoGeneralRealtimeIndexQuery.new<PostModel, PostListItemExtra>(result);
+    public static new(result: RynamoIndexQueryResult<PostModel>) {
+        const query = RynamoIndexQuery.new<PostModel, PostListItemExtra>(result);
 
         return new PostQueryListVirtualizedTree({
             query,
@@ -1155,9 +1193,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     /**
      * Update the backing DynamoDB realtime query of this post list.
      */
-    public updateQuery(
-        query: SetStateAction<DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>>,
-    ) {
+    public updateQuery(query: SetStateAction<RynamoIndexQuery<PostModel, PostListItemExtra>>) {
         query = typeof query === "function" ? query(this.query) : query;
 
         if (query === this.query) return this;
@@ -1194,8 +1230,8 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     }
 
     /**
-     * Update the comments list for a post. If the post id is not in the list this
-     * is a noop.
+     * Update the comments list for a post. If the post id is not in the list this is a
+     * noop.
      */
     public updatePostComments(
         postId: PostId,
@@ -1219,8 +1255,8 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     }
 
     /**
-     * Iterate through every post in our list updating each `PostCommentsState`
-     * to `Closed`.
+     * Iterate through every post in our list updating each `PostCommentsState` to
+     * `Closed`.
      */
     public closeAllPostComments(): PostQueryListVirtualizedTree {
         const newQuery = this.query.updateAllItemExtras(item => {
@@ -1247,7 +1283,7 @@ function createInitialPostModelComments(post: PostModel): MessageList<PostCommen
 }
 
 export function getPostListItemExtra(
-    post: DynamoGeneralRealtimeItem<PostModel> & {
+    post: RynamoItem<PostModel> & {
         readonly extra: PostListItemExtra | null;
     },
 ) {
@@ -1264,6 +1300,7 @@ export function getPostListItemExtra(
  */
 export type PostListItem =
     | PostListHeaderItem
+    | PostListFooterItem
     | PostListPostContentItem
     | PostListLoadedPostCommentItem
     | PostListUnloadedPostCommentItem
@@ -1276,6 +1313,11 @@ export type PostListItem =
 export type PostListHeaderItem = {
     readonly type: "Header";
     readonly header: PostListHeader;
+};
+
+export type PostListFooterItem = {
+    readonly type: "Footer";
+    readonly footer: PostListFooter;
 };
 
 /**
@@ -1294,8 +1336,8 @@ export type PostListPostContentItem = {
     readonly postContentItemIndex: number;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number | null;
 };
@@ -1309,15 +1351,15 @@ export type PostListLoadedPostCommentItem = {
     readonly postComments: MessageList<PostCommentModel>;
 
     /**
-     * The index the loaded post comment is at in the `MessageList`. The
-     * post index may move but this will stay stable.
+     * The index the loaded post comment is at in the `MessageList`. The post index may
+     * move but this will stay stable.
      */
     readonly postCommentIndex: number;
     readonly postComment: PostCommentModel;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 };
@@ -1331,21 +1373,20 @@ export type PostListUnloadedPostCommentItem = {
     readonly postComments: MessageList<PostCommentModel>;
 
     /**
-     * The index the unloaded post comment is at in the `MessageList`. The
-     * post index may move but this will stay stable.
+     * The index the unloaded post comment is at in the `MessageList`. The post index
+     * may move but this will stay stable.
      */
     readonly postCommentIndex: number;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 };
 
 /**
- * A comment created on the client before it has been acknowledged by
- * the server.
+ * A comment created on the client before it has been acknowledged by the server.
  */
 export type PostListOptimisticPostCommentItem = {
     readonly type: "OptimisticPostComment";
@@ -1353,21 +1394,21 @@ export type PostListOptimisticPostCommentItem = {
     readonly postComments: MessageList<PostCommentModel>;
 
     /**
-     * The index the loaded post comment is at in the `MessageList`. The
-     * post index may move but this will stay stable.
+     * The index the loaded post comment is at in the `MessageList`. The post index may
+     * move but this will stay stable.
      */
     readonly postCommentIndex: number;
     readonly postComment: OptimisticMessageModel;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 
     /**
-     * What is the index of this optimistic post comment in the optimistic post
-     * comment list?
+     * What is the index of this optimistic post comment in the optimistic post comment
+     * list?
      */
     readonly optimisticPostCommentIndex: number;
 };
@@ -1383,8 +1424,8 @@ export type PostListPostCommentsTypingIndicator = {
     readonly typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
 
     /**
-     * If the comment section is open, this will be the index of the post comment
-     * input in the full `PostList`.
+     * If the comment section is open, this will be the index of the post comment input
+     * in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
 };
@@ -1412,9 +1453,9 @@ export type PostListMoreUnloadedPostsItem = {
 };
 
 /**
- * We use `<PostListView>` to render the home feed. In addition to posts we
- * have some other non-post feed entries. Non-post feed entries are expressed
- * by this item.
+ * We use `<PostListView>` to render the home feed. In addition to posts we have
+ * some other non-post feed entries. Non-post feed entries are expressed by this
+ * item.
  */
 export type PostListFeedEntryItem = {
     readonly type: "FeedEntry";

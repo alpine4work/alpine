@@ -10,22 +10,22 @@ export type IterableChange<Value> = {
  *
  * This function is also spiritually similar to a `git diff`! You could pass in
  * `Iterable<string>`s representing lines of code and get more or less the same
- * output as `git diff`. We could use this function to implement a patch
- * generator utility.
+ * output as `git diff`. We could use this function to implement a patch generator
+ * utility.
  *
- * Returns a list of changes where values that are unchanged have a type of
- * `null`. Values that were added have a type of `Added` and values that were
- * deleted have a type of `Deleted`. Values that stayed in the iterable but
- * changed relative positions are recorded with a `Deleted` at their old
- * position and an `Added` at their new position.
+ * Returns a list of changes where values that are unchanged have a type of `null`.
+ * Values that were added have a type of `Added` and values that were deleted have
+ * a type of `Deleted`. Values that stayed in the iterable but changed relative
+ * positions are recorded with a `Deleted` at their old position and an `Added` at
+ * their new position.
  *
- * If there's a sequence of `Added`/`Deleted` changes then `Deleted` changes
- * will always come before `Added` changes.
+ * If there's a sequence of `Added`/`Deleted` changes then `Deleted` changes will
+ * always come before `Added` changes.
  *
- * This function is generally O(n) where n is the maximum length of
- * `oldIterable` and `newIterable`. This makes it much less efficient than
- * `symmetricDiffTree()`! If you need a fast diff don't use this function.
- * Instead refactor your data types to use trees and call `symmetricDiffTree()`.
+ * This function is generally O(n) where n is the maximum length of `oldIterable`
+ * and `newIterable`. This makes it much less efficient than `symmetricDiffTree()`!
+ * If you need a fast diff don't use this function. Instead refactor your data
+ * types to use trees and call `symmetricDiffTree()`.
  *
  * Performance is consistently O(n) if:
  *
@@ -33,21 +33,24 @@ export type IterableChange<Value> = {
  * 2. Values are added to `newIterable` that aren't in `oldIterable`
  * 3. Values are deleted from `oldIterable` and don't appear in `newIterable`
  *
- * 2 or 3 may happen if a value moves (changes its relative position). If you
- * have many moves between the two iterables (e.g. a random shuffle) we fear
- * this function could have worst case performance of O(n²). However, after
- * some light benchmarking with data we predict to perform poorly we did not
- * see O(n²) performance characteristics. So it's possible this function
- * performs better than anticipated when there are many moves but we can't tell
- * for certain now.
+ * 2 or 3 may happen if a value moves (changes its relative position). If you have
+ * many moves between the two iterables (e.g. a random shuffle) we fear this
+ * function could have worst case performance of O(n²). However, after some light
+ * benchmarking with data we predict to perform poorly we did not see O(n²)
+ * performance characteristics. So it's possible this function performs better than
+ * anticipated when there are many moves but we can't tell for certain now.
  *
- * Mathematically speaking, this is only a true symmetric difference if values
- * in the iterable do not change their relative order. For example, if you diff
+ * Mathematically speaking, this is only a true symmetric difference if values in
+ * the iterable do not change their relative order. For example, if you diff
  * `[1, 2, 3]` with `[2, 3, 1]` then we will report the 1 as being deleted then
- * added. In order for this to be a pure symmetric difference you might be able
- * to consider iterable entries as a pair of their relative position and value
- * but being mathematically sound isn't relevant for our current uses of this
- * function.
+ * added. In order for this to be a pure symmetric difference you might be able to
+ * consider iterable entries as a pair of their relative position and value but
+ * being mathematically sound isn't relevant for our current uses of this function.
+ *
+ * @deprecated I just added the `shared/prosemirror/internal/diff.ts` function
+ * which should probably replace this function eventually. It's based on the Myers
+ * diff algorithm and boasts a production grade implementation (forked from a
+ * module installed 85M times per week).
  */
 // NOTE(calebmer, #interview): Implementing this function could make for a good
 // algorithmic interview question.
@@ -64,10 +67,14 @@ export function symmetricDiffIterable<Value>(
 }
 
 /**
- * Same as `symmetricDiffIterable()`. If you happen to already have both an
- * array and a set for your old/new iterables you should call this function
- * directly. Since otherwise we need to construct a `Set`/`Array` from your
- * iterable input.
+ * Same as `symmetricDiffIterable()`. If you happen to already have both an array
+ * and a set for your old/new iterables you should call this function directly.
+ * Since otherwise we need to construct a `Set`/`Array` from your iterable input.
+ *
+ * @deprecated I just added the `shared/prosemirror/internal/diff.ts` function
+ * which should probably replace this function eventually. It's based on the Myers
+ * diff algorithm and boasts a production grade implementation (forked from a
+ * module installed 85M times per week).
  */
 export function actuallySymmetricDiffIterable<Value>(
     oldArray: ReadonlyArray<Value>,
@@ -93,8 +100,8 @@ export function actuallySymmetricDiffIterable<Value>(
 
         let hasOldValueLaterInNewArray = newSet.has(oldValue);
 
-        // The set is an optimization that only tells us the value exists somewhere in
-        // the array. We need to know if the value exists after our current index.
+        // The set is an optimization that only tells us the value exists somewhere in the
+        // array. We need to know if the value exists after our current index.
         if (hasOldValueLaterInNewArray) {
             hasOldValueLaterInNewArray = false;
 
@@ -112,8 +119,8 @@ export function actuallySymmetricDiffIterable<Value>(
             }
         }
 
-        // The value has been definitively deleted. We record deletes before additions
-        // so add a deleted change and continue.
+        // The value has been definitively deleted. We record deletes before additions so
+        // add a deleted change and continue.
         if (!hasOldValueLaterInNewArray) {
             oldIndex++;
             changes.push({type: "Deleted", value: oldValue});
@@ -122,8 +129,8 @@ export function actuallySymmetricDiffIterable<Value>(
 
         let hasNewValueLaterInOldArray = oldSet.has(newValue);
 
-        // The set is an optimization that only tells us the value exists somewhere in
-        // the array. We need to know if the value exists after our current index.
+        // The set is an optimization that only tells us the value exists somewhere in the
+        // array. We need to know if the value exists after our current index.
         if (hasNewValueLaterInOldArray) {
             hasNewValueLaterInOldArray = false;
 
@@ -141,10 +148,10 @@ export function actuallySymmetricDiffIterable<Value>(
             }
         }
 
-        // The value has been definitively added. We want to record sequences of
-        // deletes before sequences of additions. So we find the point where the arrays
-        // converge again (the next item where `Object.is(oldValue, newValue)`) and
-        // record all the deletes then additions to get to that point.
+        // The value has been definitively added. We want to record sequences of deletes
+        // before sequences of additions. So we find the point where the arrays converge
+        // again (the next item where `Object.is(oldValue, newValue)`) and record all the
+        // deletes then additions to get to that point.
         if (!hasNewValueLaterInOldArray) {
             newIndex++;
             const addedNewValues: Array<Value> = [newValue];
@@ -167,8 +174,8 @@ export function actuallySymmetricDiffIterable<Value>(
                     searchOldIndex++;
                 }
 
-                // `nextNewValue` is in `oldArray` before `oldIndex`. Consider `nextNewValue` to
-                // be an added value.
+                // `nextNewValue` is in `oldArray` before `oldIndex`. Consider `nextNewValue` to be
+                // an added value.
                 if (!(searchOldIndex < oldArray.length)) {
                     newIndex++;
                     addedNewValues.push(nextNewValue);
@@ -195,15 +202,14 @@ export function actuallySymmetricDiffIterable<Value>(
         let searchOldIndex = oldIndex;
         let searchNewIndex = newIndex;
 
-        // If the new value exists later in the old array and the old value exists
-        // later in the new array this means the value has moved. Our diff function
-        // doesn't report moves so find the next place the old array and new array
-        // converge then report any values in between as deleted or added.
+        // If the new value exists later in the old array and the old value exists later in
+        // the new array this means the value has moved. Our diff function doesn't report
+        // moves so find the next place the old array and new array converge then report
+        // any values in between as deleted or added.
         //
-        // In theory, this would need to check every pair of `(oldIndex, newIndex)`
-        // until the end of the array. But that could be very inefficient! So we have
-        // a small lookahead constant that will check a little ahead of where we are
-        // now.
+        // In theory, this would need to check every pair of `(oldIndex, newIndex)` until
+        // the end of the array. But that could be very inefficient! So we have a small
+        // lookahead constant that will check a little ahead of where we are now.
         for (let lookahead = 1; lookahead <= maxLookahead; lookahead++) {
             searchOldIndex = oldIndex;
             searchNewIndex = newIndex;

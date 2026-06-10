@@ -13,15 +13,15 @@ declare global {
 }
 
 /**
- * Exposes the blob art script on the window as __drawBlobs.
- * This allows us to store the function in a global context, allowing
- * other scripts to call it without needing to hold a copy.
+ * Exposes the blob art script on the window as \_\_drawBlobs. This allows us to
+ * store the function in a global context, allowing other scripts to call it
+ * without needing to hold a copy.
  */
 export function BlobsArtProvider() {
     const {colorScheme} = useColorScheme();
 
-    // If our color scheme changes, redraw the blobs.
-    // Some blobs may not be drawn in a react context, so we handle the color scheme here.
+    // If our color scheme changes, redraw the blobs. Some blobs may not be drawn in a
+    // react context, so we handle the color scheme here.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (typeof window === "undefined") return;
         const canvases = document.querySelectorAll("canvas[data-blob-id]");
@@ -32,8 +32,8 @@ export function BlobsArtProvider() {
             const blobsSettings = canvas._blobsSettings;
             const scale = canvas._blobsDrawn?.scale;
 
-            // If the canvas ID or dataDrawn attributes are not set, skip drawing.
-            // If the blobSettings attribute is not set, it means the blobs have not been drawn yet.
+            // If the canvas ID or dataDrawn attributes are not set, skip drawing. If the
+            // blobSettings attribute is not set, it means the blobs have not been drawn yet.
             if (!canvasId || !blobsSettings) return;
 
             // Call the global draw function

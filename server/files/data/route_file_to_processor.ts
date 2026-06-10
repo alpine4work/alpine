@@ -11,9 +11,8 @@ const sortedRules = [...fileProcessorRoutingConfig.rules].sort((a, b) => a.prior
 /**
  * Determines the appropriate processing tier for a file based on routing rules.
  *
- * @param contentType The MIME type of the file
- * @param fileSizeBytes The size of the file in bytes
- * @returns The job type and reason for routing
+ * @param contentType The MIME type of the file @param fileSizeBytes The size of
+ * the file in bytes @returns The job type and reason for routing
  */
 export function routeFileToProcessor(file: {contentType: FileContentType; contentLength: number}): {
     jobType: Extract<JobDescription["type"], "ProcessFileLight" | "ProcessFileHeavy">;

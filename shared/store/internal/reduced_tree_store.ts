@@ -3,14 +3,13 @@ import {TreeChange, symmetricDiffTree} from "~/shared/helpers/immutable/symmetri
 import {Store} from "~/shared/store/internal/store.js";
 
 /**
- * A combinator for `Store<Tree<TreeKey, TreeValue>>` that lets you reduce into
- * a single, new, `Value` efficiently. Since instead of reducing the entire
- * tree when the underlying store updates, we diff the tree and use the diff to
- * update `Value`.
+ * A combinator for `Store<Tree<TreeKey, TreeValue>>` that lets you reduce into a
+ * single, new, `Value` efficiently. Since instead of reducing the entire tree when
+ * the underlying store updates, we diff the tree and use the diff to update
+ * `Value`.
  *
  * We use this to build simpler combinators on tree stores. Like
- * `mapTreeStoreValues()` which maps tree values but only when those values
- * change.
+ * `mapTreeStoreValues()` which maps tree values but only when those values change.
  */
 export class ReducedTreeStore<TreeKey, TreeValue, Value> extends Store<Value> {
     private readonly _store: Store<Tree<TreeKey, TreeValue>>;
@@ -36,10 +35,10 @@ export class ReducedTreeStore<TreeKey, TreeValue, Value> extends Store<Value> {
     public readonly getSnapshot = () => {
         const tree = this._store.getSnapshot();
 
-        // It's ok if `reduce()` throws an error since our store won't be left
-        // in a broken state. We will end up re-evaluating changes to the tree next
-        // time `getSnapshot` is called unlike other utilities which memorize the error
-        // and rethrow it until the underlying store changes.
+        // It's ok if `reduce()` throws an error since our store won't be left in a broken
+        // state. We will end up re-evaluating changes to the tree next time `getSnapshot`
+        // is called unlike other utilities which memorize the error and rethrow it until
+        // the underlying store changes.
         if (this._previousTree === null) {
             const reduce = this._reduce;
             let value = this._value;

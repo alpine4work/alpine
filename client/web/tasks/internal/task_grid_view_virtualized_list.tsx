@@ -16,6 +16,10 @@ import {
     useState,
 } from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
+import {
+    dateInputCalendarWithFooterDesktopHeight,
+    dateInputCalendarWithFooterMobileHeight,
+} from "~/client/web/design/date_input_calendar.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/web/design/use_is_behind_mobile_full_screen_modal.js";
@@ -59,10 +63,6 @@ import {getTaskGridViewLoadQueryLimit} from "~/client/web/tasks/get_task_grid_vi
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/web/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
 import {withApplyTaskGridViewUndoStackEntry} from "~/client/web/tasks/internal/is_task_grid_view_applying_undo_stack_entry.js";
 import {showTaskDeleteConfirmationModalDialog} from "~/client/web/tasks/internal/show_task_delete_confirmation_modal_dialog.js";
-import {
-    taskDateInputCalendarDesktopHeight,
-    taskDateInputCalendarMobileHeight,
-} from "~/client/web/tasks/internal/task_date_input_calendar.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewHasDndContext} from "~/client/web/tasks/internal/task_grid_view_has_dnd_context.js";
 import {TaskGridViewMobileKeyboardToolbarContainer} from "~/client/web/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
@@ -165,23 +165,23 @@ const zIndexesByTaskRowItemElement = new WeakMap<HTMLElement, Array<number>>();
 
 export type TaskGridViewVirtualizedListProps = {
     /**
-     * Override the generated `stateKey`. Useful if you want to maintain state
-     * across different queries instead of generating a new `stateKey` every query.
+     * Override the generated `stateKey`. Useful if you want to maintain state across
+     * different queries instead of generating a new `stateKey` every query.
      */
     stateKey?: string;
 
     /**
-     * Capabilities of the task grid view. These are common shared props we pass
-     * around to the grid view's children. For example, does the grid view have
-     * columns? If so, which columns are visible?
+     * Capabilities of the task grid view. These are common shared props we pass around
+     * to the grid view's children. For example, does the grid view have columns? If
+     * so, which columns are visible?
      */
     capabilities: Memo<TaskGridViewCapabilities>;
 
     /**
-     * Ref to the `<VirtualizedScrollView>` we render the virtualized list in. We
-     * only use a subset of methods on `VirtualizedScrollViewRef` which makes it
-     * easier to shift indexes around if we have other items in the virtualized
-     * scroll view above the grid view.
+     * Ref to the `<VirtualizedScrollView>` we render the virtualized list in. We only
+     * use a subset of methods on `VirtualizedScrollViewRef` which makes it easier to
+     * shift indexes around if we have other items in the virtualized scroll view above
+     * the grid view.
      */
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
 
@@ -191,8 +191,8 @@ export type TaskGridViewVirtualizedListProps = {
     store: TaskClientStore;
 
     /**
-     * The query rendered by the grid view and the initial expansion state stored
-     * on the server. Null if we're not currently rendering any query.
+     * The query rendered by the grid view and the initial expansion state stored on
+     * the server. Null if we're not currently rendering any query.
      */
     query: {
         query: TaskClientQuery;
@@ -200,8 +200,8 @@ export type TaskGridViewVirtualizedListProps = {
     } | null;
 
     /**
-     * Contains a reference to the entity rendering the grid view so any
-     * interactions will add affinity score to the right entity on the backend.
+     * Contains a reference to the entity rendering the grid view so any interactions
+     * will add affinity score to the right entity on the backend.
      */
     affinityManager: TaskClientStoreSearchAffinityManager;
 
@@ -211,37 +211,36 @@ export type TaskGridViewVirtualizedListProps = {
      * then we'll add the task to the collection and set the collection position
      * relative to whatever `position` was provided.
      *
-     * Will be used when hitting `Enter` to create a new task or `Shift+Tab` to
-     * move a task out of a parent task and into the query.
+     * Will be used when hitting `Enter` to create a new task or `Shift+Tab` to move a
+     * task out of a parent task and into the query.
      */
-    getMoveTaskToQueryActions: (
-        taskId: TaskId,
+    getMoveTasksToQueryActions: (
+        taskIds: ReadonlyArray<TaskId>,
         position:
             | {type: "Start"}
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
-            | {type: "Below"; taskId: TaskId}
-            | {type: "Position"; position: TaskPosition},
+            | {type: "Below"; taskId: TaskId},
     ) => {
         actions: Array<TaskActionModel>;
-        position: TaskPosition;
+        positions: Array<TaskPosition>;
     } | null;
 
     /**
-     * Should return a list of actions that remove the task from the query's
-     * filters. For example, if this is a collection query then we'll remove the
-     * task from the collection.
+     * Should return a list of actions that remove the task from the query's filters.
+     * For example, if this is a collection query then we'll remove the task from the
+     * collection.
      *
-     * Will be used when hitting `Tab` to indent a task under the previous task
-     * which also removes the task from the grid view.
+     * Will be used when hitting `Tab` to indent a task under the previous task which
+     * also removes the task from the grid view.
      */
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
 
     /**
-     * By default the grid view needs to commit an action transaction it directly
-     * calls `store.commitTaskActionTransaction()`. However, if this prop is
-     * provided then we call this function instead. Useful if you need to add some
-     * additional actions to a task action transaction.
+     * By default the grid view needs to commit an action transaction it directly calls
+     * `store.commitTaskActionTransaction()`. However, if this prop is provided then we
+     * call this function instead. Useful if you need to add some additional actions to
+     * a task action transaction.
      */
     commitActionTransaction?: Memo<
         (
@@ -254,25 +253,24 @@ export type TaskGridViewVirtualizedListProps = {
     > | null;
 
     /**
-     * We add this item key prefix to all "structural" items. For example the
-     * column header item and decorative task items. This is used by the personal
-     * task view which needs to render multiple virtualized lists at once. Tasks do
-     * not get this item key prefix since we want to easily be able to find a task
-     * by its `TaskId` regardless of the virtualized list it's in.
+     * We add this item key prefix to all "structural" items. For example the column
+     * header item and decorative task items. This is used by the personal task view
+     * which needs to render multiple virtualized lists at once. Tasks do not get this
+     * item key prefix since we want to easily be able to find a task by its `TaskId`
+     * regardless of the virtualized list it's in.
      */
     structuralItemKeyPrefix?: string;
 
     /**
-     * Don't render a column header item even if `capabilities.hasColumns` is true.
-     * The caller is expected to render its own column header. You can use
+     * Don't render a column header item even if `capabilities.hasColumns` is true. The
+     * caller is expected to render its own column header. You can use
      * `<TaskGridViewColumnHeader>` if needed.
      */
     withoutColumnHeader?: boolean;
 
     /**
-     * Should the first row item not have a top border? By default the first row
-     * item won't have a top border and you're expected to render one in the
-     * navigation bar.
+     * Should the first row item not have a top border? By default the first row item
+     * won't have a top border and you're expected to render one in the navigation bar.
      */
     withoutBorderTopIfFirstRow?: boolean;
 
@@ -284,72 +282,78 @@ export type TaskGridViewVirtualizedListProps = {
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
 
     /**
-     * The max width of a `<TaskRowView>`. Used by `<TaskDetailView>` to make sure
-     * the subtasks grid view is the same width as the rest of the detail view's
-     * content.
+     * Label for the title column header. Defaults to "Name".
+     */
+    columnHeaderTitleFieldLabel?: string;
+
+    /**
+     * The max width of a `<TaskRowView>`. Used by `<TaskDetailView>` to make sure the
+     * subtasks grid view is the same width as the rest of the detail view's content.
      */
     rowMaxWidth?: Spacing | null;
 
     /**
      * Don't render the bottom ghost task. Similar to `withoutDecorativeGhostRows`.
      *
-     * Same as `withoutBottomGhostTaskIfEmpty` but doesn't have a secondary
-     * condition which needs to be met.
+     * Same as `withoutBottomGhostTaskIfEmpty` but doesn't have a secondary condition
+     * which needs to be met.
      *
      * If this is true and `withoutColumnHeader` is true and
-     * `withoutDecorativeGhostRows` is true then this list should render zero
-     * items.
+     * `withoutDecorativeGhostRows` is true then this list should render zero items.
      */
     withoutBottomGhostTask?: boolean;
-
-    /**
-     * Don't render the up to three decorative ghost row items. Similar to
-     * `withoutBottomGhostTask`.
-     *
-     * Same as `withoutDecorativeGhostRowsIfEmpty` but doesn't have a secondary
-     * condition which needs to be met.
-     *
-     * If this is true and `withoutColumnHeader` is true and
-     * `withoutBottomGhostTask` is true then this list should render zero items.
-     */
-    withoutDecorativeGhostRows?: boolean;
 
     /**
      * Don't render the bottom ghost task if there are no tasks. Similar to
      * `withoutDecorativeGhostRowsIfEmpty`.
      *
      * If this is true and `withoutColumnHeader` is true and
-     * `withoutDecorativeGhostRowsIfEmpty` is true and there are no tasks in the
-     * query then this list should render zero items.
+     * `withoutDecorativeGhostRowsIfEmpty` is true and there are no tasks in the query
+     * then this list should render zero items.
      */
     withoutBottomGhostTaskIfEmpty?: boolean;
 
     /**
-     * If `query` is null then we don't render a bottom ghost task. However, if you
-     * set this to true then we will render a bottom ghost task when `query` is
-     * null.
+     * If `query` is null then we don't render a bottom ghost task. However, if you set
+     * this to true then we will render a bottom ghost task when `query` is null.
      *
-     * Useful for `<TaskDetailView>` when creating a new task since we don't
-     * actually create the task until the first update so we'll have a null query
-     * but we still want to render the ghost task.
+     * Useful for `<TaskDetailView>` when creating a new task since we don't actually
+     * create the task until the first update so we'll have a null query but we still
+     * want to render the ghost task.
      */
     withBottomGhostTaskIfNullQuery?: boolean;
 
     /**
-     * Don't render the up to three decorative ghost row items if there's no tasks.
-     * Similar to `withoutBottomGhostTaskIfEmpty`.
+     * How to render decorative ghost rows for this grid view. Defaults to
+     * `Background`.
      *
-     * If this is true and `withoutColumnHeader` is true and the query is auto
-     * sorted then if there are no tasks in the query we should render zero items.
-     * If the query is not auto sorted then `withoutBottomGhostTaskIfEmpty` must
-     * also be true to render zero items when there's no tasks.
+     * - `Background`: Render as many decorative ghost rows as it takes to fill the
+     *   remainder of the screen. For when you only have a few views but still want to
+     *   render row lines to create some sense of the grid view structure.
+     *
+     * - `BackgroundIfNotEmpty`: Same as `Background` but only when there's at least
+     *   one task in the virtualized grid view.
+     *
+     * - `Some`: Makes sure we always render at least 3 rows in the grid view. If there
+     *   are 0 rows in the grid view we render 3 decorative ghost rows, if there is 1
+     *   row in the grid view we render 2 decorative ghost rows and so on.
+     *
+     * - `BackgroundOrSomeIfEmpty`: Same as `BackgroundIfNotEmpty` but if empty behaves
+     *   as `Some`.
+     *
+     * If `decorativeGhostRows` is `Background` or `BackgroundIfNotEmpty` and there's a
+     * next grid view then we render no decorative ghost rows.
      */
-    withoutDecorativeGhostRowsIfEmpty?: boolean;
+    decorativeGhostRows?:
+        | "Background"
+        | "BackgroundIfNotEmpty"
+        | "Some"
+        | "BackgroundOrSomeIfEmpty";
 
     /**
      * Provide custom handling for the undo/redo stack entry. Important for
-     * `<TaskDetailView>` which needs to manually implement undo/redo handling for
-     * task notes.
+     * `<TaskDetailView>` which needs to manually implement undo/redo handling for task
+     * notes.
      */
     onApplyUndoStackEntry?: (options: {
         type: "Undo" | "Redo";
@@ -359,8 +363,8 @@ export type TaskGridViewVirtualizedListProps = {
     }) => {preventDefault: boolean} | void;
 
     /**
-     * Get the position of content we want to anchor when the keyboard opens on
-     * mobile. This is passed into `useScrollToAvoidBottomBarsAndMobileKeyboard()`.
+     * Get the position of content we want to anchor when the keyboard opens on mobile.
+     * This is passed into `useScrollToAvoidBottomBarsAndMobileKeyboard()`.
      */
     getAnchorPosition?: Memo<
         (oldVisibleRect: {
@@ -370,9 +374,9 @@ export type TaskGridViewVirtualizedListProps = {
     >;
 
     /**
-     * If this grid view is one of many in a list of grid view sections (for
-     * example, `<TaskPersonalView>`) then set this to the
-     * `TaskGridViewVirtualizedListResult` of the previous grid view.
+     * If this grid view is one of many in a list of grid view sections (for example,
+     * `<TaskPersonalView>`) then set this to the `TaskGridViewVirtualizedListResult`
+     * of the previous grid view.
      */
     previousGridView?: {
         focusLastTaskTitleStart: () => void;
@@ -383,9 +387,9 @@ export type TaskGridViewVirtualizedListProps = {
     };
 
     /**
-     * If this grid view is one of many in a list of grid view sections (for
-     * example, `<TaskPersonalView>`) then set this to the
-     * `TaskGridViewVirtualizedListResult` of the next grid view.
+     * If this grid view is one of many in a list of grid view sections (for example,
+     * `<TaskPersonalView>`) then set this to the `TaskGridViewVirtualizedListResult`
+     * of the next grid view.
      */
     nextGridView?: {
         focusFirstTaskTitleStart: () => void;
@@ -394,10 +398,10 @@ export type TaskGridViewVirtualizedListProps = {
     };
 
     /**
-     * Animations from previous grid views. This is separate from
-     * `previousGridView` since if a grid view is hidden the caller may set
-     * `previousGridView` to undefined (or a different grid view) which would mean
-     * we lose the animations from the newly hidden grid view.
+     * Animations from previous grid views. This is separate from `previousGridView`
+     * since if a grid view is hidden the caller may set `previousGridView` to
+     * undefined (or a different grid view) which would mean we lose the animations
+     * from the newly hidden grid view.
      *
      * It's expected that the caller keep accumulating all previous grid view
      * animations (including from hidden grid views) and pass it into this array.
@@ -405,11 +409,11 @@ export type TaskGridViewVirtualizedListProps = {
     previousGridViewAnimations?: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
 
     /**
-     * By default, we implicitly load more tasks when approaching the end of the
-     * grid view. However, for some UIs it's a better experience to explicitly load
-     * more tasks explicitly by pressing a button. Namely, `<TaskDetailView>` where
-     * we render comments beneath the task. So scrolling through thousands of
-     * subtasks to see the comment section is pretty inconvenient.
+     * By default, we implicitly load more tasks when approaching the end of the grid
+     * view. However, for some UIs it's a better experience to explicitly load more
+     * tasks explicitly by pressing a button. Namely, `<TaskDetailView>` where we
+     * render comments beneath the task. So scrolling through thousands of subtasks to
+     * see the comment section is pretty inconvenient.
      */
     explicitLoadMoreButton?: Memo<{
         totalTaskCount: number;
@@ -419,8 +423,8 @@ export type TaskGridViewVirtualizedListProps = {
 
 export type TaskGridViewVirtualizedListResult = {
     /**
-     * Key that resets our virtualized scroll view's internal state. Should be
-     * passed to `<VirtualizedScrollView>`.
+     * Key that resets our virtualized scroll view's internal state. Should be passed
+     * to `<VirtualizedScrollView>`.
      */
     stateKey: Key | undefined;
 
@@ -455,8 +459,8 @@ export type TaskGridViewVirtualizedListResult = {
     ) => void;
 
     /**
-     * Item indexes to always render regardless of the rendered range. Should be
-     * passed to `<VirtualizedScrollView>`.
+     * Item indexes to always render regardless of the rendered range. Should be passed
+     * to `<VirtualizedScrollView>`.
      */
     alwaysRenderAdditionalItemIndexes: Memo<ReadonlyArray<number>>;
 
@@ -467,14 +471,14 @@ export type TaskGridViewVirtualizedListResult = {
     scrollbarInsetTopItemIndex: number | undefined;
 
     /**
-     * Modals opened during operation of the grid view (e.g. remainingWidth confirmation
-     * modal). Should be rendered unconditionally alongside the grid view.
+     * Modals opened during operation of the grid view (e.g. remainingWidth
+     * confirmation modal). Should be rendered unconditionally alongside the grid view.
      */
     modals: ReactNode;
 
     /**
-     * Handler to be called on global keyboard event. Handles undo (cmd-z) among
-     * other shortcuts. Should be passed to a `<GlobalKeyDownEvent>` around the
+     * Handler to be called on global keyboard event. Handles undo (cmd-z) among other
+     * shortcuts. Should be passed to a `<GlobalKeyDownEvent>` around the
      * `<VirtualizedScrollView>`.
      */
     onGlobalKeyDown: (event: KeyboardEvent) => void;
@@ -492,44 +496,44 @@ export type TaskGridViewVirtualizedListResult = {
     /**
      * (Optional) Focuses the start of the last task title in the grid view.
      */
-    focusLastTaskTitleStart: () => void;
+    focusLastTaskTitleStart: Memo<() => void>;
 
     /**
      * (Optional) Focuses the end of the last task title in the grid view.
      */
-    focusLastTaskTitleEnd: () => void;
+    focusLastTaskTitleEnd: Memo<() => void>;
 
     /**
      * (Optional) Focuses all the text in the last task title in the grid view.
      */
-    focusLastTaskTitleAll: () => void;
+    focusLastTaskTitleAll: Memo<() => void>;
 
     /**
-     * (Optional) Focuses an X coordinate position in the last task title in the
-     * grid view.
+     * (Optional) Focuses an X coordinate position in the last task title in the grid
+     * view.
      */
-    focusLastTaskTitleCoord: (coord: number) => void;
+    focusLastTaskTitleCoord: Memo<(coord: number) => void>;
 
     /**
      * (Optional) Focuses a column in the last task title in the grid view.
      */
-    focusLastTaskCell: (column: TaskGridViewColumn) => void;
+    focusLastTaskCell: Memo<(column: TaskGridViewColumn) => void>;
 
     /**
      * (Optional) Focuses the start of the first task title in the grid view.
      */
-    focusFirstTaskTitleStart: () => void;
+    focusFirstTaskTitleStart: Memo<() => void>;
 
     /**
-     * (Optional) Focuses an X coordinate position in the first task title in the
-     * grid view.
+     * (Optional) Focuses an X coordinate position in the first task title in the grid
+     * view.
      */
-    focusFirstTaskTitleCoord: (coord: number) => void;
+    focusFirstTaskTitleCoord: Memo<(coord: number) => void>;
 
     /**
      * (Optional) Focuses a column in the first task title in the grid view.
      */
-    focusFirstTaskCell: (column: TaskGridViewColumn) => void;
+    focusFirstTaskCell: Memo<(column: TaskGridViewColumn) => void>;
 
     /**
      * (Optional) Add an entry to the grid view's undo stack.
@@ -573,24 +577,24 @@ export type TaskGridViewVirtualizedListResult = {
     state: TaskGridViewVirtualizedListState;
 
     /**
-     * (Optional) the number of `<TaskRowView>` items. Excludes ghost rows, load
-     * more indicators, and column headers. Same as `state.getItemCount()`.
+     * (Optional) the number of `<TaskRowView>` items. Excludes ghost rows, load more
+     * indicators, and column headers. Same as `state.getItemCount()`.
      */
     stateItemCount: number;
 
     /**
-     * (Optional) The animations we're currently running directly on this grid
-     * view. Generated by diffing the current `state` with the previous `state`.
-     * Does not include any animations we're inheriting from `previousGridView`.
+     * (Optional) The animations we're currently running directly on this grid view.
+     * Generated by diffing the current `state` with the previous `state`. Does not
+     * include any animations we're inheriting from `previousGridView`.
      */
     animations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
 };
 
 /**
  * Encapsulates the ability to render a virtualized list of tasks. You are
- * responsible for using ALL of the returned props in a
- * `<VirtualizedScrollView>` component. If you don't use one of the props in
- * the documented way your grid view may be broken.
+ * responsible for using ALL of the returned props in a `<VirtualizedScrollView>`
+ * component. If you don't use one of the props in the documented way your grid
+ * view may be broken.
  */
 export function useTaskGridViewVirtualizedList(
     props: TaskGridViewVirtualizedListProps,
@@ -622,8 +626,8 @@ export function useTaskGridViewVirtualizedList(
 
     const rootQuery = props.query?.query ?? null;
 
-    // By default, we generate a different state key whenever the root query
-    // changes. However, the caller may override the state key with a prop.
+    // By default, we generate a different state key whenever the root query changes.
+    // However, the caller may override the state key with a prop.
     const stateKey =
         props.stateKey ??
         (rootQuery
@@ -641,9 +645,9 @@ export function useTaskGridViewVirtualizedList(
         popUndoStackEntry,
         popRedoStackEntry,
     } = useTaskUndoStackState({
-        // Whenever the query changes we reset our undo stack. If the query changes
-        // it's unlikely we'll find the tasks the user was previously operating on so
-        // we can't scroll to them.
+        // Whenever the query changes we reset our undo stack. If the query changes it's
+        // unlikely we'll find the tasks the user was previously operating on so we can't
+        // scroll to them.
         stateKey,
     });
 
@@ -762,18 +766,18 @@ export function useTaskGridViewVirtualizedList(
 }
 
 /**
- * Sets up `useScrollToAvoidBottomBarsAndMobileKeyboard()` for the task grid
- * view. Task grid views have some custom anchor positioning logic to make sure
- * priority inputs or calendar date inputs are visible when the user clicks on
- * them and opens the keyboard.
+ * Sets up `useScrollToAvoidBottomBarsAndMobileKeyboard()` for the task grid view.
+ * Task grid views have some custom anchor positioning logic to make sure priority
+ * inputs or calendar date inputs are visible when the user clicks on them and
+ * opens the keyboard.
  *
- * Also returns a function, `scrollToAnchorPosition`, which scrolls to the
- * current anchor position.
+ * Also returns a function, `scrollToAnchorPosition`, which scrolls to the current
+ * anchor position.
  *
- * If you're using `useTaskGridViewVirtualizedListBase()` multiple times to
- * render multiple grid views on one page then you'll also want to use this
- * hook once to make sure scroll position is managed properly on mobile in the
- * face of the keyboard opening/closing.
+ * If you're using `useTaskGridViewVirtualizedListBase()` multiple times to render
+ * multiple grid views on one page then you'll also want to use this hook once to
+ * make sure scroll position is managed properly on mobile in the face of the
+ * keyboard opening/closing.
  */
 export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard(
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>,
@@ -805,11 +809,11 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
                 return null;
             }
 
-            // `<TaskDateInput>` and `<TaskCollectionsInput>` handle their own scrolling
-            // when focused since they need to make sure their overlays are visible on
-            // screen even when the keyboard is already open. So don't adjust to avoid the
-            // keyboard if we're focusing one of those components. See those components for
-            // their custom scroll to avoid keyboard implementation.
+            // `<TaskDateInput>` and `<TaskCollectionsInput>` handle their own scrolling when
+            // focused since they need to make sure their overlays are visible on screen even
+            // when the keyboard is already open. So don't adjust to avoid the keyboard if
+            // we're focusing one of those components. See those components for their custom
+            // scroll to avoid keyboard implementation.
             if (
                 activeElement.classList.contains(tasksStyles.dateInputTextSegmentClassName) ||
                 activeElement.classList.contains(tasksStyles.collectionsInputAddInputClassName)
@@ -819,9 +823,9 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
 
             const activeRect = activeElement.getBoundingClientRect();
 
-            // If we focused on a listbox, scroll to make sure the element the listbox
-            // controls is visible. For example, the collections combobox opened by the
-            // collection filter (`<TaskQueryCollectionsFilterOperationEditor>`).
+            // If we focused on a listbox, scroll to make sure the element the listbox controls
+            // is visible. For example, the collections combobox opened by the collection
+            // filter (`<TaskQueryCollectionsFilterOperationEditor>`).
             const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
             if (ariaControlsAttribute) {
                 const ariaControls = ariaControlsAttribute.split(" ")[0]!;
@@ -842,15 +846,14 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
                 if (controlsElement) {
                     const controlsRect = controlsElement.getBoundingClientRect();
 
-                    // For our anchor position, if there's an open control treat the control as
-                    // having a minimum height equal to `<TaskDateInputCalendar>`. This way in dense
-                    // fields on mobile if we open a priority or assignee input then a calendar
-                    // input, we'll have scrolled to preserve enough onscreen space for the calendar
-                    // should it open next.
+                    // For our anchor position, if there's an open control treat the control as having
+                    // a minimum height equal to `<TaskDateInputCalendar>`. This way in dense fields on
+                    // mobile if we open a priority or assignee input then a calendar input, we'll have
+                    // scrolled to preserve enough onscreen space for the calendar should it open next.
                     const calendarHeightPx = convertRemLengthToPx(
                         platform === "mobile"
-                            ? taskDateInputCalendarMobileHeight
-                            : taskDateInputCalendarDesktopHeight,
+                            ? dateInputCalendarWithFooterMobileHeight
+                            : dateInputCalendarWithFooterDesktopHeight,
                         getSpacingScaleWithoutListening(),
                     );
 
@@ -872,9 +875,9 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
                 }
             }
 
-            // If this is a multiline `<TaskRowTitleInput>` and the user taps on some text
-            // near the end of the title input then we want to scroll to the user's
-            // selection. Not the full element's container.
+            // If this is a multiline `<TaskRowTitleInput>` and the user taps on some text near
+            // the end of the title input then we want to scroll to the user's selection. Not
+            // the full element's container.
             if (activeElement instanceof HTMLElement && activeElement.contentEditable === "true") {
                 const selectionRect = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
 
@@ -889,8 +892,8 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
         [getAnchorPositionFromProps, platform, viewRef],
     );
 
-    // When the keyboard opens, make sure we scroll so that whatever's focused
-    // stays in view. (e.g. The text title input.)
+    // When the keyboard opens, make sure we scroll so that whatever's focused stays in
+    // view. (e.g. The text title input.)
     const {getVisibleRect} = useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         getAnchorPosition,
     });
@@ -922,14 +925,14 @@ export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKe
 
 /**
  * Encapsulates the ability to render a virtualized list of tasks. You are
- * responsible for using ALL of the returned props in a
- * `<VirtualizedScrollView>` component. If you don't use one of the props in
- * the documented way your grid view may be broken.
+ * responsible for using ALL of the returned props in a `<VirtualizedScrollView>`
+ * component. If you don't use one of the props in the documented way your grid
+ * view may be broken.
  *
- * Same as `useTaskGridViewVirtualizedList()` but missing some features that
- * makes it possible to have multiple grid views in the same
- * `<VirtualizedScrollView>`. For example, this function doesn't maintain undo
- * state itself so you can have one undo stack across multiple grid views.
+ * Same as `useTaskGridViewVirtualizedList()` but missing some features that makes
+ * it possible to have multiple grid views in the same `<VirtualizedScrollView>`.
+ * For example, this function doesn't maintain undo state itself so you can have
+ * one undo stack across multiple grid views.
  */
 export function useTaskGridViewVirtualizedListBase({
     capabilities,
@@ -937,19 +940,19 @@ export function useTaskGridViewVirtualizedListBase({
     store,
     query: rootQueryWithInitialState,
     affinityManager,
-    getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
+    getMoveTasksToQueryActions: getMoveTasksToRootQueryActions,
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     commitActionTransaction: commitActionTransactionFromProps,
     structuralItemKeyPrefix = "",
     withoutColumnHeader = false,
     withoutBorderTopIfFirstRow = false,
     columnHeaderControls,
+    columnHeaderTitleFieldLabel,
     rowMaxWidth = null,
     withoutBottomGhostTask = false,
-    withoutDecorativeGhostRows = false,
     withoutBottomGhostTaskIfEmpty = false,
-    withoutDecorativeGhostRowsIfEmpty = false,
     withBottomGhostTaskIfNullQuery = false,
+    decorativeGhostRows = "Background",
     onApplyUndoStackEntry,
     stateKey: stateKeyFromProps,
     isDragging,
@@ -993,8 +996,8 @@ export function useTaskGridViewVirtualizedListBase({
 
     const hasNextGridView = !!nextGridView;
 
-    // If our grid view has columns then preload task collections so we don't show
-    // a loading spinner when selecting the task collection cell.
+    // If our grid view has columns then preload task collections so we don't show a
+    // loading spinner when selecting the task collection cell.
     usePreloadSearchTaskCollectionsByAffinity({isDisabled: !capabilities.hasColumns});
 
     const mobileKeyboardToolbarPortalRef = useRef<HTMLDivElement>(null);
@@ -1007,8 +1010,8 @@ export function useTaskGridViewVirtualizedListBase({
             if (!initialAppRenderId) return generateId<TaskId>();
 
             // If this is the initial app render, generate a stable `Id` that's consistent
-            // across the client and server. We need the `reactId` as well to disambiguate
-            // in case multiple grid views were rendered (could happen if we server peeks
+            // across the client and server. We need the `reactId` as well to disambiguate in
+            // case multiple grid views were rendered (could happen if we server peeks
             // someday).
             const stableRandom = new StableRandom(
                 `TaskGridViewVirtualizedList-${initialAppRenderId}`,
@@ -1031,15 +1034,14 @@ export function useTaskGridViewVirtualizedListBase({
     const rootQuery = rootQueryWithInitialState?.query ?? null;
 
     // Whenever our `activeQuery` changes we reset the `<VirtualizedScrollView>`'s
-    // internal state (which also scrolls the view to the top). We do this
-    // instead of:
+    // internal state (which also scrolls the view to the top). We do this instead of:
     //
     // - Using a React `key` because that would remount all components which is
     //   expensive and some components will be shared (e.g. the column header)
     // - Calling `viewRef.current.setScrollOffset(0)` because there will be an
-    //   intermediate render where `<VirtualizedScrollView>` renders the new query
-    //   at the old scroll offset (potentially causing unnecessary data to load
-    //   because we're rendering the "load more" item)
+    //   intermediate render where `<VirtualizedScrollView>` renders the new query at
+    //   the old scroll offset (potentially causing unnecessary data to load because
+    //   we're rendering the "load more" item)
     //
     // This must be passed into `<VirtualizedScrollView>`'s `stateKey` prop.
     const stateKey =
@@ -1055,17 +1057,16 @@ export function useTaskGridViewVirtualizedListBase({
     const isRootQueryNull = rootQuery === null;
     const isRootQueryManuallySorted = !isRootQueryNull
         ? isTaskQueryManuallySorted(rootQuery.sorts)
-        : // We treat the grid view as manually sorted if
-          // `withBottomGhostTaskIfNullQuery` is true. Since ghost rows only appear in
-          // manually sorted queries.
+        : // We treat the grid view as manually sorted if `withBottomGhostTaskIfNullQuery` is
+          // true. Since ghost rows only appear in manually sorted queries.
           !!withBottomGhostTaskIfNullQuery;
 
     // Consider a null `rootQuery` as a fully loaded empty query.
     const loadedState = useStore(rootQuery?.loadedStateStore ?? null) ?? "FullyLoaded";
 
     // This is not a hard limit on task nesting. Rather a limit on how much nesting
-    // we'll render in the grid view. Since too much nesting won't provide enough
-    // space for the title text.
+    // we'll render in the grid view. Since too much nesting won't provide enough space
+    // for the title text.
     //
     // It's purely a client-side limitation.
     const maxGridExpandableTaskDepth = platform === "mobile" ? 2 : 4;
@@ -1109,26 +1110,71 @@ export function useTaskGridViewVirtualizedListBase({
         (capabilities.hasColumns && !withoutColumnHeader) || !!columnHeaderControls;
     const itemCountBeforeState = hasColumnHeader ? 1 : 0;
 
+    let decorativeGhostRowMinItemCount: number;
+    let hasDecorativeGhostRowBackground: boolean;
+
+    switch (decorativeGhostRows) {
+        case "Background": {
+            if (hasNextGridView) {
+                decorativeGhostRowMinItemCount = 0;
+                hasDecorativeGhostRowBackground = false;
+            } else {
+                decorativeGhostRowMinItemCount = 1;
+                hasDecorativeGhostRowBackground = true;
+            }
+            break;
+        }
+        case "BackgroundIfNotEmpty": {
+            if (hasNextGridView) {
+                decorativeGhostRowMinItemCount = 0;
+                hasDecorativeGhostRowBackground = false;
+            } else if (stateItemCount === 0) {
+                decorativeGhostRowMinItemCount = 0;
+                hasDecorativeGhostRowBackground = false;
+            } else {
+                decorativeGhostRowMinItemCount = 1;
+                hasDecorativeGhostRowBackground = true;
+            }
+            break;
+        }
+        case "Some": {
+            decorativeGhostRowMinItemCount = 3;
+            hasDecorativeGhostRowBackground = false;
+            break;
+        }
+        case "BackgroundOrSomeIfEmpty": {
+            if (hasNextGridView) {
+                decorativeGhostRowMinItemCount = 0;
+                hasDecorativeGhostRowBackground = false;
+            } else if (stateItemCount === 0) {
+                decorativeGhostRowMinItemCount = 3;
+                hasDecorativeGhostRowBackground = false;
+            } else {
+                decorativeGhostRowMinItemCount = 1;
+                hasDecorativeGhostRowBackground = true;
+            }
+            break;
+        }
+        default:
+            throw exhaustive(decorativeGhostRows);
+    }
+
     const itemCount =
         itemCountBeforeState +
         (loadedState !== "FullyLoaded"
             ? stateItemCount + 1
             : Math.max(
                   stateItemCount + (hasBottomGhostTask ? 1 : 0),
-                  withoutDecorativeGhostRows ||
-                      (withoutDecorativeGhostRowsIfEmpty && stateItemCount === 0)
-                      ? 0
-                      : 3,
+                  decorativeGhostRowMinItemCount,
               ));
 
     const taskRowByGridKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
 
-    // Get the index of the task we're currently dragging. We want to always render
-    // the task we're dragging so touch events aren't cancelled when the task
-    // unmounts.
+    // Get the index of the task we're currently dragging. We want to always render the
+    // task we're dragging so touch events aren't cancelled when the task unmounts.
     //
-    // If the task's cursor (or parent cursors) change while we're dragging it then
-    // we consider it acceptable to cancel the drag.
+    // If the task's cursor (or parent cursors) change while we're dragging it then we
+    // consider it acceptable to cancel the drag.
     const draggingIndex = useMemo(() => {
         if (!draggingData) return null;
         const index = state.getIndexByCursorAndParentsIfExists(draggingData);
@@ -1177,29 +1223,27 @@ export function useTaskGridViewVirtualizedListBase({
             });
 
             // If we can't find the task in the grid view anymore then we won't undo these
-            // actions because the user won't see the result. Unless the actions we're
-            // undoing removed the task from our query. If that happened we know for sure
-            // we won't find the task in our grid view. Undoing should bring the task back
-            // to our grid view.
+            // actions because the user won't see the result. Unless the actions we're undoing
+            // removed the task from our query. If that happened we know for sure we won't find
+            // the task in our grid view. Undoing should bring the task back to our grid view.
             //
             // Reasons why the task might no longer be in the grid view:
             //
-            // - Some other user changed a field such that it was filtered out of the
-            //   grid view.
-            // - Some other user changed a field (or dragged to move the task) such that
-            //   the task left our client's loaded range.
+            // - Some other user changed a field such that it was filtered out of the grid
+            //   view.
+            // - Some other user changed a field (or dragged to move the task) such that the
+            //   task left our client's loaded range.
             // - The user collapsed the expanded task this task was a child of.
             //
             // However we should still be able to find the task if:
             //
-            // - The user scrolled the virtualized list and the task was unmounted. The
-            //   task should still exist in our state so we can scroll back to the right
-            //   index.
-            // - The user loaded some new tasks. This introduces new tasks and does not
-            //   remove old ones.
+            // - The user scrolled the virtualized list and the task was unmounted. The task
+            //   should still exist in our state so we can scroll back to the right index.
+            // - The user loaded some new tasks. This introduces new tasks and does not remove
+            //   old ones.
             //
-            // We feel this is a reasonable set of tradeoffs for picking which undo actions
-            // we handle.
+            // We feel this is a reasonable set of tradeoffs for picking which undo actions we
+            // handle.
             if (
                 !(entry.type === "Actions" && entry.removedFromQueries.has(rootQuery)) &&
                 startIndex === null
@@ -1229,8 +1273,8 @@ export function useTaskGridViewVirtualizedListBase({
             }
 
             const endIndex = findTaskIndexInGridViewVirtualizedListIfExists({
-                // `stateStore` will have updated after the commit above but `state` will still
-                // be the old value.
+                // `stateStore` will have updated after the commit above but `state` will still be
+                // the old value.
                 state: stateStore.getSnapshot(),
                 iterateRootExpandedTaskIds,
                 rootParentTaskId: entry.rootParentTaskId,
@@ -1240,13 +1284,13 @@ export function useTaskGridViewVirtualizedListBase({
             const focusCell = (index: number) => {
                 const startTime = Date.now();
 
-                // If the row is currently onscreen, great! We can focus immediately. However,
-                // we may be scrolling to the row. We've found the most consistent way to focus
-                // the row is to wait in a `requestAnimationFrame()` loop for the row to
-                // appear. Checking after `onRenderedRangeLayoutChange` doesn't always work
-                // since we've observed intermediate rendered range changes? This does depend
-                // on the scroll render taking less than 1s. If it takes more than 1s we have
-                // bigger problems. (Grid view rendering performance is unacceptably bad.)
+                // If the row is currently onscreen, great! We can focus immediately. However, we
+                // may be scrolling to the row. We've found the most consistent way to focus the
+                // row is to wait in a `requestAnimationFrame()` loop for the row to appear.
+                // Checking after `onRenderedRangeLayoutChange` doesn't always work since we've
+                // observed intermediate rendered range changes? This does depend on the scroll
+                // render taking less than 1s. If it takes more than 1s we have bigger problems.
+                // (Grid view rendering performance is unacceptably bad.)
                 const attempt = () => {
                     if (Date.now() - startTime > 1000) return;
 
@@ -1268,8 +1312,8 @@ export function useTaskGridViewVirtualizedListBase({
             if (startIndex === null) {
                 if (endIndex === null) {
                     // TODO(calebmer): We should probably show a toast or something here to let the
-                    // user know something happened even if nothing on screen changed. A simple
-                    // modal along the lines of "undo successful" is good.
+                    // user know something happened even if nothing on screen changed. A simple modal
+                    // along the lines of "undo successful" is good.
                 } else {
                     onLayoutEffectCallbacksRef.current.push(() => {
                         const index = endIndex + itemCountBeforeState;
@@ -1278,15 +1322,15 @@ export function useTaskGridViewVirtualizedListBase({
                     });
                 }
             }
-            // If the task didn't move, scroll to it immediately. Otherwise wait for React
-            // to re-render, then scroll. Since we want to the virtualized list won't know
-            // our target task is at `endIndex` until after the React re-render.
+            // If the task didn't move, scroll to it immediately. Otherwise wait for React to
+            // re-render, then scroll. Since we want to the virtualized list won't know our
+            // target task is at `endIndex` until after the React re-render.
             //
             // If we can't find the task after the update we scroll to the task's original
-            // position in the hope that's helpful to the user. We don't expect `endIndex`
-            // to be null outside of extreme edge cases! In order for the action's we're
-            // undoing to be applied in the first place the task had to have been in the
-            // query's loaded range. A query's loaded range never shrinks, it only grows.
+            // position in the hope that's helpful to the user. We don't expect `endIndex` to
+            // be null outside of extreme edge cases! In order for the action's we're undoing
+            // to be applied in the first place the task had to have been in the query's loaded
+            // range. A query's loaded range never shrinks, it only grows.
             else if (endIndex === null || startIndex === endIndex) {
                 const index = startIndex + itemCountBeforeState;
                 view.scrollToIndex(index, {withAnchor: false});
@@ -1315,8 +1359,8 @@ export function useTaskGridViewVirtualizedListBase({
         const clearLastArrowNavigationCoord = () => {
             if (
                 lastArrowNavigationCoordRef.current &&
-                // If we just set this ref, don't clear it. We're processing browser events
-                // that happened because of the arrow navigation.
+                // If we just set this ref, don't clear it. We're processing browser events that
+                // happened because of the arrow navigation.
                 new Date().getTime() - lastArrowNavigationCoordRef.current.setTime.getTime() > 100
             ) {
                 lastArrowNavigationCoordRef.current = null;
@@ -1351,12 +1395,12 @@ export function useTaskGridViewVirtualizedListBase({
                 const item = stateStore.getSnapshot().getItem(i - itemCountBeforeState);
 
                 if (item.type === "Task" && item.parents.length === 0) {
-                    // NOTE(calebmer): It's important that we set this style on the virtualized
-                    // view's `contentElement` and not the `viewElement`! This is because
-                    // `useScrollbar()` listens for mutations on scrollable elements and will
-                    // measure the height to see if the scrollbar needs to be adjusted. Measuring
-                    // height triggers a browser layout. Browser layouts are expensive so we avoid
-                    // triggering a browser layout by updating the content element instead.
+                    // NOTE(calebmer): It's important that we set this style on the virtualized view's
+                    // `contentElement` and not the `viewElement`! This is because `useScrollbar()`
+                    // listens for mutations on scrollable elements and will measure the height to see
+                    // if the scrollbar needs to be adjusted. Measuring height triggers a browser
+                    // layout. Browser layouts are expensive so we avoid triggering a browser layout by
+                    // updating the content element instead.
                     assertExists(viewRef.current).getContentElement().style.counterReset = `${
                         tasksStyles.rowNumberCounterName
                     } ${item.query.getLoadedTaskIndex(item.cursor)}`;
@@ -1367,8 +1411,8 @@ export function useTaskGridViewVirtualizedListBase({
         },
     );
 
-    // Whenever our list changes, update the row counter number. Maybe some data
-    // was added above our rendered range?
+    // Whenever our list changes, update the row counter number. Maybe some data was
+    // added above our rendered range?
     useLayoutEffectWithoutServerSideWarning(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         state;
@@ -1389,8 +1433,8 @@ export function useTaskGridViewVirtualizedListBase({
             if (!rootQuery) return;
 
             batchStoreUpdates(() => {
-                // If we are rendering the `MoreUnloadedTasks` item then load more tasks into
-                // our query.
+                // If we are rendering the `MoreUnloadedTasks` item then load more tasks into our
+                // query.
                 //
                 // Unless we have `explicitLoadMoreButton`. Then loading more tasks is explicit
                 // based on a button press. Not implicit based on scrolling.
@@ -1405,8 +1449,8 @@ export function useTaskGridViewVirtualizedListBase({
                     }
                 }
 
-                // Load more tasks for any tasks that are rendering `UnloadedChildTask`
-                // child items.
+                // Load more tasks for any tasks that are rendering `UnloadedChildTask` child
+                // items.
                 const parentTaskIdsToLoad = new Set<TaskId>();
 
                 for (
@@ -1474,8 +1518,8 @@ export function useTaskGridViewVirtualizedListBase({
         },
     );
 
-    // Whenever our list changes, try rendering more data. Maybe a task was
-    // expanded and we haven't loaded the children of that task?
+    // Whenever our list changes, try rendering more data. Maybe a task was expanded
+    // and we haven't loaded the children of that task?
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         state;
@@ -1489,7 +1533,7 @@ export function useTaskGridViewVirtualizedListBase({
     \* ========================================================================== */
 
     const events: TaskGridViewVirtualizedListEvents = useEvents({
-        getMoveTaskToRootQueryActions,
+        getMoveTasksToRootQueryActions,
         getMaybeRemoveTaskFromRootQueryActions,
         pushUndoStackEntry: pushUndoStackEntryFromProps,
         scrollToAnchorPosition: scrollToAnchorPositionFromProps,
@@ -1712,8 +1756,8 @@ export function useTaskGridViewVirtualizedListBase({
             const firstVisibleTaskRow = events.getFirstVisibleTaskRowIfExists();
             if (!firstVisibleTaskRow) return;
 
-            // If the first visible task title is already focused then we want to scroll
-            // one page up and focus the first task after scrolling.
+            // If the first visible task title is already focused then we want to scroll one
+            // page up and focus the first task after scrolling.
             if (firstVisibleTaskRow.isFocusWithin()) {
                 let firstTaskRow: TaskRowViewRef | null = null;
                 for (let index = 0; index < itemCount; index++) {
@@ -1743,8 +1787,8 @@ export function useTaskGridViewVirtualizedListBase({
             const firstVisibleTaskRow = events.getFirstVisibleTaskRowIfExists();
             if (!firstVisibleTaskRow) return;
 
-            // If the first visible task title is already focused then we want to scroll
-            // one page up and focus the first task after scrolling.
+            // If the first visible task title is already focused then we want to scroll one
+            // page up and focus the first task after scrolling.
             if (firstVisibleTaskRow.isFocusWithin()) {
                 let firstTaskRow: TaskRowViewRef | null = null;
                 for (let index = 0; index < itemCount; index++) {
@@ -1900,8 +1944,8 @@ export function useTaskGridViewVirtualizedListBase({
             const lastVisibleTaskRow = events.getLastVisibleTaskRowIfExists();
             if (!lastVisibleTaskRow) return;
 
-            // If the last visible task title is already focused then we want to scroll
-            // one page down and focus the last task after scrolling.
+            // If the last visible task title is already focused then we want to scroll one
+            // page down and focus the last task after scrolling.
             if (lastVisibleTaskRow.isFocusWithin()) {
                 let lastTaskRow: TaskRowViewRef | null = null;
                 for (let index = itemCount - 1; index >= 0; index--) {
@@ -1931,8 +1975,8 @@ export function useTaskGridViewVirtualizedListBase({
             const lastVisibleTaskRow = events.getLastVisibleTaskRowIfExists();
             if (!lastVisibleTaskRow) return;
 
-            // If the last visible task title is already focused then we want to scroll
-            // one page down and focus the last task after scrolling.
+            // If the last visible task title is already focused then we want to scroll one
+            // page down and focus the last task after scrolling.
             if (lastVisibleTaskRow.isFocusWithin()) {
                 let lastTaskRow: TaskRowViewRef | null = null;
                 for (let index = itemCount - 1; index >= 0; index--) {
@@ -2192,8 +2236,8 @@ export function useTaskGridViewVirtualizedListBase({
 
             zIndexes.push(newZIndex);
 
-            // If there are multiple `setTaskRowZIndex()` calls on this element at once,
-            // the lowest `z-index` wins.
+            // If there are multiple `setTaskRowZIndex()` calls on this element at once, the
+            // lowest `z-index` wins.
             const setZIndex = () => {
                 const actualZIndex = zIndexes.length !== 0 ? Math.min(...zIndexes) : null;
 
@@ -2356,8 +2400,8 @@ export function useTaskGridViewVirtualizedListBase({
 
             let movements: LinkedList<Movement> = null;
 
-            // Total up the distance this task needs to move from all ongoing animations.
-            // The row may be affected by multiple animations at once.
+            // Total up the distance this task needs to move from all ongoing animations. The
+            // row may be affected by multiple animations at once.
             const addAnimationMovement = (
                 isPreviousGridView: boolean,
                 animation: TaskGridViewVirtualizedListAnimation,
@@ -2399,8 +2443,8 @@ export function useTaskGridViewVirtualizedListBase({
                         const distance =
                             animation.kind === "Unknown"
                                 ? -convertRemLengthToPx(animation.height, spacingScale)
-                                : // TODO(calebmer): Ideally we'd get access to the new item's actual
-                                  // height since the height is not a constant in task detail view.
+                                : // TODO(calebmer): Ideally we'd get access to the new item's actual height since
+                                  // the height is not a constant in task detail view.
                                   -(
                                       (1 + animation.newChildrenCount) *
                                       convertRemLengthToPx(taskRowViewMinHeight, spacingScale)
@@ -2415,8 +2459,8 @@ export function useTaskGridViewVirtualizedListBase({
                         });
                         break;
                     }
-                    // TODO(calebmer): Ideally we keep rendering the old task as we slide tasks
-                    // below on top of it. Instead of immediately un-rendering the task.
+                    // TODO(calebmer): Ideally we keep rendering the old task as we slide tasks below
+                    // on top of it. Instead of immediately un-rendering the task.
                     case "Delete": {
                         const isAfterOldItem =
                             isPreviousGridView ||
@@ -2438,8 +2482,8 @@ export function useTaskGridViewVirtualizedListBase({
                         const distance =
                             animation.kind === "Unknown"
                                 ? convertRemLengthToPx(animation.height, spacingScale)
-                                : // TODO(calebmer): Ideally we'd get access to the new item's actual
-                                  // height since the height is not a constant in task detail view.
+                                : // TODO(calebmer): Ideally we'd get access to the new item's actual height since
+                                  // the height is not a constant in task detail view.
                                   (1 + animation.oldChildrenCount) *
                                   convertRemLengthToPx(taskRowViewMinHeight, spacingScale);
 
@@ -2458,8 +2502,8 @@ export function useTaskGridViewVirtualizedListBase({
                     // like the wrong task is moving. Ideally we'd animate the task from its old
                     // position to the new position on top of the sliding tasks underneath.
                     //
-                    // For large moves (5+ tasks in between) what we currently have may be the
-                    // better animation since the moving task would have to fly at insane speeds.
+                    // For large moves (5+ tasks in between) what we currently have may be the better
+                    // animation since the moving task would have to fly at insane speeds.
                     case "Move": {
                         const isAfterOldItem =
                             isPreviousGridView ||
@@ -2502,8 +2546,8 @@ export function useTaskGridViewVirtualizedListBase({
                                 ? !isNewItem &&
                                   isAfterNewItem &&
                                   !isAfterOldItem &&
-                                  // If an item with some children is moving its children move with it. So we
-                                  // don't need to animate the children.
+                                  // If an item with some children is moving its children move with it. So we don't
+                                  // need to animate the children.
                                   !isChildOfNewItem
                                 : !isNewItem && !isAfterNewItem && isAfterOldItem;
 
@@ -2514,8 +2558,8 @@ export function useTaskGridViewVirtualizedListBase({
 
                         if (remainingDuration <= 0) return;
 
-                        // TODO(calebmer): Ideally we'd somehow get access to the old item's actual
-                        // height since the height is not a constant in task detail view.
+                        // TODO(calebmer): Ideally we'd somehow get access to the old item's actual height
+                        // since the height is not a constant in task detail view.
                         const distance = convertRemLengthToPx(taskRowViewMinHeight, spacingScale);
 
                         const remainingDistance =
@@ -2559,8 +2603,8 @@ export function useTaskGridViewVirtualizedListBase({
                 {
                     times,
                     duration,
-                    // Since we interrupt this animation and start a new one as our animation
-                    // state changes, linear easing helps the animation appear continuous.
+                    // Since we interrupt this animation and start a new one as our animation state
+                    // changes, linear easing helps the animation appear continuous.
                     //
                     // TODO(calebmer): A non-linear easing may look better here. But we have to take
                     // care to making it non-interruptible which seems challenging. If multiple
@@ -2596,8 +2640,8 @@ export function useTaskGridViewVirtualizedListBase({
         };
     }, [updateAnimations]);
 
-    // Make sure when animating created/moved tasks that the task being
-    // created/moved renders under moving tasks.
+    // Make sure when animating created/moved tasks that the task being created/moved
+    // renders under moving tasks.
     useLayoutEffectWithoutServerSideWarning(() => {
         const unsetZIndexes: Array<() => void> = [];
 
@@ -2668,6 +2712,9 @@ export function useTaskGridViewVirtualizedListBase({
                                     ref={ref}
                                     hasColumns={capabilities.hasColumns}
                                     withoutAssigneeField={capabilities.withoutAssigneeField}
+                                    withoutDueDateField={capabilities.withoutDueDateField}
+                                    withoutCollectionsField={capabilities.withoutCollectionsField}
+                                    titleFieldLabel={columnHeaderTitleFieldLabel}
                                     columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                                     minHeight={minHeight}
                                     offset={offset}
@@ -2718,6 +2765,9 @@ export function useTaskGridViewVirtualizedListBase({
                                     capabilities={capabilities}
                                     rowMaxWidth={rowMaxWidth}
                                     withoutBorderTop={withoutBorderTop}
+                                    hasDecorativeGhostRowBackground={
+                                        hasDecorativeGhostRowBackground
+                                    }
                                     focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                                     focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
                                 />
@@ -2726,8 +2776,8 @@ export function useTaskGridViewVirtualizedListBase({
                     }
                 }
 
-                // No ghost task if `rootQuery` is null, the grid view is read-only, or we're
-                // not manually sorted.
+                // No ghost task if `rootQuery` is null, the grid view is read-only, or we're not
+                // manually sorted.
                 if (hasBottomGhostTask) {
                     if (relativeItemIndex === 0) {
                         const renderItem = (disableExpensiveFeaturesDuringScroll: boolean) => (
@@ -2745,9 +2795,9 @@ export function useTaskGridViewVirtualizedListBase({
                                 ghostTaskId={bottomGhostTaskId}
                                 parents={emptyArray}
                                 rowMaxWidth={rowMaxWidth}
-                                // Don't disable expensive features while auto-scrolling during drag since one
-                                // of the expensive features this flag disables is droppable zones. The user
-                                // still needs to be able to reach droppable zones during a drag auto-scroll.
+                                // Don't disable expensive features while auto-scrolling during drag since one of
+                                // the expensive features this flag disables is droppable zones. The user still
+                                // needs to be able to reach droppable zones during a drag auto-scroll.
                                 disableExpensiveFeaturesDuringScroll={
                                     !isDragging && disableExpensiveFeaturesDuringScroll
                                 }
@@ -2768,13 +2818,14 @@ export function useTaskGridViewVirtualizedListBase({
                                 getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
                                 duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
                                 toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
-                                // If there are no task rows, the padding just makes our ghost row placeholder
-                                // look misaligned. So remove it.
+                                // If there are no task rows, the padding just makes our ghost row placeholder look
+                                // misaligned. So remove it.
                                 withoutPaddingLeft={
                                     !capabilities.hasColumns && stateItemCount === 0
                                 }
                                 withPaddingBottom={itemIndex === itemCount - 1}
                                 hasNextGridView={hasNextGridView}
+                                hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
                                 mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
                             />
                         );
@@ -2811,12 +2862,12 @@ export function useTaskGridViewVirtualizedListBase({
                                 (isRootQueryNull && !withBottomGhostTaskIfNullQuery)
                             }
                             structuralItemKeyPrefix={structuralItemKeyPrefix}
-                            hasColumnHeader={hasColumnHeader}
                             relativeItemIndex={relativeItemIndex}
                             isFirstRow={itemIndex - itemCountBeforeState === 0}
                             withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
                             withPaddingBottom={itemIndex === itemCount - 1}
                             hasNextGridView={hasNextGridView}
+                            hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
                         />
@@ -2844,9 +2895,9 @@ export function useTaskGridViewVirtualizedListBase({
                         cursor={item.cursor}
                         parents={item.parents}
                         rowMaxWidth={rowMaxWidth}
-                        // Don't disable expensive features while auto-scrolling during drag since one
-                        // of the expensive features this flag disables is droppable zones. The user
-                        // still needs to be able to reach droppable zones during a drag auto-scroll.
+                        // Don't disable expensive features while auto-scrolling during drag since one of
+                        // the expensive features this flag disables is droppable zones. The user still
+                        // needs to be able to reach droppable zones during a drag auto-scroll.
                         disableExpensiveFeaturesDuringScroll={
                             !isDragging && disableExpensiveFeaturesDuringScroll
                         }
@@ -2855,8 +2906,8 @@ export function useTaskGridViewVirtualizedListBase({
                         isFirstTaskInQuery={item.isFirstTaskInQuery}
                         nextIndentation={
                             itemIndex + 1 < itemCountBeforeState + stateItemCount
-                                ? // This doesn't mess up the `state.getItem(n + 1)` optimization since
-                                  // repeatedly calling `state.getItem(n)` preserves the internal iterator.
+                                ? // This doesn't mess up the `state.getItem(n + 1)` optimization since repeatedly
+                                  // calling `state.getItem(n)` preserves the internal iterator.
                                   state.getItem(itemIndex - itemCountBeforeState + 1).parents.length
                                 : 0
                         }
@@ -2869,6 +2920,7 @@ export function useTaskGridViewVirtualizedListBase({
                         duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
                         withPaddingBottom={itemIndex === itemCount - 1}
                         hasNextGridView={hasNextGridView}
+                        hasDecorativeGhostRowBackground={hasDecorativeGhostRowBackground}
                         mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
                     />
                 );
@@ -2880,10 +2932,11 @@ export function useTaskGridViewVirtualizedListBase({
                     render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
                         {
                             render: renderItem,
-                            containerStyle: {
-                                // Make sure our rows here increment the row number counter.
-                                counterIncrement: tasksStyles.rowNumberCounterName,
-                            },
+                            containerStyle:
+                                item.parents.length === 0
+                                    ? // Make sure our rows here increment the row number counter.
+                                      {counterIncrement: tasksStyles.rowNumberCounterName}
+                                    : undefined,
                         },
                     ),
                 };
@@ -2923,12 +2976,14 @@ export function useTaskGridViewVirtualizedListBase({
         bottomGhostTaskId,
         capabilities,
         columnHeaderControlsWithMinHeightPx,
+        columnHeaderTitleFieldLabel,
         duplicateTaskAndAllChildren,
         events,
         explicitLoadMoreButton,
         getAreChildTasksExpandedStore,
         hasBottomGhostTask,
         hasColumnHeader,
+        hasDecorativeGhostRowBackground,
         hasNextGridView,
         isDragging,
         isRootQueryManuallySorted,
@@ -2993,11 +3048,11 @@ export function useTaskGridViewVirtualizedListBase({
         modals: (
             <>
                 {!isInitialAppRender && platform === "mobile" && !isInert && (
-                    // The mobile keyboard toolbar is only modal-ish? Maybe we should rename
-                    // this prop.
+                    // The mobile keyboard toolbar is only modal-ish? Maybe we should rename this prop.
                     <TaskGridViewMobileKeyboardToolbarContainer
                         portalRef={mobileKeyboardToolbarPortalRef}
                         withoutAssigneeField={capabilities.withoutAssigneeField}
+                        withoutDueDateField={capabilities.withoutDueDateField}
                     />
                 )}
             </>
@@ -3056,18 +3111,17 @@ type Movement = {
 };
 
 /**
- * Used for animating task movements. When a task moves it moves linearly a
- * certain distance over a certain duration. Then multiple movements may be
- * layered on top of each other. For instance when you close two tasks in rapid
- * succession.
+ * Used for animating task movements. When a task moves it moves linearly a certain
+ * distance over a certain duration. Then multiple movements may be layered on top
+ * of each other. For instance when you close two tasks in rapid succession.
  *
- * If a task is already moving and you need to apply a new movement then that
- * task needs to speed up to reach both its original destination and new
- * destination on time.
+ * If a task is already moving and you need to apply a new movement then that task
+ * needs to speed up to reach both its original destination and new destination on
+ * time.
  *
  * When you call this function, you are adding to the total `distance` the task
- * needs to travel. However the final duration of this animation timeline will
- * be the max of all movement `duration`s.
+ * needs to travel. However the final duration of this animation timeline will be
+ * the max of all movement `duration`s.
  *
  * This function assumes `movement` starts at the same time as `oldMovements`.
  */
@@ -3146,12 +3200,12 @@ function convertMovementsToKeyframes(movements: LinkedList<Movement>) {
 }
 
 /**
- * Used to animate an item that comes after a task grid view. Pass in the
- * previous grid view result, the item index, and make sure to call
+ * Used to animate an item that comes after a task grid view. Pass in the previous
+ * grid view result, the item index, and make sure to call
  * `onRenderedRangeLayoutChange` and the item will be animated for you.
  *
- * Used in `<TaskPersonalView>` for section headers. If the "Due today" grid
- * view is animating then the "Due soon" section header should move.
+ * Used in `<TaskPersonalView>` for section headers. If the "Due today" grid view
+ * is animating then the "Due soon" section header should move.
  */
 export function useTaskGridViewVirtualizedListItemAnimation(
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>,
@@ -3175,8 +3229,8 @@ export function useTaskGridViewVirtualizedListItemAnimation(
 
         let movements: LinkedList<Movement> = null;
 
-        // Total up the distance this task needs to move from all ongoing animations.
-        // The row may be affected by multiple animations at once.
+        // Total up the distance this task needs to move from all ongoing animations. The
+        // row may be affected by multiple animations at once.
         for (const animation of previousGridViewAnimations) {
             switch (animation.type) {
                 case "Create": {
@@ -3188,8 +3242,8 @@ export function useTaskGridViewVirtualizedListItemAnimation(
                     const distance =
                         animation.kind === "Unknown"
                             ? -convertRemLengthToPx(animation.height, spacingScale)
-                            : // TODO(calebmer): Ideally we'd get access to the new item's actual
-                              // height since the height is not a constant in task detail view.
+                            : // TODO(calebmer): Ideally we'd get access to the new item's actual height since
+                              // the height is not a constant in task detail view.
                               -(
                                   (1 + animation.newChildrenCount) *
                                   convertRemLengthToPx(taskRowViewMinHeight, spacingScale)
@@ -3203,8 +3257,8 @@ export function useTaskGridViewVirtualizedListItemAnimation(
                     });
                     break;
                 }
-                // TODO(calebmer): Ideally we keep rendering the old task as we slide tasks
-                // below on top of it. Instead of immediately un-rendering the task.
+                // TODO(calebmer): Ideally we keep rendering the old task as we slide tasks below
+                // on top of it. Instead of immediately un-rendering the task.
                 case "Delete": {
                     const endTime = animation.startTime + animation.duration;
                     const remainingDuration = endTime - currentTime;
@@ -3214,8 +3268,8 @@ export function useTaskGridViewVirtualizedListItemAnimation(
                     const distance =
                         animation.kind === "Unknown"
                             ? convertRemLengthToPx(animation.height, spacingScale)
-                            : // TODO(calebmer): Ideally we'd get access to the new item's actual
-                              // height since the height is not a constant in task detail view.
+                            : // TODO(calebmer): Ideally we'd get access to the new item's actual height since
+                              // the height is not a constant in task detail view.
                               (1 + animation.oldChildrenCount) *
                               convertRemLengthToPx(taskRowViewMinHeight, spacingScale);
 
@@ -3228,8 +3282,8 @@ export function useTaskGridViewVirtualizedListItemAnimation(
                     break;
                 }
                 case "Move": {
-                    // We don't need to animate moves since right now a move animation may only
-                    // happen entirely within a single grid view.
+                    // We don't need to animate moves since right now a move animation may only happen
+                    // entirely within a single grid view.
                     break;
                 }
                 default:
@@ -3254,8 +3308,8 @@ export function useTaskGridViewVirtualizedListItemAnimation(
             {
                 times,
                 duration,
-                // Since we interrupt this animation and start a new one as our animation
-                // state changes, linear easing helps the animation appear continuous.
+                // Since we interrupt this animation and start a new one as our animation state
+                // changes, linear easing helps the animation appear continuous.
                 //
                 // TODO(calebmer): A non-linear easing may look better here. But we have to take
                 // care to making it non-interruptible which seems challenging. If multiple
@@ -3319,6 +3373,7 @@ function getTaskUndoActionsGridViewTargetIfExists(
             case "UpdateChildrenCounts":
             case "UpdateCollectionPosition":
             case "UpdateAssigneePosition":
+            case "UpdateAccessPolicy":
             case "UpdateNotepadPagePosition":
             case "UpdateAssigneeActivePosition": {
                 column = "Title";
@@ -3375,6 +3430,11 @@ function getTaskUndoActionsGridViewTargetIfExists(
                 preference = 2;
                 break;
             }
+            case "UpdateLayout": {
+                column = "Title";
+                preference = 2;
+                break;
+            }
             default:
                 throw exhaustive(action.taskAction.type);
         }
@@ -3392,9 +3452,8 @@ function getTaskUndoActionsGridViewTargetIfExists(
         return {taskId: action.taskId, column, depth, preference};
     });
 
-    // Sort actions by group (lowest first, undefined group is 0), then lowest
-    // depth (lower depth means potentially a parent task), then highest preference
-    // score.
+    // Sort actions by group (lowest first, undefined group is 0), then lowest depth
+    // (lower depth means potentially a parent task), then highest preference score.
     targets.sort(
         (target1, target2) =>
             (groupByTaskId.get(target1.taskId) ?? 0) - (groupByTaskId.get(target2.taskId) ?? 0) ||

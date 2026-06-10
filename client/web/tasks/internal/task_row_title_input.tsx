@@ -1,7 +1,7 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import {useGlobalListeners} from "@react-aria/utils";
 import classNames from "classnames";
-import {CaretLeft, Lock} from "phosphor-react";
+import {CaretLeft} from "phosphor-react";
 import {Fragment, Node, Schema as ProsemirrorSchema, Slice} from "prosemirror-model";
 import {
     AllSelection,
@@ -39,6 +39,7 @@ import {isModifiedKeyboardEvent} from "~/client/web/helpers/events/is_modified_k
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {
     getPlatformWithoutListening,
@@ -68,10 +69,9 @@ import {
     TaskClientStoreTaskEntry,
 } from "~/client/web/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/web/tasks/internal/build_task_title_input_keymap_plugin.js";
-import {computeTaskEntryAccess} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
+import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {TaskGridViewCapabilities} from "~/client/web/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/web/tasks/internal/task_grid_view_task_key.js";
-import {getTaskQueryManuallySortedDirection} from "~/client/web/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskRowTitleChildTasksButton,
     TaskRowTitleChildTasksButtonRef,
@@ -96,18 +96,15 @@ import {
 import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
-import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -138,7 +135,8 @@ export type TaskRowTitleInputRef = {
 const taskRowTitleInputAriaLabel = "Title";
 
 const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
-    // Use an `inline-block` display so the `<div>` width is equal to our content width.
+    // Use an `inline-block` display so the `<div>` width is equal to our content
+    // width.
     display: "inline-block",
     paddingLeft: tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
     paddingRight: tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
@@ -166,8 +164,8 @@ const taskRowTitleInputSingleLineStyle = createObjectFromKeys(
         // Turn off text wrapping. This component emulates a single-line input.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
         whiteSpace: "pre",
-        // `display: inline-block` creates an inline layout which adds extra space
-        // below the element. Adding `vertical-align` stops the space from being added.
+        // `display: inline-block` creates an inline layout which adds extra space below
+        // the element. Adding `vertical-align` stops the space from being added.
         // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
         verticalAlign: "top",
         // Render contextual alternate glyphs. User text may be rendered here. Helpful
@@ -178,7 +176,8 @@ const taskRowTitleInputSingleLineStyle = createObjectFromKeys(
 );
 
 const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
-    // Use an `inline-block` display so the `<div>` width is equal to our content width.
+    // Use an `inline-block` display so the `<div>` width is equal to our content
+    // width.
     display: "inline-block",
     maxWidth: "full",
     minHeight: taskRowViewMinHeight,
@@ -194,8 +193,8 @@ const taskRowTitleInputMultilineStyle = createObjectFromKeys(
         paddingBottom: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
         // Make sure we have room to render the cursor.
         minWidth: "1ch",
-        // `display: inline-block` creates an inline layout which adds extra space
-        // below the element. Adding `vertical-align` stops the space from being added.
+        // `display: inline-block` creates an inline layout which adds extra space below
+        // the element. Adding `vertical-align` stops the space from being added.
         // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
         verticalAlign: "top",
         // Render contextual alternate glyphs. User text may be rendered here. Helpful
@@ -326,17 +325,16 @@ function TaskRowTitleInput(
         focusCell: Memo<(column: TaskGridViewColumn) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        getMoveTaskToQueryActions: (
-            taskId: TaskId,
+        getMoveTasksToQueryActions: (
+            taskIds: ReadonlyArray<TaskId>,
             position:
                 | {type: "Start"}
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
-                | {type: "Below"; taskId: TaskId}
-                | {type: "Position"; position: TaskPosition},
+                | {type: "Below"; taskId: TaskId},
         ) => {
             actions: Array<TaskActionModel>;
-            position: TaskPosition;
+            positions: Array<TaskPosition>;
         } | null;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
         commitActionTransaction: (
@@ -351,7 +349,6 @@ function TaskRowTitleInput(
         hasEditAccessLevel,
         maxGridExpandableTaskDepth,
         stateKey,
-        query,
         task,
         placeholder,
         indentation,
@@ -449,10 +446,10 @@ function TaskRowTitleInput(
                     event.stopPropagation();
 
                     // cmd-up goes up a page instead of to the top of the query. That's because
-                    // cmd-down can't get to the bottom of a query since we load queries top down.
-                    // To see the bottom of a query we'd have to load the entire query on the
-                    // backend! Going page up/down is a reasonable implementation that's mostly in
-                    // line with user expectations.
+                    // cmd-down can't get to the bottom of a query since we load queries top down. To
+                    // see the bottom of a query we'd have to load the entire query on the backend!
+                    // Going page up/down is a reasonable implementation that's mostly in line with
+                    // user expectations.
                     focusFirstVisibleTaskTitleStart();
                 } else if (event.altKey) {
                     event.preventDefault();
@@ -468,8 +465,7 @@ function TaskRowTitleInput(
                     const coords = view.coordsAtPos(view.state.selection.from);
                     const height = coords.bottom - coords.top;
 
-                    // Only navigate to the previous task if our selection is at the top of
-                    // the view.
+                    // Only navigate to the previous task if our selection is at the top of the view.
                     if (coords.top - height <= viewRect.top) {
                         event.preventDefault();
                         event.stopPropagation();
@@ -485,11 +481,11 @@ function TaskRowTitleInput(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    // cmd-down goes down a page instead of to the bottom of the query. That's
-                    // because cmd-down can't get to the bottom of a query since we load queries top
-                    // down. To see the bottom of a query we'd have to load the entire query on the
-                    // backend! Going page up/down is a reasonable implementation that's mostly in
-                    // line with user expectations.
+                    // cmd-down goes down a page instead of to the bottom of the query. That's because
+                    // cmd-down can't get to the bottom of a query since we load queries top down. To
+                    // see the bottom of a query we'd have to load the entire query on the backend!
+                    // Going page up/down is a reasonable implementation that's mostly in line with
+                    // user expectations.
                     focusLastVisibleTaskTitleEnd();
                 } else if (event.altKey) {
                     event.preventDefault();
@@ -505,8 +501,8 @@ function TaskRowTitleInput(
                     const coords = view.coordsAtPos(view.state.selection.from);
                     const height = coords.bottom - coords.top;
 
-                    // Only navigate to the next task if our selection is at the bottom of
-                    // the view. Matters for multi-line inputs.
+                    // Only navigate to the next task if our selection is at the bottom of the view.
+                    // Matters for multi-line inputs.
                     if (coords.bottom + height >= viewRect.bottom) {
                         event.preventDefault();
                         event.stopPropagation();
@@ -518,6 +514,25 @@ function TaskRowTitleInput(
                 break;
             }
             case "ArrowLeft": {
+                if (!isModifiedKeyboardEvent(event) && !view.state.selection.empty) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // When a title cell re-enters editing from grid navigation we may have a non-empty
+                    // selection (for example "select all" from the cell-level Enter behavior).
+                    // Explicitly collapse the selection before interpreting left/right as grid
+                    // navigation so the next typed character doesn't replace the whole title due to
+                    // browser-dependent selection behavior.
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(
+                                TextSelection.create(view.state.doc, view.state.selection.from),
+                            )
+                            .scrollIntoView(),
+                    );
+                    break;
+                }
+
                 if (
                     view.state.selection.from === view.state.selection.to &&
                     view.state.selection.from === 0
@@ -533,6 +548,23 @@ function TaskRowTitleInput(
                 break;
             }
             case "ArrowRight": {
+                if (!isModifiedKeyboardEvent(event) && !view.state.selection.empty) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // See the matching `ArrowLeft` case above. We need deterministic selection
+                    // collapse here before this key can mean "leave the title cell" at the end of the
+                    // title.
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(
+                                TextSelection.create(view.state.doc, view.state.selection.to),
+                            )
+                            .scrollIntoView(),
+                    );
+                    break;
+                }
+
                 if (
                     view.state.selection.from === view.state.selection.to &&
                     view.state.selection.from === view.state.doc.nodeSize - 2
@@ -613,11 +645,11 @@ function TaskRowTitleInput(
     const shouldShowChildTasksButton = (task?.getChildTaskCount() ?? 0) > 0;
 
     // If the task has a multiline title and margin right content (show child task
-    // button or parent task title) then we want to render the margin right content
-    // in the negative space at the end of our wrapped text.
+    // button or parent task title) then we want to render the margin right content in
+    // the negative space at the end of our wrapped text.
     //
-    // For example, we want to put margin right content in the area occupied by
-    // dashes (`---`) in the text below.
+    // For example, we want to put margin right content in the area occupied by dashes
+    // (`---`) in the text below.
     //
     // ```
     // this is another subtask that's very long, i'm going to just keep typing
@@ -628,15 +660,14 @@ function TaskRowTitleInput(
     // need. So when we have both margin content and a multiline title we do the
     // following:
     //
-    // 1. Add a CSS class with an `::after` pseudo element that adds some spacer
-    //    width to the end of the multiline title. Let's say 100px. This way if the
-    //    text is less than 100px from the container edge it will break and create
-    //    a new line.
+    // 1. Add a CSS class with an `::after` pseudo element that adds some spacer width
+    //    to the end of the multiline title. Let's say 100px. This way if the text is
+    //    less than 100px from the container edge it will break and create a new line.
     //
-    // 2. In a layout effect, do some measurements. If the text occupies a single
-    //    line, set `multilineState` to null. Otherwise set `multilineState` so it
-    //    contains the width between the container right edge and the last
-    //    character in the title.
+    // 2. In a layout effect, do some measurements. If the text occupies a single line,
+    //    set `multilineState` to null. Otherwise set `multilineState` so it contains
+    //    the width between the container right edge and the last character in the
+    //    title.
     //
     // So we need a two phase React render to position everything correctly.
     const hasMultilineTitleAndShouldShowMarginRightContent: boolean =
@@ -649,61 +680,59 @@ function TaskRowTitleInput(
         setMultilineState(null);
     }
 
-    // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
-    // docs say only CSS-in-JS libraries should use it.
+    // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the docs
+    // say only CSS-in-JS libraries should use it.
     //
     // Wait what?? A `rootElement` parameter??? That's not documented? What the what?
     //
     // This is me reenacting your reaction to this code. Something very strange is
     // afoot here. Instead of using `useLayoutEffect()` to mount our ProseMirror
-    // editor, we use `useInsertionEffect()`. This is pretty critical for
-    // the performance of a large task grid view.
+    // editor, we use `useInsertionEffect()`. This is pretty critical for the
+    // performance of a large task grid view.
     //
-    // We need to use `useInsertionEffect()` to prevent browser [layout
-    // thrashing][2]. Layout thrashing happens when you read from the DOM and write
-    // to the DOM in a loop. Since whenever you read from the DOM after writing to
-    // the DOM the browser needs to perform an expensive layout calculation to give
-    // you the right answer. So if you're in a loop that expensive layout
-    // calculation happens on every iteration of the loop.
+    // We need to use `useInsertionEffect()` to prevent browser [layout thrashing][2].
+    // Layout thrashing happens when you read from the DOM and write to the DOM in a
+    // loop. Since whenever you read from the DOM after writing to the DOM the browser
+    // needs to perform an expensive layout calculation to give you the right answer.
+    // So if you're in a loop that expensive layout calculation happens on every
+    // iteration of the loop.
     //
-    // A common way to fix this is to batch your reads and writes with a library
-    // like [`fastdom`][3]. React is already batching writes internally though so
-    // ideally we'd use React itself.
+    // A common way to fix this is to batch your reads and writes with a library like
+    // [`fastdom`][3]. React is already batching writes internally though so ideally
+    // we'd use React itself.
     //
     // A React render you can think of as a big loop over components. It happens in
     // three phases:
     //
-    // 1. Render phase: React calls all of your function components to build up the
-    //    new virtual DOM.
+    // 1. Render phase: React calls all of your function components to build up the new
+    //    virtual DOM.
     // 2. Mutation phase: React reconciles your virtual DOM with the actual DOM.
     //    Creating new nodes and appending them. `useInsertionEffect()` is called
     //    during this phase.
-    // 3. Layout phase: React updates all your `ref`s and calls
-    //    `useLayoutEffect()`s.
+    // 3. Layout phase: React updates all your `ref`s and calls `useLayoutEffect()`s.
     // 4. React is done, now the browser paints.
     //
-    // The intended use of `useLayoutEffect()` is to [measure layout before the
-    // browser repaints the screen][4]. Otherwise you should use `useEffect()` if
-    // your effect can run after the browser paints (most effects). So that's how
-    // we use `useLayoutEffect()` in our code.
+    // The intended use of `useLayoutEffect()` is to [measure layout before the browser
+    // repaints the screen][4]. Otherwise you should use `useEffect()` if your effect
+    // can run after the browser paints (most effects). So that's how we use
+    // `useLayoutEffect()` in our code.
     //
-    // The problem is if you read from the DOM in `useLayoutEffect()` in one
-    // component and write to the DOM in `useLayoutEffect()` in another component
-    // (this one) and you're rendering a large list of stuff you get layout thrash!
+    // The problem is if you read from the DOM in `useLayoutEffect()` in one component
+    // and write to the DOM in `useLayoutEffect()` in another component (this one) and
+    // you're rendering a large list of stuff you get layout thrash!
     //
-    // We saw this when rendering task grid views. The solution, like
-    // [`fastdom`][3], is to batch our DOM writes (adding the ProseMirror editor to
-    // the DOM) with React. Our DOM reads continue to be batched in the layout
-    // phase.
+    // We saw this when rendering task grid views. The solution, like [`fastdom`][3],
+    // is to batch our DOM writes (adding the ProseMirror editor to the DOM) with
+    // React. Our DOM reads continue to be batched in the layout phase.
     //
     // React gives us a mutation phase hook, `useInsertionEffect()`. However, it's
     // pretty severely limited since it doesn't have access to the DOM React is
-    // actively rendering. So we PATCH REACT to pass in the DOM element it's
-    // rendering to the effect (hence `rootElement`). `rootElement` is not attached
-    // to document. `document.body.contains(rootElement)` will return false. React
-    // renders children first then parents. Once we render the final parent React
-    // will add our element to the document. However it's ok if the element isn't
-    // attached to the DOM when we build our ProseMirror editor.
+    // actively rendering. So we PATCH REACT to pass in the DOM element it's rendering
+    // to the effect (hence `rootElement`). `rootElement` is not attached to document.
+    // `document.body.contains(rootElement)` will return false. React renders children
+    // first then parents. Once we render the final parent React will add our element
+    // to the document. However it's ok if the element isn't attached to the DOM when
+    // we build our ProseMirror editor.
     //
     // I want to know what the React team thinks the proper solution to this layout
     // thrashing problem is. I believe React is missing a feature which is why I
@@ -713,7 +742,8 @@ function TaskRowTitleInput(
     // [1]: https://react.dev/reference/react/useInsertionEffect
     // [2]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
     // [3]: https://www.npmjs.com/package/fastdom
-    // [4]: https://react.dev/reference/react/useLayoutEffect#measuring-layout-before-the-browser-repaints-the-screen
+    // [4]:
+    //     https://react.dev/reference/react/useLayoutEffect#measuring-layout-before-the-browser-repaints-the-screen
     useInsertionEffect(
         (rootElement?: HTMLDivElement) => {
             // Wait for the client-side rerender before mounting our editor.
@@ -732,8 +762,8 @@ function TaskRowTitleInput(
             viewElement.role = "textbox";
 
             // Update the view element before `EditorView`'s `MutationObserver` starts
-            // listening for changes. When `MutationObserver` detects a change it will
-            // perform a browser layout which is expensive.
+            // listening for changes. When `MutationObserver` detects a change it will perform
+            // a browser layout which is expensive.
             viewElement.ariaLabel = taskRowTitleInputAriaLabel;
             viewElement.className = capabilities.hasMultilineTitle
                 ? taskRowTitleInputMultilineClassName
@@ -829,8 +859,8 @@ function TaskRowTitleInput(
                     },
 
                     // We add this prop to `prosemirror-view` with a patch. With this prop when the
-                    // editor is focused we place focus where the browser places focus. So if the
-                    // user clicks into the editor focus goes to where the user clicked. Not to the
+                    // editor is focused we place focus where the browser places focus. So if the user
+                    // clicks into the editor focus goes to where the user clicked. Not to the
                     // selection currently in state.
                     shouldUseDOMSelectionOnFocus: true,
 
@@ -840,23 +870,22 @@ function TaskRowTitleInput(
                     editable: () => initialIsEditable,
 
                     // NOTE(calebmer): If you add or update an attribute here you'll also need to
-                    // update the attribute in a layout effect below! Since `tabindex` needs to
-                    // update as our editable state changes.
+                    // update the attribute in a layout effect below! Since `tabindex` needs to update
+                    // as our editable state changes.
                     attributes: {
                         // Title row inputs are focusable but are not a part of the tab order.
                         ...(initialIsEditable ? {tabindex: "-1"} : {}),
 
                         // Native spellcheck is often more distracting then it's worth. It puts a red
-                        // squiggly under names, nouns, industry terms, and oddly sometimes
-                        // contractions (like "they're", maybe has to do with curly quotes?).
+                        // squiggly under names, nouns, industry terms, and oddly sometimes contractions
+                        // (like "they're", maybe has to do with curly quotes?).
                         //
                         // It's also inconsistent with `<input>`s which don't have spellcheck on by
                         // default.
                         //
-                        // In iOS, however, the native spellchecker is _essential_ for proper
-                        // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
-                        // spell check results show up inline instead of requiring a right click (which
-                        // we override).
+                        // In iOS, however, the native spellchecker is _essential_ for proper document
+                        // editing. Since typos abound on mobile keyboards. Unlike on web, iOS spell check
+                        // results show up inline instead of requiring a right click (which we override).
                         ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
                     },
 
@@ -880,7 +909,6 @@ function TaskRowTitleInput(
                         paste: (view, event) => {
                             handleTaskRowTitleInputPaste(event, {
                                 store: propsRef.current.store,
-                                query: propsRef.current.query,
                                 spaceId: spaceIdRef.current,
                                 currentAccountId: assertExists(currentAccountIdRef.current),
                                 timeZone: timeZoneRef.current,
@@ -891,8 +919,8 @@ function TaskRowTitleInput(
                                 titleState: view.state,
                                 updateTitleStateRef,
                                 focusTaskTitleSelection: propsRef.current.focusTaskTitleSelection,
-                                getMoveTaskToQueryActions:
-                                    propsRef.current.getMoveTaskToQueryActions,
+                                getMoveTasksToQueryActions:
+                                    propsRef.current.getMoveTasksToQueryActions,
                                 getMaybeRemoveTaskFromQueryActions:
                                     propsRef.current.getMaybeRemoveTaskFromQueryActions,
                                 commitActionTransaction: propsRef.current.commitActionTransaction,
@@ -919,11 +947,10 @@ function TaskRowTitleInput(
                                 }),
                             );
 
-                        // If the title was truncated through the model, we don't
-                        // run this optimization. We force update the editor state below.
-                        // See: updateTitleStateRef.current
-                        // TODO: Ideally we'd create a new transaction based on oldTitleState
-                        // with the updated steps instead of skipping this code completely.
+                        // If the title was truncated through the model, we don't run this optimization. We
+                        // force update the editor state below. See: updateTitleStateRef.current TODO:
+                        // Ideally we'd create a new transaction based on oldTitleState with the updated
+                        // steps instead of skipping this code completely.
                         if (truncatedCharacterCount === 0) {
                             const newTitleState = oldTitleState.apply(
                                 transaction.setMeta(taskTitlePluginKey, titleUpdate.newTitle),
@@ -935,15 +962,15 @@ function TaskRowTitleInput(
                             };
                         }
 
-                        // We must flush synchronously. Since ProseMirror preserves local DOM
-                        // state when we call `updateState()` synchronously but won't otherwise.
+                        // We must flush synchronously. Since ProseMirror preserves local DOM state when we
+                        // call `updateState()` synchronously but won't otherwise.
                         //
-                        // See the "Efficient updating" section in the [editor view guide][1].
-                        // If we don't synchronously apply the transaction it is considered
-                        // cancelled. A quote from the guide:
+                        // See the "Efficient updating" section in the [editor view guide][1]. If we don't
+                        // synchronously apply the transaction it is considered cancelled. A quote from the
+                        // guide:
                         //
-                        // > When such a transaction is canceled or modified somehow, the view
-                        // > will undo the DOM change...
+                        // > When such a transaction is canceled or modified somehow, the view will undo
+                        // > the DOM change...
                         //
                         // [1]: https://prosemirror.net/docs/guide/#view
                         flushSync(() => {
@@ -959,10 +986,9 @@ function TaskRowTitleInput(
                 view.dom.classList.add(tasksStyles.rowTitleInputIsNotEditableClassName);
             }
 
-            // NOTE(calebmer): The logic here is taken almost exactly from
-            // `<ContentEditor>` since that component supports dual modality on mobile
-            // too. If you make a change here you probably also want to make a change
-            // there and vice versa.
+            // NOTE(calebmer): The logic here is taken almost exactly from `<ContentEditor>`
+            // since that component supports dual modality on mobile too. If you make a change
+            // here you probably also want to make a change there and vice versa.
             let handleDocumentSelectionChange: () => void;
             {
                 let touchState: {
@@ -995,9 +1021,9 @@ function TaskRowTitleInput(
                                 selection.anchorOffset !== selection.focusOffset);
                         if (hasSelection) return;
 
-                        // Long press touch starts dragging the task instead of editing. 0.5 seconds is
-                        // the long press duration we use since that's what iOS's default long press
-                        // duration is.
+                        // Long press touch starts dragging the task instead of editing. 0.5 seconds is the
+                        // long press duration we use since that's what iOS's default long press duration
+                        // is.
                         // https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
                         const longPressTimeout = createTimeout(() => {
                             touchState?.cancel();
@@ -1014,21 +1040,21 @@ function TaskRowTitleInput(
                                 });
                                 if (!posResult) return;
 
-                                // By default, iOS will move the selection to the end of the word you touched.
-                                // We instead want focus moved to the selection specified in our
-                                // `setSelection()` call.
+                                // By default, iOS will move the selection to the end of the word you touched. We
+                                // instead want focus moved to the selection specified in our `setSelection()`
+                                // call.
                                 event.preventDefault();
 
                                 // This may seem strange. Shouldn't `setIsFocused(true)` be set from an event
-                                // handler after `focus()` is called? Well in this case our editor is not
-                                // editable if we are in dual modality state and `isFocused` is false. When our
-                                // editor is not editable it's also not focusable. So we need to set `isFocused`
-                                // to true to be able to focus!
+                                // handler after `focus()` is called? Well in this case our editor is not editable
+                                // if we are in dual modality state and `isFocused` is false. When our editor is
+                                // not editable it's also not focusable. So we need to set `isFocused` to true to
+                                // be able to focus!
                                 //
                                 // We must call `focus()` during the `touchend` event since iOS won't open the
                                 // software keyboard unless focus happens in a user-initiated event. So we call
-                                // `flushSync()` to make sure `isFocused` is updated synchronously so we can
-                                // call `focus()` synchronously.
+                                // `flushSync()` to make sure `isFocused` is updated synchronously so we can call
+                                // `focus()` synchronously.
                                 flushSync(() => setIsFocused(true));
                                 view.focus();
 
@@ -1057,8 +1083,7 @@ function TaskRowTitleInput(
                 );
 
                 view.dom.addEventListener("touchend", event => {
-                    // If our tap state hasn't been cancelled we actually successfully received
-                    // a tap!
+                    // If our tap state hasn't been cancelled we actually successfully received a tap!
                     touchState?.finish(event);
                     touchState = null;
                 });
@@ -1069,9 +1094,8 @@ function TaskRowTitleInput(
                 });
 
                 handleDocumentSelectionChange = () => {
-                    // After a long press, iOS selects text. If we see the selection change during
-                    // a tap we no longer have a tap gesture and instead we have a long press
-                    // gesture.
+                    // After a long press, iOS selects text. If we see the selection change during a
+                    // tap we no longer have a tap gesture and instead we have a long press gesture.
                     touchState?.cancel();
                     touchState = null;
                 };
@@ -1079,8 +1103,8 @@ function TaskRowTitleInput(
                 document.addEventListener("selectionchange", handleDocumentSelectionChange);
             }
 
-            // Update `viewRef` and call any callbacks that were waiting for the view to
-            // be ready.
+            // Update `viewRef` and call any callbacks that were waiting for the view to be
+            // ready.
             {
                 const callbacks = !viewRef.current.isReady ? viewRef.current.callbacks : [];
 
@@ -1098,10 +1122,10 @@ function TaskRowTitleInput(
                 containerElement.removeChild(view.dom);
 
                 // NOTE(calebmer): While profiling task grid view scrolling I've found
-                // `view.destroy()` takes a meaningful chunk of blocking time. Since when
-                // scrolling a virtualized list we're destroying the old components as well as
-                // mounting new ones. So move view destruction off the render hot path. Using
-                // the React scheduler so new renders from scroll can interrupt.
+                // `view.destroy()` takes a meaningful chunk of blocking time. Since when scrolling
+                // a virtualized list we're destroying the old components as well as mounting new
+                // ones. So move view destruction off the render hot path. Using the React
+                // scheduler so new renders from scroll can interrupt.
                 if (scheduledDestroyTaskRowTitleInputEditorViewCallbacks === null) {
                     scheduledDestroyTaskRowTitleInputEditorViewCallbacks = [];
                     unstable_scheduleCallback(unstable_LowPriority, () => {
@@ -1122,17 +1146,17 @@ function TaskRowTitleInput(
             };
 
             // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
-            // careful about what you put in here. Ideally we never destroy the
-            // `EditorView` while this component is mounted.
+            // careful about what you put in here. Ideally we never destroy the `EditorView`
+            // while this component is mounted.
         },
         [capabilities.hasMultilineTitle, isInitialAppRender, spacingScale],
     );
 
-    // NOTE(calebmer): This used to be in the above `useInsertionEffect()` but we
-    // saw bugs since we were destroying the `EditorView` whenever
-    // `hasMultilineTitleAndShouldShowMarginRightContent` changes. See the
-    // integration test added by this commit for an example bug that moving this
-    // logic to its own effect fixes.
+    // NOTE(calebmer): This used to be in the above `useInsertionEffect()` but we saw
+    // bugs since we were destroying the `EditorView` whenever
+    // `hasMultilineTitleAndShouldShowMarginRightContent` changes. See the integration
+    // test added by this commit for an example bug that moving this logic to its own
+    // effect fixes.
     useInsertionEffect(
         (rootElement?: HTMLDivElement) => {
             if (isInitialAppRender) return;
@@ -1182,16 +1206,16 @@ function TaskRowTitleInput(
                     }
                 }
 
-                // NOTE(calebmer): For performance, it's important we call
-                // `setMultilineState()` instead of directly updating styles. This way React
-                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
-                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
+                // NOTE(calebmer): For performance, it's important we call `setMultilineState()`
+                // instead of directly updating styles. This way React batches DOM writes. So we
+                // batch DOM reads in `useLayoutEffect()` then batch DOM writes with state updates.
+                // Otherwise we risk [layout thrashing][1].
                 //
-                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
-                // first render if `state` is the same as the hook's initial state triggers a
-                // React re-render. I would have expected React to noop calls that don't change
-                // state. Maybe it behaves differently on the first render? Anyway, avoid
-                // calling `setState(state)` on initial update if we can.
+                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the first
+                // render if `state` is the same as the hook's initial state triggers a React
+                // re-render. I would have expected React to noop calls that don't change state.
+                // Maybe it behaves differently on the first render? Anyway, avoid calling
+                // `setState(state)` on initial update if we can.
                 //
                 // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
                 if (!isInitialUpdate || newMultilineState !== null) {
@@ -1221,8 +1245,8 @@ function TaskRowTitleInput(
             // eslint-disable-next-line @typescript-eslint/unbound-method
             const originalUpdateState = view.updateState;
 
-            // Modify `view.updateState()` to update multiline state whenever our editor
-            // state changes.
+            // Modify `view.updateState()` to update multiline state whenever our editor state
+            // changes.
             view.updateState = function (state: EditorState) {
                 originalUpdateState.call(this, state);
 
@@ -1230,8 +1254,7 @@ function TaskRowTitleInput(
                 updateMultilineState(false);
             };
 
-            // When the window resizes, re-evaluate state that depends on task
-            // container size.
+            // When the window resizes, re-evaluate state that depends on task container size.
             const handleWindowResize = () => {
                 updateMultilineState(false);
             };
@@ -1248,9 +1271,9 @@ function TaskRowTitleInput(
         [hasMultilineTitleAndShouldShowMarginRightContent, isInitialAppRender],
     );
 
-    // Reconcile our imperative `EditorView` state with state from React. If this
-    // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
-    // then this should be flushed synchronously given this is a layout effect.
+    // Reconcile our imperative `EditorView` state with state from React. If this is
+    // run by `dispatchTransaction()` (which updates state in `flushSync()`) then this
+    // should be flushed synchronously given this is a layout effect.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isInitialAppRender) return;
 
@@ -1270,39 +1293,40 @@ function TaskRowTitleInput(
 
         const transaction = state.tr;
 
-        // If something externally changes the title (e.g. another user in realtime or
-        // an undo) then we completely replace the ProseMirror content with the new
-        // content. Then manually move the selection to its new position.
+        // If something externally changes the title (e.g. another user in realtime or an
+        // undo) then we completely replace the ProseMirror content with the new content.
+        // Then manually move the selection to its new position.
         //
         // This is the same approach [`y-prosemirror` uses][1]. This approach has
         // [meaningful drawbacks][2]. Namely any decorations being maintained via
-        // `decorationSet.map()` will be wiped away by the full replace. We don't have
-        // any decorations on this editor currently so it's not an issue for us right
-        // now.
+        // `decorationSet.map()` will be wiped away by the full replace. We don't have any
+        // decorations on this editor currently so it's not an issue for us right now.
         //
-        // It should be possible to compute a precise text diff between `oldTitle` and
-        // the new `title` using the Yjs CRDT structure. Then call
-        // `transaction.replace()` just for the changed text ranges. This would
-        // preserve anything that needs to be `map()`ed along by ProseMirror (like
-        // decorations for some plugins). However, such an algorithm would be
-        // challenging to write so we copy the dumb `y-prosemirror` strategy for now.
+        // It should be possible to compute a precise text diff between `oldTitle` and the
+        // new `title` using the Yjs CRDT structure. Then call `transaction.replace()` just
+        // for the changed text ranges. This would preserve anything that needs to be
+        // `map()`ed along by ProseMirror (like decorations for some plugins). However,
+        // such an algorithm would be challenging to write so we copy the dumb
+        // `y-prosemirror` strategy for now.
         //
-        // [1]: https://github.com/yjs/y-prosemirror/blob/15a3862640d4a0d02eae8cbf895f4c9927413a9e/src/plugins/sync-plugin.js#L567-L571
-        // [2]: https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
+        // [1]:
+        //     https://github.com/yjs/y-prosemirror/blob/15a3862640d4a0d02eae8cbf895f4c9927413a9e/src/plugins/sync-plugin.js#L567-L571
+        // [2]:
+        //     https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488
         transaction.replace(
             0,
             state.doc.content.size,
             new Slice(Fragment.from(title.getProsemirrorNode()), 0, 0),
         );
 
-        // Move the selection to a new position using Yjs relative positions.
-        // The Yjs CRDT contains enough information to map positions on its own without
-        // needing the intermediate updates.
+        // Move the selection to a new position using Yjs relative positions. The Yjs CRDT
+        // contains enough information to map positions on its own without needing the
+        // intermediate updates.
         //
         // TODO(calebmer): If this title update is from an undo ideally we'd reset the
-        // selection to whatever it was before the undo. This is the standard
-        // convention for text editors. Not implementing for now because wiring all the
-        // pieces up through the task undo system is annoying.
+        // selection to whatever it was before the undo. This is the standard convention
+        // for text editors. Not implementing for now because wiring all the pieces up
+        // through the task undo system is annoying.
         {
             const oldTitle = assertExists(taskTitlePluginKey.getState(view.state));
 
@@ -1335,8 +1359,8 @@ function TaskRowTitleInput(
 
         const isEditable = (!isDualModality || isFocused) && hasEditAccessLevel;
 
-        // Optimization: Don't update editor if editable state equals what we expect.
-        // It'll be initialized to the correct value when constructed.
+        // Optimization: Don't update editor if editable state equals what we expect. It'll
+        // be initialized to the correct value when constructed.
         if (view.editable === isEditable) return;
 
         view.setProps({
@@ -1370,9 +1394,8 @@ function TaskRowTitleInput(
 
         const handleBlur = () => {
             // If `<TaskRowTitleInput>` is focused when `view.destroy()` is called then
-            // `handleBlur` will be called in a `useInsertionEffect()` cleanup which will
-            // cause React to log a warning. So don't change state if the view is
-            // destroyed.
+            // `handleBlur` will be called in a `useInsertionEffect()` cleanup which will cause
+            // React to log a warning. So don't change state if the view is destroyed.
             if (!viewRef.current.isReady || viewRef.current.view !== view) return;
 
             setIsFocused(false);
@@ -1447,8 +1470,8 @@ function TaskRowTitleInput(
                 runWhenViewIsReady(view => {
                     const selection = Selection.atStart(view.state.doc);
 
-                    // When in dual modality, the `isFocused` state must be true for the editor to
-                    // be `contenteditable="true"` and thus focusable.
+                    // When in dual modality, the `isFocused` state must be true for the editor to be
+                    // `contenteditable="true"` and thus focusable.
                     if (isDualModalityRef.current) {
                         flushSync(() => setIsFocused(true));
                     }
@@ -1466,8 +1489,8 @@ function TaskRowTitleInput(
                 runWhenViewIsReady(view => {
                     const selection = Selection.atEnd(view.state.doc);
 
-                    // When in dual modality, the `isFocused` state must be true for the editor to
-                    // be `contenteditable="true"` and thus focusable.
+                    // When in dual modality, the `isFocused` state must be true for the editor to be
+                    // `contenteditable="true"` and thus focusable.
                     if (isDualModalityRef.current) {
                         flushSync(() => setIsFocused(true));
                     }
@@ -1485,8 +1508,8 @@ function TaskRowTitleInput(
                 runWhenViewIsReady(view => {
                     const selection = new AllSelection(view.state.doc);
 
-                    // When in dual modality, the `isFocused` state must be true for the editor to
-                    // be `contenteditable="true"` and thus focusable.
+                    // When in dual modality, the `isFocused` state must be true for the editor to be
+                    // `contenteditable="true"` and thus focusable.
                     if (isDualModalityRef.current) {
                         flushSync(() => setIsFocused(true));
                     }
@@ -1513,8 +1536,8 @@ function TaskRowTitleInput(
                                   ),
                               );
 
-                    // When in dual modality, the `isFocused` state must be true for the editor to
-                    // be `contenteditable="true"` and thus focusable.
+                    // When in dual modality, the `isFocused` state must be true for the editor to be
+                    // `contenteditable="true"` and thus focusable.
                     if (isDualModalityRef.current) {
                         flushSync(() => setIsFocused(true));
                     }
@@ -1530,16 +1553,16 @@ function TaskRowTitleInput(
                 }
 
                 runWhenViewIsReady(view => {
-                    // When in dual modality, the `isFocused` state must be true for the editor to
-                    // be `contenteditable="true"` and thus focusable.
+                    // When in dual modality, the `isFocused` state must be true for the editor to be
+                    // `contenteditable="true"` and thus focusable.
                     if (isDualModalityRef.current) {
                         flushSync(() => setIsFocused(true));
                     }
 
                     view.focus();
 
-                    // If the document changed since the selection was created then create a
-                    // bookmark for the selection and resolve it to the new doc.
+                    // If the document changed since the selection was created then create a bookmark
+                    // for the selection and resolve it to the new doc.
                     //
                     // We added `focusSelection()` so that when indenting/dedenting (which sometimes
                     // mounts/unmounts the task) we can preserve the selection. For that use case we
@@ -1552,12 +1575,13 @@ function TaskRowTitleInput(
 
                     view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
 
-                    // NOTE(calebmer): We need to focus the selection again after a turn of the
-                    // event loop for it to stick. Otherwise I've seen the selection jump to the
-                    // end. If I had to bet, I'd bet it has to do with [the Y.js ProseMirror][1]
-                    // re-render timeout.
+                    // NOTE(calebmer): We need to focus the selection again after a turn of the event
+                    // loop for it to stick. Otherwise I've seen the selection jump to the end. If I
+                    // had to bet, I'd bet it has to do with [the Y.js ProseMirror][1] re-render
+                    // timeout.
                     //
-                    // [1]: https://github.com/yjs/y-prosemirror/blob/e0e5e951614abe1be2295e5ab8987ab5916bcaec/src/plugins/sync-plugin.js#L180-L184
+                    // [1]:
+                    //     https://github.com/yjs/y-prosemirror/blob/e0e5e951614abe1be2295e5ab8987ab5916bcaec/src/plugins/sync-plugin.js#L180-L184
                     setTimeout(() => {
                         if (selection.$from.doc !== view.state.doc) {
                             selection = selection.getBookmark().resolve(view.state.doc);
@@ -1643,17 +1667,17 @@ function TaskRowTitleInput(
                 )}
             </div>
             {placeholder && (
-                // Render the placeholder in a div adjacent to our editor. For accessibility
-                // the placeholder is present in an `aria-placeholder` but since the editor is
-                // `display: inline-block` we need the placeholder to have width in the DOM
-                // while not being editable. The best way to do that, we've found, is with a
-                // separate `<div>` here.
+                // Render the placeholder in a div adjacent to our editor. For accessibility the
+                // placeholder is present in an `aria-placeholder` but since the editor is
+                // `display: inline-block` we need the placeholder to have width in the DOM while
+                // not being editable. The best way to do that, we've found, is with a separate
+                // `<div>` here.
                 <div
                     aria-hidden={true}
                     className={classNames(
                         // Since we don't have access to the title node in our render method we
-                        // imperatively add/remove a class on our container to let us know when it's
-                        // empty or not and use CSS to control our placeholder visibility.
+                        // imperatively add/remove a class on our container to let us know when it's empty
+                        // or not and use CSS to control our placeholder visibility.
                         tasksStyles.rowTitleInputPlaceholderClassName,
                         placeholderClassName,
                     )}
@@ -1686,16 +1710,16 @@ function TaskRowTitleInput(
                         if (event.pointerType !== "mouse") return;
 
                         // If the user clicks in the out of bounds area and starts dragging we manually
-                        // implement updating the selection with their drag. Since the browser won't do
-                        // it for us given we're manually focusing the input.
+                        // implement updating the selection with their drag. Since the browser won't do it
+                        // for us given we're manually focusing the input.
                         //
-                        // We don't do this for all out of bounds areas since it's intuitive that other
-                        // out of bounds areas might not be editable. We want to create the illusion of
-                        // editability on hover but it's ok if drag to select doesn't work since the
-                        // user will typically drag to select on actual text.
+                        // We don't do this for all out of bounds areas since it's intuitive that other out
+                        // of bounds areas might not be editable. We want to create the illusion of
+                        // editability on hover but it's ok if drag to select doesn't work since the user
+                        // will typically drag to select on actual text.
                         //
-                        // However, the area to the right of the task title users definitely expect to
-                        // be an editable area! So we need to respect their drag to select assumptions.
+                        // However, the area to the right of the task title users definitely expect to be
+                        // an editable area! So we need to respect their drag to select assumptions.
                         addGlobalListener(document, "pointermove", event => {
                             if (viewRef.current.isReady === false) return;
 
@@ -1772,16 +1796,15 @@ function TaskRowTitleInput(
 
                         // Two states to think about here:
                         //
-                        // 1. `capabilities.hasMultilineTitle && !multilineState`: We share the same
-                        //    line as task title since the task title is a single line. However, the
-                        //    task title is taking more space than just it's text since it includes
-                        //    some "after width". Reposition ourselves to render over the
-                        //    after width.
+                        // 1. `capabilities.hasMultilineTitle && !multilineState`: We share the same line
+                        //    as task title since the task title is a single line. However, the task title
+                        //    is taking more space than just it's text since it includes some "after
+                        //    width". Reposition ourselves to render over the after width.
                         //
-                        // 2. `capabilities.hasMultilineTitle && multilineState`: We are in the
-                        //    remaining space of the last line of some multiline task title. The
-                        //    remaining space is saved in state. `flexShrink: "0"` so we don't shrink
-                        //    to the parent's width of 0.
+                        // 2. `capabilities.hasMultilineTitle && multilineState`: We are in the remaining
+                        //    space of the last line of some multiline task title. The remaining space is
+                        //    saved in state. `flexShrink: "0"` so we don't shrink to the parent's width
+                        //    of 0.
                         width: capabilities.hasMultilineTitle
                             ? multilineState
                                 ? multilineState.remainingWidth
@@ -1799,10 +1822,7 @@ function TaskRowTitleInput(
                     }}
                 >
                     {parentPreviewStore && (
-                        <TaskRowTitleParentTaskTitle
-                            query={query}
-                            parentPreviewStore={parentPreviewStore}
-                        />
+                        <TaskRowTitleParentTaskTitle parentPreviewStore={parentPreviewStore} />
                     )}
                     {shouldShowChildTasksButton && (
                         <TaskRowTitleChildTasksButton
@@ -1859,10 +1879,8 @@ function taskTitlePlugin(initialTaskTitle: TaskTitleModel) {
 }
 
 function TaskRowTitleParentTaskTitle({
-    query,
     parentPreviewStore,
 }: {
-    query: TaskClientQuery | null;
     parentPreviewStore: Store<{rootTaskEntry: TaskClientStoreTaskEntry; depth: number}>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -1881,32 +1899,13 @@ function TaskRowTitleParentTaskTitle({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const {currentAccount} = useSpaceContext();
-
     const parentPreview = useStore(parentPreviewStore);
-
-    const access = useStore(
-        useMemo(
-            () =>
-                computeStore(get =>
-                    computeTaskEntryAccess(
-                        get,
-                        currentAccount?.id,
-                        // If `query` is null then we'll only ever render a ghost task. Ghost tasks
-                        // should never have a parent task.
-                        assertExists(query),
-                        parentPreview.rootTaskEntry,
-                    ),
-                ),
-            [currentAccount?.id, parentPreview.rootTaskEntry, query],
-        ),
-    );
 
     const parentTaskTitle = parentPreview.rootTaskEntry.task?.getTitle();
 
     return useMemo(() => {
         // If the parent task was deleted, don't show the deleted task's title.
-        if (access.type === "Deleted") return null;
+        if (isTaskClientStoreTaskEntryDeleted(parentPreview.rootTaskEntry)) return null;
 
         return (
             <div className={parentTaskTitleClassName}>
@@ -1917,9 +1916,13 @@ function TaskRowTitleParentTaskTitle({
                     </>
                 )}
                 <CaretLeft size={spacing["3"]} className={parentTaskTitleIconClassName} />
-                {access.type !== "PermissionGranted" ? (
+                {parentPreview.rootTaskEntry.task === null ? (
+                    // Null tasks are treated as if they're permission denied errors.
                     <div className={parentTaskTitlePermissionDeniedClassName}>
-                        <Lock size={spacing["3"]} className={parentTaskTitleIconClassName} />
+                        <LockBoldFillIcon
+                            size={spacing["2.5"]}
+                            className={parentTaskTitleIconClassName}
+                        />
                         <div className={parentTaskTitleTextClassName}>Private</div>
                     </div>
                 ) : (
@@ -1937,7 +1940,7 @@ function TaskRowTitleParentTaskTitle({
                 )}
             </div>
         );
-    }, [access.type, parentPreview.depth, parentTaskTitle]);
+    }, [parentPreview.depth, parentPreview.rootTaskEntry, parentTaskTitle]);
 }
 
 // Copied from ProseMirror:
@@ -1953,7 +1956,6 @@ function handleTaskRowTitleInputPaste(
     event: ClipboardEvent,
     {
         store,
-        query,
         spaceId,
         currentAccountId,
         timeZone,
@@ -1964,12 +1966,11 @@ function handleTaskRowTitleInputPaste(
         titleState,
         updateTitleStateRef,
         focusTaskTitleSelection,
-        getMoveTaskToQueryActions,
+        getMoveTasksToQueryActions,
         getMaybeRemoveTaskFromQueryActions,
         commitActionTransaction,
     }: {
         store: TaskClientReadonlyStore;
-        query: TaskClientQuery | null;
         spaceId: SpaceId;
         currentAccountId: AccountId;
         timeZone: TimeZone;
@@ -1983,17 +1984,16 @@ function handleTaskRowTitleInputPaste(
             titleState: EditorState;
         } | null>;
         focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
-        getMoveTaskToQueryActions: (
-            taskId: TaskId,
+        getMoveTasksToQueryActions: (
+            taskIds: ReadonlyArray<TaskId>,
             position:
                 | {type: "Start"}
                 | {type: "End"}
                 | {type: "Above"; taskId: TaskId}
-                | {type: "Below"; taskId: TaskId}
-                | {type: "Position"; position: TaskPosition},
+                | {type: "Below"; taskId: TaskId},
         ) => {
             actions: Array<TaskActionModel>;
-            position: TaskPosition;
+            positions: Array<TaskPosition>;
         } | null;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
         commitActionTransaction: (
@@ -2014,9 +2014,9 @@ function handleTaskRowTitleInputPaste(
         },
     });
 
-    // Parse the pasted data using a custom ProseMirror content schema that can
-    // only parse paragraphs and list items. If we see indented list items we want
-    // to convert them into subtasks.
+    // Parse the pasted data using a custom ProseMirror content schema that can only
+    // parse paragraphs and list items. If we see indented list items we want to
+    // convert them into subtasks.
     const slice =
         parseContentFromClipboard(
             spaceId,
@@ -2046,9 +2046,13 @@ function handleTaskRowTitleInputPaste(
     };
 
     for (const originalNode of slice?.content.content ?? []) {
-        const node = originalNode.isText
+        let node = originalNode.isText
             ? schema.node("paragraph", {}, [originalNode])
             : originalNode;
+
+        if (node.type.name === "orderedListItem") {
+            node = schema.node("unorderedListItem", node.attrs, node.content);
+        }
 
         // Ignore empty nodes or non-text nodes (e.g. files and dividers).
         if (!doesNodeHaveText(node)) continue;
@@ -2056,8 +2060,8 @@ function handleTaskRowTitleInputPaste(
         const pastedTask: PastedTask = {
             title: printContentSingleLineTextSnippet(schema.node("doc", {}, [node]), {
                 // The `schema` object we create above and use to parse `node` doesn't contain
-                // `mention` nodes. So we expect these functions to never be called. Throw an
-                // error to make that assumption clear.
+                // `mention` nodes. So we expect these functions to never be called. Throw an error
+                // to make that assumption clear.
                 getAccountIfExists: () => {
                     throw new UnimplementedError("Should be unreachable");
                 },
@@ -2090,16 +2094,16 @@ function handleTaskRowTitleInputPaste(
 
     if (pastedTasks.length === 0) return;
 
-    // Pasting a bullet list of tasks to create each task individually only makes
-    // sense in a manually sorted query. We don't have control of task order in an
+    // Pasting a bullet list of tasks to create each task individually only makes sense
+    // in a manually sorted query. We don't have control of task order in an
     // auto-sorted query.
     //
     // As a fallback, merge all pasted task titles together and paste them into the
     // current task title.
     //
     // TODO(calebmer): Eventually we want to support pasting multiple tasks in an
-    // auto-sorted query too. We just need some "temporary floating task" state to
-    // make this work.
+    // auto-sorted query too. We just need some "temporary floating task" state to make
+    // this work.
     if (!isQueryManuallySorted) {
         let combinedTitle = "";
 
@@ -2148,8 +2152,8 @@ function handleTaskRowTitleInputPaste(
                         type: "UpdateTitle",
                         titleUpdate,
                         // Don't allow merging title text updates that happen after the paste. So users
-                        // don't accidentally undo an entire paste when they wanted to only undo some
-                        // text they typed.
+                        // don't accidentally undo an entire paste when they wanted to only undo some text
+                        // they typed.
                         withoutUndoMerge: true,
                     },
                 },
@@ -2169,19 +2173,18 @@ function handleTaskRowTitleInputPaste(
         selection: Selection;
     } | null = null;
 
-    // Extract text before cursor from the current title.
-    // Text before cursor goes to the first root task, text after cursor stays
-    // in place on the last pasted task.
+    // Extract text before cursor from the current title. Text before cursor goes to
+    // the first root task, text after cursor stays in place on the last pasted task.
     const textBeforeCursor = titleState.doc.textBetween(0, titleState.selection.from);
 
-    // Check if there's only a single pasted task (first and last are the same).
-    // In this case, the task gets both text before and after cursor.
+    // Check if there's only a single pasted task (first and last are the same). In
+    // this case, the task gets both text before and after cursor.
     const isFirstAndLastPastedTaskSame =
         pastedTasks.length === 1 && pastedTasks[0]!.childTasks.length === 0;
 
-    // This function takes responsibility for moving ghost tasks into the query.
-    // That way we can make sure we correctly set the right `TaskPosition` for the
-    // ghost task relative to other tasks.
+    // This function takes responsibility for moving ghost tasks into the query. That
+    // way we can make sure we correctly set the right `TaskPosition` for the ghost
+    // task relative to other tasks.
     const withoutMoveGhostTaskToQuery = true;
 
     const getActions = (lastPastedTaskId: TaskId) => {
@@ -2193,16 +2196,13 @@ function handleTaskRowTitleInputPaste(
             isParentLastPastedTask: boolean,
             pastedTasks: Array<PastedTask>,
         ) => {
-            let overrideGhostTaskPosition: {
-                orderTime: HybridLogicalTime;
-                orderKeys: Array<OrderKey>;
-            } | null = null;
+            const moveTaskIdsToQuery: Array<TaskId> = [];
 
-            for (let i = 0; i < pastedTasks.length; i++) {
-                const pastedTask = pastedTasks[i]!;
+            for (let index = 0; index < pastedTasks.length; index++) {
+                const pastedTask = pastedTasks[index]!;
                 const isLastPastedTask =
                     isParentLastPastedTask &&
-                    i === pastedTasks.length - 1 &&
+                    index === pastedTasks.length - 1 &&
                     pastedTask.childTasks.length === 0;
 
                 const pastedTaskId: TaskId = isLastPastedTask ? lastPastedTaskId : generateId();
@@ -2214,96 +2214,30 @@ function handleTaskRowTitleInputPaste(
                         taskId: pastedTaskId,
                         taskAction: {
                             type: "Create",
-                            creatorId: currentAccountId,
+                            creator: {accountId: currentAccountId, from: null},
                             creatorTimeZone: timeZone,
                         },
                     });
                 }
 
-                // If this task doesn't have a parent then we need to add it to the query so
-                // it'll show up right where the user pasted.
-                if (pastedParentTaskId === null) {
-                    let moveTaskToQueryActions: ReadonlyArray<TaskActionModel>;
-
-                    if (!isGhostTask) {
-                        if (isLastPastedTask) {
-                            moveTaskToQueryActions = [];
-                        } else {
-                            moveTaskToQueryActions =
-                                getMoveTaskToQueryActions(pastedTaskId, {
-                                    type: "Above",
-                                    taskId: lastPastedTaskId,
-                                })?.actions ?? [];
-                        }
-                    } else {
-                        // When pasting into a ghost task, each call to `getMoveTaskToQueryActions`
-                        // generates a new `orderTime` which causes reverse ordering with descending
-                        // sorts (e.g. in `<TaskPersonalView>`). Fix this by using same `orderTime`
-                        // with sequential `OrderKey`s.
-                        //
-                        // The first task we paste will hit this branch then initialize
-                        // `overrideGhostTaskPosition` and subsequent tasks will use the generated
-                        // `orderTime` + `orderKey`s.
-                        if (!overrideGhostTaskPosition) {
-                            const result = getMoveTaskToQueryActions(pastedTaskId, {
-                                type: isFirstRow ? "Start" : "End",
-                            });
-
-                            if (!result) {
-                                moveTaskToQueryActions = [];
-                            } else {
-                                moveTaskToQueryActions = result.actions;
-
-                                if (
-                                    getTaskQueryManuallySortedDirection(query?.sorts ?? []) !==
-                                    "Descending"
-                                ) {
-                                    overrideGhostTaskPosition = {
-                                        orderTime: result.position.orderTime,
-                                        orderKeys: generateOrderKeysBetween(
-                                            result.position.orderKey,
-                                            null,
-                                            pastedTasks.length - 1,
-                                        ),
-                                    };
-                                } else {
-                                    overrideGhostTaskPosition = {
-                                        orderTime: result.position.orderTime,
-                                        orderKeys: generateOrderKeysBetween(
-                                            null,
-                                            result.position.orderKey,
-                                            pastedTasks.length - 1,
-                                        ).reverse(),
-                                    };
-                                }
-                            }
-                        } else {
-                            moveTaskToQueryActions =
-                                getMoveTaskToQueryActions(pastedTaskId, {
-                                    type: "Position",
-                                    position: {
-                                        orderTime: overrideGhostTaskPosition.orderTime,
-                                        orderKey: assertExists(
-                                            overrideGhostTaskPosition.orderKeys[i - 1],
-                                        ),
-                                    },
-                                })?.actions ?? [];
-                        }
-                    }
-
-                    for (const action of moveTaskToQueryActions) {
-                        actions.push(action);
-                    }
+                // If these tasks don't have a parent then add them to the query so they'll show up
+                // right where the user pasted.
+                //
+                // If this is the last pasted task then it's already in the query and so doesn't
+                // need to be moved. If this is the last pasted task in a ghost task then when we
+                // create the ghost task we also need to move it.
+                if (pastedParentTaskId === null && (isGhostTask || !isLastPastedTask)) {
+                    moveTaskIdsToQuery.push(pastedTaskId);
                 }
 
                 if (pastedParentTaskId !== null) {
-                    // If this is the last pasted task and it's being made the child of another
-                    // pasted task then let's remove it from the query so it doesn't show up as both
-                    // a child and a task in the query.
+                    // If this is the last pasted task and it's being made the child of another pasted
+                    // task then let's remove it from the query so it doesn't show up as both a child
+                    // and a task in the query.
                     //
                     // If this is a ghost task then we don't need to commit these actions since
-                    // `withoutMoveGhostTaskToQuery` will be true and the ghost task won't be added
-                    // to the query in the first place.
+                    // `withoutMoveGhostTaskToQuery` will be true and the ghost task won't be added to
+                    // the query in the first place.
                     if (isLastPastedTask && !isGhostTask) {
                         for (const action of getMaybeRemoveTaskFromQueryActions(pastedTaskId)) {
                             actions.push(action);
@@ -2322,14 +2256,14 @@ function handleTaskRowTitleInputPaste(
                 }
 
                 // Don't allow merging title text updates that happen after the paste. So users
-                // don't accidentally undo an entire paste when they wanted to only undo some
-                // text they typed.
+                // don't accidentally undo an entire paste when they wanted to only undo some text
+                // they typed.
                 const withoutUndoMerge = true;
 
                 if (!isLastPastedTask) {
-                    // If this is the first root task and there are multiple pasted tasks,
-                    // prepend the text before cursor to this task's title.
-                    const isFirstRootTask = pastedParentTaskId === null && i === 0;
+                    // If this is the first root task and there are multiple pasted tasks, prepend the
+                    // text before cursor to this task's title.
+                    const isFirstRootTask = pastedParentTaskId === null && index === 0;
                     let taskTitle = pastedTask.title;
                     if (isFirstRootTask && !isFirstAndLastPastedTaskSame) {
                         taskTitle = textBeforeCursor + taskTitle;
@@ -2346,13 +2280,13 @@ function handleTaskRowTitleInputPaste(
                         },
                     });
                 }
-                // If this is the last pasted task then generate a `titleUpdate` that replaces
-                // text in the last task at the current selection.
+                // If this is the last pasted task then generate a `titleUpdate` that replaces text
+                // in the last task at the current selection.
                 else {
-                    // When pasting a single task, keep existing behavior: insert pasted title
-                    // at cursor position, preserving text before and after.
-                    // When pasting multiple tasks, the first root task gets text before cursor
-                    // and this last task gets only the pasted title + text after cursor.
+                    // When pasting a single task, keep existing behavior: insert pasted title at
+                    // cursor position, preserving text before and after. When pasting multiple tasks,
+                    // the first root task gets text before cursor and this last task gets only the
+                    // pasted title + text after cursor.
                     let replacementText: string;
                     let replaceFrom: number;
                     let replaceTo: number;
@@ -2363,9 +2297,9 @@ function handleTaskRowTitleInputPaste(
                         replaceFrom = titleState.selection.from;
                         replaceTo = titleState.selection.to;
                     } else {
-                        // Multiple tasks - replace from start to selection with just the pasted
-                        // title, leaving text after cursor in place. This is better for
-                        // collaborative editing than replacing the entire content.
+                        // Multiple tasks - replace from start to selection with just the pasted title,
+                        // leaving text after cursor in place. This is better for collaborative editing
+                        // than replacing the entire content.
                         replacementText = pastedTask.title;
                         replaceFrom = 0;
                         replaceTo = titleState.selection.to;
@@ -2400,9 +2334,8 @@ function handleTaskRowTitleInputPaste(
                             ),
                         );
 
-                        // Set the selection to the end of the pasted content.
-                        // For single task: after the pasted title
-                        // For multiple tasks: after the pasted title (before textAfterCursor)
+                        // Set the selection to the end of the pasted content. For single task: after the
+                        // pasted title For multiple tasks: after the pasted title (before textAfterCursor)
                         const cursorPosition = isFirstAndLastPastedTaskSame
                             ? replaceFrom +
                               Math.min(pastedTask.title.length, actualReplacementText.length)
@@ -2430,9 +2363,9 @@ function handleTaskRowTitleInputPaste(
                             },
                         });
 
-                        // If the task used to have no parents but after the paste will be indented then
-                        // we need to manually move focus into the new `<TaskRowView>` component since
-                        // child tasks have a key prefixed by their root parent task.
+                        // If the task used to have no parents but after the paste will be indented then we
+                        // need to manually move focus into the new `<TaskRowView>` component since child
+                        // tasks have a key prefixed by their root parent task.
                         if (parents.length === 0 && pastedParentTaskIds.length > 0) {
                             focusTaskTitleSelectionAfterCommit = {
                                 gridKey: `${pastedParentTaskIds[0]!}-${pastedTaskId}`,
@@ -2445,9 +2378,22 @@ function handleTaskRowTitleInputPaste(
                 loop(
                     [...pastedParentTaskIds, pastedTaskId],
                     pastedTaskId,
-                    isParentLastPastedTask && i === pastedTasks.length - 1,
+                    isParentLastPastedTask && index === pastedTasks.length - 1,
                     pastedTask.childTasks,
                 );
+            }
+
+            if (moveTaskIdsToQuery.length > 0) {
+                const position = isGhostTask
+                    ? isFirstRow
+                        ? ({type: "Start"} as const)
+                        : ({type: "End"} as const)
+                    : ({type: "Above", taskId: lastPastedTaskId} as const);
+
+                for (const action of getMoveTasksToQueryActions(moveTaskIdsToQuery, position)
+                    ?.actions ?? emptyArray) {
+                    actions.push(action);
+                }
             }
         };
 
@@ -2456,8 +2402,8 @@ function handleTaskRowTitleInputPaste(
         return actions;
     };
 
-    // Synchronous flush to make sure `updateTitleStateRef` is used before it's
-    // reset to null at the end of this function.
+    // Synchronous flush to make sure `updateTitleStateRef` is used before it's reset
+    // to null at the end of this function.
     flushSync(() => {
         commitActionTransaction(getActions, {withoutMoveGhostTaskToQuery});
     });

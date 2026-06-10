@@ -1,14 +1,15 @@
 import {CalendarDate} from "@internationalized/date";
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {getTaskNotesContent} from "~/server/tasks/data/get_task_notes_content.js";
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,
 } from "~/server/tasks/data/task_index.js";
-import {getTaskNotesContent} from "~/server/tasks/data/task_table.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -19,25 +20,21 @@ import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 const {context, services} = createTestServices();
 
 async function waitForSavingIndicatorAndReloadPage(page: Page) {
-    // Wait for the saving indicator to disappear before reloading the page. To
-    // make sure our update has actually made it to the server.
+    // Wait for the saving indicator to disappear before reloading the page. To make
+    // sure our update has actually made it to the server.
     await page.evaluate("dev.globalLoadingIndicator.waitForSavingIndicator()");
 
     await page.reload();
 }
 
-test("can create task by clicking the status button", async ({
-    page,
-    context: browserContext,
-    isMobile,
-}) => {
+test("can create task by clicking the status button", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -57,12 +54,12 @@ test("can create task by clicking the status button", async ({
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(statusLocator.getByRole("img", {name: "Open"})).toBeVisible();
     await expect(statusLocator.getByRole("img", {name: "Closed"})).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(statusLocator.getByRole("img", {name: "Closed"})).toBeVisible();
     await expect(statusLocator.getByRole("img", {name: "Open"})).toBeHidden();
@@ -96,18 +93,14 @@ test("can create task by clicking the status button", async ({
     await expect(statusLocator.getByRole("img", {name: "Open"})).toBeHidden();
 });
 
-test("can create task by typing in the task title", async ({
-    page,
-    context: browserContext,
-    isMobile,
-}) => {
+test("can create task by typing in the task title", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -126,11 +119,11 @@ test("can create task by typing in the task title", async ({
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(titleLocator).not.toHaveText("foobar");
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(titleLocator).toHaveText("foobar");
 
@@ -163,7 +156,7 @@ test("can create task by typing in the task title", async ({
     await expect(titleLocator).toHaveText("foobar");
 });
 
-test("can create task by changing assignee", async ({page, context: browserContext, isMobile}) => {
+test("can create task by changing assignee", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({name: "foo"});
     const session2 = await space.createSession({name: "bar"});
@@ -171,7 +164,7 @@ test("can create task by changing assignee", async ({page, context: browserConte
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -191,11 +184,11 @@ test("can create task by changing assignee", async ({page, context: browserConte
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(assigneeLocator).toContainText("foo");
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(assigneeLocator).toContainText("bar");
 
@@ -226,14 +219,14 @@ test("can create task by changing assignee", async ({page, context: browserConte
     await expect(assigneeLocator).toContainText("bar");
 });
 
-test("can create task by adding collection", async ({page, context: browserContext, isMobile}) => {
+test("can create task by adding collection", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -257,11 +250,11 @@ test("can create task by adding collection", async ({page, context: browserConte
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(collectionLocator).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(collectionLocator).toBeVisible();
 
@@ -310,14 +303,14 @@ test("can create task by adding collection", async ({page, context: browserConte
     await expect(collectionLocator).toBeVisible();
 });
 
-test("can create task by adding priority", async ({page, context: browserContext, isMobile}) => {
+test("can create task by adding priority", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -341,11 +334,11 @@ test("can create task by adding priority", async ({page, context: browserContext
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(priorityLocator).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(priorityLocator).toBeVisible();
 
@@ -379,14 +372,14 @@ test("can create task by adding priority", async ({page, context: browserContext
     await expect(priorityLocator).toBeVisible();
 });
 
-test("can create task by adding due date", async ({page, context: browserContext, isMobile}) => {
+test("can create task by adding due date", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -394,8 +387,8 @@ test("can create task by adding due date", async ({page, context: browserContext
 
     await expect(page).toHaveURL(/[?&]create/);
 
-    // HACK(calebmer): There's some time zone weirdness going on here I'm not going
-    // to debug right now.
+    // HACK(calebmer): There's some time zone weirdness going on here I'm not going to
+    // debug right now.
     const dueDateLocator = page.getByText(/Yesterday|Today|Tomorrow/);
 
     await expect(dueDateLocator).toBeHidden();
@@ -405,7 +398,7 @@ test("can create task by adding due date", async ({page, context: browserContext
 
     await expect(page).toHaveURL(/[?&]create/);
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+;`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", ";"));
 
     await expect(page).not.toHaveURL(/[?&]create/);
 
@@ -413,12 +406,12 @@ test("can create task by adding due date", async ({page, context: browserContext
 
     await expect(dueDateLocator).toBeVisible();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
     await page.keyboard.press("Escape");
 
     await expect(dueDateLocator).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
     await page.keyboard.press("Escape");
 
     await expect(dueDateLocator).toBeVisible();
@@ -459,7 +452,7 @@ test("can create task by updating notes", async ({isMobile, page, context: brows
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -482,11 +475,11 @@ test("can create task by updating notes", async ({isMobile, page, context: brows
 
     await expect(notesLocator).toBeVisible();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expect(notesLocator).toBeHidden();
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expect(notesLocator).toBeVisible();
 
@@ -536,7 +529,7 @@ test("can create task by typing subtask title", async ({
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -560,11 +553,11 @@ test("can create task by typing subtask title", async ({
 
     await expectTaskGridView(page, [[true, "foobar"]], {withoutColumns: true});
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, [], {withoutColumns: true});
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [[true, "foobar"]], {withoutColumns: true});
 
@@ -608,7 +601,7 @@ test("can create task by hitting enter in ghost subtask", async ({
     const taskId = generateId<TaskId>();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create`);
+    await page.goto(`/task/${taskId}?create=${space.id}`);
 
     // Wait for React to mount
     await page.waitForFunction("dev.ready");
@@ -632,11 +625,11 @@ test("can create task by hitting enter in ghost subtask", async ({
 
     await expectTaskGridView(page, [[true, ""]], {withoutColumns: true});
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "z"));
 
     await expectTaskGridView(page, [], {withoutColumns: true});
 
-    await page.keyboard.press(`${isMobile ? "Meta" : "ControlOrMeta"}+Shift+z`);
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "shift", "z"));
 
     await expectTaskGridView(page, [[true, ""]], {withoutColumns: true});
 
@@ -683,7 +676,7 @@ test("can create initially closed task", async ({isMobile, page, context: browse
     ]);
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create=${createSearchParam}`);
+    await page.goto(`/task/${taskId}?create=${space.id}+${createSearchParam}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -742,7 +735,7 @@ test("can create initially active task", async ({isMobile, page, context: browse
     ]);
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create=${createSearchParam}`);
+    await page.goto(`/task/${taskId}?create=${space.id}+${createSearchParam}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -819,7 +812,7 @@ test("can create task with initial collection", async ({
     ]);
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create=${createSearchParam}`);
+    await page.goto(`/task/${taskId}?create=${space.id}+${createSearchParam}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -868,6 +861,122 @@ test("can create task with initial collection", async ({
     }).toPass({timeout: 5000});
 });
 
+test("can create task with initial collection and turn it into project", async ({
+    isMobile,
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const collection = await TestTaskCollection.create(session, {name: "foobar"});
+
+    const taskId = generateId<TaskId>();
+
+    const createSearchParam = serializeTaskQueryFiltersSearchParam([
+        {
+            type: "Collections",
+            operation: {type: "IncludesAllOf", collectionIds: new Set([collection.id])},
+        },
+    ]);
+    const projectCreateSearchParam = serializeTaskQueryFiltersSearchParam([
+        {
+            type: "Collections",
+            operation: {type: "IncludesAllOf", collectionIds: new Set([collection.id])},
+        },
+        {
+            type: "Layout",
+            operation: {type: "OneOf", layouts: ["Project"]},
+        },
+    ]);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/task/${taskId}?create=${space.id}+${createSearchParam}`);
+
+    expect(
+        await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
+    ).toEqual(null);
+
+    await expect(page).toHaveURL(/[?&]create/);
+
+    const collectionLocator = page.getByTestId("TaskCollectionsInput").getByText("foobar");
+
+    await expect(collectionLocator).toBeVisible();
+
+    if (isMobile) {
+        await page.getByRole("button", {name: "More"}).tap();
+    } else {
+        await page.getByRole("button", {name: "More"}).click();
+    }
+    const turnIntoMenuItem = page.getByRole("menuitem", {name: "Turn into"});
+    await expect(turnIntoMenuItem).toBeVisible();
+    if (isMobile) {
+        await turnIntoMenuItem.tap();
+    } else {
+        await turnIntoMenuItem.hover();
+    }
+
+    const projectMenuItem = page.getByRole("menuitem", {name: "Project"});
+    if (isMobile) {
+        await projectMenuItem.tap();
+    } else {
+        await projectMenuItem.click();
+    }
+    await expect(projectMenuItem).toBeHidden();
+
+    await expect(page).toHaveURL(/[?&]create/);
+    await expect
+        .poll(() => new URL(page.url()).searchParams.get("create"))
+        .toBe(`${space.id} ${projectCreateSearchParam}`);
+    expect(
+        await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
+    ).toEqual(null);
+    if (!isMobile) {
+        await expect(page.getByRole("button", {name: "Create task"})).toBeVisible();
+        await expect(page.getByText("Project", {exact: true})).toBeVisible();
+    }
+    await expect(collectionLocator).toBeVisible();
+
+    // Create task by typing in notes.
+    if (isMobile) {
+        await page.getByRole("textbox", {name: "Notes"}).tap();
+    } else {
+        await page.getByRole("textbox", {name: "Notes"}).click();
+    }
+    await page.getByRole("textbox", {name: "Notes"}).press("x");
+
+    await expect(page).not.toHaveURL(/[?&]create/);
+
+    await expect(collectionLocator).toBeVisible();
+
+    await expect(async () => {
+        const task = await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {
+            realtime: true,
+        });
+
+        expect(task).toEqual(
+            expect.objectContaining({
+                spaceId: space.id,
+                creator: expect.objectContaining({accountId: session.account.id}),
+                assignee: expect.objectContaining({
+                    value: null,
+                }),
+                status: expect.objectContaining({
+                    value: expect.objectContaining({type: "Open"}),
+                }),
+                layout: expect.objectContaining({
+                    value: "Project",
+                }),
+            }),
+        );
+
+        const collections = assertExists(task).collections.raw.collections;
+
+        expect(collections.has(collection.id)).toEqual(true);
+        expect(collections.getArray().length).toEqual(1);
+    }).toPass({timeout: 5000});
+});
+
 test("can create task with initial priority", async ({isMobile, page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -882,7 +991,7 @@ test("can create task with initial priority", async ({isMobile, page, context: b
     ]);
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create=${createSearchParam}`);
+    await page.goto(`/task/${taskId}?create=${space.id}+${createSearchParam}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -943,7 +1052,7 @@ test("can create task with initial title", async ({isMobile, page, context: brow
     ]);
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create=${createSearchParam}`);
+    await page.goto(`/task/${taskId}?create=${space.id}+${createSearchParam}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),
@@ -1007,7 +1116,7 @@ test("can create task with initial assignee", async ({isMobile, page, context: b
     ]);
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/tasks/${taskId}?create=${createSearchParam}`);
+    await page.goto(`/task/${taskId}?create=${space.id}+${createSearchParam}`);
 
     expect(
         await getTaskIndexDocIfExistsForTest(context, space.id, taskId, {realtime: true}),

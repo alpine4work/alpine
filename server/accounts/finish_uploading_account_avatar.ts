@@ -24,7 +24,7 @@ export async function finishUploadingAccountAvatar(
         );
     }
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const oldAccountItem = await getAccountItem(context, accountId);
         const oldAccountAvatar = oldAccountItem.avatar;
 
@@ -39,7 +39,8 @@ export async function finishUploadingAccountAvatar(
 
         // NOTE(ifitzsimmons, 2025-08-15): We considered adding a check to ensure that the
         // new avatarId is newer than the old avatarId. We opted against that for now, see
-        // reasoning here: https://app.graphite.dev/github/pr/cyberworlds/cyberworlds/312/add-rpc-implementation-for-uploading-account-avatars#comment-PRRC_kwDOH2ktg86H2sCi
+        // reasoning here:
+        // https://app.graphite.dev/github/pr/cyberworlds/cyberworlds/312/add-rpc-implementation-for-uploading-account-avatars#comment-PRRC_kwDOH2ktg86H2sCi
         const accountAvatarItem = await AccountsTable.directlyUpdateItem(context, newAvatarItem);
 
         return createAccountModelWithoutSpaceFromItem({

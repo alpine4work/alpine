@@ -12,14 +12,15 @@ import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
-// TypeScript errors here when new normalized filters are added. If you add a
-// new normalized filter you should make sure to update
+// TypeScript errors here when new normalized filters are added. If you add a new
+// normalized filter you should make sure to update
 // `mightTaskActionAddVisibleTaskInQueryNormalizedFilters()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "layoutFilter"
     | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
@@ -32,13 +33,14 @@ assertEqualTypes<
     | "parentFilter"
 >();
 
-// TypeScript errors here when new normalized sorts are added. If you add a
-// new normalized filter you should make sure to update
+// TypeScript errors here when new normalized sorts are added. If you add a new
+// normalized filter you should make sure to update
 // `mightTaskActionMoveVisibleTaskForQueryNormalizedSorts()`.
 assertEqualTypes<
     TaskQueryNormalizedSort["type"],
     | "DisplayStatus"
     | "Priority"
+    | "Layout"
     | "Assignee"
     | "Creator"
     | "Assigner"
@@ -58,37 +60,35 @@ assertEqualTypes<
  * Let there be a task outside of the query's loaded range.
  *
  * This function returns false if that task definitely won't be added to the
- * query's loaded range after the provided action. This function returns true
- * if the task MAY be added to the query's loaded range after the provided
- * action.
+ * query's loaded range after the provided action. This function returns true if
+ * the task MAY be added to the query's loaded range after the provided action.
  *
- * Returning false is definite. Returning true means the caller needs to load
- * the underlying task and test it against the query's filters/sorts to see if
- * the task needs to be added.
+ * Returning false is definite. Returning true means the caller needs to load the
+ * underlying task and test it against the query's filters/sorts to see if the task
+ * needs to be added.
  *
  * This function does not know what the state of the task is so must err on the
  * side of caution. If there's any case where the underlying task may pass the
  * filters you must return true. It's critical that this function returns false
- * only if it absolutely knows for sure an action outside the query's loaded
- * range will not be added to the query's loaded range.
+ * only if it absolutely knows for sure an action outside the query's loaded range
+ * will not be added to the query's loaded range.
  *
  * This function is used as an optimization to prevent some unnecessary
  * computation. If this function always returns true it shouldn't affect the
  * behavior of the system, only its efficiency.
  *
- * - For filters: We check if a hidden task may be made visible with the
- *   provided action.
+ * - For filters: We check if a hidden task may be made visible with the provided
+ *   action.
  *
- * - For sorts: We check if a task near the bottom of the query (outside the
- *   loaded range) may be moved to the top (inside the loaded range) with the
- *   provided action.
+ * - For sorts: We check if a task near the bottom of the query (outside the loaded
+ *   range) may be moved to the top (inside the loaded range) with the provided
+ *   action.
  *
- * Sometimes we use a combination of both filters and sorts. For example if
- * you're sorting on `ParentPosition` then task updating its `parentTaskId`
- * will change the parent position possibly moving the task into the query's
- * loaded range. However, if you're sorting on `ParentPosition` and filtering
- * with `parentFilter` then we only need to care about `parentTaskId` updates
- * that match the filter.
+ * Sometimes we use a combination of both filters and sorts. For example if you're
+ * sorting on `ParentPosition` then task updating its `parentTaskId` will change
+ * the parent position possibly moving the task into the query's loaded range.
+ * However, if you're sorting on `ParentPosition` and filtering with `parentFilter`
+ * then we only need to care about `parentTaskId` updates that match the filter.
  */
 // TODO(calebmer): This could really use some tests. Maybe an assertion in
 // development mode that `false` is truly `false`. The return value of this
@@ -112,8 +112,7 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             return false;
         }
         case "Undelete": {
-            // We have no idea what was in the deleted task. Any undelete may expose
-            // the task.
+            // We have no idea what was in the deleted task. Any undelete may expose the task.
             return true;
         }
         case "UpdateParentTaskId": {
@@ -121,11 +120,11 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             // position with no parent filter then every parent task update may move a task
             // into the loaded range.
             //
-            // However, this is inefficient in the common case where you are filtering for
-            // a specific parent task and sorting its children. We don't want this function
-            // to return true for every parent task update. In that case, if another task's
-            // parent changes but its outside the filter it doesn't matter that it's parent
-            // position changed, it can never appear in our query.
+            // However, this is inefficient in the common case where you are filtering for a
+            // specific parent task and sorting its children. We don't want this function to
+            // return true for every parent task update. In that case, if another task's parent
+            // changes but its outside the filter it doesn't matter that it's parent position
+            // changed, it can never appear in our query.
             if (
                 sorts.some(sort => sort.type === "ParentPosition") &&
                 (!filters.parentFilter || filters.parentFilter.parentTaskId === action.parentTaskId)
@@ -143,8 +142,8 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             return false;
         }
         case "AddCollection": {
-            // Sorting by collection position may move a task into the loaded range when
-            // the collection is added.
+            // Sorting by collection position may move a task into the loaded range when the
+            // collection is added.
             if (
                 sorts.some(sort => sort.type === "CollectionPosition") &&
                 sorts.every(
@@ -158,9 +157,8 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
 
             if (!filters.collectionsFilter) return false;
 
-            // If any term, whether it is "AND"ed or "OR"ed, would match a task with the
-            // added collection then the overall filter expression might go from false to
-            // true.
+            // If any term, whether it is "AND"ed or "OR"ed, would match a task with the added
+            // collection then the overall filter expression might go from false to true.
             return filters.collectionsFilter.some(clause =>
                 iterableSome(
                     clause,
@@ -171,8 +169,8 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             );
         }
         case "RemoveCollection": {
-            // Sorting by collection position may move a task into the loaded range when
-            // the collection is removed.
+            // Sorting by collection position may move a task into the loaded range when the
+            // collection is removed.
             if (
                 sorts.some(sort => sort.type === "CollectionPosition") &&
                 sorts.every(
@@ -308,9 +306,9 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                 return true;
             }
 
-            // When we change a task's assignee, it also resets our assignee status from
-            // active to inactive. If we are filtering for inactive tasks and not active
-            // tasks then this change might expose the task.
+            // When we change a task's assignee, it also resets our assignee status from active
+            // to inactive. If we are filtering for inactive tasks and not active tasks then
+            // this change might expose the task.
             if (
                 filters.displayStatusFilter.ifOpenInactive &&
                 !filters.displayStatusFilter.ifOpenActive
@@ -349,8 +347,8 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                 return true;
             }
 
-            // If all open statuses are allowed then changing the status will not change
-            // the visibility state.
+            // If all open statuses are allowed then changing the status will not change the
+            // visibility state.
             if (
                 filters.displayStatusFilter.ifOpenInactive &&
                 filters.displayStatusFilter.ifOpenActive &&
@@ -384,8 +382,8 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             return sorts.some(sort => sort.type === "AssigneePosition");
         }
         case "UpdateTitle": {
-            // We don't know what the title will be when this action is applied so return
-            // true for any title filter.
+            // We don't know what the title will be when this action is applied so return true
+            // for any title filter.
             return !!filters.titleFilter;
         }
         case "UpdateDueDate": {
@@ -414,6 +412,21 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                     throw exhaustive(action.priority);
             }
         }
+        case "UpdateLayout": {
+            if (sorts.some(sort => sort.type === "Layout")) return true;
+
+            if (!filters.layoutFilter) return false;
+
+            switch (action.layout) {
+                case null:
+                    return filters.layoutFilter.ifNull;
+                case "Project":
+                    return filters.layoutFilter.ifProject;
+                default:
+                    throw exhaustive(action.layout);
+            }
+        }
+        case "UpdateAccessPolicy":
         case "UpdateNotepadPagePosition":
         case "UpdateAssigneeActivePosition": {
             return false;

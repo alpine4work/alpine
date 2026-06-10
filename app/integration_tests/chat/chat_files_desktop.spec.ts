@@ -39,7 +39,7 @@ test("can drop files into chat", async ({context: browserContext, page}) => {
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page.goto(`/chat/${chat.id}`);
 
     const file1Contents = await fs.readFile(
         joinPath(
@@ -237,7 +237,7 @@ test("can remove files after dropping them into chat", async ({context: browserC
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+    await page.goto(`/chat/${chat.id}`);
 
     const file1Contents = await fs.readFile(
         joinPath(
@@ -374,7 +374,7 @@ test("can drop file into new chat then change account recipients", async ({
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     const file1Contents = await fs.readFile(
         joinPath(
@@ -423,8 +423,8 @@ test("can drop file into new chat then change account recipients", async ({
 
     // NOTE(calebmer, 2025-06-02): For some reason Playwright can't find an
     // `alertdialog` role element while a menu is open? So we use
-    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred
-    // form `page.getByRole("alertdialog", {name: "JPEG image"})`.
+    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred form
+    // `page.getByRole("alertdialog", {name: "JPEG image"})`.
     //
     // This also seems to affect `page.getByRole("button", {name: "Send message"})`.
     await expect(page.getByLabel("JPEG image")).toBeHidden();
@@ -573,12 +573,12 @@ test("can drag file we didn\u2019t upload from document into new chat", async ({
     await page1.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const file1Contents = await fs.readFile(
         joinPath(
@@ -625,15 +625,20 @@ test("can drag file we didn\u2019t upload from document into new chat", async ({
     await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
 
     await page1.getByLabel("Create").click();
-    await page1.getByLabel("Message").click();
+    await page1
+        .getByRole("menubar", {name: "Quick create"})
+        .getByRole("menuitem", {
+            name: "Chat",
+        })
+        .click();
 
     await expect(page1.getByTestId("MessagingView")).toBeVisible();
 
-    // Wait 400ms for the peek to finish animating open (twice the animation
-    // duration of 200ms). Normally waiting for a timeout like this is flaky.
-    // However, in this case we know for certain the animation has started once
-    // `page.getByLabel("MessagingView")` is visible. So the animation should
-    // complete within 200ms of browser time.
+    // Wait 400ms for the peek to finish animating open (twice the animation duration
+    // of 200ms). Normally waiting for a timeout like this is flaky. However, in this
+    // case we know for certain the animation has started once
+    // `page.getByLabel("MessagingView")` is visible. So the animation should complete
+    // within 200ms of browser time.
     await page1.waitForTimeout(400);
 
     await expect(page1.getByTestId("ContentFilePreview:image/jpeg")).toBeVisible();
@@ -677,8 +682,8 @@ test("can drag file we didn\u2019t upload from document into new chat", async ({
 
     // NOTE(calebmer, 2025-06-02): For some reason Playwright can't find an
     // `alertdialog` role element while a menu is open? So we use
-    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred
-    // form `page.getByRole("alertdialog", {name: "JPEG image"})`.
+    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred form
+    // `page.getByRole("alertdialog", {name: "JPEG image"})`.
     //
     // This also seems to affect `page.getByRole("button", {name: "Send message"})`.
     await expect(page1.getByLabel("JPEG image")).toBeHidden();
@@ -729,13 +734,18 @@ test("can drag file from message input in new chat to another new chat", async (
     await page.setViewportSize({width: 1280, height: 720});
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/chat/new`);
+    await page.goto(`/chat/new/${space.id}`);
 
     await page.getByRole("combobox", {name: "To"}).click();
     await page.getByRole("option", {name: session2.account.initialName}).click();
 
     await page.getByLabel("Create").click();
-    await page.getByLabel("Message", {exact: true}).click();
+    await page
+        .getByRole("menubar", {name: "Quick create"})
+        .getByRole("menuitem", {
+            name: "Chat",
+        })
+        .click();
 
     await expect(page.getByTestId("PeekStack").getByTestId("MessagingView")).toBeVisible();
     await expect(page.getByTestId("MessagingView")).toHaveCount(2);

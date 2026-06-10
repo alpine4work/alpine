@@ -3,8 +3,8 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Create a DynamoDB transaction entry that checks the account's `nameVersion`
- * is equal to the provided value.
+ * Create a DynamoDB transaction entry that checks the account's `nameVersion` is
+ * equal to the provided value.
  */
 export function createAccountNameVersionConditionCheckTransactionEntry(
     accountId: AccountId,

@@ -10,18 +10,18 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 /**
  * README
  *
- * There are a lot of warnings in here. Be very careful here as this endpoint
- * is unauthenticated (but authorized via a secret token, hardcoded token). If
- * you are updating this file, please know what you are doing and why.
+ * There are a lot of warnings in here. Be very careful here as this endpoint is
+ * unauthenticated (but authorized via a secret token, hardcoded token). If you are
+ * updating this file, please know what you are doing and why.
  */
 
-// If you update this, be sure to also update the token used in app/routes/api.internal.accounts.$accountId.plan.ts
+// If you update this, be sure to also update the token used in
+// app/routes/api.internal.accounts.$accountId.plan.ts
 const appServiceAccountPlanSecretToken = "cyberworlds-super-secret-internal-agent-service-token";
 
 /**
- * Given an account ID, this makes a call to our internal plan API to
- * retrieve the account's plan, then updates the agent usage database
- * with the new entitlements.
+ * Given an account ID, this makes a call to our internal plan API to retrieve the
+ * account's plan, then updates the agent usage database with the new entitlements.
  */
 export async function refreshAccountEntitlements(
     tracer: TracerBase,
@@ -30,13 +30,14 @@ export async function refreshAccountEntitlements(
     accountId: AccountId,
     options?: {fetch?: typeof fetch},
 ) {
-    return tracer.withSpan("Refresh account entitlements", async span => {
+    return await tracer.withSpan("Refresh account entitlements", async span => {
         const fetchPlanUrl = new URL(
             `/api/internal/accounts/${accountId}/plan`,
             env.EDGE_SERVICE_URL,
         );
 
-        // This is unauthenticated route, besides a hardcoded secret token. Be very careful with this.
+        // This is unauthenticated route, besides a hardcoded secret token. Be very careful
+        // with this.
         const plan = await retryWithExponentialBackoff(
             retry =>
                 fetchWithTracer(
@@ -53,8 +54,8 @@ export async function refreshAccountEntitlements(
                         ...(options?.fetch && {fetch: options.fetch}),
                     },
                     async response => {
-                        // If the request failed, then throw an error. We want to mark this span as
-                        // failed and we don't want to handle errors inline.
+                        // If the request failed, then throw an error. We want to mark this span as failed
+                        // and we don't want to handle errors inline.
                         if (!response.ok) {
                             if (response.status >= 500) {
                                 const error = new InternalError("API request failed", {
@@ -74,11 +75,12 @@ export async function refreshAccountEntitlements(
                     },
                 ),
             // Generally, we don't want to set a limit and allow retries to happen within
-            // retryWithExponentialBackoff. However, this function is called by processStripeWebhook,
-            // which could fail due to transient errors. Since that call also retries, there could be a
-            // very small chance of this call retrying max times and the agent call retrying max times.
-            // We don't want to DOS ourselves, so instead of 144 total potential retries (12*12),
-            // we limit this to 5 and 5, for 25 total.
+            // retryWithExponentialBackoff. However, this function is called by
+            // processStripeWebhook, which could fail due to transient errors. Since that call
+            // also retries, there could be a very small chance of this call retrying max times
+            // and the agent call retrying max times. We don't want to DOS ourselves, so
+            // instead of 144 total potential retries (12\*12), we limit this to 5 and 5, for
+            // 25 total.
             {maxAttemptCount: 5},
         );
 

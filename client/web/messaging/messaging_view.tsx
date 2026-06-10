@@ -43,6 +43,7 @@ import {useMessagingRealtime} from "~/client/web/messaging/use_messaging_realtim
 import {useScrollToNewMessages} from "~/client/web/messaging/use_scroll_to_new_messages.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     VirtualizedScrollView,
@@ -50,6 +51,11 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import {
+    ResolvedAccessPolicyWithGenerations,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -118,8 +124,8 @@ class MessagingViewState<Message extends MessageModel> {
     }
 
     /**
-     * Transform the range for our state's virtualized list into a range of
-     * just messages.
+     * Transform the range for our state's virtualized list into a range of just
+     * messages.
      */
     public getMessagesRange(
         range: {
@@ -190,9 +196,9 @@ export {MessagingViewForwardRef as MessagingView};
  * rendering of messages, lazy loading message, jumping to arbitrary messages,
  * sending messages, editing messages, and deleting messages.
  *
- * Post comments are the exception! Because we render post comments embedded in
- * a scroll view full of posts we have a separate `<PostListView>`
- * implementation that renders messages in a post.
+ * Post comments are the exception! Because we render post comments embedded in a
+ * scroll view full of posts we have a separate `<PostListView>` implementation
+ * that renders messages in a post.
  */
 function MessagingView<RoomKey extends string, Message extends MessageModel<RoomKey>>(
     {
@@ -205,6 +211,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         isMessageCreationDisabled,
         fileAttachmentTarget,
         withAttachFileBeforeCreateMessage,
+        accessPolicy,
         getMessagesFromStart,
         getMessagesFromEnd,
         backfillMessages,
@@ -228,19 +235,18 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     }: {
         /**
          * What we call messages in UI copy. Defaults to "message". For example
-         * "Successfully deleted message". You may want that message to ready
-         * "Successfully deleted comment" if you want to refer to your messages
-         * as comments.
+         * "Successfully deleted message". You may want that message to ready "Successfully
+         * deleted comment" if you want to refer to your messages as comments.
          */
-        // NOTE(calebmer): This technique where we interpolate strings likely won't
-        // work when we internationalize the product. Then I imagine we'll pass in a
-        // `messageCopy` object, or something, with every string rendered by this UI
-        // for translating.
+        // NOTE(calebmer): This technique where we interpolate strings likely won't work
+        // when we internationalize the product. Then I imagine we'll pass in a
+        // `messageCopy` object, or something, with every string rendered by this UI for
+        // translating.
         messageNoun?: string;
 
         /**
-         * What we call messages in UI copy at the start of sentences. By default this
-         * is `messageNoun` but with the first letter upper cased.
+         * What we call messages in UI copy at the start of sentences. By default this is
+         * `messageNoun` but with the first letter upper cased.
          */
         messageStartOfSentenceNoun?: string;
 
@@ -261,24 +267,23 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         };
 
         /**
-         * You may render a header on top of the messaging view which as an
-         * arbitrary virtualized scroll view item.
+         * You may render a header on top of the messaging view which as an arbitrary
+         * virtualized scroll view item.
          */
         header?: Memo<DistributiveOmit<VirtualizedScrollViewItem, "key">>;
 
         /**
-         * For unloaded messages we show a shimmer. Shimmers have a random shape based
-         * on their index in the message list and a seed. Usually the seed is the room
-         * key for this messaging view but for applications like chat we may allow
-         * sending messages before we know the room key.
+         * For unloaded messages we show a shimmer. Shimmers have a random shape based on
+         * their index in the message list and a seed. Usually the seed is the room key for
+         * this messaging view but for applications like chat we may allow sending messages
+         * before we know the room key.
          */
         randomSeedForShimmer: string;
 
         /**
-         * Should we disable the user's ability to create a message? The user will
-         * still be able to type in the message input but won't be able to send their
-         * message. Once this prop switches to true the user can send the message
-         * they typed.
+         * Should we disable the user's ability to create a message? The user will still be
+         * able to type in the message input but won't be able to send their message. Once
+         * this prop switches to true the user can send the message they typed.
          */
         isMessageCreationDisabled?: boolean;
 
@@ -288,19 +293,24 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
 
         /**
-         * By default, we attach files to `fileAttachmentTarget` when the user drops
-         * the file onto the message input. However, for cases when
-         * `fileAttachmentTarget` may change while editing a message we want to instead
-         * attach files before the message is created on the server. To attach files
-         * when the message is created on the server set
-         * `withAttachFileBeforeCreateMessage` to true. Otherwise files will be
-         * attached when they're dropped on the message input.
+         * By default, we attach files to `fileAttachmentTarget` when the user drops the
+         * file onto the message input. However, for cases when `fileAttachmentTarget` may
+         * change while editing a message we want to instead attach files before the
+         * message is created on the server. To attach files when the message is created on
+         * the server set `withAttachFileBeforeCreateMessage` to true. Otherwise files will
+         * be attached when they're dropped on the message input.
          */
         withAttachFileBeforeCreateMessage?: boolean;
 
         /**
-         * Load messages from the start of the list. We expect the implementation of
-         * this function passes the `testMessagingImplementation()` test suite.
+         * Renders as read-only if the user doesn't have `Comment` access in this
+         * `EffectiveAccessPolicyWithGenerations`.
+         */
+        accessPolicy?: ResolvedAccessPolicyWithGenerations;
+
+        /**
+         * Load messages from the start of the list. We expect the implementation of this
+         * function passes the `testMessagingImplementation()` test suite.
          */
         getMessagesFromStart: (input: {
             limit: number;
@@ -313,8 +323,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         }>;
 
         /**
-         * Load messages from the end of the list. We expect the implementation of
-         * this function passes the `testMessagingImplementation()` test suite.
+         * Load messages from the end of the list. We expect the implementation of this
+         * function passes the `testMessagingImplementation()` test suite.
          */
         getMessagesFromEnd: (input: {
             limit: number;
@@ -385,16 +395,16 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
 
         /**
-         * Copies a link to a message. Opening this link should scroll the messaging
-         * view to this message and highlight it.
+         * Copies a link to a message. Opening this link should scroll the messaging view
+         * to this message and highlight it.
          */
         getMessageUrl: Memo<(messageIndex: number) => URL>;
 
         /**
-         * A ref that we will use to initialize the content in `<MessageInput>`. We
-         * will also write any state updates back into this ref. This was intended for
-         * preserving message input contents across remounts e.g. remounting from a
-         * React `key` change.
+         * A ref that we will use to initialize the content in `<MessageInput>`. We will
+         * also write any state updates back into this ref. This was intended for
+         * preserving message input contents across remounts e.g. remounting from a React
+         * `key` change.
          */
         inputRestoreStateRef?: MutableRefObject<{
             state: ContentEditorState<MessageContentWithReferences>;
@@ -403,10 +413,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         } | null>;
 
         /**
-         * If we display the time at which the messaging room was created, pass it in
-         * here and we will not add a timestamp divider to the messaging view if the
-         * first message was sent shortly after room creation. If not provided we
-         * always render a time divider.
+         * If we display the time at which the messaging room was created, pass it in here
+         * and we will not add a timestamp divider to the messaging view if the first
+         * message was sent shortly after room creation. If not provided we always render a
+         * time divider.
          */
         roomDisplayedCreatedTime?: Date;
 
@@ -417,26 +427,25 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         elementRef?: Ref<HTMLDivElement>;
 
         /**
-         * Extra children to always render in our virtualized scroll view. Useful if
-         * you want to render extra sticky content.
+         * Extra children to always render in our virtualized scroll view. Useful if you
+         * want to render extra sticky content.
          *
-         * The children are rendered in a container with no pointer events. So you need
-         * to add `pointerEvents: "auto"` on elements you want to be interactive with
-         * a pointer.
+         * The children are rendered in a container with no pointer events. So you need to
+         * add `pointerEvents: "auto"` on elements you want to be interactive with a
+         * pointer.
          */
         extraChildren?: ReactNode;
 
         /**
-         * Inset the scrollbar by this many pixels. If both
-         * `scrollbarInsetTopItemIndex` and `scrollbarInsetTop` are set then
-         * `scrollbarInsetTop` wins.
+         * Inset the scrollbar by this many pixels. If both `scrollbarInsetTopItemIndex`
+         * and `scrollbarInsetTop` are set then `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
 
         /**
-         * Optional entity that the user is currently viewing. This is passed to bots
-         * when sending messages to provide context about what the user is looking at.
-         * Only used in 1:1 chats with bots.
+         * Optional entity that the user is currently viewing. This is passed to bots when
+         * sending messages to provide context about what the user is looking at. Only used
+         * in 1:1 chats with bots.
          */
         dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId | null;
     },
@@ -444,9 +453,20 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 ) {
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
+    const {currentAccount} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
+
+    const isReadOnly = useMemo(
+        () =>
+            accessPolicy !== undefined &&
+            !hasAccessLevel(
+                getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+                "Comment",
+            ),
+        [accessPolicy, currentAccount?.id],
+    );
 
     const [messagesWithoutHeader, setMessages, setMessagesOptimistically] =
         useStateWithOptimisticUpdates(() => {
@@ -524,11 +544,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         },
     );
 
-    // Whenever our list data changes, try loading more comments. In case our
-    // rendered range stayed the same but we see some some unloaded comments.
+    // Whenever our list data changes, try loading more comments. In case our rendered
+    // range stayed the same but we see some some unloaded comments.
     //
-    // This effect should also fire when `tryLoadingMoreData()` completes
-    // in case it didn't fully load the list.
+    // This effect should also fire when `tryLoadingMoreData()` completes in case it
+    // didn't fully load the list.
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         state;
@@ -554,10 +574,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             setScrollOffset: scrollOffset =>
                 assertExists(viewRef.current).setScrollOffset(scrollOffset),
             focusInput: () => {
-                inputRef.current?.focus();
+                if (isReadOnly) return;
+                assertExists(inputRef.current).focus();
             },
         }),
-        [jumpToMessageRange, inputRef],
+        [jumpToMessageRange, isReadOnly],
     );
 
     useMessagingRealtime({
@@ -571,8 +592,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     // Manages the editable message.
     //
-    // This is at the post list level because we want only one message to be
-    // editable at a time.
+    // This is at the post list level because we want only one message to be editable
+    // at a time.
     const {messageEditing, modals} = useMessageEditing<RoomKey>({
         messageNoun,
         onUpdateMessageContent: async input => {
@@ -585,7 +606,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     useScrollToNewMessages({
         viewRef,
-        inputRef,
+        inputRef: !isReadOnly ? inputRef : null,
         isInputStickyPositioned: true,
         messages: state.messages,
         getItemKey: useCallback(
@@ -594,8 +615,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         ),
     });
 
-    // Make sure the bottom of the scroll view stays visible when the keyboard
-    // opens and closes.
+    // Make sure the bottom of the scroll view stays visible when the keyboard opens
+    // and closes.
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         getAnchorPosition: useEvent(oldVisibleRect => ({
             top: oldVisibleRect.bottom,
@@ -645,9 +666,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         messageStartOfSentenceNoun,
                         messages: state.messages,
                         // `fileAttachmentTarget` must be non-null if we render a message.
-                        // `fileAttachmentTarget` will only be null if we're in the new chat screen
-                        // and accounts haven't been selected yet. In this case no messages should be
-                        // rendered.
+                        // `fileAttachmentTarget` will only be null if we're in the new chat screen and
+                        // accounts haven't been selected yet. In this case no messages should be rendered.
                         fileAttachmentTarget: assertExists(fileAttachmentTarget),
                         groupKey: null,
                         index: state.hasHeader() ? index - 1 : index,
@@ -679,6 +699,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
+                        isReadOnly,
                     });
                 }
             }
@@ -690,6 +711,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             handleDeleteMessageReaction,
             handleSetMessageReaction,
             handleUpdateMessagesOptimistically,
+            isReadOnly,
             jumpState,
             jumpToMessageRange,
             messageEditing,
@@ -719,6 +741,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={elementRef}
+                    data-testid="MessagingScrollView"
                     renderItem={renderItem}
                     extraChildren={
                         <>
@@ -743,56 +766,56 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     onRenderedRangeChange={tryLoadingMoreData}
                     scrollbarInsetTop={scrollbarInsetTop}
                 />
-                <MessageInput
-                    ref={inputRef}
-                    data-testid="MessageInput"
-                    messageNoun={messageNoun}
-                    messages={state.messages}
-                    isMessageCreationDisabled={isMessageCreationDisabled}
-                    onUpdateMessages={setMessages}
-                    createMessage={async input => {
-                        await createMessage({
-                            ...input,
-                            createdTimeZone: getClientInfo().timeZone,
-                            dangerousCurrentlyViewingSearchEntityId:
-                                dangerousCurrentlyViewingSearchEntityId ?? undefined,
-                        });
-                    }}
-                    fileAttachmentTarget={fileAttachmentTarget}
-                    withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}
-                    messageEditing={messageEditing}
-                    parent={inputParent}
-                    onParentClear={() => setInputParent(null)}
-                    onJumpToMessageRange={jumpToMessageRange}
-                    onDeleteMessage={async messageIndex => {
-                        await deleteMessage({messageIndex});
-                    }}
-                    onShowTypingIndicator={() => {
-                        startTypingInMessageInput({})
-                            // Don't show an error updating typing indicators to the user. We will see an
-                            // error in our logs but the user won't see any weird behavior if the
-                            // request fails.
-                            .catch(error =>
-                                reporter.logErrorWithoutDisplaying(
-                                    "Couldn\u2019t update typing indicator",
-                                    error,
-                                ),
-                            );
-                    }}
-                    onHideTypingIndicator={() => {
-                        stopTypingInMessageInput({})
-                            // Don't show an error updating typing indicators to the user. We will see an
-                            // error in our logs but the user won't see any weird behavior if the
-                            // request fails.
-                            .catch(error =>
-                                reporter.logErrorWithoutDisplaying(
-                                    "Couldn\u2019t update typing indicator",
-                                    error,
-                                ),
-                            );
-                    }}
-                    restoreStateRef={inputRestoreStateRef}
-                />
+                {!isReadOnly && (
+                    <MessageInput
+                        ref={inputRef}
+                        data-testid="MessageInput"
+                        messageNoun={messageNoun}
+                        messages={state.messages}
+                        isMessageCreationDisabled={isMessageCreationDisabled}
+                        onUpdateMessages={setMessages}
+                        createMessage={async input => {
+                            await createMessage({
+                                ...input,
+                                createdTimeZone: getClientInfo().timeZone,
+                                dangerousCurrentlyViewingSearchEntityId:
+                                    dangerousCurrentlyViewingSearchEntityId ?? undefined,
+                            });
+                        }}
+                        fileAttachmentTarget={fileAttachmentTarget}
+                        withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}
+                        messageEditing={messageEditing}
+                        parent={inputParent}
+                        onParentClear={() => setInputParent(null)}
+                        onJumpToMessageRange={jumpToMessageRange}
+                        onDeleteMessage={async messageIndex => {
+                            await deleteMessage({messageIndex});
+                        }}
+                        onShowTypingIndicator={() => {
+                            startTypingInMessageInput({})
+                                // Don't show an error updating typing indicators to the user. We will see an error
+                                // in our logs but the user won't see any weird behavior if the request fails.
+                                .catch(error =>
+                                    reporter.logErrorWithoutDisplaying(
+                                        "Couldn\u2019t update typing indicator",
+                                        error,
+                                    ),
+                                );
+                        }}
+                        onHideTypingIndicator={() => {
+                            stopTypingInMessageInput({})
+                                // Don't show an error updating typing indicators to the user. We will see an error
+                                // in our logs but the user won't see any weird behavior if the request fails.
+                                .catch(error =>
+                                    reporter.logErrorWithoutDisplaying(
+                                        "Couldn\u2019t update typing indicator",
+                                        error,
+                                    ),
+                                );
+                        }}
+                        restoreStateRef={inputRestoreStateRef}
+                    />
+                )}
             </div>
         </>
     );

@@ -79,10 +79,12 @@ export const testMessagingRealtimeImplementationSearchInjection: Partial<SearchI
         return {
             isPrivate: false,
             entity: new SearchEntityModel({
-                id: entityId,
+                type: "Document",
                 title: documentResult.value.getTitle(),
-                titleVersion: {type: "Integer", version: documentResult.value.version},
-                media: null,
+                document: {
+                    id: entityIdObject.documentId,
+                    version: documentResult.value.version,
+                },
             }),
         };
     },
@@ -2647,7 +2649,6 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            clerical: undefined,
                             parent: null,
                             content: content2WithReferences,
                             contentUpdate: null,
@@ -2659,11 +2660,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document1.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "TOP SECRET 1",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -2686,7 +2688,6 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            clerical: undefined,
                             parent: null,
                             content: content2WithReferences,
                             contentUpdate: null,
@@ -2720,7 +2721,6 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            clerical: undefined,
                             parent: null,
                             content: content2WithReferences,
                             contentUpdate: null,
@@ -2732,11 +2732,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document1.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "TOP SECRET 1",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -2769,7 +2770,6 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            clerical: undefined,
                             parent: null,
                             content: content3WithReferences,
                             contentUpdate: null,
@@ -2791,11 +2791,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document3.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "Not secret at all",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -2818,7 +2819,6 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            clerical: undefined,
                             parent: null,
                             content: content3WithReferences,
                             contentUpdate: null,
@@ -2830,11 +2830,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 0],
+                                            versions: [0, 0],
                                             id: document2.id,
                                             version: 0,
+                                            site: null,
                                             titleWithoutFallback: "TOP SECRET 2",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -2845,11 +2846,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document3.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "Not secret at all",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -2872,7 +2874,6 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            clerical: undefined,
                             parent: null,
                             content: content3WithReferences,
                             contentUpdate: null,
@@ -2894,11 +2895,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document3.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "Not secret at all",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -2928,7 +2930,6 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            clerical: undefined,
                             parent: null,
                             content: content2WithReferences,
                             contentUpdate: null,
@@ -2940,11 +2941,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document1.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "TOP SECRET 1",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -2961,7 +2963,6 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            clerical: undefined,
                             parent: null,
                             content: content3WithReferences,
                             contentUpdate: null,
@@ -2983,11 +2984,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document3.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "Not secret at all",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -3316,11 +3318,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "TOP SECRET",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -3391,11 +3394,12 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                         ok: true,
                                         value: new FileEntityModel(FileDocumentEntityModelSchema, {
                                             type: "Document",
-                                            versions: [-1, 1],
+                                            versions: [1, 1],
                                             id: document.id,
                                             version: 1,
+                                            site: null,
                                             titleWithoutFallback: "TOP SECRET",
-                                            preview: null,
+                                            preview: expect.anything(),
                                         }),
                                     },
                                 },
@@ -3555,7 +3559,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 ]),
             );
 
-            // Pause before sending the update so we can connect new connections during the update
+            // Pause before sending the update so we can connect new connections during the
+            // update
             const pausePromise =
                 messagingRealtimeUpdateMessageContentBeforeSendTestCheckpoint.pauseForTest(
                     session3.account.id,

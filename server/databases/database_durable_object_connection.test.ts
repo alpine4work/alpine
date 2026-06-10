@@ -139,8 +139,7 @@ describe("ensureCacheIsUpToDate", () => {
         writePagesFor(doStorage, databaseMainTableId, new Map([[0, makePage(0xaa)]]));
         const conn = createConnection(doStorage);
 
-        // Page 0 is stale (mismatched ts), page 5 is
-        // missing on the server entirely.
+        // Page 0 is stale (mismatched ts), page 5 is missing on the server entirely.
         const result = await ensureCacheIsUpToDate(
             conn,
             new Map([
@@ -173,9 +172,8 @@ describe("ensureCacheIsUpToDate", () => {
 
         const result = await ensureCacheIsUpToDate(conn, clientVersions);
 
-        // Exactly at the limit — should dump all into
-        // stalePageIndexes. Page 0 is always included
-        // in updatedPages so the client has the schema.
+        // Exactly at the limit — should dump all into stalePageIndexes. Page 0 is always
+        // included in updatedPages so the client has the schema.
         expect(result.updatedPages.size).toBe(1);
         expect(result.updatedPages.has(0)).toBe(true);
         expect(result.stalePageIndexes.length).toBe(cacheUpdateStalePageLimit);
@@ -253,9 +251,8 @@ describe("ensureCacheIsUpToDate", () => {
 
         const result = await ensureCacheIsUpToDate(conn, clientVersions);
 
-        // All pages should be in stalePageIndexes.
-        // Page 0 is always included in updatedPages
-        // so the client has the schema.
+        // All pages should be in stalePageIndexes. Page 0 is always included in
+        // updatedPages so the client has the schema.
         expect(result.updatedPages.size).toBe(1);
         expect(result.updatedPages.has(0)).toBe(true);
         expect(result.stalePageIndexes.length).toBe(count);
@@ -264,7 +261,9 @@ describe("ensureCacheIsUpToDate", () => {
 
 // ---------------------------------------------------------------------------
 // Per-browser page tracking integration tests
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 function createTrackedConnection(
     doStorage: DatabaseDurableObjectStorage,
@@ -291,11 +290,9 @@ describe("per-browser page tracking", () => {
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
-        // A client fabricates a tableId it was never sent and
-        // acknowledges pages for it. The server must not create
-        // tracker state for an unknown table — otherwise an
-        // untrusted client can grow the per-browser page map
-        // without bound.
+        // A client fabricates a tableId it was never sent and acknowledges pages for it.
+        // The server must not create tracker state for an unknown table — otherwise an
+        // untrusted client can grow the per-browser page map without bound.
         const bogusTableId = generateChronologicalId<DatabaseTableId>();
         await conn.procedures.acknowledgePages(
             null as any,
@@ -312,9 +309,8 @@ describe("per-browser page tracking", () => {
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
-        // The server sent only page 0. A client acks page 0
-        // plus a never-sent index; the unsent page must not be
-        // tracked — otherwise an untrusted client can grow the
+        // The server sent only page 0. A client acks page 0 plus a never-sent index; the
+        // unsent page must not be tracked — otherwise an untrusted client can grow the
         // per-browser page map with out-of-range indexes.
         tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [0]]]));
         await acknowledgePages(conn, [0, 999]);
@@ -350,9 +346,8 @@ describe("per-browser page tracking", () => {
             ]),
         );
 
-        // Pages 0 and 1 are confirmed (skipped by filterReadPages).
-        // Page 2 was returned as updatedPages → pending
-        // (not skipped by filterReadPages).
+        // Pages 0 and 1 are confirmed (skipped by filterReadPages). Page 2 was returned as
+        // updatedPages → pending (not skipped by filterReadPages).
         const allPages = new Map([
             [
                 databaseMainTableId,
@@ -393,8 +388,8 @@ describe("per-browser page tracking", () => {
             ]),
         );
 
-        // Page 1 is pending (sent as updatedPages).
-        // Acknowledge it — should promote to confirmed.
+        // Page 1 is pending (sent as updatedPages). Acknowledge it — should promote to
+        // confirmed.
         await acknowledgePages(conn, [1]);
 
         // Now page 1 is confirmed (skipped)
@@ -416,9 +411,8 @@ describe("per-browser page tracking", () => {
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
-        // The server sends these pages first (marking them
-        // pending) before the client can acknowledge them —
-        // acks for never-sent pages are ignored.
+        // The server sends these pages first (marking them pending) before the client can
+        // acknowledge them — acks for never-sent pages are ignored.
         tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [5, 6, 7]]]));
         await acknowledgePages(conn, [5, 6, 7]);
 
@@ -450,10 +444,9 @@ describe("per-browser page tracking", () => {
         const browserId = generateId<BrowserId>();
         const conn = createTrackedConnection(doStorage, tracker, browserId);
 
-        // The client validates pages for both its main table and
-        // an attached table in a single call. Both tables' matching
-        // pages must be confirmed in the tracker — validating the
-        // main table must not wipe the attached table's state.
+        // The client validates pages for both its main table and an attached table in a
+        // single call. Both tables' matching pages must be confirmed in the tracker —
+        // validating the main table must not wipe the attached table's state.
         await conn.procedures.ensureCacheIsUpToDate(
             null as any,
             {
@@ -465,8 +458,8 @@ describe("per-browser page tracking", () => {
             null as any,
         );
 
-        // The attached table's matching page is confirmed, so
-        // filterReadPages skips it (returns nothing for that table).
+        // The attached table's matching page is confirmed, so filterReadPages skips it
+        // (returns nothing for that table).
         const allPages = new Map([
             [attachedTableId, new Map([[0, {version: 1, data: new Uint8Array(1)}]])],
         ]);
@@ -482,8 +475,8 @@ describe("per-browser page tracking", () => {
         tracker.setPages(browserId, new Map([[databaseMainTableId, [0, 1]]]));
         conn.handleClose();
 
-        // After close, entry should be deleted (last connection).
-        // filterReadPages returns everything for an unknown browser.
+        // After close, entry should be deleted (last connection). filterReadPages returns
+        // everything for an unknown browser.
         const pages = new Map([
             [databaseMainTableId, new Map([[0, {version: 1, data: new Uint8Array(1)}]])],
         ]);
@@ -497,8 +490,8 @@ describe("per-browser page tracking", () => {
         const conn1 = createTrackedConnection(doStorage, tracker, browserId);
         const conn2 = createTrackedConnection(doStorage, tracker, browserId);
 
-        // The server sends these pages first (marking them
-        // pending) before either connection acknowledges them.
+        // The server sends these pages first (marking them pending) before either
+        // connection acknowledges them.
         tracker.addPendingPages(browserId, new Map([[databaseMainTableId, [0, 1, 2, 3]]]));
         await acknowledgePages(conn1, [0, 1]);
         await acknowledgePages(conn2, [2, 3]);
@@ -592,11 +585,8 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        // Page 0: confirmed → included
-        // Page 1: confirmed → included
-        // Page 2: pending (sent as updatedPages) but not in
-        //         event → N/A
-        // Page 3: not tracked → excluded
+        // Page 0: confirmed → included Page 1: confirmed → included Page 2: pending (sent
+        // as updatedPages) but not in event → N/A Page 3: not tracked → excluded
         const main = event.pageDiffs.get(databaseMainTableId);
         expect([...(main?.diffs.keys() ?? [])]).toEqual([0, 1]);
     });
@@ -676,9 +666,8 @@ describe("per-browser page tracking", () => {
         const event = await conn.transformEvent(null as any, eventStub);
         assert(event.type === "PagesChanged", "expected PagesChanged event");
 
-        // Every diff was filtered out, so the table entry is
-        // dropped entirely rather than forwarded as an empty
-        // entry that would trigger a wasted client sync().
+        // Every diff was filtered out, so the table entry is dropped entirely rather than
+        // forwarded as an empty entry that would trigger a wasted client sync().
         expect(event.pageDiffs.has(databaseMainTableId)).toBe(false);
     });
 

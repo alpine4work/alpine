@@ -17,10 +17,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Manages when spell checking runs for `<ContentEditor>`. As the user types we
- * run the spell checker after a debounce timeout or after the user presses
- * space signaling they've finished typing a word. Spell checking is
- * asynchronous and we only run one spell check at a time (managed via mutex).
+ * Manages when spell checking runs for `<ContentEditor>`. As the user types we run
+ * the spell checker after a debounce timeout or after the user presses space
+ * signaling they've finished typing a word. Spell checking is asynchronous and we
+ * only run one spell check at a time (managed via mutex).
  */
 export class ContentEditorSpellChecker {
     private readonly _getContext: () => AppContext;
@@ -73,8 +73,8 @@ export class ContentEditorSpellChecker {
 
         if (!transaction.docChanged) return;
 
-        // If the user doesn't have edit access, immediately clear any existing lints
-        // and return early. Lints are distracting for users who can't edit the document.
+        // If the user doesn't have edit access, immediately clear any existing lints and
+        // return early. Lints are distracting for users who can't edit the document.
         if (!hasAccessLevel(this._getAccessLevel(), "Edit")) {
             this._view.dispatch(setContentEditorSpellCheckerLints(this._view.state.tr, []));
             return;
@@ -90,8 +90,8 @@ export class ContentEditorSpellChecker {
                 const node = step.slice.content.firstChild!;
                 if (
                     node.isText &&
-                    // A regex for everything on a standard qwerty keyboard except space. Created
-                    // this by typing all the special keys on my keyboard.
+                    // A regex for everything on a standard qwerty keyboard except space. Created this
+                    // by typing all the special keys on my keyboard.
                     /^[a-zA-Z0-9@#$%^&*()\-=[\]\\;',/_+{}|:"<>]$/.test(node.text!)
                 ) {
                     isTypingWord = true;
@@ -103,13 +103,13 @@ export class ContentEditorSpellChecker {
         this._debounceTimeout = null;
 
         // If the user is typing a word then we debounce spell check until they're done
-        // typing. But if the user types space we immediately request a spell check
-        // since we interpret that as signal they're done typing the previous word.
+        // typing. But if the user types space we immediately request a spell check since
+        // we interpret that as signal they're done typing the previous word.
         //
-        // Any standard qwerty keyboard character (except space and punctuation marks
-        // `.`, `?`, and `!`) is considered to be word typing. If any other character
-        // or string that's more than a single character is entered in the editor we
-        // consider that to be non-word typing and request a spell check immediately.
+        // Any standard qwerty keyboard character (except space and punctuation marks `.`,
+        // `?`, and `!`) is considered to be word typing. If any other character or string
+        // that's more than a single character is entered in the editor we consider that to
+        // be non-word typing and request a spell check immediately.
         if (!isTypingWord) {
             this._requestSpellCheck();
             return;
@@ -122,9 +122,8 @@ export class ContentEditorSpellChecker {
     }
 
     private _requestSpellCheck() {
-        // If a spell check has already been requested (but hasn't run because the
-        // mutex is processing another spell check) then don't request a new
-        // spell check.
+        // If a spell check has already been requested (but hasn't run because the mutex is
+        // processing another spell check) then don't request a new spell check.
         if (this._hasRequestedSpellCheck) return;
         this._hasRequestedSpellCheck = true;
 
@@ -149,8 +148,8 @@ export class ContentEditorSpellChecker {
     private async _runSpellCheck() {
         assert(this._transactions === null);
 
-        // Only run spell check if the user has edit access. Lints are distracting
-        // for users who can't edit the document.
+        // Only run spell check if the user has edit access. Lints are distracting for
+        // users who can't edit the document.
         if (!hasAccessLevel(this._getAccessLevel(), "Edit")) return;
 
         const transactions: Array<Transaction> = [];
@@ -162,8 +161,8 @@ export class ContentEditorSpellChecker {
             // If our checker was destroyed while we were running the spell check, exit.
             if (this._isDestroyed) return;
 
-            // If there were any transactions during our spell check run then we need to
-            // map lint positions to their current positions in the document.
+            // If there were any transactions during our spell check run then we need to map
+            // lint positions to their current positions in the document.
             const mappedLints = filterMapArray(lints, lint => {
                 for (const transaction of transactions) {
                     lint = {
@@ -175,8 +174,8 @@ export class ContentEditorSpellChecker {
                         suggestions: lint.suggestions,
                     };
 
-                    // If the lint range is now empty, it's because the content was deleted during
-                    // the lint.
+                    // If the lint range is now empty, it's because the content was deleted during the
+                    // lint.
                     if (lint.from === lint.to) return;
                 }
 

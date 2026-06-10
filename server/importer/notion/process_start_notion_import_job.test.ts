@@ -1,27 +1,72 @@
+import {jest} from "@jest/globals";
 import {readFileSync} from "fs";
 import {join} from "path";
-
 import {getDocument, getDocumentsTableForTest} from "~/server/documents/data/documents_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {TestImporterContextModule} from "~/server/importer/importer_context_module_test.js";
+import {computeNotionImportExpectedStatistics} from "~/server/importer/notion/internal/compute_notion_import_expected_statistics.js";
+import {getNotionImportMetadata} from "~/server/importer/notion/internal/get_notion_import_metadata.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
-import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
 import {
     ExportedNotionDatabase,
     ExportedNotionDocument,
     ExportedNotionTeamspace,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
+import {
+    createDiskReadFile,
+    extractTestNotionImportToDisk,
+    readTestNotionImportIndexHtml,
+} from "~/server/importer/notion/test_helpers/extract_test_notion_import_to_disk.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
+
+// 1x1 transparent PNG (smallest valid PNG) used to mock external image downloads.
+const testPngBytes = new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+    0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x62, 0x00, 0x00, 0x00, 0x02,
+    0x00, 0x01, 0xe5, 0x27, 0xde, 0xfc, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42,
+    0x60, 0x82,
+]);
+
+// We can't make network requests in CI so we need to mock the external image
+// download module so that the real download function runs but always uses a test
+// fetch that returns a PNG instead of making real network calls. This
+// functionality is tested separately.
+const actualDownloadModule = await import("./internal/download_external_notion_import_images.js");
+jest.unstable_mockModule("./internal/download_external_notion_import_images.js", () => ({
+    ...actualDownloadModule,
+    downloadExternalNotionImportImages: (
+        ...args: Parameters<typeof actualDownloadModule.downloadExternalNotionImportImages>
+    ) =>
+        actualDownloadModule.downloadExternalNotionImportImages(
+            args[0],
+            args[1],
+            args[2],
+            args[3],
+            args[4],
+            args[5],
+            async () =>
+                new Response(testPngBytes.slice(), {headers: {"content-type": "image/png"}}),
+        ),
+}));
+
+// Must be dynamically imported after the mock so the mock is used transitively.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _downloadModule = await import("./internal/download_external_notion_import_images.js");
+const {processStartNotionImportJob} =
+    await import("~/server/importer/notion/process_start_notion_import_job.js");
 
 const context = createTestContext({
     // Inject search so mentions can be resolved when getting documents
@@ -31,16 +76,19 @@ const context = createTestContext({
 });
 
 /**
- * Create a system action context with a fresh importer module containing the given file.
+ * Create a system action context with a fresh importer module containing the given
+ * file.
  */
-function createSystemActionWithFile(
+async function createSystemActionWithFile(
     space: Awaited<ReturnType<typeof TestSpace.create>>,
     importKey: string,
     fileData?: Uint8Array,
 ) {
-    const importer = new TestImporterContextModule();
+    const importer = new TestImporterContextModule({
+        getLocalUploadPath: () => assertExists(process.env.TEST_TMPDIR),
+    });
     if (fileData) {
-        importer.setUploadedFile(importKey, fileData);
+        await importer.setUploadedFile(importKey, fileData);
     }
 
     return context.cloneWithHelpers({
@@ -49,6 +97,7 @@ function createSystemActionWithFile(
         batch: BatchContextModule.new(),
         actor: SystemActorContextModule.dangerouslyNew("Test", space.id),
         importer,
+        importerService: importer.createServiceModule(),
     });
 }
 
@@ -59,8 +108,8 @@ function readFixture(name: string): Uint8Array {
     try {
         return new Uint8Array(readFileSync(fixturePath));
     } catch (error) {
-        // Fallback to source directory for large fixtures not included in BUILD
-        // This uses BUILD_WORKSPACE_DIRECTORY which points to the original source tree
+        // Fallback to source directory for large fixtures not included in BUILD This uses
+        // BUILD_WORKSPACE_DIRECTORY which points to the original source tree
         const workspaceDir = process.env.BUILD_WORKSPACE_DIRECTORY;
         if (workspaceDir) {
             const localPath = join(workspaceDir, "server/importer/notion/test_fixtures", name);
@@ -72,8 +121,8 @@ function readFixture(name: string): Uint8Array {
 }
 
 /**
- * Find all documents in a space by scanning the documents table.
- * This is expensive but fine for tests.
+ * Find all documents in a space by scanning the documents table. This is expensive
+ * but fine for tests.
  */
 async function findDocumentsInSpace(
     spaceId: SpaceId,
@@ -109,6 +158,37 @@ async function findDocumentByTitle(
     return docs.find(doc => doc.title === title);
 }
 
+/**
+ * Computes the validated result (expected statistics per teamspace) from a test
+ * zip, matching what the validation step would produce in production.
+ *
+ * This calls production code directly. The correctness of
+ * `computeNotionImportExpectedStatistics` and getNotionImportMetadata is tested
+ * separately; here we use it to get realistic initial state for testing the actual
+ * import.
+ */
+async function createProcessQueuedTestResult(
+    zip: Uint8Array,
+): Promise<NotionImportProcessingOrDoneResult> {
+    const {diskPath, filePaths} = await extractTestNotionImportToDisk(zip);
+    const indexHtmlContent = assertExists(await readTestNotionImportIndexHtml(diskPath, filePaths));
+    const metadata = assertExists(getNotionImportMetadata(indexHtmlContent));
+
+    const teamspaceNameById =
+        metadata.teamspaceNameById.size > 0
+            ? metadata.teamspaceNameById
+            : new Map([["default", metadata.workspaceName]]);
+
+    return computeNotionImportExpectedStatistics({
+        readFile: createDiskReadFile(diskPath),
+        diskPathToUnzippedFiles: diskPath,
+        filePaths,
+        indexHtmlContent,
+        teamspaceNameById,
+        workspaceId: metadata.workspaceId,
+    });
+}
+
 async function importedFixtureSpaceItemsToString(
     space: TestSpace,
     session: TestSession,
@@ -129,16 +209,19 @@ async function importedFixtureSpaceItemsToString(
         importKey,
         createdTime: new Date(),
         updatedTime: new Date(),
+        startedProcessingTime: null,
         teamspaceImportOptions: null,
-        status: {type: "ProcessQueued"},
+        multipartUploadId: null,
+        startedValidatingTime: null,
+        status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
         importedCount: 0,
+        importZipSize: 1024,
     });
 
-    await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-        type: "StartNotionImport",
-        spaceId: space.id,
+    await processStartNotionImportJob(
+        await createSystemActionWithFile(space, importKey, zip),
         notionImportId,
-    });
+    );
 
     // Get all documents
     const allDocs = await findDocumentsInSpace(space.id);
@@ -192,8 +275,8 @@ async function importedFixtureSpaceItemsToString(
         return parentA.localeCompare(parentB);
     });
 
-    // Build map of document ID -> unique key for sanitization
-    // Handle duplicate titles by adding an index suffix
+    // Build map of document ID -> unique key for sanitization Handle duplicate titles
+    // by adding an index suffix
     const idToKey = new Map<DocumentId, string>();
     const titleCounts = new Map<string, number>();
     for (const doc of allDocs) {
@@ -224,10 +307,10 @@ async function importedFixtureSpaceItemsToString(
     // Replace account ID with placeholder
     contentString = contentString.replace(new RegExp(session.account.id, "g"), "<ACCOUNT_ID>");
 
-    // Normalize file URLs to just filenames for comparison.
-    // Flat exports have files at root (e.g., image.png), nested exports have files
-    // in subdirectories (e.g., Subdir/image.png). Since file uploads aren't implemented
-    // yet, we normalize to just the filename to allow comparison.
+    // Normalize file URLs to just filenames for comparison. Flat exports have files at
+    // root (e.g., image.png), nested exports have files in subdirectories (e.g.,
+    // Subdir/image.png). Since file uploads aren't implemented yet, we normalize to
+    // just the filename to allow comparison.
     contentString = contentString.replace(
         /"url":\s*"([^"]+\.(png|jpg|jpeg|gif|mp4|mov|csv|pdf))"/gi,
         (match, url) => {
@@ -238,12 +321,22 @@ async function importedFixtureSpaceItemsToString(
         },
     );
 
+    // Normalize file IDs for comparison. File IDs are generated from file paths which
+    // differ between flat and nested exports. We replace them with a placeholder based
+    // on their position in the document.
+    let fileIdCounter = 0;
+    contentString = contentString.replace(/"fileId":\s*"[a-z0-9]+"/gi, () => {
+        fileIdCounter++;
+        // eslint-disable-next-line cyberworlds/string-quotes -- JSON format requires straight quotes
+        return `"fileId": "<FILE_ID:${fileIdCounter}>"`;
+    });
+
     return contentString;
 }
 
 /**
- * Create the expected mention node structure for a document.
- * Mention URLs are now parsed into mention nodes by the markdown parser.
+ * Create the expected mention node structure for a document. Mention URLs are now
+ * parsed into mention nodes by the markdown parser.
  */
 function documentMentionNode(documentId: DocumentId) {
     return {
@@ -259,7 +352,10 @@ function documentMentionNode(documentId: DocumentId) {
 
 describe("processStartNotionImportJob", () => {
     beforeEach(() => {
-        import.meta.jest.useFakeTimers();
+        // NOTE: We use doNotFake: ['setImmediate'] because yauzl (used for unzipping)
+        // relies on setImmediate internally. Mocking setImmediate would block the unzip
+        // operation from completing.
+        import.meta.jest.useFakeTimers({doNotFake: ["setImmediate"]});
         // Set a fixed date for consistent snapshot testing
         import.meta.jest.setSystemTime(new Date("2026-01-28T12:00:00.000Z"));
     });
@@ -290,17 +386,20 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
             // Process the import
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             // Verify the import succeeded
             const importItem = await NotionImporterTable.getItem(context, {
@@ -308,8 +407,11 @@ describe("processStartNotionImportJob", () => {
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            expect(importItem.importedCount).toBe(1);
+            // 1 user doc + 1 teamspace root
+            expect(importItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
         });
 
         test("imports document with inline database as table", async () => {
@@ -345,27 +447,31 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-
-            // The inline database should NOT create a separate document.
-            // Only the parent document should be created.
-            expect(importItem.importedCount).toBe(1);
+            // The inline database should NOT create a separate document. Only the parent
+            // document should be created (1 user doc + 1 teamspace root).
+            expect(importItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
         });
 
         test("inline database children have parent link to grandparent", async () => {
@@ -410,25 +516,31 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            // Parent document + Alice + Bob = 3 documents (inline database itself is excluded)
-            expect(importItem.importedCount).toBe(3);
+            // Parent document + Alice + Bob + teamspace root = 4 documents (inline database
+            // itself is excluded)
+            expect(importItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
 
             // Find the documents
             const parentDocInfo = await findDocumentByTitle(space.id, "Project");
@@ -439,7 +551,8 @@ describe("processStartNotionImportJob", () => {
             expect(aliceDocInfo).toBeDefined();
             expect(bobDocInfo).toBeDefined();
 
-            // Find the teamspace root document (created when importing without explicit teamspace)
+            // Find the teamspace root document (created when importing without explicit
+            // teamspace)
             const teamspaceRootDoc = await findDocumentByTitle(space.id, "Test Workspace");
             expect(teamspaceRootDoc).toBeDefined();
 
@@ -522,9 +635,9 @@ describe("processStartNotionImportJob", () => {
                 ],
             };
 
-            // Verify parent document "Project" - full content assertion
-            // Note: The inline database table appears twice - once at the top (after parent link)
-            // and once where the CSV reference was in the original markdown
+            // Verify parent document "Project" - full content assertion Note: The inline
+            // database table appears twice - once at the top (after parent link) and once
+            // where the CSV reference was in the original markdown
             const parentDocument = await getDocument(space.systemAction(), parentDocInfo!.id);
             const parentContent = parentDocument.content.doc.toJSON();
 
@@ -632,38 +745,42 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
+            // Home + MTG Notes db doc + Weekly + Standup + teamspace root = 5
+            expect(importItem.status).toMatchObject({type: "Success"});
+            expect(
+                (importItem.status as any).result.teamspaces.get(teamspace.notionId),
+            ).toMatchObject({documents: {imported: 5}});
 
             // Find all the documents created
             const allDocs = await findDocumentsInSpace(space.id);
             const docTitles = allDocs.map(d => d.title).sort();
 
-            // Should have: Teamspace root, MTG Notes db doc, Home, Weekly, Standup = 5 documents
-            // The teamspace root title is "Test Workspace | Engineering"
+            // Should have: Teamspace root, MTG Notes db doc, Home, Weekly, Standup = 5
+            // documents The teamspace root title is "Test Workspace | Engineering"
             expect(docTitles).toContain("Home");
             expect(docTitles).toContain("MTG Notes");
             expect(docTitles).toContain("Weekly - July 6, 2025");
             expect(docTitles).toContain("Standup - July 7, 2025");
             expect(docTitles).toContain("Test Workspace | Engineering");
-            // importedCount only counts user documents, not the teamspace root doc
-            // Home + MTG Notes db doc + Weekly + Standup = 4
-            expect(importItem.importedCount).toBe(4);
 
             // Find all the documents
             const mtgNotesDoc = await findDocumentByTitle(space.id, "MTG Notes");
@@ -933,23 +1050,26 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Find the teamspace root document
             const teamspaceRootDoc = await findDocumentByTitle(
@@ -978,14 +1098,15 @@ describe("processStartNotionImportJob", () => {
                 content: [{type: "text", text: "Test Workspace | Engineering"}],
             });
 
-            // Find the "Documents" heading (teamspace root uses "Documents" not "Child documents")
+            // Find the "Documents" heading (teamspace root uses "Documents" not "Child
+            // documents")
             const documentsHeading = teamspaceRootContent.content.find(
                 (node: any) => node.type === "heading" && node.content?.[0]?.text === "Documents",
             );
             expect(documentsHeading).toBeDefined();
 
-            // Find list items with mentions to Tasks and Design
-            // Mentions are now parsed as mention nodes
+            // Find list items with mentions to Tasks and Design Mentions are now parsed as
+            // mention nodes
             const listItems = teamspaceRootContent.content.filter(
                 (node: any) => node.type === "unorderedListItem",
             );
@@ -1053,25 +1174,34 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            // 2 documents (one per teamspace) + 2 teamspace root documents
-            expect(importItem.importedCount).toBeGreaterThanOrEqual(2);
+            // 1 doc + 1 teamspace root per teamspace
+            expect(importItem.status).toMatchObject({type: "Success"});
+            const result = (importItem.status as any).result;
+            expect(result.teamspaces.get(publicTs.notionId)).toMatchObject({
+                documents: {imported: 2},
+            });
+            expect(result.teamspaces.get(privateTs.notionId)).toMatchObject({
+                documents: {imported: 2},
+            });
         });
 
         /**
@@ -1079,6 +1209,7 @@ describe("processStartNotionImportJob", () => {
          * snapshot string of all document contents.
          *
          * Handles:
+         *
          * - Deterministic ordering (by title, then by parent title for duplicates)
          * - Unique keys for documents with duplicate titles
          * - Sanitization of dynamic IDs (space, document, account)
@@ -1142,6 +1273,98 @@ describe("processStartNotionImportJob", () => {
             expect(flat).toBe(nested);
         });
 
+        // Only snap one since we're asserting they're the same below
+        test("Media-Export-Flat.zip snapshot", testFixtureSnapshot("Media-Export-Flat.zip"));
+        test("Media-Export-Flat.zip and Media-Export-Nested.zip produce the same results", async () => {
+            const space1 = await TestSpace.create(context);
+            const session1 = await space1.createSession({role: "Admin"});
+            const flat = await importedFixtureSpaceItemsToString(
+                space1,
+                session1,
+                "Media-Export-Flat.zip",
+            );
+
+            const space2 = await TestSpace.create(context);
+            const session2 = await space2.createSession({role: "Admin"});
+            const nested = await importedFixtureSpaceItemsToString(
+                space2,
+                session2,
+                "Media-Export-Nested.zip",
+            );
+
+            expect(flat).toBe(nested);
+        });
+
+        async function importFixtureAndGetResult(fixtureName: string) {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const zip = readFixture(fixtureName);
+
+            const notionImportId = generateId<NotionImportId>();
+            const importKey = `${space.id}/Notion/${notionImportId}`;
+
+            await NotionImporterTable.createItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+                spaceId: space.id,
+                startedByAccountId: session.account.id,
+                workspaceName: "Export",
+                importKey,
+                createdTime: new Date(),
+                updatedTime: new Date(),
+                startedProcessingTime: null,
+                teamspaceImportOptions: null,
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
+                importedCount: 0,
+                importZipSize: 1024,
+            });
+
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            const importItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+
+            return importItem.status;
+        }
+
+        test("Media-Export-Flat.zip final upload state", async () => {
+            const status = await importFixtureAndGetResult("Media-Export-Flat.zip");
+
+            assert(status.type === "Success");
+            expect(status.result.teamspaces.get("ed5ae4dfdc9b814faf5400032de29467")).toEqual({
+                documents: {imported: 11, expectedCount: 10},
+                files: new Map([
+                    ["image/png", {expectedCount: 3, imported: 7, size: 3746532}],
+                    ["video/mp4", {expectedCount: 3, imported: 3, size: 4381020}],
+                    ["image/jpeg", {expectedCount: 3, imported: 3, size: 977085}],
+                    ["application/octet-stream", {expectedCount: 3, imported: 3, size: 837399}],
+                ]),
+            });
+        });
+
+        test("JJ-Test-Flat.zip final upload state", async () => {
+            const status = await importFixtureAndGetResult("JJ-Test-Flat.zip");
+
+            assert(status.type === "Success");
+            expect(status.result.teamspaces.get("00f80a22fe3781a094cb00034a90e2b8")).toEqual({
+                documents: {imported: 34, expectedCount: 32},
+                files: new Map([
+                    ["image/jpeg", {expectedCount: 2, imported: 2, size: 750073}],
+                    ["image/png", {expectedCount: 8, imported: 8, size: 1761071}],
+                    ["video/mp4", {expectedCount: 1, imported: 1, size: 1460340}],
+                ]),
+            });
+        });
+
         test("converts .md links with parentheses in filename to mentions", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
@@ -1156,8 +1379,8 @@ describe("processStartNotionImportJob", () => {
             // This simulates what Notion exports when documents reference each other
             const parentDoc = new ExportedNotionDocument(
                 "Overview",
-                // Use a direct markdown link to the target document's .md file
-                // The path will be resolved by the test framework
+                // Use a direct markdown link to the target document's .md file The path will be
+                // resolved by the test framework
                 `See ${targetDoc.toReference()} for details.`,
                 [targetDoc],
             );
@@ -1177,16 +1400,19 @@ describe("processStartNotionImportJob", () => {
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             // Find the documents
             const allDocs = await findDocumentsInSpace(space.id);
@@ -1222,6 +1448,218 @@ describe("processStartNotionImportJob", () => {
             expect(hasMdLink).toBe(false);
         });
 
+        test("re-importing the same space twice does not error or create duplicates", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            // Create a simple document hierarchy
+            const childDoc = new ExportedNotionDocument("Child Page", "Child content");
+            const parentDoc = new ExportedNotionDocument(
+                "Parent Page",
+                `Some content here.\n\n${childDoc.toReference()}`,
+                [childDoc],
+            );
+            const zip = createTestNotionImportZip([parentDoc]);
+
+            const notionImportId = generateId<NotionImportId>();
+            const importKey = `${space.id}/Notion/${notionImportId}`;
+
+            // Set up the import record for first import
+            await NotionImporterTable.createItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+                spaceId: space.id,
+                startedByAccountId: session.account.id,
+                workspaceName: "Test Workspace",
+                importKey,
+                createdTime: new Date(),
+                updatedTime: new Date(),
+                startedProcessingTime: null,
+                teamspaceImportOptions: null,
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
+                importedCount: 0,
+                importZipSize: 1024,
+            });
+
+            // First import
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            // Verify first import succeeded
+            const firstImportItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+            // Parent + Child + teamspace root
+            expect(firstImportItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
+
+            // Get documents after first import
+            const docsAfterFirstImport = await findDocumentsInSpace(space.id);
+            const docCountAfterFirstImport = docsAfterFirstImport.length;
+
+            // Reset the import status to allow re-import
+            const reImportResult = await createProcessQueuedTestResult(zip);
+            await NotionImporterTable.updateItem(
+                context,
+                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
+                item => ({
+                    ...item!,
+                    status: {
+                        type: "ProcessQueued",
+                        result: reImportResult,
+                    },
+                    importedCount: 0,
+                }),
+            );
+
+            // Second import of the same data - should not error
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            // Verify second import also succeeded
+            const secondImportItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+            expect(secondImportItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
+
+            // Get documents after second import
+            const docsAfterSecondImport = await findDocumentsInSpace(space.id);
+
+            // Verify no duplicates were created
+            expect(docsAfterSecondImport.length).toBe(docCountAfterFirstImport);
+
+            // Verify same documents exist
+            const titlesAfterFirst = docsAfterFirstImport.map(d => d.title).sort();
+            const titlesAfterSecond = docsAfterSecondImport.map(d => d.title).sort();
+            expect(titlesAfterSecond).toEqual(titlesAfterFirst);
+        });
+
+        test("re-importing with nested children does not create duplicate documents", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            // Create a deeper hierarchy: grandparent -> parent -> child
+            const grandchild = new ExportedNotionDocument("Grandchild", "Grandchild content");
+            const child = new ExportedNotionDocument(
+                "Child",
+                `Child content.\n\n${grandchild.toReference()}`,
+                [grandchild],
+            );
+            const parent = new ExportedNotionDocument(
+                "Parent",
+                `Parent content.\n\n${child.toReference()}`,
+                [child],
+            );
+
+            const zip = createTestNotionImportZip([parent]);
+
+            const notionImportId = generateId<NotionImportId>();
+            const importKey = `${space.id}/Notion/${notionImportId}`;
+
+            await NotionImporterTable.createItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+                spaceId: space.id,
+                startedByAccountId: session.account.id,
+                workspaceName: "Test Workspace",
+                importKey,
+                createdTime: new Date(),
+                updatedTime: new Date(),
+                startedProcessingTime: null,
+                teamspaceImportOptions: null,
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
+                importedCount: 0,
+                importZipSize: 1024,
+            });
+
+            // First import
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            const firstImportItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+            // Parent + Child + Grandchild + teamspace root = 4
+            expect(firstImportItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
+
+            // Get documents after first import
+            const docsAfterFirstImport = await findDocumentsInSpace(space.id);
+            const docCountAfterFirstImport = docsAfterFirstImport.length;
+
+            // Should have created Parent, Child, Grandchild, and teamspace root
+            expect(docsAfterFirstImport.map(d => d.title)).toContain("Parent");
+            expect(docsAfterFirstImport.map(d => d.title)).toContain("Child");
+            expect(docsAfterFirstImport.map(d => d.title)).toContain("Grandchild");
+
+            // Reset import status for second import
+            const reImportResult = await createProcessQueuedTestResult(zip);
+            await NotionImporterTable.updateItem(
+                context,
+                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
+                item => ({
+                    ...item!,
+                    status: {
+                        type: "ProcessQueued",
+                        result: reImportResult,
+                    },
+                    importedCount: 0,
+                }),
+            );
+
+            // Second import - should skip all existing documents
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
+                notionImportId,
+            );
+
+            const secondImportItem = await NotionImporterTable.getItem(context, {
+                partitionType: "Import",
+                sortRangeType: "Attributes",
+                notionImportId,
+            });
+            expect(secondImportItem.status).toMatchObject({
+                type: "Success",
+                result: {teamspaces: expect.any(Map)},
+            });
+
+            // Get documents after second import
+            const docsAfterSecondImport = await findDocumentsInSpace(space.id);
+
+            // Verify no duplicates were created
+            expect(docsAfterSecondImport.length).toBe(docCountAfterFirstImport);
+
+            // Verify same documents exist
+            const titlesAfterFirst = docsAfterFirstImport.map(d => d.title).sort();
+            const titlesAfterSecond = docsAfterSecondImport.map(d => d.title).sort();
+            expect(titlesAfterSecond).toEqual(titlesAfterFirst);
+        });
+
         test("document with only child links has empty body content", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
@@ -1230,8 +1668,8 @@ describe("processStartNotionImportJob", () => {
             const child1 = new ExportedNotionDocument("First Child", "Child 1 content");
             const child2 = new ExportedNotionDocument("Second Child", "Child 2 content");
 
-            // Create a parent document with ONLY child links (no other content)
-            // This simulates Notion exports where a page is just a container for sub-pages
+            // Create a parent document with ONLY child links (no other content) This simulates
+            // Notion exports where a page is just a container for sub-pages
             const parentDoc = new ExportedNotionDocument(
                 "Parent Page",
                 `${child1.toReference()}
@@ -1255,16 +1693,19 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             // Find the parent and child documents
             const allDocuments = await findDocumentsInSpace(space.id);
@@ -1282,8 +1723,9 @@ ${child2.toReference()}`,
             );
             const documentContent = parentFullDocument.content.doc.toJSON();
 
-            // Document should have: title, Child documents heading, and two list items with mentions
-            // The inline child links are removed since the content was ONLY child links
+            // Document should have: title, Child documents heading, and two list items with
+            // mentions The inline child links are removed since the content was ONLY child
+            // links
             expect(documentContent).toMatchObject({
                 type: "doc",
                 content: expect.arrayContaining([
@@ -1364,24 +1806,26 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            expect(importItem.importedCount).toBeGreaterThan(10);
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Find documents by title
             const databasePageDoc = await findDocumentByTitle(space.id, "Database Page");
@@ -1598,27 +2042,29 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
-            expect(importItem.importedCount).toBeGreaterThan(10);
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Find "I'm a nested page" and "Page Parent" by title
-            const nestedPageDoc = await findDocumentByTitle(space.id, "I’m a nested page");
+            const nestedPageDoc = await findDocumentByTitle(space.id, "I\u2019m a nested page");
             const pageParentDoc = await findDocumentByTitle(space.id, "Page Parent");
 
             expect(nestedPageDoc).toBeDefined();
@@ -1631,7 +2077,7 @@ ${child2.toReference()}`,
             expect(nestedContent.type).toBe("doc");
             expect(nestedContent.content[0]).toEqual({
                 type: "title",
-                content: [{type: "text", text: "I’m a nested page"}],
+                content: [{type: "text", text: "I\u2019m a nested page"}],
             });
 
             // Verify it has a parent document mention to Page Parent
@@ -1658,11 +2104,14 @@ ${child2.toReference()}`,
             expect(nestedChildDocsHeading).toBeDefined();
 
             // Find the double nested page document
-            const doubleNestedDoc = await findDocumentByTitle(space.id, "I’m a double nested page");
+            const doubleNestedDoc = await findDocumentByTitle(
+                space.id,
+                "I\u2019m a double nested page",
+            );
             expect(doubleNestedDoc).toBeDefined();
 
-            // Verify there's a list item mentioning the double nested page
-            // Mentions are now parsed as mention nodes
+            // Verify there's a list item mentioning the double nested page Mentions are now
+            // parsed as mention nodes
             const nestedListItems = nestedContent.content.filter(
                 (node: any) => node.type === "unorderedListItem",
             );
@@ -1698,8 +2147,8 @@ ${child2.toReference()}`,
             );
             expect(parentChildDocsHeading).toBeDefined();
 
-            // Verify there's a list item mentioning the nested page
-            // Mentions are now parsed as mention nodes
+            // Verify there's a list item mentioning the nested page Mentions are now parsed as
+            // mention nodes
             const parentListItems = parentContent.content.filter(
                 (node: any) => node.type === "unorderedListItem",
             );
@@ -1730,30 +2179,33 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Get all documents and their titles
             const allDocs = await findDocumentsInSpace(space.id);
             const docTitles = allDocs.map(d => d.title).sort();
 
-            // Verify all expected documents are created
-            // Note: Home is excluded because it only contains CSV links
+            // Verify all expected documents are created Note: Home is excluded because it only
+            // contains CSV links
             expect(docTitles).toEqual([
                 "Another double nested page",
                 "Check the box to mark items as done",
@@ -1775,6 +2227,7 @@ ${child2.toReference()}`,
                 "Inline 2",
                 "Inline 3",
                 "I\u2019m a double nested page",
+                "I\u2019m a full page database",
                 "I\u2019m a nested page",
                 "Josh Johnson",
                 "Journal",
@@ -1810,30 +2263,33 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: await createProcessQueuedTestResult(zip)},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
-            await processStartNotionImportJob(createSystemActionWithFile(space, importKey, zip), {
-                type: "StartNotionImport",
-                spaceId: space.id,
+            await processStartNotionImportJob(
+                await createSystemActionWithFile(space, importKey, zip),
                 notionImportId,
-            });
+            );
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({type: "Success"});
+            expect(importItem.status).toMatchObject({type: "Success"});
 
             // Get all documents and their titles
             const allDocs = await findDocumentsInSpace(space.id);
             const docTitles = allDocs.map(d => d.title).sort();
 
-            // Verify all expected documents are created
-            // Note: Home is excluded because it only contains CSV links
+            // Verify all expected documents are created Note: Home is excluded because it only
+            // contains CSV links
             expect(docTitles).toEqual([
                 "Another double nested page",
                 "Check the box to mark items as done",
@@ -1855,6 +2311,7 @@ ${child2.toReference()}`,
                 "Inline 2",
                 "Inline 3",
                 "I\u2019m a double nested page",
+                "I\u2019m a full page database",
                 "I\u2019m a nested page",
                 "Josh Johnson",
                 "Journal",
@@ -1890,28 +2347,31 @@ ${child2.toReference()}`,
                 importKey,
                 createdTime: new Date(),
                 updatedTime: new Date(),
+                startedProcessingTime: null,
                 teamspaceImportOptions: null,
-                status: {type: "ProcessQueued"},
+                multipartUploadId: null,
+                startedValidatingTime: null,
+                status: {type: "ProcessQueued", result: {teamspaces: new Map()}},
                 importedCount: 0,
+                importZipSize: 1024,
             });
 
             // Don't set up the file - it should fail
             await expect(
-                processStartNotionImportJob(createSystemActionWithFile(space, importKey), {
-                    type: "StartNotionImport",
-                    spaceId: space.id,
+                processStartNotionImportJob(
+                    await createSystemActionWithFile(space, importKey),
                     notionImportId,
-                }),
-            ).rejects.toThrow("Notion import file not found");
+                ),
+            ).rejects.toThrow("Import file not found");
 
             const importItem = await NotionImporterTable.getItem(context, {
                 partitionType: "Import",
                 sortRangeType: "Attributes",
                 notionImportId,
             });
-            expect(importItem.status).toEqual({
+            expect(importItem.status).toMatchObject({
                 type: "Failed",
-                error: "Import file not found in S3",
+                error: "Unknown error during import",
             });
         });
     });

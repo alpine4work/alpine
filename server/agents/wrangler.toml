@@ -27,12 +27,16 @@ name = "ChatGptAgentDurableObjectNamespace"
 class_name = "ChatGptAgentDurableObject"
 
 [[durable_objects.bindings]]
-name = "MockAgentDurableObjectNamespace"
-class_name = "MockAgentDurableObject"
-
-[[durable_objects.bindings]]
 name = "CursorAgentDurableObjectNamespace"
 class_name = "CursorAgentDurableObject"
+
+[[durable_objects.bindings]]
+name = "MockChatGptAgentDurableObjectNamespace"
+class_name = "MockChatGptAgentDurableObject"
+
+[[durable_objects.bindings]]
+name = "MockCursorAgentDurableObjectNamespace"
+class_name = "MockCursorAgentDurableObject"
 
 [[migrations]]
 tag = "v1"
@@ -45,6 +49,11 @@ new_classes = ["MockAgentDurableObject"]
 [[migrations]]
 tag = "v4"
 new_classes = ["CursorAgentDurableObject"]
+
+[[migrations]]
+tag = "v5"
+deleted_classes = ["MockAgentDurableObject"]
+new_classes = ["MockChatGptAgentDurableObject", "MockCursorAgentDurableObject"]
 
 [[d1_databases]]
 binding = "AgentUsageDatabase"

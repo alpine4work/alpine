@@ -5,8 +5,8 @@ import {PostId} from "~/shared/id/types/id_types.js";
 
 /**
  * Manually build a `DynamoItemKey` from a `PostId` using the same process the
- * server uses. The data within `DynamoItemKey`s is not secure by design,
- * they're trivial to reverse engineer by clients. Like we do here.
+ * server uses. The data within `DynamoItemKey`s is not secure by design, they're
+ * trivial to reverse engineer by clients. Like we do here.
  */
 export function createPostDynamoItemKey(postId: PostId): DynamoItemKey {
     const totalByteCount =

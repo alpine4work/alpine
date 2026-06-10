@@ -1,34 +1,83 @@
-import {strToU8} from "fflate";
+import {Unzipped, strToU8} from "fflate";
 import {readFileSync} from "fs";
 import {join} from "path";
 
 import {getDocument} from "~/server/documents/data/documents_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {convertExtractedNotionDataToEntities} from "~/server/importer/notion/internal/convert_extracted_notion_data_to_entities.js";
+import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/normalize_notion_export_directory.js";
+import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {
     NotionImportMappedReferencesResult,
     NotionImportTeamspaceOption,
-    unzipNotionImportAndMapReferences,
-} from "~/server/importer/notion/internal/unzip_notion_import_and_map_references.js";
+    parseNotionImportAndMapReferences,
+} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {
     ExportedNotionDatabase,
     ExportedNotionDocument,
+    ExportedNotionFile,
     ExportedNotionTeamspace,
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
+import {getSearchEntityTableForTest} from "~/server/search/data/table/get_search_entity_table_for_test.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, FileId, NotionImportId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**
- * Helper to assert unzip result is not null and return it with proper type.
+ * Creates a state manager from a mapped references result by extracting the
+ * teamspace IDs. Requires context and notionImportId for DynamoDB persistence.
  */
-function assertResult(
-    result: NotionImportMappedReferencesResult | null,
-): NotionImportMappedReferencesResult {
+function stateManagerFromResult({
+    notionImportId,
+    context,
+    mappedResult,
+}: {
+    notionImportId: NotionImportId;
+    context: ReturnType<TestSpace["systemAction"]>;
+    mappedResult: NotionImportMappedReferencesResult;
+}): NotionImporterProgressState {
+    return new NotionImporterProgressState({
+        notionImportId,
+        context,
+        initialResult: {
+            teamspaces: new Map(
+                mappedResult.teamspaces.map(ts => [
+                    ts.id,
+                    {documents: {imported: 0, expectedCount: 0}, files: new Map()},
+                ]),
+            ),
+        },
+    });
+}
+
+/**
+ * Helper to properly unzip and map references from a test zip file. This uses the
+ * disk-based flow (via test importer's in-memory storage) so that CSV files can be
+ * read during conversion.
+ */
+async function unzipAndMapReferencesForTest(
+    zipData: Uint8Array,
+    importItem: NotionImportItem,
+): Promise<NotionImportMappedReferencesResult> {
+    const importKey = `test-${generateChronologicalId()}`;
+    const importer = context.importer as unknown as TestImporterContextModule;
+    await importer.setUploadedFile(importKey, zipData);
+
+    const {diskPathToUnzippedFiles} = await importer.downloadAndUnzipImportToDisk({importKey});
+    await normalizeNotionExportDirectory(diskPathToUnzippedFiles);
+
+    const result = await parseNotionImportAndMapReferences(
+        {tracer: context.tracer, importerService: importer},
+        diskPathToUnzippedFiles,
+        importItem,
+    );
+
     expect(result).not.toBeNull();
     return result!;
 }
@@ -56,10 +105,14 @@ async function createTestNotionImportItemInDatabase(
         startedByAccountId: accountId as any,
         workspaceName: "Test Workspace",
         importKey: "test-import-key",
+        importZipSize: 1024,
         createdTime: new Date(),
         updatedTime: new Date(),
+        startedProcessingTime: new Date(),
         teamspaceImportOptions: null,
-        status: {type: "Processing"},
+        multipartUploadId: null,
+        startedValidatingTime: null,
+        status: {type: "Processing", result: {teamspaces: new Map()}},
         importedCount: 0,
         ...overrides,
     };
@@ -75,9 +128,10 @@ async function createTestNotionImportItemInDatabase(
 }
 
 /**
- * Create a mapped references result for testing.
+ * Create a mapped references result for testing. Sets up the unzipped files in the
+ * test importer so they can be read during conversion.
  */
-function createTestMappedReferencesResult(config: {
+async function createTestMappedReferencesResult(config: {
     teamspaces: Array<{
         id: string;
         name: string;
@@ -93,8 +147,8 @@ function createTestMappedReferencesResult(config: {
             files?: Set<FileId>;
         }>;
     }>;
-}): NotionImportMappedReferencesResult {
-    const unzippedFiles: Record<string, Uint8Array> = {};
+}): Promise<NotionImportMappedReferencesResult> {
+    const unzippedFiles: Unzipped = {};
     const teamspaces: NotionImportMappedReferencesResult["teamspaces"] = [];
     const pathToDocumentId = new Map<string, DocumentId>();
     const documentIdToPath = new Map<DocumentId, string>();
@@ -103,8 +157,8 @@ function createTestMappedReferencesResult(config: {
         const documents: NotionImportMappedReferencesResult["teamspaces"][0]["documents"] = {};
 
         for (const doc of ts.documents) {
-            // Add file to unzippedFiles with root prefix
-            unzippedFiles[`Export/${doc.filePath}`] = strToU8(doc.markdown);
+            // Add file to unzippedFiles (paths are already stripped of root prefix)
+            unzippedFiles[doc.filePath] = strToU8(doc.markdown);
 
             documents[doc.filePath] = {
                 id: doc.id,
@@ -127,24 +181,34 @@ function createTestMappedReferencesResult(config: {
         });
     }
 
+    // Generate a unique disk path key and set up the files in the test importer
+    const diskPathKey = `test-import-${generateChronologicalId()}`;
+    const importer = context.importer as unknown as TestImporterContextModule;
+    await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+    const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
     return {
-        // Use a unique workspace ID per call to avoid deterministic ID collisions
-        // between tests. Each test gets its own "workspace" so teamspace root
-        // documents have unique IDs.
+        // Use a unique workspace ID per call to avoid deterministic ID collisions between
+        // tests. Each test gets its own "workspace" so teamspace root documents have
+        // unique IDs.
         notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
         teamspaces,
         filesToUpload: {},
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         inlineDatabaseChildren: new Map(),
         rootLevelCsvDatabases: new Map(),
+        csvDatabasesRequiringDocuments: new Map(),
         pathToDocumentId,
         documentIdToPath,
+        filePathToTeamspaceId: new Map(),
     };
 }
 
+const SearchEntityTable = getSearchEntityTableForTest();
+
 describe("convertExtractedNotionDataToEntities", () => {
     describe("basic document creation", () => {
-        test("creates a single document from notion import", async () => {
+        test("does not assign affinity points to imported documents", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
             const documentId = generateId<DocumentId>();
@@ -154,7 +218,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -176,6 +240,63 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            // Imported documents should not get affinity points assigned. Only teamspace root
+            // documents should get affinity points.
+            expect(
+                await SearchEntityTable.getItemIfExists(context, {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId: space.id,
+                    accountId: session.account.id,
+                    entityId: `Document:${documentId}`,
+                }),
+            ).toBeNull();
+        });
+
+        test("creates a single document from notion import", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const documentId = generateId<DocumentId>();
+
+            const {notionImportId, importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+            const mappedResult = await createTestMappedReferencesResult({
+                teamspaces: [
+                    {
+                        id: "ts1",
+                        name: "Test Teamspace",
+                        importOption: {type: "Private"},
+                        documents: [
+                            {
+                                filePath: "My Page abc12345678901234567890abcdef123.md",
+                                id: documentId,
+                                markdown: "# My Page\n\nThis is the content.",
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Verify the document was created
@@ -195,7 +316,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -222,6 +343,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const doc1 = await getDocument(space.systemAction(), doc1Id);
@@ -231,7 +357,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             expect(doc2).toBeDefined();
         });
 
-        test("increments importedCount for each document", async () => {
+        test("increments document counter for each document", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
             const doc1Id = generateId<DocumentId>();
@@ -243,7 +369,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -270,21 +396,22 @@ describe("convertExtractedNotionDataToEntities", () => {
                 ],
             });
 
+            const progressState = stateManagerFromResult({
+                notionImportId,
+                context: space.systemAction(),
+                mappedResult,
+            });
+
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                progressState,
             );
 
-            // Verify the importedCount was incremented
-            const updatedImportItem = await NotionImporterTable.getItemIfExists(context, {
-                partitionType: "Import",
-                sortRangeType: "Attributes",
-                notionImportId,
-            });
-
-            expect(updatedImportItem?.importedCount).toBe(3);
+            // Verify the document counter was incremented (3 docs + 1 teamspace root)
+            expect(progressState.teamspaceCounters.get("ts1")?.documents).toBe(4);
         });
     });
 
@@ -299,7 +426,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -321,6 +448,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -337,7 +469,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -359,6 +491,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -375,7 +512,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -397,6 +534,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -417,7 +559,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts-public",
@@ -451,6 +593,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const publicDoc = await getDocument(space.systemAction(), publicDocId);
@@ -472,7 +619,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -495,6 +642,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -512,7 +664,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -534,6 +686,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -550,7 +707,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -572,6 +729,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -591,7 +753,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -620,6 +782,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const childDocument = await getDocument(space.systemAction(), childId);
@@ -660,7 +827,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -695,6 +862,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentId);
@@ -766,7 +938,7 @@ describe("convertExtractedNotionDataToEntities", () => {
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -797,6 +969,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document1 = await getDocument(space.systemAction(), doc1Id);
@@ -837,13 +1014,9 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // Simulate nested export structure:
-            // Parent/
-            //   ParentDoc abc123.md
-            //   Subdir/
-            //     NestedDoc def456.md (links to ../SiblingDoc.md)
-            //   SiblingDoc ghi789.md
-            const mappedResult = createTestMappedReferencesResult({
+            // Simulate nested export structure: Parent/ ParentDoc abc123.md Subdir/ NestedDoc
+            // def456.md (links to ../SiblingDoc.md) SiblingDoc ghi789.md
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -880,6 +1053,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const nestedDocument = await getDocument(space.systemAction(), nestedDocId);
@@ -920,7 +1098,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Simulate nested export where parent links to child in subdirectory
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -955,6 +1133,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -994,10 +1177,10 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // Test that .md links with parentheses in the filename are properly converted.
-            // The regex needs to handle URLs like "File%20(info)%20abc.md" where the
-            // URL-encoded parentheses should not break the match.
-            const mappedResult = createTestMappedReferencesResult({
+            // Test that .md links with parentheses in the filename are properly converted. The
+            // regex needs to handle URLs like "File%20(info)%20abc.md" where the URL-encoded
+            // parentheses should not break the match.
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1028,6 +1211,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1074,7 +1262,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Test multiple parentheses sets in a single filename.
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1102,6 +1290,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1146,7 +1339,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Test parentheses at the start of the filename.
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1175,6 +1368,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1214,7 +1412,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Test nested parentheses like "(see (note) here)".
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1243,6 +1441,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1282,7 +1485,7 @@ describe("convertExtractedNotionDataToEntities", () => {
             );
 
             // Test filename with only closing paren (unbalanced).
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1310,6 +1513,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
@@ -1347,9 +1555,9 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // Test that a document whose title (# heading) contains parentheses
-            // is parsed correctly.
-            const mappedResult = createTestMappedReferencesResult({
+            // Test that a document whose title (# heading) contains parentheses is parsed
+            // correctly.
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1373,6 +1581,11 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1394,9 +1607,9 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // A document that has ONLY child links (no other content) should have
-            // empty body content - the Child documents section provides the structure.
-            const mappedResult = createTestMappedReferencesResult({
+            // A document that has ONLY child links (no other content) should have empty body
+            // content - the Child documents section provides the structure.
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1435,13 +1648,19 @@ describe("convertExtractedNotionDataToEntities", () => {
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
             const documentContent = parentDocument.content.doc.toJSON();
 
-            // Document should have: title, Child documents heading, and two list items with mentions
-            // The inline child links are removed since the content was ONLY child links
+            // Document should have: title, Child documents heading, and two list items with
+            // mentions The inline child links are removed since the content was ONLY child
+            // links
             expect(documentContent).toMatchObject({
                 type: "doc",
                 content: expect.arrayContaining([
@@ -1513,9 +1732,9 @@ describe("convertExtractedNotionDataToEntities", () => {
                 session.account.id,
             );
 
-            // A document with real content AND inline child links should keep the inline links.
-            // Only documents with ONLY child links have the inline content removed.
-            const mappedResult = createTestMappedReferencesResult({
+            // A document with real content AND inline child links should keep the inline
+            // links. Only documents with ONLY child links have the inline content removed.
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1553,13 +1772,18 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDocument = await getDocument(space.systemAction(), parentDocId);
             const documentContent = parentDocument.content.doc.toJSON();
 
-            // Document should have: title, main content, Related text, inline mention,
-            // Child documents heading, and list item with mention
+            // Document should have: title, main content, Related text, inline mention, Child
+            // documents heading, and list item with mention
             expect(documentContent).toMatchObject({
                 type: "doc",
                 content: expect.arrayContaining([
@@ -1636,7 +1860,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [],
             });
 
@@ -1646,6 +1870,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
         });
 
@@ -1658,7 +1887,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1675,6 +1904,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
         });
 
@@ -1688,7 +1922,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1711,6 +1945,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1727,7 +1966,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1760,6 +1999,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1777,7 +2021,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1805,6 +2049,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1816,7 +2065,7 @@ Related:
             }).not.toThrow();
         });
 
-        test("importedCount remains 0 when no documents are created", async () => {
+        test("document counter remains 0 when no documents are created", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -1825,8 +2074,14 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [],
+            });
+
+            const progressState = stateManagerFromResult({
+                notionImportId,
+                context: space.systemAction(),
+                mappedResult,
             });
 
             await convertExtractedNotionDataToEntities(
@@ -1834,15 +2089,10 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
+                progressState,
             );
 
-            const updatedImportItem = await NotionImporterTable.getItemIfExists(context, {
-                partitionType: "Import",
-                sortRangeType: "Attributes",
-                notionImportId,
-            });
-
-            expect(updatedImportItem?.importedCount).toBe(0);
+            expect(progressState.teamspaceCounters.size).toBe(0);
         });
     });
 
@@ -1857,7 +2107,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1879,6 +2129,11 @@ Related:
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1908,7 +2163,7 @@ Related:
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -1938,6 +2193,11 @@ Content under subsection.`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -1979,7 +2239,7 @@ Content under subsection.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2024,13 +2284,19 @@ This is the actual content.`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDoc = await getDocument(space.systemAction(), parentId);
             const documentContent = parentDoc.content.doc.toJSON();
 
-            // Document should have: title, parent link, actual content paragraph, "Child documents" heading, list items
-            // The child links section and divider should be removed
+            // Document should have: title, parent link, actual content paragraph, "Child
+            // documents" heading, list items The child links section and divider should be
+            // removed
             expect(documentContent.content[0]).toMatchObject({
                 type: "title",
                 content: [{type: "text", text: "Parent Page"}],
@@ -2069,7 +2335,7 @@ This is the actual content.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2098,6 +2364,11 @@ This is the actual content.`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const childDoc = await getDocument(space.systemAction(), childId);
@@ -2141,7 +2412,7 @@ This is the actual content.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2176,6 +2447,11 @@ This is the actual content.`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDoc = await getDocument(space.systemAction(), parentId);
@@ -2258,7 +2534,7 @@ This is the actual content.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2280,6 +2556,11 @@ This is the actual content.`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2318,15 +2599,15 @@ This is the actual content.`,
             );
 
             // Create mapped result with CSV file in unzippedFiles
-            const unzippedFiles: Record<string, Uint8Array> = {
-                "Export/Doc abc12345678901234567890abcdef123.md": strToU8(`# Document with Database
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md": strToU8(`# Document with Database
 
 Here is an inline database:
 
 [Tasks](Tasks%20def12345678901234567890abcdef123.csv)
 
 And some content after.`),
-                "Export/Tasks def12345678901234567890abcdef123.csv": strToU8(
+                "Tasks def12345678901234567890abcdef123.csv": strToU8(
                     `Name,Status,Priority
 Task 1,Done,High
 Task 2,In Progress,Medium`,
@@ -2334,6 +2615,12 @@ Task 2,In Progress,Medium`,
             };
 
             const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
+            const csvPath = "Tasks def12345678901234567890abcdef123.csv";
             const mappedResult: NotionImportMappedReferencesResult = {
                 notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
                 teamspaces: [
@@ -2354,11 +2641,14 @@ Task 2,In Progress,Medium`,
                     },
                 ],
                 filesToUpload: {},
-                unzippedFiles,
-                inlineDatabaseChildren: new Map(),
+                diskPathToUnzippedFiles,
+                // Include the CSV path so the conversion function reads it
+                inlineDatabaseChildren: new Map([[csvPath, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
+                filePathToTeamspaceId: new Map(),
             };
 
             await convertExtractedNotionDataToEntities(
@@ -2366,6 +2656,11 @@ Task 2,In Progress,Medium`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2434,8 +2729,8 @@ Task 2,In Progress,Medium`,
             );
 
             // Create mapped result with two CSV files in unzippedFiles
-            const unzippedFiles: Record<string, Uint8Array> = {
-                "Export/Doc abc12345678901234567890abcdef123.md":
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md":
                     strToU8(`# Document with Multiple Databases
 
 Here is the first database:
@@ -2447,12 +2742,12 @@ And here is the second database:
 [People](People%20ghi12345678901234567890abcdef123.csv)
 
 Content after both databases.`),
-                "Export/Tasks def12345678901234567890abcdef123.csv": strToU8(
+                "Tasks def12345678901234567890abcdef123.csv": strToU8(
                     `Task,Status
 Task 1,Done
 Task 2,Pending`,
                 ),
-                "Export/People ghi12345678901234567890abcdef123.csv": strToU8(
+                "People ghi12345678901234567890abcdef123.csv": strToU8(
                     `Name,Role
 Alice,Engineer
 Bob,Designer`,
@@ -2460,6 +2755,13 @@ Bob,Designer`,
             };
 
             const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const tasksCsvPath = "Tasks def12345678901234567890abcdef123.csv";
+            const peopleCsvPath = "People ghi12345678901234567890abcdef123.csv";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
             const mappedResult: NotionImportMappedReferencesResult = {
                 notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
                 teamspaces: [
@@ -2480,11 +2782,17 @@ Bob,Designer`,
                     },
                 ],
                 filesToUpload: {},
-                unzippedFiles,
-                inlineDatabaseChildren: new Map(),
+                diskPathToUnzippedFiles,
+                // Include both CSV paths so the conversion function reads them
+                inlineDatabaseChildren: new Map([
+                    [tasksCsvPath, new Map()],
+                    [peopleCsvPath, new Map()],
+                ]),
                 rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
+                filePathToTeamspaceId: new Map(),
             };
 
             await convertExtractedNotionDataToEntities(
@@ -2492,6 +2800,11 @@ Bob,Designer`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2561,17 +2874,23 @@ Bob,Designer`,
             );
 
             // Create a CSV with 4 columns to verify column width calculation
-            const unzippedFiles: Record<string, Uint8Array> = {
-                "Export/Doc abc12345678901234567890abcdef123.md": strToU8(`# Document
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md": strToU8(`# Document
 
 [Data](Data%20def12345678901234567890abcdef123.csv)`),
-                "Export/Data def12345678901234567890abcdef123.csv": strToU8(
+                "Data def12345678901234567890abcdef123.csv": strToU8(
                     `A,B,C,D
 1,2,3,4`,
                 ),
             };
 
             const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const dataCsvPath = "Data def12345678901234567890abcdef123.csv";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
             const mappedResult: NotionImportMappedReferencesResult = {
                 notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
                 teamspaces: [
@@ -2592,11 +2911,14 @@ Bob,Designer`,
                     },
                 ],
                 filesToUpload: {},
-                unzippedFiles,
-                inlineDatabaseChildren: new Map(),
+                diskPathToUnzippedFiles,
+                // Include the CSV path so the conversion function reads it
+                inlineDatabaseChildren: new Map([[dataCsvPath, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
                 pathToDocumentId: new Map([[docPath, documentId]]),
                 documentIdToPath: new Map([[documentId, docPath]]),
+                filePathToTeamspaceId: new Map(),
             };
 
             await convertExtractedNotionDataToEntities(
@@ -2604,6 +2926,11 @@ Bob,Designer`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), documentId);
@@ -2637,6 +2964,197 @@ Bob,Designer`,
             }
         });
 
+        test("skips CSV links when the file is missing from the export", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const documentId = generateId<DocumentId>();
+
+            const {notionImportId, importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Notion sometimes omits inline database CSV files from the export while still
+            // including the markdown link. The document should be created successfully with
+            // the CSV link kept as a regular paragraph instead of being converted to a table.
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md": strToU8(`# Document with Missing DB
+
+Here is a linked database:
+
+[Tasks](Tasks%20def12345678901234567890abcdef123.csv)
+
+And some content after.`),
+            };
+
+            const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
+            const mappedResult: NotionImportMappedReferencesResult = {
+                notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
+                teamspaces: [
+                    {
+                        id: "ts1",
+                        name: "Test",
+                        importOption: {type: "Private"},
+                        documents: {
+                            [docPath]: {
+                                id: documentId,
+                                references: new Map(),
+                                files: new Set(),
+                                parent: null,
+                                children: new Set(),
+                                hasChildrenHeader: false,
+                            },
+                        },
+                    },
+                ],
+                filesToUpload: {},
+                diskPathToUnzippedFiles,
+                inlineDatabaseChildren: new Map(),
+                rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
+                pathToDocumentId: new Map([[docPath, documentId]]),
+                documentIdToPath: new Map([[documentId, docPath]]),
+                filePathToTeamspaceId: new Map(),
+            };
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const document = await getDocument(space.systemAction(), documentId);
+            const documentContent = document.content.doc.toJSON();
+
+            expect(documentContent.content[0]).toMatchObject({
+                type: "title",
+                content: [{type: "text", text: "Document with Missing DB"}],
+            });
+
+            // Content after the missing CSV link should still be present
+            expect(documentContent).toMatchObject({
+                type: "doc",
+                content: expect.arrayContaining([
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "And some content after."}],
+                    },
+                ]),
+            });
+
+            // No table should have been created (CSV was missing)
+            const hasTable = documentContent.content.some(
+                (node: {type: string}) => node.type === "table",
+            );
+            expect(hasTable).toBe(false);
+        });
+
+        test("skips missing CSV but still converts existing CSVs in same document", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const documentId = generateId<DocumentId>();
+
+            const {notionImportId, importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Document references two CSVs: one that exists and one that doesn't. The existing
+            // one should become a table, the missing one should stay as a paragraph.
+            const unzippedFiles: Unzipped = {
+                "Doc abc12345678901234567890abcdef123.md": strToU8(`# Mixed Database Document
+
+[Exists](Exists%20aaa12345678901234567890abcdef123.csv)
+
+[Missing](Missing%20bbb12345678901234567890abcdef123.csv)
+
+End of document.`),
+                "Exists aaa12345678901234567890abcdef123.csv": strToU8(`Name,Status\nTask 1,Done`),
+            };
+
+            const docPath = "Doc abc12345678901234567890abcdef123.md";
+            const existsCsvPath = "Exists aaa12345678901234567890abcdef123.csv";
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
+
+            const mappedResult: NotionImportMappedReferencesResult = {
+                notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
+                teamspaces: [
+                    {
+                        id: "ts1",
+                        name: "Test",
+                        importOption: {type: "Private"},
+                        documents: {
+                            [docPath]: {
+                                id: documentId,
+                                references: new Map(),
+                                files: new Set(),
+                                parent: null,
+                                children: new Set(),
+                                hasChildrenHeader: false,
+                            },
+                        },
+                    },
+                ],
+                filesToUpload: {},
+                diskPathToUnzippedFiles,
+                inlineDatabaseChildren: new Map([[existsCsvPath, new Map()]]),
+                rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
+                pathToDocumentId: new Map([[docPath, documentId]]),
+                documentIdToPath: new Map([[documentId, docPath]]),
+                filePathToTeamspaceId: new Map(),
+            };
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const document = await getDocument(space.systemAction(), documentId);
+            const documentContent = document.content.doc.toJSON();
+
+            // The existing CSV should have been converted to a table
+            const table = documentContent.content.find(
+                (node: {type: string}) => node.type === "table",
+            );
+            expect(table).toBeDefined();
+            expect(table.content).toHaveLength(2); // Header + 1 data row
+
+            // "End of document" should still be present
+            expect(documentContent).toMatchObject({
+                type: "doc",
+                content: expect.arrayContaining([
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "End of document."}],
+                    },
+                ]),
+            });
+        });
+
         test("creates full-page database documents from CSV files", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
@@ -2648,20 +3166,25 @@ Bob,Designer`,
                 session.account.id,
             );
 
-            // Database .md wrapper file and its CSV data
-            // The .md file links to the CSV, and the CSV link gets converted to a table
+            // Database .md wrapper file and its CSV data The .md file links to the CSV, and
+            // the CSV link gets converted to a table
             const csvFileName = "Project Tasks abc12345678901234567890abcdef123.csv";
             const mdFileName = "Project Tasks abc12345678901234567890abcdef123.md";
-            const unzippedFiles: Record<string, Uint8Array> = {
-                [`Export/${csvFileName}`]: strToU8(
+            const unzippedFiles: Unzipped = {
+                [csvFileName]: strToU8(
                     `Task,Assignee,Due Date
 Build feature,Alice,2024-01-15
 Write tests,Bob,2024-01-20`,
                 ),
-                [`Export/${mdFileName}`]: strToU8(
+                [mdFileName]: strToU8(
                     `# Project Tasks\n\n[Project Tasks](${encodeURIComponent(csvFileName)})\n`,
                 ),
             };
+
+            const diskPathKey = `test-import-${generateChronologicalId()}`;
+            const importer = context.importer as unknown as TestImporterContextModule;
+            await importer.setUnzippedFiles(diskPathKey, unzippedFiles);
+            const diskPathToUnzippedFiles = importer.getUnzippedFilesPath(diskPathKey);
 
             const mappedResult: NotionImportMappedReferencesResult = {
                 notionWorkspaceId: `test-workspace-${crypto.randomUUID()}`,
@@ -2683,11 +3206,15 @@ Write tests,Bob,2024-01-20`,
                     },
                 ],
                 filesToUpload: {},
-                unzippedFiles,
-                inlineDatabaseChildren: new Map(),
+                diskPathToUnzippedFiles,
+                // For full-page databases, the CSV is referenced by the .md file and needs to be
+                // in inlineDatabaseChildren so the conversion reads it
+                inlineDatabaseChildren: new Map([[csvFileName, new Map()]]),
                 rootLevelCsvDatabases: new Map(),
+                csvDatabasesRequiringDocuments: new Map(),
                 pathToDocumentId: new Map([[mdFileName, databaseDocId]]),
                 documentIdToPath: new Map([[databaseDocId, mdFileName]]),
+                filePathToTeamspaceId: new Map(),
             };
 
             await convertExtractedNotionDataToEntities(
@@ -2695,6 +3222,11 @@ Write tests,Bob,2024-01-20`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const document = await getDocument(space.systemAction(), databaseDocId);
@@ -2745,7 +3277,7 @@ Write tests,Bob,2024-01-20`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -2794,6 +3326,11 @@ Here are some details.`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             const parentDoc = await getDocument(space.systemAction(), parentId);
@@ -2889,20 +3426,23 @@ Here are some details.`,
             ]);
             const doc = new ExportedNotionDocument(
                 "Project Overview",
-                `Here is the project task list:\n\n${database.toCsvReference()}\n\nAnd here’s some more content.`,
+                `Here is the project task list:\n\n${database.toCsvReference()}\n\nAnd here\u2019s some more content.`,
             );
 
             // Export both items separately - the database is not a child of the doc
             const zipData = createTestNotionImportZip([doc, database]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the document
@@ -2972,10 +3512,10 @@ Here are some details.`,
                 session.account.id,
             );
 
-            // When a database is a child of a document in Notion exports,
-            // Notion creates a .md file for the database that links to the CSV.
-            // The parent document links to the .md file (not the CSV directly).
-            // So the database becomes its own document and the parent has a mention link.
+            // When a database is a child of a document in Notion exports, Notion creates a .md
+            // file for the database that links to the CSV. The parent document links to the
+            // .md file (not the CSV directly). So the database becomes its own document and
+            // the parent has a mention link.
             const database = new ExportedNotionDatabase("Tasks", [
                 ["Name", "Status", "Priority"],
                 ["Task 1", "Done", "High"],
@@ -2983,20 +3523,23 @@ Here are some details.`,
             ]);
             const doc = new ExportedNotionDocument(
                 "Project Overview",
-                `Here is the project task list:\n\n${database.toReference()}\n\nAnd here’s some more content.`,
+                `Here is the project task list:\n\n${database.toReference()}\n\nAnd here\u2019s some more content.`,
                 [database],
             );
 
             const zipData = createTestNotionImportZip([doc]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the parent document and database document
@@ -3023,6 +3566,7 @@ Here are some details.`,
             });
 
             // Parent document should have:
+            //
             // - A mention link to the database .md document
             // - The body content
             // - A "Child documents" section (since database is a child)
@@ -3032,9 +3576,9 @@ Here are some details.`,
             expect(parentJson).toContain("some more content");
             expect(parentJson).toContain("Child documents"); // Child section
 
-            // The database .md file becomes its own document with table content
-            // (the .md file's CSV link is converted to an inline table)
-            // Since it's a child of "Project Overview", it also has a parent link
+            // The database .md file becomes its own document with table content (the .md
+            // file's CSV link is converted to an inline table) Since it's a child of "Project
+            // Overview", it also has a parent link
             expect(dbMdDocId).not.toBeNull();
             const dbDoc = await getDocument(space.systemAction(), dbMdDocId!);
             const dbContent = dbDoc.content.doc.toJSON();
@@ -3082,15 +3626,18 @@ Here are some details.`,
             ]);
 
             const zipData = createTestNotionImportZip([database]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the database .md document
@@ -3108,9 +3655,9 @@ Here are some details.`,
             const document = await getDocument(space.systemAction(), dbMdDocId!);
             const documentContent = document.content.doc.toJSON();
 
-            // Full-page database becomes a document with title from .md wrapper and table content
-            // (the .md file's CSV link is converted to an inline table)
-            // Verify title exists
+            // Full-page database becomes a document with title from .md wrapper and table
+            // content (the .md file's CSV link is converted to an inline table) Verify title
+            // exists
             expect(documentContent.content[0]).toMatchObject({
                 type: "title",
                 content: [{type: "text", text: "Team Members"}],
@@ -3171,15 +3718,18 @@ Sprint completed successfully.`,
             );
 
             const zipData = createTestNotionImportZip([mainDoc]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find all documents
@@ -3205,7 +3755,8 @@ Sprint completed successfully.`,
             const document = await getDocument(space.systemAction(), mainDocId!);
             const documentContent = document.content.doc.toJSON();
 
-            // Main document should have: title, headings/content, mention link to database, child docs section
+            // Main document should have: title, headings/content, mention link to database,
+            // child docs section
             expect(documentContent).toMatchObject({
                 type: "doc",
                 content: expect.arrayContaining([
@@ -3238,9 +3789,9 @@ Sprint completed successfully.`,
                 ]),
             });
 
-            // Verify the database .md document has table content
-            // (the .md file's CSV link is converted to an inline table)
-            // It also has a parent link since it's a child of "Sprint 42"
+            // Verify the database .md document has table content (the .md file's CSV link is
+            // converted to an inline table) It also has a parent link since it's a child of
+            // "Sprint 42"
             const dbDoc = await getDocument(space.systemAction(), dbMdDocId!);
             const dbDocContent = dbDoc.content.doc.toJSON();
 
@@ -3274,8 +3825,8 @@ Sprint completed successfully.`,
                 session.account.id,
             );
 
-            // Create a database with rows containing names that match child document titles
-            // In Notion, database items are child documents of the database
+            // Create a database with rows containing names that match child document titles In
+            // Notion, database items are child documents of the database
             const database = new ExportedNotionDatabase("Team Members", [
                 ["Name", "Role"],
                 ["Alice", "Engineer"],
@@ -3283,23 +3834,21 @@ Sprint completed successfully.`,
                 ["Carol", "Manager"], // Carol has no corresponding document
             ]);
 
-            // Create a parent document that has the database as a child
-            // The database items (Alice, Bob) become children of the database
-            const aliceDoc = new ExportedNotionDocument("Alice", "Alice’s profile");
-            const bobDoc = new ExportedNotionDocument("Bob", "Bob’s profile");
+            // Create a parent document that has the database as a child The database items
+            // (Alice, Bob) become children of the database
+            const aliceDoc = new ExportedNotionDocument("Alice", "Alice\u2019s profile");
+            const bobDoc = new ExportedNotionDocument("Bob", "Bob\u2019s profile");
             const parentDoc = new ExportedNotionDocument("Team", "Team info", [database]);
 
-            // Set the database items to be children of the database by using setParent
-            // Since ExportedNotionDatabase doesn't support addChildren, we need to use
-            // the createTestMappedReferencesResult helper to set up this relationship manually
+            // Set the database items to be children of the database by using setParent Since
+            // ExportedNotionDatabase doesn't support addChildren, we need to use the
+            // createTestMappedReferencesResult helper to set up this relationship manually
 
             const zipData = createTestNotionImportZip([parentDoc, aliceDoc, bobDoc]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
-            // Manually set up the database-child relationship in mappedResult
-            // Find the database .md document and child document IDs
+            // Manually set up the database-child relationship in mappedResult Find the
+            // database .md document and child document IDs
             let dbPath: string | null = null;
             let aliceDocId: DocumentId | null = null;
             let bobDocId: DocumentId | null = null;
@@ -3337,6 +3886,11 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the database .md document ID
@@ -3397,15 +3951,18 @@ Sprint completed successfully.`,
             );
 
             const zipData = createTestNotionImportZip([parent]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the document IDs
@@ -3428,8 +3985,8 @@ Sprint completed successfully.`,
             expect(aliceDocId).not.toBeNull();
             expect(bobDocId).not.toBeNull();
 
-            // Verify parent document does NOT have "Child documents" section
-            // (inline database children should only appear as table cell links)
+            // Verify parent document does NOT have "Child documents" section (inline database
+            // children should only appear as table cell links)
             const parentDoc = await getDocument(space.systemAction(), parentDocId!);
             const parentJson = JSON.stringify(parentDoc.content.doc.toJSON());
             expect(parentJson).not.toContain("Child documents");
@@ -3473,34 +4030,39 @@ Sprint completed successfully.`,
             );
 
             const zipData = readFixture("JJ-Test-Flat.zip");
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const progressState = stateManagerFromResult({
+                notionImportId,
+                context: space.systemAction(),
+                mappedResult,
+            });
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                progressState,
             );
 
-            // Verify all documents were created
-            const updatedImportItem = await NotionImporterTable.getItemIfExists(context, {
-                partitionType: "Import",
-                sortRangeType: "Attributes",
-                notionImportId,
-            });
-
-            // Count total documents from the mapped result
-            // This includes regular documents + root-level CSV database documents
+            // Count total documents from the mapped result. This includes regular documents +
+            // root-level CSV database documents + teamspace roots.
             let totalDocuments = 0;
             for (const teamspace of mappedResult.teamspaces) {
                 totalDocuments += Object.keys(teamspace.documents).length;
             }
-            // Add root-level CSV database documents (synthetic documents created for them)
+            // Add CSV database documents (synthetic documents created for them)
             totalDocuments += mappedResult.rootLevelCsvDatabases.size;
+            totalDocuments += mappedResult.csvDatabasesRequiringDocuments.size;
+            // Add teamspace root documents
+            totalDocuments += mappedResult.teamspaces.length;
 
-            expect(updatedImportItem?.importedCount).toBe(totalDocuments);
+            let totalImported = 0;
+            for (const [, counters] of progressState.teamspaceCounters) {
+                totalImported += counters.documents;
+            }
+            expect(totalImported).toBe(totalDocuments);
             expect(totalDocuments).toBeGreaterThan(0);
 
             // Verify each document can be fetched, has content, and can be serialized
@@ -3529,34 +4091,39 @@ Sprint completed successfully.`,
             );
 
             const zipData = readFixture("Workspace-Flat.zip");
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const progressState = stateManagerFromResult({
+                notionImportId,
+                context: space.systemAction(),
+                mappedResult,
+            });
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                progressState,
             );
 
-            // Verify all documents were created
-            const updatedImportItem = await NotionImporterTable.getItemIfExists(context, {
-                partitionType: "Import",
-                sortRangeType: "Attributes",
-                notionImportId,
-            });
-
-            // Count total documents from the mapped result
-            // This includes regular documents + root-level CSV database documents
+            // Count total documents from the mapped result. This includes regular documents +
+            // root-level CSV database documents + teamspace roots.
             let totalDocuments = 0;
             for (const teamspace of mappedResult.teamspaces) {
                 totalDocuments += Object.keys(teamspace.documents).length;
             }
-            // Add root-level CSV database documents (synthetic documents created for them)
+            // Add CSV database documents (synthetic documents created for them)
             totalDocuments += mappedResult.rootLevelCsvDatabases.size;
+            totalDocuments += mappedResult.csvDatabasesRequiringDocuments.size;
+            // Add teamspace root documents
+            totalDocuments += mappedResult.teamspaces.length;
 
-            expect(updatedImportItem?.importedCount).toBe(totalDocuments);
+            let totalImported = 0;
+            for (const [, counters] of progressState.teamspaceCounters) {
+                totalImported += counters.documents;
+            }
+            expect(totalImported).toBe(totalDocuments);
             expect(totalDocuments).toBeGreaterThan(0);
 
             // Verify each document can be fetched, has content, and can be serialized
@@ -3587,7 +4154,7 @@ Sprint completed successfully.`,
                 space.id,
                 session.account.id,
             );
-            const mappedResult = createTestMappedReferencesResult({
+            const mappedResult = await createTestMappedReferencesResult({
                 teamspaces: [
                     {
                         id: "ts1",
@@ -3616,23 +4183,28 @@ Sprint completed successfully.`,
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
-            // The teamspace root document has title "WorkspaceName | TeamspaceName"
-            // Find it by checking all documents created in the space
-            // The root should contain a link to TopLevel but NOT to Child
+            // The teamspace root document has title "WorkspaceName | TeamspaceName" Find it by
+            // checking all documents created in the space The root should contain a link to
+            // TopLevel but NOT to Child
             const topLevelDoc = await getDocument(space.systemAction(), topLevelId);
             const topLevelJson = JSON.stringify(topLevelDoc.content.doc.toJSON());
 
-            // Child should NOT be in the teamspace root, so let's verify the child
-            // document has a parent link to TopLevel
+            // Child should NOT be in the teamspace root, so let's verify the child document
+            // has a parent link to TopLevel
             const childDoc = await getDocument(space.systemAction(), childId);
             const childJson = JSON.stringify(childDoc.content.doc.toJSON());
             expect(childJson).toContain("Parent document:");
             expect(childJson).toContain(topLevelId);
 
-            // Top-level documents should have a "Parent document:" link to the
-            // teamspace root document.
+            // Top-level documents should have a "Parent document:" link to the teamspace root
+            // document.
             expect(topLevelJson).toContain("Parent document:");
         });
 
@@ -3654,15 +4226,18 @@ Sprint completed successfully.`,
             );
 
             const zipData = createTestNotionImportZip([teamspace]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the document IDs
@@ -3747,15 +4322,18 @@ Sprint completed successfully.`,
             );
 
             const zipData = createTestNotionImportZip([teamspace]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             await convertExtractedNotionDataToEntities(
                 space.systemAction(),
                 notionImportId,
                 importItem,
                 mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
             );
 
             // Find the document IDs
@@ -3813,18 +4391,20 @@ Sprint completed successfully.`,
             expect(meetingParentId2).not.toBeNull();
             expect(meetingParentId1).toBe(meetingParentId2);
 
-            // Meeting parent should be different from Home parent (Meetings database vs teamspace root)
+            // Meeting parent should be different from Home parent (Meetings database vs
+            // teamspace root)
             const homeParentId = extractParentMentionId(homeData);
             expect(homeParentId).not.toBeNull();
             expect(meetingParentId1).not.toBe(homeParentId);
 
-            // Find and verify the database document has cell links to child documents
-            // The database document ID is the parent of the meetings
+            // Find and verify the database document has cell links to child documents The
+            // database document ID is the parent of the meetings
             const dbDocId = meetingParentId1;
             const dbDoc = await getDocument(space.systemAction(), dbDocId as DocumentId);
             const dbJson = JSON.stringify(dbDoc.content.doc.toJSON());
 
-            // The database document should contain mentions to the child documents in table cells
+            // The database document should contain mentions to the child documents in table
+            // cells
             expect(dbJson).toContain(meeting1Id);
             expect(dbJson).toContain(meeting2Id);
             // Mentions are parsed, so check for mention type instead of URL string
@@ -3837,8 +4417,8 @@ Sprint completed successfully.`,
         });
 
         test("hierarchy from real unzip function results in correct parent fields", async () => {
-            // This test uses the REAL unzipNotionImportAndMapReferences function
-            // to verify that the parent field is correctly set
+            // This test uses the real reference mapping flow to verify that the parent field
+            // is correctly set
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -3856,9 +4436,7 @@ Sprint completed successfully.`,
             const topLevel = new ExportedNotionDocument("Top Level", "Top level content.");
 
             const zipData = createTestNotionImportZip([parent, topLevel]);
-            const mappedResult = assertResult(
-                unzipNotionImportAndMapReferences(zipData, importItem),
-            );
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
 
             // Verify the parent field is set correctly in the mapped result
             const docs = Object.entries(mappedResult.teamspaces[0]!.documents);
@@ -3879,9 +4457,1458 @@ Sprint completed successfully.`,
             // Top Level should have no parent (it's also top-level)
             expect(topLevelDoc![1].parent).toBeNull();
 
-            // Count how many documents have parent === null (should be 2: Parent and Top Level)
+            // Count how many documents have parent === null (should be 2: Parent and Top
+            // Level)
             const topLevelCount = docs.filter(([, doc]) => doc.parent === null).length;
             expect(topLevelCount).toBe(2);
+        });
+    });
+
+    describe("file row handling", () => {
+        test("image link is converted to fileRow with file node", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with an attached image
+            const image = new ExportedNotionFile("screenshot.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Document with Image",
+                `Here is an image:\n\n${image.toReference()}`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Document with Image"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Document with Image"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Here is an image:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("video link is converted to fileRow with file node", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with an attached video
+            const video = new ExportedNotionFile("demo.mp4", "video");
+            const doc = new ExportedNotionDocument(
+                "Document with Video",
+                `Check out this video:\n\n${video.toReference()}`,
+            );
+            doc.addFiles([video]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Document with Video"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Document with Video"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Check out this video:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("multiple adjacent files are combined into single fileRow (max 3)", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with three images
+            const image1 = new ExportedNotionFile("img1.png", "image");
+            const image2 = new ExportedNotionFile("img2.png", "image");
+            const image3 = new ExportedNotionFile("img3.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Gallery",
+                `Gallery:\n\n${image1.toReference()}\n${image2.toReference()}\n${image3.toReference()}`,
+            );
+            doc.addFiles([image1, image2, image3]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Gallery"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Gallery"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Gallery:"}]},
+                    {
+                        type: "fileRow",
+                        content: [
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("more than 3 adjacent files create multiple fileRows", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with five images
+            const image1 = new ExportedNotionFile("img1.png", "image");
+            const image2 = new ExportedNotionFile("img2.png", "image");
+            const image3 = new ExportedNotionFile("img3.png", "image");
+            const image4 = new ExportedNotionFile("img4.png", "image");
+            const image5 = new ExportedNotionFile("img5.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Large Gallery",
+                `Gallery:\n\n${image1.toReference()}\n${image2.toReference()}\n${image3.toReference()}\n${image4.toReference()}\n${image5.toReference()}`,
+            );
+            doc.addFiles([image1, image2, image3, image4, image5]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Large Gallery"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            // 5 images should create 2 fileRows: first with 3, second with 2
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Large Gallery"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Gallery:"}]},
+                    {
+                        type: "fileRow",
+                        content: [
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("files separated by text create separate fileRows", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with images separated by text
+            const image1 = new ExportedNotionFile("before.png", "image");
+            const image2 = new ExportedNotionFile("after.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Before and After",
+                `Before:\n\n${image1.toReference()}\n\nSome text in between.\n\nAfter:\n\n${image2.toReference()}`,
+            );
+            doc.addFiles([image1, image2]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Before and After"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Before and After"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Before:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Some text in between."}]},
+                    {type: "paragraph", content: [{type: "text", text: "After:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("deterministic file IDs are generated consistently", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with an image
+            const image = new ExportedNotionFile("consistent.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Consistent Doc",
+                `Image:\n\n${image.toReference()}`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+
+            // Import twice and verify the file IDs are the same
+            const mappedResult1 = await unzipAndMapReferencesForTest(zipData, importItem);
+            const fileIds1 = Object.values(mappedResult1.filesToUpload).map(f => f.id);
+
+            const mappedResult2 = await unzipAndMapReferencesForTest(zipData, importItem);
+            const fileIds2 = Object.values(mappedResult2.filesToUpload).map(f => f.id);
+
+            // File IDs should be consistent across imports of the same content
+            expect(fileIds1).toEqual(fileIds2);
+        });
+
+        test("mixed media types in single document", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document with different media types
+            const image = new ExportedNotionFile("photo.png", "image");
+            const video = new ExportedNotionFile("clip.mp4", "video");
+            const audio = new ExportedNotionFile("song.mp3", "audio");
+            const doc = new ExportedNotionDocument(
+                "Mixed Media",
+                `Image:\n\n${image.toReference()}\n\nVideo:\n\n${video.toReference()}\n\nAudio:\n\n${audio.toReference()}`,
+            );
+            doc.addFiles([image, video, audio]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Mixed Media"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Mixed Media"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Image:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Video:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "Audio:"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("multiple media files in a table cell get their own fileRowTable elements", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create files that will be placed alongside the database in nested mode
+            const image1 = new ExportedNotionFile("image1.png", "image");
+            const image2 = new ExportedNotionFile("image2.png", "image");
+            const image3 = new ExportedNotionFile("image3.png", "image");
+
+            // Create a database with a "Files & media" column containing file paths In Notion
+            // exports, file paths in CSVs are relative to the grandparent directory and
+            // include the parent folder name. So for files in Parent Doc/, paths are
+            // "Parent%20Doc/filename" (URL-encoded).
+            const database = new ExportedNotionDatabase("Media Database", [
+                ["Name", "Files & media"],
+                [
+                    "Item 1",
+                    "Parent%20Doc/image1.png, Parent%20Doc/image2.png, Parent%20Doc/image3.png",
+                ],
+            ]);
+
+            // Create a parent document that holds both the database and files In nested mode,
+            // files are placed in the document's folder alongside child items
+            const parentDoc = new ExportedNotionDocument("Parent Doc", "", [database]);
+            parentDoc.addFiles([image1, image2, image3]);
+
+            // Use nested mode so the database and files are in the same directory
+            const zipData = createTestNotionImportZip([parentDoc], {
+                createFoldersForSubpages: true,
+            });
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            // Find the database document (the one with a table)
+            const docEntry = Array.from(mappedResult.pathToDocumentId.entries()).find(([path]) =>
+                path.includes("Media Database"),
+            );
+            expect(docEntry).toBeDefined();
+
+            const document = await getDocument(space.systemAction(), docEntry![1]);
+
+            // The document should contain a table with fileRowTable elements in the data cell
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Media Database"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "table",
+                        content: [
+                            // Header row
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Name"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Files & media"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            // Data row with fileRowTable elements
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Item 1"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("database with file paths in any column converts them to fileRowTable elements", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create files that will be placed alongside the database in nested mode
+            const sunset = new ExportedNotionFile("sunset.png", "image");
+            const beach = new ExportedNotionFile("beach.png", "image");
+            const mountain = new ExportedNotionFile("mountain.png", "image");
+
+            // Create a database with file paths in a column that is NOT "Files & media" to
+            // verify that file detection works for any column name. In Notion exports, file
+            // paths in CSVs are relative to the grandparent directory and include the parent
+            // folder name. So for files in Parent Doc/, paths are "Parent%20Doc/filename"
+            // (URL-encoded).
+            const database = new ExportedNotionDatabase("Project Files", [
+                ["Title", "Attachments", "Status"],
+                ["Doc A", "Parent%20Doc/sunset.png", "Active"],
+                ["Doc B", "Parent%20Doc/beach.png, Parent%20Doc/mountain.png", "Pending"],
+            ]);
+
+            // Create a parent document that holds both the database and files In nested mode,
+            // files are placed in the document's folder alongside child items
+            const parentDoc = new ExportedNotionDocument("Parent Doc", "", [database]);
+            parentDoc.addFiles([sunset, beach, mountain]);
+
+            // Use nested mode so the database and files are in the same directory
+            const zipData = createTestNotionImportZip([parentDoc], {
+                createFoldersForSubpages: true,
+            });
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            // Find the database document
+            const docEntry = Array.from(mappedResult.pathToDocumentId.entries()).find(([path]) =>
+                path.includes("Project Files"),
+            );
+            expect(docEntry).toBeDefined();
+
+            const document = await getDocument(space.systemAction(), docEntry![1]);
+
+            // The document should contain a table with fileRowTable elements in data cells
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Project Files"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "table",
+                        content: [
+                            // Header row
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Title"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Attachments"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Status"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            // Data row 1 (Doc A) - single file
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Doc A"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Active"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            // Data row 2 (Doc B) - two files
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Doc B"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Pending"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("image in a paragraph is extracted as fileRow", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const image = new ExportedNotionFile("photo.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Paragraph Image",
+                `some text\n\n${image.toReference()}\n\nmore text`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Paragraph Image"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Paragraph Image"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "some text"}]},
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {type: "paragraph", content: [{type: "text", text: "more text"}]},
+                ],
+            });
+        });
+
+        test("image inside a blockquote is extracted as fileRow", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const image = new ExportedNotionFile("screenshot.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Quote with Image",
+                `> a note about the image\n>\n> ${image.toReference()}`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Quote with Image"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Quote with Image"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "quoteBlock",
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "a note about the image"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("images inside ordered lists, unordered lists, and checklists are extracted as fileRows", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const ulImage = new ExportedNotionFile("bullet.png", "image");
+            const olImage = new ExportedNotionFile("numbered.png", "image");
+            const clImage = new ExportedNotionFile("task.png", "image");
+            const doc = new ExportedNotionDocument(
+                "All List Types",
+                [
+                    `- bullet item`,
+                    ``,
+                    `    ${ulImage.toReference()}`,
+                    ``,
+                    `1. numbered item`,
+                    ``,
+                    `    ${olImage.toReference()}`,
+                    ``,
+                    `- [ ] task item`,
+                    ``,
+                    `    ${clImage.toReference()}`,
+                ].join("\n"),
+            );
+            doc.addFiles([ulImage, olImage, clImage]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("All List Types"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "All List Types"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "bullet item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 0, orderStart: null},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "numbered item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                    {
+                        type: "checkListItem",
+                        attrs: {indent: 0, checked: false},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "task item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("image inside list item is extracted as fileRow", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Create a document where an image is nested inside a list item. In Notion exports
+            // this is common: a bullet with a prompt followed by an indented image result. The
+            // 4-space indent puts the image inside the list item when parsed by the markdown
+            // parser.
+            const image = new ExportedNotionFile("result.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Prompts with Images",
+                `- a prompt describing an image\n\n    ${image.toReference()}`,
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Prompts with Images"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Prompts with Images"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "a prompt describing an image"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("multiple images inside list items are extracted as fileRows", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // Simulates a Notion page with prompts and image results, like:
+            //
+            // - prompt one ![img1](img1.png)
+            // - prompt two ![img2](img2.png) ![img3](img3.png)
+            const image1 = new ExportedNotionFile("img1.png", "image");
+            const image2 = new ExportedNotionFile("img2.png", "image");
+            const image3 = new ExportedNotionFile("img3.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Multiple Prompt Results",
+                [
+                    `- first prompt`,
+                    ``,
+                    `    ${image1.toReference()}`,
+                    ``,
+                    `- second prompt`,
+                    ``,
+                    `    ${image2.toReference()}`,
+                    ``,
+                    `    ${image3.toReference()}`,
+                ].join("\n"),
+            );
+            doc.addFiles([image1, image2, image3]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Multiple Prompt Results"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {
+                        type: "title",
+                        content: [{type: "text", text: "Multiple Prompt Results"}],
+                    },
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "first prompt"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "second prompt"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                            {type: "file", attrs: {fileId: expect.any(String)}},
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test("image inside list item with text-only items keeps list structure", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            // A list where only some items have images. The list should be preserved with its
+            // text items, and the images extracted.
+            const image = new ExportedNotionFile("photo.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Partial Image List",
+                [
+                    `- text only item`,
+                    `- item with image`,
+                    ``,
+                    `    ${image.toReference()}`,
+                    ``,
+                    `- another text item`,
+                ].join("\n"),
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Partial Image List"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Partial Image List"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "text only item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "item with image"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [
+                            {
+                                type: "paragraph",
+                                content: [{type: "text", text: "another text item"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "fileRow",
+                        content: [{type: "file", attrs: {fileId: expect.any(String)}}],
+                    },
+                ],
+            });
+        });
+
+        test("image inside a markdown table cell becomes a fileRowTable in the cell", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const {importItem} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            const image = new ExportedNotionFile("chart.png", "image");
+            const doc = new ExportedNotionDocument(
+                "Table with Image",
+                [`| Name | Preview |`, `| --- | --- |`, `| Chart | ${image.toReference()} |`].join(
+                    "\n",
+                ),
+            );
+            doc.addFiles([image]);
+
+            const zipData = createTestNotionImportZip([doc]);
+            const mappedResult = await unzipAndMapReferencesForTest(zipData, importItem);
+
+            const {notionImportId} = await createTestNotionImportItemInDatabase(
+                context,
+                space.id,
+                session.account.id,
+            );
+
+            await convertExtractedNotionDataToEntities(
+                space.systemAction(),
+                notionImportId,
+                importItem,
+                mappedResult,
+                stateManagerFromResult({
+                    notionImportId,
+                    context: space.systemAction(),
+                    mappedResult,
+                }),
+            );
+
+            const docEntry = Object.entries(mappedResult.teamspaces[0]!.documents).find(([path]) =>
+                path.includes("Table with Image"),
+            );
+            const document = await getDocument(space.systemAction(), docEntry![1].id);
+
+            expect(document.content.doc.toJSON()).toMatchObject({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Table with Image"}]},
+                    {
+                        type: "paragraph",
+                        content: expect.arrayContaining([
+                            {type: "text", text: "Parent document: "},
+                        ]),
+                    },
+                    {
+                        type: "table",
+                        content: [
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Name"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Preview"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "tableRow",
+                                content: [
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "paragraph",
+                                                content: [{type: "text", text: "Chart"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "tableCell",
+                                        content: [
+                                            {
+                                                type: "fileRowTable",
+                                                content: [
+                                                    {
+                                                        type: "file",
+                                                        attrs: {fileId: expect.any(String)},
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            });
         });
     });
 });

@@ -36,6 +36,7 @@ import {
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -81,8 +82,8 @@ function TaskCollectionViewDesktopHeaderName(
         [accessLevel],
     );
 
-    // Reset `isEditingName` if `collectionSubscription` changes. e.g. If it goes
-    // from `null` to a non-null value when we create a collection.
+    // Reset `isEditingName` if `collectionSubscription` changes. e.g. If it goes from
+    // `null` to a non-null value when we create a collection.
     const [editingNameState, setEditingNameState] = useState<{
         shouldInitiallyFocusEditableName: boolean;
     } | null>(
@@ -123,6 +124,8 @@ function TaskCollectionViewDesktopHeaderName(
 
     const inputWithAutoGrowingWidthSafeSpacerElement =
         useInputWithAutoGrowingWidthSafeSpacerElement();
+
+    const lastPointerDownTimeRef = useRef<number | null>(null);
 
     return (
         <Box
@@ -179,13 +182,27 @@ function TaskCollectionViewDesktopHeaderName(
                         // eslint-disable-next-line cyberworlds/string-quotes
                         fontFeatureSettings: '"calt" on',
                     }}
-                    onDoubleClick={event => {
-                        if (!hasManageAccessLevel) return;
+                    onPointerDown={event => {
+                        const currentTime = Date.now();
+                        const lastPointerDownTime = lastPointerDownTimeRef.current;
+                        lastPointerDownTimeRef.current = currentTime;
 
-                        // Disable selection from double click.
-                        event.preventDefault();
+                        if (lastPointerDownTime === null) return;
 
-                        setEditingNameState({shouldInitiallyFocusEditableName: true});
+                        if (currentTime - lastPointerDownTime > doubleClickDelayMs) return;
+
+                        if (hasManageAccessLevel) {
+                            // Disable selection from double click.
+                            //
+                            // We implement double click with `onPointerDown` instead of `onDoubleClick`
+                            // because `onDoubleClick` fires one pointer up but the browser performs text
+                            // selection on double click pointer down. So there's a small visual glitch where
+                            // you can see the browser selection after double click before pointer up when you
+                            // use `onDoubleClick`,
+                            event.preventDefault();
+
+                            setEditingNameState({shouldInitiallyFocusEditableName: true});
+                        }
                     }}
                 >
                     {name}
@@ -198,8 +215,8 @@ function TaskCollectionViewDesktopHeaderName(
                         shouldInitiallyFocus={editingNameState.shouldInitiallyFocusEditableName}
                         initialName={name}
                         onCancel={() => {
-                            // If we cancel editing an optimistic collection with no name then return to
-                            // the route we came from.
+                            // If we cancel editing an optimistic collection with no name then return to the
+                            // route we came from.
                             if (isCreatingCollection) {
                                 return navigate(-1);
                             } else {
@@ -207,9 +224,8 @@ function TaskCollectionViewDesktopHeaderName(
                             }
                         }}
                         onSave={name => {
-                            // If you try to save an empty name, it cancels editing. Unless the collection
-                            // has not been created yet. Then it does nothing. Your collection needs
-                            // a name!
+                            // If you try to save an empty name, it cancels editing. Unless the collection has
+                            // not been created yet. Then it does nothing. Your collection needs a name!
                             if (name.length === 0) {
                                 if (!isCreatingCollection) setEditingNameState(null);
                                 return;
@@ -290,19 +306,19 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                         ref={useMergedRefs(
                             inputRef,
                             useConfirmSaveAfterLosingFocus({
-                                // It's ok to unfocus while creating a collection and nothing has been input.
-                                // This will happen when you create a collection, a peek opens, then you
-                                // immediately close the peek.
+                                // It's ok to unfocus while creating a collection and nothing has been input. This
+                                // will happen when you create a collection, a peek opens, then you immediately
+                                // close the peek.
                                 //
                                 // We won't auto-focus this input when create a task collection through search.
                                 isDisabled: isCreatingCollection && name.length === 0,
 
                                 shouldConfirmSave:
-                                    // If the initial name is empty, we are creating an optimistic collection and
-                                    // you must provide a name.
+                                    // If the initial name is empty, we are creating an optimistic collection and you
+                                    // must provide a name.
                                     isCreatingCollection ||
-                                    // Otherwise if you delete all of the collection name it will revert back to
-                                    // the initial name.
+                                    // Otherwise if you delete all of the collection name it will revert back to the
+                                    // initial name.
                                     (name.length > 0 && name !== initialName),
                                 isConfirmingSave: shouldShowConfirmSaveDialog,
                                 onCancelSave: () => void onCancel(),
@@ -362,8 +378,8 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                         title="Save collection name"
                         description="Would you like to save your new collection name?"
                         onClose={() => {
-                            // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                            // and lets the user continue writing.
+                            // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                            // lets the user continue writing.
                             shouldFocusNextRenderRef.current = true;
                             setShouldShowConfirmSaveDialog(false);
                         }}
@@ -379,8 +395,8 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                         title="Save collection"
                         description="Would you like to save your new collection?"
                         onClose={() => {
-                            // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                            // and lets the user continue writing.
+                            // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                            // lets the user continue writing.
                             shouldFocusNextRenderRef.current = true;
                             setShouldShowConfirmSaveDialog(false);
                         }}
@@ -396,8 +412,8 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                         title="Save collection"
                         description="You can&#x2019;t save your collection until you give it a name."
                         onClose={() => {
-                            // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                            // and lets the user continue writing.
+                            // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                            // lets the user continue writing.
                             shouldFocusNextRenderRef.current = true;
                             setShouldShowConfirmSaveDialog(false);
                         }}
@@ -465,9 +481,9 @@ function TaskCollectionViewDesktopHeaderColor({
             }
         >
             <Box
-                // This element isn't focusable (no `tabindex`, no `<FocusRing>`) since it's
-                // purely an affordance for mouse users only. Keyboard users should go through
-                // the option in our menu.
+                // This element isn't focusable (no `tabindex`, no `<FocusRing>`) since it's purely
+                // an affordance for mouse users only. Keyboard users should go through the option
+                // in our menu.
                 {...mergeProps(hoverProps, pressProps)}
                 width="4"
                 height="4"
@@ -485,8 +501,7 @@ function TaskCollectionViewDesktopHeaderColor({
                 }
             >
                 <Box
-                    // Carefully positioned so it aligns with the "+" icon in the
-                    // "Add filter" button.
+                    // Carefully positioned so it aligns with the "+" icon in the "Add filter" button.
                     width="2"
                     height="2"
                     borderRadius="full"

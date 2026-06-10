@@ -35,9 +35,9 @@ import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_enti
 import {SearchAffinityEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
-// Needs to be before `afterEach()` hook where we err if there are remaining
-// timers since the constructor adds an `afterEach()` hook to clear timers
-// within this class.
+// Needs to be before `afterEach()` hook where we err if there are remaining timers
+// since the constructor adds an `afterEach()` hook to clear timers within this
+// class.
 const cache = getGlobalDocumentContentCacheForUpdateForTest();
 const otherCache = new DocumentContentCacheForUpdate();
 
@@ -66,7 +66,7 @@ const context = createTestContext({
                 break;
             }
             case "IndexSearchEntityEmbeddingChunks": {
-                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job, span);
                 break;
             }
             default: {
@@ -82,8 +82,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -162,7 +162,7 @@ test("will index a document after a timeout", async () => {
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -221,7 +221,7 @@ test("will only index a document once if update happened within the timeout", as
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -297,7 +297,7 @@ test("will only index a document once if update happened within timeout even acr
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -365,7 +365,7 @@ test("will index a document again if update happened after timeout", async () =>
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -395,7 +395,7 @@ test("will index a document again if update happened after timeout with more upd
     });
     expect(
         (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
-    ).toEqual(null);
+    ).toEqual(expect.objectContaining({version: 0}));
 
     import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
@@ -526,7 +526,7 @@ test("will index a document again if update happened after timeout with more upd
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -590,10 +590,6 @@ test("will not schedule another indexing job if document title is updated after 
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-
-    // Clear the timer for the `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
-    import.meta.jest.clearAllTimers();
 });
 
 test("will schedule another indexing job if document title is updated after content update", async () => {
@@ -693,7 +689,7 @@ test("will schedule another indexing job if document title is updated after cont
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -810,7 +806,7 @@ test("will not schedule another indexing job if document title is updated twice 
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
     // `AddFeedAccountCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(2);
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
     import.meta.jest.clearAllTimers();
 });
 
@@ -1486,6 +1482,7 @@ test("newly created documents will be visible in search even before indexing", a
         spaceId: space.id,
         entityId: `Document:${document.id}`,
         interaction: {type: "MediumIntentUpdate"},
+        siteId: null,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -1504,10 +1501,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1521,10 +1520,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(1),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1547,10 +1548,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1564,10 +1567,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(1),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1583,10 +1588,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1617,10 +1624,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1634,10 +1643,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(1),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1653,10 +1664,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1670,10 +1683,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(1),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1690,10 +1705,12 @@ test("newly created documents will be visible in search even before indexing", a
                 score: expect.closeTo(60),
                 favoriteOrderKey: null,
                 model: SearchAffinityEntityModel.new({
-                    id: `Document:${document.id}`,
+                    type: "Document",
                     title: "Hollywoo Stars and Celebrities",
-                    titleVersion: {type: "Integer", version: expect.any(Number)},
-                    media: null,
+                    document: {
+                        id: document.id,
+                        version: expect.any(Number),
+                    },
                 }),
             }),
         ],
@@ -1710,7 +1727,7 @@ test("newly created documents will be visible in search even before indexing", a
 
     // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job, the
     // `AddFeedAccountCandidateEntry` job, and the `AddFeedCandidateEntry` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(3);
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 

@@ -1,10 +1,11 @@
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
+import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {authorizeChannelItemAccess} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {
@@ -12,16 +13,19 @@ import {
     ChannelContributorsItem,
     ForumRealtimeTable,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
+import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
+import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export async function updateChannelAccessPolicyBase(
     context: ServerSessionActionContext,
@@ -31,32 +35,32 @@ export async function updateChannelAccessPolicyBase(
         notification,
     }: {
         channelId: ChannelId;
-        updateAccessPolicy: (accessPolicy: AccessPolicy) => AccessPolicy;
+        updateAccessPolicy: (accessPolicy: AccessPolicy) => CreateOrUpdateAccessPolicy;
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (
+    getRynamoEvents: (
         context: ServerActionContext,
-    ) => Promise<
-        ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>
-    >;
+    ) => Promise<ReadonlyArray<RynamoEvent<ChannelModel | ChannelContributorsModel>>>;
+    getRynamoEventsForSite: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
     const currentTime = new Date();
 
-    const {channelItem, shouldAddFeedCandidateEntry, getDynamoGeneralRealtimeEventTransaction} =
+    const {channelItem, shouldAddFeedCandidateEntry, getRynamoEvents, getRynamoEventsForSite} =
         await context.dynamo.retryTransaction(
             async (
                 context,
             ): Promise<{
                 channelItem: ChannelAttributesItem;
                 shouldAddFeedCandidateEntry: boolean;
-                getDynamoGeneralRealtimeEventTransaction: (
+                getRynamoEvents: (
                     context: ServerActionContext,
-                ) => Promise<
-                    ReadonlyArray<
-                        DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
-                    >
-                >;
+                ) => Promise<ReadonlyArray<RynamoEvent<ChannelModel | ChannelContributorsModel>>>;
+                getRynamoEventsForSite: (
+                    context: ServerActionContext,
+                ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
             }> => {
                 const channelItem = await ForumRealtimeTable.getItemIfExists(context, {
                     partitionType: "Channel",
@@ -65,57 +69,83 @@ export async function updateChannelAccessPolicyBase(
                 });
                 if (!channelItem) throw createChannelNotFoundError(channelId);
 
-                await authorizeChannelItemAccess(context, channelItem, "Manage");
-
                 const oldAccessPolicy = channelItem.accessPolicy;
                 const newAccessPolicy = updateAccessPolicy(oldAccessPolicy);
 
-                if (newAccessPolicy.urlGrant) {
-                    throw new InvalidArgumentError(
-                        "Channels don\u2019t currently support `urlGrant`s",
-                    );
-                }
+                const [, oldEffectiveAccessPolicy] = await runAllPromises([
+                    authorizeChannelItemAccess(context, channelItem, "Manage"),
+                    intoEffectiveAccessPolicy(context, oldAccessPolicy),
+                ]);
 
-                await validateAccessPolicyUpdateForServer(
-                    context,
-                    channelItem.spaceId,
-                    oldAccessPolicy,
-                    newAccessPolicy,
-                );
+                const {resolvedAccessPolicy: newResolvedAccessPolicy, transactionEntries} =
+                    await validateAccessPolicyUpdateForServer(
+                        context,
+                        channelItem.spaceId,
+                        `Channel:${channelId}`,
+                        oldAccessPolicy,
+                        newAccessPolicy,
+                    );
 
                 const oldHasAddedFeedCandidateEntry = channelItem.hasAddedFeedCandidateEntry;
                 const newHasAddedFeedCandidateEntry =
-                    oldHasAddedFeedCandidateEntry || !!newAccessPolicy.defaultGrant;
+                    oldHasAddedFeedCandidateEntry || !!newResolvedAccessPolicy.defaultGrant;
 
-                const oldAccountIdsWithGrant = Array.from(oldAccessPolicy.accountGrantById.keys());
-                const newAccountIdsWithGrant = Array.from(newAccessPolicy.accountGrantById.keys());
+                const oldAccountIdsWithGrant = Array.from(
+                    oldEffectiveAccessPolicy.accountGrantById.keys(),
+                );
+                const newAccountIdsWithGrant = Array.from(
+                    newResolvedAccessPolicy.accountGrantById.keys(),
+                );
 
-                // If we're adding or removing accounts to the `accessPolicy` then we also want
-                // to update the `Contributors` item. The `Contributors` item includes the
-                // granted `AccountId`s in the contributor list when we're out of accounts that
-                // have actually contributed content.
+                const updatedChannelItem = channelItem.update({
+                    accessPolicy: newAccessPolicy,
+                    hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
+                });
+
+                // If we're adding or removing accounts to the `accessPolicy` then we also want to
+                // update the `Contributors` item. The `Contributors` item includes the granted
+                // `AccountId`s in the contributor list when we're out of accounts that have
+                // actually contributed content.
                 //
-                // We do it in a transaction so that the `eventTransaction` we return to the
-                // client includes the updated contributors model. So we can immediately
-                // re-render the contributors item with the new data.
-                if (isDeepEqual(oldAccountIdsWithGrant, newAccountIdsWithGrant)) {
+                // We do it in a transaction so that the `events` we return to the client includes
+                // the updated contributors model. So we can immediately re-render the contributors
+                // item with the new data.
+                //
+                // We also use the transactional path whenever there are site transaction entries
+                // (adding/removing the entity from a site) so the site item write happens
+                // atomically with the channel access policy change.
+                const contributorsChanged = !isDeepEqual(
+                    oldAccountIdsWithGrant,
+                    newAccountIdsWithGrant,
+                );
+
+                if (!contributorsChanged && transactionEntries.length === 0) {
                     const {getEvent} = await ForumRealtimeTable.directlyUpdateItem(
                         context,
-                        channelItem.update({
-                            accessPolicy: newAccessPolicy,
-                            hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
-                        }),
+                        updatedChannelItem,
                     );
 
                     return {
                         channelItem,
                         shouldAddFeedCandidateEntry:
                             newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
-                        getDynamoGeneralRealtimeEventTransaction: async context => [
+                        getRynamoEvents: async (context: ServerActionContext) => [
                             await getEvent(context),
                         ],
+                        getRynamoEventsForSite: async () => emptyArray,
                     };
-                } else {
+                }
+
+                const forumEntries: Array<{
+                    transactionEntry: RynamoTransactionEntry;
+                    getEvent: (
+                        context: ServerActionContext,
+                    ) => Promise<RynamoEvent<ChannelModel | ChannelContributorsModel>>;
+                }> = [
+                    ForumRealtimeTable.transactionDirectlyUpdateItemWithEvent(updatedChannelItem),
+                ];
+
+                if (contributorsChanged) {
                     const contributorsItem: DynamoItem<ChannelContributorsItem> =
                         (await ForumRealtimeTable.getItemIfExists(context, {
                             partitionType: "Channel",
@@ -131,34 +161,31 @@ export async function updateChannelAccessPolicyBase(
                             accountIdsWithGrant: emptyArray,
                         });
 
-                    const {getEventTransaction} =
-                        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-                            ForumRealtimeTable.transactionDirectlyUpdateItem(
-                                channelItem.update({
-                                    accessPolicy: newAccessPolicy,
-                                    hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
-                                }),
-                            ),
-                            ForumRealtimeTable.transactionDirectlyUpdateItem(
-                                contributorsItem.update({
-                                    accountIdsWithGrant: newAccountIdsWithGrant,
-                                }),
-                            ),
-                        ]);
-
-                    return {
-                        channelItem,
-                        shouldAddFeedCandidateEntry:
-                            newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
-                        getDynamoGeneralRealtimeEventTransaction: async context =>
-                            (await getEventTransaction(
-                                context,
-                                ForumRealtimeTable,
-                            )) as ReadonlyArray<
-                                DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
-                            >,
-                    };
+                    forumEntries.push(
+                        ForumRealtimeTable.transactionDirectlyUpdateItemWithEvent(
+                            contributorsItem.update({
+                                accountIdsWithGrant: newAccountIdsWithGrant,
+                            }),
+                        ),
+                    );
                 }
+
+                await RynamoTableSchema.executeTransaction(context, [
+                    ...forumEntries.map(entry => entry.transactionEntry),
+                    ...transactionEntries.map(entry => entry.transactionEntry),
+                ]);
+
+                return {
+                    channelItem,
+                    shouldAddFeedCandidateEntry:
+                        newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
+                    getRynamoEvents: async (context: ServerActionContext) =>
+                        await runAllPromises(forumEntries.map(entry => entry.getEvent(context))),
+                    getRynamoEventsForSite: async (context: ServerActionContext) =>
+                        await runAllPromises(
+                            transactionEntries.map(entry => entry.getEvent(context)),
+                        ),
+                };
             },
         );
 
@@ -175,6 +202,15 @@ export async function updateChannelAccessPolicyBase(
         });
     }
 
+    // TODO(calebmer, #security): Send `IndexSearchEntity` job from DynamoDB stream.
+    // Right now we can't guarantee indexing after a DynamoDB update. Say we make a
+    // DynamoDB write and then before we're able to send `IndexSearchEntity` to SQS the
+    // EC2 instance crashes! If the DynamoDB update changed the channel's permissions
+    // then we won't propagate the permission updates to the channel's posts and post
+    // comments in OpenSearch. Which is very bad!
+    //
+    // This is a problem for all `IndexSearchEntity` jobs after an access policy
+    // update. Arbitrarily leaving the TODO comment here.
     context.jobs.send({
         type: "IndexSearchEntity",
         spaceId: channelItem.spaceId,
@@ -196,5 +232,8 @@ export async function updateChannelAccessPolicyBase(
         });
     }
 
-    return {getDynamoGeneralRealtimeEventTransaction};
+    return {
+        getRynamoEvents,
+        getRynamoEventsForSite,
+    };
 }

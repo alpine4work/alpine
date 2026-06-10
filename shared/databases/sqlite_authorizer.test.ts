@@ -25,9 +25,9 @@ beforeAll(async () => {
 
 beforeEach(() => {
     db = new sqlite3.oo1.DB(`/test-authorizer-${dbCounter++}.sqlite3`, "ct");
-    // Install the same authorizer wiring that DatabaseServer
-    // and DatabaseClient use, so the test exercises the real
-    // code path rather than the pure function in isolation.
+    // Install the same authorizer wiring that DatabaseServer and DatabaseClient use,
+    // so the test exercises the real code path rather than the pure function in
+    // isolation.
     sqlite3.capi.sqlite3_set_authorizer(
         db.pointer!,
         (_cbArg: WasmPointer, actionCode: number, actionArg: string | 0) => {
@@ -41,8 +41,8 @@ beforeEach(() => {
         0,
     );
 
-    // Seed schema with the authorizer disabled so setup
-    // doesn't depend on what we're about to test.
+    // Seed schema with the authorizer disabled so setup doesn't depend on what we're
+    // about to test.
     writeLevel = null;
     db.exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)");
     db.exec("INSERT INTO items VALUES (1, 'a')");
@@ -64,10 +64,9 @@ function run(sql: string, level: SqliteWriteLevel): void {
 
 // -- Authorizer matrix --------------------------------------------------------
 
-// Per writeLevel, the SQL operations we expect to permit
-// vs reject. Each row is run through the real SQLite
-// authorizer so a regression in `isSqliteActionAllowed`
-// or in the action-code mapping shows up as a failure.
+// Per writeLevel, the SQL operations we expect to permit vs reject. Each row is
+// run through the real SQLite authorizer so a regression in
+// `isSqliteActionAllowed` or in the action-code mapping shows up as a failure.
 const matrix: ReadonlyArray<{
     name: string;
     sql: string;
@@ -169,10 +168,9 @@ describe("authorizer interaction", () => {
     });
 
     test("writeLevel=null (idle) allows everything", () => {
-        // The pure function returns true unconditionally
-        // when level is null. Verified via the seed in
-        // beforeEach already, but pin it directly so a
-        // regression here surfaces clearly.
+        // The pure function returns true unconditionally when level is null. Verified via
+        // the seed in beforeEach already, but pin it directly so a regression here
+        // surfaces clearly.
         writeLevel = null;
         expect(() => db.exec("CREATE TABLE x (id INTEGER)")).not.toThrow();
         expect(() => db.exec("INSERT INTO x VALUES (1)")).not.toThrow();
@@ -192,11 +190,9 @@ describe("authorizer interaction", () => {
     });
 
     test("unknown action codes are denied", () => {
-        // The action-name table has 34 entries (codes
-        // 0..33). Codes outside that range should map to
-        // undefined, which the wiring treats as DENY.
-        // Code 0 is the only in-range undefined slot;
-        // verify it's classified as unrecognized.
+        // The action-name table has 34 entries (codes 0..33). Codes outside that range
+        // should map to undefined, which the wiring treats as DENY. Code 0 is the only
+        // in-range undefined slot; verify it's classified as unrecognized.
         expect(sqliteAuthorizerActionName(0)).toBeUndefined();
         expect(sqliteAuthorizerActionName(99)).toBeUndefined();
     });

@@ -68,8 +68,8 @@ const TracerEventExceptionDataBaseWithCauseSchema = {
 /**
  * Schemas for all the properties in `TracerEventFullData`. This is in `server`
  * since we don't want it to eat into client bundle size. Likewise
- * `TracerEventFullData` is in a `types` directory so that none of its
- * dependencies are a part of client bundles.
+ * `TracerEventFullData` is in a `types` directory so that none of its dependencies
+ * are a part of client bundles.
  */
 const TracerEventDataSchema = {
     name: Schema.string.singleLine().minLength(1),
@@ -181,6 +181,7 @@ const TracerEventDataSchema = {
     context: {
         handler: Schema.string,
         actor: IdentifierStringSchema,
+        browserId: Schema.id(),
         accountId: Schema.id(),
         spaceId: Schema.id(),
         botId: Schema.id(),
@@ -193,7 +194,9 @@ const TracerEventDataSchema = {
         channelId: Schema.id(),
         postId: Schema.id(),
         chatId: Schema.id(),
+        siteId: Schema.id(),
         fileId: Schema.id(),
+        notionImportId: Schema.id(),
         peek: {
             aboveDocumentId: Schema.id(),
             aboveChannelId: Schema.id(),
@@ -429,6 +432,9 @@ const TracerEventDataSchema = {
         browserId: Schema.id(),
         responseStatusCode: Schema.integer,
     },
+    slack: {
+        workspaceId: Schema.string,
+    },
     cloudflare: {
         r2: {
             action: IdentifierStringSchema,
@@ -531,6 +537,7 @@ const TracerEventDataSchema = {
                 invalidEmailAddressCount: Schema.integer,
                 rejectedAsSpamEmailAddressCount: Schema.integer,
                 alreadyMemberEmailAddressCount: Schema.integer,
+                requiresAdminAccessEmailAddressCount: Schema.integer,
                 invitedEmailAddressCount: Schema.integer,
                 unexpectedFailureEmailAddressCount: Schema.integer,
             },
@@ -541,6 +548,12 @@ const TracerEventDataSchema = {
     },
     ffmpeg: {
         codecs: Schema.string,
+        videoMp4: {
+            relevantAtoms: Schema.string,
+        },
+        audioMp4: {
+            relevantAtoms: Schema.string,
+        },
     },
     sharp: {
         avif: {
@@ -618,6 +631,9 @@ const TracerEventDataSchema = {
         },
         signUp: {
             autoAddAccountsFromEmailDomain: Schema.string,
+            isEmailAddressPossiblyGeneric: Schema.boolean,
+            hasChangedReactionCharacter: Schema.boolean,
+            inviteEmailAddressCount: Schema.integer,
         },
     },
     reaction: {
@@ -644,6 +660,38 @@ const TracerEventDataSchema = {
             webhook: {
                 id: Schema.string,
                 event: Schema.string,
+            },
+        },
+    },
+    loops: {
+        contactId: Schema.string,
+    },
+    importer: {
+        type: Schema.string,
+        site: {
+            notionId: Schema.string,
+        },
+        created: {
+            sites: Schema.integer,
+            documents: Schema.integer,
+        },
+        uploaded: {
+            fileCount: Schema.integer,
+            fileTotalSize: Schema.integer,
+            imageCount: Schema.integer,
+            imageTotalSize: Schema.integer,
+            videoCount: Schema.integer,
+            videoTotalSize: Schema.integer,
+            audioCount: Schema.integer,
+            audioTotalSize: Schema.integer,
+        },
+    },
+    search: {
+        entityId: Schema.string,
+        index: {
+            embeddingChunks: {
+                scheduled: Schema.boolean,
+                forceMetadataUpdate: Schema.boolean,
             },
         },
     },

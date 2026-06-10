@@ -16,10 +16,11 @@ export class ApnsContextModule extends ApnsContextModuleBase {
     /**
      * Send a push notification to the provided Apple device token.
      *
-     * For more information on supported properties on a notification object
-     * see "[Generating a remove notification][1]".
+     * For more information on supported properties on a notification object see
+     * "[Generating a remove notification][1]".
      *
-     * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
+     * [1]:
+     *     https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
      */
     public sendAlert(
         deviceToken: Uint8Array,
@@ -30,10 +31,10 @@ export class ApnsContextModule extends ApnsContextModuleBase {
     }
 
     /**
-     * Provides a `sendAlert()` function to the action that does the same thing as
-     * our class's `sendAlert()` function. If we don't have an APNs connection yet
-     * then we'll connect in parallel with the action so if the action starts with
-     * any data loading we can connect to APNs in parallel with that.
+     * Provides a `sendAlert()` function to the action that does the same thing as our
+     * class's `sendAlert()` function. If we don't have an APNs connection yet then
+     * we'll connect in parallel with the action so if the action starts with any data
+     * loading we can connect to APNs in parallel with that.
      *
      * For the duration of the action we will use the same APNs connection.
      *

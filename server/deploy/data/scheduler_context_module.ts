@@ -17,20 +17,20 @@ import {quote} from "~/shared/helpers/string/quote.js";
 /**
  * Context module for scheduling events with [AWS EventBridge Scheduler][1].
  *
- * [1]: https://docs.aws.amazon.com/scheduler/latest/UserGuide/what-is-scheduler.html
+ * [1]:
+ *     https://docs.aws.amazon.com/scheduler/latest/UserGuide/what-is-scheduler.html
  */
 export abstract class SchedulerContextModuleBase extends ContextModuleBase<{
     tracer: TracerContextModule;
 }> {
     /**
-     * Schedule a maintenance job to run at some time in the future. This is
-     * dangerous since maintenance jobs have access to all data across our product.
-     * Make sure users don't have the ability to arbitrarily schedule
-     * maintenance jobs.
+     * Schedule a maintenance job to run at some time in the future. This is dangerous
+     * since maintenance jobs have access to all data across our product. Make sure
+     * users don't have the ability to arbitrarily schedule maintenance jobs.
      *
-     * `maxWindowMinutes` is the latest AWS EventBridge Scheduler may send our
-     * job to the SQS queue. AWS EventBridge Scheduler may choose to send our job
-     * to the SQS queue later for performance reasons.
+     * `maxWindowMinutes` is the latest AWS EventBridge Scheduler may send our job to
+     * the SQS queue. AWS EventBridge Scheduler may choose to send our job to the SQS
+     * queue later for performance reasons.
      */
     public abstract dangerouslyCreateOnceMaintenanceJobSchedule(
         name: string,
@@ -61,14 +61,13 @@ export class SchedulerContextModule extends SchedulerContextModuleBase {
     }
 
     /**
-     * Schedule a maintenance job to run at some time in the future. This is
-     * dangerous since maintenance jobs have access to all data across our product.
-     * Make sure users don't have the ability to arbitrarily schedule
-     * maintenance jobs.
+     * Schedule a maintenance job to run at some time in the future. This is dangerous
+     * since maintenance jobs have access to all data across our product. Make sure
+     * users don't have the ability to arbitrarily schedule maintenance jobs.
      *
-     * `maxWindowMinutes` is the latest AWS EventBridge Scheduler may send our
-     * job to the SQS queue. AWS EventBridge Scheduler may choose to send our job
-     * to the SQS queue later for performance reasons.
+     * `maxWindowMinutes` is the latest AWS EventBridge Scheduler may send our job to
+     * the SQS queue. AWS EventBridge Scheduler may choose to send our job to the SQS
+     * queue later for performance reasons.
      */
     public async dangerouslyCreateOnceMaintenanceJobSchedule(
         name: string,
@@ -119,10 +118,9 @@ export class SchedulerContextModule extends SchedulerContextModuleBase {
                     JobQueueMessageBodySchema.serialize({
                         type: "Maintenance",
                         sendTime: currentTime,
-                        // While we aren't using the SQS `delaySeconds` feature, we do want to treat
-                        // this message as if it had been delayed a very long time for tracing
-                        // purposes. That way `jobs.queueDurationMs` gives us a correct queue
-                        // duration value.
+                        // While we aren't using the SQS `delaySeconds` feature, we do want to treat this
+                        // message as if it had been delayed a very long time for tracing purposes. That
+                        // way `jobs.queueDurationMs` gives us a correct queue duration value.
                         delaySeconds: Math.round((time.getTime() - currentTime.getTime()) / 1000),
                         job,
                         tracerContext: null,
@@ -135,7 +133,8 @@ export class SchedulerContextModule extends SchedulerContextModuleBase {
     /**
      * AWS EventBridge Scheduler [`CreateSchedule`][1] action.
      *
-     * [1]: https://docs.aws.amazon.com/scheduler/latest/APIReference/API_CreateSchedule.html
+     * [1]:
+     *     https://docs.aws.amazon.com/scheduler/latest/APIReference/API_CreateSchedule.html
      */
     private _CreateSchedule(
         targetDescription: string,

@@ -61,6 +61,15 @@ function TaskQueryAddSortMenuButton(
                             });
                         },
                     },
+                    {
+                        label: "Project",
+                        onPress: () => {
+                            onAddSort({
+                                type: "Layout",
+                                missing: "Last",
+                            });
+                        },
+                    },
                 ],
                 [
                     {

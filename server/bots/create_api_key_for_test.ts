@@ -11,10 +11,9 @@ import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 export async function createUnscopedApiKeyForTest(
     context: DynamoContext,
     botId: BotId,
+    apiKey: ApiKey = generateApiKey(),
 ): Promise<ApiKey> {
-    assert(import.meta.jest);
-
-    const apiKey = generateApiKey();
+    assert(process.env.NODE_ENV === "test");
 
     await BotsTable.createItem(context, {
         partitionType: "ApiKey",
@@ -31,9 +30,9 @@ export async function createUnscopedApiKeyForTest(
 }
 
 /**
- * Create a scoped API key for a bot. We assume the caller has validated that
- * the space and account is an instantiation of the `BotId` and that the
- * `scope` is a valid entity in the space.
+ * Create a scoped API key for a bot. We assume the caller has validated that the
+ * space and account is an instantiation of the `BotId` and that the `scope` is a
+ * valid entity in the space.
  */
 export async function createScopedApiKeyForTest(
     context: DynamoContext,
@@ -48,7 +47,7 @@ export async function createScopedApiKeyForTest(
         scope: BotTokenPayloadScope;
     },
 ): Promise<ApiKey> {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
 
     const apiKey = generateApiKey();
 

@@ -5,12 +5,11 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
- * The `IndexSearchEntity` job reads the specified entity and adds it to our
- * search entity index. It also updates any search entities that depend on the
- * one we're updating. For example, if you're re-indexing an account that
- * updated their name we'll need to also re-index any content in which the
- * account is mentioned so you can search for that content with the account's
- * new name.
+ * The `IndexSearchEntity` job reads the specified entity and adds it to our search
+ * entity index. It also updates any search entities that depend on the one we're
+ * updating. For example, if you're re-indexing an account that updated their name
+ * we'll need to also re-index any content in which the account is mentioned so you
+ * can search for that content with the account's new name.
  */
 export type IndexSearchEntityJobDescription = SchemaType<
     typeof IndexSearchEntityJobDescriptionSchema
@@ -43,4 +42,5 @@ export const IndexSearchEntityEmbeddingChunksJobDescriptionSchema = Schema.objec
     id: Schema.id<Id>(),
     spaceId: Schema.id<SpaceId>(),
     entityId: Schema.string as Schema<SearchDynamicEntityId>,
+    forceMetadataUpdate: Schema.boolean.default(false),
 });

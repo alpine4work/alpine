@@ -7,7 +7,8 @@ import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
- * Create a tracer for a service running in a server or Cloudflare Workers environment.
+ * Create a tracer for a service running in a server or Cloudflare Workers
+ * environment.
  */
 export function createServerTracer(options: {
     serviceName: TracerServiceName;
@@ -42,8 +43,8 @@ export function createServerTracerAndHoneycombClient({
     waitUntil: (promise: Promise<unknown>) => void;
     honeycombDataset: HoneycombDataset;
     /**
-     * There is no local Kinesis stream so we don't need to pass in a stream name
-     * for dev/test environments. See ##local-kinesis TODOs for more.
+     * There is no local Kinesis stream so we don't need to pass in a stream name for
+     * dev/test environments. See ##local-kinesis TODOs for more.
      */
     kinesisTracerStreamOptions?: {streamName: string; awsSigner: AwsRequestSigner};
 }): [TracerRoot, TracerClient | null] {

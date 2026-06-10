@@ -1,6 +1,5 @@
 /**
- * Filters values out of an iterable. Same as `Array.filter()` but
- * for iterables.
+ * Filters values out of an iterable. Same as `Array.filter()` but for iterables.
  */
 export function filterIterable<Value, NewValue extends Value>(
     iterable: Iterable<Value>,

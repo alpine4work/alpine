@@ -7,8 +7,8 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 export async function loadNewMessagesInAgentConversation(
     tracer: TracerBase,
     transaction: DurableObjectTransaction,
-    // We don't want to use `request.event.index` in this function. So omit it from
-    // the type.
+    // We don't want to use `request.event.index` in this function. So omit it from the
+    // type.
     request: Omit<AgentWebhookRequest, "event">,
     conversation: AgentConversationStore,
     newMessageIndex: number,

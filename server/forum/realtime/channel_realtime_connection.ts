@@ -4,15 +4,15 @@ import {
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {authorizeChannelAccessForDurableObject} from "~/server/forum/realtime/authorize_channel_access_for_durable_object.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
-import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelRealtimeEvent} from "~/shared/forum/channel_realtime_protocol.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {getChannelRealtimeEvent} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export type ChannelRealtimeEventStub = {
-    readonly type: "RealtimeEventTransaction";
-    readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>;
+    readonly type: "RealtimeEvents";
+    readonly events: ReadonlyArray<RynamoEventStub>;
 };
 
 export class ChannelRealtimeConnection {
@@ -35,14 +35,14 @@ export class ChannelRealtimeConnection {
         context: WorkerSessionActionContext,
         eventStub: ChannelRealtimeEventStub,
     ): Promise<ChannelRealtimeEvent> {
-        const {eventTransaction} = await getChannelRealtimeEvent(context, {
+        const {events} = await getChannelRealtimeEvent(context, {
             channelId: this._channelId,
-            eventTransaction: eventStub.eventTransaction,
+            events: eventStub.events,
         });
 
         return {
             type: eventStub.type,
-            eventTransaction,
+            events,
         };
     }
 }

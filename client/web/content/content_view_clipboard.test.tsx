@@ -1,4 +1,4 @@
-/* eslint-disable testing-library/no-node-access, cyberworlds/string-quotes */
+/* eslint-disable testing-library/no-node-access */
 
 import {render} from "@testing-library/react";
 import {ContentView} from "~/client/web/content/content_view.js";
@@ -89,6 +89,7 @@ const testDocument: DocumentContentWithReferences = {
                     signedUrlSearch: "?exp=1728432335&iss=app&aud=edg&sig=test-img1",
                     file: new FileModel({
                         id: file1Id,
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 2274056,
                         isUploading: false,
@@ -109,6 +110,7 @@ const testDocument: DocumentContentWithReferences = {
                     signedUrlSearch: "?exp=1728432338&iss=app&aud=edg&sig=test-img2",
                     file: new FileModel({
                         id: file2Id,
+                        spaceId: space.id,
                         contentType: "image/jpeg",
                         contentLength: 15353789,
                         isUploading: false,
@@ -549,7 +551,7 @@ test("can copy when selection is entirely in content view", () => {
         }),
     ).toEqual({
         text: "e also want to test selecting between files:",
-        html: `<p data-pm-slice="1 1 []">e also want to test selecting between files:</p><div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"><img src="${resourceServiceUrl}/files/${space.id}/${file1Id}?exp=1728432335&amp;iss=app&amp;aud=edg&amp;sig=test-img1" crossorigin="anonymous" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="600" height="450"></div>`,
+        html: `<p data-pm-slice="1 1 []">e also want to test selecting between files:</p><div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"><img crossorigin="anonymous" src="${resourceServiceUrl}/files/${space.id}/${file1Id}?exp=1728432335&amp;iss=app&amp;aud=edg&amp;sig=test-img1" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="600" height="450"></div>`,
     });
 
     expect(
@@ -563,7 +565,7 @@ test("can copy when selection is entirely in content view", () => {
         }),
     ).toEqual({
         text: "Some text afterwards for anch",
-        html: `<div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;" data-pm-slice="1 1 []"><img src="${resourceServiceUrl}/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" crossorigin="anonymous" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="384" height="512"></div><p>Some text afterwards for anch</p>`,
+        html: `<div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;" data-pm-slice="1 1 []"><img crossorigin="anonymous" src="${resourceServiceUrl}/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="600" height="512"></div><p>Some text afterwards for anch</p>`,
     });
 
     expect(
@@ -579,6 +581,6 @@ test("can copy when selection is entirely in content view", () => {
         }),
     ).toEqual({
         text: "nt to test selecting between files:\n\nSome text af",
-        html: `<p data-pm-slice="1 1 []">nt to test selecting between files:</p><div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"><img src="${resourceServiceUrl}/files/${space.id}/${file1Id}?exp=1728432335&amp;iss=app&amp;aud=edg&amp;sig=test-img1" crossorigin="anonymous" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="379" height="284"><img src="${resourceServiceUrl}/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" crossorigin="anonymous" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="213" height="284"></div><p>Some text af</p>`,
+        html: `<p data-pm-slice="1 1 []">nt to test selecting between files:</p><div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"><img crossorigin="anonymous" src="${resourceServiceUrl}/files/${space.id}/${file1Id}?exp=1728432335&amp;iss=app&amp;aud=edg&amp;sig=test-img1" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="379" height="284"><img crossorigin="anonymous" src="${resourceServiceUrl}/files/${space.id}/${file2Id}?exp=1728432338&amp;iss=app&amp;aud=edg&amp;sig=test-img2" data-cy-attached="${testDocumentFileAttachmentTargetString}" style="display: block;" width="213" height="284"></div><p>Some text af</p>`,
     });
 });

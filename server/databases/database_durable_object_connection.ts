@@ -86,9 +86,8 @@ export class DatabaseDurableObjectConnection {
 
                 const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, {pages, fileSizeInPages}] of result.changedPages) {
-                    // `getBufferedWrites` only emits a table entry
-                    // when it has at least one buffered page, so a
-                    // changed-pages entry always carries pages.
+                    // `getBufferedWrites` only emits a table entry when it has at least one buffered
+                    // page, so a changed-pages entry always carries pages.
                     assert(pages.size > 0, `changedPages entry for ${tableId} has no pages`);
                     const tableReadPages = result.readPages.get(tableId);
                     const diffs = new Map<number, {version: number; diff: PageDiff}>();
@@ -129,8 +128,7 @@ export class DatabaseDurableObjectConnection {
             });
         },
         ensureCacheIsUpToDate: async (_context, input) => {
-            // Mutable builder for the readonly
-            // `DatabaseEnsureCacheIsUpToDateResult["tables"]`
+            // Mutable builder for the readonly `DatabaseEnsureCacheIsUpToDateResult["tables"]`
             // return type; `updatedPages` reuses the wire type.
             const tables = new Map<
                 DatabaseTableId,
@@ -141,10 +139,9 @@ export class DatabaseDurableObjectConnection {
                 }
             >();
 
-            // The tracker is partitioned by table, so validate
-            // every table the client sent — not just the main
-            // table — otherwise setPages below would wipe tracker
-            // state for any attached table omitted from the map.
+            // The tracker is partitioned by table, so validate every table the client sent —
+            // not just the main table — otherwise setPages below would wipe tracker state for
+            // any attached table omitted from the map.
             const matchingPagesByTable = new Map<DatabaseTableId, Array<number>>();
             const pendingPagesByTable = new Map<DatabaseTableId, Iterable<number>>();
 
@@ -167,8 +164,7 @@ export class DatabaseDurableObjectConnection {
 
                     updatedPages.set(pageIndex, {version: page.version, data: page.data});
                     if (updatedPages.size >= cacheUpdateStalePageLimit) {
-                        // Too many stale pages to inline — dump
-                        // everything collected so far into
+                        // Too many stale pages to inline — dump everything collected so far into
                         // stalePageIndexes and stop reading data.
                         for (const idx of updatedPages.keys()) {
                             stalePageIndexes.push(idx);
@@ -189,9 +185,8 @@ export class DatabaseDurableObjectConnection {
                     }
                 }
 
-                // Tell the tracker which pages the client
-                // already has valid copies of: all client pages
-                // minus those we're updating or marking stale.
+                // Tell the tracker which pages the client already has valid copies of: all client
+                // pages minus those we're updating or marking stale.
                 const staleSet = new Set(stalePageIndexes);
                 const matchingPages: Array<number> = [];
                 for (const pageIndex of tableVersions.keys()) {
@@ -228,8 +223,8 @@ export class DatabaseDurableObjectConnection {
     }
 
     public async authorize(): Promise<void> {
-        // No-op for now. Authorization is handled by
-        // createDurableObject's token verification.
+        // No-op for now. Authorization is handled by createDurableObject's token
+        // verification.
     }
 
     public async transformEvent(
@@ -238,30 +233,22 @@ export class DatabaseDurableObjectConnection {
     ): Promise<DatabaseRealtimeEvent> {
         switch (eventStub.type) {
             case "PagesChanged": {
-                // Per-browser filter: only forward diffs for
-                // pages this browser might have cached, per
-                // table.
+                // Per-browser filter: only forward diffs for pages this browser might have cached,
+                // per table.
                 //
-                // NOCOMMIT: this filter fails CLOSED, which can
-                // cause silent client cache divergence. The
-                // BrowserPageTracker is in-memory and per-DO; a
-                // browser's entry is dropped on last-connection
-                // close (browser_page_tracker.ts unregister) and
-                // lost entirely on DO eviction/restart. But the
-                // client's OPFS cache persists, and ensureCacheIsUpToDate
-                // only runs once at client creation — never on
-                // reconnect. So after a reconnect/eviction the
-                // tracker under-estimates what the client holds,
-                // clientMightHavePage returns false for genuinely
-                // cached pages, and their PagesChanged diffs are
-                // dropped instead of applied -> stale OPFS.
+                // NOCOMMIT: this filter fails CLOSED, which can cause silent client cache
+                // divergence. The BrowserPageTracker is in-memory and per-DO; a browser's entry is
+                // dropped on last-connection close (browser_page_tracker.ts unregister) and lost
+                // entirely on DO eviction/restart. But the client's OPFS cache persists, and
+                // ensureCacheIsUpToDate only runs once at client creation — never on reconnect. So
+                // after a reconnect/eviction the tracker under-estimates what the client holds,
+                // clientMightHavePage returns false for genuinely cached pages, and their
+                // PagesChanged diffs are dropped instead of applied -> stale OPFS.
                 //
-                // The tracker is only a bandwidth optimization,
-                // so the correct posture is fail-open (unknown ->
-                // send the diff; the client skips diffs for pages
-                // it lacks via base === null). Fix before merge:
-                // fail open here, and/or re-run ensureCacheIsUpToDate
-                // on reconnect. See review.md.
+                // The tracker is only a bandwidth optimization, so the correct posture is
+                // fail-open (unknown -> send the diff; the client skips diffs for pages it lacks
+                // via base === null). Fix before merge: fail open here, and/or re-run
+                // ensureCacheIsUpToDate on reconnect. See review.md.
                 const filtered = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, {diffs, fileSizeInPages}] of eventStub.pageDiffs) {
                     const tableFiltered = new Map<number, {version: number; diff: PageDiff}>();
@@ -276,11 +263,10 @@ export class DatabaseDurableObjectConnection {
                             tableFiltered.set(pageIndex, value);
                         }
                     }
-                    // Skip tables whose diffs were entirely
-                    // filtered out — emitting an empty entry just
-                    // makes the client run setServerFileSizeInPages
-                    // + sync() for no actual page data. Mirrors
-                    // filterReadPages's `if (out.size > 0)`.
+                    // Skip tables whose diffs were entirely filtered out — emitting an empty entry
+                    // just makes the client run setServerFileSizeInPages
+                    //
+                    // - sync() for no actual page data. Mirrors filterReadPages's `if (out.size > 0)`.
                     if (tableFiltered.size > 0) {
                         filtered.set(tableId, {
                             diffs: tableFiltered,

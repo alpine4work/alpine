@@ -19,14 +19,15 @@ import {
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 
-// TypeScript errors here when new normalized filters are added. If you add a
-// new normalized filter you should make sure to update
+// TypeScript errors here when new normalized filters are added. If you add a new
+// normalized filter you should make sure to update
 // `evaluateTaskQueryNormalizedFiltersForIndexDoc()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "layoutFilter"
     | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
@@ -88,10 +89,20 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
         if (!pass) return false;
     }
 
+    if (filters.layoutFilter !== undefined) {
+        const layout = task.layout?.value ?? null;
+
+        const pass =
+            (filters.layoutFilter.ifNull && layout === null) ||
+            (filters.layoutFilter.ifProject && layout === "Project");
+
+        if (!pass) return false;
+    }
+
     if (filters.titleFilter !== undefined) {
-        // NOTE(calebmer): If we could get access to computed properties here we
-        // wouldn't need to call `getTaskTitleText()` again because we could used the
-        // stored title text. That's a minor performance optimization.
+        // NOTE(calebmer): If we could get access to computed properties here we wouldn't
+        // need to call `getTaskTitleText()` again because we could used the stored title
+        // text. That's a minor performance optimization.
         const titleText = getTaskTitleText(task.title.raw);
         const titleWords = analyzeTaskTitleText(titleText);
 

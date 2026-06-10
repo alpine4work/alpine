@@ -11,9 +11,9 @@ export function validateEmailAddressForAuthentication(emailAddress: string) {
         emailAddressDomain.length > emailAddressDomainBeforeFirstDot.length;
 
     // True if the email address domain before the first `.` we consider a generic
-    // domain. We only check the domain up until the first dot so this turns true
-    // at the same time we consider the email address valid. So the user definitely
-    // sees our tip before pressing the "Sign up" button.
+    // domain. We only check the domain up until the first dot so this turns true at
+    // the same time we consider the email address valid. So the user definitely sees
+    // our tip before pressing the "Sign up" button.
     const isEmailAddressPossiblyGeneric =
         isEmailAddressValid &&
         genericEmailAddressDomains

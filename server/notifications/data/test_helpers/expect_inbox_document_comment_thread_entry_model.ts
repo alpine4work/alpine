@@ -53,6 +53,10 @@ export function expectInboxDocumentCommentThreadEntryModel({
             }),
             contentTextSnippet: latestComment.contentTextSnippet,
             isStickyMention: latestComment.isStickyMention ?? false,
+            index:
+                latestComment.comment instanceof TestDocumentCommentThread
+                    ? latestComment.comment.firstComment.index
+                    : latestComment.comment.index,
         },
         firstCommentAuthor: expect.objectContaining({id: commentThread.firstComment.author.id}),
         otherCommentAuthor:

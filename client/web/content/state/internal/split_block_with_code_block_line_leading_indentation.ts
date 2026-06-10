@@ -1,37 +1,36 @@
 /**
- * NOTE(maximchen, 2024-05-14): This is a Typescript port of the
- * functions `defaultBlockAt`, `split`, `splitBlockAs` from Marijn Haverbeke's
- * Prosemirror project.
+ * NOTE(maximchen, 2024-05-14): This is a Typescript port of the functions
+ * `defaultBlockAt`, `split`, `splitBlockAs` from Marijn Haverbeke's Prosemirror
+ * project.
  *
- * The reason we ported these functions is because we wanted to add custom
- * behavior (i.e adding indentation and whitespace to newly created
- * code block lines) to the splitBlock function. And we want to maintain
- * splitBlock original behavior for other nodes such as paragraph, and listItems.
+ * The reason we ported these functions is because we wanted to add custom behavior
+ * (i.e adding indentation and whitespace to newly created code block lines) to the
+ * splitBlock function. And we want to maintain splitBlock original behavior for
+ * other nodes such as paragraph, and listItems.
  *
- * Without forking splitBlock and applying our custom behavior,
- * the code block line would not be able to be split with the
- *  proper whitespace indentation on new code block lines.
+ * Without forking splitBlock and applying our custom behavior, the code block line
+ * would not be able to be split with the proper whitespace indentation on new code
+ * block lines.
  *
  * The MIT License
  *
  * Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 import {Attrs, ContentMatch, Fragment, Node, NodeType, ResolvedPos, Slice} from "prosemirror-model";
@@ -48,10 +47,9 @@ function defaultBlockAt(match: ContentMatch) {
     return null;
 }
 
-// NOTE: This is the code we added that's not in the forked code.
-// If the node is a code block line, we append to the after fragments.
-// In this case we extract the amount of leading indentation to apply on the
-// new Slice
+// NOTE: This is the code we added that's not in the forked code. If the node is a
+// code block line, we append to the after fragments. In this case we extract the
+// amount of leading indentation to apply on the new Slice
 function addCodeBlockLineLeadingIndentation(
     $pos: ResolvedPos,
     node: Node,
@@ -66,8 +64,8 @@ function addCodeBlockLineLeadingIndentation(
     // Calculate up until `pos`:
     //
     // 1. Leading indentation space count
-    // 2. Open bracket count, if we have unbalanced brackets we need to use the
-    //    next line's leading indentation
+    // 2. Open bracket count, if we have unbalanced brackets we need to use the next
+    //    line's leading indentation
     let childNodeIndex = 0;
     while (childNodeIndex < node.childCount) {
         const childNode = node.child(childNodeIndex);
@@ -142,8 +140,7 @@ function addCodeBlockLineLeadingIndentation(
     const originalIndentationSpaceCount = indentationSpaceCount;
 
     if (!isSomeBracketOpen) {
-        // If the line is only indentation, then use an adjacent indentation space
-        // count.
+        // If the line is only indentation, then use an adjacent indentation space count.
         if (!hasIndentationEnded) {
             indentationSpaceCount = Math.max(
                 indentationSpaceCount,
@@ -221,10 +218,9 @@ function splitWithCodeBlockLineLeadingIndentation(
     let after = Fragment.empty;
     let afterSelection: Fragment | null = null;
 
-    // NOTE: This is the code that we modified from the fork.
-    // If the node is a code block line, we append to the after fragments.
-    // In this case we extract the amount of leading
-    // indentation to apply on the new Slice
+    // NOTE: This is the code that we modified from the fork. If the node is a code
+    // block line, we append to the after fragments. In this case we extract the amount
+    // of leading indentation to apply on the new Slice
     const node = $pos.node($pos.depth);
     if (node.type.name === "codeBlockLine") {
         [after, afterSelection] = addCodeBlockLineLeadingIndentation($pos, node, after);

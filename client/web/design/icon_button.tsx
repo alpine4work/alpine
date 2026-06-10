@@ -5,6 +5,7 @@ import {
     PointerEvent,
     ReactNode,
     Ref,
+    RefObject,
     createElement,
     forwardRef,
     useCallback,
@@ -21,7 +22,7 @@ import {
     subscribeToTriggeredOverlayOpenEvent,
 } from "~/client/web/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {Tooltip, defaultTooltipOffset} from "~/client/web/design/tooltip.js";
+import {Tooltip, TooltipRef, defaultTooltipOffset} from "~/client/web/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {useTouchSlop} from "~/client/web/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -36,10 +37,12 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+
+export const spaceLayoutSideBarIconSize = "1.125rem";
 
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
@@ -47,6 +50,8 @@ export {IconButtonForwardRef as IconButton};
 export type IconButtonVariant =
     | "accent"
     | "quiet"
+    | "quieter"
+    | "quietest"
     | "quiet-above-grey-5-background"
     | "quiet-above-content-file-viewer-modal"
     | "quiet-elevation-10"
@@ -56,7 +61,7 @@ export type IconButtonVariant =
     | "outline"
     | "image";
 
-export type IconButtonSize = "xl" | "lg" | "base" | "md" | "sm" | "xs";
+export type IconButtonSize = "xl" | "lg" | "space-layout-side-bar" | "base" | "md" | "sm" | "xs";
 
 /**
  * A button represented by a single icon.
@@ -69,34 +74,34 @@ export type IconButtonSize = "xl" | "lg" | "base" | "md" | "sm" | "xs";
  * 1. Brutally obvious; OR
  * 2. Incredibly common
  *
- * While icon buttons without a label may look nice, they can confuse users!
- * You should only use icon buttons when they're not confusing or if using an
- * icon button without a label is for some reason very convenient for the end
- * user (e.g. it fits nicely in some space).
+ * While icon buttons without a label may look nice, they can confuse users! You
+ * should only use icon buttons when they're not confusing or if using an icon
+ * button without a label is for some reason very convenient for the end user (e.g.
+ * it fits nicely in some space).
  *
  * [1]: https://react-spectrum.adobe.com/blog/building-a-button-part-1.html
  */
 function IconButton(
     props: Omit<AriaButtonProps<"button">, "onPress"> & {
         /**
-         * A description of the action the icon button will take when pressed.
-         * Appears as a tooltip on hover and in the `aria-label`.
+         * A description of the action the icon button will take when pressed. Appears as a
+         * tooltip on hover and in the `aria-label`.
          */
         description: string;
 
         /**
-         * When the user presses a button we fire this event. Use it to perform
-         * an action in response to the button press.
+         * When the user presses a button we fire this event. Use it to perform an action
+         * in response to the button press.
          *
-         * If a promise is returned then the button is put into a pending state until
-         * the promise resolves.
+         * If a promise is returned then the button is put into a pending state until the
+         * promise resolves.
          */
         onPress?: (event: PressEvent) => void | Promise<void>;
 
         /**
-         * If an error occurs while running `onPress` we will report the error to the user with
-         * this title. It is the "what happened" part of an error message according to [Adobe
-         * Spectrum's][1] error content guidelines.
+         * If an error occurs while running `onPress` we will report the error to the user
+         * with this title. It is the "what happened" part of an error message according to
+         * [Adobe Spectrum's][1] error content guidelines.
          *
          * So for example it this is a delete comment action say "Couldn't delete comment".
          *
@@ -122,11 +127,11 @@ function IconButton(
         keyboardShortcutHint?: ReactNode;
 
         /**
-         * Are we waiting for some asynchronous action that was initiated by our button
-         * to complete?
+         * Are we waiting for some asynchronous action that was initiated by our button to
+         * complete?
          *
-         * If your `onPress` event returns a promise then the button is automatically
-         * put into a pending state and you don't need to pass in this prop.
+         * If your `onPress` event returns a promise then the button is automatically put
+         * into a pending state and you don't need to pass in this prop.
          */
         isPending?: boolean;
 
@@ -157,7 +162,7 @@ function IconButton(
         /**
          * The border radius of the icon button. Defaults to `full`.
          */
-        borderRadius?: "full" | "0.5" | "1";
+        borderRadius?: "full" | "0.5" | "1" | "none";
 
         /**
          * Manually override the button's background color.
@@ -165,12 +170,19 @@ function IconButton(
         backgroundColor?: Sprinkles["backgroundColor"];
 
         /**
-         * Allow changing the button cursor. You should have a good reason to change
-         * this. See "[Buttons shouldn't have a hand cursor][1]".
+         * Allow changing the button cursor. You should have a good reason to change this.
+         * See "[Buttons shouldn't have a hand cursor][1]".
          *
-         * [1]: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+         * [1]:
+         *     https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
          */
         cursor?: "default" | "pointer";
+
+        /**
+         * What is the opacity of this button? It'll still occupy space in the layout if
+         * hidden. This corresponds to `opacity` in CSS.
+         */
+        opacity?: "100" | "0";
 
         /**
          * Don't show a tooltip when hovering over this icon button.
@@ -178,6 +190,11 @@ function IconButton(
          * Defaults to `false`.
          */
         withoutTooltip?: boolean;
+
+        /**
+         * Reference to the button's tooltip.
+         */
+        tooltipRef?: RefObject<TooltipRef | null>;
 
         /**
          * Where to place the tooltip?
@@ -194,8 +211,8 @@ function IconButton(
         tooltipOffset?: Spacing;
 
         /**
-         * Override the icon button's tooltip content. By default we use
-         * the `description`. Optionally including a `keyboardShortcutHint`.
+         * Override the icon button's tooltip content. By default we use the `description`.
+         * Optionally including a `keyboardShortcutHint`.
          */
         tooltipContentOverride?: ReactNode;
 
@@ -207,17 +224,24 @@ function IconButton(
         isTooltipVisibleWhenFocused?: boolean;
 
         /**
-         * Disable focusing this button through sequential keyboard navigation using
-         * the `Tab` button. This sets `tabindex="-1"` on the element. The element will
-         * still be programmatically focusable.
+         * Is the tooltip visible after our `<IconButton>` is pressed?
+         *
+         * Defaults to `false`.
+         */
+        isTooltipVisibleAfterPress?: boolean;
+
+        /**
+         * Disable focusing this button through sequential keyboard navigation using the
+         * `Tab` button. This sets `tabindex="-1"` on the element. The element will still
+         * be programmatically focusable.
          *
          * Defaults to `true`.
          */
         isTabbable?: boolean;
 
         /**
-         * Disables the ability to focus this button. Turns the element into a `<div>`
-         * and doesn't set `tabindex` on the element. The element isn't even focusable
+         * Disables the ability to focus this button. Turns the element into a `<div>` and
+         * doesn't set `tabindex` on the element. The element isn't even focusable
          * programmatically. Useful if you don't want focus to move when the button is
          * pressed.
          *
@@ -255,8 +279,7 @@ function IconButton(
                   // call the button's press handler to properly handle loading states and error
                   // states.
                   //
-                  // You could call `click()` but that focuses the button which you might not
-                  // want.
+                  // You could call `click()` but that focuses the button which you might not want.
                   press(): void;
               }
           >
@@ -277,13 +300,16 @@ function IconButton(
         borderRadius = "full",
         backgroundColor: backgroundColorFromProps,
         cursor = "default",
+        opacity = "100",
         children,
         isDisabled = false,
         withoutTooltip = false,
+        tooltipRef,
         tooltipPlacement = "bottom-start",
         tooltipOffset = defaultTooltipOffset,
         tooltipContentOverride,
         isTooltipVisibleWhenFocused = true,
+        isTooltipVisibleAfterPress = false,
         isTabbable = true,
         isFocusable = true,
         onHoverStart,
@@ -347,10 +373,10 @@ function IconButton(
         {
             ...props,
             elementType: isFocusable ? "button" : "div",
-            // NOTE(calebmer): Don't disable the button while it's pending. We don't want
-            // to run the press event handler again while the button is pending but we do
-            // still want the button to be interactive (`isPressed` should be true and we
-            // shouldn't set the `disabled` HTML property).
+            // NOTE(calebmer): Don't disable the button while it's pending. We don't want to
+            // run the press event handler again while the button is pending but we do still
+            // want the button to be interactive (`isPressed` should be true and we shouldn't
+            // set the `disabled` HTML property).
             isDisabled,
             "aria-label": description,
             onPress: handlePress,
@@ -374,9 +400,9 @@ function IconButton(
 
     const isHovered = isHoveredFromProps || isHoveredFromState;
 
-    // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our
-    // hover styles even though we aren't receiving pointer events since there's a
-    // cover over the DOM.
+    // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our hover
+    // styles even though we aren't receiving pointer events since there's a cover over
+    // the DOM.
     const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
 
     const isHoveredOrTriggeredOverlayOpen = isHovered || isTriggeredOverlayOpen;
@@ -415,6 +441,42 @@ function IconButton(
                   };
             break;
         }
+        case "quieter": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredOrTriggeredOverlayOpen
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: isPressed ? "grey-100" : "grey-60",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quietest": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredOrTriggeredOverlayOpen
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: isPressed ? "grey-100" : "grey-50",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
         case "quiet-above-grey-5-background": {
             isQuietVariant = true;
 
@@ -433,9 +495,9 @@ function IconButton(
                   };
             break;
         }
-        // Variant for a quiet icon button specifically over our
-        // `<ContentFileViewerModal>` component which has hand picked dark grey
-        // background color for both light and dark mode.
+        // Variant for a quiet icon button specifically over our `<ContentFileViewerModal>`
+        // component which has hand picked dark grey background color for both light and
+        // dark mode.
         case "quiet-above-content-file-viewer-modal": {
             isQuietVariant = true;
 
@@ -541,32 +603,36 @@ function IconButton(
     }
 
     let buttonSize: Spacing;
-    let iconSize: Spacing;
+    let iconSize: RemLength;
 
     switch (size) {
         case "xl":
             buttonSize = "10";
-            iconSize = "5";
+            iconSize = spacing["5"];
             break;
         case "lg":
             buttonSize = "8";
-            iconSize = "5";
+            iconSize = spacing["5"];
+            break;
+        case "space-layout-side-bar":
+            buttonSize = "8";
+            iconSize = spaceLayoutSideBarIconSize;
             break;
         case "base":
             buttonSize = "7";
-            iconSize = "5";
+            iconSize = spacing["5"];
             break;
         case "md":
             buttonSize = "6";
-            iconSize = "4";
+            iconSize = spacing["4"];
             break;
         case "sm":
             buttonSize = "5";
-            iconSize = "4";
+            iconSize = spacing["4"];
             break;
         case "xs":
             buttonSize = "5";
-            iconSize = "3";
+            iconSize = spacing["3"];
             break;
         default:
             throw exhaustive(size);
@@ -574,8 +640,9 @@ function IconButton(
 
     const touchSlop = useTouchSlop(buttonSize);
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    // We wait a bit before showing our pending spinner. Some actions are very fast so
+    // we delay showing a spinner to avoid a loading spinner flicker which can be
+    // jarring.
     const shouldShowPendingSpinner =
         useDelayLoadingIndicator(isPending) && !withoutLoadingIndicator;
 
@@ -607,6 +674,7 @@ function IconButton(
 
     return (
         <Tooltip
+            ref={tooltipRef}
             placement={tooltipPlacement}
             offset={tooltipOffset}
             content={
@@ -631,11 +699,12 @@ function IconButton(
             }
             isDisabled={isDisabled || withoutTooltip || isPending}
             isVisibleWhenFocused={isTooltipVisibleWhenFocused}
+            isVisibleAfterPress={isTooltipVisibleAfterPress}
         >
             <FocusRing
                 offset={isQuietVariant ? "0" : "0.5"}
-                // Make sure the `<FocusRing>` doesn't render around the touch slop area. Just
-                // the button area.
+                // Make sure the `<FocusRing>` doesn't render around the touch slop area. Just the
+                // button area.
                 inset={touchSlop.slop}
             >
                 {createElement(
@@ -677,8 +746,9 @@ function IconButton(
                             padding: touchSlop.slop,
                             margin: `-${touchSlop.slop}`,
                             borderRadius,
-                            // If this button is in a `display: flex` element, don't shrink the button based
-                            // on other contents.
+                            opacity: opacity !== "100" ? opacity : undefined,
+                            // If this button is in a `display: flex` element, don't shrink the button based on
+                            // other contents.
                             flexShrink: "0",
                         }),
                         tabIndex: isFocusable
@@ -714,15 +784,14 @@ function IconButton(
                     >
                         {isPressed && willDarkenWithOverlayOnPress && (
                             // For accent buttons, instead of choosing a darker background color shade when
-                            // pressed we add a black overlay at a lowered opacity. We accomplish this with
-                            // an overlay element since such a color is not in our color scheme.
+                            // pressed we add a black overlay at a lowered opacity. We accomplish this with an
+                            // overlay element since such a color is not in our color scheme.
                             //
                             // Darker shades in our color scheme are more saturated. We want the effect of a
                             // button being physically pressed down.
                             //
-                            // When we added this there was a happy accident. The text color also got
-                            // darker! This is more fitting for the physical analogy of a button being
-                            // pressed down.
+                            // When we added this there was a happy accident. The text color also got darker!
+                            // This is more fitting for the physical analogy of a button being pressed down.
                             <span
                                 className={sprinkles({
                                     display: "block",
@@ -739,7 +808,7 @@ function IconButton(
                         <IconContext.Provider
                             value={{
                                 color: "currentColor",
-                                size: spacing[iconSize],
+                                size: iconSize,
                                 weight: isBold ? "bold" : "regular",
                             }}
                         >

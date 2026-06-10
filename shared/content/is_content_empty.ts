@@ -4,8 +4,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 /**
  * Is the provided content completely empty?
  *
- * If the content has a title node then both the title node and body node need
- * to not be empty.
+ * If the content has a title node then both the title node and body node need to
+ * not be empty.
  */
 export function isContentEmpty(node: Node): boolean {
     if (node.type.schema.nodes.title && !isContentTitleEmpty(node)) return false;
@@ -27,8 +27,8 @@ export function isContentTitleEmpty(node: Node): boolean {
 /**
  * Is the content body (excluding the title node) empty? If this is
  * `DocumentContent` with a title node and the title node has some text but the
- * rest of the body is empty then this will return true. Otherwise there needs
- * to be no content.
+ * rest of the body is empty then this will return true. Otherwise there needs to
+ * be no content.
  */
 export function isContentBodyEmpty(node: Node): boolean {
     assert(node.type.name === "doc");

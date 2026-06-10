@@ -20,8 +20,8 @@ export async function processSendTryOnDesktopEmail(
         openSpaceId: SpaceId | null;
     },
 ) {
-    // Check if the user has opted out of the try on desktop email. They've opted
-    // out if a `TryOnDesktopEmailOptOut` item exists.
+    // Check if the user has opted out of the try on desktop email. They've opted out
+    // if a `TryOnDesktopEmailOptOut` item exists.
     const item = await AccountsTable.getItemIfExists(context, {
         partitionType: "TryOnDesktopEmailOptOut",
         sortRangeType: "Attributes",
@@ -35,9 +35,9 @@ export async function processSendTryOnDesktopEmail(
             sortRangeType: "Attributes",
             accountId,
             // We should only send this email once on sign up. We have this item to prevent
-            // retries of this job from sending the email multiple times. It should be safe
-            // for us to remove the item and reclaim storage after 30 days as we're well
-            // after sign up by that point.
+            // retries of this job from sending the email multiple times. It should be safe for
+            // us to remove the item and reclaim storage after 30 days as we're well after sign
+            // up by that point.
             expirationTime: addDays(new Date(), 30),
         });
     } catch (error) {
@@ -47,11 +47,11 @@ export async function processSendTryOnDesktopEmail(
 
     const urlPath = new UrlPath("/auth/sign-in");
     urlPath.searchParams.set("email", emailAddress);
-    if (openSpaceId) urlPath.searchParams.set("to", `/s/${openSpaceId}`);
+    if (openSpaceId) urlPath.searchParams.set("to", `/home/${openSpaceId}`);
 
     await context.email.sendImmediately({
-        // We use the `Invites` alias since similarly we're prompting people to log
-        // into Alpine. We don't want to use the `SignUp` email so it's reserved for
+        // We use the `Invites` alias since similarly we're prompting people to log into
+        // Alpine. We don't want to use the `SignUp` email so it's reserved for
         // transactional emails with a very high open rate.
         fromEmailAddressAlias: "Invites",
         toEmailAddress: emailAddress,

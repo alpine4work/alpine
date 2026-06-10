@@ -1,4 +1,4 @@
-import * as vscode from "vscode";
+import {CodeLens, CodeLensProvider, Position, Range, TextDocument} from "vscode";
 
 function isDynamicName(name: string): boolean {
     return (
@@ -28,27 +28,27 @@ function buildPathWithSubstitutions(suites: Array<{name: string; isDynamic: bool
         return "";
     }
 
-    // Join with spaces, then clean up consecutive ".*" patterns
+    // Join with spaces, then clean up consecutive ".\*" patterns
     let result = nonEmptyNames.join(" ");
 
-    // Replace consecutive ".*"'s with just ".*"
+    // Replace consecutive ".\*"'s with just ".\*"
     result = result.replace(/\.\*(\s*\.\*)+/g, ".*");
 
-    // Remove leading/trailing spaces around ".*"
+    // Remove leading/trailing spaces around ".\*"
     result = result.replace(/\s+\.\*/g, ".*");
     result = result.replace(/\.\*\s+/g, ".*");
 
     return result;
 }
 
-export class BazelTestCodeLensProvider implements vscode.CodeLensProvider {
-    provideCodeLenses(document: vscode.TextDocument): Array<vscode.CodeLens> {
-        const codeLenses: Array<vscode.CodeLens> = [];
+export class BazelTestCodeLensProvider implements CodeLensProvider {
+    provideCodeLenses(document: TextDocument): Array<CodeLens> {
+        const codeLenses: Array<CodeLens> = [];
         const text = document.getText();
         const lines = text.split("\n");
         // Just find any describe/test calls and capture the first argument
-        const describeRegex = /^\s*describe\s*\(\s*([^,)]+)/;
-        const testRegex = /^\s*(it|test)\s*\(\s*([^,)]+)/;
+        const describeRegex = /^\s*describe(?:\.only)?\s*\(\s*([^,)]+)/;
+        const testRegex = /^\s*(?:it|test)(?:\.only)?\s*\(\s*([^,)]+)/;
 
         // Parse the file to find describe blocks and their nesting
         const suiteStack: Array<{name: string; level: number; isDynamic: boolean}> = [];
@@ -74,11 +74,11 @@ export class BazelTestCodeLensProvider implements vscode.CodeLensProvider {
                 // Add current suite to stack
                 suiteStack.push({name: suiteName, level: indentLevel, isDynamic: isDynamic});
 
-                // For suite commands, substitute dynamic names with ".*"
+                // For suite commands, substitute dynamic names with ".\*"
                 const suitePath = buildPathWithSubstitutions(suiteStack);
 
-                const position = new vscode.Position(i, 0);
-                const range = new vscode.Range(position, position);
+                const position = new Position(i, 0);
+                const range = new Range(position, position);
 
                 const runSuiteCommand = {
                     title: "▶ Run Suite",
@@ -92,14 +92,14 @@ export class BazelTestCodeLensProvider implements vscode.CodeLensProvider {
                     arguments: [document.uri, suitePath],
                 };
 
-                codeLenses.push(new vscode.CodeLens(range, runSuiteCommand));
-                codeLenses.push(new vscode.CodeLens(range, copySuiteCommand));
+                codeLenses.push(new CodeLens(range, runSuiteCommand));
+                codeLenses.push(new CodeLens(range, copySuiteCommand));
             }
 
             // Check for individual tests
             const testMatch = line.match(testRegex);
             if (testMatch) {
-                const testName = testMatch[2]!;
+                const testName = testMatch[1]!;
 
                 // Remove suites that are at the same or higher level
                 while (
@@ -109,17 +109,18 @@ export class BazelTestCodeLensProvider implements vscode.CodeLensProvider {
                     suiteStack.pop();
                 }
 
-                // Check if this is a dynamic test name (contains template literals, variables, etc.)
+                // Check if this is a dynamic test name (contains template literals, variables,
+                // etc.)
                 const isDynamicTest = isDynamicName(testName);
 
-                // Build the test path, substituting dynamic names with ".*"
+                // Build the test path, substituting dynamic names with ".\*"
                 const fullTestPath = buildPathWithSubstitutions([
                     ...suiteStack,
                     {name: testName, isDynamic: isDynamicTest},
                 ]);
 
-                const position = new vscode.Position(i, 0);
-                const range = new vscode.Range(position, position);
+                const position = new Position(i, 0);
+                const range = new Range(position, position);
 
                 const runTestCommand = {
                     title: "▶ Run Test",
@@ -133,8 +134,8 @@ export class BazelTestCodeLensProvider implements vscode.CodeLensProvider {
                     arguments: [document.uri, fullTestPath],
                 };
 
-                codeLenses.push(new vscode.CodeLens(range, runTestCommand));
-                codeLenses.push(new vscode.CodeLens(range, copyTestCommand));
+                codeLenses.push(new CodeLens(range, runTestCommand));
+                codeLenses.push(new CodeLens(range, copyTestCommand));
             }
         }
 

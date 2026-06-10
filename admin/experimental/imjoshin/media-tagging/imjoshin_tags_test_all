@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+set -o errexit -o nounset -o pipefail
+
+function print_usage {
+    cat <<'EOF'
+Usage:
+  ./admin/experimental/imjoshin/media-tagging/imjoshin_tags_test_all
+
+Runs the media tagging probe on every non-JSON file in:
+  admin/experimental/imjoshin/media-tagging/test-files/
+
+For each input file, writes:
+  <base-name>.json
+
+next to the source file, overwriting any existing output file.
+EOF
+}
+
+if [ "${1:-}" = "--help" ]; then
+    print_usage
+    exit 0
+fi
+
+if [ "$#" -ne 0 ]; then
+    print_usage >&2
+    exit 1
+fi
+
+script_directory="$(
+    cd "$(dirname "${BASH_SOURCE[0]}")"
+    pwd -P
+)"
+repository_root_directory="$(
+    cd "$script_directory/../../../.."
+    pwd -P
+)"
+test_files_directory_path="$script_directory/test-files"
+
+if [ ! -d "$test_files_directory_path" ]; then
+    printf 'Missing test-files directory: %s\n' "$test_files_directory_path" >&2
+    exit 1
+fi
+
+cd "$repository_root_directory"
+
+bazel build //admin/experimental/imjoshin/media-tagging:file_content_probe >/dev/null
+
+find "$test_files_directory_path" -maxdepth 1 -type f ! -name '*.json' ! -name '.DS_Store' -print0 |
+while IFS= read -r -d '' input_file_path; do
+    input_file_name="$(basename "$input_file_path")"
+    input_file_base_name="${input_file_name%.*}"
+    output_file_path="$test_files_directory_path/$input_file_base_name.json"
+    temporary_output_file_path="$output_file_path.tmp"
+    temporary_error_file_path="$output_file_path.stderr.tmp"
+
+    printf 'Processing %s -> %s\n' "$input_file_name" "$(basename "$output_file_path")"
+
+    if ./admin/experimental/imjoshin/media-tagging/imjoshin_tags_test \
+        "$input_file_path" \
+        >"$temporary_output_file_path" \
+        2>"$temporary_error_file_path"; then
+        mv "$temporary_output_file_path" "$output_file_path"
+        rm -f "$temporary_error_file_path"
+    else
+        rm -f "$temporary_output_file_path"
+        if [ -s "$temporary_error_file_path" ]; then
+            cat "$temporary_error_file_path" >&2
+        fi
+        rm -f "$temporary_error_file_path"
+        printf 'Failed to process %s\n' "$input_file_name" >&2
+    fi
+done

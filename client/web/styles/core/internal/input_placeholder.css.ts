@@ -7,7 +7,7 @@ export const inputPlaceholderFontWeight = 340;
  */
 export const inputPlaceholderStyles = {
     color: colorSchemeVars["grey-30"],
-    // Use a slightly lighter weight than `normal` (400) in addition to a lighter
-    // color to indicate this text is a placeholder.
+    // Use a slightly lighter weight than `normal` (400) in addition to a lighter color
+    // to indicate this text is a placeholder.
     fontWeight: inputPlaceholderFontWeight,
 };

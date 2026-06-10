@@ -14,6 +14,7 @@ import {Box} from "~/client/web/design/box.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/web/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
@@ -27,20 +28,18 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
-import {tasksStyles} from "~/client/web/styles/styles.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {
-    TaskAccess,
-    getTaskCollectionEntryAccess,
-} from "~/client/web/tasks/internal/create_task_entry_access_store.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionsForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
+import {isTaskClientStoreCollectionEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_collection_entry_deleted.js";
 import {
     TaskCollectionViewDesktopHeader,
     TaskCollectionViewDesktopHeaderRef,
@@ -64,7 +63,6 @@ import {
     TaskQueryViewCustomizationMobileSection,
     TaskQueryViewCustomizationMobileSectionRef,
 } from "~/client/web/tasks/internal/task_query_view_customization_mobile_section.js";
-import {useOutOfBoundsClickSelection} from "~/client/web/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskCollectionMobileEditor} from "~/client/web/tasks/task_collection_mobile_editor.js";
 import {useTaskQueryState} from "~/client/web/tasks/use_task_query_state.js";
 import {
@@ -72,12 +70,19 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    ResolvedAccessPolicyWithGenerations,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
@@ -88,6 +93,7 @@ import {
     taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
 } from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQueryFilter,
     serializeTaskQueryFiltersSearchParam,
@@ -120,8 +126,8 @@ export function TaskCollectionView({
 }: {
     store: TaskClientStore;
     collectionId: TaskCollectionId;
-    // If `collectionSubscription` is null, that means we are creating a
-    // new collection.
+    // If `collectionSubscription` is null, that means we are creating a new
+    // collection.
     collectionSubscription: TaskClientCollectionSubscription | null;
     shouldInitiallyFocusEditableCollectionName: boolean;
     affinityManager: TaskClientStoreSearchAffinityManager;
@@ -141,48 +147,76 @@ export function TaskCollectionView({
     const navigate = useNavigate();
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
-    const {isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
     const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
+    const siteContext = useSiteContextIfExists();
 
-    const [accessPolicy, access] = useStore(
-        useMemo((): Store<readonly [AccessPolicy | null, TaskAccess]> => {
-            // If there's no `collectionSubscription` it means we're creating the
-            // collection. When the user creates a collection they get the manage access
-            // level.
-            if (!collectionSubscription)
-                return new ConstStore([null, {type: "PermissionGranted", level: "Manage"}]);
+    const accessPolicy = useStore(
+        useMemo((): Store<ResolvedAccessPolicyWithGenerations> => {
+            // If there's no `collectionSubscription` it means we're creating the collection.
+            // When the user creates a collection they get the manage access level.
+            if (!collectionSubscription) {
+                return new ConstStore({
+                    type: "Local",
+                    accountGrantById: currentAccount
+                        ? new Map([[currentAccount.id, {level: "Manage", generation: 0}]])
+                        : emptyMap,
+                    defaultGrant: null,
+                    urlGrant: null,
+                });
+            }
 
-            // `Store.many()` should only trigger a re-render if the `AccessPolicy` changes
-            // or `TaskAccess` result changes. Both are memoized.
-            return Store.many([
-                collectionSubscription.collectionEntryStore.map(
-                    collectionEntry => collectionEntry.collection?.getAccessPolicy() ?? null,
-                ),
-                collectionSubscription.collectionEntryStore.map(collectionEntry =>
-                    getTaskCollectionEntryAccess(currentAccount?.id, collectionEntry),
-                ),
-            ]);
-        }, [collectionSubscription, currentAccount?.id]),
+            return collectionSubscription.collectionEntryStore
+                .map(collectionEntry => {
+                    if (isTaskClientStoreCollectionEntryDeleted(collectionEntry)) {
+                        throw new PermissionDeniedError(
+                            "Current account lost access to task collection (deleted)",
+                            {displayMessage: taskCollectionDeletedErrorDisplayMessage},
+                        );
+                    }
+
+                    if (!collectionEntry.collection) {
+                        throw new PermissionDeniedError(
+                            "Current account lost access to task collection (policy updated)",
+                            {
+                                displayMessage:
+                                    taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+                            },
+                        );
+                    }
+
+                    return collectionEntry.collection.getAccessPolicy();
+                })
+                .flatMap(accessPolicy => {
+                    switch (accessPolicy.type) {
+                        case "Local":
+                            return new ConstStore(accessPolicy);
+                        case "Site":
+                            const siteStore =
+                                collectionSubscription.store.getReferencedSiteStoreAndAssertExists(
+                                    accessPolicy.siteId,
+                                );
+
+                            return siteStore.map(
+                                (site): ResolvedAccessPolicyWithGenerations => ({
+                                    ...site.accessPolicy,
+                                    type: "Site",
+                                    siteId: site.id,
+                                }),
+                            );
+                        default:
+                            throw exhaustive(accessPolicy);
+                    }
+                });
+        }, [collectionSubscription, currentAccount]),
     );
 
-    if (access.level === null) {
-        if (access.type === "Deleted") {
-            throw new PermissionDeniedError(
-                "Current account lost access to task collection (deleted)",
-                {displayMessage: taskCollectionDeletedErrorDisplayMessage},
-            );
-        } else {
-            throw new PermissionDeniedError(
-                "Current account lost access to task collection (policy updated)",
-                {
-                    displayMessage:
-                        taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
-                },
-            );
-        }
-    }
+    const accessLevel = useMemo(
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
+    );
 
     const [{filters, filterReferences}, actuallySetFiltersState] = useState({
         filters: initialFilters,
@@ -251,12 +285,12 @@ export function TaskCollectionView({
         });
     }, [allFilters, collectionSubscription, currentAccount?.id, currentDate]);
 
-    // If no filters or sorts have been explicitly set then the user can manually
-    // sort by collection position.
+    // If no filters or sorts have been explicitly set then the user can manually sort
+    // by collection position.
     //
-    // If the collection view is filtered we automatically apply a sort since there
-    // can be some weirdness creating a task and expecting it to be in one place
-    // when there's no filter but instead it goes to another place.
+    // If the collection view is filtered we automatically apply a sort since there can
+    // be some weirdness creating a task and expecting it to be in one place when
+    // there's no filter but instead it goes to another place.
     const normalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> = useMemo(() => {
         return filters.length === 0 && sorts.length === 0
             ? [
@@ -285,7 +319,7 @@ export function TaskCollectionView({
         sorts: normalizedSorts,
     });
 
-    const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
+    const hasEditAccessLevel = useMemo(() => hasAccessLevel(accessLevel, "Edit"), [accessLevel]);
 
     const defaultOrderSentence =
         filters.length > 0
@@ -307,8 +341,8 @@ export function TaskCollectionView({
     }
 
     // If the actor doesn't have space access then we need to keep track of any
-    // accounts/collections referenced by the query. This is expensive (O(tasks))
-    // so it's important to only run this when `currentAccount` is null.
+    // accounts/collections referenced by the query. This is expensive (O(tasks)) so
+    // it's important to only run this when `currentAccount` is null.
     const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
         !currentAccount ? (queryState.activeQuery.query?.query ?? null) : null,
     );
@@ -318,10 +352,7 @@ export function TaskCollectionView({
     } | null>(null);
 
     const copyLink = useCallback(async () => {
-        const url = new URL(
-            `/s/${space.id}/tasks/collections/${collectionId}`,
-            window.location.href,
-        );
+        const url = new URL(`/task-collection/${collectionId}`, window.location.href);
 
         if (filters.length > 0) {
             url.searchParams.set("filter", serializeTaskQueryFiltersSearchParam(filters));
@@ -332,7 +363,7 @@ export function TaskCollectionView({
         }
 
         await writeTextToClipboard(url.toString());
-    }, [collectionId, filters, sorts, space.id]);
+    }, [collectionId, filters, sorts]);
 
     const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
         `TaskCollection:${collectionId}`,
@@ -354,7 +385,7 @@ export function TaskCollectionView({
         ]);
 
         if (collectionSubscription) {
-            if (hasAccessLevel(access.level, "Manage")) {
+            if (hasAccessLevel(accessLevel, "Manage")) {
                 // Even though you can edit the collection name by double clicking and the
                 // color by clicking on the dot, we still include menu items since these
                 // interactions aren't necessarily obvious.
@@ -444,18 +475,26 @@ export function TaskCollectionView({
                     menuActions.push([
                         {
                             label: "Undo",
-                            keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                            keyboardShortcutHint: renderKeyboardShortcutHint(
+                                clientInfo,
+                                "mod",
+                                "z",
+                            ),
                             onPress: undoEvent,
                         },
                         {
                             label: "Redo",
-                            keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                            keyboardShortcutHint: renderKeyboardShortcutHint(
+                                clientInfo,
+                                "mod",
+                                "y",
+                            ),
                             onPress: redoEvent,
                         },
                     ]);
                 }
 
-                if (hasAccessLevel(access.level, "Manage")) {
+                if (hasAccessLevel(accessLevel, "Manage")) {
                     menuActions.push([
                         {
                             label: "Delete",
@@ -467,8 +506,7 @@ export function TaskCollectionView({
                                     primaryButtonPressErrorTitle:
                                         "Couldn\u2019t delete task collection",
                                     onPrimaryButtonPress: async () => {
-                                        // Wait until navigation has finished to actually delete the
-                                        // collection.
+                                        // Wait until navigation has finished to actually delete the collection.
                                         await navigate(-1);
 
                                         store.commitTaskActionTransaction(
@@ -495,8 +533,9 @@ export function TaskCollectionView({
 
         return menuActions;
     }, [
-        access.level,
+        accessLevel,
         affinityManager,
+        clientInfo,
         collectionId,
         collectionSubscription,
         context,
@@ -504,7 +543,6 @@ export function TaskCollectionView({
         customizationState,
         favoriteMenuAction,
         hasEditAccessLevel,
-        isAppleDevice,
         navigate,
         platform,
         redoEvent,
@@ -539,8 +577,8 @@ export function TaskCollectionView({
         [itemCountBeforeGridView],
     );
 
-    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
-    // items which precede our children grid view.
+    // Offset all the methods on our `VirtualizedScrollViewRef` by the number of items
+    // which precede our children grid view.
     useImperativeHandle(
         gridViewRef,
         () => ({
@@ -583,6 +621,8 @@ export function TaskCollectionView({
         [itemCountBeforeGridView, shiftRenderedRangeForGridView],
     );
 
+    const isCreatedCollectionFromGhostTaskPrivate = !accessPolicy.defaultGrant;
+
     const {
         stateKey: gridViewStateKey,
         bufferedItemHeight: gridViewBufferedItemHeight,
@@ -594,7 +634,6 @@ export function TaskCollectionView({
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
-        focusEnd: focusGridViewEnd,
         undo,
         redo,
     } = useTaskGridViewVirtualizedList({
@@ -607,6 +646,9 @@ export function TaskCollectionView({
                     hasDenseFields: false,
                     hasColumns: true,
                     withoutAssigneeField: false,
+                    withoutDueDateField: false,
+                    withoutCollectionsField: false,
+                    isCreatedCollectionFromGhostTaskPrivate,
                 };
             } else {
                 return {
@@ -616,65 +658,85 @@ export function TaskCollectionView({
                     hasDenseFields: true,
                     hasColumns: false,
                     withoutAssigneeField: false,
+                    withoutDueDateField: false,
+                    withoutCollectionsField: false,
+                    isCreatedCollectionFromGhostTaskPrivate,
                 };
             }
-        }, [hasEditAccessLevel, routeLayout]),
+        }, [hasEditAccessLevel, isCreatedCollectionFromGhostTaskPrivate, routeLayout]),
         viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         query: queryState.activeQuery.query,
         affinityManager,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow",
-        getMoveTaskToQueryActions: (taskId, position) => {
+        getMoveTasksToQueryActions: (taskIds, actualPosition) => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
             const query = queryState.activeQuery.query.query;
 
-            // If the query is auto-sorted we disable features that allow moving tasks into
-            // the query. Like hitting shift-tab to dedent or hitting enter to create a new
-            // task. We may want to re-enable some of these someday in auto-sorted queries.
-            // See the comment on `getMoveTaskToQueryActions` in `<TaskQueryView>` for more
+            // If the query is auto-sorted we disable features that allow moving tasks into the
+            // query. Like hitting shift-tab to dedent or hitting enter to create a new task.
+            // We may want to re-enable some of these someday in auto-sorted queries. See the
+            // comment on `getMoveTasksToQueryActions` in `<TaskQueryView>` for more
             // discussion.
             if (!isTaskQueryManuallySorted(query.sorts)) return null;
 
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
-            const actualPosition =
-                position.type !== "Position"
-                    ? getNewTaskPositionForQuerySortedByPosition(time2, query, position)
-                    : position.position;
+            const positions: Array<TaskPosition> = [];
 
-            const taskCollections = store.getTaskEntrySnapshot(taskId)?.task?.getCollections();
+            const actualPositions = getNewTaskPositionsForQuerySortedByPosition(
+                time2,
+                query,
+                actualPosition,
+                taskIds.length,
+            );
 
-            const actions: Array<TaskActionModel> = [
-                {
-                    type: "UpdateTask",
-                    time: time1,
-                    taskId,
-                    taskAction: {
-                        type: "AddCollection",
-                        collectionId: collectionSubscription.collectionId,
-                        orderKey: generateOrderKeyBetween(
-                            taskCollections?.getLastOrderKey() ?? null,
-                            null,
-                        ),
+            for (const orderKey of actualPositions.orderKeys) {
+                positions.push({
+                    orderTime: actualPositions.orderTime,
+                    orderKey,
+                });
+            }
+
+            const actions: Array<TaskActionModel> = [];
+
+            for (let index = 0; index < taskIds.length; index++) {
+                const taskId = taskIds[index]!;
+                const position = positions[index]!;
+                const taskCollections = store.getTaskEntrySnapshot(taskId)?.task?.getCollections();
+
+                actions.push(
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collectionSubscription.collectionId,
+                            orderKey: generateOrderKeyBetween(
+                                taskCollections?.getLastOrderKey() ?? null,
+                                null,
+                            ),
+                        },
                     },
-                },
-                {
-                    type: "UpdateTask",
-                    time: time2,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateCollectionPosition",
-                        collectionId: collectionSubscription.collectionId,
-                        position: actualPosition,
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId: collectionSubscription.collectionId,
+                            position: position,
+                        },
                     },
-                },
-            ];
+                );
+            }
 
             return {
                 actions,
-                position: actualPosition,
+                positions,
             };
         },
         getMaybeRemoveTaskFromQueryActions: taskId => {
@@ -682,9 +744,9 @@ export function TaskCollectionView({
 
             const query = queryState.activeQuery.query.query;
 
-            // If the query is auto-sorted we disable features that remove tasks from the
-            // grid view. Like tab to indent or drag and drop. Neither makes sense when you
-            // don't have control over the order of tasks.
+            // If the query is auto-sorted we disable features that remove tasks from the grid
+            // view. Like tab to indent or drag and drop. Neither makes sense when you don't
+            // have control over the order of tasks.
             if (!isTaskQueryManuallySorted(query.sorts)) return [];
 
             return [
@@ -697,9 +759,9 @@ export function TaskCollectionView({
             ];
         },
         columnHeaderControls: useMemo(() => {
-            // We don't have sticky column header controls when rendering in a mobile
-            // layout. Instead we render a navigation bar and render filters/sorts at the
-            // top of the view in a non-sticky manner.
+            // We don't have sticky column header controls when rendering in a mobile layout.
+            // Instead we render a navigation bar and render filters/sorts at the top of the
+            // view in a non-sticky manner.
             //
             // We do this for peeks too.
             if (routeLayout === "narrow") return;
@@ -718,7 +780,7 @@ export function TaskCollectionView({
                         }
                         affinityManager={affinityManager}
                         createCollection={createCollection}
-                        accessLevel={access.level}
+                        accessLevel={accessLevel}
                         defaultOrderSentence={defaultOrderSentence}
                         menuActions={menuActions}
                         filters={filters}
@@ -731,7 +793,7 @@ export function TaskCollectionView({
                 ),
             };
         }, [
-            access.level,
+            accessLevel,
             affinityManager,
             collectionId,
             collectionSubscription,
@@ -756,7 +818,7 @@ export function TaskCollectionView({
         withoutDisappearingTitle: true,
         title: (
             <TaskCollectionViewMobileNavigationBarTitle
-                accessLevel={access.level}
+                accessLevel={accessLevel}
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription}
@@ -771,10 +833,20 @@ export function TaskCollectionView({
         desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
         shareButton: accessPolicy
             ? {
+                  isReadOnly: !collectionSubscription,
                   entityNoun: "task collection",
                   entityId: `TaskCollection:${collectionId}`,
                   accessPolicy,
-                  onAccessPolicyChange: (notification, accessPolicy) => {
+                  onAccessPolicyChange: async (notification, accessPolicy) => {
+                      if (accessPolicy.type === "Site") {
+                          await applySiteAccessPolicyChange({
+                              context,
+                              accessPolicy,
+                              handleEventForSite: assertExists(siteContext).handleEventForSite,
+                          });
+                          return;
+                      }
+
                       store.commitTaskActionTransaction(
                           context,
                           [
@@ -801,6 +873,7 @@ export function TaskCollectionView({
               }
             : undefined,
         menuActions,
+        defaultPreviousRoute: `/home/${space.id}`,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -875,24 +948,12 @@ export function TaskCollectionView({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            className={
-                hasEditAccessLevel ? tasksStyles.textCursorNotInherited2ClassName : undefined
-            }
-            {...useOutOfBoundsClickSelection({
-                isDisabled: !hasEditAccessLevel,
-                // Accept clicks on our `<VirtualizedScrollView>` child too.
-                accept: event =>
-                    event.target === event.currentTarget ||
-                    (event.target instanceof Element &&
-                        event.target.parentElement === event.currentTarget),
-                onSelect: () => focusGridViewEnd(),
-                onSelectAll: () => focusGridViewEnd(),
-            })}
         >
             {gridViewModals}
             <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
+                    data-testid="TaskCollectionScrollView"
                     elementRef={scrollViewRef}
                     stateKey={gridViewStateKey}
                     bufferedItemHeight={gridViewBufferedItemHeight}
@@ -901,9 +962,8 @@ export function TaskCollectionView({
                         () =>
                             routeLayout === "narrow"
                                 ? [
-                                      // Always render `<TaskQueryViewCustomizationMobileSection>`
-                                      // regardless of where we've scrolled. We can return focus there at
-                                      // any moment.
+                                      // Always render `<TaskQueryViewCustomizationMobileSection>` regardless of where
+                                      // we've scrolled. We can return focus there at any moment.
                                       0,
                                       ...alwaysRenderAdditionalGridViewItemIndexes.map(
                                           index => index + itemCountBeforeGridView,

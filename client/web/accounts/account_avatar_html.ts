@@ -31,8 +31,8 @@ export const accountAvatarInnerClassName = sprinkles({
     overflow: "hidden",
 });
 
-// IMPORTANT: If you update the HTML here you should also update
-// `<AccountAvatar>` for code that render avatars in React.
+// IMPORTANT: If you update the HTML here you should also update `<AccountAvatar>`
+// for code that render avatars in React.
 /**
  * Renders an account avatar to an `HtmlElementGenerator` object. For rendering
  * avatars in `<ContentEditor>` where we can't render React UI.
@@ -155,6 +155,8 @@ function renderAccountImageAvatarDesign(avatarDesign: AccountImageAvatarDesign) 
     );
 
     const avatarHtml = new HtmlElementGenerator("img");
+    // Needed to get a proper CORS response from the resource service where our files
+    // are hosted. This _must_ be set before setting the `src` attribute.
     avatarHtml.setAttribute("crossorigin", "anonymous");
     avatarHtml.setAttribute("src", imageUrl);
     const innerHtmlStyleString = [

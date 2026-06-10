@@ -7,20 +7,18 @@ import {Schema} from "~/shared/schema/schema.js";
 export type SqliteMigration = string | ((db: Database) => void);
 
 /**
- * Ordered migrations for the **main** database — the one
- * SQLite opens as schema `main`. It is treated as public
- * and holds **no real information**, only opaque IDs:
+ * Ordered migrations for the **main** database — the one SQLite opens as schema
+ * `main`. It is treated as public and holds **no real information**, only opaque
+ * IDs:
  *
- * - `_alpine_tables(id)` — registry of every table id;
- *   drives cold-open attach of per-table databases.
- * - `_alpine_views(id, table_id)` — view→table routing
- *   index so a bare view id from a URL resolves to its
- *   owning table without attaching every table.
+ * - `_alpine_tables(id)` — registry of every table id; drives cold-open attach of
+ *   per-table databases.
+ * - `_alpine_views(id, table_id)` — view→table routing index so a bare view id
+ *   from a URL resolves to its owning table without attaching every table.
  *
- * All human-readable, table-scoped metadata (names,
- * fields, view layout) lives in each table's own
- * `ATTACH`-ed per-db file instead — see
- * {@link tableSqliteMigrations}.
+ * All human-readable, table-scoped metadata (names, fields, view layout) lives in
+ * each table's own `ATTACH`-ed per-db file instead — see {@link
+ * tableSqliteMigrations}.
  */
 export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
     `CREATE TABLE _alpine_tables (
@@ -39,33 +37,28 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
 ];
 
 /**
- * A per-table migration. Unlike main migrations, these run
- * against an `ATTACH`-ed schema, so they receive the schema
- * name (the table id) to qualify their DDL.
+ * A per-table migration. Unlike main migrations, these run against an `ATTACH`-ed
+ * schema, so they receive the schema name (the table id) to qualify their DDL.
  */
 export type TableSqliteMigration = (db: Database, tableId: DatabaseTableId) => void;
 
 /**
- * Ordered migrations for a **per-table** database — the
- * `ATTACH`-ed file that holds one user table's data plus
- * all of its real metadata, none of which is allowed in
- * the public main database:
+ * Ordered migrations for a **per-table** database — the `ATTACH`-ed file that
+ * holds one user table's data plus all of its real metadata, none of which is
+ * allowed in the public main database:
  *
- * - `_alpine_table(id, name, table_name)` — this table's
- *   display name and SQLite identifier (singleton row).
- * - `_alpine_fields` / `_alpine_views` / `_alpine_view_fields`
- *   — the table's columns and grid-view layout.
+ * - `_alpine_table(id, name, table_name)` — this table's display name and SQLite
+ *   identifier (singleton row).
+ * - `_alpine_fields` / `_alpine_views` / `_alpine_view_fields` — the table's
+ *   columns and grid-view layout.
  *
- * The data table itself is created by the `createTable`
- * action, not here.
+ * The data table itself is created by the `createTable` action, not here.
  */
 export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
     function migration1(db: Database, tableId: DatabaseTableId): void {
-        // `REFERENCES` parent tables stay unqualified — SQLite
-        // resolves a foreign key's parent within the same
-        // database as the child. Index names carry the schema;
-        // their `ON` table stays unqualified (resolved within
-        // that schema).
+        // `REFERENCES` parent tables stay unqualified — SQLite resolves a foreign key's
+        // parent within the same database as the child. Index names carry the schema;
+        // their `ON` table stays unqualified (resolved within that schema).
         sql`
             CREATE TABLE ${sql.tableRef(tableId, "_alpine_table")} (
                 id TEXT PRIMARY KEY,
@@ -128,9 +121,8 @@ export const tableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
 ];
 
 /**
- * Runs any pending {@link mainSqliteMigrations} against the
- * main database. Uses `PRAGMA user_version` to track which
- * migrations have already been applied.
+ * Runs any pending {@link mainSqliteMigrations} against the main database. Uses
+ * `PRAGMA user_version` to track which migrations have already been applied.
  */
 export function runMainMigrations(db: Database): void {
     const version = sql`PRAGMA user_version`.selectValue(db, Schema.integer);
@@ -152,12 +144,12 @@ export function runMainMigrations(db: Database): void {
 }
 
 /**
- * Runs any pending {@link tableSqliteMigrations} against
- * `tableId`'s `ATTACH`-ed per-table database. Tracks progress
- * with that schema's own `PRAGMA "_{tableId}".user_version`.
+ * Runs any pending {@link tableSqliteMigrations} against `tableId`'s `ATTACH`-ed
+ * per-table database. Tracks progress with that schema's own
+ * `PRAGMA "_{tableId}".user_version`.
  *
- * Runs server-side only: the server is canonical for schema,
- * and clients trust the pages it syncs.
+ * Runs server-side only: the server is canonical for schema, and clients trust the
+ * pages it syncs.
  */
 export function runTableMigrations(db: Database, tableId: DatabaseTableId): void {
     const schema = sql.identifier(databaseTableSchemaName(tableId));
@@ -170,8 +162,8 @@ export function runTableMigrations(db: Database, tableId: DatabaseTableId): void
         tableSqliteMigrations[i]!(db, tableId);
     }
     if (version < tableSqliteMigrations.length) {
-        // PRAGMA values can't be bound, so the (trusted)
-        // migration count is inlined with `sql.raw`.
+        // PRAGMA values can't be bound, so the (trusted) migration count is inlined with
+        // `sql.raw`.
         sql`
             PRAGMA ${schema}.user_version = ${sql.raw(String(tableSqliteMigrations.length))}
         `.exec(db);

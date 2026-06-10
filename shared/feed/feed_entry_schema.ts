@@ -3,15 +3,24 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     AccountId,
     ChannelId,
+    ChatId,
     DocumentId,
     PostId,
     TaskCollectionId,
+    TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 
 export type FeedEntryEvent = SchemaType<typeof FeedEntryEventSchema>;
 
 export const FeedEntryEventSchema = Schema.enum(["Created", "SharedWithAccessPolicyDefaultGrant"]);
+
+export const FeedTaskEntryEventSchema = Schema.enum([
+    "UpdatedToProjectLayout",
+    "SharedWithAccessPolicyDefaultGrant",
+    "SharedProjectLayoutWithInheritedAccessPolicyDefaultGrant",
+]);
 
 export type FeedEntry = SchemaType<typeof FeedEntrySchema>;
 
@@ -28,9 +37,9 @@ export const FeedEntrySchema = Schema.union({
     }),
 
     /**
-     * Whenever a post is created, whether it is in a private channel or not, we
-     * create a feed entry. When calculating an account's feed we load the post to
-     * see if the account has access to the post.
+     * Whenever a post is created, whether it is in a private channel or not, we create
+     * a feed entry. When calculating an account's feed we load the post to see if the
+     * account has access to the post.
      */
     Post: Schema.object({
         type: Schema.value("Post"),
@@ -41,8 +50,8 @@ export const FeedEntrySchema = Schema.union({
     }),
 
     /**
-     * We add a feed entry for documents when they're shared with the space.
-     * The feed entry says "X shared a document".
+     * We add a feed entry for documents when they're shared with the space. The feed
+     * entry says "X shared a document".
      */
     Document: Schema.object({
         type: Schema.value("Document"),
@@ -62,19 +71,45 @@ export const FeedEntrySchema = Schema.union({
         })
             .wrapOriginalPropertyInObject("id", {from: null})
             .originalPropertyKey("creatorId"),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedEntryEventSchema,
     }),
 
     /**
-     * We add a feed entry for task collections when they're shared with the space.
-     * The feed entry says "X shared a task collection".
+     * We add a feed entry for tasks when they're shared with the space. The feed entry
+     * says "X shared a task".
+     */
+    Task: Schema.object({
+        type: Schema.value("Task"),
+        taskId: Schema.id<TaskId>(),
+        sharedTime: Schema.date,
+        sharerId: Schema.id<AccountId>(),
+        creator: Schema.object({
+            id: Schema.id<AccountId>().nullable(),
+            from: TaskCreatorFromSchema.nullable().default(null),
+        })
+            .wrapOriginalPropertyInObject("id", {from: null})
+            .originalPropertyKey("creatorId"),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
+        event: FeedTaskEntryEventSchema,
+    }),
+
+    /**
+     * We add a feed entry for task collections when they're shared with the space. The
+     * feed entry says "X shared a task collection".
      */
     TaskCollection: Schema.object({
         type: Schema.value("TaskCollection"),
         collectionId: Schema.id<TaskCollectionId>(),
         sharedTime: Schema.date,
         sharerId: Schema.id<AccountId>(),
-        creatorId: Schema.id<AccountId>().nullable(),
+        creator: Schema.object({
+            id: Schema.id<AccountId>().nullable(),
+            from: TaskCreatorFromSchema.nullable().default(null),
+        })
+            .wrapOriginalPropertyInObject("id", {from: null})
+            .originalPropertyKey("creatorId"),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedEntryEventSchema,
     }),
 
@@ -91,6 +126,24 @@ export const FeedEntrySchema = Schema.union({
         sharedTime: Schema.date,
         sharerId: Schema.id<AccountId>(),
         creatorId: Schema.id<AccountId>().nullable(),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
+        event: FeedEntryEventSchema,
+    }),
+
+    /**
+     * We add a feed entry for chat rooms when they're created (if they're public) or
+     * when they're shared with the space (if they're private).
+     *
+     * The feed entry says either "X created a chat room" or "X shared a chat room"
+     * depending on the event that created the feed entry.
+     */
+    RoomChat: Schema.object({
+        type: Schema.value("RoomChat"),
+        chatId: Schema.id<ChatId>(),
+        sharedTime: Schema.date,
+        sharerId: Schema.id<AccountId>(),
+        creatorId: Schema.id<AccountId>().nullable(),
+        excludeFromCreatorFeed: Schema.boolean.optional(),
         event: FeedEntryEventSchema,
     }),
 });
@@ -102,7 +155,9 @@ export function getFeedEntryTime(entry: FeedEntry): Date {
         case "Post":
             return entry.createdTime;
         case "Channel":
+        case "RoomChat":
         case "Document":
+        case "Task":
         case "TaskCollection":
             return entry.sharedTime;
         default:

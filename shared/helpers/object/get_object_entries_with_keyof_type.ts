@@ -5,8 +5,7 @@
  * - Do not need to include every key in the object
  * - May include non-own keys (keys from a prototype of the object)
  *
- * Use this only if you know the TypeScript type declares all keys of the
- * object.
+ * Use this only if you know the TypeScript type declares all keys of the object.
  */
 export const getObjectEntriesWithKeyofType = Object.entries as <
     Key extends string | number,

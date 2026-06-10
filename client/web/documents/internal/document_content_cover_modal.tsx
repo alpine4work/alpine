@@ -13,21 +13,14 @@ import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
 } from "~/client/web/design/navigation_bar_helpers.js";
+import {useAlignFontBaselines} from "~/client/web/design/use_align_font_baselines.js";
 import {NavigationBarContent} from "~/client/web/navigation/navigation_bar_content.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {
     searchModalMaxHeight,
     searchModalMaxWidth,
 } from "~/client/web/styles/search_shared_styles.js";
-import {
-    backgroundFontSizePercentage,
-    buttonStyles,
-    colorSchemeVars,
-    sprinkles,
-} from "~/client/web/styles/styles.js";
-import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {buttonStyles, colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
@@ -77,8 +70,8 @@ function DocumentContentCoverBlobsArtOption({
             >
                 <Box
                     // Render a border using an absolutely positioned `<div>` instead of using
-                    // `elevation-5-with-grey-10-border` because we need the border to render on top
-                    // of UI in the `<BlobsArt>`.
+                    // `elevation-5-with-grey-10-border` because we need the border to render on top of
+                    // UI in the `<BlobsArt>`.
                     position="absolute"
                     inset="0"
                     zIndex="60"
@@ -128,7 +121,8 @@ type BlobCoverOptionsType = Array<NonNullable<DocumentContentCover>>;
 
 // We only use a subset of the theme colors to avoid colors that look too close.
 const colorOptions: Array<ThemeColor> = ["red", "yellow", "orange", "green", "blue", "purple"];
-// Most hue spreads are pretty tame, but usually show one with a much larger spread.
+// Most hue spreads are pretty tame, but usually show one with a much larger
+// spread.
 const hueSpreadOptions = [10, 15, 20, 25, 30, 45, 80];
 
 function createOptions(
@@ -185,8 +179,8 @@ export function DocumentContentCoverModal({
         currentlySetDocumentContentCover ? 0 : null,
     );
 
-    // Keep a ref to the selected blob option so we can use it without running
-    // effects on change.
+    // Keep a ref to the selected blob option so we can use it without running effects
+    // on change.
     const selectedBlobOptionRef = useRef<typeof selectedBlobOption>(selectedBlobOption);
     useEffect(() => {
         selectedBlobOptionRef.current = selectedBlobOption;
@@ -346,36 +340,14 @@ function DocumentContentCoverModalDesktopView({
     onRefresh: () => void;
     onClose: () => void;
 }) {
-    const spacingScale = useSpacingScale();
-
     const titleId = useId();
 
     const titleFontSize = "300";
 
-    // We want to baseline align our `fontSize="300"` title with our
-    // centered `fontSize="75"` remove cover button. Calculate
-    // the offset for center aligned `fontSize="300"` using font metrics.
-    const buttonBaselineAlignmentMarginTop = useMemo(() => {
-        const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
-
-        const fontSize75Descender =
-            fontSize75.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
-
-        const fontSize300 = fontSizesBySpacingScale[titleFontSize][spacingScale];
-
-        const fontSize300Descender =
-            fontSize300.fontSize *
-            (backgroundFontSizePercentage - 1) *
-            (interFontDescender / (interFontAscender + interFontDescender));
-
-        const fontSize300BottomHalfHeight = fontSize300Descender + fontSize300.fontSize / 2;
-
-        return -1 * (-fontSize300BottomHalfHeight + fontSize75BottomHalfHeight);
-    }, [spacingScale]);
+    // We want to baseline align our `fontSize="300"` title with our centered
+    // `fontSize="75"` remove cover button. Calculate the offset for center aligned
+    // `fontSize="300"` using font metrics.
+    const buttonBaselineAlignmentMarginTop = useAlignFontBaselines(titleFontSize, "75");
 
     return (
         <Modal

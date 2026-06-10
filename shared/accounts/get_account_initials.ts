@@ -3,14 +3,14 @@ import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_ac
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 
 export function getAccountInitials(accountData: AccountModelWithoutSpaceData) {
-    // TODO(calebmer): If we ever support eastern name order of family name first
-    // then given name, the initials should preserve that order. We shouldn't put
-    // the given name initial first.
+    // TODO(calebmer): If we ever support eastern name order of family name first then
+    // given name, the initials should preserve that order. We shouldn't put the given
+    // name initial first.
     const {givenName, familyName} = parseAccountNameAssumingWesternNameOrder(accountData.name);
 
     // We use iterators instead of indexing into the name because iterators give us
-    // full Unicode unicode code points. This means grapheme clusters will be
-    // split, but surrogate pairs will be preserved.
+    // full Unicode unicode code points. This means grapheme clusters will be split,
+    // but surrogate pairs will be preserved.
     //
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/@@iterator
     const firstInitial: string = iterateGraphemes(givenName).next().value;

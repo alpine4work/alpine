@@ -36,6 +36,7 @@ export {TaskDetailNotesFieldForwardRef as TaskDetailNotesField};
 function TaskDetailNotesField(
     {
         taskId,
+        isWideProjectLayout,
         isReadOnly,
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
@@ -46,6 +47,7 @@ function TaskDetailNotesField(
         ensureCreateTask,
     }: {
         taskId: TaskId;
+        isWideProjectLayout: boolean;
         isReadOnly: boolean;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -112,7 +114,13 @@ function TaskDetailNotesField(
             </span>
             <FocusRing insetX={screenPaddingX[platform]} isVisibleWhenFocusWithin>
                 {isReadOnly ? (
-                    <Box className={tasksStyles.detailNotesContentEditorClassName}>
+                    <Box
+                        className={
+                            isWideProjectLayout
+                                ? tasksStyles.projectDetailNotesContentEditorClassName
+                                : tasksStyles.detailNotesContentEditorClassName
+                        }
+                    >
                         <ContentView
                             aria-labelledby={labelId}
                             content={state.editorState.getContent()}
@@ -129,12 +137,13 @@ function TaskDetailNotesField(
                             onChange={onNotesEditorStateChange}
                             placeholder="Add more details…"
                             fileAttachmentTarget={fileAttachmentTarget}
-                            // Mentioning a person is probably the last thing you want to do while working
-                            // on task notes since mentions won't send a notification when typing in
-                            // task notes.
+                            // Mentioning a person is probably the last thing you want to do while working on
+                            // task notes since mentions won't send a notification when typing in task notes.
                             mentionFloaterSectionOrder="SuggestedInsertPeople"
                             className={classNames(
-                                tasksStyles.detailNotesContentEditorClassName,
+                                isWideProjectLayout
+                                    ? tasksStyles.projectDetailNotesContentEditorClassName
+                                    : tasksStyles.detailNotesContentEditorClassName,
                                 sprinkles({paddingX: screenPaddingX}),
                             )}
                             onUndoStackEntryPushed={() => {

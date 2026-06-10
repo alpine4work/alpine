@@ -1,5 +1,4 @@
 import {Box} from "~/client/web/design/box.js";
-import {Spacer} from "~/client/web/design/spacer.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {SpaceSettingsRouteLayoutShimmer} from "~/client/web/shimmer/internal/space_settings_route_layout_shimmer.js";
@@ -15,15 +14,7 @@ export function SpacePeopleSettingsRouteShimmer() {
     );
 }
 
-function PeopleSpaceSettingsRowShimmer({
-    nameWidth,
-    isRemoved,
-    index,
-}: {
-    nameWidth: Spacing;
-    isRemoved?: boolean;
-    index?: number;
-}) {
+function PeopleSpaceSettingsRowShimmer({nameWidth, index}: {nameWidth: Spacing; index?: number}) {
     return (
         <Box
             height="14"
@@ -43,7 +34,7 @@ function PeopleSpaceSettingsRowShimmer({
             <TextShimmer fontSize="100" width={nameWidth} />
             <Box flexGrow="1" />
 
-            <TextShimmer fontSize="100" width={isRemoved ? "28" : "16"} />
+            <TextShimmer fontSize="100" width="16" />
         </Box>
     );
 }
@@ -79,19 +70,6 @@ function PeopleSpaceSettingsRouteShimmerContent() {
             <PeopleSpaceSettingsRowShimmer nameWidth="32" />
             <PeopleSpaceSettingsRowShimmer nameWidth="24" />
             <PeopleSpaceSettingsRowShimmer nameWidth="12" />
-            <PeopleSpaceSettingsRowShimmer nameWidth="28" />
-
-            <Spacer space="10" />
-            <TextShimmer fontSize="200" width="48" ragRight="12" />
-            <Box color="grey-60" userSelect="text" paddingTop="1" paddingBottom="6">
-                {renderDescriptionShimmer(540)}
-            </Box>
-
-            <PeopleSpaceSettingsRowShimmer isRemoved index={0} nameWidth="24" />
-            <PeopleSpaceSettingsRowShimmer isRemoved nameWidth="28" />
-            <PeopleSpaceSettingsRowShimmer isRemoved nameWidth="24" />
-            <PeopleSpaceSettingsRowShimmer isRemoved nameWidth="12" />
-            <PeopleSpaceSettingsRowShimmer isRemoved nameWidth="28" />
         </Box>
     );
 }

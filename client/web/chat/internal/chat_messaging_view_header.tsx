@@ -63,13 +63,13 @@ export function ChatMessagingViewHeader({
             viewHeight - (originalContentHeight - keyboardSafeAreaBottom - originalHeight),
         );
 
-        // Directly update the height style without scheduling another React render.
-        // React should never override this style since from React's perspective the
-        // height is always `chatMessagingViewHeaderMinHeight`.
+        // Directly update the height style without scheduling another React render. React
+        // should never override this style since from React's perspective the height is
+        // always `chatMessagingViewHeaderMinHeight`.
         //
-        // It's important we directly update the DOM instead of scheduling another
-        // render so that other hooks like `useScrollToNewMessages()` that run in the
-        // same render will read the correct height.
+        // It's important we directly update the DOM instead of scheduling another render
+        // so that other hooks like `useScrollToNewMessages()` that run in the same render
+        // will read the correct height.
         if (height !== element.clientHeight) {
             element.style.height = `${height}px`;
         }
@@ -85,10 +85,10 @@ export function ChatMessagingViewHeader({
         <div
             ref={useMergedRefs(internalRef, externalRef)}
             style={{
-                // NOTE(calebmer): On initial render we don't know the view height so this
-                // header won't push other messages down. So you end up with a flash when
-                // server-rendering a chat with few messages where messages jump down. A flash
-                // we choose to accept since correct implementations are annoying.
+                // NOTE(calebmer): On initial render we don't know the view height so this header
+                // won't push other messages down. So you end up with a flash when server-rendering
+                // a chat with few messages where messages jump down. A flash we choose to accept
+                // since correct implementations are annoying.
                 ...(shouldRenderWithRelativePositioning
                     ? {position: "relative", height: chatMessagingViewHeaderMinHeight}
                     : {

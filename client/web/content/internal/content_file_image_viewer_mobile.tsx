@@ -22,13 +22,13 @@ import {
     hammerModulePromise,
     maxContentFileImageViewerMobilePreviewSize,
 } from "~/client/web/content/internal/load_content_file_viewer_data.js";
-import {getFilePreviewSize} from "~/client/web/content/state/content_file_layout_computations.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
+import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
@@ -100,24 +100,23 @@ export function ContentFileImageViewerMobile({
         );
     }
 
-    // TODO(calebmer): Support viewing large files. It's very frustrating but
-    // WebKit grinds to a halt when trying to render a large file. Some ideas on
-    // solutions:
+    // TODO(calebmer): Support viewing large files. It's very frustrating but WebKit
+    // grinds to a halt when trying to render a large file. Some ideas on solutions:
     //
     // 1. Virtualize the image. Render the image in chunks, any chunks offscreen we
     //    don't render. When zoomed out we use a resized image WebKit can render.
     //
-    // 2. Implement the image viewer natively. We can render a native view on top
-    //    of our web view that can render large images effectively. This would also
-    //    be nice since we can implement smoother zoom/pan gestures than trying to
+    // 2. Implement the image viewer natively. We can render a native view on top of
+    //    our web view that can render large images effectively. This would also be
+    //    nice since we can implement smoother zoom/pan gestures than trying to
     //    implement them in JavaScript.
     //
     // 2 is likely the best solution.
     if (
         file.preview.size.width * file.preview.size.height >=
             maxContentFileImageViewerMobilePreviewSize &&
-        // If zooming is disabled we're ok showing the image at a scaled down size
-        // which fits in the viewer.
+        // If zooming is disabled we're ok showing the image at a scaled down size which
+        // fits in the viewer.
         !withoutZoom
     ) {
         return (
@@ -356,9 +355,9 @@ function ContentFileImageMobileViewerInner({
 
     const setErrorState = useErrorState();
 
-    // Use `hammerjs` to manage pinch to zoom. `hammerjs` is a little dated: You
-    // have to access it through a global and you can't import `hammerjs` on the
-    // server. But it's very popular and gets the job done so we use it.
+    // Use `hammerjs` to manage pinch to zoom. `hammerjs` is a little dated: You have
+    // to access it through a global and you can't import `hammerjs` on the server. But
+    // it's very popular and gets the job done so we use it.
     useEffect(() => {
         if (withoutZoom) return;
 
@@ -398,9 +397,8 @@ function ContentFileImageMobileViewerInner({
                                 break;
                             }
                             case "pan": {
-                                // NOTE(calebmer): I've found sometimes `hammerjs` emits a pan event right
-                                // after a pinch with a nonsensical translation. Ignore pans right after
-                                // pinches.
+                                // NOTE(calebmer): I've found sometimes `hammerjs` emits a pan event right after a
+                                // pinch with a nonsensical translation. Ignore pans right after pinches.
                                 if (hasPinchRecentlyFinished) return;
 
                                 const eventDeltaX = event.deltaX;
@@ -428,9 +426,8 @@ function ContentFileImageMobileViewerInner({
                                 break;
                             }
                             case "panend": {
-                                // NOTE(calebmer): I've found sometimes `hammerjs` emits a pan event right
-                                // after a pinch with a nonsensical translation. Ignore pans right after
-                                // pinches.
+                                // NOTE(calebmer): I've found sometimes `hammerjs` emits a pan event right after a
+                                // pinch with a nonsensical translation. Ignore pans right after pinches.
                                 if (hasPinchRecentlyFinished) return;
 
                                 setTransformStates(transformStates => ({
@@ -540,9 +537,9 @@ function ContentFileImageMobileViewerInner({
         // eslint-disable-next-line react-compiler/react-compiler
         imageContentElement.className = contentStyles.fileImagePreviewContentClassName;
 
-        // Re-enable `-webkit-touch-callout` for this preview image. So the user can
-        // save and share on a long press. In order for touch callouts to work we also
-        // need to make sure `pointer-events` is not `none`.
+        // Re-enable `-webkit-touch-callout` for this preview image. So the user can save
+        // and share on a long press. In order for touch callouts to work we also need to
+        // make sure `pointer-events` is not `none`.
         imageContentElement.style.pointerEvents = "auto";
         (imageContentElement.style as any).webkitTouchCallout = "default";
 
@@ -563,10 +560,9 @@ function ContentFileImageMobileViewerInner({
 
         imageElement.appendChild(imageContentElement);
 
-        // Wait for the browser to paint before calling `setIsLoaded(true)`. That way
-        // the CSS transition will perform the CSS cross fade animation correctly.
-        // `isLoaded` will already be true if the image was loaded when our component
-        // mounted.
+        // Wait for the browser to paint before calling `setIsLoaded(true)`. That way the
+        // CSS transition will perform the CSS cross fade animation correctly. `isLoaded`
+        // will already be true if the image was loaded when our component mounted.
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 setIsLoaded(true);
@@ -612,11 +608,12 @@ function ContentFileImageMobileViewerInner({
                     height: fileSize.height,
                     transform,
                     willChange: "transform",
-                    // I've seen this style recommended a couple places on the internet when
-                    // dealing with CSS transforms and images. Not quite sure why we want it but
-                    // here it is anyway.
+                    // I've seen this style recommended a couple places on the internet when dealing
+                    // with CSS transforms and images. Not quite sure why we want it but here it is
+                    // anyway.
                     //
-                    // e.g. https://stackoverflow.com/questions/22269759/how-to-prevent-a-background-image-flickering-on-change
+                    // e.g.
+                    // https://stackoverflow.com/questions/22269759/how-to-prevent-a-background-image-flickering-on-change
                     backfaceVisibility: "hidden",
                     WebkitBackfaceVisibility: "hidden",
                 }}
@@ -633,17 +630,20 @@ function ContentFileImageMobileViewerInner({
                                 aria-hidden={true}
                                 draggable={false}
                                 src={convertSvgToDataUrl(
-                                    renderFileImagePreviewPlaceholder(filePreviewPlaceholder),
+                                    renderFileImagePreviewPlaceholder(
+                                        fileSize,
+                                        filePreviewPlaceholder,
+                                    ),
                                 )}
                             />
                         ),
-                    [filePreviewPlaceholder, fileSize.height, fileSize.width, isLoadedAndAnimated],
+                    [filePreviewPlaceholder, fileSize, isLoadedAndAnimated],
                 )}
             </div>
             {withoutZoom && extraChildrenForVideo && (
-                // We need to render `extraChildrenForVideo` outside of the image `<div>` since
-                // the image `<div>` will be scaled down. We don't want our video controls to be
-                // scaled down.
+                // We need to render `extraChildrenForVideo` outside of the image `<div>` since the
+                // image `<div>` will be scaled down. We don't want our video controls to be scaled
+                // down.
                 <div
                     className={sprinkles({
                         zIndex: "10",

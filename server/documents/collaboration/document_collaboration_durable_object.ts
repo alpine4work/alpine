@@ -20,38 +20,54 @@ import {
     hasAccessLevel,
     isAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
-import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentCollaborationProtocol,
+    DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
+    DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
+} from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    DocumentContent,
+    DocumentContentProsemirrorSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
-import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {
+    AccountId,
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type DocumentCollaborationDurableObjectRoute =
     | {type: "Main"; accessLevel: AccessLevel | null}
     | {type: "NotFound"}
-    | {type: "BroadcastSpellCheckRealtimeEventTransaction"}
+    | {type: "BroadcastSpellCheckRealtimeEvents"}
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
-    // TODO(calebmer, #document-collaboration-access-level-refactor): Remove these
-    // routes once clients are all connecting to the `WebSocket` route.
-    | {type: "WithoutComments"};
+    | {type: "UpdateContentWithDiff"}
+    | {type: "UpdateContentWithoutOptimisticBroadcast"}
+    | {type: "ResetForTest"};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -59,6 +75,7 @@ class DocumentCollaborationDurableObject {
     private readonly _processContext: WorkerProcessContext;
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
+    public readonly _creatorId: AccountId | null;
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _destroyCallback: () => void;
 
@@ -86,7 +103,7 @@ class DocumentCollaborationDurableObject {
     }): Promise<DocumentCollaborationDurableObject> {
         const documentId = Schema.id<DocumentId>().deserialize(idName);
 
-        const {spaceId, version, content} =
+        const {spaceId, version, content, creatorId} =
             await getDocumentContentForCollaborationServiceInitialization(initializeActionContext, {
                 documentId,
             });
@@ -95,6 +112,7 @@ class DocumentCollaborationDurableObject {
             processContext,
             spaceId: spaceId,
             id: documentId,
+            creatorId,
             initialVersion: version,
             initialContent: content,
             destroy,
@@ -105,6 +123,7 @@ class DocumentCollaborationDurableObject {
         processContext,
         spaceId,
         id,
+        creatorId,
         initialVersion,
         initialContent,
         destroy,
@@ -112,6 +131,7 @@ class DocumentCollaborationDurableObject {
         processContext: WorkerProcessContext;
         spaceId: SpaceId;
         id: DocumentId;
+        creatorId: AccountId | null;
         initialVersion: number;
         initialContent: DocumentContent;
         destroy: () => void;
@@ -124,6 +144,7 @@ class DocumentCollaborationDurableObject {
         this._processContext = processContext;
         this.spaceId = spaceId;
         this.id = id;
+        this._creatorId = creatorId;
         this._contentManager = new DocumentCollaborationContentManager({
             spaceId,
             id,
@@ -176,9 +197,9 @@ class DocumentCollaborationDurableObject {
 
                                 if (!otherWebSocketServer.hasConnections()) continue;
 
-                                // If this WebSocket server has comment access but the other doesn't then strip
-                                // any comments from the event before sending it to peer WebSockets of
-                                // different access levels.
+                                // If this WebSocket server has comment access but the other doesn't then strip any
+                                // comments from the event before sending it to peer WebSockets of different access
+                                // levels.
                                 if (
                                     hasAccessLevel(accessLevel, "Comment") &&
                                     !hasAccessLevel(otherAccessLevel, "Comment")
@@ -225,8 +246,6 @@ class DocumentCollaborationDurableObject {
             return ["/", {type: "Main", accessLevel}];
         }
 
-        if (url.pathname === "/view") return ["/view", {type: "WithoutComments"}];
-
         if (url.pathname.startsWith("/broadcast-new-message/")) {
             const commentThreadId = url.pathname.slice(23);
             if (isId<DocumentCommentThreadId>(commentThreadId)) {
@@ -257,10 +276,25 @@ class DocumentCollaborationDurableObject {
             }
         }
 
+        if (url.pathname === "/update-content-with-diff") {
+            return ["/update-content-with-diff", {type: "UpdateContentWithDiff"}];
+        }
+
+        if (url.pathname === "/update-content-without-optimistic-broadcast") {
+            return [
+                "/update-content-without-optimistic-broadcast",
+                {type: "UpdateContentWithoutOptimisticBroadcast"},
+            ];
+        }
+
+        if (url.pathname === "/reset-for-test") {
+            return ["/reset-for-test", {type: "ResetForTest"}];
+        }
+
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
             return [
                 "/broadcast-spell-check-realtime-event-transaction",
-                {type: "BroadcastSpellCheckRealtimeEventTransaction"},
+                {type: "BroadcastSpellCheckRealtimeEvents"},
             ];
         }
 
@@ -271,6 +305,7 @@ class DocumentCollaborationDurableObject {
         context: WorkerActionContext,
         request: Request,
         route: DocumentCollaborationDurableObjectRoute,
+        span: TracerSpan,
     ): Promise<Response> {
         // Propagate the document id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
@@ -282,15 +317,10 @@ class DocumentCollaborationDurableObject {
                 throw new NotFoundError("Route not found");
             }
             case "Main": {
-                // TODO(calebmer, #document-collaboration-access-level-refactor): Throw once
-                // clients are connecting with the right `AccessLevel`.
-                return this._webSocketServerByAccessLevel[route.accessLevel ?? "Comment"].upgrade(
-                    context.actor.authorizeSession(),
-                    request,
-                );
-            }
-            case "WithoutComments": {
-                return this._webSocketServerByAccessLevel.View.upgrade(
+                if (!route.accessLevel)
+                    throw new InvalidArgumentError("Invalid `access` search param");
+
+                return await this._webSocketServerByAccessLevel[route.accessLevel].upgrade(
                     context.actor.authorizeSession(),
                     request,
                 );
@@ -381,22 +411,156 @@ class DocumentCollaborationDurableObject {
 
                 return new Response(null, {status: 200});
             }
-            case "BroadcastSpellCheckRealtimeEventTransaction": {
-                const {eventTransaction} =
-                    SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
-                        await request.json(),
-                    );
+            case "BroadcastSpellCheckRealtimeEvents": {
+                const {events} = SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
+                    await request.json(),
+                );
 
                 for (const accessLevel of allAccessLevels) {
                     const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
 
                     webSocketServer.sendEventToAll(context, {
-                        type: "SpellCheckRealtimeEventTransaction",
-                        eventTransaction,
+                        type: "SpellCheckRealtimeEvents",
+                        events,
                     });
                 }
 
                 return new Response();
+            }
+            case "UpdateContentWithDiff": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                try {
+                    const accountContext = context.actor.authorizeAccount();
+
+                    const requestBody =
+                        DocumentCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
+                            await request.json(),
+                        );
+
+                    const oldContent = await this._contentManager.getContentAtVersion(
+                        accountContext,
+                        requestBody.version,
+                    );
+
+                    const requestContent = DocumentContentProsemirrorSchema.nodes.doc.create(
+                        // This method isn't currently allowed to update document attributes like
+                        // `AccessPolicy`.
+                        oldContent.attrs,
+                        requestBody.content,
+                    );
+
+                    const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+                    const {newVersion, newContent, persistencePromise} =
+                        await this._contentManager.update(accountContext, null, {
+                            version: requestBody.version,
+                            steps,
+                            clientId: generateId(),
+                            createCommentThreads: [],
+                            intentionallyUpdateAccessPolicy: null,
+                            updateOurPresenceState: {state: null},
+                        });
+
+                    // Wait for our update to actually persist before responding. This endpoint is
+                    // called by the API which provides read-after-write semantics to API clients.
+                    await persistencePromise;
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
+                                ok: true,
+                                spaceId: this.spaceId,
+                                creatorId: this._creatorId,
+                                newVersion,
+                                newContent,
+                            }),
+                        ),
+                        {
+                            status: 200,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                } catch (error) {
+                    span.addException(error);
+
+                    return new Response(
+                        JSON.stringify(
+                            DocumentCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
+                                ok: false,
+                                error,
+                            }),
+                        ),
+                        {
+                            status: isSystemError(error) ? 500 : 400,
+                            headers: {"content-type": "application/json"},
+                        },
+                    );
+                }
+            }
+            case "UpdateContentWithoutOptimisticBroadcast": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const accountContext = context.actor.authorizeAccount();
+
+                const requestBody =
+                    DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.inputSchema.deserialize(
+                        await request.json(),
+                    );
+
+                const {newVersion, getRynamoEventsForSite} =
+                    await this._contentManager.updateAndWaitForPersistence(
+                        accountContext,
+                        null,
+                        requestBody,
+                    );
+
+                const eventsForSite = await getRynamoEventsForSite();
+
+                return new Response(
+                    JSON.stringify(
+                        DocumentCollaborationProtocol.procedureSchemas.updateContentWithoutOptimisticBroadcast.outputSchema.serialize(
+                            {newVersion, eventsForSite},
+                        ),
+                    ),
+                    {status: 200},
+                );
+            }
+            case "ResetForTest": {
+                // Integration tests mutate document content directly in the database (e.g. adding
+                // a document to a site), which desyncs this durable object's authoritative
+                // in-memory version. Tests call this route to evict the durable object so the next
+                // request reinitializes it fresh from the database. In production the durable
+                // object is the sole writer, so this is never needed — gate it off there.
+                // (`process.env.NODE_ENV` is baked into the edge bundle at build time, so this is
+                // the standard non-production check in the edge service; it is never `"test"`
+                // here.)
+                //
+                // The alternative to this test-only route would be to route `TestDocument`'s
+                // content mutations through the durable object (like production does) so it never
+                // goes stale, instead of writing them straight to the database. That's a broader
+                // change to the test helpers, so we evict here instead.
+                assert(
+                    process.env.NODE_ENV !== "production",
+                    "The `/reset-for-test` route is not available in production",
+                );
+
+                this._destroy(context);
+
+                return new Response(JSON.stringify(null), {
+                    status: 200,
+                    headers: {"content-type": "application/json"},
+                });
             }
             default:
                 throw exhaustive(route);
@@ -443,9 +607,9 @@ function stripDocumentCollaborationEventComments(
     event: DocumentCollaborationEventStub,
 ): DocumentCollaborationEventStub | null {
     // Code style: Manually recreate the event objects so that we can be absolutely
-    // sure comment data isn't slipping into `eventWithoutComments`. Especially
-    // when we add new fields in the future, we want TypeScript to error and the
-    // developer to consider whether comment information needs to be stripped.
+    // sure comment data isn't slipping into `eventWithoutComments`. Especially when we
+    // add new fields in the future, we want TypeScript to error and the developer to
+    // consider whether comment information needs to be stripped.
     switch (event.type) {
         case "UpdateContentWithoutPersistence": {
             return {
@@ -482,7 +646,7 @@ function stripDocumentCollaborationEventComments(
         // Never send comment realtime events to view-only clients.
         case "Comments":
         // We don't show lints on view-only clients
-        case "SpellCheckRealtimeEventTransaction": {
+        case "SpellCheckRealtimeEvents": {
             return null;
         }
         default:

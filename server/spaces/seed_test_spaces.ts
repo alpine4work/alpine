@@ -44,8 +44,10 @@ export async function seedTestSpaces(
                 {
                     spaceId: defaultSpaceId,
                     accountId: adminAccountId,
-                    // make default space account as "Owner" since it is the first account in the space.
+                    // make default space account as "Owner" since it is the first account in the
+                    // space.
                     role: "Owner",
+                    inviterAccountId: null,
                 },
             );
         } catch (error) {

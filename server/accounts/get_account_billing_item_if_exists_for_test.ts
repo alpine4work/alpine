@@ -12,5 +12,5 @@ export async function getAccountBillingItemIfExistsForTest(
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountBillingItem | null> {
     assert(process.env.NODE_ENV === "test");
-    return getAccountBillingItemIfExists(context, accountId, {consistency});
+    return await getAccountBillingItemIfExists(context, accountId, {consistency});
 }

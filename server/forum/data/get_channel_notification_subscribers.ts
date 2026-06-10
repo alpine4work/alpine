@@ -12,15 +12,14 @@ import {AccountId, ChannelId} from "~/shared/id/types/id_types.js";
  * Get all subscribers to the channel.
  *
  * May return accounts that don't have access to the channel anymore. If you're
- * going to send a notification, you should filter down this list to accounts
- * that still have channel access.
+ * going to send a notification, you should filter down this list to accounts that
+ * still have channel access.
  *
- * For example, if you're added to the private channel then you subscribe to
- * the private chanel (we add a `Channel#Subscription` item) then you're
- * removed from the private channel we don't remove your
- * `Channel#Subscription` item. You'll be returned from this function and we
- * need to make sure you don't get a notification during notification event
- * processing.
+ * For example, if you're added to the private channel then you subscribe to the
+ * private chanel (we add a `Channel#Subscription` item) then you're removed from
+ * the private channel we don't remove your `Channel#Subscription` item. You'll be
+ * returned from this function and we need to make sure you don't get a
+ * notification during notification event processing.
  */
 export async function getChannelNotificationSubscribers(
     context: ServerSystemActionContext,
@@ -30,15 +29,15 @@ export async function getChannelNotificationSubscribers(
     // Double check that this is a system actor. Currently the list of channel
     // subscribers is private. We don't want there to be social pressure to never
     // unsubscribe from a channel because people can see whether or not you're
-    // subscribed (like there is in Slack, leaving a channel shows everyone a
-    // "Caleb left the channel" message).
+    // subscribed (like there is in Slack, leaving a channel shows everyone a "Caleb
+    // left the channel" message).
     context.actor.authorizeSystem();
 
     const channelItem = await getChannelPreviewItemForAuthorization(context, channelId, {
         consistency,
     });
 
-    await authorizeChannelItemAccess(context, channelItem, "View");
+    await authorizeChannelItemAccess(context, channelItem, "View", {consistency});
 
     const accountIds = await arrayFromAsyncIterable(
         mapAsyncIterableIterator(

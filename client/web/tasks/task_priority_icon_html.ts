@@ -1,5 +1,9 @@
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
-import {colorSchemeVars, pingAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
+import {
+    colorSchemeVars,
+    pingAnimationWithDelayClassName,
+    sprinkles,
+} from "~/client/web/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
@@ -32,8 +36,8 @@ export const taskPriorityIconUrgentCircleFillNotHighlightedClassName = sprinkles
 // IMPORTANT: If you update the HTML here you should also update
 // `<TaskPriorityIcon>` for code that renders priority icons in React.
 /**
- * Renders a task priority icon to an `HtmlGenerator` object. For rendering
- * icons in `<ContentEditor>` where we can't render React UI.
+ * Renders a task priority icon to an `HtmlGenerator` object. For rendering icons
+ * in `<ContentEditor>` where we can't render React UI.
  */
 export function renderTaskPriorityIcon({
     size,
@@ -89,14 +93,13 @@ export function renderTaskPriorityIcon({
 
     const sizeStyle = `width: ${spacing[size]}; height: ${spacing[size]}`;
 
-    // eslint-disable-next-line cyberworlds/string-quotes
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="${taskPriorityIconClassName}" style="${sizeStyle}"><rect x="23.5" y="5" width="2" height="22" rx="1" fill="${fillBar3 ? filledBarColor : unfilledBarColor}"/><rect x="15" y="10.5" width="2" height="16.5" rx="1" fill="${fillBar2 ? filledBarColor : unfilledBarColor}"/><rect x="6.5" y="16" width="2" height="11" rx="1" fill="${fillBar1 ? filledBarColor : unfilledBarColor}"/></svg>`;
 
     return createSvgHtmlGenerator(svg);
 }
 
-// Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation
-// mark bigger and duotone.
+// Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation mark
+// bigger and duotone.
 function renderTaskPriorityIconUrgent({
     size,
     shouldHighlightUrgent,
@@ -113,10 +116,9 @@ function renderTaskPriorityIconUrgent({
         const pingContainerHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
         pingContainerHtml.setAttribute(
             "class",
-            `${pingAnimationClassName} ${taskPriorityIconUrgentPingContainerClassName}`,
+            `${pingAnimationWithDelayClassName} ${taskPriorityIconUrgentPingContainerClassName}`,
         );
 
-        // eslint-disable-next-line cyberworlds/string-quotes
         const pingSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="${sizeStyle}"><circle cx="16" cy="16" r="13" fill="${colorSchemeVars["red-50-const"]}"/></svg>`;
         pingContainerHtml.appendChild(createSvgHtmlGenerator(pingSvg));
     }
@@ -125,7 +127,6 @@ function renderTaskPriorityIconUrgent({
         ? taskPriorityIconUrgentCircleFillHighlightedClassName
         : taskPriorityIconUrgentCircleFillNotHighlightedClassName;
 
-    // eslint-disable-next-line cyberworlds/string-quotes
     const mainSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="${sizeStyle}"><circle cx="16" cy="16" r="13" class="${circleClassName}"/><rect x="15" y="9" width="2" height="9" rx="1" fill="${colorSchemeVars["grey-0-const"]}"/><circle cx="16" cy="21.5" r="1.5" fill="${colorSchemeVars["grey-0-const"]}"/></svg>`;
     containerHtml.appendChild(createSvgHtmlGenerator(mainSvg));
 

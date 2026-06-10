@@ -21,12 +21,10 @@ export interface DatabaseServerPageChange {
 }
 
 /**
- * Per-table changed-page report. `pages` carries the
- * before/after images for each page touched in the batch;
- * `fileSizeInPages` is the post-drain canonical SQLite file
- * size for this table — sent alongside the diffs so clients
- * can extend or truncate their cache atomically with the
- * page writes.
+ * Per-table changed-page report. `pages` carries the before/after images for each
+ * page touched in the batch; `fileSizeInPages` is the post-drain canonical SQLite
+ * file size for this table — sent alongside the diffs so clients can extend or
+ * truncate their cache atomically with the page writes.
  */
 export interface DatabaseServerTableChangedPages {
     pages: Map<number, DatabaseServerPageChange>;
@@ -47,18 +45,15 @@ export interface DatabaseServerResult {
 }
 
 /**
- * Canonical SQLite database backed by a
- * {@link DatabaseServerStorage} implementation.
+ * Canonical SQLite database backed by a {@link DatabaseServerStorage}
+ * implementation.
  *
- * Wraps a {@link Database}: SQL execution, page tracking,
- * authorization, and the in-memory write buffer all live
- * there. The server's job is to glue that buffer to durable
- * storage — every {@link execute}/{@link executeAction}
- * call captures pre-mutation page snapshots, drains the
- * buffer to {@link DatabaseServerStorage}, and surfaces
- * `readPages` (with full page data + version) and
- * `changedPages` (before/after, partitioned by table) for
- * the realtime layer to broadcast.
+ * Wraps a {@link Database}: SQL execution, page tracking, authorization, and the
+ * in-memory write buffer all live there. The server's job is to glue that buffer
+ * to durable storage — every {@link execute}/{@link executeAction} call captures
+ * pre-mutation page snapshots, drains the buffer to {@link DatabaseServerStorage},
+ * and surfaces `readPages` (with full page data + version) and `changedPages`
+ * (before/after, partitioned by table) for the realtime layer to broadcast.
  */
 export class DatabaseServer {
     private readonly database: Database;
@@ -105,13 +100,11 @@ export class DatabaseServer {
     }
 
     /**
-     * Test-only: drain any buffered writes accumulated by
-     * direct {@link unsafeGetDbForTests} use to durable
-     * storage. Production paths drain automatically as part
-     * of {@link execute}/{@link executeAction}; tests that
-     * write through the raw handle and then inspect
-     * `storage` directly need this to materialize the
-     * writes first.
+     * Test-only: drain any buffered writes accumulated by direct {@link
+     * unsafeGetDbForTests} use to durable storage. Production paths drain
+     * automatically as part of {@link execute}/{@link executeAction}; tests that write
+     * through the raw handle and then inspect `storage` directly need this to
+     * materialize the writes first.
      */
     commitBufferForTests(): void {
         assert(import.meta.jest);
@@ -121,19 +114,17 @@ export class DatabaseServer {
     // -- Internal -----------------------------------------------------------
 
     private _bootstrap(): void {
-        // Bootstrap runs as one privileged "execute" so its
-        // writes flow through the buffer like any other
-        // action; we drain to storage immediately after.
-        // ATTACH is legal mid-execute (no explicit
-        // transaction is open), so we can attach + migrate
-        // every per-table file inline.
+        // Bootstrap runs as one privileged "execute" so its writes flow through the buffer
+        // like any other action; we drain to storage immediately after. ATTACH is legal
+        // mid-execute (no explicit transaction is open), so we can attach + migrate every
+        // per-table file inline.
         this.database.execute(
             db => {
                 db.exec("PRAGMA quick_check");
                 runMainMigrations(db);
 
-                // Attach + migrate each existing table's per-db
-                // file so its data and metadata are reachable.
+                // Attach + migrate each existing table's per-db file so its data and metadata are
+                // reachable.
                 const tableIds = sql`
                     SELECT
                         id
@@ -155,20 +146,17 @@ export class DatabaseServer {
         readPages: DatabaseServerReadPages;
         changedPages: DatabaseServerChangedPages;
     } {
-        // The error path below clears the buffer to recover
-        // from a partial write; assert up front that we're
-        // not silently throwing away pre-existing buffered
-        // writes belonging to a prior (forgotten) drain.
+        // The error path below clears the buffer to recover from a partial write; assert
+        // up front that we're not silently throwing away pre-existing buffered writes
+        // belonging to a prior (forgotten) drain.
         this.database.assertBufferIsEmpty("_runAndPersist");
         try {
             const {result, readPages} = run();
             return this._persistAndBuildResult(result, readPages);
         } catch (error) {
-            // Drop any partial buffered writes — whether the
-            // tracked execute or the drain failed — so storage
-            // and SQLite's pager cache stay in sync and the
-            // next execute starts from an empty buffer.
-            // `discardBuffer` is a safe no-op if the drain
+            // Drop any partial buffered writes — whether the tracked execute or the drain
+            // failed — so storage and SQLite's pager cache stay in sync and the next execute
+            // starts from an empty buffer. `discardBuffer` is a safe no-op if the drain
             // already committed.
             this.database.discardBuffer();
             throw error;
@@ -185,21 +173,17 @@ export class DatabaseServer {
     } {
         const buffered = this.database.getBufferedWrites();
 
-        // Capture the pre-mutation `before` image for every
-        // buffered page from storage *before* draining.
+        // Capture the pre-mutation `before` image for every buffered page from storage
+        // _before_ draining.
         //
-        // `changedPages` is built from `buffered.pages` only,
-        // so a table with a buffered truncate but no buffered
-        // page write would be dropped from the realtime
-        // broadcast (its shrunk `fileSizeInPages` never sent).
-        // That can't happen today: SQLite rewrites a low page
-        // (the header / change counter) on every transaction
-        // that also truncates, so every truncated table also
-        // has a buffered page write. Assert that invariant
-        // rather than handle a truncate-only table that no SQL
-        // path can currently produce — if this ever fires, the
-        // build-from-`pages`-only logic below needs to fold in
-        // `buffered.truncates` too.
+        // `changedPages` is built from `buffered.pages` only, so a table with a buffered
+        // truncate but no buffered page write would be dropped from the realtime broadcast
+        // (its shrunk `fileSizeInPages` never sent). That can't happen today: SQLite
+        // rewrites a low page (the header / change counter) on every transaction that also
+        // truncates, so every truncated table also has a buffered page write. Assert that
+        // invariant rather than handle a truncate-only table that no SQL path can
+        // currently produce — if this ever fires, the build-from-`pages`-only logic below
+        // needs to fold in `buffered.truncates` too.
         const changedPages: DatabaseServerChangedPages = new Map();
         if (buffered !== null) {
             for (const tableId of buffered.truncates.keys()) {
@@ -218,10 +202,8 @@ export class DatabaseServer {
                         after: new Uint8Array(after),
                     });
                 }
-                // `fileSizesInPages` already reflects the
-                // post-drain logical size (Database folds in
-                // buffered truncates + max page index), so
-                // we can stamp it in pre-drain.
+                // `fileSizesInPages` already reflects the post-drain logical size (Database folds
+                // in buffered truncates + max page index), so we can stamp it in pre-drain.
                 const fileSizeInPages = buffered.fileSizesInPages.get(tableId);
                 assert(
                     fileSizeInPages !== undefined,
@@ -233,11 +215,9 @@ export class DatabaseServer {
 
         const postWriteVersion = this._persistBuffer();
 
-        // Build the readPages map with full page data +
-        // version per table. For pages that were just
-        // written, use the after-image plus the freshly-
-        // assigned write version; for the rest, fetch from
-        // storage.
+        // Build the readPages map with full page data + version per table. For pages that
+        // were just written, use the after-image plus the freshly- assigned write version;
+        // for the rest, fetch from storage.
         const readPages: DatabaseServerReadPages = new Map();
         for (const [tableId, indexes] of readPagesSet) {
             const tableMap = new Map<number, {data: Uint8Array; version: number}>();
@@ -251,15 +231,12 @@ export class DatabaseServer {
                     });
                 } else {
                     const page = this.storage.readPage(tableId, pageIndex);
-                    // A read page that reads back `null` post-drain
-                    // was truncated away by this same batch: the VFS
-                    // only adds a page to the read set when the read
-                    // returned real data, so `null` here means the
-                    // batch's truncate tombstoned it. The server
-                    // considers it gone — omit it rather than
-                    // fabricating a zero-filled, version-0 page for
-                    // an index past the new end of file. Clients
-                    // learn of the shrink via `fileSizeInPages`.
+                    // A read page that reads back `null` post-drain was truncated away by this same
+                    // batch: the VFS only adds a page to the read set when the read returned real
+                    // data, so `null` here means the batch's truncate tombstoned it. The server
+                    // considers it gone — omit it rather than fabricating a zero-filled, version-0
+                    // page for an index past the new end of file. Clients learn of the shrink via
+                    // `fileSizeInPages`.
                     if (page === null) continue;
                     tableMap.set(pageIndex, {
                         data: new Uint8Array(page.data),
@@ -270,10 +247,9 @@ export class DatabaseServer {
             readPages.set(tableId, tableMap);
         }
 
-        // The realtime layer pulls the version for each
-        // changed page out of `readPages`, so make sure
-        // every changed page is represented there even if
-        // SQLite never read it back during execution.
+        // The realtime layer pulls the version for each changed page out of `readPages`,
+        // so make sure every changed page is represented there even if SQLite never read
+        // it back during execution.
         for (const [tableId, entry] of changedPages) {
             let tableMap = readPages.get(tableId);
             if (tableMap === undefined) {
@@ -294,9 +270,8 @@ export class DatabaseServer {
     }
 
     /**
-     * Drain the buffer's truncates and page writes into
-     * durable storage and clear it. Returns the version
-     * stamped on the batch (0 if the buffer was empty).
+     * Drain the buffer's truncates and page writes into durable storage and clear it.
+     * Returns the version stamped on the batch (0 if the buffer was empty).
      */
     private _persistBuffer(): number {
         const buffered = this.database.getBufferedWrites();

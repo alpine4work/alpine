@@ -462,8 +462,8 @@ function TaskQueryFilterDateOperationEditorDurationCount({
     const setStateAndUpdateCount = (newState: typeof state) => {
         setState(newState);
 
-        // Update our local component state and the page number in the same
-        // React commit. Instead of an effect which would be two commits.
+        // Update our local component state and the page number in the same React commit.
+        // Instead of an effect which would be two commits.
         updateCount(newState);
     };
 
@@ -531,8 +531,8 @@ function TaskQueryFilterDateOperationEditorDurationCount({
                         }
                     }}
                     onBlur={() => {
-                        // When the user blurs, update our page if it's a valid page number. If the
-                        // user types "15" we don't update the page as they type, only when they blur.
+                        // When the user blurs, update our page if it's a valid page number. If the user
+                        // types "15" we don't update the page as they type, only when they blur.
                         if (state.isFocused) {
                             updateCount(state);
                             setState({isFocused: false});
@@ -544,8 +544,8 @@ function TaskQueryFilterDateOperationEditorDurationCount({
                                 event.preventDefault();
                                 event.stopPropagation();
 
-                                // If the user hits enter, update our page. If they're typing "15" then this
-                                // will jump to page 15.
+                                // If the user hits enter, update our page. If they're typing "15" then this will
+                                // jump to page 15.
                                 updateCount(state);
                                 break;
                             }
@@ -607,14 +607,14 @@ function TaskQueryFilterDateOperationEditorDurationCount({
                 <span
                     style={{
                         display: "inline-block",
-                        // NOTE(calebmer): I've found adding a bit of extra width helps sub-pixel
-                        // rendering (which sometimes clips the text) and the iOS Safari cursor which
-                        // seems to add ~2px of width to input content. Can't use `paddingRight` since
-                        // `textClassName` or `textStyle` may add padding we don't want to override.
+                        // NOTE(calebmer): I've found adding a bit of extra width helps sub-pixel rendering
+                        // (which sometimes clips the text) and the iOS Safari cursor which seems to add
+                        // ~2px of width to input content. Can't use `paddingRight` since `textClassName`
+                        // or `textStyle` may add padding we don't want to override.
                         //
-                        // To see the issues the [iOS Safari cursor causes here's a bug repro][1].
-                        // Notice how the input text shifts to the left and is clipped. This seems to
-                        // be because the iOS cursor takes horizontal space in the input.
+                        // To see the issues the [iOS Safari cursor causes here's a bug repro][1]. Notice
+                        // how the input text shifts to the left and is clipped. This seems to be because
+                        // the iOS cursor takes horizontal space in the input.
                         //
                         // [1]: https://gist.github.com/calebmer/cfaa91c91a53e893a43e30d65d1c6b80
                         width: 2,

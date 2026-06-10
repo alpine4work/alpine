@@ -1,8 +1,9 @@
-import {AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {TaskCreator, TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
 
 export type TaskCollectionAction = SchemaType<typeof TaskCollectionActionSchema>;
 
@@ -21,17 +22,40 @@ export type TaskCollectionCreateAction = SchemaType<typeof TaskCollectionCreateA
 const TaskCollectionCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
     // NOTE(calebmer): We didn't keep track of collection creators until 2024-01-02.
-    creatorId: Schema.id<AccountId>().nullable().default(null),
+    creator: Schema.object({
+        accountId: Schema.id<AccountId>().nullable().default(null),
+        from: TaskCreatorFromSchema.nullable().default(null),
+    })
+        .wrapOriginalPropertyInObject("accountId", {
+            from: null,
+        })
+        .originalPropertyKey("creatorId")
+        .nullable(),
     name: LabelStringSchema,
-    accessPolicy: AccessPolicySchema,
+    accessPolicy: CreateOrUpdateAccessPolicySchema,
 });
+
+export function getTaskCollectionCreateActionCreator(action: {
+    readonly creator: {
+        readonly accountId: AccountId | null;
+        readonly from: TaskCreator["from"];
+    } | null;
+}): TaskCreator | null {
+    if (action.creator === null || action.creator.accountId === null) {
+        return null;
+    }
+
+    return {
+        accountId: action.creator.accountId,
+        from: action.creator.from,
+    };
+}
 
 /**
  * Deletes a task collection.
  *
- * Does nothing if the task collection is already deleted. The task
- * collection's data will be kept around in case the task collection is
- * undeleted.
+ * Does nothing if the task collection is already deleted. The task collection's
+ * data will be kept around in case the task collection is undeleted.
  */
 export type TaskCollectionDeleteAction = SchemaType<typeof TaskCollectionDeleteActionSchema>;
 
@@ -53,12 +77,12 @@ const TaskCollectionUndeleteActionSchema = Schema.object({
 /**
  * Updates the name of our task collection.
  *
- * Will be rejected by the server if you don't have the `Manage` permission
- * level on this collection.
+ * Will be rejected by the server if you don't have the `Manage` permission level
+ * on this collection.
  *
- * Task collection name update conflicts are resolved by last-write-wins. We
- * don't bother attempting to resolve conflicts with a data structure like that
- * provided by Y.js.
+ * Task collection name update conflicts are resolved by last-write-wins. We don't
+ * bother attempting to resolve conflicts with a data structure like that provided
+ * by Y.js.
  */
 export type TaskCollectionUpdateNameAction = SchemaType<
     typeof TaskCollectionUpdateNameActionSchema
@@ -70,8 +94,8 @@ const TaskCollectionUpdateNameActionSchema = Schema.object({
 });
 
 /**
- * Updates the color associated with a task collection. Task collections may
- * also have no color which is the equivalent of grey.
+ * Updates the color associated with a task collection. Task collections may also
+ * have no color which is the equivalent of grey.
  */
 export type TaskCollectionUpdateColorAction = SchemaType<
     typeof TaskCollectionUpdateColorActionSchema
@@ -85,8 +109,8 @@ const TaskCollectionUpdateColorActionSchema = Schema.object({
 /**
  * Updates the access policy of our task collection.
  *
- * Will be rejected by the server if you don't have the `Manage` permission
- * level on this collection.
+ * Will be rejected by the server if you don't have the `Manage` permission level
+ * on this collection.
  */
 export type TaskCollectionUpdateAccessPolicyAction = SchemaType<
     typeof TaskCollectionUpdateAccessPolicyActionSchema
@@ -94,7 +118,7 @@ export type TaskCollectionUpdateAccessPolicyAction = SchemaType<
 
 const TaskCollectionUpdateAccessPolicyActionSchema = Schema.object({
     type: Schema.value("UpdateAccessPolicy"),
-    accessPolicy: AccessPolicySchema,
+    accessPolicy: CreateOrUpdateAccessPolicySchema,
 });
 
 export const TaskCollectionActionSchema = Schema.union({

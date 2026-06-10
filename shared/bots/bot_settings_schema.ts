@@ -6,12 +6,12 @@ import {
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
- * Schema for the bot's settings. We use this to render inputs on the bot
- * settings page and these inputs update a JSON object that matches the shape
- * of this schema.
+ * Schema for the bot's settings. We use this to render inputs on the bot settings
+ * page and these inputs update a JSON object that matches the shape of this
+ * schema.
  *
- * `properties` is a `Map` since order matters! We render properties in the
- * order they're defined in the UI.
+ * `properties` is a `Map` since order matters! We render properties in the order
+ * they're defined in the UI.
  */
 export type BotSettingsSchema = SchemaType<typeof BotSettingsSchemaSchema>;
 
@@ -33,8 +33,8 @@ export const BotSettingsSchemaStringPropertySchema = Schema.object({
     label: LabelStringSchema,
 
     /**
-     * Short single line hint text we render under the label. If it's longer than
-     * the available space in the UI we truncate.
+     * Short single line hint text we render under the label. If it's longer than the
+     * available space in the UI we truncate.
      */
     hint: LabelStringWithoutMaxLengthSchema.maxLength(128).nullable(),
 
@@ -54,17 +54,17 @@ export const BotSettingsSchemaStringPropertySchema = Schema.object({
     isCode: Schema.boolean,
 
     /**
-     * Is this setting a secret? If true then it'll be rendered as a password input
-     * and we won't allow non-admins to see the value of the secret. Only whether
-     * the value is configured or not.
+     * Is this setting a secret? If true then it'll be rendered as a password input and
+     * we won't allow non-admins to see the value of the secret. Only whether the value
+     * is configured or not.
      */
     isSecret: Schema.boolean,
 });
 
 export const BotSettingsSchemaSchema = Schema.object({
-    // TODO(calebmer, #public-api): The public API should represent this as an
-    // array. So ordering is not lost for languages that don't parse JSON objects
-    // into an ordered struct.
+    // TODO(calebmer, #public-api): The public API should represent this as an array.
+    // So ordering is not lost for languages that don't parse JSON objects into an
+    // ordered struct.
     properties: Schema.map(
         IdentifierStringSchema,
         Schema.union({

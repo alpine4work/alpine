@@ -7,20 +7,21 @@ import {
     ContentInlineNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
 import {
+    FileNounCountState,
+    printContentSingleLineTextSnippetForFileRow,
+} from "~/shared/content/print_content_single_line_text_snippet_for_file_row.js";
+import {
     RenderContentMentionToTextSearchEntity,
     renderContentMentionToText,
 } from "~/shared/content/render_content_mention_to_text.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
-import {getFileContentTypeStartOfSentenceNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {getFileEntityStartOfSentenceNoun} from "~/shared/files/get_file_entity_noun.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
-import {isId} from "~/shared/id/id.js";
 import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
@@ -28,30 +29,30 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
  * Match different new-line formats. [Same newline regex that's in
  * `compromise`][1].
  *
- * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
+ * [1]:
+ *     https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
  */
 const newLineRegExp = /(?:(?:\r?\n|\r)+)/g;
 
 /**
- * Takes some content and prints it as a single line plain text snippet. This
- * plain text preview is used for inbox entry content previews and search
- * result content previews.
+ * Takes some content and prints it as a single line plain text snippet. This plain
+ * text preview is used for inbox entry content previews and search result content
+ * previews.
  *
  * `getContentSnippet()` can be used to extract some piece of content and this
  * function can be used for printing that content to a plain text preview.
  *
  * Doesn't take `ContentReferences` and instead takes individual
- * `getAccountIfExists` and `getSearchEntityIfExists` functions to load
- * referenced data. Since different callers need to provide content references
- * in different ways. For example, on the client we want to use
- * `AccountRegistry` and `SearchEntityRegistry` to make sure we're rendering
- * up-to-date data whereas on the server we don't have a normalized registry
- * and may want to use the directly available `AccountModel.initialData` or
- * `SearchEntityModel.initialData`.
+ * `getAccountIfExists` and `getSearchEntityIfExists` functions to load referenced
+ * data. Since different callers need to provide content references in different
+ * ways. For example, on the client we want to use `AccountRegistry` and
+ * `SearchEntityRegistry` to make sure we're rendering up-to-date data whereas on
+ * the server we don't have a normalized registry and may want to use the directly
+ * available `AccountModel.initialData` or `SearchEntityModel.initialData`.
  *
  * On the client, generally you should call
- * `printContentSingleLineTextSnippetForClient()` which provides a more
- * convenient interface.
+ * `printContentSingleLineTextSnippetForClient()` which provides a more convenient
+ * interface.
  */
 export function printContentSingleLineTextSnippet(
     content: Node,
@@ -90,18 +91,17 @@ export function printContentSingleLineTextSnippet(
 
 /**
  * Same as `printContentSingleLineTextSnippet()` (see the documentation on that
- * function) but we preserve the styling for marks where
- * `shouldPreserveMark()` returns true. Used for showing search result content
- * previews since we need to highlight matched words.
+ * function) but we preserve the styling for marks where `shouldPreserveMark()`
+ * returns true. Used for showing search result content previews since we need to
+ * highlight matched words.
  *
  * Doesn't take `ContentReferences` and instead takes individual
- * `getAccountIfExists` and `getSearchEntityIfExists` functions to load
- * referenced data. Since different callers need to provide content references
- * in different ways. For example, on the client we want to use
- * `AccountRegistry` and `SearchEntityRegistry` to make sure we're rendering
- * up-to-date data whereas on the server we don't have a normalized registry
- * and may want to use the directly available `AccountModel.initialData` or
- * `SearchEntityModel.initialData`.
+ * `getAccountIfExists` and `getSearchEntityIfExists` functions to load referenced
+ * data. Since different callers need to provide content references in different
+ * ways. For example, on the client we want to use `AccountRegistry` and
+ * `SearchEntityRegistry` to make sure we're rendering up-to-date data whereas on
+ * the server we don't have a normalized registry and may want to use the directly
+ * available `AccountModel.initialData` or `SearchEntityModel.initialData`.
  */
 export function printContentSingleLineTextSnippetPreservingMarks(
     content: Node,
@@ -122,7 +122,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
     let breakPunctuation: {marks: ReadonlyArray<Mark>; text: string} | null = null;
     let preservedMarks: ReadonlyArray<Mark> = emptyArray;
     const orderListItemNumberByNode = new Map<Node, number>();
-    let fileNounNumberState: {noun: string; number: number} | null;
+    let fileNounNumberState: FileNounCountState = null;
     let isTrimmingStart = false;
 
     const print = (text: string) => {
@@ -130,13 +130,13 @@ export function printContentSingleLineTextSnippetPreservingMarks(
         if (text.length === 0) return;
         isTrimmingStart = false;
 
-        // Reset file noun number whenever we print non-file text. File noun number
-        // should only be shared for adjacent files of the same type.
+        // Reset file noun number whenever we print non-file text. File noun number should
+        // only be shared for adjacent files of the same type.
         fileNounNumberState = null;
 
         // Break punctuation is used to separate content which otherwise would have
-        // rendered on separate lines. For example, we put a period after a heading
-        // then print the paragraph which follows.
+        // rendered on separate lines. For example, we put a period after a heading then
+        // print the paragraph which follows.
         if (breakPunctuation !== null) {
             const lastSegment = segments[segments.length - 1];
 
@@ -149,14 +149,14 @@ export function printContentSingleLineTextSnippetPreservingMarks(
                         ? actualPreservedMarks
                         : emptyArray;
 
-                // If a sentence is already ended with punctuation, we don't want to add our
-                // break punctuation. If a sentence is ended with punctuation, then a quote
-                // character that also counts.
+                // If a sentence is already ended with punctuation, we don't want to add our break
+                // punctuation. If a sentence is ended with punctuation, then a quote character
+                // that also counts.
                 if (doesStringEndWithPunctuation(lastSegment.text)) {
                     actuallyPrint(" ");
                 } else {
-                    // Add any marks from the break punctuation to `preservedMarks` which gets
-                    // cleared below.
+                    // Add any marks from the break punctuation to `preservedMarks` which gets cleared
+                    // below.
                     if (breakPunctuation.marks.length > 0) {
                         const newPreservedMarks = [...preservedMarks];
 
@@ -274,38 +274,30 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             case "divider": {
                 break;
             }
-            // Don't print a single-line text representation of floating files since we
-            // likely won't print in the location a user would expect.
+            // Don't print a single-line text representation of floating files since we likely
+            // won't print in the location a user would expect.
             case "fileFloat": {
                 break;
             }
             case "fileRow":
             case "fileRowTable": {
-                for (const childNode of node.content.content) {
-                    const fileId: FileId | FileEntityId | null = childNode.attrs.fileId;
+                const fileIds = Array.from(
+                    node.content.content,
+                    (childNode): FileId | FileEntityId | null => childNode.attrs.fileId,
+                );
 
-                    let noun: string;
-                    if (!fileId) {
-                        noun = getFileContentTypeStartOfSentenceNoun("application/octet-stream");
-                    } else if (isId<FileId>(fileId)) {
-                        const file = getFileIfExists(fileId);
-                        noun = getFileContentTypeStartOfSentenceNoun(file?.contentType);
-                    } else {
-                        noun = getFileEntityStartOfSentenceNoun(parseFileEntityId(fileId).type);
-                    }
+                const fileRow = printContentSingleLineTextSnippetForFileRow(
+                    fileIds,
+                    getFileIfExists,
+                    fileNounNumberState,
+                );
 
-                    const fileNounNumber =
-                        fileNounNumberState?.noun === noun ? fileNounNumberState.number + 1 : 1;
-
-                    if (fileNounNumber > 1) {
-                        print(`${noun} ${fileNounNumber}`);
-                    } else {
-                        print(noun);
-                    }
-
-                    fileNounNumberState = {noun, number: fileNounNumber};
+                for (const text of fileRow.parts) {
+                    print(text);
                     breakPunctuation = {marks: emptyArray, text: "."};
                 }
+
+                fileNounNumberState = fileRow.nextState;
                 break;
             }
             case "table": {
@@ -334,11 +326,11 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             case "text": {
                 let isFirstLine = true;
 
-                // `paragraph` text shouldn't contain newlines (instead if should have
-                // `break`s) but it is possible to sneak them in with
-                // `state.tr.insertText("\n")`. If `whitespace: "pre"` is set on the
-                // ProseMirror node type then newlines will be allowed. For example ProseMirror
-                // recommends building code blocks with `whitespace: "pre"`.
+                // `paragraph` text shouldn't contain newlines (instead if should have `break`s)
+                // but it is possible to sneak them in with `state.tr.insertText("\n")`. If
+                // `whitespace: "pre"` is set on the ProseMirror node type then newlines will be
+                // allowed. For example ProseMirror recommends building code blocks with
+                // `whitespace: "pre"`.
                 for (const lineText of node.text!.split(newLineRegExp)) {
                     if (!isFirstLine) breakPunctuation = {marks: emptyArray, text: ""};
                     isFirstLine = false;
@@ -349,8 +341,8 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             }
             case "break": {
                 // A break doesn't always separate ideas. Sometimes its contribution is purely
-                // visual. We still want a space between the content it breaks apart but no
-                // other punctuation.
+                // visual. We still want a space between the content it breaks apart but no other
+                // punctuation.
                 breakPunctuation = {marks: emptyArray, text: ""};
                 break;
             }

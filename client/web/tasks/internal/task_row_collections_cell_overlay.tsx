@@ -33,6 +33,7 @@ function TaskRowCollectionsCellOverlay(
         store,
         query,
         task,
+        isCreatedCollectionPrivate,
         focusPreviousCell,
         cellRef,
         onClose,
@@ -43,6 +44,7 @@ function TaskRowCollectionsCellOverlay(
         store: TaskClientReadonlyStore;
         query: TaskClientQuery | null;
         task: TaskModel | null;
+        isCreatedCollectionPrivate: boolean;
         focusPreviousCell: () => void;
         cellRef: RefObject<HTMLDivElement | null>;
         onClose: () => void;
@@ -129,6 +131,7 @@ function TaskRowCollectionsCellOverlay(
                     store={store}
                     referencesSubscription={query}
                     collections={task?.getCollections() ?? TaskCollectionSet.empty}
+                    isCreatedCollectionPrivate={isCreatedCollectionPrivate}
                     areMarginsClickable={true}
                     paddingX="3"
                     paddingY="3"

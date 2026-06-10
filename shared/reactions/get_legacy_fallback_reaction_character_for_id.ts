@@ -2,10 +2,10 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {Id} from "~/shared/id/id.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 
-// IMPORTANT: This array should never change! Otherwise the character we use
-// for accounts with a `reactionCharacter` of null will change unexpectedly! We
-// set `reactionCharacter` for new accounts on account creation to make sure
-// they have access to the full list of reaction characters.
+// IMPORTANT: This array should never change! Otherwise the character we use for
+// accounts with a `reactionCharacter` of null will change unexpectedly! We set
+// `reactionCharacter` for new accounts on account creation to make sure they have
+// access to the full list of reaction characters.
 const legacyFallbackReactionCharacters: Array<ReactionCharacter> = [
     {type: "Cat", variant: "Grey"},
     {type: "Cat", variant: "Pink"},
@@ -20,9 +20,8 @@ const legacyFallbackReactionCharacters: Array<ReactionCharacter> = [
 
 /**
  * Get the default reaction character for an account that hasn't configured an
- * account in settings and was created before 2025-10-06 when we started
- * picking a random character for new accounts from our full set of reaction
- * characters.
+ * account in settings and was created before 2025-10-06 when we started picking a
+ * random character for new accounts from our full set of reaction characters.
  */
 export function getLegacyFallbackReactionCharacterForId(id: Id): ReactionCharacter {
     const stableRandom = new StableRandom("LegacyFallbackReactionCharacter");

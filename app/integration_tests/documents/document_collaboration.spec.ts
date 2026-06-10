@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test";
+import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -11,6 +11,17 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 
 const {context, services} = createTestServices();
 
+async function appendTextToDocument(page: Page, text: string) {
+    await page.waitForFunction("dev.contentEditor");
+    await page.evaluate(async input => {
+        const devWindow = window as typeof window & {
+            dev: {contentEditor: {simulateTyping: (text: string) => Promise<void>}};
+        };
+
+        await devWindow.dev.contentEditor.simulateTyping(input);
+    }, text);
+}
+
 // The tests in this file are large and may take a while as we feature multiple
 // browsers collaboratively editing the same content.
 test.setTimeout(2 * 60 * 1000);
@@ -19,27 +30,20 @@ test("can write collaboratively in a document", async ({
     browser,
     context: browserContext1,
     page: page1,
-    viewport,
 }) => {
-    assert(viewport);
-
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
     const document = await TestDocument.create(session1);
     await document.access.grantDefault(session1);
 
-    const canPrimaryInputHover = await page1.evaluate(
-        () => !window.matchMedia("(hover: none)").matches,
-    );
-
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     await page1.getByRole("textbox", {name: "Document"}).focus();
     await page2.getByRole("textbox", {name: "Document"}).focus();
@@ -47,19 +51,7 @@ test("can write collaboratively in a document", async ({
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText("");
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText("");
 
-    if (canPrimaryInputHover) {
-        await page1
-            .getByRole("textbox", {name: "Document"})
-            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
-    } else {
-        await page1
-            .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
-    }
-
-    await page1
-        .getByRole("textbox", {name: "Document"})
-        .pressSequentially("Test document content 1");
+    await appendTextToDocument(page1, "Test document content 1");
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1",
@@ -68,20 +60,7 @@ test("can write collaboratively in a document", async ({
         "Test document content 1",
     );
 
-    if (canPrimaryInputHover) {
-        await page2
-            .getByRole("textbox", {name: "Document"})
-            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
-    } else {
-        await page2
-            .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
-    }
-
-    await page2.getByRole("textbox", {name: "Document"}).press("Enter");
-    await page2
-        .getByRole("textbox", {name: "Document"})
-        .pressSequentially("Test document content 2");
+    await appendTextToDocument(page2, "\nTest document content 2");
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1Test document content 2",
@@ -90,20 +69,7 @@ test("can write collaboratively in a document", async ({
         "Test document content 1Test document content 2",
     );
 
-    if (canPrimaryInputHover) {
-        await page1
-            .getByRole("textbox", {name: "Document"})
-            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
-    } else {
-        await page1
-            .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
-    }
-
-    await page1.getByRole("textbox", {name: "Document"}).press("Enter");
-    await page1
-        .getByRole("textbox", {name: "Document"})
-        .pressSequentially("Test document content 3");
+    await appendTextToDocument(page1, "\nTest document content 3");
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1Test document content 2Test document content 3",
@@ -112,20 +78,7 @@ test("can write collaboratively in a document", async ({
         "Test document content 1Test document content 2Test document content 3",
     );
 
-    if (canPrimaryInputHover) {
-        await page2
-            .getByRole("textbox", {name: "Document"})
-            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
-    } else {
-        await page2
-            .getByRole("textbox", {name: "Document"})
-            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
-    }
-
-    await page2.getByRole("textbox", {name: "Document"}).press("Enter");
-    await page2
-        .getByRole("textbox", {name: "Document"})
-        .pressSequentially("Test document content 4");
+    await appendTextToDocument(page2, "\nTest document content 4");
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1Test document content 2Test document content 3Test document content 4",
@@ -149,10 +102,10 @@ test("can write collaboratively at the same time in a document", async ({
     const [session1, session2] = await space.createSessions(2);
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}`);
+    await page1.goto(`/home/${space.id}`);
     await page1.evaluate(() => {
-        // This test is doing a lot already and can time out our typing
-        // Disable spell check for this window to reduce load
+        // This test is doing a lot already and can time out our typing Disable spell check
+        // for this window to reduce load
         localStorage.setItem("disableSpellCheck", "true");
     });
 
@@ -163,19 +116,19 @@ test("can write collaboratively at the same time in a document", async ({
         () => !window.matchMedia("(hover: none)").matches,
     );
 
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
-    await page2.goto(`/s/${space.id}`);
+    await page2.goto(`/home/${space.id}`);
     await page2.evaluate(() => {
-        // This test is doing a lot already and can time out our typing
-        // Disable spell check for this window to reduce load
+        // This test is doing a lot already and can time out our typing Disable spell check
+        // for this window to reduce load
         localStorage.setItem("disableSpellCheck", "true");
     });
 
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     await page1.getByRole("textbox", {name: "Document"}).focus();
     await page2.getByRole("textbox", {name: "Document"}).focus();

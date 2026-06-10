@@ -19,11 +19,11 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Sign up an account with the provided email address. Sends the account an
- * email containing a one time password they'll use to verify the email address
- * and complete the sign up process. If we already have an account item for the
- * email address we either throw an error or let them sign up if
- * `hasNotSignedUp` is true (e.g. when a new email is invited to a space).
+ * Sign up an account with the provided email address. Sends the account an email
+ * containing a one time password they'll use to verify the email address and
+ * complete the sign up process. If we already have an account item for the email
+ * address we either throw an error or let them sign up if `hasNotSignedUp` is true
+ * (e.g. when a new email is invited to a space).
  */
 export async function signUpAccountWithEmailAddress(
     context: Context<Omit<ServerActionContextModules, "actor"> & {email: EmailContextModuleBase}>,
@@ -60,8 +60,8 @@ export async function signUpAccountWithEmailAddress(
     } catch (error) {
         if (!isDynamoConditionCheckError(error)) throw error;
 
-        // If an account already exists for the email address then we still allow the
-        // sign up flow if `hasNotSignedUp` is true on the account item.
+        // If an account already exists for the email address then we still allow the sign
+        // up flow if `hasNotSignedUp` is true on the account item.
         const existingAccountId = await handleSignUpAccountWithEmailAddressConditionCheckError(
             context,
             emailAddress,
@@ -113,8 +113,8 @@ async function handleSignUpAccountWithEmailAddressConditionCheckError(
         });
     }
 
-    // If the account already exists then regenerate the one time password and send
-    // an email with the new password.
+    // If the account already exists then regenerate the one time password and send an
+    // email with the new password.
     await actuallyRegenerateOneTimePasswordSignIn(context, accountEmailAddressItem, {
         emailVariant: "SignUp",
     });

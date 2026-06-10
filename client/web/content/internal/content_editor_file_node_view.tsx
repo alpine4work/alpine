@@ -5,7 +5,10 @@ import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
 import {RefObject} from "react";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
-import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {
+    ContentFileEntityRenderers,
+    contentFileEntityRenderersForTest,
+} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {ContentEditorFileToolbarController} from "~/client/web/content/internal/content_editor_file_toolbar.js";
 import {
@@ -42,6 +45,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -73,8 +77,8 @@ const contentEditorFileParentUpdateEventEmitter =
     new ElementEventEmitter<ContentEditorTableLayout | null>("parentupdate");
 
 /**
- * When a file parent node view updates (`fileRow` or `fileFloat`) it calls
- * this function so its children may also update if necessary.
+ * When a file parent node view updates (`fileRow` or `fileFloat`) it calls this
+ * function so its children may also update if necessary.
  */
 export function dispatchContentEditorFileParentUpdatedEvent(
     element: Element,
@@ -131,8 +135,9 @@ export function createContentEditorFileNodeViewConstructor({
         const handleContextMenuAddFileEntityAction = (event: MouseEvent) => {
             const fileId: FileId | FileEntityId | null = node.attrs.fileId;
 
-            if (!hasAccessLevel(getAccessLevel(), "Edit") || !fileId || !isFileEntityId(fileId))
+            if (!hasAccessLevel(getAccessLevel(), "Edit") || !fileId || !isFileEntityId(fileId)) {
                 return;
+            }
 
             const entityNoun = getFileEntityNoun(parseFileEntityId(fileId).type);
 
@@ -142,7 +147,7 @@ export function createContentEditorFileNodeViewConstructor({
                 [
                     {
                         label: `Turn into ${entityNoun} link`,
-                        pressErrorTitle: `Couldn’t turn into ${entityNoun} link`,
+                        pressErrorTitle: `Couldn\u2019t turn into ${entityNoun} link`,
                         icon: <ArrowSquareIn />,
                         iconPlacement: "end",
                         onPress: async () => {
@@ -191,8 +196,8 @@ export function createContentEditorFileNodeViewConstructor({
                                 references,
                             });
 
-                            // Search for the mention node we inserted and select it. It's hard to account
-                            // for every single edge case so we brute force it.
+                            // Search for the mention node we inserted and select it. It's hard to account for
+                            // every single edge case so we brute force it.
                             for (let checkPos = from - 1; checkPos <= to + 1; checkPos++) {
                                 if (checkPos < 0) continue;
                                 if (checkPos > transaction.doc.nodeSize - 2) continue;
@@ -230,8 +235,8 @@ export function createContentEditorFileNodeViewConstructor({
             if ($pos.depth > 0) {
                 const parentBlockNode = $pos.node(1);
 
-                // If our file is inside a table then `blockWidth` should be equal to the
-                // column width.
+                // If our file is inside a table then `blockWidth` should be equal to the column
+                // width.
                 if (parentBlockNode.type.name === "table") {
                     const tableMap = ContentTableMap.get(parentBlockNode);
 
@@ -310,12 +315,17 @@ export function createContentEditorFileNodeViewConstructor({
                     const fileEntityRenderersStore = getFileEntityRenderers();
 
                     // Support store file entity renders in hot reloading environments.
-                    const fileEntityRenderers =
+                    let fileEntityRenderers =
                         import.meta.hot &&
                         fileEntityRenderersStore !== null &&
                         "getSnapshot" in fileEntityRenderersStore
                             ? get(fileEntityRenderersStore)
                             : (fileEntityRenderersStore as ContentFileEntityRenderers | null);
+
+                    if (!fileEntityRenderers) {
+                        assert(import.meta.jest);
+                        fileEntityRenderers = contentFileEntityRenderersForTest;
+                    }
 
                     if (isFileEntity) {
                         const clientInfo = getClientInfo();
@@ -332,6 +342,7 @@ export function createContentEditorFileNodeViewConstructor({
                             accountRegistry: getAccountRegistry(spaceId),
                             searchEntityRegistry: getSearchEntityRegistry(spaceId),
                             fileRegistry: getFileRegistry(spaceId),
+                            siteRegistry: getSiteRegistry(spaceId),
                             currentAccount: getCurrentAccount(),
                             blockWidth: blockWidthPx,
                             transformScale: 1,
@@ -340,8 +351,7 @@ export function createContentEditorFileNodeViewConstructor({
                             routeLayout: getRouteLayout(),
                             isInitialAppRender: false,
                             currentDate: today(clientInfo.timeZone),
-                            // This render call doesn't run during SSR. Ignore hydration warning
-                            // suppressions!
+                            // This render call doesn't run during SSR. Ignore hydration warning suppressions!
                             suppressHydrationWarning: noop,
                         });
                     } else {
@@ -388,9 +398,9 @@ export function createContentEditorFileNodeViewConstructor({
                     };
 
                     const isLongPressDisabled = () => {
-                        // Selection after a long press is only useful when there's a toolbar to show
-                        // over the file. If we're in "View" mode we don't render a toolbar or
-                        // selection ring so disable long presses.
+                        // Selection after a long press is only useful when there's a toolbar to show over
+                        // the file. If we're in "View" mode we don't render a toolbar or selection ring so
+                        // disable long presses.
                         return !hasAccessLevel(getAccessLevel(), "Comment");
                     };
 
@@ -442,13 +452,13 @@ export function createContentEditorFileNodeViewConstructor({
                         );
 
                         // HACK: We want the "Convert to link" menu option to be placed below the "Copy
-                        // ${entityNoun} link" menu option. We accomplish this by adding an event
-                        // listener which adds the "Convert to link" menu action AFTER
+                        // ${entityNoun} link" menu option. We accomplish this by adding an event listener
+                        // which adds the "Convert to link" menu action AFTER
                         // `addContentFileEntityPreviewBehavior()` which will add another `contextmenu`
                         // event listener which adds "Copy to ${entityNoun} link". Because this event
                         // listener is added after `addContentFileEntityPreviewBehavior()` it will run
-                        // after any event listeners added by `addContentFileEntityPreviewBehavior()`
-                        // and so add our menu action beneath any added by
+                        // after any event listeners added by `addContentFileEntityPreviewBehavior()` and
+                        // so add our menu action beneath any added by
                         // `addContentFileEntityPreviewBehavior()`.
                         dom.addEventListener("contextmenu", handleContextMenuAddFileEntityAction);
 
@@ -493,14 +503,14 @@ export function createContentEditorFileNodeViewConstructor({
             // Make sure `<ContentEditorFileToolbar>` doesn't animate in then immediately
             // animate out. Since by setting selection here we'll render
             // `<ContentEditorFileToolbar>`. Then once this event finishes processing
-            // `contextmenu` will update `useIsContextMenuOpen()`. Without this function
-            // this causes the toolbar to animate in/out on mount which looks broken.
+            // `contextmenu` will update `useIsContextMenuOpen()`. Without this function this
+            // causes the toolbar to animate in/out on mount which looks broken.
             //
             // This relies on the fact that `view.dispatch()` performs its update with
             // `flushSync()`.
             ContentEditorFileToolbarController.withDisableInitialAnimation(() => {
-                // Right-clicking on a file selects the file. This is another way to access
-                // file selection tools.
+                // Right-clicking on a file selects the file. This is another way to access file
+                // selection tools.
                 view.dispatch(
                     view.state.tr.setSelection(
                         new NodeSelection(view.state.doc.resolve(assertExists(getPos()))),
@@ -550,9 +560,8 @@ export function createContentEditorFileNodeViewConstructor({
                 unsubscribeFromParentUpdated();
             },
             ignoreMutation: () => {
-                // Ignore ALL mutations. Let `patchNode()` do anything it needs to the DOM.
-                // This node isn't `contenteditable` so we don't need ProseMirror monitoring
-                // changes.
+                // Ignore ALL mutations. Let `patchNode()` do anything it needs to the DOM. This
+                // node isn't `contenteditable` so we don't need ProseMirror monitoring changes.
                 return true;
             },
         };

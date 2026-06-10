@@ -15,6 +15,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     TaskDueDateRegister,
@@ -47,9 +48,8 @@ export async function getFileTaskEntityModelIfPossible(
     spaceId: SpaceId,
     taskId: TaskId,
 ): Promise<Result<FileTaskEntityModel, ErrorBase>> {
-    // Since `context.tasks.loadQuery()` isn't always implemented in all unit tests
-    // we allow you to set a flag in Jest unit tests to return a mock task
-    // entity model.
+    // Since `context.tasks.loadQuery()` isn't always implemented in all unit tests we
+    // allow you to set a flag in Jest unit tests to return a mock task entity model.
     if (import.meta.jest && withMockFileTaskEntityModelForTest) {
         const unknownAccountData = AccountModel.getUnknown().initialData;
 
@@ -65,6 +65,7 @@ export async function getFileTaskEntityModelIfPossible(
                         accountId: unknownAccountData.id,
                         workingAccountName: unknownAccountData.name,
                         workingAccountNameVersion: unknownAccountData.nameVersion,
+                        from: null,
                     },
                     createdTime: new TaskFilterableTime({
                         absoluteTime: zeroHybridLogicalTime,
@@ -83,6 +84,7 @@ export async function getFileTaskEntityModelIfPossible(
                     removedChildTaskCount: 0,
                     addedClosedChildTaskCount: 0,
                     removedClosedChildTaskCount: 0,
+                    accessPolicy: null,
                     collections: TaskCollectionSet.empty,
                     positionByCollectionId: TaskPositionByCollectionIdMap.empty,
                     status: new TaskStatusWithSortableAccountRegister(
@@ -101,10 +103,13 @@ export async function getFileTaskEntityModelIfPossible(
                     title: emptyTaskTitleModel.get(),
                     dueDate: new TaskDueDateRegister(null, zeroHybridLogicalTime),
                     priority: new TaskPriorityRegister(null, zeroHybridLogicalTime),
+                    layout: null,
                 }),
                 assignee: null,
                 parent: null,
                 collections: emptyArray,
+                referencedSites: emptyArray,
+                site: null,
             },
         };
     }
@@ -122,8 +127,8 @@ export async function getFileTaskEntityModelIfPossible(
                 // Normally, we prefer that functions explicitly return authorization errors
                 // instead of us using a try/catch which might pick up an unrelated permission
                 // error. However, in this case the `loadQueries()` function in
-                // `TaskRealtimeService` is complex enough that we're not going to bother
-                // updating its code to return explicit authorization errors for now.
+                // `TaskRealtimeService` is complex enough that we're not going to bother updating
+                // its code to return explicit authorization errors for now.
                 if (
                     (error instanceof PermissionDeniedError || error instanceof NotFoundError) &&
                     error.displayMessage
@@ -151,8 +156,8 @@ export async function getFileTaskEntityModelIfPossible(
         }),
     );
 
-    // If we don't have access to the task then `loadQueries()` should throw
-    // a `PermissionDeniedError`.
+    // If we don't have access to the task then `loadQueries()` should throw a
+    // `PermissionDeniedError`.
     assert(backfillTask.type !== "Unauthorized");
 
     // TODO(calebmer): What do deleted tasks look like?
@@ -175,8 +180,8 @@ export async function getFileTaskEntityModelIfPossible(
         depth: number;
     } | null = null;
 
-    // Recursively find the task's root parent and calculate the depth to the
-    // root parent.
+    // Recursively find the task's root parent and calculate the depth to the root
+    // parent.
     if (task.getParent() !== null) {
         parent = {
             rootTask: {type: "Authorized", task: task},
@@ -241,20 +246,37 @@ export async function getFileTaskEntityModelIfPossible(
         5,
     );
 
+    // Derive the task's own site (if any) from its access policy. `loadQueries`
+    // already returns the matching `SitePreviewModel` in `referencedSites`, so reuse
+    // it instead of refetching. Fall back to the prefetcher (or `siteIfAlreadyLoaded`)
+    // if `referencedSites` somehow doesn't have it.
+    const taskAccessPolicy = task.getAccessPolicy();
+    let site: SitePreviewModel | null = null;
+    if (taskAccessPolicy?.type === "Site") {
+        const referencedSite = result.value.updateEvent.referencedSites.find(
+            referencedSiteResult =>
+                referencedSiteResult.ok &&
+                referencedSiteResult.value.id === taskAccessPolicy.siteId,
+        );
+        assert(referencedSite?.ok);
+        site = assertExists(referencedSite.value);
+    }
+
     return {
         ok: true,
         value: {
             type: "Task",
-            // We use the max `HybridLogicalTime` across all the CRDTs we're
-            // returning as the version. While this isn't perfect (when merging two file
-            // entities one may have a newer collection name and the other may have a newer
-            // collection color) we consider it good enough. Most of the time we'll be
-            // reading the latest data.
+            // We use the max `HybridLogicalTime` across all the CRDTs we're returning as the
+            // version. While this isn't perfect (when merging two file entities one may have a
+            // newer collection name and the other may have a newer collection color) we
+            // consider it good enough. Most of the time we'll be reading the latest data.
             versions: maxTime,
             task,
             assignee,
             parent,
             collections: Array.from(collections),
+            referencedSites: result.value.updateEvent.referencedSites,
+            site,
         },
     };
 }

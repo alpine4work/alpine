@@ -45,12 +45,16 @@ export class TestAccount {
             hasInternalAccess = false,
             observedTimeZone = defaultTimeZone,
             reactionCharacter,
+            hasNotSignedUp,
+            overrideCreatedTime,
         }: {
             id?: AccountId;
             name?: string;
             hasInternalAccess?: boolean;
             observedTimeZone?: TimeZone | null;
             reactionCharacter?: ReactionCharacter;
+            hasNotSignedUp?: true;
+            overrideCreatedTime?: Date;
         } = {},
     ) {
         await createAccountForTest(context, {
@@ -59,15 +63,17 @@ export class TestAccount {
             hasInternalAccess,
             observedTimeZone,
             reactionCharacter,
+            hasNotSignedUp,
+            createdTime: overrideCreatedTime,
         });
 
         return new TestAccount(context, id, name);
     }
 
     /**
-     * Get a `TestAccount` helper object for an existing account. In case you
-     * didn't create the space with `TestAccount.create()`. Throws an error if
-     * the account doesn't already exist.
+     * Get a `TestAccount` helper object for an existing account. In case you didn't
+     * create the space with `TestAccount.create()`. Throws an error if the account
+     * doesn't already exist.
      */
     public static async get(context: TestContext, accountId: AccountId) {
         const account = await dangerouslyGetAccountIfExistsWithoutAuthorization(
@@ -80,8 +86,8 @@ export class TestAccount {
     }
 
     /**
-     * Adds an email address to this account. If you call this multiple times then
-     * the account will have multiple email addresses it may sign in with.
+     * Adds an email address to this account. If you call this multiple times then the
+     * account will have multiple email addresses it may sign in with.
      */
     public async createEmailAddress(
         emailAddress: string = generateEmailAddressForTest(this),

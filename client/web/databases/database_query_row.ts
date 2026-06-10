@@ -1,9 +1,9 @@
 import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
 
 /**
- * A page of database view rows. Wraps the raw array-based
- * row data from `getViewRowsPage` with a per-page field
- * index mapping. Row objects are created lazily and cached.
+ * A page of database view rows. Wraps the raw array-based row data from
+ * `getViewRowsPage` with a per-page field index mapping. Row objects are created
+ * lazily and cached.
  */
 export class DatabaseQueryPage {
     readonly pageId: number;
@@ -44,9 +44,8 @@ export class DatabaseQueryPage {
 }
 
 /**
- * A single row in a database view. Values are stored as
- * an array; field values are accessed by field ID through
- * the page's field-index mapping. `_id` is always at
+ * A single row in a database view. Values are stored as an array; field values are
+ * accessed by field ID through the page's field-index mapping. `_id` is always at
  * index 0.
  */
 export class DatabaseQueryRow {

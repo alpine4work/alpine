@@ -1,43 +1,41 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove
- * features we don't use and customize the user experience. You can find the
- * original file in the `prosemirror-tables` package at:
+ * NOTE(rohitt-gupta, 2024-11-26): This file has been modified to remove features
+ * we don't use and customize the user experience. You can find the original file
+ * in the `prosemirror-tables` package at:
  * https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/copypaste.ts
  *
  * The MIT License
  *
  * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 // Utilities used for copy/paste handling.
 //
-// This module handles pasting cell content into tables, or pasting
-// anything into a cell selection, as replacing a block of cells with
-// the content of the selection. When pasting cells into a cell, that
-// involves placing the block of pasted content so that its top left
-// aligns with the selection cell, optionally extending the table to
-// the right or bottom to make sure it is large enough. Pasting into a
-// cell selection is different, here the cells in the selection are
-// clipped to the selection's rectangle, optionally repeating the
-// pasted cells when they are smaller than the selection.
+// This module handles pasting cell content into tables, or pasting anything into a
+// cell selection, as replacing a block of cells with the content of the selection.
+// When pasting cells into a cell, that involves placing the block of pasted
+// content so that its top left aligns with the selection cell, optionally
+// extending the table to the right or bottom to make sure it is large enough.
+// Pasting into a cell selection is different, here the cells in the selection are
+// clipped to the selection's rectangle, optionally repeating the pasted cells when
+// they are smaller than the selection.
 
 import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
 import {Transaction} from "prosemirror-state";
@@ -51,8 +49,8 @@ type Area = {width: number; height: number; rows: Array<Fragment>};
 // Utilities to help with copying and pasting table cells
 
 /**
- * Get a rectangular area of cells from a slice, or null if the outer
- * nodes of the slice aren't table cells or rows.
+ * Get a rectangular area of cells from a slice, or null if the outer nodes of the
+ * slice aren't table cells or rows.
  */
 export function pastedContentTableCells(slice: Slice): Area | null {
     if (!slice.size) return null;
@@ -89,8 +87,8 @@ export function pastedContentTableCells(slice: Slice): Area | null {
     return ensureRectangular(schema, rows);
 }
 
-// Compute the width and height of a set of cells, and make sure each
-// row has the same number of cells.
+// Compute the width and height of a set of cells, and make sure each row has the
+// same number of cells.
 function ensureRectangular(schema: Schema, rows: Array<Fragment>): Area {
     const widths: Array<number> = [];
     for (let i = 0; i < rows.length; i++) {
@@ -124,8 +122,8 @@ export function fitSlice(nodeType: NodeType, slice: Slice): Node {
 }
 
 /**
- * Clip or extend (repeat) the given set of cells to cover the given
- * width and height.
+ * Clip or extend (repeat) the given set of cells to cover the given width and
+ * height.
  *
  * @internal
  */
@@ -167,8 +165,8 @@ export function clipContentTableCells(
     return {width, height, rows};
 }
 
-// Make sure a table has at least the given width and height. Return
-// true if something was changed.
+// Make sure a table has at least the given width and height. Return true if
+// something was changed.
 function growContentTable(
     tr: Transaction,
     tableMap: ContentTableMap,
@@ -229,8 +227,8 @@ function growContentTable(
 }
 
 /**
- * Insert the given set of cells (as returned by `pastedCells`) into a
- * table, at the position pointed at by rect.
+ * Insert the given set of cells (as returned by `pastedCells`) into a table, at
+ * the position pointed at by rect.
  */
 export function insertContentTableCells(
     doc: Node,

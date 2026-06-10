@@ -36,46 +36,46 @@ const globalKeyDownEventContextForTest: GlobalKeyDownEventContext | null = impor
  * Component for handling keyboard shortcuts using DOM event propagation APIs.
  *
  * Let's say you want to implement a keyboard shortcut like "Escape" to close a
- * popup. If you add `onKeyDown` to some `<div>` in your popup it will only
- * fire if an element inside that `<div>` is focused. If the user clicked
- * around then nothing in your `<div>` is focused and it won't be able to
- * handle an escape keypress.
+ * popup. If you add `onKeyDown` to some `<div>` in your popup it will only fire if
+ * an element inside that `<div>` is focused. If the user clicked around then
+ * nothing in your `<div>` is focused and it won't be able to handle an escape
+ * keypress.
  *
- * The solution is to attach your `keydown` event handler to `document`. Now
- * you'll see all keyboard events regardless of what has focus.
+ * The solution is to attach your `keydown` event handler to `document`. Now you'll
+ * see all keyboard events regardless of what has focus.
  *
- * However, what happens if you have two popups? Pressing "Escape" should
- * probably only close one of them, not all of them. So the popups need to
- * coordinate with each other to only close one at a time.
+ * However, what happens if you have two popups? Pressing "Escape" should probably
+ * only close one of them, not all of them. So the popups need to coordinate with
+ * each other to only close one at a time.
  *
- * The `<GlobalKeyDownEvent>` component provides that coordination! At the root
- * of the DOM we attach a `keydown` listener to the `document`. When we a
- * `keydown` event bubbles to `document` (which means it wasn't handled by a
- * text input) we call the deepest child `<GlobalKeyDownEvent>` component's
- * listeners and bubble up to parents. If `event.stopPropagation()` or
- * is called then `<GlobalKeyDownEvent>` respects that and stops bubbling.
+ * The `<GlobalKeyDownEvent>` component provides that coordination! At the root of
+ * the DOM we attach a `keydown` listener to the `document`. When we a `keydown`
+ * event bubbles to `document` (which means it wasn't handled by a text input) we
+ * call the deepest child `<GlobalKeyDownEvent>` component's listeners and bubble
+ * up to parents. If `event.stopPropagation()` or is called then
+ * `<GlobalKeyDownEvent>` respects that and stops bubbling.
  *
  * If you have multiple sibling `<GlobalKeyDownEvent>` then their listeners are
- * called in the reverse order in which the components were mounted. So if the
- * last component to mount calls `event.stopPropagation()` we will not call the
+ * called in the reverse order in which the components were mounted. So if the last
+ * component to mount calls `event.stopPropagation()` we will not call the
  * listeners of components that mounted later.
  *
- * You may use `onGlobalKeyDownBeforeChildren` if you want an event listener
- * that runs, well, before its child event listeners. This is different from a
- * capture event listener. A capture event listener would run before `keydown`
- * events are processed by the focused element. `onGlobalKeyDownBeforeChildren`
- * still runs in the bubbling phase just in reverse order.
+ * You may use `onGlobalKeyDownBeforeChildren` if you want an event listener that
+ * runs, well, before its child event listeners. This is different from a capture
+ * event listener. A capture event listener would run before `keydown` events are
+ * processed by the focused element. `onGlobalKeyDownBeforeChildren` still runs in
+ * the bubbling phase just in reverse order.
  *
  * ### Bubbling example
  *
  * - Component A
- *   - Component A1
- *   - Component A2
- *   - Component A3
+ *     - Component A1
+ *     - Component A2
+ *     - Component A3
  * - Component B
- *   - Component B1
- *   - Component B2
- *   - Component B3
+ *     - Component B1
+ *     - Component B2
+ *     - Component B3
  *
  * Normally, we call events in the following order:
  *
@@ -96,13 +96,12 @@ const globalKeyDownEventContextForTest: GlobalKeyDownEventContext | null = impor
  * - Component B3 `onGlobalKeyDown()`
  * - Component B `onGlobalKeyDown()`
  *
- * The order in which we call listeners at a given level of the tree is based
- * on the order in which they were mounted. If component A was mounted after
- * component B then we will call all of component B's listeners first,
- * then A's.
+ * The order in which we call listeners at a given level of the tree is based on
+ * the order in which they were mounted. If component A was mounted after component
+ * B then we will call all of component B's listeners first, then A's.
  *
- * If component A2 calls `event.stopPropagation()` in `onGlobalKeyDown()` we
- * will call the following listeners:
+ * If component A2 calls `event.stopPropagation()` in `onGlobalKeyDown()` we will
+ * call the following listeners:
  *
  * - Component A `onGlobalKeyDownBeforeChildren()`
  * - Component A1 `onGlobalKeyDownBeforeChildren()`
@@ -153,8 +152,8 @@ export function GlobalKeyDownEvent({
     );
 
     useEffect(() => {
-        // Disabling not only prevents our listeners from being called but also all
-        // child listeners of this component.
+        // Disabling not only prevents our listeners from being called but also all child
+        // listeners of this component.
         if (isDisabled) return;
 
         parentContext.childListeners.add(listener);
@@ -171,9 +170,9 @@ export function GlobalKeyDownEvent({
 }
 
 /**
- * When this component is rendered, all sibling `<GlobalKeyDownEvent>`s are disabled.
- * Only child `<GlobalKeyDownEvent>`s may run. Modals block interactivity of all
- * elements below. Including global keydown event handling.
+ * When this component is rendered, all sibling `<GlobalKeyDownEvent>`s are
+ * disabled. Only child `<GlobalKeyDownEvent>`s may run. Modals block interactivity
+ * of all elements below. Including global keydown event handling.
  */
 export function GlobalKeyDownEventModal({children}: {children?: ReactNode}) {
     const parentContext = useContext(GlobalKeyDownEventContext) ?? globalKeyDownEventContextForTest;
@@ -272,10 +271,10 @@ export function GlobalKeyDownRootContextProvider({children}: {children?: ReactNo
             }
         };
 
-        // IMPORTANT: Attaching to `window` instead of `document` is important here!
-        // React attaches its `keydown` listener on `document` so if a React handler
-        // calls `event.stopPropagation()` it stops bubbling to `window` but doesn't
-        // stop another listener on `document` from being called.
+        // IMPORTANT: Attaching to `window` instead of `document` is important here! React
+        // attaches its `keydown` listener on `document` so if a React handler calls
+        // `event.stopPropagation()` it stops bubbling to `window` but doesn't stop another
+        // listener on `document` from being called.
         //
         // See: https://github.com/facebook/react/issues/4335#issuecomment-421705171
         window.addEventListener("keydown", actualListener);
@@ -299,8 +298,8 @@ const GlobalKeyDownManualContextProviderForwardRef = forwardRef(GlobalKeyDownMan
 export {GlobalKeyDownManualContextProviderForwardRef as GlobalKeyDownManualContextProvider};
 
 /**
- * Can be used to manually fire a subtree's global key down listeners. Useful
- * if you want to increase the priority of some listeners.
+ * Can be used to manually fire a subtree's global key down listeners. Useful if
+ * you want to increase the priority of some listeners.
  */
 function GlobalKeyDownManualContextProvider(
     {children}: {children?: ReactNode},
@@ -343,8 +342,8 @@ function createListener(
 
         if (event.wasPropagationStopped()) return;
 
-        // We call child listeners in reverse order so that components mounted later
-        // have the opportunity to intercept keyboard events first.
+        // We call child listeners in reverse order so that components mounted later have
+        // the opportunity to intercept keyboard events first.
         for (const listener of Array.from(childListeners).reverse()) {
             listener(event);
             if (event.wasPropagationStopped()) return;

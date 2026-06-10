@@ -4,8 +4,8 @@ import {searchTaskCollectionsByAffinity} from "~/shared/rpc/search_rpc_definitio
 import {taskCollectionSearchResultLimit} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 /**
- * Return this account's affinitive task collections. Returns `null` while we
- * are loading the collections from the network.
+ * Return this account's affinitive task collections. Returns `null` while we are
+ * loading the collections from the network.
  */
 export function useSearchTaskCollectionsByAffinity({
     isDisabled = false,
@@ -21,10 +21,9 @@ export function useSearchTaskCollectionsByAffinity({
 }
 
 /**
- * Preload affinitive task collections when we have some idle time so that they
- * are immediately available when you call
- * `useSearchTaskCollectionsByAffinity()` and you don't have to wait for a
- * network request.
+ * Preload affinitive task collections when we have some idle time so that they are
+ * immediately available when you call `useSearchTaskCollectionsByAffinity()` and
+ * you don't have to wait for a network request.
  */
 export function usePreloadSearchTaskCollectionsByAffinity({
     isDisabled,

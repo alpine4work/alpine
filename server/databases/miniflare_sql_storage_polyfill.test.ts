@@ -1,21 +1,19 @@
 /* eslint-disable cyberworlds/string-quotes -- SQL literals */
 
 /**
- * Tests for the `SqlStorage` and `transactionSync`
- * polyfill patched into `@miniflare/durable-objects`.
- * Verifies that our better-sqlite3-backed implementation
- * matches the Cloudflare `SqlStorage` API surface used by
- * {@link DatabaseDurableObjectStorage}.
+ * Tests for the `SqlStorage` and `transactionSync` polyfill patched into
+ * `@miniflare/durable-objects`. Verifies that our better-sqlite3-backed
+ * implementation matches the Cloudflare `SqlStorage` API surface used by {@link
+ * DatabaseDurableObjectStorage}.
  */
 
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 
-// Cast to `any` because Miniflare's DurableObjectStorage
-// type doesn't include our patched `sql` /
-// `transactionSync` in the upstream .d.ts that
-// TypeScript resolves for the global type.
+// Cast to `any` because Miniflare's DurableObjectStorage type doesn't include our
+// patched `sql` / `transactionSync` in the upstream .d.ts that TypeScript resolves
+// for the global type.
 let storage: any;
 
 beforeEach(() => {

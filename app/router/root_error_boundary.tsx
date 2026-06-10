@@ -13,9 +13,9 @@ import {routeNotFoundError} from "~/shared/remix/route_not_found_error.js";
 export function RootErrorBoundary() {
     const defaultTitle = useRouteErrorTitle();
 
-    // It appears that Remix does not `useMemo()` its error object. So stabilize
-    // the object reference here. Our error rendering components use referential
-    // identity to determine whether we need to log the error.
+    // It appears that Remix does not `useMemo()` its error object. So stabilize the
+    // object reference here. Our error rendering components use referential identity
+    // to determine whether we need to log the error.
     const routeError = useStableValue(ErrorSchema, useRouteError());
 
     const error = useMemo(() => {

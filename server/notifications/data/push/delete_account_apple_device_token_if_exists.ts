@@ -9,9 +9,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
- * Delete a device token associated with the provided `AccountId`. System
- * actors can delete the device token for any account whereas session actors
- * may only delete device tokens for their own account.
+ * Delete a device token associated with the provided `AccountId`. System actors
+ * can delete the device token for any account whereas session actors may only
+ * delete device tokens for their own account.
  *
  * If the provided device token doesn't exist (or was already deleted) this
  * function does nothing.

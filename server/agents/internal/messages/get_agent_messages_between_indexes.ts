@@ -6,16 +6,16 @@ import {loadApiMessagesForAgentBatchCount} from "~/server/agents/internal/messag
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
- * Gets all the messages between two indexes. `startMessageIndex` is exclusive
- * and `endMessageIndex` is inclusive.
+ * Gets all the messages between two indexes. `startMessageIndex` is exclusive and
+ * `endMessageIndex` is inclusive.
  *
  * Returns null if there aren't any messages between the two indexes.
  */
 export async function getAgentMessagesBetweenIndexes(
     tracer: TracerBase,
     transaction: DurableObjectTransactionInterface,
-    // We don't want to use `request.event.index` in this function. So omit it from
-    // the type.
+    // We don't want to use `request.event.index` in this function. So omit it from the
+    // type.
     request: Omit<AgentWebhookRequest, "event">,
     startMessageIndex: number,
     endMessageIndex: number,

@@ -13,14 +13,15 @@ import {
     TaskQueryNormalizedFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
 
-// TypeScript errors here when new normalized filters are added. If you add a
-// new normalized filter you should make sure to update
+// TypeScript errors here when new normalized filters are added. If you add a new
+// normalized filter you should make sure to update
 // `evaluateTaskQueryNormalizedFiltersForIndexDoc()`.
 assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
     | "displayStatusFilter"
     | "collectionsFilter"
     | "priorityFilter"
+    | "layoutFilter"
     | "titleFilter"
     | "assigneeFilter"
     | "creatorFilter"
@@ -80,6 +81,16 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
             (filters.priorityFilter.ifMedium && priority === "Medium") ||
             (filters.priorityFilter.ifHigh && priority === "High") ||
             (filters.priorityFilter.ifUrgent && priority === "Urgent");
+
+        if (!pass) return false;
+    }
+
+    if (filters.layoutFilter !== undefined) {
+        const layout = task.getLayout();
+
+        const pass =
+            (filters.layoutFilter.ifNull && layout === null) ||
+            (filters.layoutFilter.ifProject && layout === "Project");
 
         if (!pass) return false;
     }

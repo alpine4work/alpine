@@ -5,11 +5,13 @@ ts_project(
     visibility = [
         "//admin:__subpackages__",
         "//app/integration_tests:__subpackages__",
+        "//app/screenshot_tests:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [
         "//server/chat/data",
         "//server/files/test_helpers",
+        "//server/access/test_helpers",
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
         "//shared/chat",

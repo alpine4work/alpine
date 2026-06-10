@@ -7,15 +7,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 
 /**
- * Owns the per-table {@link OpfsPageStore}s backing one
- * {@link DatabaseClient} and adapts them to the
- * {@link ReadonlyDatabaseStorage} interface that
- * {@link Database} reads through.
+ * Owns the per-table {@link OpfsPageStore}s backing one {@link DatabaseClient} and
+ * adapts them to the {@link ReadonlyDatabaseStorage} interface that {@link
+ * Database} reads through.
  *
- * Pages requested within the table's known file size but
- * not present locally throw {@link PageMissingError} so
- * the client can fall back to the server. Pages past the
- * end of the file return `null` (zero-fill / EOF).
+ * Pages requested within the table's known file size but not present locally throw
+ * {@link PageMissingError} so the client can fall back to the server. Pages past
+ * the end of the file return `null` (zero-fill / EOF).
  */
 export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
     private readonly groupDir: OpfsDirectoryHandle;
@@ -26,9 +24,8 @@ export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
     }
 
     /**
-     * Open the {@link OpfsPageStore} for `tableId` inside
-     * the group dir's `{tableId}/` subdirectory and
-     * register it.
+     * Open the {@link OpfsPageStore} for `tableId` inside the group dir's `{tableId}/`
+     * subdirectory and register it.
      */
     async create(tableId: DatabaseTableId): Promise<OpfsPageStore> {
         assert(!this.stores.has(tableId), `page store for table ${tableId} already exists`);
@@ -43,11 +40,9 @@ export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
     }
 
     /**
-     * Close every open page store, releasing their OPFS
-     * sync-access handles. Call when discarding the owning
-     * {@link DatabaseClient} (e.g. a failed cold-open) so a
-     * later re-open isn't blocked by OPFS's exclusive
-     * sync-access-handle lock.
+     * Close every open page store, releasing their OPFS sync-access handles. Call when
+     * discarding the owning {@link DatabaseClient} (e.g. a failed cold-open) so a
+     * later re-open isn't blocked by OPFS's exclusive sync-access-handle lock.
      */
     close(): void {
         for (const store of this.stores.values()) {
@@ -69,9 +64,8 @@ export class OpfsDatabaseStorage implements ReadonlyDatabaseStorage {
         const entry = store.readPage(index);
         if (entry !== null) return entry;
 
-        // Page is within the file the server says exists,
-        // but not in the local cache — signal a miss so
-        // the client falls back to the server.
+        // Page is within the file the server says exists, but not in the local cache —
+        // signal a miss so the client falls back to the server.
         const fileSize = store.getFileSize();
         if (index * sqlitePageSize < fileSize) {
             throw new PageMissingError(index);

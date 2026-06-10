@@ -43,25 +43,23 @@ type PeekSwitcherState<Extra> = {
 
 /**
  * An abstraction for building interfaces where you can switch between visible
- * peeks. Implements the suspense user interface pattern where we delay showing
- * a loading indicator in the hopes that data will load before the user
- * notices.
+ * peeks. Implements the suspense user interface pattern where we delay showing a
+ * loading indicator in the hopes that data will load before the user notices.
  *
- * - `selectedPeek`: The peek that the user has actively selected. We may have
- *   just started loading the data for this peek. Use this for rendering
- *   selection in a list to give user immediate feedback for their selection.
+ * - `selectedPeek`: The peek that the user has actively selected. We may have just
+ *   started loading the data for this peek. Use this for rendering selection in a
+ *   list to give user immediate feedback for their selection.
  *
- * - `activePeek`: The peek that we show to the user. We'll show the old peek
- *   for a little after switching while we wait for the new peek's data to
- *   load.
+ * - `activePeek`: The peek that we show to the user. We'll show the old peek for a
+ *   little after switching while we wait for the new peek's data to load.
  *
- * - `switchPeek`: Function you call to switch the peek. Its promise will
- *   resolve when the new `selectedPeek` becomes the `activePeek` even if its
- *   data hasn't finished loading yet.
+ * - `switchPeek`: Function you call to switch the peek. Its promise will resolve
+ *   when the new `selectedPeek` becomes the `activePeek` even if its data hasn't
+ *   finished loading yet.
  *
- *   If `spacePath` is null then `activePeek.content` will be null. Useful if
- *   you're using this hook to control some selected state but in some
- *   selections you don't want to render a peek.
+ *     If `spacePath` is null then `activePeek.content` will be null. Useful if
+ *     you're using this hook to control some selected state but in some selections
+ *     you don't want to render a peek.
  */
 export function usePeekSwitcherState<Extra>({
     key = null,

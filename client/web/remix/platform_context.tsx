@@ -7,6 +7,7 @@ import {Platform, mobilePlatformMaxWindowWidth} from "~/shared/design/core/platf
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
 const PlatformContext = createContext<Platform | null>(null);
@@ -31,8 +32,8 @@ export function usePlatform(): Platform {
 /**
  * Can the user's primary input mechanism hover?
  *
- * Uses the CSS media query `(hover: none)`. When server rendering we use the
- * same value as `platform === "mobile"` then update on initial client render.
+ * Uses the CSS media query `(hover: none)`. When server rendering we use the same
+ * value as `platform === "mobile"` then update on initial client render.
  */
 export function useCanPrimaryInputHover(): boolean {
     const canPrimaryInputHover = useContext(CanPrimaryInputHoverContext);
@@ -48,10 +49,10 @@ export function useCanPrimaryInputHover(): boolean {
 }
 
 /**
- * Does this `ClientInfo` mean the initial app render will be considered to be
- * a mobile render? Whether we render in mobile mode is ultimately determined
- * by the window size but during a server render we only have the device's
- * screen size in our `ClientInfo` cookie.
+ * Does this `ClientInfo` mean the initial app render will be considered to be a
+ * mobile render? Whether we render in mobile mode is ultimately determined by the
+ * window size but during a server render we only have the device's screen size in
+ * our `ClientInfo` cookie.
  */
 export function getInitialAppRenderPlatform(clientInfo: ClientInfo): Platform {
     return clientInfo.isNativeMobile || clientInfo.screenWidth <= mobilePlatformMaxWindowWidth
@@ -60,11 +61,18 @@ export function getInitialAppRenderPlatform(clientInfo: ClientInfo): Platform {
 }
 
 /**
- * Get the current `Platform` for the app without listening for changes.
- * Prefer using `usePlatform()` so if the platform changes your component will
- * re-render.
+ * Get the current `Platform` for the app without listening for changes. Prefer
+ * using `usePlatform()` so if the platform changes your component will re-render.
  */
 export function getPlatformWithoutListening(): Platform {
+    // The canonical platform is whatever is set in `data-platform`.
+    const platform = document.documentElement.getAttribute("data-platform");
+    if (platform !== null) return platform as Platform;
+
+    return actuallyGetPlatformWithoutListening();
+}
+
+function actuallyGetPlatformWithoutListening(): Platform {
     return !!NativeMobileBridge || window.innerWidth <= mobilePlatformMaxWindowWidth
         ? "mobile"
         : "desktop";
@@ -78,15 +86,15 @@ let sharedMediaQueryListener: {
 
 /**
  * Subscribe to changes that might update `Platform`. To know for sure whether
- * `Platform` changed you must call `getPlatformWithoutListening()`. Generally
- * you should prefer using `usePlatform()` since it adds one window size
- * listener for the entire React component tree. But this function can be
- * useful if you can't use React for some reason.
+ * `Platform` changed you must call `getPlatformWithoutListening()`. Generally you
+ * should prefer using `usePlatform()` since it adds one window size listener for
+ * the entire React component tree. But this function can be useful if you can't
+ * use React for some reason.
  */
 export function subscribeToPlatformChange(listener: () => void): () => void {
-    // We use one shared event listener for changes to our media query so we can
-    // have one React `flushSync()` transaction for all DOM updates that need to
-    // happen in response to the platform changing.
+    // We use one shared event listener for changes to our media query so we can have
+    // one React `flushSync()` transaction for all DOM updates that need to happen in
+    // response to the platform changing.
     if (sharedMediaQueryListener === null) {
         const listeners = new Set<() => void>();
 
@@ -95,6 +103,14 @@ export function subscribeToPlatformChange(listener: () => void): () => void {
         );
 
         const actualListener = () => {
+            // Disable all CSS transitions when we change the spacing scale. So anything with
+            // `transition: width` or `transition: transform` (notably `<SwitchIcon>` and
+            // `<ShareSwitchBase>`) change their size instantly instead of animating when the
+            // spacing scale changes.
+            const styleElement = document.createElement("style");
+            styleElement.textContent = "*, *::before, *::after { transition: none !important }";
+            document.head.appendChild(styleElement);
+
             flushSync(() => {
                 for (const listener of listeners) {
                     try {
@@ -103,6 +119,14 @@ export function subscribeToPlatformChange(listener: () => void): () => void {
                         scheduleUncaughtError(error);
                     }
                 }
+            });
+
+            // Wait for the browser to paint a frame before removing our CSS transition
+            // override.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    styleElement.remove();
+                });
             });
         };
 
@@ -130,15 +154,27 @@ export function subscribeToPlatformChange(listener: () => void): () => void {
     };
 }
 
+let setPlatformOverride: ((platform: Platform | null) => void) | null = null;
+
+/**
+ * Override the platform. Make sure to clean up your platform override when you're
+ * done. Currently this is just used for printing.
+ */
+export function overridePlatform(platform: Platform | null) {
+    assertExists(setPlatformOverride)(platform);
+}
+
 export function usePlatformContextProvider(clientInfo: ClientInfo): {
     platform: Platform;
     render: (children: ReactNode) => ReactElement;
 } {
     const [platform, setPlatform] = useState(getInitialAppRenderPlatform(clientInfo));
 
+    const [platformOverride, actuallySetPlatformOverride] = useState<Platform | null>(null);
+
     useEffect(() => {
         const update = () => {
-            setPlatform(getPlatformWithoutListening());
+            setPlatform(actuallyGetPlatformWithoutListening());
         };
 
         const unsubscribe = subscribeToPlatformChange(update);
@@ -146,8 +182,16 @@ export function usePlatformContextProvider(clientInfo: ClientInfo): {
         // In case the value changed since the time component rendered.
         update();
 
-        return unsubscribe;
-    }, [clientInfo.isNativeMobile]);
+        assert(!setPlatformOverride);
+        setPlatformOverride = actuallySetPlatformOverride;
+
+        return () => {
+            unsubscribe();
+
+            assert(setPlatformOverride === actuallySetPlatformOverride);
+            setPlatformOverride = null;
+        };
+    }, []);
 
     const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(platform !== "mobile");
 
@@ -168,9 +212,9 @@ export function usePlatformContextProvider(clientInfo: ClientInfo): {
     }, []);
 
     return {
-        platform,
+        platform: platformOverride ?? platform,
         render: (children: ReactNode) => (
-            <PlatformContext.Provider value={platform}>
+            <PlatformContext.Provider value={platformOverride ?? platform}>
                 <CanPrimaryInputHoverContext.Provider value={canPrimaryInputHover}>
                     {children}
                 </CanPrimaryInputHoverContext.Provider>

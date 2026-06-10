@@ -1,6 +1,5 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
-import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/web/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/web/shimmer/use_coordinated_shimmer_animations.js";
@@ -18,12 +17,15 @@ import {screenPaddingX} from "~/shared/design/core/spacing.js";
 export function PostShimmer({
     children,
     withoutPulseAnimation = false,
+    withoutTopBorder = false,
+    withBottomBorder = false,
 }: {
     children?: ReactNode;
     withoutPulseAnimation?: boolean;
+    withoutTopBorder?: boolean;
+    withBottomBorder?: boolean;
 }) {
     const spacingScale = useSpacingScale();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box
@@ -37,14 +39,26 @@ export function PostShimmer({
                 paddingBottom: postContentViewOuterMarginBottom,
             }}
         >
-            <Box
-                position="absolute"
-                left="0"
-                right="0"
-                height={routeLayout === "narrow" ? "border" : "border-thick"}
-                backgroundColor="grey-5"
-                style={{bottom: routeLayout === "narrow" ? 0 : -1}}
-            />
+            {!withoutTopBorder && (
+                <Box
+                    position="absolute"
+                    left={screenPaddingX}
+                    right={screenPaddingX}
+                    height="border"
+                    backgroundColor="grey-5"
+                    style={{top: -1}}
+                />
+            )}
+            {withBottomBorder && (
+                <Box
+                    position="absolute"
+                    left={screenPaddingX}
+                    right={screenPaddingX}
+                    bottom="0"
+                    height="border"
+                    backgroundColor="grey-5"
+                />
+            )}
             <PostShimmerHeader withoutPulseAnimation={withoutPulseAnimation} />
             <Box flexGrow="1" paddingX={screenPaddingX} paddingY={postContentViewInnerMarginY}>
                 {children}

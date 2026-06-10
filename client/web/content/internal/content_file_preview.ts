@@ -19,10 +19,6 @@ import {
 import {handoffContentFilePreviewState} from "~/client/web/content/internal/handoff_content_file_preview_state.js";
 import {transparentImageDataUrl} from "~/client/web/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/web/content/internal/load_content_file_viewer_data.js";
-import {
-    ContentFileLayout,
-    getFilePreviewSize,
-} from "~/client/web/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {Reporter} from "~/client/web/design/reporter.js";
@@ -49,7 +45,9 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
 import {
     codeBlockClassName,
     codeBlockLineClassName,
@@ -58,6 +56,7 @@ import {
     fileClassName,
     greyElevated2ClassName,
 } from "~/shared/design/core/constant_class_names.js";
+
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -84,14 +83,10 @@ import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
-import {
-    maxFilePreviewAspectRatio,
-    minFilePreviewAspectRatio,
-} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -100,9 +95,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
 /**
@@ -112,9 +106,9 @@ import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_pro
  *
  * IMPORTANT: If you make a change to preview rendering here you should also
  * consider making the same change to `<ContentFileViewerModalDesktop>` and
- * `<ContentFileViewerModalMobile>`. We have three renderers for every file
- * type. The inline preview, the fullscreen desktop modal, and the fullscreen
- * mobile modal. They should all look and behave about the same.
+ * `<ContentFileViewerModalMobile>`. We have three renderers for every file type.
+ * The inline preview, the fullscreen desktop modal, and the fullscreen mobile
+ * modal. They should all look and behave about the same.
  */
 export function renderContentFilePreview({
     spaceId,
@@ -193,8 +187,7 @@ export function renderContentFilePreview({
                 alignItems: "center",
                 gap: "1.5",
                 fontSize: layout.width < 150 ? "25" : "50",
-                // Push the loading spinner into the center with some
-                // padding top.
+                // Push the loading spinner into the center with some padding top.
                 paddingTop: "2",
             }),
         );
@@ -294,17 +287,16 @@ export function renderContentFilePreview({
 
 /**
  * This space helps Chrome's selection logic. In many cases we've observed that
- * when selecting an element's contents instead of ending the selection at the
- * end of the element, Chrome will end the selection at the beginning of the
- * next selectable text node it finds! So when we don't have this text nodes,
- * Chrome automatically selects all files until the next selectable text node
- * underneath.
+ * when selecting an element's contents instead of ending the selection at the end
+ * of the element, Chrome will end the selection at the beginning of the next
+ * selectable text node it finds! So when we don't have this text nodes, Chrome
+ * automatically selects all files until the next selectable text node underneath.
  *
- * To test this case put two files on top of each other with some text
- * above/below. Then start dragging from the text above down. Without this
- * text, Chrome selects both files immediately once the paragraph at the top
- * has been selected. Since it's ending its selection in the next selectable
- * text node (the paragraph below).
+ * To test this case put two files on top of each other with some text above/below.
+ * Then start dragging from the text above down. Without this text, Chrome selects
+ * both files immediately once the paragraph at the top has been selected. Since
+ * it's ending its selection in the next selectable text node (the paragraph
+ * below).
  */
 export function appendSelectionBoundaryHtml(containerHtml: HtmlElementGenerator) {
     const selectionBoundaryHtml = new HtmlElementGenerator("span");
@@ -318,8 +310,8 @@ export function appendSelectionBoundaryHtml(containerHtml: HtmlElementGenerator)
 
 /**
  * We add a transparent, invisible, image with `user-select: text` so that the
- * browser renders a selection highlight over the image when it's selected.
- * Since browsers like Chrome will render selection highlights over images.
+ * browser renders a selection highlight over the image when it's selected. Since
+ * browsers like Chrome will render selection highlights over images.
  *
  * We don't add this image on mobile since Safari does weird things with a
  * selectable image in `contenteditable="true"`. This is consistent with our
@@ -348,9 +340,8 @@ function actuallyRenderContentFileProcessingPreview({
     const schema = ContentBaseProsemirrorSchemaWithFiles.get();
 
     // NOTE(rohitt-gupta, 2025-04-09): here we are using non-null assertion
-    // operator(`!`) because we know that `schema.nodes.file` will always be
-    // present in the schema as it's in `baseNodes` of
-    // `createContentFileProsemirrorNodeSpecs`.
+    // operator(`!`) because we know that `schema.nodes.file` will always be present in
+    // the schema as it's in `baseNodes` of `createContentFileProsemirrorNodeSpecs`.
     //
     // check `createContentFileProsemirrorNodeSpecs` in
     // `shared/content/content_schema_extra.ts` for more details.
@@ -393,7 +384,7 @@ function renderContentFileProcessingPreview(
         }),
     );
 
-    const placeholder = generateFileProcessingPreviewPlaceholder(file);
+    const placeholder = generateFileProcessingPreviewPlaceholder(file.id, layout);
     const svg = renderFileProcessingPreviewPlaceholder(placeholder, {
         className: classNames(
             pulseAnimationClassName,
@@ -423,8 +414,7 @@ function renderContentFileProcessingPreview(
             gap: "1.5",
             fontSize: layout.width < 150 ? "25" : "50",
             textAlign: "center",
-            // Push the loading spinner into the center with some
-            // padding top.
+            // Push the loading spinner into the center with some padding top.
             paddingTop: layout.width < 150 ? "2" : "4",
         }),
     );
@@ -521,8 +511,8 @@ function renderContentFileImagePreview(
         return;
     }
 
-    // This is the file size after applying scaling. If you want the actual pixel
-    // size of the file use `reference.file.preview.size`.
+    // This is the file size after applying scaling. If you want the actual pixel size
+    // of the file use `reference.file.preview.size`.
     const fileSize = getFilePreviewSize(file);
 
     renderContentFileImagePreviewInner(html, {
@@ -588,15 +578,15 @@ function renderContentFileImagePreviewInner(
         );
     }
 
-    // We don't need a placeholder for images we've preloaded since we don't need
-    // to wait for preloaded images to load from the network.
+    // We don't need a placeholder for images we've preloaded since we don't need to
+    // wait for preloaded images to load from the network.
     if (file.imagePreviewContentIfSmall !== undefined) {
         html.setAttribute(
             "class",
             classNames(html.getAttribute("class"), contentStyles.loadedFileImagePreviewClassName),
         );
     } else {
-        const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
+        const svg = renderFileImagePreviewPlaceholder(fileSize, filePreviewPlaceholder);
 
         const placeholderImageHtml = new HtmlElementGenerator("img");
         placeholderImageHtml.setAttribute(
@@ -607,19 +597,94 @@ function renderContentFileImagePreviewInner(
             "style",
             `max-width: ${fileSize.width}px; max-height: ${fileSize.height}px`,
         );
-        // The placeholder image is purely decorative. It shouldn't be visible to
-        // assistive technologies.
+        // The placeholder image is purely decorative. It shouldn't be visible to assistive
+        // technologies.
         placeholderImageHtml.setAttribute("aria-hidden", "true");
         placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
 
         html.appendChild(placeholderImageHtml);
     }
 
+    // If the file's aspect ratio doesn't match the layout aspect ratio, we need to
+    // letter box the file. The file will be rendered with `object-fit: contain` and we
+    // need to do something with the rest of the space in the file. So we render the
+    // image placeholder behind the image with `object-fit: cover`.
+    if (!adjustments.hasTransparentBackground) {
+        // If the file is smaller than the space we've allocated for it, we need to
+        // letterbox the file.
+        let needsLetterbox = fileSize.width < layout.width || fileSize.height < layout.height;
+
+        let containedFileWidth: number;
+        let containedFileHeight: number;
+
+        const fileSizeAspectRatio = fileSize.width / fileSize.height;
+        const layoutAspectRatio = layout.width / layout.height;
+
+        if (fileSizeAspectRatio < layoutAspectRatio) {
+            containedFileWidth = fileSize.width * (layout.height / fileSize.height);
+            containedFileHeight = layout.height;
+
+            if (Math.round(layout.width) !== Math.round(containedFileWidth)) {
+                needsLetterbox = true;
+            }
+        } else {
+            containedFileWidth = layout.width;
+            containedFileHeight = fileSize.height * (layout.width / fileSize.width);
+
+            if (Math.round(layout.height) !== Math.round(containedFileHeight)) {
+                needsLetterbox = true;
+            }
+        }
+
+        if (needsLetterbox) {
+            // Intentionally use `layout` when rendering the letterbox to not stretch out the
+            // placeholder too much.
+            const svg = renderFileImagePreviewPlaceholder(layout, filePreviewPlaceholder);
+
+            const letterboxImageHtml = new HtmlElementGenerator("img");
+            html.appendChild(letterboxImageHtml);
+
+            letterboxImageHtml.setAttribute(
+                "class",
+                contentStyles.fileImagePreviewLetterboxClassName,
+            );
+            // The placeholder image is purely decorative. It shouldn't be visible to assistive
+            // technologies.
+            letterboxImageHtml.setAttribute("aria-hidden", "true");
+            letterboxImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
+
+            // Use CSS `clip-path` to cut out the space inside the letterbox where the image
+            // will be rendered. So if there's any transparency in the image the transparency
+            // will render over our background color instead of the letterbox.
+            //
+            // We do round to the nearest pixel to avoid subpixel rendering artifacts at the
+            // edges which does mean transparent pixels at the edges may render over the
+            // letterbox but we think this is acceptable for now.
+            if (fileSizeAspectRatio < layoutAspectRatio) {
+                const barWidth = (layout.width - containedFileWidth) / 2;
+
+                letterboxImageHtml.setAttribute(
+                    "style",
+                    // eslint-disable-next-line cyberworlds/string-quotes
+                    `clip-path: path('M 0 0 H ${Math.ceil(barWidth)} V ${layout.height} H 0 Z M ${layout.width - Math.ceil(barWidth)} 0 H ${layout.width} V ${layout.height} H ${layout.width - Math.ceil(barWidth)} Z')`,
+                );
+            } else {
+                const barHeight = (layout.height - containedFileHeight) / 2;
+
+                letterboxImageHtml.setAttribute(
+                    "style",
+                    // eslint-disable-next-line cyberworlds/string-quotes
+                    `clip-path: path('M 0 0 H ${layout.width} V ${Math.ceil(barHeight)} H 0 Z M 0 ${layout.height - Math.ceil(barHeight)} H ${layout.width} V ${layout.height} H 0 Z')`,
+                );
+            }
+        }
+    }
+
     // Render the image if we have a signed preview URL and the signature isn't
     // expired.
     //
-    // When the signature expires we re-render the file to remove the image from
-    // the DOM. `addContentFilePreviewBehavior()` is responsible for fetching new
+    // When the signature expires we re-render the file to remove the image from the
+    // DOM. `addContentFilePreviewBehavior()` is responsible for fetching new
     // signatures that haven't expired.
     if (!file.isSignedUrlExpired && filePreview.content !== "Processing") {
         const imageSourceBase = `${resourceServiceUrl}/files/${spaceId}/${file.id}${
@@ -634,8 +699,8 @@ function renderContentFileImagePreviewInner(
         const isVectorImage =
             (filePreview.content?.contentType ?? file.contentType) === "image/svg+xml";
 
-        // NOTE(ifitzsimmons, #dont-resize-gifs): We stopped resizing gifs because
-        // they take too long (often timing out at 30 seconds).
+        // NOTE(ifitzsimmons, #dont-resize-gifs): We stopped resizing gifs because they
+        // take too long (often timing out at 30 seconds).
         const isGif = (filePreview.content?.contentType ?? file.contentType) === "image/gif";
 
         if (isVectorImage || isGif) {
@@ -647,50 +712,22 @@ function renderContentFileImagePreviewInner(
             const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2 * transformScale);
             const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3 * transformScale);
 
-            const aspectRatio = filePreviewSize.width / filePreviewSize.height;
-            const isOutsideAspectRatioRange =
-                aspectRatio < minFilePreviewAspectRatio || aspectRatio > maxFilePreviewAspectRatio;
+            // If the file is smaller than our desired resize width then don't bother resizing
+            // since resizing will be a noop.
+            image1xSource =
+                filePreviewSize.width <= image1xWidth
+                    ? imageSourceBase
+                    : `${imageSourceBase}&width=${image1xWidth}`;
 
-            if (!isOutsideAspectRatioRange) {
-                // If the file is smaller than our desired resize width then don't bother
-                // resizing since resizing will be a noop.
-                image1xSource =
-                    filePreviewSize.width <= image1xWidth
-                        ? imageSourceBase
-                        : `${imageSourceBase}&width=${image1xWidth}`;
+            image2xSource =
+                filePreviewSize.width <= image2xWidth
+                    ? imageSourceBase
+                    : `${imageSourceBase}&width=${image2xWidth}`;
 
-                image2xSource =
-                    filePreviewSize.width <= image2xWidth
-                        ? imageSourceBase
-                        : `${imageSourceBase}&width=${image2xWidth}`;
-
-                image3xSource =
-                    filePreviewSize.width <= image3xWidth
-                        ? imageSourceBase
-                        : `${imageSourceBase}&width=${image3xWidth}`;
-            }
-
-            // If we're outside the aspect ratio range then we always want to resize our
-            // file. Since resizing will also crop the file to our aspect ratio range. This
-            // will result in a smaller file to download.
-            else {
-                const defaultWidth = getFilePreviewImageResizeWidth(filePreviewSize.width);
-
-                image1xSource =
-                    filePreviewSize.width <= image1xWidth
-                        ? `${imageSourceBase}&width=${defaultWidth}`
-                        : `${imageSourceBase}&width=${image1xWidth}`;
-
-                image2xSource =
-                    filePreviewSize.width <= image2xWidth
-                        ? `${imageSourceBase}&width=${defaultWidth}`
-                        : `${imageSourceBase}&width=${image2xWidth}`;
-
-                image3xSource =
-                    filePreviewSize.width <= image3xWidth
-                        ? `${imageSourceBase}&width=${defaultWidth}`
-                        : `${imageSourceBase}&width=${image3xWidth}`;
-            }
+            image3xSource =
+                filePreviewSize.width <= image3xWidth
+                    ? imageSourceBase
+                    : `${imageSourceBase}&width=${image3xWidth}`;
         }
 
         let imageSrcset: string;
@@ -703,18 +740,18 @@ function renderContentFileImagePreviewInner(
         }
 
         const imageHtml = renderFileImagePreviewContent({
-            // If we preloaded the image preview content because it was less than 100kb
-            // then our image element source should be a base64 data URL so we can skip
-            // loading data from the network.
+            // If we preloaded the image preview content because it was less than 100kb then
+            // our image element source should be a base64 data URL so we can skip loading data
+            // from the network.
             srcset:
                 file.imagePreviewContentIfSmall !== undefined
                     ? `data:${filePreview.content?.contentType ?? file.contentType};base64,${
                           file.imagePreviewContentIfSmall
                       }`
                     : imageSrcset,
-            // We need to set the image `max-width` and `max-height` since we don't want
-            // the image growing to fill its parent if the image is smaller than the
-            // parent (e.g. a small 32x32 image).
+            // We need to set the image `max-width` and `max-height` since we don't want the
+            // image growing to fill its parent if the image is smaller than the parent (e.g. a
+            // small 32x32 image).
             maxWidth: `${fileSize.width}px`,
             maxHeight: `${fileSize.height}px`,
         });
@@ -722,8 +759,8 @@ function renderContentFileImagePreviewInner(
         html.appendChild(imageHtml);
     }
 
-    // If this is an image preview of a video then let's show a play button with
-    // the timestamp. When the user clicks on the video we'll start playing it.
+    // If this is an image preview of a video then let's show a play button with the
+    // timestamp. When the user clicks on the video we'll start playing it.
     if (typeof filePreview.videoDuration === "number") {
         const videoPlayerHtml = new HtmlElementGenerator("div");
         html.appendChild(videoPlayerHtml);
@@ -749,12 +786,11 @@ function renderContentFileImagePreviewInner(
         // We disable `user-select: text` on
         // `contentStyles.fileImagePreviewContentClassName` when
         // `contentStyles.fileClassName` has
-        // `contentFileVideoPlayerStyles.containerClassName` because we want to render
-        // a transparent `<img>` that covers video player controls. If the browser
-        // renders a selection highlight over
-        // `contentStyles.fileImagePreviewContentClassName` then it'll render under the
-        // video controls and under the `<video>` element itself once the video is
-        // playing.
+        // `contentFileVideoPlayerStyles.containerClassName` because we want to render a
+        // transparent `<img>` that covers video player controls. If the browser renders a
+        // selection highlight over `contentStyles.fileImagePreviewContentClassName` then
+        // it'll render under the video controls and under the `<video>` element itself
+        // once the video is playing.
         appendImageHtmlForSelection(html, platform);
     }
 }
@@ -783,9 +819,9 @@ function renderContentFileCodePreview(
     );
 
     // Make sure when we scale the file down, we continue to use the layout height
-    // instead of the unscaled element height. To reproduce the bug which caused us
-    // to add this: Scale down a code preview by adding another file to its file
-    // row. Then add a comment to the code preview.
+    // instead of the unscaled element height. To reproduce the bug which caused us to
+    // add this: Scale down a code preview by adding another file to its file row. Then
+    // add a comment to the code preview.
     html.setAttribute("style", `height: ${layout.height}px`);
 
     appendImageHtmlForSelection(html, platform);
@@ -882,8 +918,8 @@ function renderContentFileCodePreview(
     }
 }
 
-// Round numbers to 3 decimal places so we sending less data over the
-// network in our generated HTML.
+// Round numbers to 3 decimal places so we sending less data over the network in
+// our generated HTML.
 function round6(n: number) {
     return Math.round(n * 10 ** 6) / 10 ** 6;
 }
@@ -891,18 +927,18 @@ function round6(n: number) {
 /**
  * Render the `<img>` element for file image previews.
  *
- * As an optimization, we reuse image DOM elements across re-renders. All
- * `<img>` elements we render are placed in a pool. Then if we call
- * `renderFileImagePreviewContent()` again with the same `srcset` we reuse an
- * old `<img>` element if it's been removed from the DOM.
+ * As an optimization, we reuse image DOM elements across re-renders. All `<img>`
+ * elements we render are placed in a pool. Then if we call
+ * `renderFileImagePreviewContent()` again with the same `srcset` we reuse an old
+ * `<img>` element if it's been removed from the DOM.
  *
  * This is noticeable on initial render if you open Chrome DevTools, go to the
- * Network tab, and turn on "Disable cache". Then reload the page. Without
- * pooling there will be two network requests for the same image. With pooling
- * there's only one. Normally caching will be turned on in Chrome so why bother
- * fixing this? Well Safari doesn't cache the image element source after it has
- * been removed from the DOM. So you always get two network requests from
- * Safari on initial render without pooling.
+ * Network tab, and turn on "Disable cache". Then reload the page. Without pooling
+ * there will be two network requests for the same image. With pooling there's only
+ * one. Normally caching will be turned on in Chrome so why bother fixing this?
+ * Well Safari doesn't cache the image element source after it has been removed
+ * from the DOM. So you always get two network requests from Safari on initial
+ * render without pooling.
  */
 function renderFileImagePreviewContent({
     srcset,
@@ -917,36 +953,35 @@ function renderFileImagePreviewContent({
     imageHtml.setAttribute("class", contentStyles.fileImagePreviewContentClassName);
     imageHtml.setAttribute("style", `max-width: ${maxWidth}; max-height: ${maxHeight}`);
 
-    // Only load the image when it enters the viewport. For long documents with a
-    // lot of images this improves network utilization. This means our signed URL in
-    // `src` always needs to be up-to-date since we don't know when the browser will
-    // need it.
+    // Only load the image when it enters the viewport. For long documents with a lot
+    // of images this improves network utilization. This means our signed URL in `src`
+    // always needs to be up-to-date since we don't know when the browser will need it.
     imageHtml.setAttribute("loading", "lazy");
 
-    // Synchronously decode images. That way we don't need to wait for the
-    // `decode()` method before we can present an image. Since preview images are
-    // small we don't expect this to be a performance issue.
+    // Synchronously decode images. That way we don't need to wait for the `decode()`
+    // method before we can present an image. Since preview images are small we don't
+    // expect this to be a performance issue.
     //
     // This improves the user experience in `<ContentEditor>`s when moving files
     // around. If you move a file we don't need to re-fetch the image because the
-    // browser has it cached. But if `decoding` is `async` then we do need to wait
-    // for the `decode()` method which flashes the loading state for an image
-    // temporarily while we wait for the image to decode.
+    // browser has it cached. But if `decoding` is `async` then we do need to wait for
+    // the `decode()` method which flashes the loading state for an image temporarily
+    // while we wait for the image to decode.
     //
-    // To test this, try adding and removing comments from files. This will
-    // re-create the file `<img>` element but since the file is cached we shouldn't
-    // have to show the loading indicator.
+    // To test this, try adding and removing comments from files. This will re-create
+    // the file `<img>` element but since the file is cached we shouldn't have to show
+    // the loading indicator.
     imageHtml.setAttribute("decoding", "sync");
 
-    // Needed to get a proper CORS response from the resource service where our
-    // files are hosted.
+    // Needed to get a proper CORS response from the resource service where our files
+    // are hosted. This _must_ be set before setting the `src` attribute.
     imageHtml.setAttribute("crossorigin", "anonymous");
 
     const srcs = srcset.startsWith("data:") ? [srcset] : srcset.split(",");
     const firstSrc = srcs[0]!.trim();
 
-    // The first source should not include a modifier like 2x. Since it's used as
-    // the `<img>`'s default `src`.
+    // The first source should not include a modifier like 2x. Since it's used as the
+    // `<img>`'s default `src`.
     assert(!firstSrc.includes(" "));
 
     imageHtml.setAttribute("src", firstSrc);
@@ -992,33 +1027,35 @@ export function getFileImagePreviewRenderingAdjustments(placeholder: FileImagePr
 
     // Less than luminosity of `colors-0` - 0.05
     //
-    // The constant was picked to support rendering the screenshots in this blog
-    // post with a transparent background:
+    // The constant was picked to support rendering the screenshots in this blog post
+    // with a transparent background:
     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/4xpwf206e4bq72kxvb7d0bm110
     const isNearWhite = averageLuminosity > 0.97;
 
-    // If we have a subject on a transparent background then we don't want to
-    // render borders around the image and instead let the subject bleed into the
-    // page.
+    // If we have a subject on a transparent background then we don't want to render
+    // borders around the image and instead let the subject bleed into the page.
     const hasTransparentBackground = averageAlpha < 0.75;
 
     return {isNearBlack, isNearWhite, hasTransparentBackground};
 }
 
-export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlaceholder) {
-    /* eslint-disable cyberworlds/string-quotes */
-
+export function renderFileImagePreviewPlaceholder(
+    fileSize: {width: number; height: number},
+    placeholder: FileImagePreviewPlaceholder,
+) {
     const pixelGrid = placeholder.get();
     const pixelGridWidth = pixelGrid[0].length;
     const pixelGridHeight = pixelGrid.length;
 
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pixelGridWidth} ${pixelGridHeight}">`;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fileSize.width} ${fileSize.height}">`;
 
-    const blurStdDeviation = 2 / 3;
+    const rectWidthBase = fileSize.width / pixelGridWidth;
+    const rectHeightBase = fileSize.height / pixelGridHeight;
+    const blurStdDeviation = (2 / 3) * Math.min(rectWidthBase, rectHeightBase);
     const translateX = -blurStdDeviation * 2;
     const translateY = -blurStdDeviation * 2;
-    const scaleX = (pixelGridWidth + -translateX * 2) / pixelGridWidth;
-    const scaleY = (pixelGridHeight + -translateY * 2) / pixelGridHeight;
+    const rectWidth = rectWidthBase + -translateX * 2;
+    const rectHeight = rectHeightBase + -translateY * 2;
 
     svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${round6(
         blurStdDeviation,
@@ -1037,12 +1074,12 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
 
             svg +=
                 `<rect ` +
-                `x="${round6(x * scaleX + translateX)}" ` +
-                `y="${round6(y * scaleY + translateY)}" ` +
-                // Have `width` and `height` fill the remainder of the image so we don't get
-                // any gaps between `<rect>`s from rounding errors when rendering the SVG.
-                `width="${round6(scaleX)}" ` +
-                `height="${round6(scaleY)}" ` +
+                `x="${round6(x * rectWidthBase + translateX)}" ` +
+                `y="${round6(y * rectHeightBase + translateY)}" ` +
+                // Have `width` and `height` fill the remainder of the image so we don't get any
+                // gaps between `<rect>`s from rounding errors when rendering the SVG.
+                `width="${round6(rectWidth)}" ` +
+                `height="${round6(rectHeight)}" ` +
                 `fill="${color}"${
                     pixel.alpha !== undefined ? ` fill-opacity="${pixel.alpha}"` : ""
                 } />`;
@@ -1051,31 +1088,23 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
 
     svg += "</g></svg>";
     return svg;
-
-    /* eslint-enable cyberworlds/string-quotes */
 }
 
 /**
- * Generate a blobby loading placeholder that looks like one of our image
- * preview placeholders that we'll render before we have the real data for the
- * image.
+ * Generate a blobby loading placeholder that looks like one of our image preview
+ * placeholders that we'll render before we have the real data for the image.
  */
 function generateFileProcessingPreviewPlaceholder(
-    file: FileModelData,
+    fileId: FileId,
+    layout: {width: number; height: number},
 ): ReadonlyArray<ReadonlyArray<ColorWithShade>> {
-    const fileSize = getFilePreviewSize(file);
-
     const baseSize = Math.floor(fileImagePreviewPlaceholderBaseSize * 0.6);
 
-    const aspectRatio = clamp(
-        minFilePreviewAspectRatio,
-        fileSize.width / fileSize.height,
-        maxFilePreviewAspectRatio,
-    );
-    const width = fileSize.width < fileSize.height ? baseSize : Math.round(baseSize * aspectRatio);
-    const height = fileSize.width < fileSize.height ? Math.round(baseSize / aspectRatio) : baseSize;
+    const aspectRatio = layout.width / layout.height;
+    const width = layout.width < layout.height ? baseSize : Math.round(baseSize * aspectRatio);
+    const height = layout.width < layout.height ? Math.round(baseSize / aspectRatio) : baseSize;
 
-    const stableRandom = new StableRandom(`FileLoadingPlaceholder:${file.id}-${width}-${height}`);
+    const stableRandom = new StableRandom(`FileLoadingPlaceholder:${fileId}-${width}-${height}`);
 
     const pixelCount = width * height;
     const backgroundPixelCount = Math.round((4 / 5) * pixelCount);
@@ -1094,8 +1123,8 @@ function generateFileProcessingPreviewPlaceholder(
 
     stableShuffleArray(stableRandom, "pixelShuffle", pixels);
 
-    // Move any colored pixels out of the middle of the placeholder. Since we'll
-    // have the loading indicator in the middle of the placeholder.
+    // Move any colored pixels out of the middle of the placeholder. Since we'll have
+    // the loading indicator in the middle of the placeholder.
     {
         const middlePixelStartX = Math.floor((width - 1) / 2);
         const middlePixelEndX = Math.ceil((width - 1) / 2);
@@ -1109,8 +1138,8 @@ function generateFileProcessingPreviewPlaceholder(
                 const pixelColor = pixels[pixelIndex]!;
                 if (pixelColor === backgroundColor) continue;
 
-                // Get any pixels with background pixels not in the middle we can swap our
-                // colored pixel for.
+                // Get any pixels with background pixels not in the middle we can swap our colored
+                // pixel for.
                 const backgroundPixelIndexes = filterMapArray(pixels, (pixel, index) => {
                     if (pixel !== backgroundColor) return;
 
@@ -1165,8 +1194,6 @@ function renderFileProcessingPreviewPlaceholder(
     pixelGrid: ReadonlyArray<ReadonlyArray<ColorWithShade>>,
     {className = ""}: {className?: string} = {},
 ) {
-    /* eslint-disable cyberworlds/string-quotes */
-
     const pixelGridWidth = pixelGrid[0]!.length;
     const pixelGridHeight = pixelGrid.length;
 
@@ -1192,8 +1219,8 @@ function renderFileProcessingPreviewPlaceholder(
                 `<rect ` +
                 `x="${round6(x * scaleX + translateX)}" ` +
                 `y="${round6(y * scaleY + translateY)}" ` +
-                // Have `width` and `height` fill the remainder of the image so we don't get
-                // any gaps between `<rect>`s from rounding errors when rendering the SVG.
+                // Have `width` and `height` fill the remainder of the image so we don't get any
+                // gaps between `<rect>`s from rounding errors when rendering the SVG.
                 `width="${round6(scaleX)}" ` +
                 `height="${round6(scaleY)}" ` +
                 `style="fill: ${colorSchemeVars[pixel]}" />`;
@@ -1202,8 +1229,6 @@ function renderFileProcessingPreviewPlaceholder(
 
     svg += "</g></svg>";
     return svg;
-
-    /* eslint-enable cyberworlds/string-quotes */
 }
 
 export function addContentFilePreviewBehaviorBase(
@@ -1251,10 +1276,11 @@ export function addContentFilePreviewBehaviorBase(
 
         if (isPointerDownAndOver) {
             // Normally ProseMirror sets `element.draggable = true` on node selection
-            // ([source][1]). But since we don't select our node until after a long press
-            // let's start our `pointerdown` event by setting `element.draggable = true`.
+            // ([source][1]). But since we don't select our node until after a long press let's
+            // start our `pointerdown` event by setting `element.draggable = true`.
             //
-            // [1]: https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
+            // [1]:
+            //     https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
             if (getPlatformWithoutListening() !== "mobile") {
                 element.draggable = true;
             }
@@ -1278,10 +1304,10 @@ export function addContentFilePreviewBehaviorBase(
         } else if (!event.shiftKey) {
             // By default, the browser will focus our `[contenteditable=true]` element on
             // `pointerdown`. We don't want this behavior but we can't call
-            // `event.preventDefault()` since that'll also cancel the browser's ability to
-            // drag our file. So instead, wait an animation frame and blur if the browser
-            // focused our `[contenteditable=true]` element if it was unfocused when the
-            // `pointerdown` occurred.
+            // `event.preventDefault()` since that'll also cancel the browser's ability to drag
+            // our file. So instead, wait an animation frame and blur if the browser focused
+            // our `[contenteditable=true]` element if it was unfocused when the `pointerdown`
+            // occurred.
             const docElement = element.closest<HTMLElement>(`.${contentStyles.docClassName}`);
             if (docElement) {
                 const wasFocused = docElement === document.activeElement;
@@ -1294,10 +1320,10 @@ export function addContentFilePreviewBehaviorBase(
             }
         }
 
-        // If the mouse performs a shift or alt click then we select the node instead
-        // of opening the file viewer. This interaction is not obvious. You can also
-        // use keyboard shortcuts or right click to select a file. The user should be
-        // able to figure out one of these three methods.
+        // If the mouse performs a shift or alt click then we select the node instead of
+        // opening the file viewer. This interaction is not obvious. You can also use
+        // keyboard shortcuts or right click to select a file. The user should be able to
+        // figure out one of these three methods.
         if (
             !wasEventPreviouslyDefaultPrevented &&
             event.pointerType === "mouse" &&
@@ -1308,7 +1334,8 @@ export function addContentFilePreviewBehaviorBase(
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
             // last 0.5 seconds][1] before firing.
             //
-            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            // [1]:
+            //     https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
             longPressTimeout = createTimeout(() => {
                 longPressTimeout = null;
 
@@ -1326,10 +1353,11 @@ export function addContentFilePreviewBehaviorBase(
         isPointerDownAndOver = false;
 
         // We set `element.draggable = true` on `pointerdown` and ProseMirror sets
-        // `element.draggable = true` on node selection ([source][1]). So if the node
-        // is selected, let ProseMirror set `element.draggable = false` instead of us.
+        // `element.draggable = true` on node selection ([source][1]). So if the node is
+        // selected, let ProseMirror set `element.draggable = false` instead of us.
         //
-        // [1]: https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
+        // [1]:
+        //     https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
         if (!element.classList.contains("ProseMirror-selectednode") && element.draggable)
             element.draggable = false;
 
@@ -1370,10 +1398,10 @@ export function addContentFilePreviewBehaviorBase(
         resetPointerState();
 
         // If we have a browser selection (whether it be `<ContentEditor>` or
-        // `<ContentView>`) that includes the file and some other stuff then we want to
-        // use ProseMirror's drag logic (or
-        // `handleDragStartEventIfNotTextInputElement()` in the case of
-        // `<ContentView>`). Otherwise we want to override ProseMirror's drag logic.
+        // `<ContentView>`) that includes the file and some other stuff then we want to use
+        // ProseMirror's drag logic (or `handleDragStartEventIfNotTextInputElement()` in
+        // the case of `<ContentView>`). Otherwise we want to override ProseMirror's drag
+        // logic.
         const selection = window.getSelection();
         if (
             selection?.containsNode(element) &&
@@ -1384,9 +1412,9 @@ export function addContentFilePreviewBehaviorBase(
 
         if (!event.dataTransfer) return;
 
-        // Don't propagate to ProseMirror. If the user starts dragging on a file and
-        // only a file then we want `event.dataTransfer` to contain the file's HTML.
-        // Not the selection HTML which might be something different.
+        // Don't propagate to ProseMirror. If the user starts dragging on a file and only a
+        // file then we want `event.dataTransfer` to contain the file's HTML. Not the
+        // selection HTML which might be something different.
         event.stopPropagation();
 
         const elementRect = element.getBoundingClientRect();
@@ -1411,16 +1439,15 @@ export function addContentFilePreviewBehaviorBase(
         element.addEventListener("pointercancel", handlePointerCancel);
         element.addEventListener("dragstart", handleDragStart);
 
-        // Search for all scrollable parent elements so we can attach a scroll handler
-        // that resets our press.
+        // Search for all scrollable parent elements so we can attach a scroll handler that
+        // resets our press.
         //
-        // We don't use `addParentScrollWhenPointerDownAndOverListener()` like other
-        // node views in `<ContentEditor>` because content file previews are rendered
-        // outside of `<ContentEditor>` and `<ContentView>`. For example,
-        // `<MessageViewFiles>` and `<ContentFileMiniPreview>`.
-        // `addParentScrollWhenPointerDownAndOverListener()` only works if the element
-        // is inside a `<ContentEditor>` or `<ContentView>` which listen to scroll
-        // events for their children.
+        // We don't use `addParentScrollWhenPointerDownAndOverListener()` like other node
+        // views in `<ContentEditor>` because content file previews are rendered outside of
+        // `<ContentEditor>` and `<ContentView>`. For example, `<MessageViewFiles>` and
+        // `<ContentFileMiniPreview>`. `addParentScrollWhenPointerDownAndOverListener()`
+        // only works if the element is inside a `<ContentEditor>` or `<ContentView>` which
+        // listen to scroll events for their children.
         {
             let parentElement = element.parentElement;
             while (parentElement) {
@@ -1462,6 +1489,15 @@ export function addContentFilePreviewBehaviorBase(
 
         resetPointerState();
     };
+}
+
+let contentFileImagePreviewContentLoadingState: {
+    count: number;
+    promiseResolver: PromiseResolver<void>;
+} | null = null;
+
+export async function internalWaitForContentFileImagePreviewContentsToLoad() {
+    await contentFileImagePreviewContentLoadingState?.promiseResolver.promise;
 }
 
 export function addContentFilePreviewBehavior(
@@ -1555,15 +1591,15 @@ export function addContentFilePreviewBehavior(
             dataTransfer.setData("text/html", serializedNode.outerHTML);
 
             // NOTE(calebmer, 2024-10-15): I'd love to also include `image/png` here with a
-            // `Blob` of the preview image like we do when copying (see the copy
-            // implementation in our `contextmenu` handler). Unfortunately, generating a
-            // `Blob` from a canvas is asynchronous. We could optimistically generate
-            // `Blob`s in the background so they're available synchronously here but that's
-            // too complicated for a feature that's not that important.
+            // `Blob` of the preview image like we do when copying (see the copy implementation
+            // in our `contextmenu` handler). Unfortunately, generating a `Blob` from a canvas
+            // is asynchronous. We could optimistically generate `Blob`s in the background so
+            // they're available synchronously here but that's too complicated for a feature
+            // that's not that important.
 
-            // We check for this content type in the `dragenter` event to know if we need
-            // to show file drop targets. If this is set then it's assumed `text/html` will
-            // be parsed to `fileRow` or `file` nodes.
+            // We check for this content type in the `dragenter` event to know if we need to
+            // show file drop targets. If this is set then it's assumed `text/html` will be
+            // parsed to `fileRow` or `file` nodes.
             dataTransfer.setData("application/x.alpine.file", "");
 
             if (onDrag) {
@@ -1575,8 +1611,8 @@ export function addContentFilePreviewBehavior(
                 };
 
                 // Attach `dragend` handler here since even if this content file's behavior is
-                // cleaned up (say `reference` changes) we don't want to remove our `dragend`
-                // event listener.
+                // cleaned up (say `reference` changes) we don't want to remove our `dragend` event
+                // listener.
                 element.addEventListener("dragend", handleDragEnd);
 
                 onDrag(dragPromiseResolver.promise);
@@ -1605,8 +1641,8 @@ export function addContentFilePreviewBehavior(
 
             searchParams.set(
                 "file",
-                // Space separator was chosen since it's encoded as a `+` which looks nice in
-                // the URL.
+                // Space separator was chosen since it's encoded as a `+` which looks nice in the
+                // URL.
                 attachmentTarget === "Uploader"
                     ? file.id
                     : `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
@@ -1618,11 +1654,11 @@ export function addContentFilePreviewBehavior(
                     replace: true,
                     // Don't fetch route data from the server. We don't need any new route data.
                     //
-                    // NOTE(calebmer, 2024-10-15): I just realized, instead of adding this private
-                    // API with a patch it might be better to add the `shouldRevalidate` function to
-                    // every route, look for specific changes, and ignore everything else. Like the
-                    // `s.$spaceId.tsx` revalidation function which only returns true if the
-                    // `SpaceId` changes.
+                    // NOTE(calebmer, 2024-10-15): I just realized, instead of adding this private API
+                    // with a patch it might be better to add the `shouldRevalidate` function to every
+                    // route, look for specific changes, and ignore everything else. Like the
+                    // `_space.tsx` revalidation function which only returns true if the `SpaceId`
+                    // changes.
                     unstable_shouldRevalidate: false,
                 },
             ];
@@ -1668,7 +1704,7 @@ export function addContentFilePreviewBehavior(
     element.addEventListener("contextmenu", handleContextMenu);
 
     /* ========================================================================== *\
-     *                               Image elements                               *
+     *                               Image elements                               *
     \* ========================================================================== */
 
     const imagePreviewContentElement = element.querySelector<HTMLImageElement>(
@@ -1679,15 +1715,15 @@ export function addContentFilePreviewBehavior(
         if (element.classList.contains(contentStyles.loadedFileImagePreviewClassName))
             element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
     }
-    // If we have the file's image content already loaded then we don't need to
-    // wait for the file to load from the network.
+    // If we have the file's image content already loaded then we don't need to wait
+    // for the file to load from the network.
     else if (file?.imagePreviewContentIfSmall === undefined) {
         const loadedPromise = isHtmlImageElementLoadedAndDecoded(imagePreviewContentElement);
 
-        // Remove the loaded class if the image isn't available synchronously. If the
-        // image is available synchronously then this whole branch will noop. Which is
-        // good, if we removed the loaded class then added it back the fade in
-        // animation would rerun.
+        // Remove the loaded class if the image isn't available synchronously. If the image
+        // is available synchronously then this whole branch will noop. Which is good, if
+        // we removed the loaded class then added it back the fade in animation would
+        // rerun.
         if (
             loadedPromise.isPending() &&
             element.classList.contains(contentStyles.loadedFileImagePreviewClassName)
@@ -1695,9 +1731,31 @@ export function addContentFilePreviewBehavior(
             element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
         }
 
+        contentFileImagePreviewContentLoadingState ??= {
+            count: 0,
+            promiseResolver: createPromiseResolver(),
+        };
+        contentFileImagePreviewContentLoadingState.count++;
+
         const handleLoad = () => {
             if (!element.classList.contains(contentStyles.loadedFileImagePreviewClassName)) {
                 element.classList.add(contentStyles.loadedFileImagePreviewClassName);
+            }
+
+            // Wait for the animation to finish before resolving our loading state promise.
+            createTimeout(
+                decrementLoadingStateCount,
+                contentStyles.loadedFileImageAnimationDurationMs,
+            );
+        };
+
+        const decrementLoadingStateCount = () => {
+            assert(contentFileImagePreviewContentLoadingState);
+            contentFileImagePreviewContentLoadingState.count--;
+
+            if (contentFileImagePreviewContentLoadingState.count === 0) {
+                contentFileImagePreviewContentLoadingState.promiseResolver.resolve();
+                contentFileImagePreviewContentLoadingState = null;
             }
         };
 
@@ -1705,11 +1763,14 @@ export function addContentFilePreviewBehavior(
 
         loadedPromise.then(
             () => {
-                if (hasCleanedUp) return;
+                if (hasCleanedUp) {
+                    decrementLoadingStateCount();
+                    return;
+                }
 
-                // If the image was loaded synchronously and the element doesn't currently have
-                // the loaded class name then wait a microtask before adding the loaded class
-                // name. That way we guarantee the fade in animation runs.
+                // If the image was loaded synchronously and the element doesn't currently have the
+                // loaded class name then wait a microtask before adding the loaded class name.
+                // That way we guarantee the fade in animation runs.
                 //
                 // This is needed when rendering after `isInitialAppRender`. Since the file may
                 // have loaded while we were waiting for React to mount. Even if the file is
@@ -1721,9 +1782,13 @@ export function addContentFilePreviewBehavior(
                 }
             },
             error => {
-                if (hasCleanedUp) return;
+                if (hasCleanedUp) {
+                    decrementLoadingStateCount();
+                    return;
+                }
 
                 scheduleUncaughtError(error);
+                decrementLoadingStateCount();
             },
         );
 
@@ -1844,10 +1909,10 @@ export async function handleCopyContentFile(
         `.${contentStyles.fileImagePreviewContentClassName}`,
     );
 
-    // Draw the preview image in a canvas and convert it to a `.png` blob.
-    // Applications that don't support parsing `text/html` clipboard data (e.g.
-    // Figma) can use the preview `image/png` to still paste the file.
-    let imagePreviewContentBlob: Blob | null = null;
+    // Draw the preview image in a canvas and convert it to an image blob. Applications
+    // that don't support parsing `text/html` clipboard data (e.g. Figma) can use the
+    // preview image to still paste the file.
+    let imagePreviewContentBlobPromise: Promise<Blob> | null = null;
     if (
         imagePreviewContentElement &&
         imagePreviewContentElement.complete &&
@@ -1864,33 +1929,46 @@ export async function handleCopyContentFile(
 
         document.body.appendChild(canvasElement);
 
-        try {
-            // `naturalWidth` and `naturalHeight` are density adjusted. To get the actual
-            // image width/height we need to multiply the device pixel ratio.
-            canvasElement.width = imagePreviewContentElement.naturalWidth * window.devicePixelRatio;
-            canvasElement.height =
-                imagePreviewContentElement.naturalHeight * window.devicePixelRatio;
+        // This is done in a promise because Safari requires `navigator.clipboard.write()`
+        // to happen within the user activation window for the copy action and awaiting
+        // async operations before performing the clipboard write (like `canvas.toBlob()`)
+        // can cause the user activation to time out and the write to fail.[1]
+        //
+        // However, `ClipboardItem` accepts promises so we can defer the async blob
+        // creation and immediately call `navigator.clipboard.write()`.
 
-            const canvasContext = assertExists(canvasElement.getContext("2d"));
-            canvasContext.drawImage(
-                imagePreviewContentElement,
-                0,
-                0,
-                canvasElement.width,
-                canvasElement.height,
-            );
+        // [1]: https://bugs.webkit.org/show_bug.cgi?id=222262
+        imagePreviewContentBlobPromise = new Promise<Blob>((resolve, reject) => {
+            try {
+                // `naturalWidth` and `naturalHeight` are density adjusted. To get the actual image
+                // width/height we need to multiply the device pixel ratio.
+                canvasElement.width =
+                    imagePreviewContentElement.naturalWidth * window.devicePixelRatio;
+                canvasElement.height =
+                    imagePreviewContentElement.naturalHeight * window.devicePixelRatio;
 
-            imagePreviewContentBlob = await new Promise(resolve => {
-                canvasElement.toBlob(resolve, "image/png");
-            });
+                const canvasContext = assertExists(canvasElement.getContext("2d"));
+                canvasContext.drawImage(
+                    imagePreviewContentElement,
+                    0,
+                    0,
+                    canvasElement.width,
+                    canvasElement.height,
+                );
 
-            // Silently error if converting to a blob fails.
-            if (!imagePreviewContentBlob) {
-                scheduleUncaughtError(new InternalError("Couldn\u2019t convert canvas to blob"));
+                canvasElement.toBlob(blob => {
+                    if (!blob) {
+                        reject(new InternalError("Couldn\u2019t convert canvas to blob"));
+                        return;
+                    }
+                    resolve(blob);
+                }, "image/png");
+            } catch (error) {
+                reject(error);
             }
-        } finally {
+        }).finally(() => {
             document.body.removeChild(canvasElement);
-        }
+        });
     }
 
     await navigator.clipboard.write([
@@ -1898,8 +1976,8 @@ export async function handleCopyContentFile(
             "text/html": new Blob(
                 [
                     serializedNode.outerHTML +
-                        // Add a note for developers explaining that applications should prefer
-                        // parsing `text/html` over `image/png`.
+                        // Add a note for developers explaining that applications should prefer parsing
+                        // `text/html` over `image/png`.
                         ` <!-- ${new URL(
                             "/notes/file-data-transfer-readme.md",
                             window.location.href,
@@ -1908,10 +1986,10 @@ export async function handleCopyContentFile(
                 {type: "text/html"},
             ),
 
-            // The order here is important! If applications support both pasting
-            // `text/html` and `image/png` then the application should first try parsing
-            // `text/html` and then `image/png`. `text/html` contains a link to the full
-            // resolution image whereas `image/png` is just the image preview.
+            // The order here is important! If applications support both pasting `text/html`
+            // and the preview image then the application should first try parsing `text/html`
+            // and then the image. `text/html` contains a link to the full resolution image
+            // whereas the image is just the file preview.
             //
             // We can't add the full resolution image to the clipboard because:
             //
@@ -1920,10 +1998,9 @@ export async function handleCopyContentFile(
             //    cases
             //
             // If the user wants the full resolution image because the application they're
-            // pasting into is picking the wrong one then they can select the download
-            // option.
-            ...(imagePreviewContentBlob
-                ? {[imagePreviewContentBlob.type]: imagePreviewContentBlob}
+            // pasting into is picking the wrong one then they can select the download option.
+            ...(imagePreviewContentBlobPromise
+                ? {"image/png": imagePreviewContentBlobPromise}
                 : {}),
         }),
     ]);
@@ -1944,9 +2021,10 @@ export function handleDownloadContentFile({
 
     const downloadLinkElement = document.createElement("a");
 
-    // Setting the `download` attribute is not strictly necessary since we're setting the `Content-Disposition` header
-    // in ResourceService to force the browser to download the file instead of navigating to it, but just in case the header
-    // is not set for some reason we'll still set the `download` attribute.
+    // Setting the `download` attribute is not strictly necessary since we're setting
+    // the `Content-Disposition` header in ResourceService to force the browser to
+    // download the file instead of navigating to it, but just in case the header is
+    // not set for some reason we'll still set the `download` attribute.
     downloadLinkElement.setAttribute(
         "download",
         getContentFileDownloadNameFromContentType(file.contentType),

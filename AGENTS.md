@@ -31,6 +31,10 @@ Files in `internal` directories may only be imported by the parent directory. Fo
 `server/spaces/internal` files from `server/spaces/create`. However, you can’t import files from
 `server/spaces/create/internal` from `server/spaces`, only `server/spaces/create`.
 
+When you need to use a function from an `internal` directory outside its allowed scope, move the
+function file out of `internal/` into the parent directory instead of re-exporting it. The filename
+should match the function name (e.g. `myInternalFunction` moves to `my_internal_function.ts`).
+
 Bazel packages also have `visibility` definitions that only allow certain Bazel packages to use them
 as a dependency.
 
@@ -173,6 +177,8 @@ The full code style ruleset can be found in `admin/docs/code_style.md`, if neede
 - Avoid shared mutability. Local mutation within a function is ok, but don't mutate shared objects.
   Prefer immutable data structures.
 - Always use `runAllPromises()` instead of `Promise.all()`.
+- Prefer `switch`/`case` when checking values of enums or discriminated object unions instead of
+  `if`/`else`, with `default: throw exhaustive(enumVariable)` to ensure exhaustiveness.
 
 ### Testing
 

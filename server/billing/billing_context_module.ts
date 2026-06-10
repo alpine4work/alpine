@@ -1,5 +1,5 @@
 import {Stripe} from "stripe";
-import {getOwnAccount} from "~/server/accounts/get_own_account.js";
+import {getOwnAccountWithoutSpace} from "~/server/accounts/get_own_account_without_space.js";
 import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {ensureAccountHasStripeCustomerId} from "~/server/billing/internal/ensure_account_has_stripe_customer_id.js";
 import {processStripeWebhook} from "~/server/billing/process_stripe_webhook.js";
@@ -35,14 +35,14 @@ export class BillingContextModule extends BillingContextModuleBase {
     }
 
     /**
-     * Creates a Stripe Checkout session for purchasing lifetime access.
-     * This is purposefully hardcoded to a specific price ID for simplicity.
+     * Creates a Stripe Checkout session for purchasing lifetime access. This is
+     * purposefully hardcoded to a specific price ID for simplicity.
      */
     async createLifetimeAccessCheckoutSessionUrl(
         this: BillingContextModule & ContextModuleBase<ServerSessionActionContextModules>,
         currentPathname: string,
     ): Promise<{ok: true; url: string} | {ok: false; reason: "AlreadyPurchased"; message: string}> {
-        return this._context.tracer.withSpan(
+        return await this._context.tracer.withSpan(
             "Create lifetime access checkout session",
             async (context, span) => {
                 const [customerId, account] = await runAllPromises([
@@ -51,7 +51,7 @@ export class BillingContextModule extends BillingContextModuleBase {
                         stripe: this._stripe,
                         span,
                     }),
-                    getOwnAccount(context, {consistency: "Strong"}),
+                    getOwnAccountWithoutSpace(context, {consistency: "Strong"}),
                 ]);
 
                 if (account.initialData.plan === "LifetimeAccess") {
@@ -96,7 +96,7 @@ export class BillingContextModule extends BillingContextModuleBase {
         request: Request,
         span: TracerSpan,
     ): Promise<void> {
-        return processStripeWebhook({
+        return await processStripeWebhook({
             context: this._context,
             request,
             stripe: this._stripe,

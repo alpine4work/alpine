@@ -1,9 +1,9 @@
-import {
-    createDynamoGeneralRealtimeBackfillResultSchema,
-    createDynamoGeneralRealtimeIndexQuerySchema,
-    createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    createRynamoBackfillResultSchema,
+    createRynamoIndexQuerySchema,
+    createRynamoItemSchema,
+} from "~/shared/dynamo/rynamo_types.js";
 import {
     AccountId,
     BrowserId,
@@ -13,6 +13,7 @@ import {
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {InboxEntryStatusSchema} from "~/shared/notifications/inbox_entry_status.js";
 import {
     InboxEntryKeySchema,
     InboxEntryModelSchema,
@@ -30,7 +31,7 @@ export const getInboxWithStrongReadConsistency = defineRpc({
         spaceId: Schema.id<SpaceId>(),
     },
     output: {
-        inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+        inbox: createRynamoItemSchema(InboxModel.schema()),
     },
 });
 
@@ -39,12 +40,12 @@ export const getInboxEntries = defineRpc({
     isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
-        filter: Schema.enum(["New", "Archive"]),
+        filter: InboxEntryStatusSchema,
         limit: Schema.integer,
         afterCursor: DynamoIndexCursorSchema.nullable(),
     },
     output: {
-        entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
+        entriesResult: createRynamoIndexQuerySchema(InboxEntryModelSchema),
     },
 });
 
@@ -56,7 +57,7 @@ export const getInboxEntryWithStrongReadConsistency = defineRpc({
         key: InboxEntryKeySchema,
     },
     output: {
-        entry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema),
+        entry: createRynamoItemSchema(InboxEntryModelSchema),
     },
 });
 
@@ -68,8 +69,7 @@ export const backfillInboxEntries = defineRpc({
         checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
-        backfillEntriesResult:
-            createDynamoGeneralRealtimeBackfillResultSchema(InboxEntryModelSchema),
+        backfillEntriesResult: createRynamoBackfillResultSchema(InboxEntryModelSchema),
     },
 });
 
@@ -143,9 +143,9 @@ export const unarchiveInboxDocumentNewCommentThreadsEntryCommentThread = defineR
 
 export const observeInbox = defineRpc({
     name: "observeInbox",
-    // Increments the inbox generation twice if called twice. (Arguably this
-    // behavior is fine and similar to incrementing an update lock version twice
-    // which we consider idempotent.)
+    // Increments the inbox generation twice if called twice. (Arguably this behavior
+    // is fine and similar to incrementing an update lock version twice which we
+    // consider idempotent.)
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
@@ -249,6 +249,38 @@ export const deregisterOurAccountWebPushSubscription = defineRpc({
     isIdempotent: true,
     input: {
         browserId: Schema.id<BrowserId>(),
+    },
+    output: {},
+});
+
+export const areNotificationsToSlackEnabled = defineRpc({
+    name: "areNotificationsToSlackEnabled",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        workspaceId: Schema.string,
+    },
+    output: {
+        enabled: Schema.boolean,
+    },
+});
+
+export const enableNotificationsToSlack = defineRpc({
+    name: "enableNotificationsToSlack",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        workspaceId: Schema.string,
+    },
+    output: {},
+});
+
+export const disableNotificationsToSlack = defineRpc({
+    name: "disableNotificationsToSlack",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        workspaceId: Schema.string,
     },
     output: {},
 });

@@ -53,13 +53,13 @@ async function main() {
         "serve",
     );
 
-    // Add the `aspect_rules_esbuild` Bazel sandbox plugin so imports don't escape
-    // the sandbox.
+    // Add the `aspect_rules_esbuild` Bazel sandbox plugin so imports don't escape the
+    // sandbox.
     resolvedConfig.optimizeDeps.esbuildOptions.plugins ??= [];
     resolvedConfig.optimizeDeps.esbuildOptions.plugins.unshift(bazelSandboxPlugin());
 
-    // Add the `aspect_rules_esbuild` Bazel sandbox plugin so imports don't escape
-    // the sandbox.
+    // Add the `aspect_rules_esbuild` Bazel sandbox plugin so imports don't escape the
+    // sandbox.
     resolvedConfig.ssr.optimizeDeps.esbuildOptions.plugins ??= [];
     resolvedConfig.ssr.optimizeDeps.esbuildOptions.plugins.unshift(bazelSandboxPlugin());
 
@@ -69,9 +69,8 @@ async function main() {
     ]);
 }
 
-// Below we reproduce a lot of Vite's `runOptimizeDeps()` code. Except we only
-// need to run the dependency optimizer once and we don't need to watch for
-// changes.
+// Below we reproduce a lot of Vite's `runOptimizeDeps()` code. Except we only need
+// to run the dependency optimizer once and we don't need to watch for changes.
 //
 // https://github.com/vitejs/vite/blob/b1ecdaf6594b48d2fcbff8682e9ef68916806089/packages/vite/src/node/optimizer/index.ts#L462-L710
 async function runOptimizeDeps(deps, resolvedConfig, ssr) {
@@ -128,11 +127,11 @@ async function runOptimizeDeps(deps, resolvedConfig, ssr) {
     const result = await context.rebuild();
 
     // Create a functionally equivalent hash to what Vite creates with
-    // `getOptimizedBrowserHash()`. Except instead of building a hash from the
-    // lockfile and config, build a hash from the built outputs themselves.
+    // `getOptimizedBrowserHash()`. Except instead of building a hash from the lockfile
+    // and config, build a hash from the built outputs themselves.
     //
-    // This will be more accurate than the hash Vite creates. Should be cacheable
-    // by Bazel.
+    // This will be more accurate than the hash Vite creates. Should be cacheable by
+    // Bazel.
     const browserHasher = crypto.createHash("sha256");
 
     for (const output of Object.keys(result.metafile.outputs).sort()) {
@@ -165,8 +164,8 @@ async function runOptimizeDeps(deps, resolvedConfig, ssr) {
             ...info,
             fileHash: metadata.browserHash,
             browserHash: metadata.browserHash,
-            // After bundling we have more information and can warn the user about legacy packages
-            // that require manual configuration
+            // After bundling we have more information and can warn the user about legacy
+            // packages that require manual configuration
             needsInterop: needsInterop(config, ssr, id, idToExports[id], output),
         });
     }
@@ -203,9 +202,9 @@ async function runOptimizeDeps(deps, resolvedConfig, ssr) {
                 // Look for WASM files in the same directory as the resolved dependency
                 const depDir = dirnamePath(resolvedDep.id);
 
-                // HACK: this isn't an ideal implementation, just a practical one to get
-                // Harper.js working. Ideally we should recursively look through this
-                // directory for WASM files.
+                // HACK: this isn't an ideal implementation, just a practical one to get Harper.js
+                // working. Ideally we should recursively look through this directory for WASM
+                // files.
                 const files = await fs.readdir(depDir);
                 for (const file of files) {
                     if (file.endsWith(".wasm")) {

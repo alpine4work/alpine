@@ -6,9 +6,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 
 /**
- * Helper function for loading messages in a given range for a messaging view.
- * Used by the core `<MessagingView>` component and other components which
- * embed messages like `<PostsView>`.
+ * Helper function for loading messages in a given range for a messaging view. Used
+ * by the core `<MessagingView>` component and other components which embed
+ * messages like `<PostsView>`.
  *
  * The `range` is designed to be a `<VirtualizedScrollView>`s rendered range.
  */
@@ -57,8 +57,8 @@ export function tryLoadingMessages<
     const spacingScale = getSpacingScaleWithoutListening();
     const virtualizationWindowHeightPx = getVirtualizationWindowHeight(viewHeight);
 
-    // Load enough items to fill the virtualization window once. This gives the
-    // user some space to scroll and read before we need to load more messages.
+    // Load enough items to fill the virtualization window once. This gives the user
+    // some space to scroll and read before we need to load more messages.
     //
     // If the user did a jump scroll then we load 50% more messages so we have some
     // buffer above and below the virtualization window.
@@ -81,8 +81,8 @@ export function tryLoadingMessages<
         );
 
         // We know `afterMessageIndexInclusive` is an unloaded message index before
-        // `range.endIndex` (as checked by the condition above) so we should at least
-        // get that.
+        // `range.endIndex` (as checked by the condition above) so we should at least get
+        // that.
         assert(beforeMessageIndexInclusive !== null);
 
         return {
@@ -106,8 +106,8 @@ export function tryLoadingMessages<
             range.startIndex,
         );
 
-        // We know `endMessage` is unloaded therefore there is at least that one
-        // unloaded index before our start index.
+        // We know `endMessage` is unloaded therefore there is at least that one unloaded
+        // index before our start index.
         assert(afterMessageIndexInclusive !== null);
 
         const maxBeforeMessageIndexInclusive = afterMessageIndexInclusive + limit;
@@ -136,8 +136,8 @@ export function tryLoadingMessages<
             range.endIndex,
         );
 
-        // We know `startMessage` is unloaded therefore there is at least that one
-        // unloaded index before our end index.
+        // We know `startMessage` is unloaded therefore there is at least that one unloaded
+        // index before our end index.
         assert(beforeMessageIndexInclusive !== null);
 
         const minBeforeMessageIndexInclusive = beforeMessageIndexInclusive - limit;
@@ -161,11 +161,10 @@ export function tryLoadingMessages<
         };
     }
 
-    // If neither of the messages in our rendered range are loaded then this is a
-    // jump scroll. During a jump scroll we take advantage of the fact that message
-    // `id`s are mostly dense to pick a message `id` at roughly the same percentage
-    // the user has scrolled. We load data in at that point and scroll it
-    // into view.
+    // If neither of the messages in our rendered range are loaded then this is a jump
+    // scroll. During a jump scroll we take advantage of the fact that message `id`s
+    // are mostly dense to pick a message `id` at roughly the same percentage the user
+    // has scrolled. We load data in at that point and scroll it into view.
     assert(startMessage.type === "Unloaded" && endMessage.type === "Unloaded");
 
     const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBeforeIfExists(

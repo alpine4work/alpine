@@ -5,7 +5,7 @@ ts_project(
     visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/prosemirror-model",
-        "//shared/api",
+        "//shared/api/specification",
         "//shared/content",
         "//shared/context",
         "//shared/dynamo",

@@ -47,8 +47,8 @@ for (const [name, colorByShade] of colorByShadeByName) {
 }
 
 /**
- * The hexadecimal color for each `ColorWithShade`. The same as `colors` but
- * with non-`ColorWithShade` colors removed.
+ * The hexadecimal color for each `ColorWithShade`. The same as `colors` but with
+ * non-`ColorWithShade` colors removed.
  */
 export const colorsWithShade = Object.fromEntries<string>(
     Array.from(colorByShadeByName, ([name, colorByShade]) =>
@@ -78,8 +78,8 @@ export function invertColor(color: ColorWithShade): ColorWithShade {
 }
 
 /**
- * Is this color considered a light color? Light colors are any color with a
- * shade less than or equal to 40.
+ * Is this color considered a light color? Light colors are any color with a shade
+ * less than or equal to 40.
  */
 export function isLightColor(color: ColorWithShade): boolean {
     const [, shadeString = ""] = color.split("-", 2);

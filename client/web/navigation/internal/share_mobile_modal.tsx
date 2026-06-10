@@ -1,6 +1,7 @@
 import {useCallback, useMemo, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {Spacer} from "~/client/web/design/spacer.js";
+import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/web/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {
     ShareOverlayAccountGrantsScrollView,
@@ -16,8 +17,9 @@ import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {backgroundColorVar} from "~/client/web/styles/styles.js";
 import {
     AccessLevel,
-    AccessPolicy,
     AccessPolicyAccountGrant,
+    EffectiveAccessPolicy,
+    ResolvedAccessPolicyWithGenerations,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
@@ -31,22 +33,29 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ShareMobileModal({
     entityNoun,
-    withoutUrlGrantIfNull,
     accessLevelText,
     accessPolicy,
+    inherited,
     onAccessPolicyChange,
     isReadOnly,
+    withoutEditAccessLevel,
+    withHiddenCommentAccessLevel,
     onCloseWithAnimation,
 }: {
     entityNoun: string;
-    withoutUrlGrantIfNull?: boolean;
     accessLevelText: Record<AccessLevel, string>;
-    accessPolicy: AccessPolicy;
+    accessPolicy: ResolvedAccessPolicyWithGenerations;
+    inherited?: {
+        accessPolicy: EffectiveAccessPolicy;
+        explanations: InheritedAccessPolicyExplanations;
+    };
     onAccessPolicyChange: (
         action: AccessPolicyAction,
         notification?: ShareNotification | null,
     ) => MaybePromise<void>;
     isReadOnly: boolean;
+    withoutEditAccessLevel?: boolean;
+    withHiddenCommentAccessLevel?: boolean;
     onCloseWithAnimation: () => void;
 }) {
     const {space} = useSpaceContext();
@@ -64,7 +73,11 @@ export function ShareMobileModal({
     }, [allAccounts]);
 
     const [accountGrantInputAccessLevel, setAccountGrantInputAccessLevel] = useState<AccessLevel>(
-        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+        () =>
+            getDefaultShareOverlyAccountInputAccessLevel(
+                accessPolicy,
+                inherited?.accessPolicy ?? null,
+            ),
     );
 
     const [accountGrantInputSelectedAccounts, setAccountGrantInputSelectedAccounts] =
@@ -73,8 +86,10 @@ export function ShareMobileModal({
         setAccountGrantInputSelectedAccounts(emptyArray);
 
     const excludeAccountGrantInputAccountId = useCallback(
-        (accountId: AccountId) => accessPolicy.accountGrantById.has(accountId),
-        [accessPolicy.accountGrantById],
+        (accountId: AccountId) =>
+            accessPolicy.accountGrantById.has(accountId) ||
+            !!inherited?.accessPolicy.accountGrantById.has(accountId),
+        [accessPolicy.accountGrantById, inherited?.accessPolicy.accountGrantById],
     );
 
     return (
@@ -96,6 +111,7 @@ export function ShareMobileModal({
                     <ShareSwitch
                         entityNoun={entityNoun}
                         accessPolicy={accessPolicy}
+                        inherited={inherited}
                         onAccessPolicyChange={onAccessPolicyChange}
                         isReadOnly={isReadOnly}
                     />
@@ -118,6 +134,8 @@ export function ShareMobileModal({
                                     accessLevel: accountGrantInputAccessLevel,
                                     onAccessLevelChange: setAccountGrantInputAccessLevel,
                                     isAltKeyDown: false,
+                                    withoutEditAccessLevel,
+                                    withHiddenCommentAccessLevel,
                                 }}
                             />
                             {accountGrantInputSelectedAccounts.length === 0 && (
@@ -181,8 +199,8 @@ export function ShareMobileModal({
                     <Box
                         flexGrow="1"
                         style={{
-                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                            // have `min-width: auto` which extends with content.
+                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items have
+                            // `min-width: auto` which extends with content.
                             // https://stackoverflow.com/a/66689926/1568890
                             minHeight: 0,
                         }}
@@ -190,35 +208,61 @@ export function ShareMobileModal({
                         <ShareOverlayAccountGrantsScrollView
                             accessLevelText={accessLevelText}
                             accountGrantById={accessPolicy.accountGrantById}
+                            inherited={
+                                inherited
+                                    ? {
+                                          accountGrantById: inherited.accessPolicy.accountGrantById,
+                                          explanations: inherited.explanations,
+                                      }
+                                    : null
+                            }
                             onAccessPolicyChange={onAccessPolicyChange}
                             accountById={accountById}
                             isReadOnly={isReadOnly}
                             isAltKeyDown={false}
                             height="full"
                             paddingX="3"
+                            withoutEditAccessLevel={withoutEditAccessLevel}
+                            withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                         />
                     </Box>
                     <Box flexShrink="0" paddingX={screenPaddingX}>
                         <Box height="border" backgroundColor="grey-5" />
                         <Spacer space="5" />
                         <ShareOverlayDefaultGrant
+                            entityNoun={entityNoun}
                             accessLevelText={accessLevelText}
                             defaultGrant={accessPolicy.defaultGrant}
+                            inherited={
+                                inherited
+                                    ? {
+                                          defaultGrant: inherited.accessPolicy.defaultGrant,
+                                          explanations: inherited.explanations,
+                                      }
+                                    : null
+                            }
                             onAccessPolicyChange={onAccessPolicyChange}
                             isReadOnly={isReadOnly}
                             isAltKeyDown={false}
+                            withoutEditAccessLevel={withoutEditAccessLevel}
+                            withHiddenCommentAccessLevel={withHiddenCommentAccessLevel}
                         />
-                        {(!withoutUrlGrantIfNull || accessPolicy.urlGrant) && (
-                            <>
-                                <Spacer space="3" />
-                                <ShareOverlayUrlGrant
-                                    accessLevelText={accessLevelText}
-                                    urlGrant={accessPolicy.urlGrant}
-                                    onAccessPolicyChange={onAccessPolicyChange}
-                                    isReadOnly={isReadOnly}
-                                />
-                            </>
-                        )}
+                        <Spacer space="3" />
+                        <ShareOverlayUrlGrant
+                            entityNoun={entityNoun}
+                            accessLevelText={accessLevelText}
+                            urlGrant={accessPolicy.urlGrant}
+                            inherited={
+                                inherited
+                                    ? {
+                                          urlGrant: inherited.accessPolicy.urlGrant,
+                                          explanations: inherited.explanations,
+                                      }
+                                    : null
+                            }
+                            onAccessPolicyChange={onAccessPolicyChange}
+                            isReadOnly={isReadOnly}
+                        />
                         <Spacer space="5" />
                     </Box>
                 </>

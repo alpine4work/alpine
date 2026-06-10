@@ -10,9 +10,9 @@ import {
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 /**
- * Same as `MessagingRealtimeEvent` but we haven't loaded any references yet.
- * Each connection will load references independently to make sure we load
- * data with the right permissions.
+ * Same as `MessagingRealtimeEvent` but we haven't loaded any references yet. Each
+ * connection will load references independently to make sure we load data with the
+ * right permissions.
  */
 export type MessagingRealtimeEventStub =
     | {

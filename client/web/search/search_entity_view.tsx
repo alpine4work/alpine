@@ -12,7 +12,6 @@ import {renderTextWithEmojiFontFamily} from "~/client/web/helpers/render_text_wi
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
-import {getSearchEntityTypeDisplay} from "~/client/web/search/core/search_entity_type_display.js";
 import {
     SearchEntityViewTitle,
     SearchEntityViewTitlePrefix,
@@ -39,6 +38,8 @@ import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
+import {SearchEntityModelDataWithAccount} from "~/shared/search/search_entity_model.js";
 import {
     SearchAffinityEntityResultModel,
     SearchEntityResultModel,
@@ -64,31 +65,29 @@ export function SearchEntityView({
     isPressed?: boolean;
     withMarginTop?: boolean;
     withMarginBottom?: boolean;
-    onPressStart?: () => void;
-    onDoubleClick?: () => void;
-    getCopyPath?: () => string;
+    onPressStart?: (entityData: SearchEntityModelDataWithAccount) => void;
+    onDoubleClick?: (entityData: SearchEntityModelDataWithAccount) => void;
+    getCopyPath?: (entityData: SearchEntityModelDataWithAccount) => string;
     onRemoveFromFavorites?: () => MaybePromise<void>;
     onRemoveFromSuggested?: () => MaybePromise<void>;
-    onOpenInPeekStack?: () => MaybePromise<void>;
+    onOpenInPeekStack?: (entityData: SearchEntityModelDataWithAccount) => MaybePromise<void>;
     marginX?: Spacing;
     paddingX?: Sprinkles["paddingX"];
 }) {
     const spacingScale = useSpacingScale();
 
     const entityData = useSearchEntityModel(result.model);
-    const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
     const showTitle =
         (entityData.title !== null ||
             // If there's no body snippet and we have a `null` title then showing the title
-            // will render "Deleted ${entityNoun}". For example, tasks in the suggested
-            // list render in this state once they've been deleted.
+            // will render "Deleted ${entityNoun}". For example, tasks in the suggested list
+            // render in this state once they've been deleted.
             !result.bodyTextSnippet) &&
-        typeDisplay.type !== "Post";
+        entityData.type !== "Post";
 
     const contextMenuActions: Array<Array<MenuAction>> = [];
 
-    // Top context menu group
-    // Includes copy link and open in peek.
+    // Top context menu group Includes copy link and open in peek.
     {
         const firstRightClickContextMenuGroup: Array<MenuAction> = [];
 
@@ -99,7 +98,7 @@ export function SearchEntityView({
                 iconPlacement: "end",
                 pressErrorTitle: "Couldn\u2019t copy link",
                 onPress: async () => {
-                    const path = getCopyPath();
+                    const path = getCopyPath(entityData);
                     const url = new URL(path, window.location.href);
                     await writeTextToClipboard(url.toString());
                 },
@@ -110,7 +109,7 @@ export function SearchEntityView({
             firstRightClickContextMenuGroup.push({
                 label: "Open in peek",
                 pressErrorTitle: "Couldn\u2019t open peek",
-                onPress: onOpenInPeekStack,
+                onPress: () => onOpenInPeekStack(entityData),
             });
         }
 
@@ -142,11 +141,13 @@ export function SearchEntityView({
     return (
         <ContextMenuActions actions={contextMenuActions}>
             <Box
+                data-testid={process.env.NODE_ENV !== "production" ? "SearchEntityView" : undefined}
+                aria-selected={isSelected}
                 paddingX={marginX}
                 style={{
                     // Tiny detail: The search modal's input renders its border on top of the first
-                    // search entity view. So for it to look like the first search entity has the
-                    // same Y margin as it does X margin we need to add an extra pixel of margin.
+                    // search entity view. So for it to look like the first search entity has the same
+                    // Y margin as it does X margin we need to add an extra pixel of margin.
                     paddingTop: withMarginTop
                         ? convertRemLengthToPx("1", spacingScale) + 1
                         : undefined,
@@ -154,25 +155,25 @@ export function SearchEntityView({
                     minHeight: searchEntityViewMinHeightPx[spacingScale],
                 }}
                 onPointerDown={event => {
-                    // Presses in a modal outside our element tree shouldn't select the search
-                    // entity. This happens when clicking to close an overlay opened by
+                    // Presses in a modal outside our element tree shouldn't select the search entity.
+                    // This happens when clicking to close an overlay opened by
                     // `<SearchEntityViewExplainDebugWidget>`.
                     if (
                         event.target instanceof Element &&
                         event.currentTarget.contains(event.target)
                     ) {
-                        onPressStart?.();
+                        onPressStart?.(entityData);
                     }
                 }}
                 onDoubleClick={event => {
-                    // Presses in a modal outside our element tree shouldn't select the search
-                    // entity. This happens when clicking to close an overlay opened by
+                    // Presses in a modal outside our element tree shouldn't select the search entity.
+                    // This happens when clicking to close an overlay opened by
                     // `<SearchEntityViewExplainDebugWidget>`.
                     if (
                         event.target instanceof Element &&
                         event.currentTarget.contains(event.target)
                     ) {
-                        onDoubleClick?.();
+                        onDoubleClick?.(entityData);
                     }
                 }}
             >
@@ -212,10 +213,7 @@ export function SearchEntityView({
                     >
                         {showTitle && (
                             <>
-                                <SearchEntityViewTitle
-                                    typeDisplay={typeDisplay}
-                                    entityData={entityData}
-                                />
+                                <SearchEntityViewTitle entityData={entityData} />
                                 {result.bodyTextSnippet && result.bodyTextSnippet.length > 0 && (
                                     <Spacer space={searchEntityViewTitleMarginBottom} />
                                 )}
@@ -250,24 +248,14 @@ export function SearchEntityView({
                         >
                             {!showTitle && (
                                 <SearchEntityViewTitlePrefix
-                                    icon={typeDisplay.icon}
-                                    media={entityData.media}
-                                    // An entity is only considered to be deleted if there's no title and there's
-                                    // no body. In this context we're rendering things like chat messages which
-                                    // have a null `title` but do have a body.
+                                    entityData={entityData}
+                                    // An entity is only considered to be deleted if there's no title and there's no
+                                    // body. In this context we're rendering things like chat messages which have a
+                                    // null `title` but do have a body.
                                     isDeleted={false}
                                 />
                             )}
-                            {typeDisplay.isAccountMediaAuthor &&
-                            entityData.media?.type === "Account" ? (
-                                <>
-                                    <AccountShortName
-                                        account={entityData.media.account}
-                                        isTooltipDisabled={true}
-                                    />
-                                    {typeDisplay.type === "Post" ? " " : ": "}
-                                </>
-                            ) : null}
+                            {renderAuthorShortNameIfNecessary(entityData)}
                             {result.bodyTextSnippet?.map(({isHighlighted, text}, index) => {
                                 if (!isHighlighted) {
                                     return (
@@ -305,12 +293,11 @@ function SearchEntityViewExplainDebugWidget({
 }: {
     explanation: OpensearchSearchHitExplanation;
 }) {
-    // When we add to a search entity score using factors other than OpenSearch
-    // BM25 we include an emoji to communicate this is a "smart" score addition. We
-    // use a sparkle for semantic search and a heart for search entities the user
-    // has an affinity for. To make it easier to spot scores affected by AI magic
-    // (semantic search or affinity search) we want to put the same emoji in the
-    // explain button.
+    // When we add to a search entity score using factors other than OpenSearch BM25 we
+    // include an emoji to communicate this is a "smart" score addition. We use a
+    // sparkle for semantic search and a heart for search entities the user has an
+    // affinity for. To make it easier to spot scores affected by AI magic (semantic
+    // search or affinity search) we want to put the same emoji in the explain button.
     const emojis = useMemo(() => {
         const stack = [explanation];
         const maxValueByEmoji = new Map<string, number>();
@@ -404,8 +391,6 @@ function SearchEntityViewExplainDebugWidgetOverlay({
 }
 
 function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSearchHitExplanation) {
-    /* eslint-disable cyberworlds/string-quotes */
-
     const structureClassName = sprinkles({color: "grey-30"});
     const valueClassName = sprinkles({fontStyle: "code-semi-bold"});
     const descriptionClassName = sprinkles({color: "grey-60"});
@@ -482,6 +467,18 @@ function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSear
     };
 
     return print("", "", rootExplanation, printValue(rootExplanation.value));
+}
 
-    /* eslint-enable cyberworlds/string-quotes */
+function renderAuthorShortNameIfNecessary(entityData: SearchEntityModelDataWithAccount) {
+    if (entityData.type === "Account") return null;
+
+    const author = getAuthorFromSearchEntityIfExists(entityData);
+    if (!author) return null;
+
+    return (
+        <>
+            <AccountShortName account={author} isTooltipDisabled={true} />
+            {entityData.type === "Post" ? " " : ": "}
+        </>
+    );
 }

@@ -12,43 +12,42 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
+import {DeadlineExceededError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxDocumentNewCommentThreadsEntryModel} from "~/shared/notifications/inbox_model.js";
 
 /**
  * Get all the comment threads in the inbox entry and some initial comments for
- * those threads up to the provided comment limit. After you call this
- * function, you're guaranteed that the list of comment threads in the entry
- * will not change anymore. This means you don't need to subscribe to realtime
- * updates of the document comment thread list for the entry. You still need to
- * subscribe to realtime updates for new comments within threads.
+ * those threads up to the provided comment limit. After you call this function,
+ * you're guaranteed that the list of comment threads in the entry will not change
+ * anymore. This means you don't need to subscribe to realtime updates of the
+ * document comment thread list for the entry. You still need to subscribe to
+ * realtime updates for new comments within threads.
  *
- * This has a side effect of observing the inbox if the inbox has not been
- * observed since the entry was created. By observing the inbox we freeze the
- * underlying document comment threads entry so it will accumulate no
- * new threads.
+ * This has a side effect of observing the inbox if the inbox has not been observed
+ * since the entry was created. By observing the inbox we freeze the underlying
+ * document comment threads entry so it will accumulate no new threads.
  */
 export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
     context: ServerSessionActionContext,
     {
-        spaceId,
         documentId,
         bucketGeneration,
         commentLimit,
         commentThreadCountAgainstLimit,
     }: {
-        spaceId: SpaceId;
         documentId: DocumentId;
         bucketGeneration: number;
         commentLimit: number;
         commentThreadCountAgainstLimit: number;
     },
 ): Promise<{
-    inboxEntry: DynamoGeneralRealtimeItem<InboxDocumentNewCommentThreadsEntryModel>;
+    inboxEntry: RynamoItem<InboxDocumentNewCommentThreadsEntryModel>;
     document: DocumentModel;
     commentThreads: ReadonlyArray<DocumentCommentThreadModel>;
     initialCommentsByCommentThreadId: Map<
@@ -59,8 +58,11 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         }
     >;
 }> {
+    const spaceIdPromiseResolver = createPromiseResolver<SpaceId>();
+
     const inboxEntryPromise = (async () => {
         const accountId = context.actor.getAccountId();
+        const spaceId = await spaceIdPromiseResolver.promise;
 
         await runAllPromises([
             authorizeSpaceAccess(context, spaceId),
@@ -84,9 +86,9 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
             },
         );
 
-        // If the bucket generation is equal to the current inbox generation then we
-        // want to increment the inbox's generation. This means new comment threads will
-        // create a new entry with a new bucket generation.
+        // If the bucket generation is equal to the current inbox generation then we want
+        // to increment the inbox's generation. This means new comment threads will create
+        // a new entry with a new bucket generation.
         if (bucketGeneration === inboxItem.generation) {
             await InboxTable.updateItem(
                 context,
@@ -97,8 +99,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
                     accountId,
                 },
                 item => {
-                    // If the generation was updated concurrently, we don't need to update
-                    // it again.
+                    // If the generation was updated concurrently, we don't need to update it again.
                     if (item.generation !== bucketGeneration) return item;
 
                     return observeInboxItem(item);
@@ -117,18 +118,18 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         };
 
         const inboxEntry = await InboxTable.getRealtimeItemIfExists(context, inboxEntryItemKey, {
-            // Use a strong read consistency when reading the entry since we don't want to
-            // miss any comment threads.
+            // Use a strong read consistency when reading the entry since we don't want to miss
+            // any comment threads.
             //
             // At this point the comment threads entry is frozen. So we don't subscribe to
             // realtime changes for `commentThreadIds`.
             consistency: "Strong",
         });
 
-        // It's possible you open a channel posts inbox entry that has been deleted
-        // since all of its posts have been archived (maybe the user bookmarked the
-        // inbox entry's URL?). In this case, we want to show a display message to the
-        // user telling them this is the case.
+        // It's possible you open a channel posts inbox entry that has been deleted since
+        // all of its posts have been archived (maybe the user bookmarked the inbox entry's
+        // URL?). In this case, we want to show a display message to the user telling them
+        // this is the case.
         if (!inboxEntry) {
             const deletedInboxEntry = await InboxTable.getDeletedItemIfExists(
                 context,
@@ -146,6 +147,21 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         return inboxEntry;
     })();
 
+    // Defend against a deadlock between `onSpaceId` and `commentThreadIds`. For
+    // example if `getDocumentAndCommentThreadsWithInitialComments()` awaits
+    // `commentThreadIds` before calling `onSpaceId`.
+    //
+    // `getDocumentAndCommentThreadsWithInitialComments()` should never do this!
+    // However, in case of a developer accidentally not realizing this, it's better to
+    // throw an error than to have a promise deadlock that hangs forever.
+    const spaceIdPromiseResolverTimeout = createTimeout(() => {
+        spaceIdPromiseResolver.reject(
+            new DeadlineExceededError(
+                "Timed out waiting for `onSpaceId`, most likely there\u2019s a deadlock between the `commentThreadIds` promise and `onSpaceId`",
+            ),
+        );
+    }, 2000);
+
     const [inboxEntry, {document, commentThreads, initialCommentsByCommentThreadId}] =
         await runAllPromises([
             inboxEntryPromise,
@@ -156,7 +172,22 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
                 ),
                 commentLimit,
                 commentThreadCountAgainstLimit,
-            }),
+                onSpaceId: spaceId => {
+                    spaceIdPromiseResolverTimeout.clear();
+                    spaceIdPromiseResolver.resolve(spaceId);
+                },
+            }).then(
+                result => {
+                    spaceIdPromiseResolverTimeout.clear();
+                    spaceIdPromiseResolver.resolve(result.document.spaceId);
+                    return result;
+                },
+                error => {
+                    spaceIdPromiseResolverTimeout.clear();
+                    spaceIdPromiseResolver.reject(error);
+                    throw error;
+                },
+            ),
         ]);
 
     return {

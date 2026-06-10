@@ -1,4 +1,6 @@
+import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {prepareTaskActionForClient} from "~/server/tasks/data/prepare_task_action_for_client.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
@@ -28,15 +30,17 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {
     AccountId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
+import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {TaskRealtimeEvent, TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 
 export interface TaskRealtimeUpdateEventConnection {
@@ -94,20 +98,20 @@ export const taskRealtimeStoreBeforeSendEventTestCheckpoint = new TestCheckpoint
 /**
  * Builds an update event for the client.
  *
- * - A `TaskRealtimeConnection` should only see actions from an action
- *   transaction that update data it's subscribed to
+ * - A `TaskRealtimeConnection` should only see actions from an action transaction
+ *   that update data it's subscribed to
  * - A `TaskRealtimeConnection` may have multiple subscriptions but should only
  *   send one update event per action transaction
- * - We implement task loading from `TaskRealtimeQuerySubscription` with events
- *   to share code paths with realtime updates so we need to support that too
- *   which is usually sending events to a single client
+ * - We implement task loading from `TaskRealtimeQuerySubscription` with events to
+ *   share code paths with realtime updates so we need to support that too which is
+ *   usually sending events to a single client
  *
  * So when `TaskRealtimeStore` sees a new action transaction, it uses our
  * subscription machinery to figure out which dependents may need to see the
  * action. Eventually we call the `TaskRealtimeConnection`'s query subscription
- * callbacks. These callbacks "accept" actions on tasks by calling methods on
- * event builder. We may call these callbacks many times over the course of a
- * transaction which will accumulate more and more updates.
+ * callbacks. These callbacks "accept" actions on tasks by calling methods on event
+ * builder. We may call these callbacks many times over the course of a transaction
+ * which will accumulate more and more updates.
  */
 export abstract class TaskRealtimeUpdateEventBuilderBase {
     protected readonly _spaceId: SpaceId;
@@ -127,9 +131,9 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     ): TaskRealtimeWorkingUpdateEvent;
 
     /**
-     * Wait for promises passed into `waitUntil()` to resolve but don't actually
-     * send the event. This consumes the event builder so you won't be able to call
-     * `send()` after.
+     * Wait for promises passed into `waitUntil()` to resolve but don't actually send
+     * the event. This consumes the event builder so you won't be able to call `send()`
+     * after.
      */
     protected async _finish() {
         assert(!this._isFinished);
@@ -147,11 +151,11 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     /**
      * Once the event builder has finalized you can't call any of its methods (like
      * `addAuthorizedTaskBackfill`) without getting an error. This function delays
-     * event builder finalization until the promise resolves allowing you to load
-     * data and add it to the event.
+     * event builder finalization until the promise resolves allowing you to load data
+     * and add it to the event.
      *
-     * We will wait until all promises passed into this function resolve before
-     * sending out events to clients.
+     * We will wait until all promises passed into this function resolve before sending
+     * out events to clients.
      */
     public waitUntil(
         context: Context<{process: ProcessContextModule}>,
@@ -209,9 +213,9 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     }
 
     /**
-     * Add a full task we'll send to the client. Do this if you haven't been
-     * sending the client actions for a task but the task now needs to be displayed
-     * (maybe the task was hidden by filters but now is visible).
+     * Add a full task we'll send to the client. Do this if you haven't been sending
+     * the client actions for a task but the task now needs to be displayed (maybe the
+     * task was hidden by filters but now is visible).
      */
     public addAuthorizedTaskBackfill(
         connection: TaskRealtimeUpdateEventConnection,
@@ -261,9 +265,8 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
 
     /**
      * Add a full collection we'll send to the client. Do this if you haven't been
-     * sending the client actions for a collection but the collection now needs to
-     * be displayed (maybe the collection was hidden by filters but now is
-     * visible).
+     * sending the client actions for a collection but the collection now needs to be
+     * displayed (maybe the collection was hidden by filters but now is visible).
      */
     public addAuthorizedCollectionBackfill(
         connection: TaskRealtimeUpdateEventConnection,
@@ -285,8 +288,8 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     }
 
     /**
-     * Mark a collection as unauthorized on the client. Clients should not expect
-     * any realtime updates on this collection.
+     * Mark a collection as unauthorized on the client. Clients should not expect any
+     * realtime updates on this collection.
      */
     public addUnauthorizedCollectionBackfill(
         connection: TaskRealtimeUpdateEventConnection,
@@ -312,8 +315,8 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     }
 
     /**
-     * Get the `TaskId`s that are included in our backfill event for the
-     * provided connection.
+     * Get the `TaskId`s that are included in our backfill event for the provided
+     * connection.
      */
     public getBackfillAuthorizedTaskIds(
         connection: TaskRealtimeUpdateEventConnection,
@@ -343,12 +346,13 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         }
 
         const accountIds = new Set<AccountId>();
+        const siteIds = new Set<SiteId>();
 
         const prepareContext = {
             actor: connection.actor,
-            // You may only connect to `TaskRealtimeConnection` if you have space access.
-            // If we allow anonymous accounts or session accounts without space access to
-            // connect then we'll need to update this.
+            // You may only connect to `TaskRealtimeConnection` if you have space access. If we
+            // allow anonymous accounts or session accounts without space access to connect
+            // then we'll need to update this.
             isSpaceAccessAuthorized: true,
             isCollectionAccessAuthorized: (collectionId: TaskCollectionId) =>
                 connection.isReferencedCollectionAccessAuthorized(context, collectionId),
@@ -363,7 +367,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                     );
                     if (action === null) return;
 
-                    collectReferencedAccountIdsFromTaskAction(accountIds, action);
+                    collectReferencedIdsFromTaskAction(accountIds, siteIds, action);
 
                     return action;
                 }),
@@ -374,7 +378,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
 
                     const task = await prepareTaskForClient(unpreparedTask.task, prepareContext);
 
-                    collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
+                    collectReferencedIdsFromTaskModelData(accountIds, siteIds, task.rawData);
 
                     return {
                         type: "Authorized" as const,
@@ -394,40 +398,36 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                     // If the collection was never authorized in the first place then don't backfill
                     // the unauthorized collection. We should have completely filtered out the
                     // unauthorized collection from `actions` and `backfillTasks` via
-                    // `prepareTaskActionForClient()` and `prepareTaskForClient()`. So let's not
-                    // share the existence of a potentially referenced unauthorized collection as
-                    // well.
+                    // `prepareTaskActionForClient()` and `prepareTaskForClient()`. So let's not share
+                    // the existence of a potentially referenced unauthorized collection as well.
                     //
-                    // If the collection was previously authorized and became unauthorized then
-                    // we'll need to share that with the client so the client can update the
-                    // collection in their local state.
+                    // If the collection was previously authorized and became unauthorized then we'll
+                    // need to share that with the client so the client can update the collection in
+                    // their local state.
                     //
                     // TODO(calebmer, #task-correctness): There's a correctness bug here.
                     // `wasPreviouslyAuthorized` only tells us if the collection was previously
-                    // authorized in the current connection. If the client received the collection
-                    // in a previous connection, went offline, the collection becomes authorized,
-                    // then the client reconnects the client will permanently think the collection
-                    // is authorized since `TaskRealtimeService` won't send an update telling the
-                    // client the collection is now unauthorized. If we always sent the unauthorized
-                    // backfill message that would fix our correctness bug but introduce a security
-                    // bug!
+                    // authorized in the current connection. If the client received the collection in a
+                    // previous connection, went offline, the collection becomes authorized, then the
+                    // client reconnects the client will permanently think the collection is authorized
+                    // since `TaskRealtimeService` won't send an update telling the client the
+                    // collection is now unauthorized. If we always sent the unauthorized backfill
+                    // message that would fix our correctness bug but introduce a security bug!
                     //
                     // The security bug is an attacker could determine, by loading a query with one
-                    // task at a time, the unauthorized `TaskCollectionId`s referenced by a task.
-                    // This information could be used maliciously be an attacker (e.g. an attacker
-                    // might be able to intuit a manager is collecting evidence for firing someone
-                    // in a private collection based on seeing the `TaskCollectionId` on certain
-                    // tasks). Right now we're trading a correctness bug for a security bug. In the
-                    // future, we should find a way to fix the correctness bug without opening a
-                    // security hole.
+                    // task at a time, the unauthorized `TaskCollectionId`s referenced by a task. This
+                    // information could be used maliciously be an attacker (e.g. an attacker might be
+                    // able to intuit a manager is collecting evidence for firing someone in a private
+                    // collection based on seeing the `TaskCollectionId` on certain tasks). Right now
+                    // we're trading a correctness bug for a security bug. In the future, we should
+                    // find a way to fix the correctness bug without opening a security hole.
                     //
-                    // My current idea to fix this is when the client starts a realtime connection
-                    // for it to send a procedure in the background with all visible
-                    // `TaskCollectionId`s and then the server will respond with which are
-                    // authorized/unauthorized. This fixes the correctness issue without
-                    // introducing a security flaw. The client already knows the
-                    // `TaskCollectionId`s so we're not sharing any new information with the
-                    // client.
+                    // My current idea to fix this is when the client starts a realtime connection for
+                    // it to send a procedure in the background with all visible `TaskCollectionId`s
+                    // and then the server will respond with which are authorized/unauthorized. This
+                    // fixes the correctness issue without introducing a security flaw. The client
+                    // already knows the `TaskCollectionId`s so we're not sharing any new information
+                    // with the client.
                     if (!unpreparedCollection.wasPreviouslyAuthorized) return;
 
                     return {
@@ -438,9 +438,13 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                     };
                 }
 
+                const collection = prepareTaskCollectionForClient(unpreparedCollection.collection);
+
+                collectReferencedIdsFromTaskCollectionModelData(siteIds, collection.rawData);
+
                 return {
                     type: "Authorized" as const,
-                    collection: prepareTaskCollectionForClient(unpreparedCollection.collection),
+                    collection,
                     authorizationStateVersion: unpreparedCollection.authorizationStateVersion,
                 };
             },
@@ -456,19 +460,43 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
             return null;
         }
 
-        // It's important that accounts referenced by `actions` are read with a
-        // `Strong` read consistency so we don't read stale account data after the
-        // `UpdateAccountName` action has been applied. If this event builder was
-        // created when applying actions then `actionReferencedAccountById` will be set
-        // with accounts read with `Strong` consistency.
-        const referencedAccounts = await runAllPromises(
-            Array.from(
-                accountIds,
-                accountId =>
-                    this._actionReferencedAccountById?.get(accountId) ??
-                    getAccount(context, this._spaceId, accountId),
+        const [referencedAccounts, referencedSites] = await runAllPromises([
+            // It's important that accounts referenced by `actions` are read with a `Strong`
+            // read consistency so we don't read stale account data after the
+            // `UpdateAccountName` action has been applied. If this event builder was created
+            // when applying actions then `actionReferencedAccountById` will be set with
+            // accounts read with `Strong` consistency.
+            runAllPromises(
+                Array.from(
+                    accountIds,
+                    accountId =>
+                        this._actionReferencedAccountById?.get(accountId) ??
+                        getAccount(context, this._spaceId, accountId),
+                ),
             ),
-        );
+            // Site previews must be authorized against the _connecting_ account, not the
+            // system actor that this event builder runs under. Without this hop, an assignee
+            // whose task lives in a private site would receive the full `SitePreviewModel`
+            // (name, access policy, etc.) for that site even though they don't have View
+            // access on it. We collapse "no access" into `null` so the existing
+            // `filter(isNonNullable)` below also strips unauthorized entries — keeping
+            // `{ok: false}` would leak the site's existence to the client, which is the same
+            // kind of disclosure the impersonation hop is meant to prevent. Mirrors how
+            // `TaskRealtimeConnection.isReferencedCollectionAccessAuthorized` impersonates the
+            // connection's account before authorizing collections.
+            runAllPromises(
+                Array.from(siteIds, siteId =>
+                    impersonateAccountAsSystemContext(
+                        context,
+                        connection.accountId,
+                        async actorContext => {
+                            const result = await getSitePreviewIfPossible(actorContext, siteId);
+                            return result?.ok ? result : null;
+                        },
+                    ),
+                ),
+            ),
+        ]);
 
         return {
             type: "Update",
@@ -477,18 +505,19 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
             backfillCollections,
             defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
             referencedAccounts,
+            referencedSites: referencedSites.filter(isNonNullable),
             originClientId: this._originClientId,
         };
     }
 }
 
 /**
- * Action transaction event builders broadcast updates from an action to
- * multiple clients.
+ * Action transaction event builders broadcast updates from an action to multiple
+ * clients.
  *
  * Once we are done processing an update the `finishAndSendEvents()` method is
- * called which finalizes our update event and instructs
- * `TaskRealtimeConnection` to send it to the client.
+ * called which finalizes our update event and instructs `TaskRealtimeConnection`
+ * to send it to the client.
  */
 export class TaskRealtimeActionTransactionUpdateEventBuilder extends TaskRealtimeUpdateEventBuilderBase {
     private readonly _eventByConnection = new DefaultMap<
@@ -528,12 +557,12 @@ export class TaskRealtimeActionTransactionUpdateEventBuilder extends TaskRealtim
     }
 
     /**
-     * Finalizes events built with this class and sends them to connected
-     * clients through the `TaskRealtimeUpdateEventConnection` interface.
+     * Finalizes events built with this class and sends them to connected clients
+     * through the `TaskRealtimeUpdateEventConnection` interface.
      *
-     * Waits for any promises passed to `waitUntil()` to resolve before
-     * finalizing events. Once all `waitUntil()` promises have resolved you may
-     * not call any new methods on this class.
+     * Waits for any promises passed to `waitUntil()` to resolve before finalizing
+     * events. Once all `waitUntil()` promises have resolved you may not call any new
+     * methods on this class.
      */
     public async finishAndSendEvents(context: TaskRealtimeSystemActionContext) {
         await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
@@ -550,8 +579,8 @@ export class TaskRealtimeActionTransactionUpdateEventBuilder extends TaskRealtim
 }
 
 /**
- * Builds an event for a single connection. When you are done building the
- * event you're expected to send the event to the client yourself.
+ * Builds an event for a single connection. When you are done building the event
+ * you're expected to send the event to the client yourself.
  */
 export class TaskRealtimeConnectionUpdateEventBuilder extends TaskRealtimeUpdateEventBuilderBase {
     private readonly _connection: TaskRealtimeUpdateEventConnection;
@@ -579,8 +608,8 @@ export class TaskRealtimeConnectionUpdateEventBuilder extends TaskRealtimeUpdate
     }
 
     /**
-     * Finishes building our event and returns the final event. You are
-     * responsible for sending this event to the client.
+     * Finishes building our event and returns the final event. You are responsible for
+     * sending this event to the client.
      */
     public async finishAndBuildEvent(
         context: TaskRealtimeSystemActionContext,
@@ -588,14 +617,14 @@ export class TaskRealtimeConnectionUpdateEventBuilder extends TaskRealtimeUpdate
         await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
 
         await this._finish();
-        return this._buildEvent(context, this._connection, this._event);
+        return await this._buildEvent(context, this._connection, this._event);
     }
 }
 
 /**
- * Noop event builder for unsubscribing. When unsubscribing we remove
- * references to tasks but we don't have anything to tell the client. The
- * client has an identical implementation where it unsubscribes itself.
+ * Noop event builder for unsubscribing. When unsubscribing we remove references to
+ * tasks but we don't have anything to tell the client. The client has an identical
+ * implementation where it unsubscribes itself.
  */
 export class TaskRealtimeUnsubscribeUpdateEventBuilder extends TaskRealtimeUpdateEventBuilderBase {
     private readonly _eventByConnection = new DefaultMap<

@@ -4,8 +4,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Store} from "~/shared/store/internal/store.js";
 
 /**
- * A set of weakly referenced listeners you can call. Weak listeners are added
- * to stores to avoid creating memory cycles that can't be cleaned up.
+ * A set of weakly referenced listeners you can call. Weak listeners are added to
+ * stores to avoid creating memory cycles that can't be cleaned up.
  */
 export class StoreWeakImmediateListeners {
     private readonly _listeners = new WeakMap<
@@ -66,8 +66,8 @@ export class StoreWeakImmediateListeners {
                 // If one of our listeners throws an error, continue calling the rest of our
                 // listeners.
                 //
-                // Treat listener errors as unhandled errors. Emitting an event should not need
-                // to think about downstream listener implementation details.
+                // Treat listener errors as unhandled errors. Emitting an event should not need to
+                // think about downstream listener implementation details.
                 scheduleUncaughtError(error);
             }
         }

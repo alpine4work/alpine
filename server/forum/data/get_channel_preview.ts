@@ -1,3 +1,4 @@
+import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelItemAccessIfPossible} from "~/server/forum/data/internal/authorize_channel_item_access.js";
@@ -5,23 +6,26 @@ import {getChannelPreviewItemForAuthorizationIfExists} from "~/server/forum/data
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SiteId} from "~/shared/id/types/id_types.js";
 
 /**
- * Gets a preview channel object with the provided `ChannelId`. Returns null if
- * the channel doesn't exist, returns a `Result` with a `PermissionDeniedError`
- * if access isn't authorized.
+ * Gets a preview channel object with the provided `ChannelId`. Returns null if the
+ * channel doesn't exist, returns a `Result` with a `PermissionDeniedError` if
+ * access isn't authorized.
  *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `ChannelId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  */
 export async function getChannelPreviewIfPossible(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<Result<ChannelPreviewModel, ErrorBase> | null> {
     const channelItem = await getChannelPreviewItemForAuthorizationIfExists(
         context,
@@ -30,12 +34,10 @@ export async function getChannelPreviewIfPossible(
     );
     if (!channelItem) return null;
 
-    const result = await authorizeChannelItemAccessIfPossible(
-        context,
-        channelItem,
-        "View",
-        options,
-    );
+    const [result, accessPolicy] = await runAllPromises([
+        authorizeChannelItemAccessIfPossible(context, channelItem, "View", options),
+        intoAccessPolicyModel(context, channelItem.accessPolicy, options),
+    ]);
     if (!result.ok) return result;
 
     return {
@@ -47,24 +49,23 @@ export async function getChannelPreviewIfPossible(
             version:
                 "id" in channelItem ? channelItem.version : (channelItem.updateLockVersion ?? 0),
             name: channelItem.name,
-            accessPolicy: channelItem.accessPolicy,
+            accessPolicy,
         }),
     };
 }
 
 /**
- * Gets a preview channel object with the provided `ChannelId`. Returns null if
- * the channel doesn't exist and throws an error if the channel exists but you
- * don't have access to the channel.
+ * Gets a preview channel object with the provided `ChannelId`. Returns null if the
+ * channel doesn't exist and throws an error if the channel exists but you don't
+ * have access to the channel.
  *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `ChannelId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  */
 export async function getChannelPreviewIfExists(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
 ): Promise<ChannelPreviewModel | null> {
     const channelResult = await getChannelPreviewIfPossible(context, channelId, options);
     if (!channelResult) return null;
@@ -72,17 +73,16 @@ export async function getChannelPreviewIfExists(
 }
 
 /**
- * Gets a preview channel object with the provided `ChannelId`. Throws an error
- * if the channel doesn't exist.
+ * Gets a preview channel object with the provided `ChannelId`. Throws an error if
+ * the channel doesn't exist.
  *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
+ * The result is cached. If you call this for the same `ChannelId` multiple times
+ * in the same action you'll get the same result without issuing a network request.
  */
 export async function getChannelPreview(
     context: ServerActionContext,
     channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
 ): Promise<ChannelPreviewModel> {
     const channel = await getChannelPreviewIfExists(context, channelId, options);
     if (!channel) throw createChannelNotFoundError(channelId);

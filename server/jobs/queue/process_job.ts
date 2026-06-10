@@ -1,17 +1,16 @@
 import {processCallBotWebhookJob} from "~/server/bots/process_call_bot_webhook_job.js";
-import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.js";
+import {processSendShareNotificationJob} from "~/server/chat/data/chat_messaging.js";
 import {
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,
 } from "~/server/feed/feed_actions.js";
-import {processStartNotionImportJob} from "~/server/importer/notion/process_start_notion_import_job.js";
-import {processValidateNotionImportAndExtractMetadataJob} from "~/server/importer/notion/process_validate_notion_import_and_extract_metadata_job.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
 import {processSendNotificationDigestJob} from "~/server/notifications/data/digest/notifications_digest_jobs.js";
 import {processNotificationEvent} from "~/server/notifications/data/process/process_notification_event.js";
 import {
+    processSendNotificationToSlackIntegrationJob,
     processSendPendingSubtleNotificationsForInboxJob,
     processSendWebPushNotificationJob,
 } from "~/server/notifications/data/push/notifications_push_jobs.js";
@@ -46,7 +45,7 @@ export async function processJob(
             return;
         }
         case "IndexSearchEntityEmbeddingChunks": {
-            await processIndexSearchEntityEmbeddingChunksJob(context, job);
+            await processIndexSearchEntityEmbeddingChunksJob(context, job, span);
             return;
         }
         case "NotificationEvent": {
@@ -81,12 +80,8 @@ export async function processJob(
             await processSendPendingSubtleNotificationsForInboxJob(context, job);
             return;
         }
-        case "ValidateNotionImportAndExtractMetadata": {
-            await processValidateNotionImportAndExtractMetadataJob(context, job);
-            return;
-        }
-        case "StartNotionImport": {
-            await processStartNotionImportJob(context, job);
+        case "SendNotificationToSlackIntegration": {
+            await processSendNotificationToSlackIntegrationJob(context, job);
             return;
         }
         default:

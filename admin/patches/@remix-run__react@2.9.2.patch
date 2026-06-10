@@ -1,5 +1,5 @@
 diff --git a/dist/data.js b/dist/data.js
-index 98ab9496f32ed74755493ce0352ad8acfa74b736..f099826ff513d56bec0e3fbbdd743065ed739341 100644
+index 98ab9496f32ed74755493ce0352ad8acfa74b736..d3b97da2dee5e9ee28a86b11cb569aff4756d89c 100644
 --- a/dist/data.js
 +++ b/dist/data.js
 @@ -68,6 +68,13 @@ async function fetchData(request, routeId, retry = 0) {
@@ -16,6 +16,37 @@ index 98ab9496f32ed74755493ce0352ad8acfa74b736..f099826ff513d56bec0e3fbbdd743065
      let error = new Error(data.message);
      error.stack = data.stack;
      return error;
+@@ -82,7 +89,12 @@ async function fetchData(request, routeId, retry = 0) {
+ }
+ async function createRequestInit(request) {
+   let init = {
+-    signal: request.signal
++    signal: request.signal,
++    // NOTE(calebmer): In a `@remix-run/router` patch we add a `unstable_headers`
++    // navigation option so you can set HTTP headers on the Remix `?_data` request.
++    // Make sure we repsect those headers here when actually constructing the
++    // `_data` request!
++    headers: new Headers(request.headers)
+   };
+   if (request.method !== "GET") {
+     init.method = request.method;
+@@ -91,14 +103,10 @@ async function createRequestInit(request) {
+     // Check between word boundaries instead of startsWith() due to the last
+     // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
+     if (contentType && /\bapplication\/json\b/.test(contentType)) {
+-      init.headers = {
+-        "Content-Type": contentType
+-      };
++      init.headers.set("Content-Type", contentType);
+       init.body = JSON.stringify(await request.json());
+     } else if (contentType && /\btext\/plain\b/.test(contentType)) {
+-      init.headers = {
+-        "Content-Type": contentType
+-      };
++      init.headers.set("Content-Type", contentType);
+       init.body = await request.text();
+     } else if (contentType && /\bapplication\/x-www-form-urlencoded\b/.test(contentType)) {
+       init.body = new URLSearchParams(await request.text());
 diff --git a/dist/errors.js b/dist/errors.js
 index afff00e25a00e9196742b072c37f66db211d341d..e585e3e4db5c5b7c6e5cfef4299e8611d5cc1e41 100644
 --- a/dist/errors.js
@@ -83,7 +114,7 @@ index 76196947af506a323934dbcacb8685d8a883f247..65a07fc4d5513e023146769062f1c73c
          ...imported,
          // react-refresh takes care of updating these in-place,
 diff --git a/dist/esm/data.js b/dist/esm/data.js
-index 3561432fb72d91e5403247390d3a851619cf53ce..8aff740c1034cca846dca5c3c07f2f3f49bb25e5 100644
+index 3561432fb72d91e5403247390d3a851619cf53ce..c1617343ba1e044e086a01ae49f5fb816f0ebf1c 100644
 --- a/dist/esm/data.js
 +++ b/dist/esm/data.js
 @@ -64,6 +64,13 @@ async function fetchData(request, routeId, retry = 0) {
@@ -100,6 +131,37 @@ index 3561432fb72d91e5403247390d3a851619cf53ce..8aff740c1034cca846dca5c3c07f2f3f
      let error = new Error(data.message);
      error.stack = data.stack;
      return error;
+@@ -78,7 +85,12 @@ async function fetchData(request, routeId, retry = 0) {
+ }
+ async function createRequestInit(request) {
+   let init = {
+-    signal: request.signal
++    signal: request.signal,
++    // NOTE(calebmer): In a `@remix-run/router` patch we add a `unstable_headers`
++    // navigation option so you can set HTTP headers on the Remix `?_data` request.
++    // Make sure we repsect those headers here when actually constructing the
++    // `_data` request!
++    headers: new Headers(request.headers)
+   };
+   if (request.method !== "GET") {
+     init.method = request.method;
+@@ -87,14 +99,10 @@ async function createRequestInit(request) {
+     // Check between word boundaries instead of startsWith() due to the last
+     // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
+     if (contentType && /\bapplication\/json\b/.test(contentType)) {
+-      init.headers = {
+-        "Content-Type": contentType
+-      };
++      init.headers.set("Content-Type", contentType);
+       init.body = JSON.stringify(await request.json());
+     } else if (contentType && /\btext\/plain\b/.test(contentType)) {
+-      init.headers = {
+-        "Content-Type": contentType
+-      };
++      init.headers.set("Content-Type", contentType);
+       init.body = await request.text();
+     } else if (contentType && /\bapplication\/x-www-form-urlencoded\b/.test(contentType)) {
+       init.body = new URLSearchParams(await request.text());
 diff --git a/dist/esm/errors.js b/dist/esm/errors.js
 index dc1abd5d2fa7656f7d934de5ce85cc508cccb585..a2f48951300918dbe0f3394fdbf966b0ac29ed10 100644
 --- a/dist/esm/errors.js

@@ -72,7 +72,7 @@ export function DatabaseCreator({initiallyFocus}: {initiallyFocus: "Name" | null
                     onPress={async () => {
                         const {tableId} = await conn.executeAction("createTable", {name});
 
-                        await navigate(`/s/${space.id}/databases/${tableId}`, {
+                        await navigate(`/databases/${space.id}/${tableId}`, {
                             replace: true,
                             state: NativeMobileBridge ? {withPushAnimation: true} : undefined,
                         });

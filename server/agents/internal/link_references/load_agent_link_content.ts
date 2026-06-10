@@ -24,32 +24,32 @@ export async function loadAgentLinkContent(options: {
     const {link} = options;
     switch (link.type) {
         case "Account": {
-            return loadAgentAccountLinkContent({
+            return await loadAgentAccountLinkContent({
                 ...options,
                 link,
             });
         }
         case "Channel": {
-            return loadAgentChannelLinkContent({
+            return await loadAgentChannelLinkContent({
                 ...options,
                 link,
             });
         }
         case "DocumentPage": {
-            return loadAgentDocumentPageLinkContent({
+            return await loadAgentDocumentPageLinkContent({
                 ...options,
                 link,
                 tokenLimitFactor: options.tokenLimitFactor ?? 1,
             });
         }
         case "Task": {
-            return loadAgentTaskLinkContent({
+            return await loadAgentTaskLinkContent({
                 ...options,
                 link,
             });
         }
         case "TaskCollection": {
-            return loadAgentTaskCollectionLinkContent({
+            return await loadAgentTaskCollectionLinkContent({
                 ...options,
                 link,
             });

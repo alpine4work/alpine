@@ -12,14 +12,14 @@ ts_project(
     ],
     visibility = [
         "//admin/crawl:__pkg__",
-        "//app:__pkg__",
+        "//app:__subpackages__",
         "//server:__subpackages__",
     ],
     deps = [
         "//:node_modules/date-fns",
         "//server/accounts",
-        "//server/api/content",
-        "//server/api/markdown",
+        "//shared/api/content",
+        "//shared/api/markdown",
         "//server/context",
         "//server/dynamo/core",
         "//shared/bots",

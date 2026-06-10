@@ -1,6 +1,6 @@
 /**
- * Creates an array with the provided length and populates every item of the
- * array with the `createItem()` function.
+ * Creates an array with the provided length and populates every item of the array
+ * with the `createItem()` function.
  *
  * You may be used to code which does this with
  * `Array(length).fill(null).map(() => { ... })` which is harder to read.

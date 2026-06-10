@@ -5,6 +5,7 @@ ts_project(
     name = "screenshots_lib",
     deps = [
         "//:node_modules/playwright",
+        "//admin/environment/demo_space",
         "//admin/environment/test/integration",
         "//admin/scenarios:scenarios_lib",
         "//shared/context",

@@ -69,11 +69,12 @@ export class AwsJobQueueService extends Construct {
 
         const launchTemplate = new LaunchTemplate(this, "LaunchTemplate", {
             instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
-            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+            machineImage: EcsOptimizedImage.amazonLinux2023(AmiHardwareType.ARM),
             role: new Role(this, "LaunchTemplateRole", {
                 assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
                 managedPolicies: [
                     ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+                    ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
                 ],
             }),
             securityGroup: new SecurityGroup(this, "LaunchTemplateSecurityGroup", {
@@ -87,14 +88,14 @@ export class AwsJobQueueService extends Construct {
             vpc,
             launchTemplate,
 
-            minCapacity: 3,
+            minCapacity: 2,
             // During a deploy, we double our capacity needs since we keep running old
             // instances to maintain availability while a new fleet of instances start.
-            maxCapacity: 6,
+            maxCapacity: 4,
 
-            // See the long comment in `AwsAppService` for why we use a public
-            // subnet for our services. The TL;DR is sending egress traffic like Honeycomb
-            // API calls through a NAT gateway can get expensive.
+            // See the long comment in `AwsAppService` for why we use a public subnet for our
+            // services. The TL;DR is sending egress traffic like Honeycomb API calls through a
+            // NAT gateway can get expensive.
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
 
@@ -129,8 +130,8 @@ export class AwsJobQueueService extends Construct {
         const taskDefinition = new Ec2TaskDefinition(this, "TaskDefinition", {
             // According to the docs:
             //
-            // > The host and awsvpc network modes offer the highest networking performance
-            // > for containers because they use the Amazon EC2 network stack.
+            // > The host and awsvpc network modes offer the highest networking performance for
+            // > containers because they use the Amazon EC2 network stack.
             //
             // Also:
             //
@@ -138,8 +139,7 @@ export class AwsJobQueueService extends Construct {
             // > containers using the root user (UID 0) for better security.
             //
             // We use the host network mode for performance. We're running on public VPC
-            // subnets so that means anyone on the internet can send a request to our
-            // instance.
+            // subnets so that means anyone on the internet can send a request to our instance.
             //
             // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
             networkMode: NetworkMode.HOST,
@@ -150,8 +150,8 @@ export class AwsJobQueueService extends Construct {
         });
 
         // Allow scheduling deploys with AWS EventBridge Scheduler. We need to allow
-        // `iam:PassRole` in addition to `scheduler:CreateSchedule`. Since the
-        // scheduler will need to use the role on execution.
+        // `iam:PassRole` in addition to `scheduler:CreateSchedule`. Since the scheduler
+        // will need to use the role on execution.
         {
             sqs.grantSendJobQueueMessages(schedulerRole);
 
@@ -191,26 +191,23 @@ export class AwsJobQueueService extends Construct {
             ),
             cpu: 2048,
             // Memory available to our container. We can't use the full available memory
-            // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
-            // to function.
+            // because the ECS agent needs some memory to function. If you reserve too much
+            // memory you won't get an error. Instead the tasks are stuck in the "Provisioning"
+            // status forever.
             //
             // The right value is available on the container instance screen in the AWS
-            // console. Specifically under the "Resources & networking" tab. You want to
-            // look at "Total capacity" and make sure we're reserving all of it.
-            //
-            // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
-            // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
-            // stuck in the "Provisioning" status forever.
-            memoryLimitMiB: 3906,
-            // Send logs to AWS. Container logs are short-lived and used for debugging
-            // obscure machine-level issues. Our long-lived logs are in Honeycomb.
+            // console. Specifically under the "Resources & networking" tab. You want to look
+            // at "Total capacity" and make sure we're reserving all of it.
+            memoryLimitMiB: 3800,
+            // Send logs to AWS. Container logs are short-lived and used for debugging obscure
+            // machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
-            // Increase stop timeout to two minutes so essential background processes
-            // have ample time to finish. For example, task action indexing which is done
-            // in the background with `context.process.waitUntil()`.
+            // Increase stop timeout to two minutes so essential background processes have
+            // ample time to finish. For example, task action indexing which is done in the
+            // background with `context.process.waitUntil()`.
             stopTimeout: Duration.millis(ecsStopTimeoutMs),
-            // For security, use the `www-data` user which exists on our Linux image. It
-            // only has read access and execute access to files on our system.
+            // For security, use the `www-data` user which exists on our Linux image. It only
+            // has read access and execute access to files on our system.
             user: "www-data",
             secrets: {
                 APP_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
@@ -241,6 +238,10 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "resourceServicePublicKey",
                 ),
+                IMPORTER_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "importerServicePublicKey",
+                ),
                 JOB_QUEUE_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secrets,
                     "jobQueueServicePrivateKey",
@@ -261,6 +262,8 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "webPushVapidPrivateKey",
                 ),
+                SLACK_CLIENT_ID: EcsSecret.fromSecretsManager(secrets, "slackClientId"),
+                SLACK_CLIENT_SECRET: EcsSecret.fromSecretsManager(secrets, "slackClientSecret"),
                 GITHUB_APP_ID: EcsSecret.fromSecretsManager(secrets, "githubAppId"),
                 GITHUB_APP_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secrets,
@@ -283,17 +286,19 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "cloudflareR2SecretAccessKey",
                 ),
+                LOOPS_API_KEY: EcsSecret.fromSecretsManager(secrets, "loopsApiKey"),
             },
             environment: {
                 NODE_ENV: "production",
+                AWS_REGION: stack.region,
             },
             command: [
-                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
-                // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
-                // (e.g. `sh -c`) not our process.
+                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks
+                // ECS process termination. The `SIGTERM` signal is sent to the shell (e.g.
+                // `sh -c`) not our process.
                 //
-                // `runService()` implements env variable substitution which is why we can use
-                // env variable syntax like `$HONEYCOMB_API_KEY`.
+                // `runService()` implements env variable substitution which is why we can use env
+                // variable syntax like `$HONEYCOMB_API_KEY`.
                 "/var/www/server/jobs/queue/queue",
                 `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                 `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
@@ -324,14 +329,17 @@ export class AwsJobQueueService extends Construct {
                 "--fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
                 "--apiServicePublicKey=$API_SERVICE_PUBLIC_KEY",
                 "--resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY",
+                "--importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY",
                 "--servicePrivateKey=$JOB_QUEUE_SERVICE_PRIVATE_KEY",
                 "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
                 "--apnsCertificate=$APNS_CERTIFICATE",
                 "--apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY",
                 "--webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY",
                 "--webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY",
+                "--slackClientId=$SLACK_CLIENT_ID",
+                "--slackClientSecret=$SLACK_CLIENT_SECRET",
                 "--githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY",
-                `--importUploadsBucketName=${importUploads.bucketName}`,
+                "--loopsApiKey=$LOOPS_API_KEY",
             ],
             healthCheck: {
                 command: [
@@ -373,7 +381,7 @@ export class AwsJobQueueService extends Construct {
         new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
             taskDefinition,
-            desiredCount: 4,
+            desiredCount: 2,
             // Specifies the max/min task count during a deploy.
             minHealthyPercent: 50,
             maxHealthyPercent: 200,

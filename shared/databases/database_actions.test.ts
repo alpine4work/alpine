@@ -37,9 +37,9 @@ async function createDb(): Promise<Database> {
 }
 
 /**
- * Action context for the raw test handle. There's no VFS
- * here, so a table's per-db file is simulated with an
- * in-memory attached database under the table id's schema.
+ * Action context for the raw test handle. There's no VFS here, so a table's per-db
+ * file is simulated with an in-memory attached database under the table id's
+ * schema.
  */
 function makeCtx(db: Database): DatabaseActionContext {
     return {
@@ -234,9 +234,8 @@ describe("createTable", () => {
         const {tableId, tableName} = run(db, "createTable", {name: "T"});
 
         expect(() => {
-            // `sql.raw` for the blob literal: the sql template
-            // JSON-encodes bound objects, so a blob value can't
-            // go through a `?` parameter.
+            // `sql.raw` for the blob literal: the sql template JSON-encodes bound objects, so
+            // a blob value can't go through a `?` parameter.
             sql`
                 INSERT INTO
                     ${sql.tableRef(tableId, tableName)} (name)
@@ -263,9 +262,8 @@ describe("createTable", () => {
         const first = run(db, "createTable", {name: "Tasks"});
         const second = run(db, "createTable", {name: "Tasks"});
 
-        // Each table owns its own per-db file, so the SQLite
-        // identifier only needs to be unique within that file —
-        // no "_2" suffix across tables.
+        // Each table owns its own per-db file, so the SQLite identifier only needs to be
+        // unique within that file — no "\_2" suffix across tables.
         expect(first.tableName).toBe("tasks");
         expect(second.tableName).toBe("tasks");
     });
@@ -553,8 +551,8 @@ describe("renameTable", () => {
         const db = await createDb();
         const {tableId, tableName: original} = run(db, "createTable", {name: "Tasks"});
 
-        // "Tasks" and "Tasks!" both slugify to "tasks", so the
-        // SQL table name should not change — only the label.
+        // "Tasks" and "Tasks!" both slugify to "tasks", so the SQL table name should not
+        // change — only the label.
         const {tableName} = run(db, "renameTable", {tableId, name: "Tasks!"});
 
         expect(tableName).toBe(original);
@@ -600,8 +598,8 @@ describe("renameTable", () => {
 
     test("rename within its own file does not add a dedup suffix", async () => {
         const db = await createDb();
-        // A separate table named "Tasks" lives in its own file,
-        // so it does not collide with this rename.
+        // A separate table named "Tasks" lives in its own file, so it does not collide
+        // with this rename.
         run(db, "createTable", {name: "Tasks"});
         const {tableId} = run(db, "createTable", {name: "Projects"});
 
@@ -834,8 +832,8 @@ describe("updateCellValue", () => {
             value: "updated",
         });
 
-        // Use the view to confirm the value flows through
-        // serialize and deserialize correctly.
+        // Use the view to confirm the value flows through serialize and deserialize
+        // correctly.
         const {fieldIndexes, rows} = run(db, "getViewRowsPage", {
             tableOrViewId: viewId,
             afterCursor: null,
@@ -910,8 +908,8 @@ describe("renameField", () => {
         });
         expect(meta).toMatchObject({name: "Priority", columnName: "priority"});
 
-        // Ensure the SQL column was renamed by querying it
-        // (would throw if the column didn't exist).
+        // Ensure the SQL column was renamed by querying it (would throw if the column
+        // didn't exist).
         sql`
             SELECT
                 priority
@@ -927,8 +925,8 @@ describe("renameField", () => {
         const {fieldId: statusId} = addFieldAndGetId(db, tableId, viewId, "Status");
         addFieldAndGetId(db, tableId, viewId, "Priority");
 
-        // Rename Status → Priority. The "priority" column is
-        // taken by the other field, so a suffix should be added.
+        // Rename Status → Priority. The "priority" column is taken by the other field, so
+        // a suffix should be added.
         run(db, "renameField", {tableId, fieldId: statusId, name: "Priority"});
 
         const meta = sql`
@@ -948,9 +946,8 @@ describe("renameField", () => {
         const {tableId, viewId} = run(db, "createTable", {name: "T"});
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
-        // The existing field's column is "status"; renaming to
-        // "Status!" still slugifies to "status" — but the
-        // dedup loop excludes the field being renamed
+        // The existing field's column is "status"; renaming to "Status!" still slugifies
+        // to "status" — but the dedup loop excludes the field being renamed
         // (`AND id != ${fieldId}`) so no suffix is added.
         run(db, "renameField", {tableId, fieldId, name: "Status!"});
 

@@ -3,8 +3,9 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
-// If the schema of the web push store changes, increment the version number to apply the changes.
-// Note that data from the previous version will not carry over to the new version.
+// If the schema of the web push store changes, increment the version number to
+// apply the changes. Note that data from the previous version will not carry over
+// to the new version.
 const webPushDatabaseVersion = 1;
 const webPushDatabaseName = "webPushStore";
 const vapidPublicKeyVersion = 1;
@@ -40,12 +41,12 @@ const webPushStore = new Lazy(
         deleteWebPushSubscription: (browserId: BrowserId) => Promise<void>;
         clearAllWebPushSubscriptions: () => Promise<void>;
     } => {
-        // NOTE: Don't worry that we never close this connection.[1]
-        // [1]: https://stackoverflow.com/questions/34915581/indexeddb-when-to-close-a-connection/34927204#34927204
+        // NOTE: Don't worry that we never close this connection.[1] [1]:
+        // https://stackoverflow.com/questions/34915581/indexeddb-when-to-close-a-connection/34927204#34927204
         const openRequest = globalThis.indexedDB.open(webPushDatabaseName, webPushDatabaseVersion);
 
-        // Create the initial object stores, this event fires when the database is created or if its
-        // version number is incremented.
+        // Create the initial object stores, this event fires when the database is created
+        // or if its version number is incremented.
         openRequest.onupgradeneeded = () => {
             const database = openRequest.result;
             database.createObjectStore("webPushSubscriptions", {keyPath: "browserId"});
@@ -53,7 +54,7 @@ const webPushStore = new Lazy(
         };
 
         const initializeDatabase = async () => {
-            return new Promise<IDBDatabase>((resolve, reject) => {
+            return await new Promise<IDBDatabase>((resolve, reject) => {
                 openRequest.onsuccess = () => {
                     resolve(openRequest.result);
                 };
@@ -68,7 +69,7 @@ const webPushStore = new Lazy(
 
         async function setVapidCredentials(vapidPublicKey: string) {
             const database = await databasePromise;
-            return new Promise<void>((resolve, reject) => {
+            return await new Promise<void>((resolve, reject) => {
                 const request = database
                     .transaction("vapidCredentials", "readwrite")
                     .objectStore("vapidCredentials")
@@ -84,7 +85,7 @@ const webPushStore = new Lazy(
 
         async function getVapidCredentials() {
             const database = await databasePromise;
-            return new Promise<{version: number; vapidPublicKey: string} | null>(
+            return await new Promise<{version: number; vapidPublicKey: string} | null>(
                 (resolve, reject) => {
                     const request = database
                         .transaction("vapidCredentials", "readonly")
@@ -103,7 +104,7 @@ const webPushStore = new Lazy(
 
         async function getWebPushSubscription(browserId: BrowserId) {
             const database = await databasePromise;
-            return new Promise<ClientWebPushSubscriptionItem | null>((resolve, reject) => {
+            return await new Promise<ClientWebPushSubscriptionItem | null>((resolve, reject) => {
                 const request = database
                     .transaction("webPushSubscriptions", "readonly")
                     .objectStore("webPushSubscriptions")
@@ -121,7 +122,7 @@ const webPushStore = new Lazy(
 
         async function getAllWebPushSubscriptions() {
             const database = await databasePromise;
-            return new Promise<Array<ClientWebPushSubscriptionItem>>((resolve, reject) => {
+            return await new Promise<Array<ClientWebPushSubscriptionItem>>((resolve, reject) => {
                 const request = database
                     .transaction("webPushSubscriptions", "readonly")
                     .objectStore("webPushSubscriptions")
@@ -164,7 +165,7 @@ const webPushStore = new Lazy(
                 };
             }
 
-            return new Promise<void>((resolve, reject) => {
+            return await new Promise<void>((resolve, reject) => {
                 const objectStore = database
                     .transaction("webPushSubscriptions", "readwrite")
                     .objectStore("webPushSubscriptions");
@@ -180,7 +181,7 @@ const webPushStore = new Lazy(
 
         async function deleteWebPushSubscription(browserId: BrowserId) {
             const database = await databasePromise;
-            return new Promise<void>((resolve, reject) => {
+            return await new Promise<void>((resolve, reject) => {
                 const request = database
                     .transaction("webPushSubscriptions", "readwrite")
                     .objectStore("webPushSubscriptions")
@@ -198,7 +199,7 @@ const webPushStore = new Lazy(
 
         async function clearAllWebPushSubscriptions() {
             const database = await databasePromise;
-            return new Promise<void>((resolve, reject) => {
+            return await new Promise<void>((resolve, reject) => {
                 const request = database
                     .transaction("webPushSubscriptions", "readwrite")
                     .objectStore("webPushSubscriptions")

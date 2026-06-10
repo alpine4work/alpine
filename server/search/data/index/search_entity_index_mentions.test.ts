@@ -1,6 +1,7 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -16,13 +17,14 @@ import {
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {
     createSimplePostContent,
     PostContentProsemirrorSchema as schema,
@@ -67,7 +69,7 @@ const context = createTestContext({
                 break;
             }
             case "IndexSearchEntityEmbeddingChunks": {
-                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job, span);
                 break;
             }
             default: {
@@ -83,8 +85,8 @@ beforeEach(() => {
 });
 
 // Important that this goes after `createTestContext()` which will register
-// `afterEach` hooks that clean up some timers (specifically
-// `TestLocalJobSender` which cleans up any delayed jobs).
+// `afterEach` hooks that clean up some timers (specifically `TestLocalJobSender`
+// which cleans up any delayed jobs).
 afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
@@ -100,7 +102,7 @@ const testCaseByEntityType: Record<
         create: (options: {
             session: TestSpaceSession;
             title: string;
-            access: "Public" | "Private" | AccessPolicy;
+            access: "Public" | "Private" | CreateOrUpdateAccessPolicy;
         }) => Promise<{
             id: SearchMentionEntityId;
             prefix?: string;
@@ -153,6 +155,21 @@ const testCaseByEntityType: Record<
                     });
                 },
                 // TODO: Implement this once channels can be deleted.
+                delete: "Unimplemented",
+                undelete: "Unimplemented",
+            };
+        },
+    },
+    Chat: {
+        create: async ({session, title, access}) => {
+            const chat = await TestChat.createRoom(session, {name: title, access});
+
+            return {
+                id: `Chat:${chat.id}`,
+                access: chat.roomAccess,
+                updateTitle: async title => {
+                    await chat.updateRoomName(session, title);
+                },
                 delete: "Unimplemented",
                 undelete: "Unimplemented",
             };
@@ -229,9 +246,18 @@ const testCaseByEntityType: Record<
             };
         },
     },
+    // TODO(#sites): Implement site mention test case
+    Site: {
+        create: async () => {
+            throw new UnimplementedError("Site mention test case not implemented");
+        },
+    },
 };
 
 for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEntityType)) {
+    // TODO(#sites): Implement site mention test case
+    if (entityType === "Site") continue;
+
     describe(`${entityType}`, () => {
         test("can mention non-existent entity in public entity", async () => {
             const space = await TestSpace.create(context);
@@ -555,6 +581,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -623,6 +650,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -681,6 +709,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -692,6 +721,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -750,6 +780,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -761,6 +792,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -822,6 +854,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -834,6 +867,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -892,6 +926,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -904,6 +939,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -963,6 +999,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "View", generation: 1}],
@@ -975,6 +1012,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -1036,6 +1074,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session3.account.id, {level: "View", generation: 1}],
@@ -1047,6 +1086,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session4.account.id, {level: "View", generation: 1}],
@@ -1107,6 +1147,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "Manage", generation: 1}],
@@ -1118,6 +1159,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -1177,6 +1219,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session3.account.id, {level: "Manage", generation: 1}],
@@ -1188,6 +1231,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session4.account.id, {level: "View", generation: 1}],
@@ -1246,6 +1290,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
                 session: session1,
                 title: "Lorem Ipsum",
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session1.account.id, {level: "Manage", generation: 0}],
                         [session2.account.id, {level: "Manage", generation: 1}],
@@ -1258,6 +1303,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "View", generation: 1}],
@@ -1321,6 +1367,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel1 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "Manage", generation: 1}],
@@ -1333,6 +1380,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel2 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "Manage", generation: 1}],
@@ -1344,6 +1392,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel3 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -2043,6 +2092,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel1 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "Manage", generation: 1}],
@@ -2055,6 +2105,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel2 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                         [session1.account.id, {level: "Manage", generation: 1}],
@@ -2066,6 +2117,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
             const channel3 = await TestChannel.create(session2, {
                 access: {
+                    type: "Local",
                     accountGrantById: new Map([
                         [session2.account.id, {level: "Manage", generation: 0}],
                     ]),
@@ -3106,3 +3158,51 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
         });
     });
 }
+
+test("can mention direct chat in a private entity", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({name: "Alpha"});
+    const session2 = await space.createSession({name: "Bravo"});
+    const session3 = await space.createSession({name: "Charlie"});
+
+    const chat = await TestChat.get(session1, session2, session3);
+    const channel = await TestChannel.create(session1, {access: "Private"});
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const post = await channel.createPost(
+        session1,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Mention: "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Chat:${chat.id}`,
+                    }),
+                }),
+                schema.text("."),
+            ]),
+        ]),
+    );
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [expect.stringMatching(/^in .*: Mention: .*, and 1 other\.$/)],
+        },
+    });
+});

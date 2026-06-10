@@ -1,5 +1,4 @@
 import {TestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
-import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
 import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
@@ -7,7 +6,8 @@ import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messag
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {ApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     MessageContentProsemirrorSchema,
@@ -18,6 +18,7 @@ import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {TaskTitleModel, createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
 
 const knownTaskId = generateId<TaskId>();
 const privateTaskId = generateId<TaskId>();
@@ -26,13 +27,25 @@ const deletedTaskId = generateId<TaskId>();
 export const testMessagingApiImplementationSearchInjection: Partial<SearchInjection> = {
     getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
         if (entityId === `Task:${knownTaskId}`) {
+            const displayStatus = {
+                displayStatus: "OpenActive",
+                version: [0, 0],
+            } as const;
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Task",
                     title: "Some bug",
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    task: {
+                        id: knownTaskId,
+                        titleSnapshot: new TaskTitleModel(
+                            createTaskTitleFromText("Some bug"),
+                        ).getSnapshot(),
+                        displayStatus: {
+                            value: displayStatus.displayStatus,
+                            version: displayStatus.version,
+                        },
+                    },
                 }),
             };
         }
@@ -44,13 +57,25 @@ export const testMessagingApiImplementationSearchInjection: Partial<SearchInject
         }
 
         if (entityId === `Task:${deletedTaskId}`) {
+            const displayStatus = {
+                displayStatus: "OpenActive",
+                version: [0, 0],
+            } as const;
             return {
                 isPrivate: false,
                 entity: new SearchEntityModel({
-                    id: entityId,
+                    type: "Task",
                     title: null,
-                    titleVersion: {type: "Integer", version: 0},
-                    media: null,
+                    task: {
+                        id: deletedTaskId,
+                        titleSnapshot: new TaskTitleModel(
+                            createTaskTitleFromText("Deleted task"),
+                        ).getSnapshot(),
+                        displayStatus: {
+                            value: displayStatus.displayStatus,
+                            version: displayStatus.version,
+                        },
+                    },
                 }),
             };
         }
@@ -112,11 +137,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t read message in room bot doesn\u2019t have access to", async () => {
@@ -227,11 +250,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read message with account mention", async () => {
@@ -278,12 +299,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb Meredith](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `Hello [Caleb Meredith](https://alpine.inc/mention/${session2.account.id})\n`,
             );
         });
 
@@ -331,12 +348,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention=short)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
             );
         });
 
@@ -384,12 +397,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/s/${space.id}/tasks/${unknownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
             );
         });
 
@@ -435,12 +444,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/s/${space.id}/tasks/${knownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
             );
         });
 
@@ -486,12 +491,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Private task](https://alpine.inc/s/${space.id}/tasks/${privateTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
             );
         });
 
@@ -537,12 +538,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/s/${space.id}/tasks/${deletedTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
             );
         });
 
@@ -591,11 +588,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t send message to room that doesn\u2019t exist", async () => {
@@ -706,11 +701,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with parent", async () => {
@@ -771,11 +764,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with parent then read it back", async () => {
@@ -840,11 +831,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read messages", async () => {
@@ -884,11 +873,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can\u2019t read messages in room bot doesn\u2019t have access to", async () => {
@@ -976,11 +963,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can read messages with account mention", async () => {
@@ -1030,12 +1015,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb Meredith](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `Hello [Caleb Meredith](https://alpine.inc/mention/${session2.account.id})\n`,
             );
         });
 
@@ -1086,12 +1067,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `Hello [Caleb](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention=short)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
             );
         });
 
@@ -1142,12 +1119,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/s/${space.id}/tasks/${unknownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
             );
         });
 
@@ -1196,12 +1169,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/s/${space.id}/tasks/${knownTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
             );
         });
 
@@ -1250,12 +1219,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Private task](https://alpine.inc/s/${space.id}/tasks/${privateTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
             );
         });
 
@@ -1304,12 +1269,8 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.messages[0].payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/s/${space.id}/tasks/${deletedTaskId}?mention)\n`,
+            expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
             );
         });
 
@@ -1753,11 +1714,7 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual(`\
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(`\
 # Hello, world!
 
 ## Level 2
@@ -1797,11 +1754,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("<hr/>\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "<hr/>\n",
+            );
         });
 
         test("can create message with italic mark", async () => {
@@ -1848,11 +1803,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, *world*!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, *world*!\n",
+            );
         });
 
         test("can create message with highlight mark that\u2019s dropped", async () => {
@@ -1899,11 +1852,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         test("can create message with comment mark that\u2019s dropped", async () => {
@@ -1950,11 +1901,9 @@ export function testMessagingApiImplementation(
                 }),
             });
 
-            expect(
-                printApiContentToMarkdown(response.body.message.payload.content, {
-                    spaceId: space.id,
-                }),
-            ).toEqual("Hello, world!\n");
+            expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
+                "Hello, world!\n",
+            );
         });
 
         describe("message streams", () => {

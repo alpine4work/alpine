@@ -2,6 +2,12 @@ import {AttributeValue} from "@aws-sdk/client-dynamodb";
 import fs from "fs/promises";
 import murmurhash from "murmurhash";
 import {dirname, join as joinPath} from "path";
+import {
+    DynamoCondition,
+    DynamoConditionExpression,
+    DynamoConditionExpressionCompilationContext,
+    DynamoConditionExpressionPrecedence,
+} from "~/server/dynamo/core/dynamo_condition.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {
     DynamoKeyAttribute,
@@ -18,12 +24,6 @@ import {
     intoDynamoAttributeValueObject,
 } from "~/server/dynamo/core/internal/dynamo_attribute_value.js";
 import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
-import {
-    DynamoCondition,
-    DynamoConditionExpression,
-    DynamoConditionExpressionCompilationContext,
-    DynamoConditionExpressionPrecedence,
-} from "~/server/dynamo/core/internal/dynamo_condition.js";
 import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/core/internal/dynamo_generated_schema_description.js";
 import {dynamoReservedWords} from "~/server/dynamo/core/internal/dynamo_reserved_words.js";
 import {
@@ -31,11 +31,11 @@ import {
     getDynamoExpectsStrongReadConsistency,
     getDynamoRetryTransactionIfExists,
 } from "~/server/dynamo/core/internal/get_dynamo_client.js";
-import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoResourceInUseError} from "~/server/dynamo/core/is_dynamo_resource_in_use_exception.js";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/core/is_dynamo_resource_not_found_error.js";
 import {isDynamoValidationError} from "~/server/dynamo/core/is_dynamo_validation_exception.js";
+import {DynamoTableSchemaTypes} from "~/server/dynamo/core/types/dynamo_table_schema_types.js";
 import {
     DynamoIndexCursor,
     DynamoIndexPartitionKey,
@@ -58,7 +58,7 @@ import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqual, isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -66,7 +66,11 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
+import {
+    OrderKey,
+    generateOrderKeysBetween,
+    orderKeyDigits,
+} from "~/shared/helpers/sort/order_key.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
@@ -135,7 +139,8 @@ const DynamoTableItemSharedAttributesSchema: ObjectSchema<DynamoTableSchemaTypes
  * The DynamoDB TTL attribute needs to be serialized as a [Unix epoch timestamp
  * measured in seconds][1].
  *
- * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/time-to-live-ttl-before-you-start.html
+ * [1]:
+ *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/time-to-live-ttl-before-you-start.html
  */
 const DynamoTableItemSharedExpirationTimeAttributeSchema = Schema.integer.transform<Date>({
     serialize: date => Math.floor(date.getTime() / 1000),
@@ -196,30 +201,28 @@ type DynamoTableSchemaInitializationState =
            *
            * How it's different from `_config`:
            *
-           * - Contains an `OrderKey` for sort ranges. This `OrderKey` is taken from the
-           *   last schema description that we loaded from the git repo. If no `OrderKey`
-           *   exists in that description for the sort range then we generate a new one.
-           * - Fully serializable to JSON. So does not contain `Schema` objects but
-           *   rather contains a `SchemaSerializedValueDescription`.
+           * - Contains an `OrderKey` for sort ranges. This `OrderKey` is taken from the last
+           *   schema description that we loaded from the git repo. If no `OrderKey` exists
+           *   in that description for the sort range then we generate a new one.
+           * - Fully serializable to JSON. So does not contain `Schema` objects but rather
+           *   contains a `SchemaSerializedValueDescription`.
            *
            * Will be null until the schema has finished initializing.
            */
           readonly description: DynamoTableSchemaTypes.Description;
 
           /**
-           * If our new schema is read incompatible with the old schema then this will
-           * be an error. We will throw the error every time you try to read from the
-           * table.
+           * If our new schema is read incompatible with the old schema then this will be an
+           * error. We will throw the error every time you try to read from the table.
            */
           readonly readCompatibilityError: Error | null;
 
           /**
-           * If our new schema is write incompatible with the old schema then this will
-           * be an error. We will throw the error every time you try to write to the
-           * table.
+           * If our new schema is write incompatible with the old schema then this will be an
+           * error. We will throw the error every time you try to write to the table.
            *
-           * Once you run the command to update our generated schema this
-           * compatibility error should go away.
+           * Once you run the command to update our generated schema this compatibility error
+           * should go away.
            */
           readonly writeCompatibilityError: Error | null;
 
@@ -238,16 +241,17 @@ type DynamoTableSchemaInitializationState =
 export type DynamoTableSchemaTypesBase = Replace<
     DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
     // This types give TypeScript trouble when dealing with generics (try removing,
-    // `accounts_table.ts` should have errors). So any them out to not deal with
-    // it since we know it's safe.
+    // `accounts_table.ts` should have errors). So any them out to not deal with it
+    // since we know it's safe.
     {QueryKeyMap: any}
 >;
 
-// Used specifically for testing to allow us to re-check if tables exist in a local DynamoDB instance.
-// As long as this value stays the same, we only check if a table exists (and create it if not) the
-// first time a call is made to a DynamoTableSchema instance; any subsequent calls skip the check.
-// You probably don't need to increment this value manually if you are resetting the local DynamoDB
-// instance as `resetDynamoLocal()` will increment it for you.
+// Used specifically for testing to allow us to re-check if tables exist in a local
+// DynamoDB instance. As long as this value stays the same, we only check if a
+// table exists (and create it if not) the first time a call is made to a
+// DynamoTableSchema instance; any subsequent calls skip the check. You probably
+// don't need to increment this value manually if you are resetting the local
+// DynamoDB instance as `resetDynamoLocal()` will increment it for you.
 let localDynamoTableSchemaGeneration = 1;
 
 export function incrementLocalDynamoTableSchemaGenerationForTest() {
@@ -259,18 +263,14 @@ export function incrementLocalDynamoTableSchemaGenerationForTest() {
  * Abstraction over DynamoDB tables for defining the type of data that resides
  * within. Features of this abstraction:
  *
- * - Define the type of data in your DynamoDB table using our `Schema`
- *   abstraction.
- * - Forces you to structure your table in a way that is easy to evolve over
- *   time without migrations. (Multiple partition types, multiple sort range
- *   types.)
- * - Ensures you always evolve your schema in a backwards compatible way.
- *   (Saves a description of the schema to the git repo and checks against it
- *   whenever you make a change.)
- * - Automatically provisions AWS resources needed for the table using the
- *   AWS CDK.
- * - Reads and writes are automatically batched behind the scenes when
- *   possible.
+ * - Define the type of data in your DynamoDB table using our `Schema` abstraction.
+ * - Forces you to structure your table in a way that is easy to evolve over time
+ *   without migrations. (Multiple partition types, multiple sort range types.)
+ * - Ensures you always evolve your schema in a backwards compatible way. (Saves a
+ *   description of the schema to the git repo and checks against it whenever you
+ *   make a change.)
+ * - Automatically provisions AWS resources needed for the table using the AWS CDK.
+ * - Reads and writes are automatically batched behind the scenes when possible.
  * - Queries use async iterators to transparently paginate.
  */
 export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
@@ -284,11 +284,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * How it's different from `_description`:
      *
-     * - Contains full `Schema` objects instead of a JSON description. So you need
-     *   the config to serialize/deserialize values from DynamoDB.
-     * - The object style is optimize for the developers who manually write the
-     *   object. So we pick shorter names like `partitions` instead of longer,
-     *   explicit names like `partitionByType`.
+     * - Contains full `Schema` objects instead of a JSON description. So you need the
+     *   config to serialize/deserialize values from DynamoDB.
+     * - The object style is optimize for the developers who manually write the object.
+     *   So we pick shorter names like `partitions` instead of longer, explicit names
+     *   like `partitionByType`.
      */
     private readonly _partitionConfigByName: Map<
         string,
@@ -309,8 +309,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     >;
 
     /**
-     * Our DynamoDB table schema initializes a little after construction since we
-     * need to wait for modifications from an `addIndex()` call in the same module.
+     * Our DynamoDB table schema initializes a little after construction since we need
+     * to wait for modifications from an `addIndex()` call in the same module.
      */
     private _initializationState: DynamoTableSchemaInitializationState = {
         isInitialized: false,
@@ -327,10 +327,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     private constructor(config: DynamoTableSchemaTypes.ConfigBase) {
         const partitionNames = new Set<string>();
 
-        // Validate that attribute names are identifiers that do not start with
-        // underscores and that attribute names are unique. We do not allow identifiers
-        // to start with underscores so we can reserve underscore names for framework
-        // properties.
+        // Validate that attribute names are identifiers that do not start with underscores
+        // and that attribute names are unique. We do not allow identifiers to start with
+        // underscores so we can reserve underscore names for framework properties.
         //
         // Also extends the attribute schema to include internal attributes. So when we
         // serialize/deserialize with the schema we pick up those private attributes.
@@ -545,12 +544,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             recording.tableSchemas.set(this._name, this);
         }
 
-        // DynamoDB table schemas finish initializing a microtask after they're
-        // constructed because functions like `addIndex()` will extend the table
-        // schema.
+        // DynamoDB table schemas finish initializing a microtask after they're constructed
+        // because functions like `addIndex()` will extend the table schema.
         //
-        // You may call `finishInitializingDynamoTableSchemas()` to synchronously
-        // finish initializing schemas.
+        // You may call `finishInitializingDynamoTableSchemas()` to synchronously finish
+        // initializing schemas.
 
         if (dynamoTableSchemaInitializationCallbacks.length === 0) {
             scheduleMicrotask(() => {
@@ -590,8 +588,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 });
             }
 
-            // The developer may disable compatibility errors in tests in order to unit
-            // test functionality in `DynamoTableSchema` itself.
+            // The developer may disable compatibility errors in tests in order to unit test
+            // functionality in `DynamoTableSchema` itself.
             let withoutCompatibilityErrors = false;
             if (config.withoutCompatibilityErrorsForTest) {
                 assert(import.meta.jest);
@@ -621,8 +619,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Returns the schema description. Will throw if the schema has not
-     * finished initializing. Wait a microtask for it to finish.
+     * Returns the schema description. Will throw if the schema has not finished
+     * initializing. Wait a microtask for it to finish.
      */
     public getDescription() {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
@@ -636,8 +634,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Return the partition key attributes for a given partition. Throws an error
-     * if the partition doesn't exist.
+     * Return the partition key attributes for a given partition. Throws an error if
+     * the partition doesn't exist.
      */
     public getPartitionKeyAttributes(partitionType: string) {
         return assertExists(this._partitionConfigByName.get(partitionType)).partitionKeyAttributes;
@@ -671,9 +669,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         if (this._initializationState.readCompatibilityError !== null)
             throw this._initializationState.readCompatibilityError;
 
-        // If our schema is write incompatible with the old schema then throw an error.
-        // Do not allow writing to this table until the generated schema has been
-        // updated.
+        // If our schema is write incompatible with the old schema then throw an error. Do
+        // not allow writing to this table until the generated schema has been updated.
         if (checkWriteCompatibility && this._initializationState.writeCompatibilityError !== null)
             throw this._initializationState.writeCompatibilityError;
 
@@ -682,8 +679,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // In development environments if we are running against a local DynamoDB then
         // ensure our table exists in the database.
         //
-        // Store the ensure table promise so that if we are executing commands in
-        // parallel, we only try to create the table once.
+        // Store the ensure table promise so that if we are executing commands in parallel,
+        // we only try to create the table once.
         if (process.env.NODE_ENV !== "production") {
             const internalClient = client.getInternalClient();
 
@@ -726,8 +723,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         const client = getDynamoClient(context);
 
-        // We skip checking the cache in tests since we actually want to recheck if the table exists
-        // if dynamo has been restarted.
+        // We skip checking the cache in tests since we actually want to recheck if the
+        // table exists if dynamo has been restarted.
         const shouldUseCache = !import.meta.jest;
 
         let ensureLocalCacheHash: string;
@@ -762,7 +759,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        return context.tracer.withSpan("Ensure local DynamoDB table", async context => {
+        return await context.tracer.withSpan("Ensure local DynamoDB table", async context => {
             await retryWithExponentialBackoff(async retry => {
                 const internalClient = client.getInternalClient();
                 const tableName = this.getName();
@@ -1133,8 +1130,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Deserializes the two key attribute values we store in the database to our
-     * key object.
+     * Deserializes the two key attribute values we store in the database to our key
+     * object.
      *
      * Also returns the `Schema` object for attributes of the key's sort range.
      */
@@ -1256,9 +1253,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         const partitionKeyByteCount = totalByteCount;
 
-        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        totalByteCount += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
         totalByteCount++;
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
@@ -1283,14 +1278,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
-        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
-            sortRangeDescription.orderKey,
-            bytes,
-            byteIndex,
-        );
-        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        serializeOrderKeyWithDeprecatedEncoding(sortRangeDescription.orderKey, bytes, byteIndex);
+        byteIndex += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
 
         bytes[byteIndex++] = sortRangeDescription.id;
 
@@ -1309,9 +1298,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Serialize the item key into an opaque string that can be conveniently shared
      * with clients.
      *
-     * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's
-     * primary key.
+     * Remember this data is not secured in any way! If you share this with a client
+     * then the client should be able to see all data in the item's primary key.
      */
     public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
         const {bytes} = this._serializeOpaqueItemKey(key);
@@ -1321,8 +1309,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             "Rfc4648UrlWithOrderPreservation",
         ) as DynamoItemKey;
 
-        // In development and test environments, make sure we can deserialize our
-        // opaque keys.
+        // In development and test environments, make sure we can deserialize our opaque
+        // keys.
         if (process.env.NODE_ENV !== "production") {
             const deserializedKey = this.deserializeOpaqueItemKey(opaqueString);
             assert(
@@ -1336,12 +1324,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Serialize the item key into an opaque string that can be conveniently shared
-     * with clients. Also generates the partition key and sort key which may be
-     * useful.
+     * with clients. Also generates the partition key and sort key which may be useful.
      *
-     * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's
-     * primary key.
+     * Remember this data is not secured in any way! If you share this with a client
+     * then the client should be able to see all data in the item's primary key.
      */
     public serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(
         key: Types["ItemKey"] | Types["Item"],
@@ -1379,8 +1365,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             return opaqueSortKeyString;
         };
 
-        // In development and test environments, make sure we can deserialize our
-        // opaque keys.
+        // In development and test environments, make sure we can deserialize our opaque
+        // keys.
         if (process.env.NODE_ENV !== "production") {
             const deserializedKey = this.deserializeOpaqueItemKey(opaqueKeyString);
             assert(
@@ -1398,12 +1384,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Serialize the item key into an opaque string that can be conveniently shared
-     * with clients. Generates just the partition key and sort key which may be
-     * useful.
+     * with clients. Generates just the partition key and sort key which may be useful.
      *
-     * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's
-     * primary key.
+     * Remember this data is not secured in any way! If you share this with a client
+     * then the client should be able to see all data in the item's primary key.
      */
     public serializeOpaqueItemPartitionKeyAndSortKey(key: Types["ItemKey"] | Types["Item"]): {
         partitionKey: DynamoItemPartitionKey;
@@ -1467,11 +1451,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 key[attributeKey] = value;
             }
 
-            const orderKey = DynamoKeyAttributeSchema.orderKey.binary!.deserializeBytes(
-                bytes,
-                bytesIndex,
-            );
-            bytesIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(orderKey);
+            const orderKey = deserializeOrderKeyWithDeprecatedEncoding(bytes, bytesIndex);
+            bytesIndex += getOrderKeyByteCountWithDeprecatedEncoding(orderKey);
 
             const sortRangeName = partitionNames.sortRangeNameById.get(bytes[bytesIndex++]!);
             assert(sortRangeName, "Invalid sort key");
@@ -1508,12 +1489,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Serialize just the partition key part of the item key into an opaque string
-     * that can be conveniently shared with clients.
+     * Serialize just the partition key part of the item key into an opaque string that
+     * can be conveniently shared with clients.
      *
-     * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's
-     * primary key.
+     * Remember this data is not secured in any way! If you share this with a client
+     * then the client should be able to see all data in the item's primary key.
      */
     public serializeOpaqueItemPartitionKey(
         key: Types["PartitionKey"] | Types["ItemKey"] | Types["Item"],
@@ -1554,12 +1534,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Serialize just the sort key part of the item key into an opaque string
-     * that can be conveniently shared with clients.
+     * Serialize just the sort key part of the item key into an opaque string that can
+     * be conveniently shared with clients.
      *
-     * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's
-     * primary key.
+     * Remember this data is not secured in any way! If you share this with a client
+     * then the client should be able to see all data in the item's primary key.
      */
     public serializeOpaqueItemSortKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemSortKey {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
@@ -1573,9 +1552,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         let totalByteCount = 0;
 
-        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        totalByteCount += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
         totalByteCount++;
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
@@ -1591,14 +1568,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const bytes = new Uint8Array(totalByteCount);
         let byteIndex = 0;
 
-        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
-            sortRangeDescription.orderKey,
-            bytes,
-            byteIndex,
-        );
-        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        serializeOrderKeyWithDeprecatedEncoding(sortRangeDescription.orderKey, bytes, byteIndex);
+        byteIndex += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
 
         bytes[byteIndex++] = sortRangeDescription.id;
 
@@ -1642,8 +1613,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 const indexConfig = indexConfigs[i]!;
                 const indexDescription = this._initializationState.description.indexes[i]!;
 
-                // If a filter function is defined then don't add index keys for items that
-                // return `false`. This will exclude those items from our index.
+                // If a filter function is defined then don't add index keys for items that return
+                // `false`. This will exclude those items from our index.
                 if (indexConfig.filter === null || indexConfig.filter(item)) {
                     // If the index key is reused, don't add an index partition key attribute.
                     if (indexDescription.partitionKeyBehavior.type !== "Reused") {
@@ -1672,15 +1643,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Gets a single item by its key from the database. Returns `null` if the item
-     * does not exist.
+     * Gets a single item by its key from the database. Returns `null` if the item does
+     * not exist.
      *
-     * Corresponds to the [`GetItem`][1] command. If you call this function many
-     * times in parallel then we will batch the reads together into a
-     * [`BatchGetItem`][2] command.
+     * Corresponds to the [`GetItem`][1] command. If you call this function many times
+     * in parallel then we will batch the reads together into a [`BatchGetItem`][2]
+     * command.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public async getItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -1718,8 +1691,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         try {
             attributesSchema.deserializeInto(serializedItem, item);
         } catch (error) {
-            // Reclassify deserialization errors from data stored in the database as data
-            // loss errors. It means we have corrupt data stored in the database!
+            // Reclassify deserialization errors from data stored in the database as data loss
+            // errors. It means we have corrupt data stored in the database!
             if (error instanceof SchemaDeserializationError) {
                 throw new DataLossError(error.message, {cause: error});
             }
@@ -1730,12 +1703,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Same as `getItemIfExists()` except we return a `DynamoItem` object.
-     * Currently this is only used by `DynamoGeneralRealtimeTableSchema`. In the
-     * future, however, we may use `DynamoItem` for all `getItem()` calls from
-     * `DynamoTableSchema` too! Since it's core feature (keeping track of
-     * `oldItem`) is useful for `directlyUpdateItem()` calls which need the old
-     * item's `updateLockVersion`.
+     * Same as `getItemIfExists()` except we return a `DynamoItem` object. Currently
+     * this is only used by `RynamoTableSchema`. In the future, however, we may use
+     * `DynamoItem` for all `getItem()` calls from `DynamoTableSchema` too! Since it's
+     * core feature (keeping track of `oldItem`) is useful for `directlyUpdateItem()`
+     * calls which need the old item's `updateLockVersion`.
      */
     public async _getItemWithOldItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -1776,8 +1748,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         try {
             attributesSchema.deserializeInto(serializedItem, item);
         } catch (error) {
-            // Reclassify deserialization errors from data stored in the database as data
-            // loss errors. It means we have corrupt data stored in the database!
+            // Reclassify deserialization errors from data stored in the database as data loss
+            // errors. It means we have corrupt data stored in the database!
             if (error instanceof SchemaDeserializationError) {
                 throw new DataLossError(error.message, {cause: error});
             }
@@ -1788,9 +1760,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Gets an item with the provided key and if the item does not exist then we
-     * throw an error. Same as `getItem()` but throws an error instead of returning
-     * null when an item is missing.
+     * Gets an item with the provided key and if the item does not exist then we throw
+     * an error. Same as `getItem()` but throws an error instead of returning null when
+     * an item is missing.
      */
     public async getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -1812,8 +1784,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Tries to get an item first with eventual consistency and if that doesn't
-     * find the item tries again with strong consistency. Use this when:
+     * Tries to get an item first with eventual consistency and if that doesn't find
+     * the item tries again with strong consistency. Use this when:
      *
      * 1. You know an item definitely exists; AND
      * 2. You want to use a cheaper eventual consistency read in most cases; AND
@@ -1831,7 +1803,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         });
         if (item) return item;
 
-        return this.getItem(context, key, {
+        return await this.getItem(context, key, {
             ...options,
             consistency: "Strong",
         });
@@ -1841,22 +1813,22 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Gets a few attributes of a single item by its key from the database. Returns
      * `null` if the item does not exist.
      *
-     * Corresponds to the [`GetItem`][1] command with `ProjectionExpression` set.
-     * At this time we do not batch `getPartialItem()` commands.
+     * Corresponds to the [`GetItem`][1] command with `ProjectionExpression` set. At
+     * this time we do not batch `getPartialItem()` commands.
      *
      * Generally, you should prefer calling `getItemIfExists()` since
      * `getPartialItemIfExists()` does not batch get requests! Whereas
-     * `getItemIfExists()` will batch multiple requests into one network request.
-     * Only call `getPartialItemIfExists()` if there's some large property on your
-     * item you don't need that you have strong reason (ideally evidence) to
-     * believe will hurt network performance. Even then, you still have to pay the
-     * RCUs when reading this large item! So reaching for
-     * `getPartialItemIfExists()` may be a sign of poor table design. Instead of
-     * reading a small property on your large item with `getPartialItemIfExists()`
-     * you should consider splitting the item into two so you can read small pieces
-     * of metadata separately.
+     * `getItemIfExists()` will batch multiple requests into one network request. Only
+     * call `getPartialItemIfExists()` if there's some large property on your item you
+     * don't need that you have strong reason (ideally evidence) to believe will hurt
+     * network performance. Even then, you still have to pay the RCUs when reading this
+     * large item! So reaching for `getPartialItemIfExists()` may be a sign of poor
+     * table design. Instead of reading a small property on your large item with
+     * `getPartialItemIfExists()` you should consider splitting the item into two so
+     * you can read small pieces of metadata separately.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
     public async getPartialItemIfExists<
         Key extends Types["ItemKey"],
@@ -1947,8 +1919,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 }
             }
         } catch (error) {
-            // Reclassify deserialization errors from data stored in the database as data
-            // loss errors. It means we have corrupt data stored in the database!
+            // Reclassify deserialization errors from data stored in the database as data loss
+            // errors. It means we have corrupt data stored in the database!
             if (error instanceof SchemaDeserializationError) {
                 throw new DataLossError(error.message, {cause: error});
             }
@@ -1959,24 +1931,24 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Gets a few attributes of a single item by its key from the database. Throws
-     * an error if the item does not exist.
+     * Gets a few attributes of a single item by its key from the database. Throws an
+     * error if the item does not exist.
      *
-     * Corresponds to the [`GetItem`][1] command with `ProjectionExpression` set.
-     * At this time we do not batch `getPartialItem()` commands.
+     * Corresponds to the [`GetItem`][1] command with `ProjectionExpression` set. At
+     * this time we do not batch `getPartialItem()` commands.
      *
-     * Generally, you should prefer calling `getItem()` since `getPartialItem()`
-     * does not batch get requests! Whereas `getItem()` will batch multiple
-     * requests into one network request. Only call `getPartialItem()` if there's
-     * some large property on your item you don't need that you have strong reason
-     * (ideally evidence) to believe will hurt network performance. Even then, you
-     * still have to pay the RCUs when reading this large item! So reaching for
-     * `getPartialItem()` may be a sign of poor table design. Instead of reading a
-     * small property on your large item with `getPartialItem()` you should
-     * consider splitting the item into two so you can read small pieces of
-     * metadata separately.
+     * Generally, you should prefer calling `getItem()` since `getPartialItem()` does
+     * not batch get requests! Whereas `getItem()` will batch multiple requests into
+     * one network request. Only call `getPartialItem()` if there's some large property
+     * on your item you don't need that you have strong reason (ideally evidence) to
+     * believe will hurt network performance. Even then, you still have to pay the RCUs
+     * when reading this large item! So reaching for `getPartialItem()` may be a sign
+     * of poor table design. Instead of reading a small property on your large item
+     * with `getPartialItem()` you should consider splitting the item into two so you
+     * can read small pieces of metadata separately.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
     public async getPartialItem<
         Key extends Types["ItemKey"],
@@ -2001,12 +1973,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Create an item in the database. If an item with the same key already exists
-     * then we will throw a condition check error.
+     * Create an item in the database. If an item with the same key already exists then
+     * we will throw a condition check error.
      *
      * Under the hood uses the [`PutItem`][1] command with a condition.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
     public async createItem<Item extends Types["Item"]>(
         context: DynamoContext,
@@ -2018,21 +1991,22 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 "attribute_not_exists(partitionKey)",
                 DynamoConditionExpressionPrecedence.Function,
             ),
-            // Calling `createItem()` has the intent of there is a new item I want to
-            // create. It should not be used to implement upserts. Use
-            // `createOrReplaceItem()` or `updateItem()` for that.
+            // Calling `createItem()` has the intent of there is a new item I want to create.
+            // It should not be used to implement upserts. Use `createOrReplaceItem()` or
+            // `updateItem()` for that.
             isConditionCheckErrorRetriable,
         });
     }
 
     /**
-     * Create an item in the database but only if an item with the same key does
-     * not already exist. If an item with the same key does exist then this will
-     * not do anything.
+     * Create an item in the database but only if an item with the same key does not
+     * already exist. If an item with the same key does exist then this will not do
+     * anything.
      *
      * Under the hood uses the [`PutItem`][1] command with a condition.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
     public async createItemIfNoneExists<Item extends Types["Item"]>(
         context: DynamoContext,
@@ -2051,22 +2025,22 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Replace an item that already exists in the database. If an item with the
-     * same key does not already exist then we will throw a condition check
-     * error.
+     * Replace an item that already exists in the database. If an item with the same
+     * key does not already exist then we will throw a condition check error.
      *
-     * WARNING: Carefully consider concurrent writers when using this method. If
-     * two users are writing to the same item at the same time this method will
-     * clobber one of the user's updates. You may want to merge the updates
-     * instead. You may also clobber locks added by `updateItem()`.
+     * WARNING: Carefully consider concurrent writers when using this method. If two
+     * users are writing to the same item at the same time this method will clobber one
+     * of the user's updates. You may want to merge the updates instead. You may also
+     * clobber locks added by `updateItem()`.
      *
-     * You may use the optional `condition` to implement [optimistic locking][1].
-     * The `updateItem()` method performs optimistic locking out of the box.
+     * You may use the optional `condition` to implement [optimistic locking][1]. The
+     * `updateItem()` method performs optimistic locking out of the box.
      *
      * Under the hood uses the [`PutItem`][2] command with a condition.
      *
      * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
     public async replaceItem<Item extends Types["Item"]>(
         context: DynamoContext,
@@ -2086,39 +2060,40 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
-            // Re-reading the item will continue to give us `null` so retrying the
-            // operation won't fix it.
+            // Re-reading the item will continue to give us `null` so retrying the operation
+            // won't fix it.
             //
-            // If the user provides a condition then we assume they are manually
-            // implementing an optimistic locking scheme so we allow this update to
-            // be retriable.
+            // If the user provides a condition then we assume they are manually implementing
+            // an optimistic locking scheme so we allow this update to be retriable.
             isConditionCheckErrorRetriable: !!condition,
         });
     }
 
     /**
-     * Creates an item in the database if one with the same key does not already
-     * exist. If an item with the same key does exist then we will replace that
-     * item.
+     * Creates an item in the database if one with the same key does not already exist.
+     * If an item with the same key does exist then we will replace that item.
      *
-     * WARNING: Carefully consider concurrent writers when using this method. If
-     * two users are writing to the same item at the same time this method will
-     * clobber one of the user's updates. You may want to merge the updates
-     * instead. You may also clobber locks added by `updateItem()`.
+     * WARNING: Carefully consider concurrent writers when using this method. If two
+     * users are writing to the same item at the same time this method will clobber one
+     * of the user's updates. You may want to merge the updates instead. You may also
+     * clobber locks added by `updateItem()`.
      *
-     * This is the most resource efficient update method! Since it does not require
-     * a [read capacity unit (RCU) only a write capacity unit (WCU)][1].
+     * This is the most resource efficient update method! Since it does not require a
+     * [read capacity unit (RCU) only a write capacity unit (WCU)][1].
      *
-     * Under the hood this directly executes the [`PutItem`][2] command. When
-     * called many times in parallel then we will batch the writes together into a
+     * Under the hood this directly executes the [`PutItem`][2] command. When called
+     * many times in parallel then we will batch the writes together into a
      * [`BatchWriteItem`][3] command.
      *
-     * We don't allow a `condition` on this method since a condition on an item
-     * that does not exist doesn't make sense.
+     * We don't allow a `condition` on this method since a condition on an item that
+     * does not exist doesn't make sense.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
-     * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [3]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async createOrReplaceItem<Item extends Types["Item"]>(
         context: DynamoContext,
@@ -2128,20 +2103,20 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Updates an existing item in the database atomically. You provide the key for
-     * the item you want to update and a function that updates the existing item to
-     * a new item.
+     * Updates an existing item in the database atomically. You provide the key for the
+     * item you want to update and a function that updates the existing item to a new
+     * item.
      *
      * If there are multiple concurrent writers we may re-run the update function
      * multiple times. To cancel an update you may return the exact item object you
      * were provided.
      *
-     * This is implemented with [optimistic locking][1]. First we read the item
-     * with a [`GetItem`][2] command. If the item does not exist then we throw an
-     * error. Then we call our update function and pass the new item into a
-     * conditional [`PutItem`][3] command. If a concurrent writer made an update
-     * _after_ our read but _before_ our write then the `PutItem` command will fail
-     * and we will try again with `context.dynamo.retryTransaction()`.
+     * This is implemented with [optimistic locking][1]. First we read the item with a
+     * [`GetItem`][2] command. If the item does not exist then we throw an error. Then
+     * we call our update function and pass the new item into a conditional
+     * [`PutItem`][3] command. If a concurrent writer made an update _after_ our read
+     * but _before_ our write then the `PutItem` command will fail and we will try
+     * again with `context.dynamo.retryTransaction()`.
      *
      * Be careful about what you put in the `update()` function. The `update()`
      * function may run multiple times if there are conflicting updates. Avoid
@@ -2149,8 +2124,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * condition check error which causes us to retry the update.
      *
      * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
     public updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -2191,8 +2168,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
-        // Typed as `never` since a caller should always match one of the overloads,
-        // not this base definition.
+        // Typed as `never` since a caller should always match one of the overloads, not
+        // this base definition.
         update: never,
         {
             initialItem,
@@ -2259,9 +2236,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     // itself. If it does (e.g. creates a new item without the property instead of
                     // spreading the old object) then we override the change.
                     //
-                    // An undefined lock version is the same as a lock version of 0. Except we
-                    // can't set to 0 because our conditional update looks for a lock version that
-                    // does not exist for version 0.
+                    // An undefined lock version is the same as a lock version of 0. Except we can't
+                    // set to 0 because our conditional update looks for a lock version that does not
+                    // exist for version 0.
                     updateLockVersion: !item
                         ? undefined
                         : typeof item.updateLockVersion === "number"
@@ -2271,8 +2248,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                 await this._putItem(context, actualNewItem, {
                     condition,
-                    // This operation implements an optimistic locking scheme. Retrying the
-                    // operation should read the latest item version and eventually succeed.
+                    // This operation implements an optimistic locking scheme. Retrying the operation
+                    // should read the latest item version and eventually succeed.
                     isConditionCheckErrorRetriable: true,
                 });
 
@@ -2280,8 +2257,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             } else {
                 await this._deleteItem(context, key, {
                     condition,
-                    // This operation implements an optimistic locking scheme. Retrying the
-                    // operation should read the latest item version and eventually succeed.
+                    // This operation implements an optimistic locking scheme. Retrying the operation
+                    // should read the latest item version and eventually succeed.
                     isConditionCheckErrorRetriable: true,
                 });
 
@@ -2294,18 +2271,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Updates an item in the database.
      *
      * The item you provided should be a spread copy (`{...item}`) an item you just
-     * read with updated properties. That way private properties enforcing
-     * [optimistic locking][1] will be propagated.
+     * read with updated properties. That way private properties enforcing [optimistic
+     * locking][1] will be propagated.
      *
      * This method updates items in a way that's safe in the presence of concurrent
-     * writers. If a concurrent writer makes an update after the last time you read
-     * the item then this update will fail with a condition check error.
+     * writers. If a concurrent writer makes an update after the last time you read the
+     * item then this update will fail with a condition check error.
      *
      * To use this method properly you should probably wrap in a
-     * `context.dynamo.retryTransaction()` call and you should call `getItem()`
-     * inside that retry block so you get a new version of the item after a retry.
-     * The `updateItem()` method handles this for you so generally prefer using
-     * that method but sometimes you may need to create your own
+     * `context.dynamo.retryTransaction()` call and you should call `getItem()` inside
+     * that retry block so you get a new version of the item after a retry. The
+     * `updateItem()` method handles this for you so generally prefer using that method
+     * but sometimes you may need to create your own
      * `context.dynamo.retryTransaction()` loop. (Maybe you are executing a
      * transaction?)
      *
@@ -2335,8 +2312,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition: condition
                 ? updateLockVersionCondition.and(DynamoConditionExpression.from(condition))
                 : updateLockVersionCondition,
-            // This operation implements an optimistic locking scheme. Retrying the
-            // operation should read the latest item version and eventually succeed.
+            // This operation implements an optimistic locking scheme. Retrying the operation
+            // should read the latest item version and eventually succeed.
             isConditionCheckErrorRetriable: true,
         });
 
@@ -2344,25 +2321,27 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Puts an item into the database. If an item with the same key already exists
-     * then we will replace that item.
+     * Puts an item into the database. If an item with the same key already exists then
+     * we will replace that item.
      *
-     * Private since it's easy to shoot yourself in the foot with this method.
-     * Given it has upsert semantics and does not consider concurrent writers.
-     * Instead use one of `createItem()`, `updateItem()`, `replaceItem()`, or
-     * `createOrReplaceItem()` which have clearer semantics.
+     * Private since it's easy to shoot yourself in the foot with this method. Given it
+     * has upsert semantics and does not consider concurrent writers. Instead use one
+     * of `createItem()`, `updateItem()`, `replaceItem()`, or `createOrReplaceItem()`
+     * which have clearer semantics.
      *
      * If you provide a condition then the condition must evaluate to true for the
      * write to succeed. Otherwise an error is thrown. Use this to implement
      * [optimistic locking][1].
      *
-     * Corresponds to the [`PutItem`][2] command. If you call this function many
-     * times in parallel (without a condition) then we will batch the writes
-     * together into a [`BatchWriteItem`][3] command.
+     * Corresponds to the [`PutItem`][2] command. If you call this function many times
+     * in parallel (without a condition) then we will batch the writes together into a
+     * [`BatchWriteItem`][3] command.
      *
      * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
-     * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
+     * [3]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     private async _putItem<Item extends Types["Item"]>(
         context: DynamoContext,
@@ -2374,12 +2353,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             | {
                   condition: DynamoCondition<Item>;
                   /**
-                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
-                   * is set.
+                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition` is set.
                    *
                    * True only when the condition is for optimistic locking schemes like
-                   * `updateLockVersion`. In these schemes retrying an operation which re-reads
-                   * an item should eventually succeed.
+                   * `updateLockVersion`. In these schemes retrying an operation which re-reads an
+                   * item should eventually succeed.
                    *
                    * If the user provides a condition we assume they are implementing their own
                    * optimistic locking scheme and default this to true.
@@ -2396,7 +2374,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {partitionKey, sortKey, attributesSchema, serializedItem} = this._serializeItem(item);
 
         if (condition === undefined) {
-            return client.putItem(context, {
+            return await client.putItem(context, {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -2414,7 +2392,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 conditionCompilationContext,
             );
 
-            return client.putItem(context, {
+            return await client.putItem(context, {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 item: serializedItem,
@@ -2436,16 +2414,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Deletes an item from the database. If the item doesn't exist or the item
-     * does not match the item's update lock version, we throw a condition check
-     * error.
+     * Deletes an item from the database. If the item doesn't exist or the item does
+     * not match the item's update lock version, we throw a condition check error.
      *
      * Corresponds to the [`DeleteItem`][1] command with a condition.
      *
-     * `deleteItemWithKeyIfExists()` is slightly more efficient but is less safe
-     * in general.
+     * `deleteItemWithKeyIfExists()` is slightly more efficient but is less safe in
+     * general.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      */
     public async deleteItem<Item extends Types["Item"]>(
         context: DynamoContext,
@@ -2475,8 +2453,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition: condition
                 ? baseCondition.and(DynamoConditionExpression.from(condition))
                 : baseCondition,
-            // This operation implements an optimistic locking scheme. Retrying the
-            // operation should read the latest item version and eventually succeed.
+            // This operation implements an optimistic locking scheme. Retrying the operation
+            // should read the latest item version and eventually succeed.
             isConditionCheckErrorRetriable: true,
         });
     }
@@ -2485,16 +2463,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Deletes an item from the database. If the item doesn't exist, we throw a
      * condition check error.
      *
-     * Unlike `deleteItem()` we do not require you to have the whole item to
-     * delete it. Just the key. This method does not consider concurrent writers.
-     * If a concurrent writer updated the item you won't know about it.
+     * Unlike `deleteItem()` we do not require you to have the whole item to delete it.
+     * Just the key. This method does not consider concurrent writers. If a concurrent
+     * writer updated the item you won't know about it.
      *
      * Corresponds to the [`DeleteItem`][1] command with a condition.
      *
      * If you don't need a condition, generally you should prefer to use
      * `deleteItemWithKeyIfExists()` because it is more efficient.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      */
     public async deleteItemWithKey<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -2514,12 +2493,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
-            // A plain delete is not implementing optimistic locking. Retrying this
-            // operation does not re-read the full item to get a latest lock value.
+            // A plain delete is not implementing optimistic locking. Retrying this operation
+            // does not re-read the full item to get a latest lock value.
             //
-            // If the user provides a condition then we assume they are manually
-            // implementing an optimistic locking scheme so we allow this update to
-            // be retriable.
+            // If the user provides a condition then we assume they are manually implementing
+            // an optimistic locking scheme so we allow this update to be retriable.
             isConditionCheckErrorRetriable: !!condition,
         });
     }
@@ -2528,15 +2506,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Deletes an item from the database. If the item doesn't exist, this is a noop.
      *
      * Corresponds to the [`DeleteItem`][1] command. If you call this function many
-     * times in parallel (without a condition) then we will batch the writes
-     * together into a [`BatchWriteItem`][2] command.
+     * times in parallel (without a condition) then we will batch the writes together
+     * into a [`BatchWriteItem`][2] command.
      *
      * This method is more efficient than `deleteItemWithKey()` because it does not
      * need a [read capacity unit (RCU), it only needs a write capacity unit (WCU)][3].
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
-     * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     * [3]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
      */
     public async deleteItemWithKeyIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -2546,20 +2527,21 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Deletes an item from the database. If the item doesn't exist, this is
-     * a noop.
+     * Deletes an item from the database. If the item doesn't exist, this is a noop.
      *
      * If you provide a condition then the condition must evaluate to true for the
      * write to succeed. Otherwise an error is thrown. Use this to implement
      * [optimistic locking][1].
      *
      * Corresponds to the [`DeleteItem`][2] command. If you call this function many
-     * times in parallel (without a condition) then we will batch the writes
-     * together into a [`BatchWriteItem`][3] command.
+     * times in parallel (without a condition) then we will batch the writes together
+     * into a [`BatchWriteItem`][3] command.
      *
      * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
-     * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     * [3]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     private async _deleteItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -2571,12 +2553,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             | {
                   condition: DynamoCondition<Extract<Types["Item"], Key>>;
                   /**
-                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
-                   * is set.
+                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition` is set.
                    *
                    * True only when the condition is for optimistic locking schemes like
-                   * `updateLockVersion`. In these schemes retrying an operation which re-reads
-                   * an item should eventually succeed.
+                   * `updateLockVersion`. In these schemes retrying an operation which re-reads an
+                   * item should eventually succeed.
                    *
                    * If the user provides a condition we assume they are implementing their own
                    * optimistic locking scheme and default this to true.
@@ -2592,7 +2573,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         if (condition === undefined) {
-            return client.deleteItem(context, {
+            return await client.deleteItem(context, {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 debugItemType: {
@@ -2611,7 +2592,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const retryTransaction = getDynamoRetryTransactionIfExists(context);
 
-            return client.deleteItem(context, {
+            return await client.deleteItem(context, {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 conditionExpression: conditionExpressionString,
@@ -2630,11 +2611,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Perform up to 25 actions atomically with [`TransactWriteItems`][1]. Either
-     * all actions in the transaction succeed or if one action fails then none of
-     * the actions in the transaction will be applied.
+     * Perform up to 25 actions atomically with [`TransactWriteItems`][1]. Either all
+     * actions in the transaction succeed or if one action fails then none of the
+     * actions in the transaction will be applied.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public static async executeTransaction(
         context: DynamoContext,
@@ -2643,7 +2625,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     ): Promise<void> {
         const client = getDynamoClient(context);
 
-        return client.executeTransaction(context, entries, {
+        return await client.executeTransaction(context, entries, {
             clientRequestToken,
             retryConditionCheckError: getDynamoRetryTransactionIfExists(context),
         });
@@ -2651,8 +2633,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Transaction entry for creating an item in the database. Same semantics as
-     * `createItem()` but can be part of a transaction that atomically succeeds
-     * or fails.
+     * `createItem()` but can be part of a transaction that atomically succeeds or
+     * fails.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -2671,9 +2653,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 "attribute_not_exists(partitionKey)",
                 DynamoConditionExpressionPrecedence.Function,
             ),
-            // Calling `createItem()` has the intent of there is a new item I want to
-            // create. It should not be used to implement upserts. Use
-            // `createOrReplaceItem()` or `updateItem()` for that.
+            // Calling `createItem()` has the intent of there is a new item I want to create.
+            // It should not be used to implement upserts. Use `createOrReplaceItem()` or
+            // `updateItem()` for that.
             isConditionCheckErrorRetriable,
             onAfterTransactionExecutedSuccessfully,
         });
@@ -2681,8 +2663,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Transaction entry for replacing an item in the database. Same semantics as
-     * `replaceItem()` but can be part of a transaction that atomically succeeds
-     * or fails.
+     * `replaceItem()` but can be part of a transaction that atomically succeeds or
+     * fails.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -2705,12 +2687,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
-            // Re-reading the item will continue to give us `null` so retrying the
-            // operation won't fix it.
+            // Re-reading the item will continue to give us `null` so retrying the operation
+            // won't fix it.
             //
-            // If the user provides a condition then we assume they are manually
-            // implementing an optimistic locking scheme so we allow this update to
-            // be retriable.
+            // If the user provides a condition then we assume they are manually implementing
+            // an optimistic locking scheme so we allow this update to be retriable.
             isConditionCheckErrorRetriable: !!condition,
             onAfterTransactionExecutedSuccessfully,
         });
@@ -2723,15 +2704,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      *
-     * WARNING: Carefully consider concurrent writers when using this method. If
-     * two users are writing to the same item at the same time this method will
-     * clobber one of the user's updates. You may want to merge the updates
-     * instead. You may also clobber locks added by `updateItem()`.
+     * WARNING: Carefully consider concurrent writers when using this method. If two
+     * users are writing to the same item at the same time this method will clobber one
+     * of the user's updates. You may want to merge the updates instead. You may also
+     * clobber locks added by `updateItem()`.
      *
-     * This is the most resource efficient update method! Since it does not require
-     * a [read capacity unit (RCU) only a write capacity unit (WCU)][1].
+     * This is the most resource efficient update method! Since it does not require a
+     * [read capacity unit (RCU) only a write capacity unit (WCU)][1].
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
      */
     public transactionCreateOrReplaceItem<Item extends Types["Item"]>(
         item: Item,
@@ -2745,13 +2727,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * semantics to `updateItem()`. This method lets you perform updates within a
      * transaction alongside updates to other items and tables. Uses the same
      * [optimistic locking][1] mechanism as `updateItem()` so any calls to
-     * `updateItem()` and any `transactionDirectlyUpdateItem()` should be performed
-     * in sequence.
+     * `updateItem()` and any `transactionDirectlyUpdateItem()` should be performed in
+     * sequence.
      *
      * Unlike `updateItem()`, you must wrap your transaction in
-     * `context.dynamo.retryTransaction()` on your own! You must also make sure
-     * that you read the item you are updating within that function so it may be
-     * re-read when we retry.
+     * `context.dynamo.retryTransaction()` on your own! You must also make sure that
+     * you read the item you are updating within that function so it may be re-read
+     * when we retry.
      *
      * This method corresponds to `directlyUpdateItem()`.
      *
@@ -2786,8 +2768,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 condition: condition
                     ? updateLockVersionCondition.and(DynamoConditionExpression.from(condition))
                     : updateLockVersionCondition,
-                // This operation implements an optimistic locking scheme. Retrying the
-                // operation should read the latest item version and eventually succeed.
+                // This operation implements an optimistic locking scheme. Retrying the operation
+                // should read the latest item version and eventually succeed.
                 isConditionCheckErrorRetriable: true,
                 onAfterTransactionExecutedSuccessfully,
             },
@@ -2795,15 +2777,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Creates a transaction entry to put an item into the database. Same semantics
-     * as `putItem()` but you can perform multiple writes in a single transaction
-     * so they all succeed or fail together.
+     * Creates a transaction entry to put an item into the database. Same semantics as
+     * `putItem()` but you can perform multiple writes in a single transaction so they
+     * all succeed or fail together.
      *
-     * Private since it's easy to shoot yourself in the foot with this method.
-     * Given it has upsert semantics and does not consider concurrent writers.
-     * Instead use one of `transactionCreateItem()`,
-     * `transactionDirectlyUpdateItem()`, `transactionReplaceItem()`, or
-     * `transactionCreateOrReplaceItem()` which have clearer semantics.
+     * Private since it's easy to shoot yourself in the foot with this method. Given it
+     * has upsert semantics and does not consider concurrent writers. Instead use one
+     * of `transactionCreateItem()`, `transactionDirectlyUpdateItem()`,
+     * `transactionReplaceItem()`, or `transactionCreateOrReplaceItem()` which have
+     * clearer semantics.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -2819,12 +2801,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             | {
                   condition: DynamoCondition<Item>;
                   /**
-                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
-                   * is set.
+                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition` is set.
                    *
                    * True only when the condition is for optimistic locking schemes like
-                   * `updateLockVersion`. In these schemes retrying an operation which re-reads
-                   * an item should eventually succeed.
+                   * `updateLockVersion`. In these schemes retrying an operation which re-reads an
+                   * item should eventually succeed.
                    *
                    * If the user provides a condition we assume they are implementing their own
                    * optimistic locking scheme and default this to true.
@@ -2837,9 +2818,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
               }
         ) = {},
     ): DynamoTransactionEntry & {newItem: Item} {
-        // If our schema is write incompatible with the old schema then throw an error.
-        // Do not allow writing to this table until the generated schema has been
-        // updated.
+        // If our schema is write incompatible with the old schema then throw an error. Do
+        // not allow writing to this table until the generated schema has been updated.
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         if (this._initializationState.readCompatibilityError !== null)
             throw this._initializationState.readCompatibilityError;
@@ -2898,8 +2878,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Transaction entry for deleting an item in the database. Same semantics as
-     * `deleteItem()` but can be part of a transaction that atomically
-     * succeeds or fails.
+     * `deleteItem()` but can be part of a transaction that atomically succeeds or
+     * fails.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -2930,16 +2910,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition: condition
                 ? baseCondition.and(DynamoConditionExpression.from(condition))
                 : baseCondition,
-            // This operation implements an optimistic locking scheme. Retrying the
-            // operation should read the latest item version and eventually succeed.
+            // This operation implements an optimistic locking scheme. Retrying the operation
+            // should read the latest item version and eventually succeed.
             isConditionCheckErrorRetriable: true,
         });
     }
 
     /**
      * Transaction entry for deleting an item in the database. Same semantics as
-     * `deleteItemWithKey()` but can be part of a transaction that atomically
-     * succeeds or fails.
+     * `deleteItemWithKey()` but can be part of a transaction that atomically succeeds
+     * or fails.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -2960,20 +2940,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
-            // A plain delete is not implementing optimistic locking. Retrying this
-            // operation does not re-read the full item to get a latest lock value.
+            // A plain delete is not implementing optimistic locking. Retrying this operation
+            // does not re-read the full item to get a latest lock value.
             //
-            // If the user provides a condition then we assume they are manually
-            // implementing an optimistic locking scheme so we allow this update to
-            // be retriable.
+            // If the user provides a condition then we assume they are manually implementing
+            // an optimistic locking scheme so we allow this update to be retriable.
             isConditionCheckErrorRetriable: !!condition,
         });
     }
 
     /**
      * Transaction entry for deleting an item in the database. Same semantics as
-     * `deleteItemIfExists()` but can be part of a transaction that atomically
-     * succeeds or fails.
+     * `deleteItemIfExists()` but can be part of a transaction that atomically succeeds
+     * or fails.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -2984,9 +2963,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Creates a transaction entry to delete an item from the database. Same
-     * semantics as `deleteItem()` but you can perform multiple writes in a single
-     * transaction so they all succeed or fail together.
+     * Creates a transaction entry to delete an item from the database. Same semantics
+     * as `deleteItem()` but you can perform multiple writes in a single transaction so
+     * they all succeed or fail together.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -2999,12 +2978,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             | {
                   condition: DynamoCondition<Extract<Types["Item"], Key>>;
                   /**
-                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
-                   * is set.
+                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition` is set.
                    *
                    * True only when the condition is for optimistic locking schemes like
-                   * `updateLockVersion`. In these schemes retrying an operation which re-reads
-                   * an item should eventually succeed.
+                   * `updateLockVersion`. In these schemes retrying an operation which re-reads an
+                   * item should eventually succeed.
                    *
                    * If the user provides a condition we assume they are implementing their own
                    * optimistic locking scheme and default this to true.
@@ -3016,9 +2994,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                   isConditionCheckErrorRetriable?: undefined;
               } = {},
     ): DynamoTransactionEntry {
-        // If our schema is write incompatible with the old schema then throw an error.
-        // Do not allow writing to this table until the generated schema has been
-        // updated.
+        // If our schema is write incompatible with the old schema then throw an error. Do
+        // not allow writing to this table until the generated schema has been updated.
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         if (this._initializationState.readCompatibilityError !== null)
             throw this._initializationState.readCompatibilityError;
@@ -3066,17 +3043,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Creates a transaction entry that checks that an item exists and optionally
-     * that an additional condition evaluates to true for the provided key. If the
-     * condition fails then the entire transaction which contains this condition
-     * check fails.
+     * Creates a transaction entry that checks that an item exists and optionally that
+     * an additional condition evaluates to true for the provided key. If the condition
+     * fails then the entire transaction which contains this condition check fails.
      *
      * See the [`TransactWriteItems`][1] command for more information about the
      * condition check.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public transactionConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
@@ -3117,8 +3094,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Creates a transaction entry that checks the provided item exists and checks
-     * the item has the version provided by `updateLockVersion`.
+     * Creates a transaction entry that checks the provided item exists and checks the
+     * item has the version provided by `updateLockVersion`.
      *
      * Convenience method on top of `transactionConditionCheck()`.
      *
@@ -3150,8 +3127,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             conditionExpression: conditionExpressionString,
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
-            // This operation implements an optimistic locking scheme. Retrying the
-            // operation should read the latest item version and eventually succeed.
+            // This operation implements an optimistic locking scheme. Retrying the operation
+            // should read the latest item version and eventually succeed.
             isConditionCheckErrorRetriable: true,
             onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
             debugItemType: {
@@ -3163,8 +3140,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Creates a transaction entry that checks whether an item with the provided
-     * key exists.
+     * Creates a transaction entry that checks whether an item with the provided key
+     * exists.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -3202,8 +3179,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Creates a transaction entry that checks whether an item with the provided
-     * key does not exist.
+     * Creates a transaction entry that checks whether an item with the provided key
+     * does not exist.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
@@ -3244,13 +3221,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Update a single attribute on the item with the specified key. The update is
      * serialized with all other updates of this item with `updateLockVersion`.
      *
-     * You are expected to load the current `updateLockVersion` and pass it into
-     * this function. Probably with `getPartialItem()`. If you pass in an incorrect
+     * You are expected to load the current `updateLockVersion` and pass it into this
+     * function. Probably with `getPartialItem()`. If you pass in an incorrect
      * `updateLockVersion` there will be a condition check error. Probably what you
-     * want to do is to run a `context.dynamo.retryTransaction()` loop that loads
-     * the old version of the property and the `updateLockVersion`. Then apply an
-     * update and create this transaction entry. Or you can use
-     * `updateItemAttribute()` which handles the retry loop for you.
+     * want to do is to run a `context.dynamo.retryTransaction()` loop that loads the
+     * old version of the property and the `updateLockVersion`. Then apply an update
+     * and create this transaction entry. Or you can use `updateItemAttribute()` which
+     * handles the retry loop for you.
      */
     public transactionDirectlyUpdateItemAttribute<
         Key extends Types["ItemKey"],
@@ -3267,10 +3244,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         if (!propertySchema)
             throw new InternalError(quote`Attribute ${attribute} not found in item schema`);
 
-        // Disallow updating indexed attributes. If you update an indexed attribute
-        // then we need to update the associated index attribute (e.g.
-        // `indexNPartitionKey` or `indexNSortKey`). It's definitely possible to
-        // implement this but we aren't for now to keep things simple.
+        // Disallow updating indexed attributes. If you update an indexed attribute then we
+        // need to update the associated index attribute (e.g. `indexNPartitionKey` or
+        // `indexNSortKey`). It's definitely possible to implement this but we aren't for
+        // now to keep things simple.
         const indexConfigs = this._initializationState.indexConfigsByItemType.get(
             `${key.partitionType}#${key.sortRangeType}`,
         );
@@ -3296,10 +3273,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             attribute,
         );
 
-        // We don't support optional properties or properties that serialize to
-        // multiple keys (e.g. `wrapOriginalPropertyInObject()`) in
-        // `transactionDirectlyUpdateItemAttribute()`. We only support attributes
-        // that serialize to a single property.
+        // We don't support optional properties or properties that serialize to multiple
+        // keys (e.g. `wrapOriginalPropertyInObject()`) in
+        // `transactionDirectlyUpdateItemAttribute()`. We only support attributes that
+        // serialize to a single property.
         const serializedObjectEntries = Object.entries(serializedObject);
         assert(serializedObjectEntries.length === 1);
         assert(serializedObjectEntries[0]![0] === serializedKey);
@@ -3348,17 +3325,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Update just the `updateLockVersion` on the item with the specified key.
-     * This is useful if you have a transaction you want to force to be serialized
-     * with other updates on this item but you don't have an update you want to
-     * make to the item.
+     * Update just the `updateLockVersion` on the item with the specified key. This is
+     * useful if you have a transaction you want to force to be serialized with other
+     * updates on this item but you don't have an update you want to make to the item.
      *
-     * You are expected to load the current `updateLockVersion` and pass it into
-     * this function. Probably with `getPartialItem()`. If you pass in an incorrect
+     * You are expected to load the current `updateLockVersion` and pass it into this
+     * function. Probably with `getPartialItem()`. If you pass in an incorrect
      * `updateLockVersion` there will be a condition check error. Probably what you
-     * want to do is to run a `context.dynamo.retryTransaction()` loop that loads
-     * the old version of the property and the `updateLockVersion`. Then apply an
-     * update and create this transaction entry.
+     * want to do is to run a `context.dynamo.retryTransaction()` loop that loads the
+     * old version of the property and the `updateLockVersion`. Then apply an update
+     * and create this transaction entry.
      */
     public transactionDirectlyUpdateItemLockVersion(
         key: Types["ItemKey"],
@@ -3366,10 +3342,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     ): DynamoTransactionEntry {
         const {partitionKey, sortKey} = this._serializeItemKey(key);
 
-        // Disallow updating indexed attributes. If you update an indexed attribute
-        // then we need to update the associated index attribute (e.g.
-        // `indexNPartitionKey` or `indexNSortKey`). It's definitely possible to
-        // implement this but we aren't for now to keep things simple.
+        // Disallow updating indexed attributes. If you update an indexed attribute then we
+        // need to update the associated index attribute (e.g. `indexNPartitionKey` or
+        // `indexNSortKey`). It's definitely possible to implement this but we aren't for
+        // now to keep things simple.
         const indexConfigs = this._initializationState.indexConfigsByItemType.get(
             `${key.partitionType}#${key.sortRangeType}`,
         );
@@ -3422,13 +3398,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Create a DynamoDB transaction entry with a custom update expression. Useful
-     * if you want to write a custom atomic update that doesn't require a condition
-     * check.
+     * Create a DynamoDB transaction entry with a custom update expression. Useful if
+     * you want to write a custom atomic update that doesn't require a condition check.
      *
-     * However, using this method is dangerous! It doesn't update
-     * `updateLockVersion`. You usually want to update `updateLockVersion` or else
-     * a concurrent writer may write over your update.
+     * However, using this method is dangerous! It doesn't update `updateLockVersion`.
+     * You usually want to update `updateLockVersion` or else a concurrent writer may
+     * write over your update.
      */
     public dangerousTransactionUpdateItemWithCustomUpdateExpression(
         key: Types["ItemKey"],
@@ -3471,13 +3446,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Read more about DynamoDB transactions [here][2].
      *
-     * If this function is wrapped in a `context.dynamo.retryTransaction()` then
-     * when there is a conflict we will retry the entire transaction. If this
-     * function is not wrapped in `context.dynamo.retryTransaction()` then we will
-     * run our own retry loop for this function.
+     * If this function is wrapped in a `context.dynamo.retryTransaction()` then when
+     * there is a conflict we will retry the entire transaction. If this function is
+     * not wrapped in `context.dynamo.retryTransaction()` then we will run our own
+     * retry loop for this function.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html
      */
     public executeGetItemsTransaction<const Keys extends ReadonlyArray<Types["ItemKey"]>>(
         context: DynamoContext,
@@ -3518,8 +3495,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 try {
                     attributesSchema.deserializeInto(serializedItem, item);
                 } catch (error) {
-                    // Reclassify deserialization errors from data stored in the database as data
-                    // loss errors. It means we have corrupt data stored in the database!
+                    // Reclassify deserialization errors from data stored in the database as data loss
+                    // errors. It means we have corrupt data stored in the database!
                     if (error instanceof SchemaDeserializationError) {
                         throw new DataLossError(error.message, {cause: error});
                     }
@@ -3531,25 +3508,26 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         };
 
         // NOTE(calebmer): Maybe it's always better to always run our own nested
-        // `retryWithExponentialBackoff()` for this function? Instead of plugging into
-        // the full DynamoDB transaction. Unclear to me.
+        // `retryWithExponentialBackoff()` for this function? Instead of plugging into the
+        // full DynamoDB transaction. Unclear to me.
         const retryTransaction = getDynamoRetryTransactionIfExists(context);
         if (retryTransaction) return run(retryTransaction);
         return retryWithExponentialBackoff(run);
     }
 
     /**
-     * Queries a range of a partition in the table. Queries are how you get many
-     * items from the database at once. Queries require you to carefully structure
-     * your table ahead of time so that items that need to be read together are
-     * physically next to each other.
+     * Queries a range of a partition in the table. Queries are how you get many items
+     * from the database at once. Queries require you to carefully structure your table
+     * ahead of time so that items that need to be read together are physically next to
+     * each other.
      *
-     * Through some TypeScript magic, the return type of this function only
-     * includes valid items within the provided range.
+     * Through some TypeScript magic, the return type of this function only includes
+     * valid items within the provided range.
      *
      * Corresponds to the [`Query`][1] command.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
     public async *query<
         const PartitionKey extends Types["PartitionKey"],
@@ -3581,8 +3559,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
                 }
             >;
-            // Required to specify a limit or the `All` string. So if you intentionally
-            // want everything you have to say so.
+            // Required to specify a limit or the `All` string. So if you intentionally want
+            // everything you have to say so.
             limit: number | "All";
             pageLimit?: number;
             descending?: boolean;
@@ -3672,8 +3650,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             try {
                 attributesSchema.deserializeInto(serializedItem, item);
             } catch (error) {
-                // Reclassify deserialization errors from data stored in the database as data
-                // loss errors. It means we have corrupt data stored in the database!
+                // Reclassify deserialization errors from data stored in the database as data loss
+                // errors. It means we have corrupt data stored in the database!
                 if (error instanceof SchemaDeserializationError) {
                     throw new DataLossError(error.message, {cause: error});
                 }
@@ -3685,11 +3663,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Same as `query()` except we return a `DynamoItem` object. Currently this is
-     * only used by `DynamoGeneralRealtimeTableSchema`. In the future, however, we
-     * may use `DynamoItem` for all `query()` calls from `DynamoTableSchema` too!
-     * Since it's core feature (keeping track of `oldItem`) is useful for
-     * `directlyUpdateItem()` calls which need the old item's `updateLockVersion`.
+     * Same as `query()` except we return a `DynamoItem` object. Currently this is only
+     * used by `RynamoTableSchema`. In the future, however, we may use `DynamoItem` for
+     * all `query()` calls from `DynamoTableSchema` too! Since it's core feature
+     * (keeping track of `oldItem`) is useful for `directlyUpdateItem()` calls which
+     * need the old item's `updateLockVersion`.
      */
     public async *_queryWithOldItems<
         const PartitionKey extends Types["PartitionKey"],
@@ -3721,8 +3699,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
                 }
             >;
-            // Required to specify a limit or the `All` string. So if you intentionally
-            // want everything you have to say so.
+            // Required to specify a limit or the `All` string. So if you intentionally want
+            // everything you have to say so.
             limit: number | "All";
             pageLimit?: number;
             descending?: boolean;
@@ -3816,8 +3794,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             try {
                 attributesSchema.deserializeInto(serializedItem, item);
             } catch (error) {
-                // Reclassify deserialization errors from data stored in the database as data
-                // loss errors. It means we have corrupt data stored in the database!
+                // Reclassify deserialization errors from data stored in the database as data loss
+                // errors. It means we have corrupt data stored in the database!
                 if (error instanceof SchemaDeserializationError) {
                     throw new DataLossError(error.message, {cause: error});
                 }
@@ -3829,12 +3807,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Scans every item in the table. Since tables can get very large this function
-     * is expensive! Generally you should avoid it.
+     * Scans every item in the table. Since tables can get very large this function is
+     * expensive! Generally you should avoid it.
      *
      * Corresponds to the [`Scan`][1] command.
      *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
+     * [1]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
      */
     public async *expensiveScan(
         context: DynamoContext,
@@ -3870,12 +3849,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     this._initializationState.description.partitionByType[filter.partitionType];
                 assert(partitionDescription, "Invalid partition");
 
-                // NOTE(calebmer): There's no reason we couldn't support a child sort range
-                // here. We just haven't needed it yet. To support we'd need to use the
+                // NOTE(calebmer): There's no reason we couldn't support a child sort range here.
+                // We just haven't needed it yet. To support we'd need to use the
                 // `contains(sortKey, childSortRangeType)` DynamoDB filter expression with the
                 // child sort range and we'd probably also need to double check the filter when
-                // iterating over items since `contains(sortKey, childSortRangeType)` might
-                // catch the sort range type in a string key attribute.
+                // iterating over items since `contains(sortKey, childSortRangeType)` might catch
+                // the sort range type in a string key attribute.
                 if (filter.sortRangeType.includes("#")) {
                     throw new UnimplementedError(
                         "Child sort range support isn\u2019t implemented for filters in `expensiveScan()`",
@@ -3939,8 +3918,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             try {
                 attributesSchema.deserializeInto(serializedItem, item);
             } catch (error) {
-                // Reclassify deserialization errors from data stored in the database as data
-                // loss errors. It means we have corrupt data stored in the database!
+                // Reclassify deserialization errors from data stored in the database as data loss
+                // errors. It means we have corrupt data stored in the database!
                 if (error instanceof SchemaDeserializationError) {
                     throw new DataLossError(error.message, {cause: error});
                 }
@@ -3952,12 +3931,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Same as `expensiveScan()` except we return a `DynamoItem` object. Currently
-     * this is only used by `DynamoGeneralRealtimeTableSchema`. In the future,
-     * however, we may use `DynamoItem` for all `expensiveScan()` calls from
-     * `DynamoTableSchema` too! Since it's core feature (keeping track of
-     * `oldItem`) is useful for `directlyUpdateItem()` calls which need the old
-     * item's `updateLockVersion`.
+     * Same as `expensiveScan()` except we return a `DynamoItem` object. Currently this
+     * is only used by `RynamoTableSchema`. In the future, however, we may use
+     * `DynamoItem` for all `expensiveScan()` calls from `DynamoTableSchema` too! Since
+     * it's core feature (keeping track of `oldItem`) is useful for
+     * `directlyUpdateItem()` calls which need the old item's `updateLockVersion`.
      */
     public async *_expensiveScanWithOldItems(
         context: DynamoContext,
@@ -3993,12 +3971,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     this._initializationState.description.partitionByType[filter.partitionType];
                 assert(partitionDescription, "Invalid partition");
 
-                // NOTE(calebmer): There's no reason we couldn't support a child sort range
-                // here. We just haven't needed it yet. To support we'd need to use the
+                // NOTE(calebmer): There's no reason we couldn't support a child sort range here.
+                // We just haven't needed it yet. To support we'd need to use the
                 // `contains(sortKey, childSortRangeType)` DynamoDB filter expression with the
                 // child sort range and we'd probably also need to double check the filter when
-                // iterating over items since `contains(sortKey, childSortRangeType)` might
-                // catch the sort range type in a string key attribute.
+                // iterating over items since `contains(sortKey, childSortRangeType)` might catch
+                // the sort range type in a string key attribute.
                 if (filter.sortRangeType.includes("#")) {
                     throw new UnimplementedError(
                         "Child sort range support isn\u2019t implemented for filters in `expensiveScan()`",
@@ -4064,8 +4042,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             try {
                 attributesSchema.deserializeInto(serializedItem, item);
             } catch (error) {
-                // Reclassify deserialization errors from data stored in the database as data
-                // loss errors. It means we have corrupt data stored in the database!
+                // Reclassify deserialization errors from data stored in the database as data loss
+                // errors. It means we have corrupt data stored in the database!
                 if (error instanceof SchemaDeserializationError) {
                     throw new DataLossError(error.message, {cause: error});
                 }
@@ -4077,8 +4055,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Adds an index to the table. Indexes allow you to build different access
-     * patterns for your data.
+     * Adds an index to the table. Indexes allow you to build different access patterns
+     * for your data.
      *
      * Indexes are implemented with [DynamoDB Global Secondary Indexes][1] and we
      * [overload][2] many logical indexes into one physical index when possible.
@@ -4086,38 +4064,39 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Some notes on the implementation:
      *
      * - Indexing is implemented by copying indexed properties into special
-     *   `index{n}PartitionKey` and `index{n}SortKey` attributes (where `{n}` is
-     *   the physical index number starting at 1) which are lexicographically
-     *   orderable and can be overloaded.
+     *   `index{n}PartitionKey` and `index{n}SortKey` attributes (where `{n}` is the
+     *   physical index number starting at 1) which are lexicographically orderable and
+     *   can be overloaded.
      *
-     * - You may only create indexes when you introduce a new item type. You may
-     *   not add an index for an existing item type since we will have written data
-     *   to the database without the special index attributes. In the future we'd
-     *   like to provide a migration that backfills the index attribute so you may
-     *   add indexes to existing item types.
+     * - You may only create indexes when you introduce a new item type. You may not
+     *   add an index for an existing item type since we will have written data to the
+     *   database without the special index attributes. In the future we'd like to
+     *   provide a migration that backfills the index attribute so you may add indexes
+     *   to existing item types.
      *
      * - You can only perform eventually consistent reads against the index. If the
-     *   DynamoDB context has a strong read consistency default then we will throw
-     *   an error.
+     *   DynamoDB context has a strong read consistency default then we will throw an
+     *   error.
      *
-     * - Two indexes on different item types are considered separate logical
-     *   indexes but we put them in the same physical index to save on cost. Two
-     *   indexes on the same item type will be in two different physical indexes.
+     * - Two indexes on different item types are considered separate logical indexes
+     *   but we put them in the same physical index to save on cost. Two indexes on the
+     *   same item type will be in two different physical indexes.
      *
-     * - This method only supports `KEYS_ONLY` index attribute projections. You may
-     *   use `addExpensiveFullIndex()` if you want an `ALL` attribute projection.
-     *   Be careful since an `ALL` attribute projection doubles storage costs for
-     *   items in the index! We don't support an `INCLUDE` attribute projection for
-     *   now because it means we couldn't overload multiple logical indexes onto
-     *   one physical index.
+     * - This method only supports `KEYS_ONLY` index attribute projections. You may use
+     *   `addExpensiveFullIndex()` if you want an `ALL` attribute projection. Be
+     *   careful since an `ALL` attribute projection doubles storage costs for items in
+     *   the index! We don't support an `INCLUDE` attribute projection for now because
+     *   it means we couldn't overload multiple logical indexes onto one physical
+     *   index.
      *
-     * - You can index any property on an item as long as it can be serialized with
-     *   a `DynamoKeyAttributeSchema`. Since `DynamoKeyAttributeSchema` supports
+     * - You can index any property on an item as long as it can be serialized with a
+     *   `DynamoKeyAttributeSchema`. Since `DynamoKeyAttributeSchema` supports
      *   lexicographic serializations of many data types which is important for
      *   indexing.
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
-     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-gsi-overloading.html
+     * [2]:
+     *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-gsi-overloading.html
      */
     public addIndex<
         ItemTypes extends Types["ItemType"],
@@ -4311,10 +4290,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Adds an index to the table that projects the entire item into the index
-     * instead of just the item's keys. This is labeled as expensive than
-     * `addIndex()` since it doubles the storage cost of items in the index! Only
-     * use when you're absolutely sure it makes sense for your workload.
+     * Adds an index to the table that projects the entire item into the index instead
+     * of just the item's keys. This is labeled as expensive than `addIndex()` since it
+     * doubles the storage cost of items in the index! Only use when you're absolutely
+     * sure it makes sense for your workload.
      *
      * See `addIndex()` for more documentation on this function.
      */
@@ -4498,8 +4477,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     try {
                         attributesSchema.deserializeInto(serializedItem, item);
                     } catch (error) {
-                        // Reclassify deserialization errors from data stored in the database as data
-                        // loss errors. It means we have corrupt data stored in the database!
+                        // Reclassify deserialization errors from data stored in the database as data loss
+                        // errors. It means we have corrupt data stored in the database!
                         if (error instanceof SchemaDeserializationError) {
                             throw new DataLossError(error.message, {cause: error});
                         }
@@ -4570,9 +4549,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const partitionConfig = this._partitionConfigByName.get(partitionType);
             assert(partitionConfig, "Invalid partition");
 
-            // NOTE(calebmer): There's no reason we couldn't support a child sort range
-            // here. We just haven't needed it yet. To support we'd need to look at the
-            // child sort range's attributes instead of `sortRangeConfig.attributes`.
+            // NOTE(calebmer): There's no reason we couldn't support a child sort range here.
+            // We just haven't needed it yet. To support we'd need to look at the child sort
+            // range's attributes instead of `sortRangeConfig.attributes`.
             if (sortRangeType.includes("#")) {
                 throw new UnimplementedError(
                     "Child sort range support isn\u2019t implemented for `addIndex()`",
@@ -4619,8 +4598,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 );
         }
 
-        // Can only reuse the partition key if only one type of partition is
-        // represented in the index.
+        // Can only reuse the partition key if only one type of partition is represented in
+        // the index.
         canReusePartitionKey &&= partitionTypeSet.size === 1;
 
         const indexOverloadDescription: DynamoTableSchemaTypes.Index.OverloadDescription & {
@@ -4640,9 +4619,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         let addedToIndexNumber: number | null = null;
 
-        // We can add our logical index to an existing physical index if the physical
-        // index doesn't have an overload which conflicts with the item types in
-        // this index.
+        // We can add our logical index to an existing physical index if the physical index
+        // doesn't have an overload which conflicts with the item types in this index.
         for (const [
             i,
             targetIndexDescription,
@@ -4672,8 +4650,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             if (
                 iterableEvery(itemTypeSet, itemType => !targetItemTypeSet.has(itemType)) &&
-                // Can only reuse an index if we have the same reuse partition key setting AND
-                // the index is for the same partition type as us.
+                // Can only reuse an index if we have the same reuse partition key setting AND the
+                // index is for the same partition type as us.
                 canReusePartitionKey === targetCanReusePartitionKey &&
                 (!canReusePartitionKey ||
                     iterableEvery(partitionTypeSet, partitionType =>
@@ -4686,8 +4664,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        // Create a new physical index if we couldn't overload an existing
-        // physical index.
+        // Create a new physical index if we couldn't overload an existing physical index.
         if (addedToIndexNumber === null) {
             addedToIndexNumber = this._initializationState.indexDescriptions.length + 1;
             this._initializationState.indexDescriptions.push({
@@ -4707,8 +4684,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             filter: filter ?? null,
         };
 
-        // Store the attributes for the item types in this index so we can easily
-        // serialize those items in the future.
+        // Store the attributes for the item types in this index so we can easily serialize
+        // those items in the future.
         for (const itemType of itemTypeSet) {
             getOrSetDefaultMapValue(
                 this._initializationState.indexConfigsByItemType,
@@ -4768,12 +4745,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         // So here we are serializing the bound of an index query. The index sort key
         // contains the primary key but we do not know the primary key here, only the
-        // declared index sort key. In practice, the index sort key will always be
-        // followed by the partition type identifier (ASCII alphanumeric string).
+        // declared index sort key. In practice, the index sort key will always be followed
+        // by the partition type identifier (ASCII alphanumeric string).
         //
-        // To figure out the return for each of these cases we need to think about how
-        // the key will be used as a bounds check in the presence of a longer key that
-        // includes the primary key.
+        // To figure out the return for each of these cases we need to think about how the
+        // key will be used as a bounds check in the presence of a longer key that includes
+        // the primary key.
         switch (boundType) {
             // `"${key}#${partitionType}" < "${key}~"` is true. We correctly exclude items
             // before `key`.
@@ -4783,18 +4760,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             case "StartExclusive": {
                 return key + "~";
             }
-            // `"${key}" < "${key}#${partitionType}"` is true. We correctly include items
-            // that start with `key`.
+            // `"${key}" < "${key}#${partitionType}"` is true. We correctly include items that
+            // start with `key`.
             case "StartInclusive": {
                 return key;
             }
-            // `"${key}" > "${key}#${partitionType}"` is true. We correctly include items
-            // that start with `key`.
+            // `"${key}" > "${key}#${partitionType}"` is true. We correctly include items that
+            // start with `key`.
             case "EndExclusive": {
                 return key;
             }
-            // `"${key}#${partitionType}" < "${key}~"` is true. We correctly exclude items
-            // that start with `key`.
+            // `"${key}#${partitionType}" < "${key}~"` is true. We correctly exclude items that
+            // start with `key`.
             //
             // This works since `~` is larger than `#`. `~` should not conflict with key
             // attribute values since it is compared against the `#` separator character.
@@ -4807,10 +4784,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
-     * Serializes the index sort key for a full DynamoDB item. The sort key for a
-     * full DynamoDB item sometimes includes the primary key to help sort index
-     * items in a well understood way (instead of relying on undocumented
-     * DynamoDB internals).
+     * Serializes the index sort key for a full DynamoDB item. The sort key for a full
+     * DynamoDB item sometimes includes the primary key to help sort index items in a
+     * well understood way (instead of relying on undocumented DynamoDB internals).
      */
     private _serializeItemIndexSortKey(
         indexConfig: DynamoTableSchemaIndexConfig,
@@ -4835,8 +4811,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             sortKeyEntries.push(attributeSchema.serialize(attributeValue));
         }
 
-        // If this index sort key includes the primary key then add any attributes not
-        // in our index key already to the sort key.
+        // If this index sort key includes the primary key then add any attributes not in
+        // our index key already to the sort key.
         if (indexConfig.includePrimaryKeyInSortKey) {
             sortKeyEntries.push(item.partitionType);
             for (const [attributeKey, attributeSchema] of Object.entries(
@@ -4864,9 +4840,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        // Sort keys may not be empty. If we have no sort key attributes then only
-        // return `!` as the sort key. We use `!` since it's less than all valid
-        // DynamoDB attribute characters.
+        // Sort keys may not be empty. If we have no sort key attributes then only return
+        // `!` as the sort key. We use `!` since it's less than all valid DynamoDB
+        // attribute characters.
         if (sortKeyEntries.length === 0) {
             return "!";
         }
@@ -4947,15 +4923,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             "Rfc4648UrlWithOrderPreservation",
         ) as DynamoIndexPartitionKey;
 
-        // In development and test environments, make sure we can deserialize our
-        // opaque keys.
+        // In development and test environments, make sure we can deserialize our opaque
+        // keys.
         if (process.env.NODE_ENV !== "production") {
             const deserializedKey = this._deserializeOpaqueIndexPartitionKey(
                 indexConfig,
                 partitionKeyString,
             );
             assert(
-                isDeepEqual(
+                isDeepEqualForUnknownValues(
                     pickObject(partitionKey, Object.keys(deserializedKey)),
                     deserializedKey,
                 ),
@@ -5001,19 +4977,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
     }
 
-    // NOTE(calebmer): We don't include the index partition key in the cursor! Only
-    // the sort key. We use cursors for:
+    // NOTE(calebmer): We don't include the index partition key in the cursor! Only the
+    // sort key. We use cursors for:
     //
-    // 1. Let clients resume pagination from a specific item. A cursor is better to
-    //    use than the index sort key alone since it uniquely identifies an item in
-    //    the list.
+    // 1. Let clients resume pagination from a specific item. A cursor is better to use
+    //    than the index sort key alone since it uniquely identifies an item in the
+    //    list.
     //
     // 2. When `includePrimaryKeyInSortKey` is enabled you can use cursors to sort
     //    items relative to each other on the client.
     //
-    // Both these use cases do not need a partition key. For 1 we should provide
-    // the partition key alongside the cursor anyway and for 2 the partition key
-    // does not contribute to order.
+    // Both these use cases do not need a partition key. For 1 we should provide the
+    // partition key alongside the cursor anyway and for 2 the partition key does not
+    // contribute to order.
     private _serializeOpaqueIndexCursor(
         indexConfig: DynamoTableSchemaIndexConfig,
         item: {[key: string]: unknown},
@@ -5052,9 +5028,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionConfig.partitionKeyAttributes,
         )) {
             // We need the primary key to be included in our cursor to correctly resume
-            // pagination from the right place. But only include attributes from our
-            // primary key that are not already included in the index key attributes to
-            // avoid duplicating data.
+            // pagination from the right place. But only include attributes from our primary
+            // key that are not already included in the index key attributes to avoid
+            // duplicating data.
             if (
                 !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
                 !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
@@ -5068,17 +5044,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        totalByteCount += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
         totalByteCount += 1;
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
         )) {
             // We need the primary key to be included in our cursor to correctly resume
-            // pagination from the right place. But only include attributes from our
-            // primary key that are not already included in the index key attributes to
-            // avoid duplicating data.
+            // pagination from the right place. But only include attributes from our primary
+            // key that are not already included in the index key attributes to avoid
+            // duplicating data.
             if (
                 !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
                 !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
@@ -5112,9 +5086,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionConfig.partitionKeyAttributes,
         )) {
             // We need the primary key to be included in our cursor to correctly resume
-            // pagination from the right place. But only include attributes from our
-            // primary key that are not already included in the index key attributes to
-            // avoid duplicating data.
+            // pagination from the right place. But only include attributes from our primary
+            // key that are not already included in the index key attributes to avoid
+            // duplicating data.
             if (
                 !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
                 !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
@@ -5125,14 +5099,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
-            sortRangeDescription.orderKey,
-            bytes,
-            byteIndex,
-        );
-        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
-            sortRangeDescription.orderKey,
-        );
+        serializeOrderKeyWithDeprecatedEncoding(sortRangeDescription.orderKey, bytes, byteIndex);
+        byteIndex += getOrderKeyByteCountWithDeprecatedEncoding(sortRangeDescription.orderKey);
 
         bytes[byteIndex++] = sortRangeDescription.id;
 
@@ -5140,9 +5108,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             sortRangeConfig.sortKeyAttributes,
         )) {
             // We need the primary key to be included in our cursor to correctly resume
-            // pagination from the right place. But only include attributes from our
-            // primary key that are not already included in the index key attributes to
-            // avoid duplicating data.
+            // pagination from the right place. But only include attributes from our primary
+            // key that are not already included in the index key attributes to avoid
+            // duplicating data.
             if (
                 !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
                 !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
@@ -5158,8 +5126,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             "Rfc4648UrlWithOrderPreservation",
         ) as DynamoIndexCursor;
 
-        // In development and test environments, make sure we can deserialize our
-        // opaque keys.
+        // In development and test environments, make sure we can deserialize our opaque
+        // keys.
         if (process.env.NODE_ENV !== "production") {
             const deserializedKey = this._deserializeOpaqueIndexCursor(
                 indexConfig,
@@ -5167,7 +5135,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 opaqueString,
             );
             assert(
-                isDeepEqual(pickObject(item, Object.keys(deserializedKey)), deserializedKey),
+                isDeepEqualForUnknownValues(
+                    pickObject(item, Object.keys(deserializedKey)),
+                    deserializedKey,
+                ),
                 "Couldn\u2019t deserialize opaque index cursor",
             );
         }
@@ -5226,9 +5197,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 partitionConfig.partitionKeyAttributes,
             )) {
                 // We need the primary key to be included in our cursor to correctly resume
-                // pagination from the right place. But only include attributes from our
-                // primary key that are not already included in the index key attributes to
-                // avoid duplicating data.
+                // pagination from the right place. But only include attributes from our primary
+                // key that are not already included in the index key attributes to avoid
+                // duplicating data.
                 if (
                     !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
                     !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
@@ -5246,11 +5217,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 }
             }
 
-            const orderKey = DynamoKeyAttributeSchema.orderKey.binary!.deserializeBytes(
-                bytes,
-                bytesIndex,
-            );
-            bytesIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(orderKey);
+            const orderKey = deserializeOrderKeyWithDeprecatedEncoding(bytes, bytesIndex);
+            bytesIndex += getOrderKeyByteCountWithDeprecatedEncoding(orderKey);
 
             const sortRangeName = partitionNames.sortRangeNameById.get(bytes[bytesIndex++]!);
             assert(sortRangeName, "Invalid sort key");
@@ -5267,9 +5235,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 sortRangeConfig.sortKeyAttributes,
             )) {
                 // We need the primary key to be included in our cursor to correctly resume
-                // pagination from the right place. But only include attributes from our
-                // primary key that are not already included in the index key attributes to
-                // avoid duplicating data.
+                // pagination from the right place. But only include attributes from our primary
+                // key that are not already included in the index key attributes to avoid
+                // duplicating data.
                 if (
                     !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
                     !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
@@ -5327,9 +5295,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
-        // An opaque cursor includes a byte with value 1 in this spot. So we can
-        // include 0 or 2 depending on whether we want to sort above or below cursors
-        // with the same index sort key.
+        // An opaque cursor includes a byte with value 1 in this spot. So we can include 0
+        // or 2 depending on whether we want to sort above or below cursors with the same
+        // index sort key.
         switch (boundType) {
             case "StartExclusive": {
                 bytes[byteIndex++] = 2;
@@ -5398,8 +5366,8 @@ class DynamoItemClass<Item extends object> {
     }
 
     /**
-     * Update the item with some new properties. We copy the existing properties of
-     * the item and then override those properties with any new ones from the
+     * Update the item with some new properties. We copy the existing properties of the
+     * item and then override those properties with any new ones from the
      * `Partial<Item>`.
      */
     public update(item: Partial<Item>): DynamoItem<Item> {
@@ -5420,9 +5388,9 @@ class DynamoItemClass<Item extends object> {
     /**
      * Fully replace all properties in the item.
      *
-     * Useful if there are some optional properties in the item you need to get rid
-     * of. Though you could also call `update({optionalProperty: undefined})` to
-     * override an optional property with `undefined`.
+     * Useful if there are some optional properties in the item you need to get rid of.
+     * Though you could also call `update({optionalProperty: undefined})` to override
+     * an optional property with `undefined`.
      */
     public fullUpdate(item: Item): DynamoItem<Item> {
         const newItem = new DynamoItem(this.oldItem);
@@ -5440,8 +5408,8 @@ if (DynamoItemClass.name === "DynamoItemClass") {
     Object.defineProperty(DynamoItemClass, "name", {writable: false, value: "DynamoItem"});
 }
 
-// We use this `const DynamoItem = DynamoItemClass` syntax so we can override
-// the `DynamoItem` type.
+// We use this `const DynamoItem = DynamoItemClass` syntax so we can override the
+// `DynamoItem` type.
 export const DynamoItem = DynamoItemClass;
 
 let constructedDynamoTableSchemaCount = 0;
@@ -5451,9 +5419,9 @@ let constructedDynamoTableSchemaCount = 0;
  * `recordConstructedDynamoTableSchemas()` to make sure you've recorded all
  * constructed DynamoDB table schemas.
  *
- * We can't add every DynamoDB table schemas ever constructed to an array since
- * the array would grow indefinitely in our Vite dev server which re-evaluates
- * modules whenever they update.
+ * We can't add every DynamoDB table schemas ever constructed to an array since the
+ * array would grow indefinitely in our Vite dev server which re-evaluates modules
+ * whenever they update.
  */
 export function getConstructedDynamoTableSchemaCount() {
     return constructedDynamoTableSchemaCount;
@@ -5469,8 +5437,8 @@ let recording: {
 
 /**
  * Record all DynamoDB table schemas and indexes constructed during the provided
- * action. Doesn't record any DynamoDB table schemas constructed before or
- * after this.
+ * action. Doesn't record any DynamoDB table schemas constructed before or after
+ * this.
  */
 export async function recordConstructedDynamoTableSchemas<Value>(
     action: () => Promise<Value>,
@@ -5509,8 +5477,8 @@ export async function recordConstructedDynamoTableSchemas<Value>(
 let dynamoTableSchemaInitializationCallbacks: Array<() => void> = [];
 
 /**
- * Finish initializing all our `DynamoTableSchema`s immediately instead of
- * waiting for a microtask callback.
+ * Finish initializing all our `DynamoTableSchema`s immediately instead of waiting
+ * for a microtask callback.
  */
 export function finishInitializingDynamoTableSchemas() {
     assert(
@@ -5553,32 +5521,31 @@ export type DynamoTableSchemaIndexConfigOptions<
 
     /**
      * Filter some items out of the index. When you query the index, items that
-     * returned false from this function will not be available. If this function is
-     * not defined then all items are included in the index.
+     * returned false from this function will not be available. If this function is not
+     * defined then all items are included in the index.
      *
-     * By default, only items that match `itemTypes` are included in the index.
-     * This function lets you go a step further and filter out items that match the
-     * expected item type.
+     * By default, only items that match `itemTypes` are included in the index. This
+     * function lets you go a step further and filter out items that match the expected
+     * item type.
      *
-     * We apply the filter at serialization time so it can only depend on the item.
-     * It can't depend on external state such as the current time since if that
-     * state changes we won't re-filter the item.
+     * We apply the filter at serialization time so it can only depend on the item. It
+     * can't depend on external state such as the current time since if that state
+     * changes we won't re-filter the item.
      *
      * Since this is a function we can't do backwards compatibility checking on it!
      * You'll have to be careful about backwards compatibility when updating this
      * function implementation yourself. Remember since this runs at serialization
-     * time, if you change the implementation then existing items in the database
-     * won't be re-indexed.
+     * time, if you change the implementation then existing items in the database won't
+     * be re-indexed.
      *
-     * In the types, we only allow properties in the item key or index key. This is
-     * so we don't break `transactionDirectlyUpdateItemAttribute()`.
-     * `transactionDirectlyUpdateItemAttribute()` currently throws if you try to
-     * update an attribute in an index key. That's because when updating an
-     * attribute in an index key we also need to update the index key. If we could
-     * filter based on any property in the item then
-     * `transactionDirectlyUpdateItemAttribute()` would have to fail on _all_
-     * attribute updates because we don't know which attributes `filter`
-     * depends on.
+     * In the types, we only allow properties in the item key or index key. This is so
+     * we don't break `transactionDirectlyUpdateItemAttribute()`.
+     * `transactionDirectlyUpdateItemAttribute()` currently throws if you try to update
+     * an attribute in an index key. That's because when updating an attribute in an
+     * index key we also need to update the index key. If we could filter based on any
+     * property in the item then `transactionDirectlyUpdateItemAttribute()` would have
+     * to fail on _all_ attribute updates because we don't know which attributes
+     * `filter` depends on.
      */
     filter?: (
         item: MergeObjectIntersection<
@@ -5589,27 +5556,28 @@ export type DynamoTableSchemaIndexConfigOptions<
     ) => boolean;
 
     /**
-     * Include an item's primary key in the index sort key. This makes sure you
-     * never have two items with identical index keys. DynamoDB [does not
-     * specify][1] how items are sorted when they have the same index key, it's
-     * implementation dependent. Including the primary key in the index sort key
-     * allows us to sort items in userspace with the same order as the database.
+     * Include an item's primary key in the index sort key. This makes sure you never
+     * have two items with identical index keys. DynamoDB [does not specify][1] how
+     * items are sorted when they have the same index key, it's implementation
+     * dependent. Including the primary key in the index sort key allows us to sort
+     * items in userspace with the same order as the database.
      *
-     * If an attribute in the item's primary key is already included in the index
-     * key then we don't include it in the sort key.
+     * If an attribute in the item's primary key is already included in the index key
+     * then we don't include it in the sort key.
      *
-     * [1]: https://stackoverflow.com/questions/51135606/dynamodb-sorting-order-on-duplicate-global-secondary-indexes
+     * [1]:
+     *     https://stackoverflow.com/questions/51135606/dynamodb-sorting-order-on-duplicate-global-secondary-indexes
      */
     includePrimaryKeyInSortKey?: boolean;
 
-    // NOTE(calebmer): It may be useful to add computed index attributes in the
-    // future. Where instead of relying on an attribute to exist in all item types
-    // you provide a function to compute the attribute from item types. In fact I
-    // thought I'd need this when implementing notifications so I built it out!
-    // Then I settled on a different schema design for notifications and removed
-    // computed attributes. My computed attributes implementation had a couple
-    // caveats so needed to be used carefully. If we want to add this feature back
-    // here is the commit where I removed it:
+    // NOTE(calebmer): It may be useful to add computed index attributes in the future.
+    // Where instead of relying on an attribute to exist in all item types you provide
+    // a function to compute the attribute from item types. In fact I thought I'd need
+    // this when implementing notifications so I built it out! Then I settled on a
+    // different schema design for notifications and removed computed attributes. My
+    // computed attributes implementation had a couple caveats so needed to be used
+    // carefully. If we want to add this feature back here is the commit where I
+    // removed it:
     //
     // https://github.com/cyberworlds/cyberworlds/commit/66f569c9b7aa8757a83d646d38f182b504bb476d
 };
@@ -5645,8 +5613,8 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
              * The item key contains both the key of the item and the index attributes.
              */
             afterItemKey?: MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
-            // Required to specify a limit or the `All` string. So if you intentionally
-            // want everything you have to say so.
+            // Required to specify a limit or the `All` string. So if you intentionally want
+            // everything you have to say so.
             limit: number | "All";
             pageLimit?: number;
             descending?: boolean;
@@ -5655,11 +5623,11 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
     ): AsyncIterableIterator<MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>>;
 
     /**
-     * Serialize the index partition key into an opaque string that can be
-     * conveniently shared with clients.
+     * Serialize the index partition key into an opaque string that can be conveniently
+     * shared with clients.
      *
-     * Remember this data is not secured in any way! If you want to share this with
-     * a client then the client should be able to see all data in the item's index
+     * Remember this data is not secured in any way! If you want to share this with a
+     * client then the client should be able to see all data in the item's index
      * partition key.
      */
     serializeOpaquePartitionKey(
@@ -5683,9 +5651,9 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
      * with clients. This item key can be used for resuming pagination with the
      * `afterItemKey` option on `query()`.
      *
-     * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's index
-     * key AND primary key.
+     * Remember this data is not secured in any way! If you share this with a client
+     * then the client should be able to see all data in the item's index key AND
+     * primary key.
      */
     serializeOpaqueCursor(
         // Allow method to be dereferenced without binding `this`.
@@ -5709,8 +5677,8 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
      * generated by `serializeOpaqueCursor()`.
      *
      * You can use with `startSortKey` or `endSortKey` if you'd like to share those
-     * bounds with a client with a string that has the right relative order
-     * compared to cursors.
+     * bounds with a client with a string that has the right relative order compared to
+     * cursors.
      */
     serializeOpaqueCursorBound(
         itemKey: IndexSortKey,
@@ -5719,21 +5687,21 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
 }
 
 /**
- * Loads the last schema description from the file system, creates the next
- * schema description from the schema config, and checks that the next schema
- * description is backwards compatible with the last schema description.
+ * Loads the last schema description from the file system, creates the next schema
+ * description from the schema config, and checks that the next schema description
+ * is backwards compatible with the last schema description.
  *
  * Also generates `OrderKey`s for sort ranges which don't have them. Every sort
- * range gets an `OrderKey` and the lexicographic order of `OrderKey`s
- * corresponds to the order in which the sort ranges were defined. We include
- * the `OrderKey` at the beginning of the sort key so that sort ranges in the
- * database have the same order as when they were defined in code.
+ * range gets an `OrderKey` and the lexicographic order of `OrderKey`s corresponds
+ * to the order in which the sort ranges were defined. We include the `OrderKey` at
+ * the beginning of the sort key so that sort ranges in the database have the same
+ * order as when they were defined in code.
  *
- * After an `OrderKey` is set for a sort range it may not be changed! That
- * would be a backwards incompatible change since we've saved data to the
- * database with that `OrderKey`. However, you may add new sort ranges between
- * two existing sort ranges. We will generate an `OrderKey` between the
- * `OrderKey`s of the existing sort ranges.
+ * After an `OrderKey` is set for a sort range it may not be changed! That would be
+ * a backwards incompatible change since we've saved data to the database with that
+ * `OrderKey`. However, you may add new sort ranges between two existing sort
+ * ranges. We will generate an `OrderKey` between the `OrderKey`s of the existing
+ * sort ranges.
  */
 function getAndCheckDynamoTableSchemaDescriptions(
     config: DynamoTableSchemaTypes.ConfigBase,
@@ -5765,8 +5733,8 @@ function getAndCheckDynamoTableSchemaDescriptions(
     };
 
     // If we have a description saved, then verify our new description is backwards
-    // compatible with the old description. We will save our new description the
-    // first time an item is written to this table.
+    // compatible with the old description. We will save our new description the first
+    // time an item is written to this table.
     let readCompatibilityError: Error | null = null;
     let writeCompatibilityError: Error | null = null;
 
@@ -5900,9 +5868,9 @@ function getDynamoTableSchemaSortRangeDescriptionByType(
 ): {
     [name: string]: PartialBy<DynamoTableSchemaTypes.SortRange.Description, "childSortRangeByType">;
 } {
-    // Iterate through all our sort ranges, in order, finding contiguous subsets of
-    // the list which do not have an `OrderKey` in the last description. For these
-    // sort ranges generate new `OrderKey`s for our new description.
+    // Iterate through all our sort ranges, in order, finding contiguous subsets of the
+    // list which do not have an `OrderKey` in the last description. For these sort
+    // ranges generate new `OrderKey`s for our new description.
     const sortRangeOrderKeyByType = new Map<string, OrderKey>();
     let lastExistingSortRangeOrderKey: OrderKey | null = null;
     let sortRangeTypesWithoutExistingOrderKey = [];
@@ -5914,9 +5882,9 @@ function getDynamoTableSchemaSortRangeDescriptionByType(
         if (!existingSortRangeOrderKey) {
             sortRangeTypesWithoutExistingOrderKey.push(sortRangeConfig.name);
         } else {
-            // The order of `sortRanges` in our config object matters! It must be the same
-            // as the order key order. Throw an error if we detect the developer may have
-            // moved things around. That's a backwards incompatible change.
+            // The order of `sortRanges` in our config object matters! It must be the same as
+            // the order key order. Throw an error if we detect the developer may have moved
+            // things around. That's a backwards incompatible change.
             if (
                 lastExistingSortRangeOrderKey !== null &&
                 lastExistingSortRangeOrderKey >= existingSortRangeOrderKey
@@ -6035,8 +6003,8 @@ function getDynamoTableSchemaIndexDescription(
     const lastIndexDescription = lastDescription?.indexes[index];
 
     // If the last index description uses a `Separate` partition key (e.g. indexes
-    // created before we added this reused partition key feature) then continue to
-    // use a `Separate` partition key.
+    // created before we added this reused partition key feature) then continue to use
+    // a `Separate` partition key.
     const doesLastIndexDescriptionHaveSeparatePartitionKey =
         !!lastIndexDescription &&
         (lastIndexDescription.partitionKeyBehavior?.type ?? "Separate") === "Separate";
@@ -6117,8 +6085,8 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
         const number = i + 1;
         const nextIndexDescription = nextDescription.indexes[i]!;
 
-        // If our description is adding an index, you may only add the index to item
-        // types the new description itself adds.
+        // If our description is adding an index, you may only add the index to item types
+        // the new description itself adds.
         if (i >= lastDescription.indexes.length) {
             for (const [nextIndexOverloadName, nextIndexOverloadDescription] of Object.entries(
                 nextIndexDescription.overloadByName,
@@ -6294,4 +6262,82 @@ function checkDynamoTableSchemaIndexOverloadDescriptionBackwardsCompatibility(
     // migrations!
     if (!isDeepEqual(lastSortKeyAttributeDescriptions, nextSortKeyAttributeDescriptions))
         throw new InvalidArgumentError(`Incompatible sort key for index overload \`${name}\``);
+}
+
+const orderKeyDigitIndexByChar = new Map<string, number>(
+    orderKeyDigits.split("").map((char, index) => [char, index]),
+);
+
+/**
+ * On 2026-05-08 we changed `OrderKey` binary encoding to a more efficient format
+ * (see `shared/helpers/sort/encode_order_key.ts`). However, to avoid breaking
+ * backwards compatibility we continue to use the deprecated format for the
+ * partition type / sort range type `OrderKey`s in DynamoDB opaque keys.
+ *
+ * This shouldn't impact performance much. The deprecated encoding uses the same
+ * number of bytes as the new encoding for `OrderKey`s less than or equal to 4
+ * digits in length. The new encoding only saves bytes for long `OrderKey`s.
+ *
+ * @deprecated
+ */
+function getOrderKeyByteCountWithDeprecatedEncoding(orderKey: OrderKey) {
+    return orderKey.length + 1;
+}
+
+/**
+ * On 2026-05-08 we changed `OrderKey` binary encoding to a more efficient format
+ * (see `shared/helpers/sort/encode_order_key.ts`). However, to avoid breaking
+ * backwards compatibility we continue to use the deprecated format for the
+ * partition type / sort range type `OrderKey`s in DynamoDB opaque keys.
+ *
+ * This shouldn't impact performance much. The deprecated encoding uses the same
+ * number of bytes as the new encoding for `OrderKey`s less than or equal to 4
+ * digits in length. The new encoding only saves bytes for long `OrderKey`s.
+ *
+ * @deprecated
+ */
+function serializeOrderKeyWithDeprecatedEncoding(
+    orderKey: OrderKey,
+    bytes: Uint8Array,
+    byteOffset: number,
+) {
+    let byteIndex = byteOffset;
+
+    for (let i = 0; i < orderKey.length; i++) {
+        const char = orderKey[i]!;
+        bytes[byteIndex++] =
+            assertExists(orderKeyDigitIndexByChar.get(char), "Unrecognized order key character") +
+            1;
+    }
+
+    // Null byte terminates the order key.
+    bytes[byteIndex++] = 0;
+}
+
+/**
+ * On 2026-05-08 we changed `OrderKey` binary encoding to a more efficient format
+ * (see `shared/helpers/sort/encode_order_key.ts`). However, to avoid breaking
+ * backwards compatibility we continue to use the deprecated format for the
+ * partition type / sort range type `OrderKey`s in DynamoDB opaque keys.
+ *
+ * This shouldn't impact performance much. The deprecated encoding uses the same
+ * number of bytes as the new encoding for `OrderKey`s less than or equal to 4
+ * digits in length. The new encoding only saves bytes for long `OrderKey`s.
+ *
+ * @deprecated
+ */
+function deserializeOrderKeyWithDeprecatedEncoding(
+    bytes: Uint8Array,
+    byteOffset: number,
+): OrderKey {
+    let orderKey = "";
+    let byteIndex = byteOffset;
+
+    while (true) {
+        const byte = assertExists(bytes[byteIndex++], "Unexpected end of order key bytes");
+        if (byte === 0) break;
+        orderKey += assertExists(orderKeyDigits[byte - 1], "Unrecognized order key digit");
+    }
+
+    return orderKey as OrderKey;
 }

@@ -32,22 +32,21 @@ export type TaskGridViewVirtualizedListViewRef = {
 };
 
 // Should be able to pass `VirtualizedScrollViewRef` in for
-// `TaskGridViewVirtualizedListViewRef`. Often our virtualized grid view will
-// have other stuff besides tasks so a modified ref object may be passed in.
+// `TaskGridViewVirtualizedListViewRef`. Often our virtualized grid view will have
+// other stuff besides tasks so a modified ref object may be passed in.
 assertAssignableTypes<VirtualizedScrollViewRef, TaskGridViewVirtualizedListViewRef>();
 
 export type TaskGridViewVirtualizedListEvents = MemoObject<{
-    readonly getMoveTaskToRootQueryActions: (
-        taskId: TaskId,
+    readonly getMoveTasksToRootQueryActions: (
+        taskIds: ReadonlyArray<TaskId>,
         position:
             | {type: "Start"}
             | {type: "End"}
             | {type: "Above"; taskId: TaskId}
-            | {type: "Below"; taskId: TaskId}
-            | {type: "Position"; position: TaskPosition},
+            | {type: "Below"; taskId: TaskId},
     ) => {
         actions: Array<TaskActionModel>;
-        position: TaskPosition;
+        positions: Array<TaskPosition>;
     } | null;
     readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskActionModel>;
     readonly getItemCount: () => number;

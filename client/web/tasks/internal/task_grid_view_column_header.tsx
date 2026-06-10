@@ -1,6 +1,9 @@
 import {Box} from "~/client/web/design/box.js";
 import {
     taskGridViewColumnHeaderHeight,
+    taskGridViewColumnHeaderLabelColor,
+    taskGridViewColumnHeaderLabelFontSize,
+    taskGridViewColumnHeaderLabelMarginBottom,
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
     taskRowViewColumnWidth,
@@ -11,31 +14,41 @@ import {
     taskRowViewLastColumnPaddingRight,
 } from "~/client/web/styles/tasks_shared_styles.js";
 
-export function TaskGridViewColumnHeader({withoutAssigneeField}: {withoutAssigneeField?: boolean}) {
+export function TaskGridViewColumnHeader({
+    withoutAssigneeField,
+    withoutDueDateField,
+    withoutCollectionsField,
+    titleFieldLabel = "Name",
+}: {
+    withoutAssigneeField?: boolean;
+    withoutDueDateField?: boolean;
+    withoutCollectionsField?: boolean;
+    titleFieldLabel?: string;
+}) {
     return (
         <Box height={taskGridViewColumnHeaderHeight} display="flex">
             <Box
                 flexShrink="0"
                 width="32"
-                paddingBottom="1"
-                color="grey-40"
-                fontSize="50"
+                paddingBottom={taskGridViewColumnHeaderLabelMarginBottom}
+                color={taskGridViewColumnHeaderLabelColor}
+                fontSize={taskGridViewColumnHeaderLabelFontSize}
                 style={{
                     paddingLeft: `${
                         taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
                     }rem`,
                 }}
             >
-                Name
+                {titleFieldLabel}
             </Box>
             <Box flexGrow="1" />
             {!withoutAssigneeField && (
                 <Box
                     flexShrink="0"
                     paddingX={taskRowViewColumnPaddingX}
-                    paddingBottom="1"
-                    color="grey-40"
-                    fontSize="50"
+                    paddingBottom={taskGridViewColumnHeaderLabelMarginBottom}
+                    color={taskGridViewColumnHeaderLabelColor}
+                    fontSize={taskGridViewColumnHeaderLabelFontSize}
                     style={{
                         width: taskRowViewFirstColumnWidth,
                         paddingLeft: taskRowViewFirstColumnPaddingLeft,
@@ -47,34 +60,38 @@ export function TaskGridViewColumnHeader({withoutAssigneeField}: {withoutAssigne
             <Box
                 flexShrink="0"
                 paddingX={taskRowViewColumnPaddingX}
-                paddingBottom="1"
-                color="grey-40"
-                fontSize="50"
+                paddingBottom={taskGridViewColumnHeaderLabelMarginBottom}
+                color={taskGridViewColumnHeaderLabelColor}
+                fontSize={taskGridViewColumnHeaderLabelFontSize}
                 style={{width: taskRowViewColumnWidth}}
             >
                 Priority
             </Box>
-            <Box
-                flexShrink="0"
-                paddingX={taskRowViewColumnPaddingX}
-                paddingBottom="1"
-                color="grey-40"
-                fontSize="50"
-                style={{width: taskRowViewColumnWidth}}
-            >
-                Due date
-            </Box>
-            <Box
-                flexShrink="0"
-                paddingLeft={taskRowViewColumnPaddingX}
-                paddingRight={taskRowViewLastColumnPaddingRight}
-                paddingBottom="1"
-                color="grey-40"
-                fontSize="50"
-                style={{width: taskRowViewCollectionsColumnWidth}}
-            >
-                Collections
-            </Box>
+            {!withoutDueDateField && (
+                <Box
+                    flexShrink="0"
+                    paddingX={taskRowViewColumnPaddingX}
+                    paddingBottom={taskGridViewColumnHeaderLabelMarginBottom}
+                    color={taskGridViewColumnHeaderLabelColor}
+                    fontSize={taskGridViewColumnHeaderLabelFontSize}
+                    style={{width: taskRowViewColumnWidth}}
+                >
+                    Due date
+                </Box>
+            )}
+            {!withoutCollectionsField && (
+                <Box
+                    flexShrink="0"
+                    paddingLeft={taskRowViewColumnPaddingX}
+                    paddingRight={taskRowViewLastColumnPaddingRight}
+                    paddingBottom={taskGridViewColumnHeaderLabelMarginBottom}
+                    color={taskGridViewColumnHeaderLabelColor}
+                    fontSize={taskGridViewColumnHeaderLabelFontSize}
+                    style={{width: taskRowViewCollectionsColumnWidth}}
+                >
+                    Collections
+                </Box>
+            )}
             <Box flexShrink="0" width="5" />
         </Box>
     );

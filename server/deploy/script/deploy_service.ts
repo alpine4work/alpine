@@ -85,8 +85,7 @@ export async function run({
             options,
         }),
         github: new GithubContextModule(
-            // Authenticate with the GitHub API through GitHub action environment
-            // variables.
+            // Authenticate with the GitHub API through GitHub action environment variables.
             createActionAuth().hook,
         ),
         r2: createServiceCloudflareR2ContextModule(options),

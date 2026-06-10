@@ -12,9 +12,8 @@ export function throwIfRendering() {
     // https://github.com/facebook/react/blob/fd524fe02a86c3e92a207d90da970941320f337f/packages/react/src/ReactHooks.js#L25
     if (!ReactSharedInternals.H) return;
 
-    // If the implementation of `useRef` and `useState` is the same then we assume
-    // the implementation is `throwInvalidHookError` which means React isn't
-    // rendering:
+    // If the implementation of `useRef` and `useState` is the same then we assume the
+    // implementation is `throwInvalidHookError` which means React isn't rendering:
     // https://github.com/facebook/react/blob/fd524fe02a86c3e92a207d90da970941320f337f/packages/react-reconciler/src/ReactFiberHooks.js#L3876-L3877
     if (ReactSharedInternals.H.useRef === ReactSharedInternals.H.useState) {
         return;

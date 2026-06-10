@@ -78,9 +78,9 @@ export function clampListItemIndentation(indent: unknown): number {
 export const contentCodeBlockIndentationSpaceCount = 2;
 
 /**
- * TypeScript convenience function for creating a `SchemaSpec`. Forces us to
- * adhere to the `SchemaSpec` format while allowing the return type to be an
- * instance of `SchemaSpec`. (So node keys are preserved, for instance.)
+ * TypeScript convenience function for creating a `SchemaSpec`. Forces us to adhere
+ * to the `SchemaSpec` format while allowing the return type to be an instance of
+ * `SchemaSpec`. (So node keys are preserved, for instance.)
  */
 export function createProsemirrorSchemaSpec<Schema extends SchemaSpec<string, string>>(
     schema: Schema,
@@ -108,8 +108,8 @@ export const paragraphParseRules = [
             if (!(node instanceof HTMLElement)) return {};
 
             // If this is a wrapper `<div>` with `<p>` or `<div>` or `<table>` or any block
-            // tags inside, then we want to use our `<p>` rule to parse the DOM instead of
-            // our `<div>` rule.
+            // tags inside, then we want to use our `<p>` rule to parse the DOM instead of our
+            // `<div>` rule.
             let hasBlockChildNode = false;
             for (const childNode of node.childNodes) {
                 if (!(childNode instanceof HTMLElement)) continue;
@@ -133,9 +133,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          */
         doc: {
             content: "block+",
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
         },
 
@@ -153,95 +153,93 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         paragraph: {
             group: "block tableBlock",
             content: "inline*",
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             toDOM: () => ["p", {class: paragraphClassName}, 0],
             parseDOM: paragraphParseRules,
         },
 
         /**
-         * An extended quotation. This is rendered visually with a bit of
-         * indentation and a vertical ribbon. Can also be used for calling out some
-         * information. Quote blocks can be arbitrarily nested so that you can quote
-         * a quote of a quote.
+         * An extended quotation. This is rendered visually with a bit of indentation and a
+         * vertical ribbon. Can also be used for calling out some information. Quote blocks
+         * can be arbitrarily nested so that you can quote a quote of a quote.
          */
         quoteBlock: {
             group: "block tableBlock",
             content: "(paragraph | listItem)+",
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             toDOM: () => ["blockquote", {class: quoteBlockClassName}, 0],
             parseDOM: [{tag: "blockquote"}],
         },
 
         /**
-         * Text formatted with a monospace font that is horizontally scrollable
-         * (instead of letting the text wrap). Useful for code, but also useful for
-         * drawing ASCII diagrams since all characters are of equal width. Text in a
-         * code block may not have inline formatting since in the future we'll want
-         * to add syntax highlighting.
+         * Text formatted with a monospace font that is horizontally scrollable (instead of
+         * letting the text wrap). Useful for code, but also useful for drawing ASCII
+         * diagrams since all characters are of equal width. Text in a code block may not
+         * have inline formatting since in the future we'll want to add syntax
+         * highlighting.
          */
-        // TODO(calebmer): A couple keyboard shortcuts I think could still be useful
-        // for code blocks:
+        // TODO(calebmer): A couple keyboard shortcuts I think could still be useful for
+        // code blocks:
         //
-        // - Pressing Enter on a line with an unbalanced closing bracket should dedent
-        //   the bracket to the opening bracket's line. For example, if your cursor is
-        //   at `|` in a code block and you hit enter right now the newline has 4
-        //   spaces of indentation when it should have 2:
+        // - Pressing Enter on a line with an unbalanced closing bracket should dedent the
+        //   bracket to the opening bracket's line. For example, if your cursor is at `|`
+        //   in a code block and you hit enter right now the newline has 4 spaces of
+        //   indentation when it should have 2:
         //
-        //   ```
-        //   class Tree {
-        //     constructor(
-        //       root|) {
-        //       this.root = root;
+        //     ```
+        //     class Tree {
+        //       constructor(
+        //         root|) {
+        //         this.root = root;
+        //       }
         //     }
-        //   }
-        //   ```
+        //     ```
         //
-        // - Copy/pasting code into a code block should detect the indentation level
-        //   and fix it so user doesn't have to reformat.
+        // - Copy/pasting code into a code block should detect the indentation level and
+        //   fix it so user doesn't have to reformat.
         //
         // - Typing a close bracket on an indented line should dedent the line. For
         //   example, if you have a code block and your cursor is `|`:
         //
-        //   ```
-        //   switch (c) {
-        //     case "(": {
-        //       break;
-        //       |
-        //   }
-        //   ```
+        //     ```
+        //     switch (c) {
+        //       case "(": {
+        //         break;
+        //         |
+        //     }
+        //     ```
         //
-        //   Then typing `}` should result in:
+        //     Then typing `}` should result in:
         //
-        //   ```
-        //   switch (c) {
-        //     case "(": {
-        //       break;
-        //     }|
-        //   }
-        //   ```
+        //     ```
+        //     switch (c) {
+        //       case "(": {
+        //         break;
+        //       }|
+        //     }
+        //     ```
         //
-        // - Content editor doesn't scroll horizontally to cursor when cursor moves.
-        //   Put your cursor at the end of a long code block line that causes the code
-        //   block to scroll horizontally. Then press Command-Left. The cursor will
-        //   move but the code block won't scroll!
+        // - Content editor doesn't scroll horizontally to cursor when cursor moves. Put
+        //   your cursor at the end of a long code block line that causes the code block to
+        //   scroll horizontally. Then press Command-Left. The cursor will move but the
+        //   code block won't scroll!
 
-        // NOTE(maximchen): we remove `code: true` from codeBlock and codeBlock
-        // line because, `code: true` defaults white-space property to `pre`
-        // which preserves new lines. However, we don't want to keep
-        // new lines, only keep spaces.
+        // NOTE(maximchen): we remove `code: true` from codeBlock and codeBlock line
+        // because, `code: true` defaults white-space property to `pre` which preserves new
+        // lines. However, we don't want to keep new lines, only keep spaces.
         codeBlock: {
             group: "block tableBlock",
             content: "codeBlockLine+",
             defining: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             attrs: {
                 language: {
@@ -262,15 +260,15 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
 
         // The ProseMirror data model technically allows "\n" characters within text
-        // content. However, we want to disallow "\n" characters in `codeBlockLine`! To
-        // add new lines to a code block you must create new `codeBlockLine` nodes.
+        // content. However, we want to disallow "\n" characters in `codeBlockLine`! To add
+        // new lines to a code block you must create new `codeBlockLine` nodes.
         //
-        // Currently, the way we ban "\n" characters in `codeBlockLine` is a validation
-        // in `getCollaborativelyUpdateContentResult()`. So it's important that
-        // function comprehensively validates updated data.
+        // Currently, the way we ban "\n" characters in `codeBlockLine` is a validation in
+        // `getCollaborativelyUpdateContentResult()`. So it's important that function
+        // comprehensively validates updated data.
         //
-        // It's important we maintain that there are no "\n" characters in
-        // `codeBlockLine` so:
+        // It's important we maintain that there are no "\n" characters in `codeBlockLine`
+        // so:
         //
         // - Line numbers render properly
         // - Our `createContentCodeBlockNodeInput()` implementation for the code block
@@ -279,9 +277,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             content: "text*",
             marks: "allowedInCodeBlock",
             defining: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             toDOM: () => [
                 "div",
@@ -289,9 +287,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 ["div", {class: codeBlockLineContentClassName}, 0],
             ],
             // If we're in a code block, parse anything that would have been parsed as a
-            // `paragraph` (`<p>` elements or `<div>` elements) as a `codeBlockLine`.
-            // That way if you paste multiple lines of plain text into a code block they're
-            // treated as `codeBlockLine`s.
+            // `paragraph` (`<p>` elements or `<div>` elements) as a `codeBlockLine`. That way
+            // if you paste multiple lines of plain text into a code block they're treated as
+            // `codeBlockLine`s.
             parseDOM: [
                 ...paragraphParseRules.map(parseRule => ({
                     ...parseRule,
@@ -300,14 +298,14 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     priority: parseRule.priority + 50,
                 })),
 
-                // If you copy content from a `codeBlockLine` you end up with a `code` element
-                // (we modified `ContentEditorDomClipboardSerializer` to output a `code`
-                // element when copy/pasting) with a `data-pm-slice` attribute that tells
-                // ProseMirror when pasting to wrap the element in a `codeBlock` node.
+                // If you copy content from a `codeBlockLine` you end up with a `code` element (we
+                // modified `ContentEditorDomClipboardSerializer` to output a `code` element when
+                // copy/pasting) with a `data-pm-slice` attribute that tells ProseMirror when
+                // pasting to wrap the element in a `codeBlock` node.
                 //
                 // We need to detect a copied `codeBlockLine` and parse it as a `codeBlockLine`
-                // node or else we get an error because we have a wrapping `codeBlock` node
-                // with incorrect child content.
+                // node or else we get an error because we have a wrapping `codeBlock` node with
+                // incorrect child content.
                 {
                     // eslint-disable-next-line cyberworlds/string-quotes
                     tag: 'code[data-pm-slice*="\\"codeBlock\\""]',
@@ -316,26 +314,25 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             ],
         },
 
-        // Welcome to the list items! You'll notice that we structure them
-        // differently than ProseMirror recommends. Instead of the standard nested
-        // `<ul>`/`<li>` HTML structure (which ProseMirror fully supports) we choose
-        // to not nest list items and use plain `<div>`s. When rendering documents
-        // we will use semantic HTML, but for editing we use `<div>`s.
+        // Welcome to the list items! You'll notice that we structure them differently than
+        // ProseMirror recommends. Instead of the standard nested `<ul>`/`<li>` HTML
+        // structure (which ProseMirror fully supports) we choose to not nest list items
+        // and use plain `<div>`s. When rendering documents we will use semantic HTML, but
+        // for editing we use `<div>`s.
         //
-        // We started by trying to use `<ul>`/`<li>` but found that the there were
-        // so many edge cases and the editing experience could be confusing at
-        // times. Sometimes dedenting a list item would dedent all its children!
-        // Sometimes you couldn't delete a bullet because it has children list items
-        // attached.
+        // We started by trying to use `<ul>`/`<li>` but found that the there were so many
+        // edge cases and the editing experience could be confusing at times. Sometimes
+        // dedenting a list item would dedent all its children! Sometimes you couldn't
+        // delete a bullet because it has children list items attached.
         //
-        // So to simplify code and the editing experience we switched to individual
-        // list items with an indentation attribute. What we lose is semantic HTML
-        // list elements while editing and we make it possible to create a document
-        // in a weird state. (e.g. Floating list items with indentation.) We find
-        // this to be an acceptable tradeoff.
+        // So to simplify code and the editing experience we switched to individual list
+        // items with an indentation attribute. What we lose is semantic HTML list elements
+        // while editing and we make it possible to create a document in a weird state.
+        // (e.g. Floating list items with indentation.) We find this to be an acceptable
+        // tradeoff.
         //
-        // It appears that many text editors go in this direction. For example,
-        // Dropbox Paper.
+        // It appears that many text editors go in this direction. For example, Dropbox
+        // Paper.
 
         // TODO(calebmer): Render lists with `<ul>`/`<li>` when read-only.
 
@@ -348,9 +345,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             group: "block listItem simpleListItem tableBlock",
             content: "paragraph+",
             defining: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             attrs: {
                 indent: {
@@ -381,9 +378,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             group: "block listItem simpleListItem tableBlock",
             content: "paragraph+",
             defining: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             attrs: {
                 indent: {
@@ -417,17 +414,16 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
 
         /**
-         * A hard line break in the document. Provides just a little bit more
-         * flexibility for document spacing. For example, if you want two lines
-         * without margin between them (which you'd get with a paragraph) you'd use
-         * a hard break.
+         * A hard line break in the document. Provides just a little bit more flexibility
+         * for document spacing. For example, if you want two lines without margin between
+         * them (which you'd get with a paragraph) you'd use a hard break.
          */
         break: {
             inline: true,
             group: "inline",
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             toDOM: () => ["br"],
             parseDOM: [{tag: "br"}],
@@ -452,9 +448,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         heading: {
             group: "block",
             content: "inline*",
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but there's
+            // only a small number of nodes (e.g. `divider`) we actually want to let be
+            // selectable.
             selectable: false,
             attrs: {
                 level: {
@@ -489,9 +485,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
 
         /**
-         * Also known as a horizontal rule. Another way to organize documents
-         * alongside headers. Allows the writer to specify an unnamed break in
-         * content.
+         * Also known as a horizontal rule. Another way to organize documents alongside
+         * headers. Allows the writer to specify an unnamed break in content.
          */
         divider: {
             group: "block",
@@ -503,40 +498,38 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         ...contentTableProsemirrorSchemaSpec.nodes,
     },
     marks: {
-        // NOTE(calebmer, 2022-08-13): All of our marks are `inclusive` which means
-        // that typing before and after the marked text will not inherit the style. We
-        // believe this to be an optimal behavior for a text editor. When you style
-        // text we assume the user's intent is that the styling is final. We assume
-        // that the user prefers editing the plain text around the marked text instead
-        // of assuming the user prefers extending the marked text from the front
-        // or end.
+        // NOTE(calebmer, 2022-08-13): All of our marks are `inclusive` which means that
+        // typing before and after the marked text will not inherit the style. We believe
+        // this to be an optimal behavior for a text editor. When you style text we assume
+        // the user's intent is that the styling is final. We assume that the user prefers
+        // editing the plain text around the marked text instead of assuming the user
+        // prefers extending the marked text from the front or end.
         //
-        // Another intuition here is that if you don't use keyboard shortcuts then
-        // going to the styling toolbar should always be an additive experience. The
-        // editor shouldn't do a thing that makes a non-keyboard user need to go to
-        // the toolbar to undo it.
+        // Another intuition here is that if you don't use keyboard shortcuts then going to
+        // the styling toolbar should always be an additive experience. The editor
+        // shouldn't do a thing that makes a non-keyboard user need to go to the toolbar to
+        // undo it.
         //
-        // This is based on my (Caleb's) own personal nits when using rich text
-        // editors. I often find myself frustrated by the inherited styles.
+        // This is based on my (Caleb's) own personal nits when using rich text editors. I
+        // often find myself frustrated by the inherited styles.
         //
-        // NOTE(calebmer, 2023-02-28): I recently discovered that the [Bike text
-        // editor][1] (and some others) have what is known as "typing affinity" or
-        // "directional cursors" as a solution to this problem. When your cursor is at
-        // the edge of some style it indicates which style it will use and you may use
-        // the arrow keys to change that style. I like this a lot and would like us to
-        // implement it someday.
+        // NOTE(calebmer, 2023-02-28): I recently discovered that the [Bike text editor][1]
+        // (and some others) have what is known as "typing affinity" or "directional
+        // cursors" as a solution to this problem. When your cursor is at the edge of some
+        // style it indicates which style it will use and you may use the arrow keys to
+        // change that style. I like this a lot and would like us to implement it someday.
         //
         // [1]: https://www.hogbaysoftware.com/posts/bike-rich-text/
 
         /**
          * This is the web! You just gotta have them links.
          */
-        // NOTE(calebmer): This needs to be defined before `bold` and other styles so
-        // that in the DOM `link` will wrap other styles.
+        // NOTE(calebmer): This needs to be defined before `bold` and other styles so that
+        // in the DOM `link` will wrap other styles.
         //
-        // We are ok with `link` wrapping `code`. We want `link` to be the outer
-        // wrapper so that hovering over build text within a link doesn't break the
-        // hover link preview.
+        // We are ok with `link` wrapping `code`. We want `link` to be the outer wrapper so
+        // that hovering over build text within a link doesn't break the hover link
+        // preview.
         link: {
             group: "allowedInCodeBlock",
             attrs: {
@@ -555,8 +548,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                         class: linkClassName,
                         // Open link in a new tab.
                         target: "_blank",
-                        // Important security measure. See:
-                        // https://mathiasbynens.github.io/rel-noopener
+                        // Important security measure. See: https://mathiasbynens.github.io/rel-noopener
                         rel: "noopener noreferrer",
                         href: url,
                     },
@@ -575,8 +567,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                         // confuses ProseMirror since it sees a difference between the DOM and our
                         // ProseMirror node and it ends up making unwanted changes to the document.
                         //
-                        // `getAttribute()` returns exactly the value we set on the DOM and doesn't
-                        // have this problem.
+                        // `getAttribute()` returns exactly the value we set on the DOM and doesn't have
+                        // this problem.
                         //
                         // [1]: https://url.spec.whatwg.org/#concept-url-serializer
                         return {url: node.getAttribute("href")};
@@ -586,12 +578,12 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
 
         /**
-         * Text written in a monospace font with a background of the same color as a
-         * code block. For consistency with the code block allows you to reference
-         * names normally written in a monospace font (code mostly).
+         * Text written in a monospace font with a background of the same color as a code
+         * block. For consistency with the code block allows you to reference names
+         * normally written in a monospace font (code mostly).
          */
-        // NOTE(calebmer): This needs to be defined before `bold` and other styles so
-        // that in the DOM `code` will wrap other styles.
+        // NOTE(calebmer): This needs to be defined before `bold` and other styles so that
+        // in the DOM `code` will wrap other styles.
         code: {
             inclusive: false,
             toDOM: () => ["code", {class: codeClassName}, 0],
@@ -613,9 +605,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     getAttrs: node => {
                         if (typeof node === "string") return {};
 
-                        // Google Docs appears to wrap some content in a
-                        // `<b style="font-weight: normal">` element? So detect this case and don't
-                        // mark content like this as bold.
+                        // Google Docs appears to wrap some content in a `<b style="font-weight: normal">`
+                        // element? So detect this case and don't mark content like this as bold.
                         if (node.style.fontWeight === "normal") return false;
 
                         return {};
@@ -626,8 +617,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
 
         /**
-         * Another way to emphasize text. Italicized text is usually less eye
-         * catching but alters the voice of some bit of text.
+         * Another way to emphasize text. Italicized text is usually less eye catching but
+         * alters the voice of some bit of text.
          */
         italic: {
             group: "allowedInCodeBlock",
@@ -637,10 +628,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
 
         /**
-         * Allows the writer to denote the removal of text while preserving the
-         * original text for the reader. Also great for writing jokes where you put
-         * two words with roughly the same meaning but different connotations and
-         * strike one out which to the reader appears as you editing yourself.
+         * Allows the writer to denote the removal of text while preserving the original
+         * text for the reader. Also great for writing jokes where you put two words with
+         * roughly the same meaning but different connotations and strike one out which to
+         * the reader appears as you editing yourself.
          */
         strike: {
             group: "allowedInCodeBlock",
@@ -710,9 +701,9 @@ export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): Ta
 }
 
 /**
- * Our `codeBlock` is structured with one `codeBlockLine` child node for each
- * line of code. However, this is not how code blocks are typically structured
- * in HTML. In HTML code blocks look more like this:
+ * Our `codeBlock` is structured with one `codeBlockLine` child node for each line
+ * of code. However, this is not how code blocks are typically structured in HTML.
+ * In HTML code blocks look more like this:
  *
  * ```
  * <pre><code>
@@ -724,13 +715,13 @@ export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): Ta
  * </code></pre>
  * ```
  *
- * Where newlines are separated by the `\n` character and whitespace is
- * preserved (unlike in regular HTML where whitespace is collapsed).
+ * Where newlines are separated by the `\n` character and whitespace is preserved
+ * (unlike in regular HTML where whitespace is collapsed).
  *
  * To parse this standard DOM format for code blocks, we create an intermediate
- * ProseMirror schema that parses a code block _without_ `codeBlockLine`
- * children. Then we take that result, look for `\n` characters, and create a
- * `codeBlockLine` for each new line we find.
+ * ProseMirror schema that parses a code block _without_ `codeBlockLine` children.
+ * Then we take that result, look for `\n` characters, and create a `codeBlockLine`
+ * for each new line we find.
  */
 function createCodeBlockParseRules(): Array<TagParseRule> {
     const CodeBlockIntermediateProsemirrorSchema = new DefaultWeakMap<
@@ -752,8 +743,8 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
                     // Make sure we have the same content that can go in a code block line.
                     ...assertExists(schemaNodes.codeBlockLine),
 
-                    // White-space should not be collapsed in this intermediate schema. Newlines
-                    // should be included between lines of text.
+                    // White-space should not be collapsed in this intermediate schema. Newlines should
+                    // be included between lines of text.
                     whitespace: "pre",
 
                     // Ignore `codeBlockLine`'s DOM parsing/serialization logic. We're implementing
@@ -777,22 +768,22 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
             CodeBlockIntermediateProsemirrorSchema.getOrSetDefault(schema),
         );
 
-        // Make sure `node` is a root element. `normalizeLists()` will iterate through
-        // next children to determine where to put `<br>` elements and we don't want
-        // that iteration to escape `node`. Clone the node to work with an isolated
-        // copy that preserves the original DOM structure for subsequent parsing.
+        // Make sure `node` is a root element. `normalizeLists()` will iterate through next
+        // children to determine where to put `<br>` elements and we don't want that
+        // iteration to escape `node`. Clone the node to work with an isolated copy that
+        // preserves the original DOM structure for subsequent parsing.
         const node = nodeFromParser.cloneNode(true);
 
         // If the code ends with a single newline then cut out that newline. This is
         // because implicitly there will be a line break between the code block and the
         // next block after we paste.
         //
-        // If there are two newlines at the end of the intermediate node then we want
-        // to make sure the extra newline remains in the output.
+        // If there are two newlines at the end of the intermediate node then we want to
+        // make sure the extra newline remains in the output.
         //
-        // We cut out trailing `<br>` elements so we remove trailing newlines from
-        // places like VSCode that add a trailing `<br>` but we don't remove trailing
-        // newline characters from a `<pre>` element we copied from our own product.
+        // We cut out trailing `<br>` elements so we remove trailing newlines from places
+        // like VSCode that add a trailing `<br>` but we don't remove trailing newline
+        // characters from a `<pre>` element we copied from our own product.
         if (node instanceof Element) {
             const getPreviousElement = (element: Element): Element | null => {
                 if (element.previousElementSibling) return element.previousElementSibling;
@@ -845,8 +836,8 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
         // </div>
         // ```
         //
-        // Since ProseMirror doesn't understand that the `<div>`s create new lines in
-        // the code block but does understand `<br>` tags.
+        // Since ProseMirror doesn't understand that the `<div>`s create new lines in the
+        // code block but does understand `<br>` tags.
         normalizeCodeBlock(node);
 
         const intermediateNode = parser.parse(node, {preserveWhitespace: "full"});
@@ -917,11 +908,19 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
             tag: '[style*="white-space: pre"]',
             // Beat `<div>` rule for paragraphs.
             priority: 200,
+            getAttrs: node => {
+                if (!(node instanceof HTMLElement)) return false;
+
+                // Only `white-space: pre` should parse as a code block. This avoids treating
+                // common plain text styles like `white-space: pre-wrap` as code.
+                if (node.style.whiteSpace !== "pre") return false;
+
+                return {};
+            },
             getContent,
         },
 
-        // NOTE(calebmer): Bit of a hack, but GitHub gist has code blocks in the
-        // format:
+        // NOTE(calebmer): Bit of a hack, but GitHub gist has code blocks in the format:
         //
         // ```
         // <table style="tab-size: 8">
@@ -937,9 +936,9 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
         // </table>
         // ```
         //
-        // We want to parse the `table` as a code block. Given it has the `tab-size`
-        // style set and only `white-space: pre` elements even support `tab-size`
-        // property we consider `table` elements with `tab-size` set to be code blocks.
+        // We want to parse the `table` as a code block. Given it has the `tab-size` style
+        // set and only `white-space: pre` elements even support `tab-size` property we
+        // consider `table` elements with `tab-size` set to be code blocks.
         {
             context: "doc//",
             tag: 'table[style*="tab-size"]',
@@ -974,10 +973,10 @@ function normalizeCodeBlock(node: globalThis.Node) {
                 // Handle `<table>`s as code blocks
                 nextElement.tagName === "TR"
             ) {
-                // NOTE(calebmer): While ProseMirror doesn't understand that block HTML tags
-                // create new lines when parsing a code block, it does understand that `<br>`
-                // elements create a new line. So insert a `<br>` element at the end of
-                // elements that create new code block lines.
+                // NOTE(calebmer): While ProseMirror doesn't understand that block HTML tags create
+                // new lines when parsing a code block, it does understand that `<br>` elements
+                // create a new line. So insert a `<br>` element at the end of elements that create
+                // new code block lines.
                 node.appendChild(document.createElement("br"));
                 break;
             }

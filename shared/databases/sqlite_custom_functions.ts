@@ -15,23 +15,19 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {isId} from "~/shared/id/id.js";
 
 /**
- * Registers Alpine's custom SQL functions on a SQLite
- * database handle. Must be called before
- * {@link runMainMigrations} since the migration DDL
- * references these functions.
+ * Registers Alpine's custom SQL functions on a SQLite database handle. Must be
+ * called before {@link runMainMigrations} since the migration DDL references these
+ * functions.
  *
- * - `generate_id()` — returns a new 26-char
- *   `ChronologicalId`. Non-deterministic.
- * - `is_id(value)` — returns 1 if `value` is a
- *   well-formed Alpine ID, 0 otherwise. Deterministic.
- * - `generate_order_key(a, b)` — returns an order key
- *   between `a` and `b` (both `TEXT|NULL`).
+ * - `generate_id()` — returns a new 26-char `ChronologicalId`. Non-deterministic.
+ * - `is_id(value)` — returns 1 if `value` is a well-formed Alpine ID, 0 otherwise.
  *   Deterministic.
- * - `is_order_key(value)` — returns 1 if `value` is a
- *   valid order key, 0 otherwise. Deterministic.
- * - `generate_order_keys(a, b, n)` — table-valued
- *   function returning `n` order keys between `a` and
- *   `b`.
+ * - `generate_order_key(a, b)` — returns an order key between `a` and `b` (both
+ *   `TEXT|NULL`). Deterministic.
+ * - `is_order_key(value)` — returns 1 if `value` is a valid order key, 0
+ *   otherwise. Deterministic.
+ * - `generate_order_keys(a, b, n)` — table-valued function returning `n` order
+ *   keys between `a` and `b`.
  */
 export function registerSqliteCustomFunctions(sqlite3: Sqlite3Static, db: Database): void {
     db.createFunction("generate_id", {

@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {AnimationPlaybackControls, animate} from "motion";
 import {
     ArrowLeft,
@@ -49,6 +48,7 @@ import {
 } from "~/client/web/design/mobile_full_screen_modal.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
@@ -65,6 +65,10 @@ import {
     DocumentContentEditorSideDecorations,
 } from "~/client/web/documents/internal/document_content_editor_side_decorations.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/web/documents/internal/document_content_editor_web_socket_client.js";
+import {
+    DocumentContentExportFormat,
+    DocumentContentExportModal,
+} from "~/client/web/documents/internal/document_content_export_modal.js";
 import {
     DocumentPresentationController,
     DocumentPresentationControllerRef,
@@ -106,8 +110,13 @@ import {
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
+import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {documentContentEditorSidebarWidth} from "~/client/web/styles/document_shared_styles.js";
+import {
+    documentContentEditorSidebarMaxWidth,
+    documentContentEditorSidebarWidth,
+} from "~/client/web/styles/document_shared_styles.js";
 import {
     messageInputEditorBorderRadiusPx,
     messageInputEditorIconButtonNegativeMarginX,
@@ -123,6 +132,7 @@ import {
     contentEditorStyles,
     contentStyles,
     documentContentStyles,
+    elevationVars,
     inputPlaceholderStyles,
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
@@ -158,7 +168,7 @@ import {
     encodeDocumentCommentRoomKey,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
-import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -228,9 +238,9 @@ type DocumentContentEditorSidebarMobileState =
 type DocumentContentEditorSidebarTransition = {
     readonly commentThreadId: DocumentCommentThreadId;
     readonly dataPromise: PromiseImmediate<DocumentContentEditorSidebarData | null>;
-    // Promise that resolves when the transition finishes. This may happen before
-    // the data promise resolves! Or if another transition starts cancelling our
-    // previous transition.
+    // Promise that resolves when the transition finishes. This may happen before the
+    // data promise resolves! Or if another transition starts cancelling our previous
+    // transition.
     readonly pendingPromiseResolver: PromiseResolver<void>;
 };
 
@@ -254,6 +264,8 @@ export function DocumentContentEditor({
     onContentChange,
     onContentLocalChange,
     onCommentThreadChange,
+    shareActivationHint,
+    onShareActivationHintHide,
 }: {
     documentId: DocumentId;
     initialDocument: DocumentModel | null;
@@ -263,19 +275,22 @@ export function DocumentContentEditor({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
-    initialSpellCheckIgnoredLints: DynamoGeneralRealtimeQueryResult<SpellCheckIgnoredLintModel>;
+    initialSpellCheckIgnoredLints: RynamoQueryResult<SpellCheckIgnoredLintModel>;
     initialIsFavorite: boolean;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
     onCreate: () => void;
-    onContentChange?: (content: DocumentContent) => void;
-    onContentLocalChange?: () => void;
-    onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
+    onContentChange: (content: DocumentContent) => void;
+    onContentLocalChange: () => void;
+    onCommentThreadChange: (commentThreadId: DocumentCommentThreadId | null) => void;
+    shareActivationHint: {willBeVisible: true; isVisible: boolean} | null;
+    onShareActivationHintHide: () => void;
 }) {
     const context = useAppContext();
     const reporter = useReporter();
     const isInitialAppRender = useIsInitialAppRender();
-    const {isAppleDevice, isNativeMobile} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {isNativeMobile} = clientInfo;
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
@@ -284,6 +299,7 @@ export function DocumentContentEditor({
     const peekStackContext = usePeekStackContextIfExists();
     const navigate = useNavigate();
     const isMounted = useIsMounted();
+    const siteContext = useSiteContextIfExists();
 
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -296,7 +312,14 @@ export function DocumentContentEditor({
     const blockWidth = useContentBlockWidth();
 
     const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
+    const [exportModalState, setExportModalState] = useState<{
+        readonly format: DocumentContentExportFormat;
+        readonly string: string;
+        readonly html: string;
+    } | null>(null);
 
+    // TODO(calebmer): Should this be an account setting? This was added as local
+    // storage before we had account settings.
     const [showDuplicateInstructionalModal, setShowDuplicateInstructionalModal] = useState(false);
     const [
         doNotShowDuplicationInstructionalModalAgain,
@@ -315,6 +338,7 @@ export function DocumentContentEditor({
         onClearOurPresenceState,
         onUnclearOurPresenceState,
         content,
+        accessPolicy,
         title,
         accessLevel,
         otherPresenceStateByConnectionId,
@@ -486,8 +510,7 @@ export function DocumentContentEditor({
             // surprisingly, reverting back to initial transform values when the animation
             // completes. Make sure our transforms stick in the DOM by manually updating.
             //
-            // This feels like either a bug in WebKit or `motion` or the combination of
-            // both.
+            // This feels like either a bug in WebKit or `motion` or the combination of both.
             if (isMobileWebKit) {
                 const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
@@ -496,8 +519,8 @@ export function DocumentContentEditor({
                     mobileFakeCommentInputElement.style.transform = "translateY(0)";
             }
 
-            // Our native app doesn't automatically update scrollbar insets after a scroll
-            // view translates (since this is rare) so manually update all insets.
+            // Our native app doesn't automatically update scrollbar insets after a scroll view
+            // translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
             // Since we have the style updates above, make sure we synchronously flush this
@@ -584,8 +607,7 @@ export function DocumentContentEditor({
             // surprisingly, reverting back to initial transform values when the animation
             // completes. Make sure our transforms stick in the DOM by manually updating.
             //
-            // This feels like either a bug in WebKit or `motion` or the combination of
-            // both.
+            // This feels like either a bug in WebKit or `motion` or the combination of both.
             if (isMobileWebKit) {
                 const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
@@ -594,8 +616,8 @@ export function DocumentContentEditor({
                     mobileFakeCommentInputElement.style.transform = `translateY(${sidebarHeight}px)`;
             }
 
-            // Our native app doesn't automatically update scrollbar insets after a scroll
-            // view translates (since this is rare) so manually update all insets.
+            // Our native app doesn't automatically update scrollbar insets after a scroll view
+            // translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
             // When we switch to `isOpen: false` the width of the document editor container
@@ -620,8 +642,8 @@ export function DocumentContentEditor({
 
     // When the sidebar opens on mobile:
     //
-    // 1. Add safe area to the bottom of the document of the same height as the
-    //    sidebar (sidebar is positioned as a bottom sheet on mobile)
+    // 1. Add safe area to the bottom of the document of the same height as the sidebar
+    //    (sidebar is positioned as a bottom sheet on mobile)
     // 2. Make sure the content editor is blurred
     useLayoutEffectWithoutServerSideWarning(() => {
         const editorContainerElement = assertExists(editorContainerRef.current);
@@ -668,12 +690,12 @@ export function DocumentContentEditor({
             getSpacingScaleWithoutListening(),
         );
 
-        // If the user has scrolled far enough down a comment thread (e.g. all the way
-        // to the bottom) then once the expand animation finishes there'll be a bunch
-        // of empty space that'll disappear once we take away the comment thread's
-        // mobile background slop. Since it looks janky to animate in this empty space
-        // then take it away, instead do a scroll to prevent the background slop from
-        // showing at the beginning of our expand animation.
+        // If the user has scrolled far enough down a comment thread (e.g. all the way to
+        // the bottom) then once the expand animation finishes there'll be a bunch of empty
+        // space that'll disappear once we take away the comment thread's mobile background
+        // slop. Since it looks janky to animate in this empty space then take it away,
+        // instead do a scroll to prevent the background slop from showing at the beginning
+        // of our expand animation.
         const commentThreadListView = commentThreadListViewRef.current;
         if (commentThreadListView) {
             const scrollTop = commentThreadListView.getScrollOffset();
@@ -702,14 +724,13 @@ export function DocumentContentEditor({
             // surprisingly, reverting back to initial transform values when the animation
             // completes. Make sure our transforms stick in the DOM by manually updating.
             //
-            // This feels like either a bug in WebKit or `motion` or the combination of
-            // both.
+            // This feels like either a bug in WebKit or `motion` or the combination of both.
             if (isMobileWebKit) {
                 sidebarElement.style.transform = `translateY(${-offset}px)`;
             }
 
-            // Our native app doesn't automatically update scrollbar insets after a scroll
-            // view translates (since this is rare) so manually update all insets.
+            // Our native app doesn't automatically update scrollbar insets after a scroll view
+            // translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
             setSidebarState(sidebarState => {
@@ -766,14 +787,13 @@ export function DocumentContentEditor({
             // surprisingly, reverting back to initial transform values when the animation
             // completes. Make sure our transforms stick in the DOM by manually updating.
             //
-            // This feels like either a bug in WebKit or `motion` or the combination of
-            // both.
+            // This feels like either a bug in WebKit or `motion` or the combination of both.
             if (isMobileWebKit) {
                 sidebarElement.style.transform = "translateY(0)";
             }
 
-            // Our native app doesn't automatically update scrollbar insets after a scroll
-            // view translates (since this is rare) so manually update all insets.
+            // Our native app doesn't automatically update scrollbar insets after a scroll view
+            // translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
             setSidebarState(sidebarState => {
@@ -805,7 +825,6 @@ export function DocumentContentEditor({
         ) {
             const onAnimationFinished = sidebarState.mobileState.onAnimationFinishedRef.current;
 
-            // eslint-disable-next-line react-compiler/react-compiler
             sidebarState.mobileState.onAnimationFinishedRef.current = null;
             onAnimationFinished();
         }
@@ -831,26 +850,32 @@ export function DocumentContentEditor({
 
     const activeCommentThreadId = pressedCommentThreadId ?? sidebarCommentThreadId;
 
-    const documentContentEditorSidebarWidthPx = convertRemLengthToPx(
-        documentContentEditorSidebarWidth,
-        useSpacingScale(),
-    );
+    // We compute the _editor_ container size from the container size so that when the
+    // sidebar opens/closes we don't need to re-render side decorations when the resize
+    // observer changes.
+    const editorContainerWidth = useMemo(() => {
+        if (!(containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"))
+            return containerSize?.width ?? null;
 
-    // We compute the *editor* container size from the container size so that when
-    // the sidebar opens/closes we don't need to re-render side decorations when the
-    // resize observer changes.
-    const editorContainerWidth =
-        containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"
-            ? containerSize.width - documentContentEditorSidebarWidthPx
-            : (containerSize?.width ?? null);
+        const sidebarWidth =
+            containerSize.width *
+            (parseFloat(documentContentEditorSidebarWidth.slice(0, -1)) / 100);
+
+        const sidebarMaxWidthPx = convertRemLengthToPx(
+            documentContentEditorSidebarMaxWidth,
+            spacingScale,
+        );
+
+        return containerSize.width - Math.min(sidebarWidth, sidebarMaxWidthPx);
+    }, [containerSize, sidebarState, spacingScale]);
 
     /* ========================================================================== *\
      *                     Comment thread sidebar navigation                      *
     \* ========================================================================== */
 
     const openCommentThread = useEvent((commentThreadId: DocumentCommentThreadId) => {
-        // If this comment thread is already open or in the process of opening then
-        // don't open it again.
+        // If this comment thread is already open or in the process of opening then don't
+        // open it again.
         if (
             sidebarState.transition?.commentThreadId === commentThreadId ||
             (sidebarState.isOpen &&
@@ -990,12 +1015,12 @@ export function DocumentContentEditor({
                 });
             };
 
-            // If the user is in a fullscreen comment thread, warn if they try to exit
-            // without sending a comment they've typed in.
+            // If the user is in a fullscreen comment thread, warn if they try to exit without
+            // sending a comment they've typed in.
             //
-            // We do this mostly since the fake comment input rendered when the comment
-            // thread is open but not fullscreen will always be empty. So when returning to
-            // that state we want to actually empty out the underlying comment input.
+            // We do this mostly since the fake comment input rendered when the comment thread
+            // is open but not fullscreen will always be empty. So when returning to that state
+            // we want to actually empty out the underlying comment input.
             if (
                 sidebarState.isOpen &&
                 sidebarState.mobileState.isFullScreen &&
@@ -1047,12 +1072,12 @@ export function DocumentContentEditor({
                 });
             };
 
-            // If the user is in a fullscreen comment thread, warn if they try to exit
-            // without sending a comment they've typed in.
+            // If the user is in a fullscreen comment thread, warn if they try to exit without
+            // sending a comment they've typed in.
             //
-            // We do this mostly since the fake comment input rendered when the comment
-            // thread is open but not fullscreen will always be empty. So when returning to
-            // that state we want to actually empty out the underlying comment input.
+            // We do this mostly since the fake comment input rendered when the comment thread
+            // is open but not fullscreen will always be empty. So when returning to that state
+            // we want to actually empty out the underlying comment input.
             if (
                 sidebarState.isOpen &&
                 sidebarState.mobileState.isFullScreen &&
@@ -1068,12 +1093,12 @@ export function DocumentContentEditor({
             run();
         },
         onCopyLink: async () => {
-            // When the user goes to copy the link for a document, make sure the document
-            // has been created before copying. Otherwise the other user won't see realtime
-            // updates to the document.
+            // When the user goes to copy the link for a document, make sure the document has
+            // been created before copying. Otherwise the other user won't see realtime updates
+            // to the document.
             await ensureCreateDocument();
 
-            const url = new URL(`/s/${spaceId}/documents/${documentId}`, window.location.href);
+            const url = new URL(`/doc/${documentId}`, window.location.href);
             await writeTextToClipboard(url.toString());
         },
     });
@@ -1093,8 +1118,8 @@ export function DocumentContentEditor({
     >(emptyMap);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        // Our editor won't be able to determine positions of comment marks until after
-        // the initial render because it uses `<ContentView>` which doesn't support
+        // Our editor won't be able to determine positions of comment marks until after the
+        // initial render because it uses `<ContentView>` which doesn't support
         // `coordsAtPos()`.
         if (isInitialAppRender) return;
 
@@ -1105,9 +1130,8 @@ export function DocumentContentEditor({
         const editorContainerElement = assertExists(editorContainerRef.current);
         const editor = assertExists(editorRef.current);
 
-        // We still collect decorations on mobile even though we don't render them
-        // because we need them for the next/previous buttons on an opened comment
-        // thread.
+        // We still collect decorations on mobile even though we don't render them because
+        // we need them for the next/previous buttons on an opened comment thread.
         const store = computeStore(get =>
             collectDecorationByMarkTop(
                 {
@@ -1231,8 +1255,8 @@ export function DocumentContentEditor({
                     candidateScrollTop2 - editorContainerElement.scrollTop,
                 );
 
-                // Pick the scroll offset that moves our window the least. That way there are
-                // no big disorienting jumps.
+                // Pick the scroll offset that moves our window the least. That way there are no
+                // big disorienting jumps.
                 if (candidateScrollTop2Distance < candidateScrollTop1Distance) {
                     editorContainerElement.scrollTo({top: candidateScrollTop2, behavior});
                 } else {
@@ -1245,7 +1269,6 @@ export function DocumentContentEditor({
     const handleCommentThreadSnippetPress = useEvent((commentThreadId: DocumentCommentThreadId) => {
         const editorContainerElement = assertExists(editorContainerRef.current);
         const firstCommentMarkElement = editorContainerElement.querySelector(
-            // eslint-disable-next-line cyberworlds/string-quotes
             `[data-comment="${commentThreadId}"]`,
         );
         if (!firstCommentMarkElement) return;
@@ -1270,21 +1293,20 @@ export function DocumentContentEditor({
                 sidebarState.isOpen &&
                 // NOTE(calebmer): I've found running the sidebar open animation and the scroll
                 // animation at the same time on mobile WebKit makes the sidebar open animation
-                // look janky. However sequencing one after the other looks smooth. *shrug*
+                // look janky. However sequencing one after the other looks smooth. _shrug_
                 (!isMobileWebKit || sidebarState.animationState !== "Opening") &&
                 sidebarState.animationState !== "Closing"
                     ? sidebarState.commentThreadId
                     : null;
 
-            // When the sidebar comment thread changes, scroll to the comment in
-            // the document. Or when the component initially mounts.
+            // When the sidebar comment thread changes, scroll to the comment in the document.
+            // Or when the component initially mounts.
             if (!commentThreadId) return;
 
             const navigationBar = assertExists(navigationBarRef.current);
             const editorContainerElement = assertExists(editorContainerRef.current);
 
             const commentMarkElements = editorContainerElement.querySelectorAll(
-                // eslint-disable-next-line cyberworlds/string-quotes
                 `[data-comment="${commentThreadId}"]`,
             );
 
@@ -1329,9 +1351,9 @@ export function DocumentContentEditor({
                 }
             }
 
-            // If any of the comment's mark elements are visible we don't need to scroll to
-            // it! If the user wants to see exactly the part of the doc in the preview they
-            // can click on the preview.
+            // If any of the comment's mark elements are visible we don't need to scroll to it!
+            // If the user wants to see exactly the part of the doc in the preview they can
+            // click on the preview.
             if (isSomeCommentMarkVisible) return;
 
             assert(firstCommentMarkRect);
@@ -1343,9 +1365,9 @@ export function DocumentContentEditor({
                     // 2. We're opening the sidebar in our desktop layout
                     //
                     // In case 1 we should open immediately to the comment (e.g. if the user is
-                    // navigating here from somewhere). In case 2 we need to scroll because of a
-                    // layout shift when we made the document content narrower so it would be weird
-                    // to animate.
+                    // navigating here from somewhere). In case 2 we need to scroll because of a layout
+                    // shift when we made the document content narrower so it would be weird to
+                    // animate.
                     isInitialRender || (!lastSidebarState.isOpen && routeLayout !== "narrow")
                         ? "instant"
                         : "smooth",
@@ -1386,7 +1408,6 @@ export function DocumentContentEditor({
                 }
                 case "CommentThread": {
                     const firstCommentMarkElement = editorContainerElement.querySelector(
-                        // eslint-disable-next-line cyberworlds/string-quotes
                         `[data-comment="${initialScroll.commentThreadId}"]`,
                     );
                     if (firstCommentMarkElement) {
@@ -1412,10 +1433,10 @@ export function DocumentContentEditor({
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(editorContainerRef, {
-        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
-        //   initial render.
-        // - Disable on `sidebarState.isOpen` since the comment view should be
-        //   scrolling not the document.
+        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on initial
+        //   render.
+        // - Disable on `sidebarState.isOpen` since the comment view should be scrolling
+        //   not the document.
         isDisabled: isInitialAppRender || sidebarState.isOpen,
         getAnchorPosition: useCallback(() => getContentEditorScrollAnchorPosition(editorRef), []),
     });
@@ -1455,10 +1476,9 @@ export function DocumentContentEditor({
         document.addEventListener("focusin", handleFocusChange);
         document.addEventListener("focusout", handleFocusChange);
 
-        // We've observed that iOS Safari doesn't emit `focusin`/`focusout` events when
-        // a focused element is removed from the DOM. So we listen for
-        // `selectionchange` events as well as a fallback which should fire before the
-        // edit menu opens.
+        // We've observed that iOS Safari doesn't emit `focusin`/`focusout` events when a
+        // focused element is removed from the DOM. So we listen for `selectionchange`
+        // events as well as a fallback which should fire before the edit menu opens.
         document.addEventListener("selectionchange", handleFocusChange);
 
         const unsubscribe = NativeMobileBridge.editMenu.subscribeToAddCommentAction(() => {
@@ -1480,8 +1500,8 @@ export function DocumentContentEditor({
         };
     }, [isInert, isInitialAppRender]);
 
-    // Hide the tab bar when the sidebar is open. Sidebar is render as a bottom
-    // sheet on mobile.
+    // Hide the tab bar when the sidebar is open. Sidebar is render as a bottom sheet
+    // on mobile.
     const hasDisabledNativeMobileTabBarRef = useRef(false);
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!NativeMobileBridge) return;
@@ -1531,7 +1551,7 @@ export function DocumentContentEditor({
 
     const cover = editorState.getDoc().attrs.cover as DocumentContentCover | null;
 
-    const withinPeekStackOverlay = peekContext?.withinStack === true;
+    const withinPeekStackOverlay = !!peekContext?.stack;
 
     const blobsScale = useRouteLayout() === "narrow" ? 0.75 : 1;
     const blobsSettings = useMemo(
@@ -1549,9 +1569,10 @@ export function DocumentContentEditor({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title,
+        defaultPreviousRoute: `/home/${spaceId}`,
         getTitleBoundaryElement: useCallback(() => {
-            // Assume the title `<h1>` element is always the first element in the
-            // ProseMirror DOM.
+            // Assume the title `<h1>` element is always the first element in the ProseMirror
+            // DOM.
             const editor = assertExists(editorRef.current);
             return editor.getEditorElement().firstElementChild! as HTMLHeadingElement;
         }, []),
@@ -1564,7 +1585,7 @@ export function DocumentContentEditor({
             [platform, routeLayout],
         ),
         menuActions: useMemo(
-            () => [
+            (): ReadonlyArray<ReadonlyArray<MenuAction>> => [
                 [
                     {
                         label: "Copy link",
@@ -1581,13 +1602,21 @@ export function DocumentContentEditor({
                               {
                                   label: "Undo",
                                   isDisabled: isUndoDisabled,
-                                  keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                                  keyboardShortcutHint: renderKeyboardShortcutHint(
+                                      clientInfo,
+                                      "mod",
+                                      "z",
+                                  ),
                                   onPress: () => assertExists(editorRef.current).undo(),
                               },
                               {
                                   label: "Redo",
                                   isDisabled: isRedoDisabled,
-                                  keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                                  keyboardShortcutHint: renderKeyboardShortcutHint(
+                                      clientInfo,
+                                      "mod",
+                                      "y",
+                                  ),
                                   onPress: () => assertExists(editorRef.current).redo(),
                               },
                           ],
@@ -1623,6 +1652,103 @@ export function DocumentContentEditor({
                           ]
                         : []),
                 ],
+                (() => {
+                    const print = async () => {
+                        await new Promise<void>(resolve => {
+                            const temporaryIframeElement = document.createElement("iframe");
+                            temporaryIframeElement.style.width = "0";
+                            temporaryIframeElement.style.height = "0";
+                            temporaryIframeElement.style.margin = "0";
+                            temporaryIframeElement.style.padding = "0";
+                            temporaryIframeElement.style.border = "0";
+                            temporaryIframeElement.style.opacity = "0";
+                            temporaryIframeElement.style.position = "fixed";
+                            temporaryIframeElement.style.top = "0px";
+                            temporaryIframeElement.src = `/print/document/${documentId}`;
+
+                            // Clean up after the `<iframe>` has finished printing.
+                            const handleMessage = (event: MessageEvent) => {
+                                if (
+                                    event.source === temporaryIframeElement.contentWindow &&
+                                    event.data === "cyberworlds/printed"
+                                ) {
+                                    window.removeEventListener("message", handleMessage);
+                                    temporaryIframeElement.remove();
+                                    resolve();
+                                }
+                            };
+
+                            window.addEventListener("message", handleMessage);
+
+                            assertExists(editorContainerRef.current).appendChild(
+                                temporaryIframeElement,
+                            );
+                        });
+                    };
+
+                    return [
+                        cast<MenuAction>({
+                            hasChildren: true,
+                            placement: "left",
+                            key: "export",
+                            label: "Export",
+                            actions: [
+                                {
+                                    label: "Markdown",
+                                    pressErrorTitle: "Couldn\u2019t export document to Markdown",
+                                    onPress: async () => {
+                                        // The export function has a lot of heavy dependencies, so lazy load it.
+                                        const {exportDocumentContent} =
+                                            await import("~/client/web/documents/internal/export_document_content.js");
+
+                                        const {string, html} = await exportDocumentContent({
+                                            spaceId,
+                                            format: "Markdown",
+                                            content,
+                                        });
+
+                                        setExportModalState({
+                                            format: "Markdown",
+                                            string,
+                                            html,
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "HTML",
+                                    pressErrorTitle: "Couldn\u2019t export document to HTML",
+                                    onPress: async () => {
+                                        // The export function has a lot of heavy dependencies, so lazy load it.
+                                        const {exportDocumentContent} =
+                                            await import("~/client/web/documents/internal/export_document_content.js");
+
+                                        const {string, html} = await exportDocumentContent({
+                                            spaceId,
+                                            format: "HTML",
+                                            content,
+                                        });
+
+                                        setExportModalState({
+                                            format: "HTML",
+                                            string,
+                                            html,
+                                        });
+                                    },
+                                },
+                                {
+                                    label: "PDF",
+                                    pressErrorTitle: "Couldn\u2019t export document to PDF",
+                                    onPress: print,
+                                },
+                            ],
+                        }),
+                        cast<MenuAction>({
+                            label: "Print",
+                            pressErrorTitle: "Couldn\u2019t print document",
+                            onPress: print,
+                        }),
+                    ];
+                })(),
                 ...(currentAccount
                     ? [
                           [
@@ -1651,7 +1777,7 @@ export function DocumentContentEditor({
                                           searchParams.set("schema", encodedSchema);
 
                                           await navigate(
-                                              `/s/${spaceId}/documents/${documentId}/duplicate?${searchParams.toString()}`,
+                                              `/doc/${documentId}/duplicate?${searchParams.toString()}`,
                                           );
                                           return;
                                       }
@@ -1665,20 +1791,17 @@ export function DocumentContentEditor({
                                       // No variables - duplicate directly via RPC
                                       const {documentId: newDocumentId} = await duplicateDocument(
                                           context,
-                                          {sourceDocumentId: documentId},
+                                          {
+                                              sourceDocumentId: documentId,
+                                          },
                                       );
 
-                                      // Navigate to the new document. Always open in a peek on desktop. To make it
-                                      // clear when you're duplicating from a peek that the new document is a
-                                      // duplicate.
+                                      // Navigate to the new document. Always open in a peek on desktop. To make it clear
+                                      // when you're duplicating from a peek that the new document is a duplicate.
                                       if (peekStackContext && platform !== "mobile") {
-                                          await peekStackContext.push(
-                                              `/s/${spaceId}/documents/${newDocumentId}`,
-                                          );
+                                          await peekStackContext.push(`/doc/${newDocumentId}`);
                                       } else {
-                                          await navigate(
-                                              `/s/${spaceId}/documents/${newDocumentId}`,
-                                          );
+                                          await navigate(`/doc/${newDocumentId}`);
                                       }
                                   },
                               }),
@@ -1688,13 +1811,13 @@ export function DocumentContentEditor({
             ],
             [
                 accessLevel,
-                content.doc,
+                clientInfo,
+                content,
                 context,
                 currentAccount,
                 doNotShowDuplicationInstructionalModalAgain,
                 documentId,
                 favoriteMenuAction,
-                isAppleDevice,
                 isRedoDisabled,
                 isUndoDisabled,
                 navigate,
@@ -1721,12 +1844,23 @@ export function DocumentContentEditor({
             ? {
                   entityNoun: "document",
                   entityId: `Document:${documentId}`,
-                  accessPolicy: content.doc.attrs.accessPolicy,
-                  onAccessPolicyChange: (notification, accessPolicy) => {
+                  accessPolicy,
+                  onAccessPolicyChange: async (notification, accessPolicy) => {
+                      if (accessPolicy.type === "Site") {
+                          await applySiteAccessPolicyChange({
+                              context,
+                              accessPolicy,
+                              handleEventForSite: assertExists(siteContext).handleEventForSite,
+                          });
+                          return;
+                      }
+
                       onEditorStateChange(editorState.setAccessPolicy(accessPolicy, notification));
                   },
                   isReadOnly: !hasManageAccessLevel,
                   onCopyLink,
+                  activationHint: shareActivationHint,
+                  onActivationHintHide: onShareActivationHintHide,
               }
             : undefined,
         desktopAdditionalActions: content.doc.attrs.hasPresentShortcut ? (
@@ -1765,6 +1899,10 @@ export function DocumentContentEditor({
         [documentId],
     );
 
+    const onSelectGifInDocument = useCallback((url: URL) => {
+        editorRef.current?.insertFileFromUrl(url);
+    }, []);
+
     return (
         <Box
             ref={containerResizeRef}
@@ -1799,207 +1937,227 @@ export function DocumentContentEditor({
                 style={{
                     width:
                         routeLayout !== "narrow" && sidebarState.isOpen
-                            ? `calc(100% - ${spacing[documentContentEditorSidebarWidth]})`
+                            ? `calc(100% - min(${documentContentEditorSidebarWidth}, ${spacing[documentContentEditorSidebarMaxWidth]}))`
                             : "100%",
                 }}
             >
-                {blobsSettings !== null && (
-                    <BlobsArt
-                        settings={blobsSettings}
-                        withBezelTop={withinPeekStackOverlay}
-                        withBezelX={withinPeekStackOverlay}
-                        scale={blobsScale}
-                    />
-                )}
-                <OverlayScopeContextProvider>
-                    <Box className={contentEditorStyles.containerClassName}>
-                        <GlobalKeyDownEvent
-                            onGlobalKeyDown={event => {
-                                // Perform undo/redo on the document even if the document isn't focused. If the
-                                // document is focused and cmd-z is pressed then the document will handle the
-                                // event itself and call `event.preventDefault()` + `event.stopPropagation()`.
-                                switch (event.key) {
-                                    case "z": {
-                                        if (isAppleDevice ? event.metaKey : event.ctrlKey) {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-
-                                            if (event.shiftKey) {
-                                                assertExists(editorRef.current).redo();
-                                            } else if (
-                                                (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
-                                                !event.altKey
-                                            ) {
-                                                assertExists(editorRef.current).undo();
-                                            }
-                                            break;
-                                        }
-                                        break;
-                                    }
-                                    // https://en.wikipedia.org/wiki/Control-Y
-                                    case "y": {
-                                        if (isAppleDevice ? event.metaKey : event.ctrlKey) {
-                                            event.preventDefault();
-                                            event.stopPropagation();
-
+                <ContentBlockWidthContextProvider
+                    isDisabled={routeLayout === "narrow" || !sidebarState.isOpen}
+                    paddingRight={documentContentEditorSidebarWidth}
+                    maxPaddingRight={documentContentEditorSidebarMaxWidth}
+                    keepAssumedPadding={true}
+                >
+                    {blobsSettings !== null && (
+                        <BlobsArt
+                            settings={blobsSettings}
+                            withBezelTop={withinPeekStackOverlay}
+                            withBezelX={withinPeekStackOverlay}
+                            scale={blobsScale}
+                        />
+                    )}
+                    <OverlayScopeContextProvider>
+                        <Box className={contentEditorStyles.containerClassName}>
+                            <GlobalKeyDownEvent
+                                onGlobalKeyDown={event => {
+                                    // Perform undo/redo on the document even if the document isn't focused. If the
+                                    // document is focused and cmd-z is pressed then the document will handle the event
+                                    // itself and call `event.preventDefault()` + `event.stopPropagation()`.
+                                    switch (event.key) {
+                                        case "z": {
                                             if (
-                                                (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
-                                                !event.altKey &&
-                                                !event.shiftKey
+                                                clientInfo.isAppleDevice
+                                                    ? event.metaKey
+                                                    : event.ctrlKey
                                             ) {
-                                                assertExists(editorRef.current).redo();
+                                                event.preventDefault();
+                                                event.stopPropagation();
+
+                                                if (event.shiftKey) {
+                                                    assertExists(editorRef.current).redo();
+                                                } else if (
+                                                    (clientInfo.isAppleDevice
+                                                        ? !event.ctrlKey
+                                                        : !event.metaKey) &&
+                                                    !event.altKey
+                                                ) {
+                                                    assertExists(editorRef.current).undo();
+                                                }
+                                                break;
                                             }
                                             break;
                                         }
-                                        break;
-                                    }
-                                }
-                            }}
-                        >
-                            <ContentEditor
-                                ref={editorRef}
-                                state={editorState}
-                                onChange={(state, transaction) => {
-                                    onEditorStateChange(state);
+                                        // https://en.wikipedia.org/wiki/Control-Y
+                                        case "y": {
+                                            if (
+                                                clientInfo.isAppleDevice
+                                                    ? event.metaKey
+                                                    : event.ctrlKey
+                                            ) {
+                                                event.preventDefault();
+                                                event.stopPropagation();
 
-                                    const createCommentThread: {
-                                        commentThreadId: DocumentCommentThreadId;
-                                        initialCommentContent: MessageContentWithReferences;
-                                        initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
-                                        openCommentThreadPromiseRef?: {
-                                            current: Promise<void> | null;
-                                        };
-                                    } | null =
-                                        transaction.getMeta(createContentCommentThreadMetaKey) ??
-                                        null;
-
-                                    if (
-                                        createCommentThread &&
-                                        createCommentThread.openCommentThreadPromiseRef &&
-                                        sidebarState.isOpen &&
-                                        sidebarState.animationState !== "Closing"
-                                    ) {
-                                        // `<ContentEditorCommentInput>` will wait on this promise before closing after
-                                        // creating a comment thread when it exists. If the sidebar is not already open
-                                        // then we rely on our document's global loading indicator to tell us when
-                                        // comments have successfully saved.
-                                        createCommentThread.openCommentThreadPromiseRef.current =
-                                            openCommentThread(createCommentThread.commentThreadId);
-                                    }
-
-                                    if (transaction.docChanged) {
-                                        onContentLocalChange?.();
+                                                if (
+                                                    (clientInfo.isAppleDevice
+                                                        ? !event.ctrlKey
+                                                        : !event.metaKey) &&
+                                                    !event.altKey &&
+                                                    !event.shiftKey
+                                                ) {
+                                                    assertExists(editorRef.current).redo();
+                                                }
+                                                break;
+                                            }
+                                            break;
+                                        }
                                     }
                                 }}
-                                aria-label="Document"
-                                placeholder={
-                                    hasAccessLevel(accessLevel, "Edit")
-                                        ? "Share your ideas, press @ to insert…"
-                                        : "Share your ideas…"
-                                }
-                                accessLevel={accessLevel}
-                                // When you're typing in the first paragraph of a document (2 child nodes,
-                                // title + paragraph) you probably want to insert some formatting (like a
-                                // table). This helps the user discover features of Alpine documents. Since we
-                                // prompt them with "press @ to insert" as a placeholder.
-                                //
-                                // As you're typing a long document probably the next thing you want to do is
-                                // mention another document, task, or something else.
-                                //
-                                // Mentioning a person is probably the last thing you want to do while working
-                                // on a document since mentions won't send a notification when typing in a
-                                // document.
-                                mentionFloaterSectionOrder={
-                                    content.doc.childCount <= 2
-                                        ? "InsertSuggestedPeople"
-                                        : "SuggestedInsertPeople"
-                                }
-                                // While the sidebar is open, don't render our document toolbar. It would be
-                                // weird for it to pop up when writing a comment.
-                                withoutMobileKeyboardToolbar={sidebarState.isOpen}
-                                className={classNames(
-                                    documentContentStyles.contentClassName,
-                                    routeLayout === "wide" &&
-                                        documentContentStyles.contentWithWideRouteLayoutClassName,
-                                )}
-                                phantomSelections={phantomSelections}
-                                fileAttachmentTarget={fileAttachmentTarget}
-                                commentFileAttachmentTarget={useMemo(
-                                    () => ({type: "DocumentComments", documentId}),
-                                    [documentId],
-                                )}
-                                onEnsureFileAttachmentTarget={ensureCreateDocument}
-                                openCommentThread={openCommentThread}
-                                onCommentThreadPressedChange={(commentThreadId, isHovered) => {
-                                    setPressedCommentThreadId(pressedCommentThreadId => {
-                                        if (isHovered) return commentThreadId;
+                            >
+                                <ContentEditor
+                                    ref={editorRef}
+                                    state={editorState}
+                                    onChange={(state, transaction) => {
+                                        onEditorStateChange(state);
+
+                                        const createCommentThread: {
+                                            commentThreadId: DocumentCommentThreadId;
+                                            initialCommentContent: MessageContentWithReferences;
+                                            initialCommentFileIds: ReadonlyArray<
+                                                FileId | FileEntityId
+                                            >;
+                                            openCommentThreadPromiseRef?: {
+                                                current: Promise<void> | null;
+                                            };
+                                        } | null =
+                                            transaction.getMeta(
+                                                createContentCommentThreadMetaKey,
+                                            ) ?? null;
+
                                         if (
-                                            !isHovered &&
-                                            pressedCommentThreadId === commentThreadId
-                                        )
-                                            return null;
-                                        return pressedCommentThreadId;
-                                    });
-                                }}
-                                onSelectionLeave={onClearOurPresenceState}
-                                onSelectionEnter={onUnclearOurPresenceState}
-                                // TODO(#spell-check): Load and pass in actual ignored lints
-                                spellCheckIgnoredLints={[]}
-                                onSpellCheckIgnoreLint={async ({key, kind}) => {
-                                    const {eventTransaction} = await createSpellCheckIgnoredLint(
-                                        context,
-                                        {
-                                            entityId: `Document:${documentId}`,
-                                            key,
-                                            kind,
-                                        },
-                                    );
+                                            createCommentThread &&
+                                            createCommentThread.openCommentThreadPromiseRef &&
+                                            sidebarState.isOpen &&
+                                            sidebarState.animationState !== "Closing"
+                                        ) {
+                                            // `<ContentEditorCommentInput>` will wait on this promise before closing after
+                                            // creating a comment thread when it exists. If the sidebar is not already open
+                                            // then we rely on our document's global loading indicator to tell us when comments
+                                            // have successfully saved.
+                                            createCommentThread.openCommentThreadPromiseRef.current =
+                                                openCommentThread(
+                                                    createCommentThread.commentThreadId,
+                                                );
+                                        }
 
-                                    handleEventForSpellCheckIgnoredLint(eventTransaction);
-                                }}
-                                // Since the document content editor fills the entire screen height, it makes
-                                // sense that if the user `mousedown`s in the bottom margin we should create a
-                                // new paragraph and move selection there if the last item is not already a
-                                // paragraph (e.g. a divider or table or something).
-                                withMouseDownAtEndCreatesParagraph={true}
-                            />
-                        </GlobalKeyDownEvent>
-                        {
-                            // IMPORTANT: It's important that this element is below `<ContentEditor>` so
-                            // that `<ContentEditor>` is first in the tab order! This matters when
-                            // auto-focusing a document peek when we open it up.
-                            navigationBar
-                        }
-                        {useMemo(
-                            // Memoize side decorations since it can be an expensive component
-                            // to re-render. Especially during animations.
-                            () =>
-                                platform !== "mobile" && (
-                                    <DocumentContentEditorSideDecorations
-                                        editorContainerWidth={editorContainerWidth}
-                                        contentReferences={content.references}
-                                        decorations={decorations}
-                                        openCommentThread={openCommentThread}
-                                    />
-                                ),
-                            [
-                                content.references,
-                                decorations,
-                                editorContainerWidth,
-                                openCommentThread,
-                                platform,
-                            ],
-                        )}
-                    </Box>
-                </OverlayScopeContextProvider>
+                                        if (transaction.docChanged) {
+                                            onContentLocalChange?.();
+                                        }
+                                    }}
+                                    aria-label="Document"
+                                    placeholder={
+                                        hasAccessLevel(accessLevel, "Edit")
+                                            ? "Share your ideas, press @ to insert…"
+                                            : "Share your ideas…"
+                                    }
+                                    accessLevel={accessLevel}
+                                    // When you're typing in the first paragraph of a document (2 child nodes, title +
+                                    // paragraph) you probably want to insert some formatting (like a table). This
+                                    // helps the user discover features of Alpine documents. Since we prompt them with
+                                    // "press @ to insert" as a placeholder.
+                                    //
+                                    // As you're typing a long document probably the next thing you want to do is
+                                    // mention another document, task, or something else.
+                                    //
+                                    // Mentioning a person is probably the last thing you want to do while working on a
+                                    // document since mentions won't send a notification when typing in a document.
+                                    mentionFloaterSectionOrder={
+                                        content.doc.childCount <= 2
+                                            ? "InsertSuggestedPeople"
+                                            : "SuggestedInsertPeople"
+                                    }
+                                    // While the sidebar is open, don't render our document toolbar. It would be weird
+                                    // for it to pop up when writing a comment.
+                                    withoutMobileKeyboardToolbar={sidebarState.isOpen}
+                                    className={documentContentStyles.contentClassName}
+                                    phantomSelections={phantomSelections}
+                                    fileAttachmentTarget={fileAttachmentTarget}
+                                    commentFileAttachmentTarget={useMemo(
+                                        () => ({type: "DocumentComments", documentId}),
+                                        [documentId],
+                                    )}
+                                    onEnsureFileAttachmentTarget={ensureCreateDocument}
+                                    onSelectGif={onSelectGifInDocument}
+                                    openCommentThread={openCommentThread}
+                                    onCommentThreadPressedChange={(commentThreadId, isHovered) => {
+                                        setPressedCommentThreadId(pressedCommentThreadId => {
+                                            if (isHovered) return commentThreadId;
+                                            if (
+                                                !isHovered &&
+                                                pressedCommentThreadId === commentThreadId
+                                            )
+                                                return null;
+                                            return pressedCommentThreadId;
+                                        });
+                                    }}
+                                    onSelectionLeave={onClearOurPresenceState}
+                                    onSelectionEnter={onUnclearOurPresenceState}
+                                    // TODO(#spell-check): Load and pass in actual ignored lints
+                                    spellCheckIgnoredLints={[]}
+                                    onSpellCheckIgnoreLint={async ({key, kind}) => {
+                                        const {events} = await createSpellCheckIgnoredLint(
+                                            context,
+                                            {
+                                                entityId: `Document:${documentId}`,
+                                                key,
+                                                kind,
+                                            },
+                                        );
+
+                                        handleEventForSpellCheckIgnoredLint(events);
+                                    }}
+                                    // Since the document content editor fills the entire screen height, it makes sense
+                                    // that if the user `mousedown`s in the bottom margin we should create a new
+                                    // paragraph and move selection there if the last item is not already a paragraph
+                                    // (e.g. a divider or table or something).
+                                    withMouseDownAtEndCreatesParagraph={true}
+                                />
+                            </GlobalKeyDownEvent>
+                            {
+                                // IMPORTANT: It's important that this element is below `<ContentEditor>` so that
+                                // `<ContentEditor>` is first in the tab order! This matters when auto-focusing a
+                                // document peek when we open it up.
+                                navigationBar
+                            }
+                            {useMemo(
+                                // Memoize side decorations since it can be an expensive component to re-render.
+                                // Especially during animations.
+                                () =>
+                                    platform !== "mobile" && (
+                                        <DocumentContentEditorSideDecorations
+                                            editorContainerWidth={editorContainerWidth}
+                                            contentReferences={content.references}
+                                            decorations={decorations}
+                                            openCommentThread={openCommentThread}
+                                        />
+                                    ),
+                                [
+                                    content.references,
+                                    decorations,
+                                    editorContainerWidth,
+                                    openCommentThread,
+                                    platform,
+                                ],
+                            )}
+                        </Box>
+                    </OverlayScopeContextProvider>
+                </ContentBlockWidthContextProvider>
             </Box>
             {sidebarState.isOpen && (
                 <>
                     {routeLayout === "narrow" && (
                         <Box
-                            // While the mobile comment thread overlay is open render a cover to prevent
-                            // the user from interacting with the underlying document. Tapping the cover
-                            // will close the comment thread.
+                            // While the mobile comment thread overlay is open render a cover to prevent the
+                            // user from interacting with the underlying document. Tapping the cover will close
+                            // the comment thread.
                             position="absolute"
                             zIndex="10"
                             inset="0"
@@ -2010,21 +2168,18 @@ export function DocumentContentEditor({
                         position="absolute"
                         zIndex="20"
                         top={routeLayout !== "narrow" ? "0" : undefined}
-                        right={routeLayout !== "narrow" ? "-4" : "0"}
+                        right="0"
                         left={routeLayout !== "narrow" ? undefined : "0"}
-                        paddingRight={routeLayout !== "narrow" ? "4" : undefined}
                         style={{
                             width:
                                 routeLayout !== "narrow"
-                                    ? // The `spacing["4"]` is a bit of grace room at the end for a spring bounce.
-                                      addRemLengths(documentContentEditorSidebarWidth, "4")
+                                    ? `min(${documentContentEditorSidebarWidth}, ${spacing[documentContentEditorSidebarMaxWidth]})`
                                     : "100%",
-                            // In the mobile layout (mobile devices and peeks) we show the comment thread
-                            // in a bottom sheet. When the comment input is focused on mobile devices we
-                            // then animate the sidebar to take the full screen space since the virtual
-                            // keyboard will open and the user still needs to see comments. In peeks on
-                            // desktop we don't expand to fullscreen because the user can type on their
-                            // physical keyboard.
+                            // In the mobile layout (mobile devices and peeks) we show the comment thread in a
+                            // bottom sheet. When the comment input is focused on mobile devices we then
+                            // animate the sidebar to take the full screen space since the virtual keyboard
+                            // will open and the user still needs to see comments. In peeks on desktop we don't
+                            // expand to fullscreen because the user can type on their physical keyboard.
                             height:
                                 routeLayout !== "narrow"
                                     ? undefined
@@ -2042,24 +2197,24 @@ export function DocumentContentEditor({
                         <ContentBlockWidthContextProvider
                             isDisabled={routeLayout === "narrow"}
                             width={documentContentEditorSidebarWidth}
+                            maxWidth={documentContentEditorSidebarMaxWidth}
                         >
                             <Box
                                 ref={sidebarRef}
                                 width="full"
                                 height="full"
-                                borderLeft={routeLayout !== "narrow" ? "grey-5" : undefined}
                                 backgroundColor="grey-0"
                                 borderTopRadius={routeLayout !== "narrow" ? undefined : "3"}
-                                boxShadow={
-                                    routeLayout !== "narrow"
-                                        ? undefined
-                                        : "elevation-40-from-bottom"
-                                }
                                 overflow="hidden"
                                 style={{
-                                    // Let the browser know we'll be basically immediately animating in the sidebar
-                                    // so it can prepare a compositing layer.
-                                    willChange: "transform",
+                                    boxShadow:
+                                        routeLayout !== "narrow"
+                                            ? `-1px 0 0 0 ${colorSchemeVars["grey-5-translucent"]}`
+                                            : elevationVars["elevation-40-from-bottom"],
+
+                                    // Let the browser know we'll be basically immediately animating in the sidebar so
+                                    // it can prepare a compositing layer.
+                                    willChange: routeLayout === "narrow" ? "transform" : undefined,
                                 }}
                             >
                                 <DocumentContentEditorSidebar
@@ -2097,9 +2252,8 @@ export function DocumentContentEditor({
                     {platform === "mobile" &&
                         (!sidebarState.mobileState.isFullScreen ||
                             sidebarState.mobileState.animationState !== null) && (
-                            // On mobile while the comment thread is not fullscreen, we render a fake
-                            // comment input that when touched expands the comment thread to take the full
-                            // screen.
+                            // On mobile while the comment thread is not fullscreen, we render a fake comment
+                            // input that when touched expands the comment thread to take the full screen.
                             <>
                                 <Box
                                     ref={mobileFakeCommentInputRef}
@@ -2238,8 +2392,8 @@ export function DocumentContentEditor({
                                     </Box>
                                 </Box>
                                 {isNativeMobile && !isInert && (
-                                    // In our native mobile app, include an invisible bottom bar which only serves
-                                    // to make sure the vertical scroll indicator insets are correct.
+                                    // In our native mobile app, include an invisible bottom bar which only serves to
+                                    // make sure the vertical scroll indicator insets are correct.
                                     <Box
                                         id={`nmbb-${editorContainerId}`}
                                         position="absolute"
@@ -2250,24 +2404,26 @@ export function DocumentContentEditor({
                                         style={{
                                             paddingBottom:
                                                 "var(--window-safe-area-inset-bottom, 0px)",
-                                            // Our native mobile wrapper looks for compositing layers created from an
-                                            // element with an ID that starts with `nmbb-` and ties their position to
-                                            // the tab bar and software keyboard. So we get smooth animations while the
-                                            // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                                            // layer we need to set `will-change: transform`. It's not specified that
-                                            // `will-change: transform` MUST create a compositing layer, instead some
-                                            // browser engines implement this hint themselves as an optimization.
+                                            // Our native mobile wrapper looks for compositing layers created from an element
+                                            // with an ID that starts with `nmbb-` and ties their position to the tab bar and
+                                            // software keyboard. So we get smooth animations while the keyboard opens or the
+                                            // tab bar shifts offscreen. To create a compositing layer we need to set
+                                            // `will-change: transform`. It's not specified that `will-change: transform` MUST
+                                            // create a compositing layer, instead some browser engines implement this hint
+                                            // themselves as an optimization.
                                             //
-                                            // It so happens that WebKit is one of those browsers. Here's the code in
-                                            // WebKit that does this: [part 1][1], [part 2][2].
+                                            // It so happens that WebKit is one of those browsers. Here's the code in WebKit
+                                            // that does this: [part 1][1], [part 2][2].
                                             //
-                                            // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                                            // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                                            // [1]:
+                                            //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                                            // [2]:
+                                            //     https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                                             willChange: "transform",
                                         }}
-                                        // Suppress React hydration warnings in our native mobile app. The native
-                                        // mobile app sets the `transform` property on this element. Sometimes before
-                                        // React finishes hydrating. This is expected, React can ignore the difference.
+                                        // Suppress React hydration warnings in our native mobile app. The native mobile
+                                        // app sets the `transform` property on this element. Sometimes before React
+                                        // finishes hydrating. This is expected, React can ignore the difference.
                                         suppressHydrationWarning={true}
                                     >
                                         <Box
@@ -2296,15 +2452,15 @@ export function DocumentContentEditor({
                 />
             )}
             {useMemo(
-                // We style hovered and active comments with a `<style>` element containing
-                // CSS with a dynamic selector that changes when our state changes. We do this
-                // for two reasons:
+                // We style hovered and active comments with a `<style>` element containing CSS
+                // with a dynamic selector that changes when our state changes. We do this for two
+                // reasons:
                 //
-                // 1. All marks for a `DocumentCommentThreadId` should light up when we hover
-                //    even if they are different elements in the DOM
+                // 1. All marks for a `DocumentCommentThreadId` should light up when we hover even
+                //    if they are different elements in the DOM
                 // 2. Changing DOM properties (e.g. `class`) of comment elements triggers
-                //    ProseMirror's mutation observer and since the observer doesn't know why
-                //    the change happened it destroys and recreates the mark elements
+                //    ProseMirror's mutation observer and since the observer doesn't know why the
+                //    change happened it destroys and recreates the mark elements
                 () =>
                     activeCommentThreadId && (
                         <style
@@ -2338,6 +2494,14 @@ export function DocumentContentEditor({
                     onClose={() => setIsCoverModalOpen(false)}
                 />
             )}
+            {exportModalState && (
+                <DocumentContentExportModal
+                    format={exportModalState.format}
+                    string={exportModalState.string}
+                    html={exportModalState.html}
+                    onClose={() => setExportModalState(null)}
+                />
+            )}
             {showDuplicateInstructionalModal && (
                 <ContentDuplicationInstructionalModal
                     noun="document"
@@ -2346,13 +2510,12 @@ export function DocumentContentEditor({
                             sourceDocumentId: documentId,
                         });
 
-                        // Navigate to the new document. Always open in a peek on desktop. To make it
-                        // clear when you're duplicating from a peek that the new document is a
-                        // duplicate.
+                        // Navigate to the new document. Always open in a peek on desktop. To make it clear
+                        // when you're duplicating from a peek that the new document is a duplicate.
                         if (peekStackContext && platform !== "mobile") {
-                            await peekStackContext.push(`/s/${spaceId}/documents/${newDocumentId}`);
+                            await peekStackContext.push(`/doc/${newDocumentId}`);
                         } else {
-                            await navigate(`/s/${spaceId}/documents/${newDocumentId}`);
+                            await navigate(`/doc/${newDocumentId}`);
                         }
                     }}
                     onClose={() => setShowDuplicateInstructionalModal(false)}
@@ -2391,14 +2554,14 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
         for (let depth = $offset.depth; depth >= 1; depth--) {
             const node = $offset.node(depth);
 
-            // If this comment is within a table then only render the comment decoration if
-            // the table isn't larger than the block width. If the table is larger than the
-            // block width we hide the decoration since it would otherwise render on top of
-            // the table's content!
+            // If this comment is within a table then only render the comment decoration if the
+            // table isn't larger than the block width. If the table is larger than the block
+            // width we hide the decoration since it would otherwise render on top of the
+            // table's content!
             //
-            // We need to make sure we're also listening to the table's optimistic layout
-            // used while resizing the table. Which is why we have to find the
-            // `HTMLTableElement` associated with the table our comment is in.
+            // We need to make sure we're also listening to the table's optimistic layout used
+            // while resizing the table. Which is why we have to find the `HTMLTableElement`
+            // associated with the table our comment is in.
             if (node.type.name === "table") {
                 const tablePos = $offset.start(depth);
 
@@ -2434,9 +2597,8 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
                     },
                 );
 
-                // If the table's total column width exceeds the block width (by more than 1px
-                // to account for subpixel rounding issues) then don't render this comment
-                // decoration.
+                // If the table's total column width exceeds the block width (by more than 1px to
+                // account for subpixel rounding issues) then don't render this comment decoration.
                 if (totalColumnWidthPx > state.blockWidth + 1) {
                     return state;
                 }
@@ -2445,9 +2607,9 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
 
         let coords: {top: number; bottom: number; left: number; right: number} | undefined;
 
-        // If this is a non-text node like `file` then get the DOM element for the node
-        // and use the dimensions of that element instead of the result of
-        // `coordsAtPos()` which will have a height of 0.
+        // If this is a non-text node like `file` then get the DOM element for the node and
+        // use the dimensions of that element instead of the result of `coordsAtPos()`
+        // which will have a height of 0.
         if (!node.type.inlineContent && !node.type.isText) {
             const nodeDom = state.editor.nodeDom(offset);
             if (nodeDom instanceof Element) {
@@ -2532,7 +2694,8 @@ function DocumentContentEditorSidebar({
 }) {
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
-    const {isAppleDevice, isNativeMobile} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {isNativeMobile} = clientInfo;
 
     const previousCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
     const nextCommentThreadButtonRef = useRef<HTMLElement & {press(): void}>(null);
@@ -2592,11 +2755,11 @@ function DocumentContentEditorSidebar({
         };
     }, [commentThreadId, decorations, totalDecoratedCommentThreads]);
 
-    // If we had previous/next comment threads and then the comment was removed
-    // from the document (e.g. comment thread was resolved) then we want to keep
-    // the last previous/next comment threads we've seen. This way a user can go
-    // through comments in a document, resolving them one by one without losing
-    // their place after resolving.
+    // If we had previous/next comment threads and then the comment was removed from
+    // the document (e.g. comment thread was resolved) then we want to keep the last
+    // previous/next comment threads we've seen. This way a user can go through
+    // comments in a document, resolving them one by one without losing their place
+    // after resolving.
     const [originalAdjacentCommentThreads, setAdjacentCommentThreads] = useState(
         currentAdjacentCommentThreads,
     );
@@ -2653,7 +2816,7 @@ function DocumentContentEditorSidebar({
                         ref={previousCommentThreadButtonRef}
                         size={platform === "mobile" ? "md" : "xs"}
                         description="Previous thread"
-                        keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
+                        keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", ",")}
                         isDisabled={!previousCommentThreadId}
                         pressErrorTitle="Can&#x2019;t go to previous thread"
                         onPress={async () => {
@@ -2682,7 +2845,7 @@ function DocumentContentEditorSidebar({
                         ref={nextCommentThreadButtonRef}
                         size={platform === "mobile" ? "md" : "xs"}
                         description="Next thread"
-                        keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
+                        keyboardShortcutHint={renderKeyboardShortcutHint(clientInfo, "mod", ".")}
                         isDisabled={!nextCommentThreadId}
                         pressErrorTitle="Can&#x2019;t go to next thread"
                         onPress={async () => {
@@ -2730,7 +2893,7 @@ function DocumentContentEditorSidebar({
                 if (
                     event.key === "," &&
                     event.shiftKey &&
-                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                    (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
                 ) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -2743,7 +2906,7 @@ function DocumentContentEditorSidebar({
                 if (
                     event.key === "." &&
                     event.shiftKey &&
-                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                    (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
                 ) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -2758,8 +2921,7 @@ function DocumentContentEditorSidebar({
                 {header}
                 {useMemo(
                     () =>
-                        // TODO(calebmer): Ideally this would render shimmers instead of a loading
-                        // spinner.
+                        // TODO(calebmer): Ideally this would render shimmers instead of a loading spinner.
                         initialDataResult.isPending || !initialDataResult.value ? (
                             <Box
                                 flexGrow="1"
@@ -2821,8 +2983,8 @@ function DocumentContentEditorSidebar({
                                 isNativeMobileTabBarHidden={
                                     isNativeMobile && routeLayout === "narrow"
                                 }
-                                // When on mobile, add some background slop so we can easily animate our
-                                // comment thread list view to the full screen size.
+                                // When on mobile, add some background slop so we can easily animate our comment
+                                // thread list view to the full screen size.
                                 backgroundSlopBottomIfPinnedCommentInput={
                                     platform === "mobile" &&
                                     (!mobileState.isFullScreen ||
@@ -2830,9 +2992,9 @@ function DocumentContentEditorSidebar({
                                         ? spacing[documentContentEditorMobileSidebarInsetTop]
                                         : undefined
                                 }
-                                // If we're focusing the pinned comment input because the user swiped to reply
-                                // to a comment then we first need to make sure our sidebar is full screen,
-                                // then we can focus the input after that animation finishes.
+                                // If we're focusing the pinned comment input because the user swiped to reply to a
+                                // comment then we first need to make sure our sidebar is full screen, then we can
+                                // focus the input after that animation finishes.
                                 onBeforePinnedCommentInputFocusFromReplyOrEditingChange={() => {
                                     if (platform !== "mobile") return;
                                     if (mobileState.isFullScreen) return;

@@ -7,21 +7,20 @@ import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
  *
  * 1. Sort entries by score descending (higher scores first)
  * 2. Greedily select entries, prioritizing diversity:
- *    - Best: different account AND different channel
- *    - Good: different account OR different channel
- *    - Fallback: highest-scored remaining entry
+ *     - Best: different account AND different channel
+ *     - Good: different account OR different channel
+ *     - Fallback: highest-scored remaining entry
  *
- * This ensures that adjacent entries in the feed are unlikely to be from the
- * same author or in the same channel, while still prioritizing high-affinity
- * content.
+ * This ensures that adjacent entries in the feed are unlikely to be from the same
+ * author or in the same channel, while still prioritizing high-affinity content.
  */
 export function rankFeedEntriesWithDiversity(
     entries: ReadonlyArray<{entry: FeedEntry; score: number}>,
 ): Array<FeedEntry> {
     if (entries.length === 0) return [];
 
-    // Sort by score descending. For entries with equal scores, maintain
-    // original order (which should be chronological, newer first).
+    // Sort by score descending. For entries with equal scores, maintain original order
+    // (which should be chronological, newer first).
     const sortedEntries = [...entries].sort((a, b) => b.score - a.score);
 
     const result: Array<FeedEntry> = [];
@@ -32,8 +31,8 @@ export function rankFeedEntriesWithDiversity(
         const previousAccountId = previousEntry ? getFeedEntryAccountId(previousEntry) : null;
         const previousChannelId = previousEntry ? getFeedEntryChannelId(previousEntry) : null;
 
-        // Find the best entry to select. We prioritize diversity in the
-        // following order:
+        // Find the best entry to select. We prioritize diversity in the following order:
+        //
         // 1. Different account AND different channel (most diverse)
         // 2. Different account OR different channel (partially diverse)
         // 3. Highest-scored remaining entry (fallback)
@@ -63,8 +62,8 @@ export function rankFeedEntriesWithDiversity(
                 break;
             }
 
-            // Track the first partially diverse entry (different in at least
-            // one dimension) as a fallback.
+            // Track the first partially diverse entry (different in at least one dimension) as
+            // a fallback.
             if (partiallyDiverseIndex === null && (accountDiverse || channelDiverse)) {
                 partiallyDiverseIndex = index;
             }

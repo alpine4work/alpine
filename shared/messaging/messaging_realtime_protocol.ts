@@ -64,16 +64,15 @@ export type CreateMessageProcedure = (input: {
     fileIds: ReadonlyArray<FileId | FileEntityId>;
     createdTimeZone: TimeZone;
     /**
-     * The search entity id that the user is currently viewing while sending
-     * the chat message. We consider this to be dangerous because it enables
-     * other humans in a chat to see what a user is looking at based on the
-     * agent's response.
+     * The search entity id that the user is currently viewing while sending the chat
+     * message. We consider this to be dangerous because it enables other humans in a
+     * chat to see what a user is looking at based on the agent's response.
      *
      * We should only set this value if the user is in an "all-bot" chat.
      *
-     * We don't store this anywhere, but we do pass it along to agents. As an
-     * extra safety measure, we validate that the user is in a bot-only chat
-     * on the server before passing it along.
+     * We don't store this anywhere, but we do pass it along to agents. As an extra
+     * safety measure, we validate that the user is in a bot-only chat on the server
+     * before passing it along.
      */
     dangerousCurrentlyViewingSearchEntityId?: SearchMentionEntityId;
 }) => Promise<{}>;
@@ -120,13 +119,13 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
     return {
         /**
          * When you connect to the messaging realtime WebSocket you should send a
-         * `BackfillMessagesRequest`. You will not get `NewMessage` realtime
-         * messages until you do.
+         * `BackfillMessagesRequest`. You will not get `NewMessage` realtime messages until
+         * you do.
          *
-         * This makes sure the client and server are in sync about what the client's
-         * state is. If the WebSocket server has received new messages since the client
-         * loaded its data from the HTTP server then we will send a backfill response
-         * with those new messages.
+         * This makes sure the client and server are in sync about what the client's state
+         * is. If the WebSocket server has received new messages since the client loaded
+         * its data from the HTTP server then we will send a backfill response with those
+         * new messages.
          */
         backfillMessages: {
             input: {
@@ -136,16 +135,16 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
             },
 
             /**
-             * Response to a backfill call. Contains the actual message count and an array
-             * of new messages we should load.
+             * Response to a backfill call. Contains the actual message count and an array of
+             * new messages we should load.
              *
-             * `typingStateByConnectionId` contains the typing state for all connected
-             * clients. If a client does not exist in this map it means they have no typing
-             * state. If you receive this message you should reset all your typing states
-             * and treat this map as the new state.
+             * `typingStateByConnectionId` contains the typing state for all connected clients.
+             * If a client does not exist in this map it means they have no typing state. If
+             * you receive this message you should reset all your typing states and treat this
+             * map as the new state.
              *
-             * Ordering guarantee: After your first backfill `NewMessage` WebSocket events
-             * will arrive in order. Before they may arrive out of order.
+             * Ordering guarantee: After your first backfill `NewMessage` WebSocket events will
+             * arrive in order. Before they may arrive out of order.
              */
             output: {
                 messageCount: Schema.integer,
@@ -160,8 +159,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
         },
 
         /**
-         * Create a new message and send a realtime message to all other connected
-         * clients.
+         * Create a new message and send a realtime message to all other connected clients.
          */
         createMessage: {
             input: {
@@ -175,8 +173,8 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
         },
 
         /**
-         * Update the contents of a message and send a realtime message to all
-         * other connected clients.
+         * Update the contents of a message and send a realtime message to all other
+         * connected clients.
          */
         updateMessageContent: {
             input: {
@@ -188,8 +186,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
         },
 
         /**
-         * Delete a message and send a realtime message to all other connected
-         * clients.
+         * Delete a message and send a realtime message to all other connected clients.
          */
         deleteMessage: {
             input: {
@@ -304,29 +301,29 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
 ) {
     return {
         /**
-         * A new message was created! The message could have been created by our
-         * account or a different account. Or our account on a different browser.
+         * A new message was created! The message could have been created by our account or
+         * a different account. Or our account on a different browser.
          *
-         * Ordering guarantee: After you have sent a `BackfillMessagesRequest` and
-         * received a `BackfillMessagesResponse`. After that you are guaranteed to get
-         * every message in order. You will not get message N+1 before message N,
-         * you'll always get message N first and then message N+1.
+         * Ordering guarantee: After you have sent a `BackfillMessagesRequest` and received
+         * a `BackfillMessagesResponse`. After that you are guaranteed to get every message
+         * in order. You will not get message N+1 before message N, you'll always get
+         * message N first and then message N+1.
          *
          * You will not get new messages during a backfill. Before a backfill you will
-         * receive new messages in any arbitrary order. So message N+1 may arrive
-         * before message N. Generally you should ignore this message until after your
-         * backfill finishes. This behavior is useful for documents where we want to
-         * update the comment thread count when new messages are created but we don't
-         * care about strict message ordering until the user opens the comment thread
-         * (and we send the backfill request).
+         * receive new messages in any arbitrary order. So message N+1 may arrive before
+         * message N. Generally you should ignore this message until after your backfill
+         * finishes. This behavior is useful for documents where we want to update the
+         * comment thread count when new messages are created but we don't care about
+         * strict message ordering until the user opens the comment thread (and we send the
+         * backfill request).
          */
         NewMessage: Schema.object({
             type: Schema.value("NewMessage"),
             message: MessageSchema,
 
             /**
-             * Atomically update this other typing state in the same action as we send
-             * a message.
+             * Atomically update this other typing state in the same action as we send a
+             * message.
              */
             updateOtherTypingState: Schema.object({
                 connectionId: Schema.id<WebSocketConnectionId>(),
@@ -337,11 +334,11 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
         /**
          * A message was changed.
          *
-         * Ordering guarantee: There are no ordering guarantees. You may receive an
-         * update message at any time in any order. You may receive this message before
-         * a backfill but not during a backfill. You should make sure to only show
-         * the update with the greatest change time. Change time will increase
-         * monotonically for each message on each update.
+         * Ordering guarantee: There are no ordering guarantees. You may receive an update
+         * message at any time in any order. You may receive this message before a backfill
+         * but not during a backfill. You should make sure to only show the update with the
+         * greatest change time. Change time will increase monotonically for each message
+         * on each update.
          */
         UpdateMessage: Schema.object({
             type: Schema.value("UpdateMessage"),

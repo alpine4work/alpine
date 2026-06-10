@@ -1,5 +1,5 @@
 import {Memo, RefObject, useRef, useState} from "react";
-import {jumpAnimationDurationMs} from "~/client/web/content/content_view.js";
+import {jumpAnimationDurationMs} from "~/client/web/content/run_content_view_jump_animation.js";
 import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";
@@ -32,8 +32,7 @@ export type JumpToMessageRangeOptions<RoomKey extends string> = {
 };
 
 // NOTE(calebmer): This function was forked into `useJumpToPostRange()`. Any
-// changes to this function maybe should be made to
-// `useJumpToPostRange()` too.
+// changes to this function maybe should be made to `useJumpToPostRange()` too.
 export function useJumpToMessageRange<RoomKey extends string>({
     viewRef,
     tryLoadingMoreData,
@@ -86,9 +85,9 @@ export function useJumpToMessageRange<RoomKey extends string>({
 
             scheduleAfterNavigationAnimation(() => {
                 // Wait a bit before highlighting in case the message component is immediately
-                // unmounted. This will happen if while measuring content the virtualized
-                // scroll view thinks this is offscreen before our scroll anchoring puts it
-                // back in place. Arguably this is a bug in the virtualized scroll view.
+                // unmounted. This will happen if while measuring content the virtualized scroll
+                // view thinks this is offscreen before our scroll anchoring puts it back in place.
+                // Arguably this is a bug in the virtualized scroll view.
                 createTimeout(() => {
                     const startTime = new Date();
 

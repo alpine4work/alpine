@@ -20,8 +20,8 @@ export async function actuallyRegenerateOneTimePasswordSignIn(
     const {emailAddress} = initialAccountEmailAddressItem;
     const generatedTime = new Date();
 
-    // The Apple reviewer gets the same constant password every time since they
-    // don't have access to the email address (we control the email address).
+    // The Apple reviewer gets the same constant password every time since they don't
+    // have access to the email address (we control the email address).
     const password =
         emailAddress === appleReviewerAccountEmailAddress
             ? appleReviewerAccountPassword
@@ -51,12 +51,12 @@ export async function actuallyRegenerateOneTimePasswordSignIn(
             oneTimePasswordSignInState: {
                 generatedTime,
                 password,
-                // Carry over failed attempt count so an attacker can't regenerate the password
-                // to get more sign in attempts.
+                // Carry over failed attempt count so an attacker can't regenerate the password to
+                // get more sign in attempts.
                 //
                 // However, if we have exceeded the max attempts and we are at this point then
-                // regenerating the password unlocks this account. If the account is still
-                // locked we would have done an early return above.
+                // regenerating the password unlocks this account. If the account is still locked
+                // we would have done an early return above.
                 failedAttemptCount:
                     accountEmailAddressItem?.oneTimePasswordSignInState &&
                     accountEmailAddressItem.oneTimePasswordSignInState.failedAttemptCount <
@@ -90,19 +90,18 @@ export async function afterRegenerateOneTimePasswordSignIn(
         password: string;
     },
 ) {
-    // We allow tests to capture one time password emails. Make sure this only
-    // happens in test environments since we don't want developers to have access
-    // to one time password.
+    // We allow tests to capture one time password emails. Make sure this only happens
+    // in test environments since we don't want developers to have access to one time
+    // password.
     if (oneTimePasswordSignInEmailsForTest.current !== null) {
         assert(import.meta.jest);
         oneTimePasswordSignInEmailsForTest.current.push({emailAddress, oneTimePassword: password});
     }
 
-    // In development (or Playwright integration tests), log the one time password
-    // so developers can sign in. In integration tests we watch the app service
-    // stdout for this log line and capture it so we can use the one time password
-    // to log in.
-    if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
+    // In development (or Playwright integration tests), log the one time password so
+    // developers can sign in. In integration tests we watch the app service stdout for
+    // this log line and capture it so we can use the one time password to log in.
+    if (process.env.NODE_ENV !== "production") {
         // eslint-disable-next-line no-console
         console.log(quote`The one time password for ${emailAddress} is ${password}`);
     }
@@ -126,10 +125,9 @@ export const oneTimePasswordSignInEmailsForTest: {
 } = {current: null};
 
 /**
- * This is a secret string shared between our company and Apple. An Apple
- * reviewer may use this string to log into a space made just for them. It's
- * not that big a deal if the string leaks. All the account has access to is
- * their own space.
+ * This is a secret string shared between our company and Apple. An Apple reviewer
+ * may use this string to log into a space made just for them. It's not that big a
+ * deal if the string leaks. All the account has access to is their own space.
  */
 const appleReviewerAccountPassword = "968706";
 

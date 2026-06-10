@@ -16,8 +16,8 @@ export type IntlDateTimeFormatOptions = {
 };
 
 /**
- * Through debugging we've found `new Intl.DateTimeFormat()` can be expensive
- * in hot code paths (e.g. `<MessageView>` rendering). This function caches
+ * Through debugging we've found `new Intl.DateTimeFormat()` can be expensive in
+ * hot code paths (e.g. `<MessageView>` rendering). This function caches
  * `Intl.DateTimeFormat` objects so we only need to create an object once for a
  * given set of options.
  *

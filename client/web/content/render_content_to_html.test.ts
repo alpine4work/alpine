@@ -2,9 +2,11 @@
 
 import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {contentFileEntityRenderersForTest} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {renderContentToHtmlStoreForTest} from "~/client/web/content/render_content_to_html.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/design/core/constant_class_names.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
@@ -27,8 +29,8 @@ const contentClassNameAndVars = new Set<string>(
 );
 
 // CSS classes and variable names may change after minor modifications to our
-// vanilla extract CSS. So remove them from the HTML so we assert against so
-// our test doesn't keep breaking. We keep any class names declared in
+// vanilla extract CSS. So remove them from the HTML so we assert against so our
+// test doesn't keep breaking. We keep any class names declared in
 // `content_styles.ts` since those stay constant.
 function stripHtml(html: string): string {
     const element = document.createElement("div");
@@ -104,6 +106,7 @@ test("will properly number list items", () => {
                     accountRegistry: getAccountRegistry(spaceId),
                     searchEntityRegistry: getSearchEntityRegistry(spaceId),
                     fileRegistry: getFileRegistry(spaceId),
+                    siteRegistry: getSiteRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
                     spacingScale: "small",
@@ -111,7 +114,7 @@ test("will properly number list items", () => {
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                     currentDate,
-                    fileEntityRenderers: null,
+                    fileEntityRenderers: contentFileEntityRenderersForTest,
                 },
             ).getSnapshot(),
         ),
@@ -201,6 +204,7 @@ test("will properly number list items with indentation", () => {
                     accountRegistry: getAccountRegistry(spaceId),
                     searchEntityRegistry: getSearchEntityRegistry(spaceId),
                     fileRegistry: getFileRegistry(spaceId),
+                    siteRegistry: getSiteRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
                     spacingScale: "small",
@@ -208,7 +212,7 @@ test("will properly number list items with indentation", () => {
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                     currentDate,
-                    fileEntityRenderers: null,
+                    fileEntityRenderers: contentFileEntityRenderersForTest,
                 },
             ).getSnapshot(),
         ),
@@ -256,6 +260,7 @@ test("will properly number list items in quote blocks", () => {
                     accountRegistry: getAccountRegistry(spaceId),
                     searchEntityRegistry: getSearchEntityRegistry(spaceId),
                     fileRegistry: getFileRegistry(spaceId),
+                    siteRegistry: getSiteRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
                     spacingScale: "small",
@@ -263,7 +268,7 @@ test("will properly number list items in quote blocks", () => {
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                     currentDate,
-                    fileEntityRenderers: null,
+                    fileEntityRenderers: contentFileEntityRenderersForTest,
                 },
             ).getSnapshot(),
         ),
@@ -316,6 +321,7 @@ test("will render code block", () => {
                     accountRegistry: getAccountRegistry(spaceId),
                     searchEntityRegistry: getSearchEntityRegistry(spaceId),
                     fileRegistry: getFileRegistry(spaceId),
+                    siteRegistry: getSiteRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
                     spacingScale: "small",
@@ -323,7 +329,7 @@ test("will render code block", () => {
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                     currentDate,
-                    fileEntityRenderers: null,
+                    fileEntityRenderers: contentFileEntityRenderersForTest,
                 },
             ).getSnapshot(),
         ),

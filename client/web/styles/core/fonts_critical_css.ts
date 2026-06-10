@@ -10,20 +10,18 @@ import {
 const formatPercentage = (percentage: number) =>
     `${Math.round(percentage * 100 * 10 ** 5) / 10 ** 5}%`;
 
-// Value taken from the fallback font `@next/font` generates for Inter.
-// We use the same fallback font for Inter and Commit Mono because Commit Mono
-// is resized to the same size as Inter.
+// Value taken from the fallback font `@next/font` generates for Inter. We use the
+// same fallback font for Inter and Commit Mono because Commit Mono is resized to
+// the same size as Inter.
 //
-// See:
-// https://beta.nextjs.org/docs/optimizing/fonts
+// See: https://beta.nextjs.org/docs/optimizing/fonts
 // https://github.com/vercel/next.js/blob/f71ce534a8e9429f4341998ae386b23055c5888c/packages/next/src/server/font-utils.ts#L19-L44
 const fallbackFontSizeAdjust = 1.07119386637;
 
 /**
- * We inline this CSS in a `<style>` element so the browser doesn't have to
- * fetch our `styles.css` file to know what our font URLs are. Also it means
- * in development when hot reloading our styles we don't reset our
- * `@font-face`s.
+ * We inline this CSS in a `<style>` element so the browser doesn't have to fetch
+ * our `styles.css` file to know what our font URLs are. Also it means in
+ * development when hot reloading our styles we don't reset our `@font-face`s.
  */
 export const getFontsCriticalCss = (resourceServiceUrl: string) =>
     "@font-face { " +
@@ -34,8 +32,8 @@ export const getFontsCriticalCss = (resourceServiceUrl: string) =>
     "font-weight: 100 900; " +
     "font-style: normal; " +
     "font-display: swap; " +
-    // Shouldn't be necessary but we include to ensure layout is stable when
-    // swapping fonts.
+    // Shouldn't be necessary but we include to ensure layout is stable when swapping
+    // fonts.
     `ascent-override: ${formatPercentage(interFontAscender / interFontUnitsPerEm)}; ` +
     `descent-override: ${formatPercentage(interFontDescender / interFontUnitsPerEm)}; ` +
     "} " +
@@ -48,8 +46,8 @@ export const getFontsCriticalCss = (resourceServiceUrl: string) =>
     "font-weight: 100 900; " +
     "font-style: normal; " +
     "font-display: swap; " +
-    // Shouldn't be necessary but we include to ensure layout is stable when
-    // swapping fonts.
+    // Shouldn't be necessary but we include to ensure layout is stable when swapping
+    // fonts.
     `ascent-override: ${formatPercentage(interFontAscender / interFontUnitsPerEm)}; ` +
     `descent-override: ${formatPercentage(interFontDescender / interFontUnitsPerEm)}; ` +
     "} " +
@@ -62,8 +60,8 @@ export const getFontsCriticalCss = (resourceServiceUrl: string) =>
     "font-weight: 100 900; " +
     "font-style: italic; " +
     "font-display: swap; " +
-    // Shouldn't be necessary but we include to ensure layout is stable when
-    // swapping fonts.
+    // Shouldn't be necessary but we include to ensure layout is stable when swapping
+    // fonts.
     `ascent-override: ${formatPercentage(interFontAscender / interFontUnitsPerEm)}; ` +
     `descent-override: ${formatPercentage(interFontDescender / interFontUnitsPerEm)}; ` +
     "} " +
@@ -92,11 +90,12 @@ export const getFontsCriticalCss = (resourceServiceUrl: string) =>
     /* ===================================================================== */
     "@font-face { " +
     'font-family: "CyEmoji"; ' +
-    // Emoji font stack is originally from: https://www.client9.com/css-color-emoji-stack/
+    // Emoji font stack is originally from:
+    // https://www.client9.com/css-color-emoji-stack/
     'src: local("Apple Color Emoji"), local("Segoe UI Emoji"), local("NotoColorEmoji"), local("Noto Color Emoji"), local("Segoe UI Symbol"), local("Android Emoji"), local("EmojiSymbols"); ' +
     // Use the same ascent/descent metrics for our emoji font face. This means
-    // `background-color`s, font sizes, line heights, everything set on this font
-    // will line up with our main font Inter.
+    // `background-color`s, font sizes, line heights, everything set on this font will
+    // line up with our main font Inter.
     `ascent-override: ${formatPercentage(interFontAscender / interFontUnitsPerEm)}; ` +
     `descent-override: ${formatPercentage(interFontDescender / interFontUnitsPerEm)}; ` +
     "} " +

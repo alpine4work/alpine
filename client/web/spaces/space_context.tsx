@@ -13,8 +13,8 @@ import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/spaces/sp
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 /**
- * Context available when we are in a space route. Throws an error if we are
- * not in a space route.
+ * Context available when we are in a space route. Throws an error if we are not in
+ * a space route.
  */
 export function useSpaceContext(): SpaceContext {
     const spaceContext = useContext(SpaceContextDefinition);
@@ -23,8 +23,8 @@ export function useSpaceContext(): SpaceContext {
 }
 
 /**
- * Context available when we are in a space route. Returns null if we're not in
- * a space route.
+ * Context available when we are in a space route. Returns null if we're not in a
+ * space route.
  */
 export function useSpaceContextIfExists(): SpaceContext | null {
     const spaceContext = useContext(SpaceContextDefinition);
@@ -32,16 +32,16 @@ export function useSpaceContextIfExists(): SpaceContext | null {
 }
 
 /**
- * Context available when we are in a space route. Throws an error if we're not
- * in a space route and throws an error if `currentAccount` doesn't have space
- * access. This function will always return a non-null `currentAccount`.
+ * Context available when we are in a space route. Throws an error if we're not in
+ * a space route and throws an error if `currentAccount` doesn't have space access.
+ * This function will always return a non-null `currentAccount`.
  *
- * Generally prefer `useSpaceContext()` which returns a null `currentAccount`.
- * It's not the client's responsibility to authorize whether the account has
- * space access or not. That's the backend's responsibility. The client should
- * generally be written in a way that supports null `currentAccount`s so we can
- * enable URL sharing. For example, documents need to render with a null
- * `currentAccount` when `accessPolicy.urlGrant` is non-null.
+ * Generally prefer `useSpaceContext()` which returns a null `currentAccount`. It's
+ * not the client's responsibility to authorize whether the account has space
+ * access or not. That's the backend's responsibility. The client should generally
+ * be written in a way that supports null `currentAccount`s so we can enable URL
+ * sharing. For example, documents need to render with a null `currentAccount` when
+ * `accessPolicy.urlGrant` is non-null.
  */
 export function useSpaceContextAndRequireSpaceAccess(): Replace<
     SpaceContext,
@@ -50,9 +50,9 @@ export function useSpaceContextAndRequireSpaceAccess(): Replace<
     const spaceContext = useContext(SpaceContextDefinition);
     if (!spaceContext) throw new InternalError("Must be in a space route to get space context");
 
-    // If `currentAccount` is null it's either because there's no user signed in or
-    // the user that's signed in doesn't have space access. Throw a different error
-    // in each case.
+    // If `currentAccount` is null it's either because there's no user signed in or the
+    // user that's signed in doesn't have space access. Throw a different error in each
+    // case.
     if (spaceContext.currentAccount === null) {
         if (spaceContext.currentAccountWithoutSpace === null) {
             throw new UnauthenticatedError("Expected current account in space context to exist", {
@@ -70,11 +70,11 @@ export function useSpaceContextAndRequireSpaceAccess(): Replace<
 }
 
 /**
- * Use the shared connection to the `MyAccountService` WebSocket anywhere in
- * the UI for a space.
+ * Use the shared connection to the `MyAccountService` WebSocket anywhere in the UI
+ * for a space.
  *
- * At least the notification bell needs this connection at all times. Other
- * parts of the UI may reuse the connection if useful.
+ * At least the notification bell needs this connection at all times. Other parts
+ * of the UI may reuse the connection if useful.
  */
 export function useMyAccountWebSocket(): {
     readonly isConnected: boolean;

@@ -14,8 +14,8 @@ import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchr
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 /**
- * Sets up a realtime connection for the provided post. Making sure comments
- * are kept up-to-date in realtime.
+ * Sets up a realtime connection for the provided post. Making sure comments are
+ * kept up-to-date in realtime.
  */
 export function useMessagingRealtime<
     RoomKey extends string,
@@ -103,8 +103,8 @@ export function useMessagingRealtime<
         return subscribeToEvents(handleEvent);
     }, [handleEvent, subscribeToEvents]);
 
-    // Whenever we get a pong from the WebSocket, update our checkpoint so we know
-    // data is up-to-date as of this new time.
+    // Whenever we get a pong from the WebSocket, update our checkpoint so we know data
+    // is up-to-date as of this new time.
     useEffect(() => {
         return subscribeToPongs(({checkpoint}) => {
             if (messages.isCheckpointInitialized()) {
@@ -119,9 +119,8 @@ export function useMessagingRealtime<
     }, [messages, onUpdateMessages, subscribeToPongs]);
 
     // Whenever we connect, we need to backfill changes from when we initially read
-    // inbox entries until now. That way if any realtime events happened during
-    // that time we can incorporate them into our state instead of completely
-    // missing them.
+    // inbox entries until now. That way if any realtime events happened during that
+    // time we can incorporate them into our state instead of completely missing them.
     const wasConnectedRef = useRef(false);
     useEffect(() => {
         if (!messages.isCheckpointInitialized()) return;
@@ -160,10 +159,10 @@ export function useMessagingRealtime<
                         break;
                     }
 
-                    // If message changes are unavailable then fully reset the message list since
-                    // we don't know if any loaded comments are correct. `<MessagingView>` should
-                    // then be able to see we have rendered unloaded messages and kick off a new
-                    // network request.
+                    // If message changes are unavailable then fully reset the message list since we
+                    // don't know if any loaded comments are correct. `<MessagingView>` should then be
+                    // able to see we have rendered unloaded messages and kick off a new network
+                    // request.
                     case "Unavailable": {
                         onUpdateMessages(() => {
                             return MessageList.new({

@@ -1,3 +1,4 @@
+import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
     HybridLogicalTime,
@@ -10,6 +11,7 @@ import {TaskTaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model
 import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
 import {
     TaskSortableAccount,
     mergeTaskSortableAccounts,
@@ -17,22 +19,22 @@ import {
 import {TaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
 
 /**
- * Applies a `TaskTaskAction` to a `TaskIndexDoc`. `TaskTaskAction`s are
- * commutative and idempotent. This means they can be applied in any order or
- * multiple times and we'll converge to the same result every time.
+ * Applies a `TaskTaskAction` to a `TaskModel`. `TaskTaskAction`s are commutative
+ * and idempotent. This means they can be applied in any order or multiple times
+ * and we'll converge to the same result every time.
  *
- * We inline the account name and version into our client model data so we can
- * sort by them. In theory there's a `TaskAccountName` object in our CRDT task
- * system similar to the `Task` and `TaskCollection` CRDT objects but instead
- * of being stored in its own map in `TaskClientStore` it needs to be inlined
- * into our tasks so we can sort by it.
+ * We inline the account name and version into our client model data so we can sort
+ * by them. In theory there's a `TaskAccountName` object in our CRDT task system
+ * similar to the `Task` and `TaskCollection` CRDT objects but instead of being
+ * stored in its own map in `TaskClientStore` it needs to be inlined into our tasks
+ * so we can sort by it.
  *
  * Inlining task account names means different tasks with the same referenced
- * `AccountId` may have different account names. But eventually all tasks
- * should converge on the right account name. Sorting may be weird in the
- * meantime. The client may choose to update all tasks with the latest account
- * name to avoid exposing our account name eventual consistency to the end user
- * which looks like a glitch (this isn't implemented as of 2023-09-26).
+ * `AccountId` may have different account names. But eventually all tasks should
+ * converge on the right account name. Sorting may be weird in the meantime. The
+ * client may choose to update all tasks with the latest account name to avoid
+ * exposing our account name eventual consistency to the end user which looks like
+ * a glitch (this isn't implemented as of 2023-09-26).
  */
 export function applyTaskActionToTaskModelData(
     task: TaskModelData,
@@ -43,7 +45,8 @@ export function applyTaskActionToTaskModelData(
     switch (action.type) {
         case "Create": {
             const isCompatible =
-                task.creator.accountId === action.creatorId &&
+                task.creator.accountId === action.creator.accountId &&
+                areTaskCreatorFromsEqual(task.creator.from, action.creator.from) &&
                 task.createdTime.isEqual(
                     new TaskFilterableTime({
                         absoluteTime: actionTime,
@@ -55,13 +58,17 @@ export function applyTaskActionToTaskModelData(
                 throw new FailedPreconditionError("Incompatible create action");
             }
 
-            const creator = mergeTaskSortableAccounts(
-                task.creator,
-                getActionReferencedSortableAccount(action.creatorId),
+            const mergedCreator = mergeTaskSortableAccounts(
+                {
+                    accountId: task.creator.accountId,
+                    workingAccountName: task.creator.workingAccountName,
+                    workingAccountNameVersion: task.creator.workingAccountNameVersion,
+                },
+                getActionReferencedSortableAccount(action.creator.accountId),
             );
 
-            if (task.creator === creator) return task;
-            return {...task, creator};
+            if (task.creator === mergedCreator) return task;
+            return {...task, creator: {...mergedCreator, from: action.creator.from}};
         }
         case "Delete": {
             const newDeletedTime =
@@ -266,8 +273,8 @@ export function applyTaskActionToTaskModelData(
                 assigneeStatus: newAssigneeStatus,
 
                 // NOTE(calebmer): We intentionally don't update `assigneePosition` during an
-                // `UpdateAssignee` action. That way if the user changes the task's assignee
-                // and undoes the change, then the task will be placed back in the old assignee
+                // `UpdateAssignee` action. That way if the user changes the task's assignee and
+                // undoes the change, then the task will be placed back in the old assignee
                 // position.
                 //
                 // Whenever we use the `assigneePosition` we always check that
@@ -344,6 +351,36 @@ export function applyTaskActionToTaskModelData(
                 priority: newPriority,
             };
         }
+        case "UpdateLayout": {
+            const newLayout = task.layout
+                ? task.layout.apply({
+                      value: action.layout,
+                      version: actionTime,
+                  })
+                : new TaskLayoutRegister(action.layout, actionTime);
+
+            if (newLayout === task.layout) return task;
+
+            return {
+                ...task,
+                layout: newLayout,
+            };
+        }
+        case "UpdateAccessPolicy": {
+            const newAccessPolicy = task.accessPolicy
+                ? task.accessPolicy.apply({
+                      value: action.accessPolicy,
+                      version: actionTime,
+                  })
+                : new AccessPolicyRegister(action.accessPolicy, actionTime);
+
+            if (newAccessPolicy === task.accessPolicy) return task;
+
+            return {
+                ...task,
+                accessPolicy: newAccessPolicy,
+            };
+        }
         case "UpdateNotepadPagePosition":
         case "UpdateAssigneeActivePosition": {
             return task;
@@ -351,4 +388,13 @@ export function applyTaskActionToTaskModelData(
         default:
             throw exhaustive(action);
     }
+}
+
+function areTaskCreatorFromsEqual(
+    from1: TaskModelData["creator"]["from"],
+    from2: TaskModelData["creator"]["from"],
+) {
+    if (from1 === from2) return true;
+    if (from1 === null || from2 === null) return false;
+    return from1.type === from2.type && from1.accountId === from2.accountId;
 }

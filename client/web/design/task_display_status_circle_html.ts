@@ -1,7 +1,7 @@
-// Since we can't import `shared/tasks` from `client/design`, manually inline
-// the `TaskDisplayStatus` type. This component lives in `client/design` so we
-// can use it anywhere in the product without needing to depend on all the
-// `client/tasks` code.
+// Since we can't import `shared/tasks` from `client/design`, manually inline the
+// `TaskDisplayStatus` type. This component lives in `client/design` so we can use
+// it anywhere in the product without needing to depend on all the `client/tasks`
+// code.
 
 import {checkIconSvg} from "~/client/web/icons/check_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
@@ -87,18 +87,18 @@ export const taskDisplayStatusActivePressedOverlayClassName = sprinkles({
 
 export function getTaskDisplayStatusActiveHalfCircleMargin(sizeInt: number) {
     return sizeInt >= 7
-        ? // On high-pixel density devices round up to 2.5 and on low-pixel density devices round
-          // down to 2.
+        ? // On high-pixel density devices round up to 2.5 and on low-pixel density devices
+          // round down to 2.
           2.48
         : sizeInt >= 6
           ? 2
           : sizeInt >= 5
-            ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
-              // down to 1.
+            ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices
+              // round down to 1.
               1.49
             : sizeInt >= 4
-              ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
-                // down to 1.
+              ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices
+                // round down to 1.
                 1.48
               : 1;
 }
@@ -177,11 +177,11 @@ export function renderTaskDisplayStatusCircle({
                 `height: calc(${spacing[size]} - ${activeHalfCircleMargin * 2}px)`,
                 `transform: translateY(${activeHalfCircleMargin}px) translateX(${-activeHalfCircleMargin}px)`,
                 // NOTE(calebmer): Safari appears to have a bug where `overflow: hidden` is not
-                // actually clipping our circle? After some research it's a known bug that
-                // Safari with `overflow: hidden` and `border-radius` doesn't always work. A
-                // solution is to use `mask-image` instead. Curiously, I've found setting a
-                // mask image that doesn't do any actual masking gets Safari to clip the half
-                // circle properly. Going to...go with that for now I guess.
+                // actually clipping our circle? After some research it's a known bug that Safari
+                // with `overflow: hidden` and `border-radius` doesn't always work. A solution is
+                // to use `mask-image` instead. Curiously, I've found setting a mask image that
+                // doesn't do any actual masking gets Safari to clip the half circle properly.
+                // Going to...go with that for now I guess.
                 //
                 // This should probably be svg anyway.
                 //

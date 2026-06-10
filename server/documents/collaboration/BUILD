@@ -7,6 +7,8 @@ ts_project(
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/messaging/realtime/test_helpers",
+        "//server/sites/data",
+        "//server/sites/test_helpers",
     ],
     visibility = ["//server/edge:__subpackages__"],
     deps = [

@@ -1,4 +1,4 @@
-import {CfnParameter, Duration} from "aws-cdk-lib";
+import {CfnParameter, Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup, BlockDeviceVolume} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {
@@ -45,9 +45,9 @@ import {InternalError} from "~/shared/error/error.js";
 import {fileProcessorTimeoutMs, maxFileContentLength} from "~/shared/files/file_constants.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-// IMPORTANT: `FileProcessorService` has a pretty broad attack surface given
-// all the libraries it uses to process dependencies. `FileProcessorService`
-// uses (among other things):
+// IMPORTANT: `FileProcessorService` has a pretty broad attack surface given all
+// the libraries it uses to process dependencies. `FileProcessorService` uses
+// (among other things):
 //
 // - [`sharp`][1] which itself has a bunch of dependencies including
 //   [GraphicsMagick and PDFium][2]
@@ -55,29 +55,30 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // - [LibreOffice][4]
 //
 // These libraries are massive and have many opportunities to be exploited. One
-// possible simple exploit that comes to mind is using one of these libraries
-// to process a file with an embedded URL that points to an image. If the file
-// format goes to fetch the URL then the attack now knows
-// `FileProcessorService`'s IP address and can try to perform more attacks.
-// (Knowing the IP alone shouldn't give the attacker much but it does mean we
-// have to be very careful about what ports we expose to the network.)
+// possible simple exploit that comes to mind is using one of these libraries to
+// process a file with an embedded URL that points to an image. If the file format
+// goes to fetch the URL then the attack now knows `FileProcessorService`'s IP
+// address and can try to perform more attacks. (Knowing the IP alone shouldn't
+// give the attacker much but it does mean we have to be very careful about what
+// ports we expose to the network.)
 //
 // As such we're very strict about what permissions we grant to
-// `FileProcessorService` as an extra layer of security. If we grant the
-// absolute minimum set of permissions `FileProcessorService` needs then even
-// if an attacker is able to compromise a `FileProcessorService` EC2 instance
-// they won't be able to do much with it. As of 2024-11-12 we only give
-// `FileProcessorService` read/write to the `Files` table and no other tables.
-// We do not give access to the DynamoDB `Scan` action. An attacker can't do
-// too much harm with this set of permissions.
+// `FileProcessorService` as an extra layer of security. If we grant the absolute
+// minimum set of permissions `FileProcessorService` needs then even if an attacker
+// is able to compromise a `FileProcessorService` EC2 instance they won't be able
+// to do much with it. As of 2024-11-12 we only give `FileProcessorService`
+// read/write to the `Files` table and no other tables. We do not give access to
+// the DynamoDB `Scan` action. An attacker can't do too much harm with this set of
+// permissions.
 //
 // To be clear, we don't know of any vulnerabilities that allow attackers to
 // compromise `FileProcessorService` and if we discover any vulnerabilities we
-// should fix them immediately. The permissions we grant `FileProcessorService`
-// is an additional precaution.
+// should fix them immediately. The permissions we grant `FileProcessorService` is
+// an additional precaution.
 //
 // [1]: https://www.npmjs.com/package/sharp
-// [2]: https://github.com/cyberworlds/sharp-libvips/blob/174959af63c6f3dd25b1339b8d3fc2bfc289a176/THIRD-PARTY-NOTICES.md
+// [2]:
+//     https://github.com/cyberworlds/sharp-libvips/blob/174959af63c6f3dd25b1339b8d3fc2bfc289a176/THIRD-PARTY-NOTICES.md
 // [3]: https://www.ffmpeg.org
 // [4]: https://www.libreoffice.org
 export class AwsFileProcessorService extends Construct {
@@ -139,11 +140,11 @@ export class AwsFileProcessorService extends Construct {
             `${observability.logsBucketPrefix}fileProcessorService`,
         );
 
-        // TODO(ifitzsimmons, 2025-07-30, ##file-processor-service-migration):
-        // To maintain naming consistency of the File Processor Service, we created
-        // all of the new resources in the `FileProcessorService` construct. When we
-        // are ready to migrate to the new service, we'll remove the legacy resources
-        // and replace them with the new resources. See discussion here
+        // TODO(ifitzsimmons, 2025-07-30, ##file-processor-service-migration): To maintain
+        // naming consistency of the File Processor Service, we created all of the new
+        // resources in the `FileProcessorService` construct. When we are ready to migrate
+        // to the new service, we'll remove the legacy resources and replace them with the
+        // new resources. See discussion here
         // https://app.graphite.dev/github/pr/cyberworlds/cyberworlds/248/resizeFile-Lambda-with-Local-runtime#comment-PRRC_kwDOH2ktg86E_0S-
         const {resizeFileLambda, resizeFileTargetGroup} = getResizeFileLambda(this, {
             vpc,
@@ -235,27 +236,27 @@ export class AwsFileProcessorService extends Construct {
         const vCpuCount = getInstanceTypeVCpuCount(instanceType);
 
         // Make sure we have enough storage to process one maximum size file per vCPU.
-        // `FileUploadService` only processes a max of one file per vCPU at a time. We
-        // add an extra 10% overhead to be safe.
+        // `FileUploadService` only processes a max of one file per vCPU at a time. We add
+        // an extra 10% overhead to be safe.
         //
-        // 30 GiB is the default size for an EBS volume so use that as our minimum
-        // volume size.
+        // 30 GiB is the default size for an EBS volume so use that as our minimum volume
+        // size.
         const maxFileContentLengthGib = maxFileContentLength / 1024 ** 3;
         const volumeSize = Math.max(30, Math.ceil(maxFileContentLengthGib * 1.1 * vCpuCount));
 
         const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
             instanceType,
-            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+            machineImage: EcsOptimizedImage.amazonLinux2023(AmiHardwareType.ARM),
 
             minCapacity: 1,
             // During a deploy, we double our capacity needs since we keep running old
             // instances to maintain availability while a new fleet of instances start.
             maxCapacity: 2,
 
-            // See the long comment in `AwsAppService` for why we use a public
-            // subnet for our services. The TL;DR is sending egress traffic like Honeycomb
-            // API calls through a NAT gateway can get expensive.
+            // See the long comment in `AwsAppService` for why we use a public subnet for our
+            // services. The TL;DR is sending egress traffic like Honeycomb API calls through a
+            // NAT gateway can get expensive.
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
 
             blockDevices: [
@@ -290,8 +291,8 @@ export class AwsFileProcessorService extends Construct {
         const taskDefinition = new Ec2TaskDefinition(this, "TaskDefinition", {
             // According to the docs:
             //
-            // > The host and awsvpc network modes offer the highest networking performance
-            // > for containers because they use the Amazon EC2 network stack.
+            // > The host and awsvpc network modes offer the highest networking performance for
+            // > containers because they use the Amazon EC2 network stack.
             //
             // Also:
             //
@@ -299,8 +300,7 @@ export class AwsFileProcessorService extends Construct {
             // > containers using the root user (UID 0) for better security.
             //
             // We use the host network mode for performance. We're running on public VPC
-            // subnets so that means anyone on the internet can send a request to our
-            // instance.
+            // subnets so that means anyone on the internet can send a request to our instance.
             //
             // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
             networkMode: NetworkMode.HOST,
@@ -317,31 +317,28 @@ export class AwsFileProcessorService extends Construct {
             ),
             cpu: 2048,
             // Memory available to our container. We can't use the full available memory
-            // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
-            // to function.
+            // because the ECS agent needs some memory to function. If you reserve too much
+            // memory you won't get an error. Instead the tasks are stuck in the "Provisioning"
+            // status forever.
             //
             // The right value is available on the container instance screen in the AWS
-            // console. Specifically under the "Resources & networking" tab. You want to
-            // look at "Total capacity" and make sure we're reserving all of it.
-            //
-            // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
-            // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
-            // stuck in the "Provisioning" status forever.
-            memoryLimitMiB: 15810,
-            // Send logs to AWS. Container logs are short-lived and used for debugging
-            // obscure machine-level issues. Our long-lived logs are in Honeycomb.
+            // console. Specifically under the "Resources & networking" tab. You want to look
+            // at "Total capacity" and make sure we're reserving all of it.
+            memoryLimitMiB: 15675,
+            // Send logs to AWS. Container logs are short-lived and used for debugging obscure
+            // machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
-            // Increase stop timeout to half a minute longer than the file processing
-            // timeout. Right now the file processing timeout is 5min (videos which need to
-            // transcode may take a while to process) which makes this timeout 5:30min.
-            // That's very long! It'll mean our deploys take longer to finish.
+            // Increase stop timeout to half a minute longer than the file processing timeout.
+            // Right now the file processing timeout is 5min (videos which need to transcode
+            // may take a while to process) which makes this timeout 5:30min. That's very long!
+            // It'll mean our deploys take longer to finish.
             //
             // Consider taking long running processing actions (e.g. video transcoding) and
             // putting them in AWS Lambdas with minimal dependencies that will very rarely
             // change on deploy to speed up deploys.
             stopTimeout: Duration.millis(fileProcessorTimeoutMs + 1000 * 30),
-            // For security, use the `www-data` user which exists on our Linux image. It
-            // only has read access and execute access to files on our system.
+            // For security, use the `www-data` user which exists on our Linux image. It only
+            // has read access and execute access to files on our system.
             user: "www-data",
             portMappings: [{containerPort: port, hostPort: port}],
             secrets: {
@@ -367,6 +364,10 @@ export class AwsFileProcessorService extends Construct {
                     secret,
                     "resourceServicePublicKey",
                 ),
+                IMPORTER_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secret,
+                    "importerServicePublicKey",
+                ),
                 FILE_PROCESSOR_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secret,
                     "fileProcessorServicePrivateKey",
@@ -384,14 +385,15 @@ export class AwsFileProcessorService extends Construct {
             },
             environment: {
                 NODE_ENV: "production",
+                AWS_REGION: Stack.of(this).region,
             },
             command: [
-                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
-                // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
-                // (e.g. `sh -c`) not our process.
+                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it breaks
+                // ECS process termination. The `SIGTERM` signal is sent to the shell (e.g.
+                // `sh -c`) not our process.
                 //
-                // `runService()` implements env variable substitution which is why we can use
-                // env variable syntax like `$HONEYCOMB_API_KEY`.
+                // `runService()` implements env variable substitution which is why we can use env
+                // variable syntax like `$HONEYCOMB_API_KEY`.
                 "/var/www/server/files/processor/processor_legacy",
                 `--port=${port}`,
                 "--temporaryDirectoryPath=/var/www-data/files",
@@ -413,6 +415,7 @@ export class AwsFileProcessorService extends Construct {
                 "--fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
                 "--apiServicePublicKey=$API_SERVICE_PUBLIC_KEY",
                 "--resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY",
+                "--importerServicePublicKey=$IMPORTER_SERVICE_PUBLIC_KEY",
                 "--servicePrivateKey=$FILE_PROCESSOR_SERVICE_PRIVATE_KEY",
                 "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
             ],
@@ -430,13 +433,12 @@ export class AwsFileProcessorService extends Construct {
 
         // IMPORTANT: Only grant `FileProcessorService` the ability to send/receive
         // messages on the file processor job queue. Being able to send messages to the
-        // default queue is dangerous since jobs are executed with a system context
-        // which is a privilege escalation.
+        // default queue is dangerous since jobs are executed with a system context which
+        // is a privilege escalation.
         sqs.grantSendAndReceiveJobQueueMessagesForOnlyFileProcessorQueue(taskDefinition.taskRole);
 
-        // IMPORTANT: Only grant `FileProcessorService` access to the tables it uses.
-        // This reduces what an attacker can do with a compromised
-        // `FileProcessorService`.
+        // IMPORTANT: Only grant `FileProcessorService` access to the tables it uses. This
+        // reduces what an attacker can do with a compromised `FileProcessorService`.
         //
         // Disallow queries so you can't read all files for a space.
         dynamo.grantReadWriteDataForTable(taskDefinition.taskRole, "Files", {disallowQuery: true});
@@ -477,8 +479,8 @@ export class AwsFileProcessorService extends Construct {
                 vpc,
                 healthCheck: {
                     path: "/healthcheck",
-                    // Speed up deployment by requiring fewer healthy checks. Should only take
-                    // ~15 seconds to consider the service healthy.
+                    // Speed up deployment by requiring fewer healthy checks. Should only take ~15
+                    // seconds to consider the service healthy.
                     // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
                     interval: Duration.seconds(5),
                     timeout: Duration.seconds(2),
@@ -486,8 +488,8 @@ export class AwsFileProcessorService extends Construct {
                     unhealthyThresholdCount: 2,
                 },
                 // See our comment on `stopTimeout`. File upload processing is potentially quite
-                // slow so we need to increase the deregistration delay to make sure we don't
-                // close connections that are still uploading during a deploy.
+                // slow so we need to increase the deregistration delay to make sure we don't close
+                // connections that are still uploading during a deploy.
                 deregistrationDelay: Duration.millis(fileProcessorTimeoutMs),
             },
         );
@@ -523,9 +525,8 @@ function getResizeFileLambda(
         cloudflareAccountId,
         // NOTE(#deploy-lambdas-without-vpc)
         vpc: null,
-        memorySize: 6144, // 6GB RAM (~3-4 vCPUs)
-        // Intentionally short timeout to ensure that the lambda is killed
-        // if it's not able to complete the resize operation.
+        memorySize: 6144, // 6GB RAM (~3-4 vCPUs) Intentionally short timeout to ensure that the lambda is
+        // killed if it's not able to complete the resize operation.
         timeout: Duration.seconds(30),
         secret,
         provisionedConcurrentExecutions: 5,
@@ -571,9 +572,8 @@ function getResizeAvatarLambda(
         cloudflareAccountId,
         // NOTE(#deploy-lambdas-without-vpc)
         vpc: null,
-        memorySize: 4096, // 4GB RAM (~2 vCPUs)
-        // Intentionally short timeout to ensure that the lambda is killed
-        // if it's not able to complete the resize operation.
+        memorySize: 4096, // 4GB RAM (~2 vCPUs) Intentionally short timeout to ensure that the lambda is
+        // killed if it's not able to complete the resize operation.
         timeout: Duration.seconds(30),
         secret,
         provisionedConcurrentExecutions: 2,
@@ -631,9 +631,8 @@ function getFileProcessorLambda(
         observability,
     });
 
-    // IMPORTANT: Only grant `FileProcessorService` access to the tables it uses.
-    // This reduces what an attacker can do with a compromised
-    // `FileProcessorService`.
+    // IMPORTANT: Only grant `FileProcessorService` access to the tables it uses. This
+    // reduces what an attacker can do with a compromised `FileProcessorService`.
     //
     // Disallow queries so you can't read all files for a space.
     dynamo.grantReadWriteDataForTable(fileProcessorLambda.executionRole, "Files", {
@@ -660,8 +659,8 @@ function createListenerWithRouting(
     const listener = loadBalancer.addListener("Listener", {
         protocol: ApplicationProtocol.HTTPS,
         port: 443,
-        // We only allow requests from Cloudflare IPs. This defaults to true and when
-        // true it updates the security group to allow connections from 0.0.0.0/0.
+        // We only allow requests from Cloudflare IPs. This defaults to true and when true
+        // it updates the security group to allow connections from 0.0.0.0/0.
         open: false,
         certificates: [
             new Certificate(parentConstruct, "Certificate", {
@@ -696,10 +695,10 @@ function createListenerWithRouting(
         },
     );
 
-    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove this once we've
-    // migrated to the new service
+    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove this
+    // once we've migrated to the new service
     //
-    //  Set up weighted routing to the new and old services
+    // Set up weighted routing to the new and old services
     listener.addAction("WeightedResizeFileRouting", {
         conditions: [ListenerCondition.pathPatterns(["/*/resize/*"])],
         action: ListenerAction.weightedForward([
@@ -724,8 +723,8 @@ function createListenerWithRouting(
         priority: 101,
     });
 
-    // TODO(ifitzsimmons, #file-processor-service-migration): Once we've
-    // migrated, remove the weighted route action above and change the target group to
+    // TODO(ifitzsimmons, #file-processor-service-migration): Once we've migrated,
+    // remove the weighted route action above and change the target group to
     // this.fileProcessorServiceTargetGroup. This is a default action.
     listener.addTargetGroups("FileProcessorServiceRouting", {
         targetGroups: [targetGroups.legacyFileProcessorServiceTargetGroup], // Routes to this target group
@@ -733,9 +732,9 @@ function createListenerWithRouting(
 }
 
 /**
- * Return the vCPU count for the given AWS EC2 instance type. Unfortunately
- * this information isn't available in the AWS CDK so we have to hard code it
- * based on the [documentation][1].
+ * Return the vCPU count for the given AWS EC2 instance type. Unfortunately this
+ * information isn't available in the AWS CDK so we have to hard code it based on
+ * the [documentation][1].
  *
  * [1]: https://aws.amazon.com/ec2/instance-types/
  */

@@ -6,17 +6,17 @@ import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_accoun
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {
-    DynamoGeneralRealtimeInboxItemEvent,
     MyAccountEvent,
     MyAccountProtocol,
+    RynamoInboxItemEvent,
 } from "~/shared/notifications/my_account_protocol.js";
 
 export type MyAccountEventStub = {
-    readonly type: "InboxRealtimeEventTransaction";
+    readonly type: "InboxRealtimeEvents";
     // We have the full event (references and all) in the stub because when
     // `AppService` creates the event they create it with the inbox recipient's
     // permissions.
-    readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeInboxItemEvent>;
+    readonly events: ReadonlyArray<RynamoInboxItemEvent>;
 };
 
 export class MyAccountConnection {

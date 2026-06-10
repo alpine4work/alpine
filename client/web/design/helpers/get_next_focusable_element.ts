@@ -1,4 +1,4 @@
-const focusableElements = [
+const focusableElementSelectors = [
     "input:not([disabled]):not([type=hidden])",
     "select:not([disabled])",
     "textarea:not([disabled])",
@@ -12,13 +12,14 @@ const focusableElements = [
     "audio[controls]",
     "video[controls]",
     "[contenteditable]:not([contenteditable=false])",
+    "[tabindex]",
 ];
 
-export const focusableElementSelector = `${focusableElements.join(",")},[tabindex]`;
+export const focusableElementSelector = focusableElementSelectors.join(", ");
 
-const tabbableElements = [...focusableElements, '[tabindex]:not([tabindex="-1"])'];
-
-const tabbableElementSelector = tabbableElements.join(':not([tabindex="-1"]),');
+const tabbableElementSelector = focusableElementSelectors
+    .map(selector => `${selector}:not([tabindex="-1"])`)
+    .join(", ");
 
 function createFocusableTreeWalker(
     element: Element | null,
@@ -59,8 +60,8 @@ function createFocusableTreeWalker(
 /**
  * Get the next focusable element in the tab sequence.
  *
- * You may also choose to include elements that are focusable but not a part of
- * the tab sequence (have `tabindex="-1"`).
+ * You may also choose to include elements that are focusable but not a part of the
+ * tab sequence (have `tabindex="-1"`).
  */
 export function getNextFocusableElementIfExists(
     element: Element | null,
@@ -87,8 +88,8 @@ export function getNextFocusableElementIfExists(
 /**
  * Get the previous focusable element in the tab sequence.
  *
- * You may also choose to include elements that are focusable but not a part of
- * the tab sequence (have `tabindex="-1"`).
+ * You may also choose to include elements that are focusable but not a part of the
+ * tab sequence (have `tabindex="-1"`).
  */
 export function getPreviousFocusableElementIfExists(
     element: Element | null,
@@ -104,8 +105,8 @@ export function getPreviousFocusableElementIfExists(
 /**
  * Get the last focusable element in the tab sequence.
  *
- * You may also choose to include elements that are focusable but not a part of
- * the tab sequence (have `tabindex="-1"`).
+ * You may also choose to include elements that are focusable but not a part of the
+ * tab sequence (have `tabindex="-1"`).
  */
 export function getLastFocusableElementIfExists(options?: {
     withinElement?: Element | null;

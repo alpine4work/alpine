@@ -26,8 +26,6 @@ ts_project(
         "//:node_modules/prettier",
         "//:node_modules/prosemirror-model",
         "//:node_modules/yaml",
-        "//server/api/content",
-        "//server/api/markdown",
         "//server/bots",
         "//server/content",
         "//server/context",
@@ -37,11 +35,20 @@ ts_project(
         "//server/language_models/core",
         "//server/messaging/helpers",
         "//server/node",
+        # NOTE(calebmer): Design goal for the API Bazel packages was to only depend on
+        # `//server/documents` stuff in `//server/api/internal/documents` so a change
+        # to forum code wouldn't need to re-run document API tests. However, taking
+        # this dependency breaks that design goal. Can't think of a better approach for
+        # now, but we should try to clean this dependency up eventually. (Maybe
+        # fallback search entity loaders need to be implemented in feature packages.)
+        "//server/search/data/index",
         "//server/spaces",
         "//server/tokens",
         "//server/tracer",
         "//shared/accounts",
-        "//shared/api",
+        "//shared/api/content",
+        "//shared/api/markdown",
+        "//shared/api/specification",
         "//shared/content",
         "//shared/content/code",
         "//shared/context",

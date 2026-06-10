@@ -7,13 +7,11 @@ import type {
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
- * Registers an eponymous virtual table module that
- * acts as a table-valued function. The function can
- * be called directly in SQL as `FROM name(args)`.
+ * Registers an eponymous virtual table module that acts as a table-valued
+ * function. The function can be called directly in SQL as `FROM name(args)`.
  *
- * Visible columns come first, then hidden argument
- * columns. SQLite passes argument values via
- * `xBestIndex`/`xFilter`.
+ * Visible columns come first, then hidden argument columns. SQLite passes argument
+ * values via `xBestIndex`/`xFilter`.
  */
 export function registerSqliteTableFunction(
     sqlite3: Sqlite3Static,
@@ -38,8 +36,7 @@ export function registerSqliteTableFunction(
 
     const firstArgColumn = options.columns.length;
 
-    // Cursor state: rows + current index, keyed by
-    // cursor pointer.
+    // Cursor state: rows + current index, keyed by cursor pointer.
     const cursors = new Map<WasmPointer, {rows: Array<Array<SqlValue>>; index: number}>();
 
     const mod = (vtab.setupModule as any)({
@@ -138,12 +135,9 @@ export function registerSqliteTableFunction(
                     cursor.index = 0;
                     return capi.SQLITE_OK;
                 } catch (error) {
-                    // Set zErrMsg on the sqlite3_vtab so SQLite
-                    // propagates it via sqlite3_errmsg(). The
-                    // cursor's first field is pVtab, and zErrMsg
-                    // is at offset +8 in the vtab struct
-                    // (after pModule and nRef, both 4 bytes on
-                    // wasm32).
+                    // Set zErrMsg on the sqlite3_vtab so SQLite propagates it via sqlite3_errmsg().
+                    // The cursor's first field is pVtab, and zErrMsg is at offset +8 in the vtab
+                    // struct (after pModule and nRef, both 4 bytes on wasm32).
                     const pVtab = wasm.peekPtr(pCursor) as WasmPointer;
                     const msg = error instanceof Error ? error.message : String(error);
                     wasm.pokePtr((pVtab + 8) as WasmPointer, wasm.allocCString(msg, false));

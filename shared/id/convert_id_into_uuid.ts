@@ -2,9 +2,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, decodeId, encodeId} from "~/shared/id/id.js";
 
 /**
- * Convert an `Id` into [UUID][1] format. Both formats are backed by 128 bits
- * so they are interchangeable. For example, `xpt7j5z5v20nm7ejpxpcvx8w84` is
- * converted into `edb47917-e5d8-815a-1dd2-b76ccdf51c41`.
+ * Convert an `Id` into [UUID][1] format. Both formats are backed by 128 bits so
+ * they are interchangeable. For example, `xpt7j5z5v20nm7ejpxpcvx8w84` is converted
+ * into `edb47917-e5d8-815a-1dd2-b76ccdf51c41`.
  *
  * [1]: https://en.wikipedia.org/wiki/Universally_unique_identifier
  */
@@ -39,10 +39,9 @@ export function convertIdIntoUuid(id: Id): string {
 }
 
 /**
- * Convert a [UUID][1] to our `Id` format. Both formats are backed by 128 bits
- * so they are interchangeable. For example,
- * `edb47917-e5d8-815a-1dd2-b76ccdf51c41` is converted into
- * `xpt7j5z5v20nm7ejpxpcvx8w84`.
+ * Convert a [UUID][1] to our `Id` format. Both formats are backed by 128 bits so
+ * they are interchangeable. For example, `edb47917-e5d8-815a-1dd2-b76ccdf51c41` is
+ * converted into `xpt7j5z5v20nm7ejpxpcvx8w84`.
  *
  * [1]: https://en.wikipedia.org/wiki/Universally_unique_identifier
  */

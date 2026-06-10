@@ -1,0 +1,4140 @@
+# This is the source OpenAPI specification for the Alpine REST API. We run a
+# couple transformations before we get to the OpenAPI specification we'll share
+# with users.
+#
+# - All comments are stripped from the final specification.
+#
+# - There are some template variables you can use that'll be replaced (for
+#   example `idRegExp` in Mustache curly brackets).
+#
+# - Schema names that end with an underscore (e.g. `_Response`) are
+#   "specializations" of the base type (e.g.
+#   `ContentMentionInlineElement_Response` is a specialization of
+#   `ContentMentionInlineElement`).
+#
+#   Specializations create entirely new type hierarchies that use the
+#   specialized type instead of the base type. For example, we generate
+#   `ContentInlineElement_Response` that references
+#   `ContentMentionInlineElement_Response` instead of
+#   `ContentMentionInlineElement`.
+#
+#   We also update any schema references used in request bodies or responses
+#   to use the `_Request` or `_Response` specialization respectively if such a
+#   specialization is available.
+
+openapi: 3.0.0
+info:
+    title: Alpine API
+    description: The Alpine REST API.
+    version: 1.0.0
+
+servers:
+    - url: https://api.alpine.inc
+
+paths:
+    /specification.yaml:
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/yaml: {}
+
+    # TODO(calebmer, #public-api): Document that if you have a bot and the bot is
+    # trying to read an account that was a former member of the space you'll get
+    # the account's old data at removal time instead of the latest data.
+    /accounts/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [account]
+                                additionalProperties: false
+                                properties:
+                                    account:
+                                        $ref: "#/components/schemas/AccountWithoutSpace"
+
+    /accounts/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [mention]
+                                additionalProperties: false
+                                properties:
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/AccountMentionTarget"
+                                            title:
+                                                type: string
+
+    /spaces/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [space]
+                                additionalProperties: false
+                                properties:
+                                    space:
+                                        $ref: "#/components/schemas/Space"
+
+    /spaces/{id}/accounts/{accountId}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [account]
+                                additionalProperties: false
+                                properties:
+                                    account:
+                                        $ref: "#/components/schemas/Account"
+
+    /spaces/{id}/accounts/{accountId}/inbox:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [inbox]
+                                additionalProperties: false
+                                properties:
+                                    inbox:
+                                        $ref: "#/components/schemas/Inbox"
+
+    /spaces/{id}/accounts/{accountId}/inbox/entries:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 20
+                - name: cursor
+                  in: query
+                  schema:
+                      type: string
+                - name: status
+                  in: query
+                  schema:
+                      type: string
+                      enum: [New, Done]
+                      default: New
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [inbox, entries, nextCursor]
+                                additionalProperties: false
+                                properties:
+                                    inbox:
+                                        $ref: "#/components/schemas/Inbox"
+                                    nextCursor:
+                                        oneOf:
+                                            - type: string
+                                            - type: "null"
+                                    entries:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/InboxEntry"
+
+    /spaces/{id}/bots/{botId}/settings:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: botId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/BotId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [settings]
+                                additionalProperties: false
+                                properties:
+                                    settings:
+                                        type: object
+                                        required: [values]
+                                        additionalProperties: false
+                                        properties:
+                                            values:
+                                                type: object
+                                                additionalProperties: true
+
+    /spaces/{id}/accounts/{accountId}/bots/{botId}/settings:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+            - name: botId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/BotId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [settings]
+                                additionalProperties: false
+                                properties:
+                                    settings:
+                                        type: object
+                                        required: [values, space]
+                                        additionalProperties: false
+                                        properties:
+                                            values:
+                                                type: object
+                                                additionalProperties: true
+                                            space:
+                                                type: object
+                                                required: [values]
+                                                additionalProperties: false
+                                                properties:
+                                                    values:
+                                                        type: object
+                                                        additionalProperties: true
+
+    /chats/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, chat]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    chat:
+                                        $ref: "#/components/schemas/Chat"
+
+    /chats/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/ChatMentionTarget"
+                                            title:
+                                                type: string
+
+    # TODO(calebmer, #public-api): Add a `-markdown` variant endpoint for all
+    # endpoints that deal with content. This variant should return a string for
+    # content instead of an AST. Also add a `-markdown` variant for any `/messages`
+    # endpoints (both `GET` and `POST`).
+    /chats/{id}/messages/{index}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessage"}
+
+    /chats/{id}/messages:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: integer
+                - name: from
+                  in: query
+                  schema:
+                      type: string
+                      enum: [start, end]
+                      default: start
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessages"}
+        post:
+            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessage"}
+
+    /chats/{id}/messages/{index}/stream/completion:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /chats/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPing"}
+
+    /chats/{id}/messages/{index}/stream/parts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        post:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
+    /chats/{id}/messages/{index}/stream/parts/{partIndex}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+            - name: partIndex
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
+    /documents:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, document]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                document:
+                                    type: object
+                                    required: [title, content]
+                                    additionalProperties: false
+                                    properties:
+                                        title:
+                                            type: string
+                                        creator:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetDocument"}
+
+    /documents/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetDocument"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [document]
+                            additionalProperties: false
+                            properties:
+                                document:
+                                    type: object
+                                    required: [version, title, content]
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        title:
+                                            type: string
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetDocument"}
+
+    /documents/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/DocumentMentionTarget"
+                                            title:
+                                                type: string
+
+    /documents/{id}/threads/{threadId}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, commentThread]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    commentThread:
+                                        $ref: "#/components/schemas/DocumentCommentThread"
+
+    /documents/{id}/threads/{threadId}/messages/{index}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessage"}
+
+    /documents/{id}/threads/{threadId}/messages:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                # TODO(calebmer, #public-api): Bikeshed this naming. I like it because we can
+                # consistently communicate the same pagination concept across all paginated API
+                # endpoints. But `index` here could be clearer for messages.
+                - name: cursor
+                  in: query
+                  schema:
+                      type: integer
+                # TODO(calebmer, #public-api): Bikeshed this name when we ship the public API.
+                # Ian's proposal is `order=ascending`/`order=descending`. Which matches SQL
+                # language, could feel more natural.
+                - name: from
+                  in: query
+                  schema:
+                      type: string
+                      enum: [start, end]
+                      default: start
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessages"}
+        post:
+            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessage"}
+
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/completion:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPing"}
+
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/parts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        post:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+            - name: partIndex
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
+    /channels/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChannelId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, channel]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    channel:
+                                        $ref: "#/components/schemas/Channel"
+
+    /channels/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChannelId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/ChannelMentionTarget"
+                                            title:
+                                                type: string
+
+    /posts:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            # TODO(ifitzsimmons, #ai): Eventually, we'll allow posts to be created
+                            # without a channel. That's the reason this endpoint isn't formatted
+                            # like `/channels/{id}/posts`. However, since we can't support post
+                            # creation outside of channels right now, users are required to provide
+                            # a channelId in the request. Going from required to optional will be
+                            # a backwards compatible change when the time comes.
+                            required: [channelId, content]
+                            additionalProperties: false
+                            # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
+                            # bodies for objects of the same type. So `GetPost` should be
+                            # assignable to this request body.
+                            properties:
+                                channelId:
+                                    $ref: "#/components/schemas/ChannelId"
+                                createdTimeZone:
+                                    $ref: "#/components/schemas/TimeZone"
+                                content:
+                                    $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetPost"}
+
+    /posts/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetPost"}
+
+    /posts/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        $ref: "#/components/schemas/Mention"
+
+    /posts/{id}/messages/{index}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessage"}
+
+    /posts/{id}/messages:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: integer
+                - name: from
+                  in: query
+                  schema:
+                      type: string
+                      enum: [start, end]
+                      default: start
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessages"}
+        post:
+            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessage"}
+
+    /posts/{id}/messages/{index}/stream/completion:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /posts/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPing"}
+
+    /posts/{id}/messages/{index}/stream/parts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        post:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
+    /posts/{id}/messages/{index}/stream/parts/{partIndex}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+            - name: partIndex
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
+    # TODO(ifitzsimmons, #ai): Change this interface so that it returns a parsed string
+    # representation of the search filters and an indication of whether a particular
+    # result matched the search filter or not.
+    /spaces/{id}/search:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+        get:
+            parameters:
+                - name: query
+                  in: query
+                  required: true
+                  schema:
+                      type: string
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [results]
+                                additionalProperties: false
+                                properties:
+                                    results:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/SearchResult"
+
+    /tasks:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, task]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                task:
+                                    type: object
+                                    additionalProperties: false
+                                    properties:
+                                        title:
+                                            type: string
+                                            maxLength: {{taskTitleMaxLength}}
+                                        creator:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        status:
+                                            $ref: "#/components/schemas/TaskStatus"
+                                        assignee:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        due:
+                                            $ref: "#/components/schemas/TaskDueDate"
+                                        priority:
+                                            type: string
+                                            enum: [Low, Medium, High, Urgent]
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTask"}
+
+    /tasks/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [patches]
+                            additionalProperties: false
+                            properties:
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/TaskPatch"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTask"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTask"}
+
+    /tasks/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/TaskMentionTarget"
+                                            title:
+                                                type: string
+
+    /tasks/{id}/messages/{index}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessage"}
+
+    /tasks/{id}/messages:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: integer
+                - name: from
+                  in: query
+                  schema:
+                      type: string
+                      enum: [start, end]
+                      default: start
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessages"}
+        post:
+            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessage"}
+
+    /tasks/{id}/messages/{index}/stream/completion:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /tasks/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPing"}
+
+    /tasks/{id}/messages/{index}/stream/parts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        post:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
+    /tasks/{id}/messages/{index}/stream/parts/{partIndex}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+            - name: partIndex
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
+
+    /task-collections:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, collection]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                collection:
+                                    type: object
+                                    required: [name]
+                                    additionalProperties: false
+                                    properties:
+                                        creator:
+                                            type: object
+                                            required: [id]
+                                            additionalProperties: false
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/AccountId"
+                                        name:
+                                            $ref: "#/components/schemas/LabelString"
+                                        color:
+                                            oneOf:
+                                                - $ref: "#/components/schemas/TaskCollectionColor"
+                                                - type: "null"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, collection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
+
+    /task-collections/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskCollectionId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [patches]
+                            additionalProperties: false
+                            properties:
+                                patches:
+                                    type: array
+                                    minItems: 1
+                                    items:
+                                        $ref: "#/components/schemas/TaskCollectionPatch"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, collection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, collection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    collection:
+                                        $ref: "#/components/schemas/TaskCollection"
+
+    /task-collections/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskCollectionId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/TaskCollectionMentionTarget"
+                                            title:
+                                                type: string
+
+    /task-collections/{id}/tasks:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskCollectionId"}
+
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: string
+                - name: status
+                  in: query
+                  schema:
+                      type: array
+                      items:
+                          type: string
+                          enum: [Open, Closed]
+                      maxItems: 2
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, tasks, nextCursor]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    nextCursor:
+                                        type: [string, "null"]
+                                    tasks:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/TaskWithoutContent"
+
+    /files/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/FileId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [id, contentType, contentLength, signedUrl, isUploading]
+                                additionalProperties: false
+                                properties:
+                                    id:
+                                        $ref: "#/components/schemas/FileId"
+                                    contentType:
+                                        type: string
+                                    contentLength:
+                                        type: integer
+                                    signedUrl:
+                                        type: string
+                                    isUploading:
+                                        type: boolean
+
+    /files/{id}/content:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/FileId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "302":
+                    headers:
+                        location:
+                            schema: {type: string}
+
+webhooks:
+    bot:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                [spaceId, botId, botAccountId, attempt, accessToken, eventId, event]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                botId:
+                                    $ref: "#/components/schemas/BotId"
+                                botAccountId:
+                                    $ref: "#/components/schemas/AccountId"
+                                # TODO(calebmer, #public-api): Remove `accountId` after this commit deploys.
+                                # It's only here for backwards compatibility purposes.
+                                accountId:
+                                    $ref: "#/components/schemas/AccountId"
+                                attempt:
+                                    type: integer
+                                    minimum: 1
+                                accessToken:
+                                    type: string
+                                eventId:
+                                    $ref: "#/components/schemas/BotWebhookEventId"
+                                event:
+                                    $ref: "#/components/schemas/BotWebhookEvent"
+            responses:
+                "200":
+                    description:
+                        Return a 200 status to indicate that the data was received successfully
+
+components:
+    responses:
+        Error:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [error]
+                        additionalProperties: false
+                        properties:
+                            error:
+                                type: object
+                                required: [message, retry]
+                                additionalProperties: false
+                                properties:
+                                    message:
+                                        type: string
+                                        description:
+                                            A human-readable message providing more details about
+                                            the error.
+                                    retry:
+                                        type: object
+                                        required: [able]
+                                        additionalProperties: false
+                                        properties:
+                                            able:
+                                                type: boolean
+                                                description:
+                                                    If true, it indicates that the request should
+                                                    succeed if tried again.
+
+        GetDocument:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, document]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            document:
+                                $ref: "#/components/schemas/Document"
+
+        GetTask:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, task]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            task:
+                                $ref: "#/components/schemas/Task"
+
+        GetMessage:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, message]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            message:
+                                $ref: "#/components/schemas/Message"
+
+        GetMessages:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, nextCursor, totalMessageCount, messages]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            totalMessageCount:
+                                type: integer
+                            # TODO(calebmer, #public-api): My dream is for the API browser to return this
+                            # as a link. So you can conveniently paginate through the API in your browser
+                            # by clicking `nextCursor`.
+                            nextCursor:
+                                type: [integer, "null"]
+                                minimum: 0
+                            messages:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/Message"
+
+        # TODO(calebmer, #public-api): We don't currently have
+        # `GET /chats/{id}/messages/{index}/stream/completion` endpoints but the
+        # intention is to add that endpoint and for it to return the same type as the
+        # `PUT` endpoint.
+        GetMessageStreamCompletion:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, completion]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            completion:
+                                type: object
+                                required: [completedTime]
+                                additionalProperties: false
+                                properties:
+                                    completedTime:
+                                        $ref: "#/components/schemas/DateTime"
+
+        # NOTE(ifitzsimmons, 2025-11-14): If a client tries pinging a stream after it's
+        # been completed, we don't throw an error. Instead, we return the completed time
+        # and the last stream ping time (without updating the last stream ping time).
+        GetMessageStreamPing:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, ping]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            ping:
+                                type: object
+                                required: [lastUpdatedTime]
+                                additionalProperties: false
+                                properties:
+                                    lastUpdatedTime:
+                                        $ref: "#/components/schemas/DateTime"
+
+        # TODO(calebmer, #public-api): We don't currently have
+        # `GET /chats/{id}/messages/{index}/stream/parts/{partIndex}` endpoints but
+        # the intention is to add that endpoint and for it to return the same type as
+        # the `PUT` endpoint.
+        GetMessageStreamPart:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+
+        GetPost:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, post]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            post:
+                                $ref: "#/components/schemas/Post"
+
+    requestBodies:
+        # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
+        # bodies for objects of the same type. So `GetMessage` should be
+        # assignable to `CreateMessage`.
+        CreateMessage:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [content]
+                        additionalProperties: false
+                        properties:
+                            isStream:
+                                type: boolean
+                            createdTimeZone:
+                                $ref: "#/components/schemas/TimeZone"
+                            parent:
+                                $ref: "#/components/schemas/MessageContentPayloadParent"
+                            content:
+                                $ref: "#/components/schemas/Content"
+                            files:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/MessageContentPayloadFile"
+
+        # TODO(ifitzsimmons, #public-api): Response bodies should be assignable to request
+        # bodies for objects of the same type. So `GetMessageStreamPart` should be
+        # assignable to `PutMessageStreamPart`.
+        PutMessageStreamPart:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [payload]
+                        additionalProperties: false
+                        properties:
+                            payload:
+                                $ref: "#/components/schemas/MessageStreamPartPayload"
+
+    schemas:
+        LabelString:
+            type: string
+            minLength: 1
+            maxLength: {{maxLabelStringLength}}
+
+        DateTime:
+            type: string
+            format: date-time
+
+        TimeZone:
+            type: string
+
+        # =========================================================================== #
+        #                                     IDs                                     #
+        # =========================================================================== #
+        #
+        # Ordered alphabetically assuming `Id` isn't appended as a suffix. e.g.
+        # `TaskId` comes before `TaskCollectionId` even though `C` comes before `I` in
+        # the alphabet.
+
+        AccountId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        BotId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        BotWebhookEventId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        ChannelId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        ChatId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        DocumentId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        DocumentThreadId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        FileId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        PostId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        SpaceId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        TaskId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        TaskCollectionId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        TaskCollectionColor:
+            type: string
+            enum: [Red, Orange, Yellow, Green, Cyan, Blue, Indigo, Purple, Pink]
+
+        # =========================================================================== #
+        #                               Mention targets                               #
+        # =========================================================================== #
+
+        # TODO: Rename *MentionTarget to *Target. These are shared between
+        # mentions and previews, so "Mention" in the name is misleading.
+        # Skip Accounts (no account previews)
+
+        AccountMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
+
+        ChannelMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+
+        ChatMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
+
+        DocumentMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+
+        PostMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+
+        TaskMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
+
+        TaskMentionTarget_Response:
+            type: object
+            required: [type, id, status]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+
+        TaskCollectionMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        MentionTarget:
+            oneOf:
+                - $ref: "#/components/schemas/AccountMentionTarget"
+                - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/ChatMentionTarget"
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/AccountMentionTarget"
+                    Channel: "#/components/schemas/ChannelMentionTarget"
+                    Chat: "#/components/schemas/ChatMentionTarget"
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+
+        PreviewTarget:
+            oneOf:
+                - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/ChatMentionTarget"
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Channel: "#/components/schemas/ChannelMentionTarget"
+                    Chat: "#/components/schemas/ChatMentionTarget"
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+
+        # =========================================================================== #
+        #                                   Content                                   #
+        # =========================================================================== #
+
+        Content:
+            type: object
+            additionalProperties: false
+            required: [elements]
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentBlockElement"
+
+        ContentBlockElement:
+            # TODO(calebmer, #public-api): We need to be able to add items without breaking
+            # backwards compatibility. When publishing the API, let's figure out what our
+            # schema evolution policy is.
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement"
+                - $ref: "#/components/schemas/ContentHeadingBlockElement"
+                - $ref: "#/components/schemas/ContentDividerBlockElement"
+                - $ref: "#/components/schemas/ContentTableBlockElement"
+                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentFileBlockElement"
+                - $ref: "#/components/schemas/ContentFileGalleryBlockElement"
+                - $ref: "#/components/schemas/ContentFileFloatBlockElement"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement"
+                    Heading: "#/components/schemas/ContentHeadingBlockElement"
+                    Divider: "#/components/schemas/ContentDividerBlockElement"
+                    Table: "#/components/schemas/ContentTableBlockElement"
+                    Code: "#/components/schemas/ContentCodeBlockElement"
+                    File: "#/components/schemas/ContentFileBlockElement"
+                    FileGallery: "#/components/schemas/ContentFileGalleryBlockElement"
+                    FileFloat: "#/components/schemas/ContentFileFloatBlockElement"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement"
+
+        ContentParagraphBlockElement:
+            type: object
+            required: [type, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentListBlockElement:
+            oneOf:
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement"
+
+        ContentUnorderedListBlockElement:
+            type: object
+            required: [type, items]
+            additionalProperties: false
+            properties:
+                type:
+                    const: UnorderedList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem"
+
+        ContentOrderedListBlockElement:
+            type: object
+            required: [type, items]
+            additionalProperties: false
+            properties:
+                type:
+                    const: OrderedList
+                orderStart:
+                    type: integer
+                    minimum: 1
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem"
+
+        ContentCheckListBlockElement:
+            type: object
+            required: [type, items]
+            additionalProperties: false
+            properties:
+                type:
+                    const: CheckList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCheckListBlockElementItem"
+
+        ContentListBlockElementItem:
+            type: object
+            required: [elements]
+            additionalProperties: false
+            properties:
+                # TODO(calebmer, #public-api): If `elements` is an empty array then this is a
+                # "phantom" list item. Phantom list items exist purely to increase the
+                # indentation level of their children and aren't rendered as a list item
+                # themselves. There's no bullet! An `elements` array with an empty paragraph
+                # does render an item.
+                #
+                # We need to clearly document this behavior in our API documentation.
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement"
+
+        ContentCheckListBlockElementItem:
+            type: object
+            required: [checked, elements]
+            additionalProperties: false
+            properties:
+                checked:
+                    type: boolean
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement"
+
+        ContentQuoteBlockElement:
+            type: object
+            required: [type, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Quote
+                elements:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement"
+
+        ContentQuoteBlockElementBlockElement:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement"
+
+        ContentHeadingBlockElement:
+            type: object
+            required: [type, level, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentDividerBlockElement:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Divider
+
+        ContentTableBlockElement:
+            type: object
+            required: [type, width, columns, rows]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Table
+                width:
+                    type: number
+                hasHeaderRow:
+                    type: boolean
+                hasHeaderColumn:
+                    type: boolean
+                columns:
+                    type: array
+                    minItems: 2
+                    items:
+                        type: object
+                        required: [width]
+                        additionalProperties: false
+                        properties:
+                            width:
+                                type: number
+                rows:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementRow"
+
+        ContentTableBlockElementRow:
+            type: object
+            required: [cells]
+            additionalProperties: false
+            properties:
+                cells:
+                    type: array
+                    minItems: 2
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCell"
+
+        ContentTableBlockElementCell:
+            type: object
+            required: [elements]
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement"
+
+        ContentTableBlockElementCellBlockElement:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement"
+                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentFileBlockElement"
+                - $ref: "#/components/schemas/ContentPreviewBlockElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement"
+                    Code: "#/components/schemas/ContentCodeBlockElement"
+                    File: "#/components/schemas/ContentFileBlockElement"
+                    Preview: "#/components/schemas/ContentPreviewBlockElement"
+
+        ContentCodeBlockElement:
+            type: object
+            required: [type, language, lines]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Code
+                language:
+                    type: string
+                    enum: {{codeBlockLanguageIds}}
+                lines:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementLine"
+
+        ContentCodeBlockElementLine:
+            type: object
+            required: [elements]
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+
+        ContentFileBlockElement:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                # Ignored on write but ensures ContentFileBlockElement_Response
+                # is compatible as input.
+                contentType:
+                    type: string
+                    enum: {{fileContentTypes}}
+                contentLength:
+                    type: integer
+                    minimum: 0
+
+        ContentFileBlockElement_Response:
+            type: object
+            required: [type, id, contentType, contentLength]
+            additionalProperties: false
+            properties:
+                type:
+                    const: File
+                id:
+                    $ref: "#/components/schemas/FileId"
+                contentType:
+                    type: string
+                    enum: {{fileContentTypes}}
+                contentLength:
+                    type: integer
+                    minimum: 0
+
+        ContentPreviewBlockElement:
+            type: object
+            required: [type, target]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                target:
+                    $ref: "#/components/schemas/PreviewTarget"
+                # Ignored on write but ensures ContentPreviewBlockElement_Response
+                # is compatible as input.
+                title:
+                    type: string
+
+        # TODO: Auto-generate _Response variants from their base types instead
+        # of duplicating fields manually.
+        ContentPreviewBlockElement_Response:
+            type: object
+            required: [type, target, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                target:
+                    $ref: "#/components/schemas/PreviewTarget"
+                title:
+                    type: string
+                    minLength: 1
+
+        ContentFileGalleryBlockElement:
+            type: object
+            required: [type, rows]
+            additionalProperties: false
+            properties:
+                type:
+                    const: FileGallery
+                rows:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRow"
+
+        ContentFileGalleryBlockElementRow:
+            type: object
+            required: [items]
+            additionalProperties: false
+            properties:
+                items:
+                    type: array
+                    minItems: 1
+                    maxItems: 3
+                    items:
+                        $ref: "#/components/schemas/ContentFileGalleryBlockElementRowItem"
+
+        ContentFileGalleryBlockElementRowItem:
+            type: object
+            required: [element]
+            additionalProperties: false
+            properties:
+                # Fractional width from 0 to 1 representing the item's share
+                # of the row width. Values in a row sum to 1. Ignored on
+                # write, populated on read.
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+
+        ContentFileGalleryBlockElementRowItem_Response:
+            type: object
+            required: [width, element]
+            additionalProperties: false
+            properties:
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+
+        ContentFileFloatBlockElement:
+            type: object
+            required: [type, side, element]
+            additionalProperties: false
+            properties:
+                type:
+                    const: FileFloat
+                side:
+                    type: string
+                    enum: [Left, Right]
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+
+        ContentInlineElement:
+            oneOf:
+                - $ref: "#/components/schemas/ContentTextInlineElement"
+                - $ref: "#/components/schemas/ContentBreakInlineElement"
+                - $ref: "#/components/schemas/ContentMentionInlineElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/ContentTextInlineElement"
+                    Break: "#/components/schemas/ContentBreakInlineElement"
+                    Mention: "#/components/schemas/ContentMentionInlineElement"
+
+        ContentTextInlineElement:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+                    minLength: 1
+                # TODO(calebmer, #public-api): Document that marks are an unordered set. Mark
+                # order doesn't matter and duplicates aren't allowed.
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+
+        ContentBreakInlineElement:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Break
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+
+        ContentMentionInlineElement:
+            type: object
+            required: [type, target]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+
+        ContentMentionInlineElement_Response:
+            type: object
+            required: [type, target, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                # TODO(calebmer, #public-api): Document that `title` is loaded using the search
+                # index so may be stale by up to 90s! (60s for slow document reindexing + 10s
+                # for OpenSearch refresh interval. Say 90s to give us enough buffer.)
+                title:
+                    type: string
+                    minLength: 1
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+
+        # Simpler mention type that's compatible with `ContentMentionInlineElement` but
+        # without extra element properties like `type` and `marks`.
+        Mention:
+            type: object
+            required: [target]
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
+
+        Mention_Response:
+            type: object
+            required: [target, title]
+            additionalProperties: false
+            properties:
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                title:
+                    type: string
+
+        ContentInlineElementMark:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlineElementBoldMark"
+                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
+                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
+                - $ref: "#/components/schemas/ContentInlineElementLinkMark"
+                - $ref: "#/components/schemas/ContentInlineElementCodeMark"
+                - $ref: "#/components/schemas/ContentInlineElementHighlightMark"
+                - $ref: "#/components/schemas/ContentInlineElementCommentMark"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Bold: "#/components/schemas/ContentInlineElementBoldMark"
+                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
+                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
+                    Link: "#/components/schemas/ContentInlineElementLinkMark"
+                    Code: "#/components/schemas/ContentInlineElementCodeMark"
+                    Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
+                    Comment: "#/components/schemas/ContentInlineElementCommentMark"
+
+        ContentInlineElementBoldMark:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Bold
+
+        ContentInlineElementItalicMark:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Italic
+
+        ContentInlineElementStrikeMark:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Strike
+
+        ContentInlineElementLinkMark:
+            type: object
+            required: [type, url]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Link
+                url:
+                    type: string
+
+        ContentInlineElementCodeMark:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Code
+
+        ContentInlineElementHighlightMark:
+            type: object
+            required: [type, color]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Highlight
+                color:
+                    $ref: "#/components/schemas/ContentInlineElementHighlightMarkColor"
+
+        ContentInlineElementHighlightMarkColor:
+            type: string
+            enum:
+                - Red
+                - Orange
+                - Green
+                - Blue
+                - Purple
+
+        ContentInlineElementCommentMark:
+            type: object
+            required: [type, threadId]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Comment
+                threadId:
+                    $ref: "#/components/schemas/DocumentThreadId"
+
+        ContentCodeBlockElementTextInlineElement:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+                    minLength: 1
+                    pattern: ^[^\n\r]*$
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElementMark"
+
+        ContentCodeBlockElementTextInlineElementMark:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlineElementBoldMark"
+                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
+                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
+                - $ref: "#/components/schemas/ContentInlineElementLinkMark"
+                - $ref: "#/components/schemas/ContentInlineElementHighlightMark"
+                - $ref: "#/components/schemas/ContentInlineElementCommentMark"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Bold: "#/components/schemas/ContentInlineElementBoldMark"
+                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
+                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
+                    Link: "#/components/schemas/ContentInlineElementLinkMark"
+                    Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
+                    Comment: "#/components/schemas/ContentInlineElementCommentMark"
+
+        # =========================================================================== #
+        #                                  Entities                                   #
+        # =========================================================================== #
+
+        AccountWithoutSpace:
+            type: object
+            required: [id, name, shortName]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                shortName:
+                    $ref: "#/components/schemas/LabelString"
+                botId:
+                    $ref: "#/components/schemas/BotId"
+
+        Space:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/SpaceId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        Account:
+            type: object
+            required: [id, name, shortName, space]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                shortName:
+                    type: string
+                    minLength: 1
+                    maxLength: 50
+                botId:
+                    $ref: "#/components/schemas/BotId"
+                space:
+                    type: object
+                    required: [role, addedTime]
+                    additionalProperties: false
+                    properties:
+                        role:
+                            type: string
+                            enum: [Owner, Admin, Member]
+                        addedTime:
+                            $ref: "#/components/schemas/DateTime"
+                        # TODO(calebmer, #public-api): Bikeshed what the right way to expose account
+                        # state over the public API is.
+                        inactive:
+                            $ref: "#/components/schemas/AccountSpaceInactive"
+
+        AccountSpaceInactive:
+            oneOf:
+                - $ref: "#/components/schemas/AccountSpaceRemovedInactive"
+                - $ref: "#/components/schemas/AccountSpaceInvitePendingInactive"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Removed: "#/components/schemas/AccountSpaceRemovedInactive"
+                    InvitePending: "#/components/schemas/AccountSpaceInvitePendingInactive"
+
+        AccountSpaceRemovedInactive:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Removed
+                removedTime:
+                    $ref: "#/components/schemas/DateTime"
+
+        AccountSpaceInvitePendingInactive:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: InvitePending
+
+        Inbox:
+            type: object
+            required: [newEntryCount, loudNotificationCount]
+            additionalProperties: false
+            properties:
+                newEntryCount:
+                    type: integer
+                    minimum: 0
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+
+        InboxEntryShared:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured]
+            additionalProperties: false
+            # Anchor merged into each `Inbox*Entry` schema (YAML merge) so shared fields stay
+            # single-sourced while each variant remains one flat object for AJV.
+            properties: &inboxEntrySharedProperties
+                title:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/InboxEntryTitleItem"
+                preview:
+                    type: string
+                time:
+                    $ref: "#/components/schemas/DateTime"
+                loudNotificationCount:
+                    type: integer
+                    minimum: 0
+                status:
+                    type: string
+                    enum: [New, Done]
+                featured:
+                    type: object
+                    required: [type]
+                    additionalProperties: false
+                    oneOf:
+                        - $ref: "#/components/schemas/InboxEntryAccountFeatured"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Account: "#/components/schemas/InboxEntryAccountFeatured"
+                otherAccount:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntryTitleItem:
+            oneOf:
+                - $ref: "#/components/schemas/InboxEntryTitleTextItem"
+                - $ref: "#/components/schemas/InboxEntryTitleAccountItem"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/InboxEntryTitleTextItem"
+                    Account: "#/components/schemas/InboxEntryTitleAccountItem"
+
+        InboxEntryTitleTextItem:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+
+        InboxEntryTitleAccountItem:
+            type: object
+            required: [type, account]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntryAccountFeatured:
+            type: object
+            required: [type, account]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                account:
+                    $ref: "#/components/schemas/Account"
+
+        InboxEntry:
+            oneOf:
+                - $ref: "#/components/schemas/InboxChatEntry"
+                - $ref: "#/components/schemas/InboxCreatedChannelPostsEntry"
+                - $ref: "#/components/schemas/InboxPostEntry"
+                - $ref: "#/components/schemas/InboxCreatedDocumentThreadsEntry"
+                - $ref: "#/components/schemas/InboxDocumentThreadEntry"
+                - $ref: "#/components/schemas/InboxTaskMessagesEntry"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Chat: "#/components/schemas/InboxChatEntry"
+                    CreatedChannelPosts: "#/components/schemas/InboxCreatedChannelPostsEntry"
+                    Post: "#/components/schemas/InboxPostEntry"
+                    CreatedDocumentThreads: "#/components/schemas/InboxCreatedDocumentThreadsEntry"
+                    DocumentThread: "#/components/schemas/InboxDocumentThreadEntry"
+                    TaskMessages: "#/components/schemas/InboxTaskMessagesEntry"
+
+        InboxChatEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, chat, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: Chat
+                chat:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/ChatId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxCreatedChannelPostsEntry:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured, type, channel, posts]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: CreatedChannelPosts
+                channel:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/ChannelId"
+                posts:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required: [id]
+                        additionalProperties: false
+                        properties:
+                            id:
+                                $ref: "#/components/schemas/PostId"
+
+        InboxPostEntry:
+            type: object
+            required: [title, time, loudNotificationCount, status, featured, type, post]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: Post
+                post:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/PostId"
+                # TODO(#public-api): Document that `previewMessage` is optional because an
+                # `InboxPostEntry` can be created from a mention in the post itself, before
+                # any comments exist on the post. In that case there is no comment to preview.
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxCreatedDocumentThreadsEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, document, threads]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: CreatedDocumentThreads
+                document:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
+                threads:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required: [id]
+                        additionalProperties: false
+                        properties:
+                            id:
+                                $ref: "#/components/schemas/DocumentThreadId"
+
+        InboxDocumentThreadEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, thread, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: DocumentThread
+                thread:
+                    type: object
+                    required: [id, document]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentThreadId"
+                        document:
+                            type: object
+                            required: [id]
+                            additionalProperties: false
+                            properties:
+                                id:
+                                    $ref: "#/components/schemas/DocumentId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        InboxTaskMessagesEntry:
+            type: object
+            required:
+                [title, time, loudNotificationCount, status, featured, type, task, previewMessage]
+            additionalProperties: false
+            properties:
+                <<: *inboxEntrySharedProperties
+                type:
+                    const: TaskMessages
+                task:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/TaskId"
+                previewMessage:
+                    type: object
+                    required: [index]
+                    additionalProperties: false
+                    properties:
+                        index:
+                            type: integer
+                            minimum: 0
+
+        Chat:
+            oneOf:
+                - $ref: "#/components/schemas/DirectChat"
+                - $ref: "#/components/schemas/RoomChat"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Direct: "#/components/schemas/DirectChat"
+                    Room: "#/components/schemas/RoomChat"
+
+        DirectChat:
+            type: object
+            required: [type, id, members]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Direct
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                members:
+                    type: array
+                    items:
+                        type: object
+                        required: [account]
+                        additionalProperties: false
+                        properties:
+                            account:
+                                $ref: "#/components/schemas/Account"
+
+        RoomChat:
+            type: object
+            required: [type, id, name]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Room
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        Document:
+            type: object
+            required: [id, version, title, content]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                version:
+                    type: integer
+                    minimum: 0
+                title:
+                    type: string
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        DocumentPreview:
+            type: object
+            required: [id, title]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                title:
+                    type: string
+
+        DocumentCommentThread:
+            type: object
+            required:
+                [
+                    id,
+                    createdTime,
+                    isResolved,
+                    commentCount,
+                    firstCommentAuthor,
+                    documentContentSnippet,
+                ]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                isResolved:
+                    type: boolean
+                commentCount:
+                    type: integer
+                    minimum: 0
+                firstCommentAuthor:
+                    oneOf:
+                        - $ref: "#/components/schemas/Account"
+                        - type: "null"
+                documentContentSnippet:
+                    $ref: "#/components/schemas/Content"
+
+        ChannelPreview:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        Channel:
+            type: object
+            required: [id, name, description]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                description:
+                    $ref: "#/components/schemas/Content"
+
+        Post:
+            type: object
+            # `channel` is intentionally optional since we may allow users to create posts
+            # that aren't in a channel in the future.
+            required: [id, author, createdTime, createdTimeZone, content, contentPreview]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                # For any useful rendering of a post, you need the author's name. Which is why
+                # we include more than just the `AccountId`.
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                content:
+                    $ref: "#/components/schemas/Content"
+                contentPreview:
+                    type: string
+
+        # TODO(ifitzsimmons, #ai): Add a `/posts/{id}/preview` endpoint that returns a
+        # a `PostPreview`
+        # https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
+        PostPreview:
+            type: object
+            required: [id, author, contentPreview]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                contentPreview:
+                    type: string
+
+        Task:
+            type: object
+            required: [id, status, title, content]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: {{taskTitleMaxLength}}
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDueDate"
+                priority:
+                    type: string
+                    enum: [Low, Medium, High, Urgent]
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        TaskWithoutContent:
+            type: object
+            required: [id, status, title]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: {{taskTitleMaxLength}}
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDueDate"
+                priority:
+                    type: string
+                    enum: [Low, Medium, High, Urgent]
+
+        TaskPreview:
+            type: object
+            required: [id, status, title]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+
+        TaskDueDate:
+            type: object
+            required: [date]
+            additionalProperties: false
+            properties:
+                date:
+                    type: string
+                    format: date
+
+        TaskPatch:
+            oneOf:
+                - $ref: "#/components/schemas/TaskSetTitlePatch"
+                - $ref: "#/components/schemas/TaskSetAssigneePatch"
+                - $ref: "#/components/schemas/TaskSetStatusPatch"
+                - $ref: "#/components/schemas/TaskSetDueDatePatch"
+                - $ref: "#/components/schemas/TaskSetPriorityPatch"
+                - $ref: "#/components/schemas/TaskAddCollectionPatch"
+                - $ref: "#/components/schemas/TaskRemoveCollectionPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetTitle: "#/components/schemas/TaskSetTitlePatch"
+                    SetAssignee: "#/components/schemas/TaskSetAssigneePatch"
+                    SetStatus: "#/components/schemas/TaskSetStatusPatch"
+                    SetDueDate: "#/components/schemas/TaskSetDueDatePatch"
+                    SetPriority: "#/components/schemas/TaskSetPriorityPatch"
+                    AddCollection: "#/components/schemas/TaskAddCollectionPatch"
+                    RemoveCollection: "#/components/schemas/TaskRemoveCollectionPatch"
+
+        TaskSetTitlePatch:
+            type: object
+            required: [type, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetTitle
+                title:
+                    type: string
+
+        TaskSetAssigneePatch:
+            type: object
+            required: [type, assignee]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetAssignee
+                assignee:
+                    oneOf:
+                        - $ref: "#/components/schemas/AccountId"
+                        - type: "null"
+
+        TaskSetStatusPatch:
+            type: object
+            required: [type, status]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetStatus
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+
+        TaskSetDueDatePatch:
+            type: object
+            required: [type, due]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetDueDate
+                due:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskDueDate"
+                        - type: "null"
+
+        TaskSetPriorityPatch:
+            type: object
+            required: [type, priority]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetPriority
+                priority:
+                    oneOf:
+                        - type: string
+                          enum: [Low, Medium, High, Urgent]
+                        - type: "null"
+
+        TaskAddCollectionPatch:
+            type: object
+            required: [type, collectionId]
+            additionalProperties: false
+            properties:
+                type:
+                    const: AddCollection
+                collectionId:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskRemoveCollectionPatch:
+            type: object
+            required: [type, collectionId]
+            additionalProperties: false
+            properties:
+                type:
+                    const: RemoveCollection
+                collectionId:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskCollectionPatch:
+            oneOf:
+                - $ref: "#/components/schemas/TaskCollectionSetNamePatch"
+                - $ref: "#/components/schemas/TaskCollectionSetColorPatch"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetName: "#/components/schemas/TaskCollectionSetNamePatch"
+                    SetColor: "#/components/schemas/TaskCollectionSetColorPatch"
+
+        TaskCollectionSetNamePatch:
+            type: object
+            required: [type, name]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetName
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        TaskCollectionSetColorPatch:
+            type: object
+            required: [type, color]
+            additionalProperties: false
+            properties:
+                type:
+                    const: SetColor
+                color:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskCollectionColor"
+                        - type: "null"
+
+        TaskStatus:
+            oneOf:
+                - $ref: "#/components/schemas/TaskOpenStatus"
+                - $ref: "#/components/schemas/TaskClosedStatus"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Open: "#/components/schemas/TaskOpenStatus"
+                    Closed: "#/components/schemas/TaskClosedStatus"
+
+        TaskOpenStatus:
+            type: object
+            required: [type, isActive]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Open
+                isActive:
+                    type: boolean
+
+        TaskClosedStatus:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Closed
+
+        TaskCollection:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                creator:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                color:
+                    oneOf:
+                        - $ref: "#/components/schemas/TaskCollectionColor"
+                        - type: "null"
+
+        # =========================================================================== #
+        #                                  Messages                                   #
+        # =========================================================================== #
+
+        Message:
+            type: object
+            required: [index, author, createdTime, createdTimeZone, payload]
+            additionalProperties: false
+            properties:
+                index:
+                    type: integer
+                    minimum: 0
+                # For any useful rendering of a post, you need the author's name. Which is why
+                # we include more than just the `AccountId`.
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                payload:
+                    $ref: "#/components/schemas/MessagePayload"
+
+        MessagePayload:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayload"
+                - $ref: "#/components/schemas/MessageDeletedPayload"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageContentPayload"
+                    Deleted: "#/components/schemas/MessageDeletedPayload"
+
+        MessageContentPayload:
+            type: object
+            required: [type, content]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                parent:
+                    $ref: "#/components/schemas/MessageContentPayloadParent"
+                content:
+                    $ref: "#/components/schemas/Content"
+                files:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadFile"
+
+        MessageContentPayload_Response:
+            type: object
+            required: [type, content, files]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                parent:
+                    $ref: "#/components/schemas/MessageContentPayloadParent"
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+                files:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadFile_Response"
+
+        MessageContentPayloadFile:
+            type: object
+            required: [element]
+            additionalProperties: false
+            properties:
+                rowIndex:
+                    type: integer
+                    minimum: 0
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement"
+
+        MessageContentPayloadFile_Response:
+            type: object
+            required: [rowIndex, width, element]
+            additionalProperties: false
+            properties:
+                rowIndex:
+                    type: integer
+                    minimum: 0
+                width:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                element:
+                    oneOf:
+                        - $ref: "#/components/schemas/ContentFileBlockElement_Response"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            File: "#/components/schemas/ContentFileBlockElement_Response"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+
+        MessageContentPayloadParent:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
+                - $ref: "#/components/schemas/MessageContentPayloadPostParent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Message: "#/components/schemas/MessageContentPayloadMessageParent"
+                    Post: "#/components/schemas/MessageContentPayloadPostParent"
+
+        MessageContentPayloadMessageParent:
+            type: object
+            required: [type, index]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Message
+                index:
+                    type: integer
+                    minimum: 0
+
+        MessageContentPayloadMessageParent_Response:
+            type: object
+            required: [type, index, author, contentSnippet]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Message
+                index:
+                    type: integer
+                    minimum: 0
+                # NOTE(ifitzsimmons, #api): Alpine users can reply to a selection of content that
+                # that can span across more than 1 message (we refer to this as a "range"). If the
+                # parent is a "range", the `index` is the start index of the range the `endIndex`
+                # will be a positive integer (instead of undefined).
+                endIndex:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                contentSnippet:
+                    $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
+
+        MessageContentPayloadPostParent:
+            type: object
+            required: [type, author, contentSnippet]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+
+        # TODO(ifitzsimmons, #public-api): We don't actually return the range information for
+        # now. In order for a client to use the actual range, we need to return the start
+        # and end index *along with the content version*. Eventually, we should encode these
+        # into `postSelectionId` – but I don't think we should expose the range in the meantime.
+        # In terms of our agents, we can use the `isTruncated` property to determine whether we
+        # need to fetch the whole post. The full message and the truncated message should give
+        # the agent enough context to reply to the request.
+        MessageContentPayloadPostParent_Response:
+            type: object
+            required: [type, author, contentSnippet]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                author:
+                    $ref: "#/components/schemas/Account"
+                contentSnippet:
+                    $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
+
+        MessageDeletedPayload:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Deleted
+
+        MessageStreamPart:
+            type: object
+            required: [index, version, payload, createdTime]
+            additionalProperties: false
+            properties:
+                index:
+                    type: integer
+                    minimum: 0
+                version:
+                    type: integer
+                    minimum: 0
+                createdTime:
+                    type: string
+                    format: date-time
+                payload:
+                    $ref: "#/components/schemas/MessageStreamPartPayload"
+
+        MessageStreamPartPayload:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamContentPartPayload"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload"
+                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageStreamContentPartPayload"
+                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload"
+                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload"
+
+        MessageStreamContentPartPayload:
+            type: object
+            required: [type, content]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        MessageStreamReasoningPartPayload:
+            type: object
+            required: [type, content]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Reasoning
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        MessageStreamToolCallPartPayload:
+            type: object
+            required: [type, call]
+            additionalProperties: false
+            properties:
+                type:
+                    const: ToolCall
+                call:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall"
+
+        MessageStreamToolCallPartPayloadCall:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
+                    Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
+
+        MessageStreamToolCallPartPayloadReadCall:
+            type: object
+            required: [type, target]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Read
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+
+        MessageStreamToolCallPartPayloadSearchCall:
+            type: object
+            required: [type, query]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Search
+                query:
+                    type: string
+
+        MessageStreamToolCallPartPayloadCreateCall:
+            type: object
+            required: [type, target]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Create
+                target:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallTarget"
+
+        MessageStreamToolCallPartCreateCallTarget:
+            oneOf:
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Document: "#/components/schemas/DocumentMentionTarget"
+                    Post: "#/components/schemas/PostMentionTarget"
+                    Task: "#/components/schemas/TaskMentionTarget"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
+
+        # =========================================================================== #
+        #                                  Webhooks                                   #
+        # =========================================================================== #
+
+        BotWebhookEvent:
+            oneOf:
+                - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
+                - $ref: "#/components/schemas/BotWebhookNewPostEvent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
+                    NewPost: "#/components/schemas/BotWebhookNewPostEvent"
+
+        BotWebhookNewMessageEvent:
+            type: object
+            required: [type, room, index, authorId, createdTimeZone]
+            additionalProperties: false
+            properties:
+                type:
+                    const: NewMessage
+                room:
+                    $ref: "#/components/schemas/MessageRoomTarget"
+                index:
+                    type: integer
+                    minimum: 0
+                authorId:
+                    $ref: "#/components/schemas/AccountId"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                wasMentioned:
+                    type: boolean
+                viewingTarget:
+                    $ref: "#/components/schemas/MentionTarget"
+                parent:
+                    $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
+
+        BotWebhookNewMessageEventParent:
+            oneOf:
+                - $ref: "#/components/schemas/BotWebhookNewMessageEventMessageParent"
+                - $ref: "#/components/schemas/BotWebhookNewMessageEventPostParent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Message: "#/components/schemas/BotWebhookNewMessageEventMessageParent"
+                    Post: "#/components/schemas/BotWebhookNewMessageEventPostParent"
+
+        BotWebhookNewMessageEventMessageParent:
+            type: object
+            required: [type, index, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Message
+                index:
+                    type: integer
+                author:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+
+        BotWebhookNewMessageEventPostParent:
+            type: object
+            required: [type, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                author:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+
+        BotWebhookNewPostEvent:
+            type: object
+            required: [type, postId, authorId, createdTimeZone]
+            additionalProperties: false
+            properties:
+                type:
+                    const: NewPost
+                postId:
+                    $ref: "#/components/schemas/PostId"
+                authorId:
+                    $ref: "#/components/schemas/AccountId"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                wasMentioned:
+                    type: boolean
+
+        MessageContentPayloadParentContentSnippet:
+            type: object
+            required: [isTruncated, elements]
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadParentContentSnippetTextInlineElement"
+                isTruncated:
+                    type: boolean
+
+        MessageContentPayloadParentContentSnippetTextInlineElement:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadParentContentSnippetInlineElementMark"
+
+        MessageContentPayloadParentContentSnippetInlineElementMark:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
+                - $ref: "#/components/schemas/ContentInlineElementCodeMark"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
+                    Code: "#/components/schemas/ContentInlineElementCodeMark"
+
+        MessageRoomTarget:
+            oneOf:
+                - $ref: "#/components/schemas/ChatMessageRoom"
+                - $ref: "#/components/schemas/DocumentCommentRoom"
+                - $ref: "#/components/schemas/PostCommentRoom"
+                - $ref: "#/components/schemas/TaskCommentRoom"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Chat: "#/components/schemas/ChatMessageRoom"
+                    DocumentCommentThread: "#/components/schemas/DocumentCommentRoom"
+                    Post: "#/components/schemas/PostCommentRoom"
+                    Task: "#/components/schemas/TaskCommentRoom"
+
+        ChatMessageRoom:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
+
+        DocumentCommentRoom:
+            type: object
+            required: [type, id, threadId]
+            additionalProperties: false
+            properties:
+                type:
+                    const: DocumentCommentThread
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                threadId:
+                    $ref: "#/components/schemas/DocumentThreadId"
+
+        PostCommentRoom:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+
+        TaskCommentRoom:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
+
+        # =========================================================================== #
+        #                                  Search                                    #
+        # =========================================================================== #
+
+        # Search results have the following shared properties:
+        #
+        # - `type` (required)
+        # - `title` (optional)
+        # - `bodyMatch` (optional)
+        SearchResult:
+            oneOf:
+                - $ref: "#/components/schemas/SearchAccountResult"
+                - $ref: "#/components/schemas/SearchChannelResult"
+                - $ref: "#/components/schemas/SearchChatResult"
+                - $ref: "#/components/schemas/SearchChatMessageResult"
+                - $ref: "#/components/schemas/SearchDocumentResult"
+                - $ref: "#/components/schemas/SearchDocumentMessageResult"
+                - $ref: "#/components/schemas/SearchPostResult"
+                - $ref: "#/components/schemas/SearchPostMessageResult"
+                - $ref: "#/components/schemas/SearchTaskResult"
+                - $ref: "#/components/schemas/SearchTaskMessageResult"
+                - $ref: "#/components/schemas/SearchTaskCollectionResult"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/SearchAccountResult"
+                    Channel: "#/components/schemas/SearchChannelResult"
+                    Chat: "#/components/schemas/SearchChatResult"
+                    ChatMessage: "#/components/schemas/SearchChatMessageResult"
+                    Document: "#/components/schemas/SearchDocumentResult"
+                    DocumentMessage: "#/components/schemas/SearchDocumentMessageResult"
+                    Post: "#/components/schemas/SearchPostResult"
+                    PostMessage: "#/components/schemas/SearchPostMessageResult"
+                    Task: "#/components/schemas/SearchTaskResult"
+                    TaskMessage: "#/components/schemas/SearchTaskMessageResult"
+                    TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
+
+        SearchAccountResult:
+            type: object
+            required: [title, bodyMatch, type, id]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
+
+        SearchChannelResult:
+            type: object
+            required: [title, bodyMatch, type, id]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+
+        SearchChatResult:
+            type: object
+            required: [title, bodyMatch, type, id]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
+
+        SearchChatMessageResult:
+            type: object
+            required: [title, bodyMatch, type, id, index, author]
+            additionalProperties: false
+            properties:
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
+                type:
+                    const: ChatMessage
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+
+        SearchDocumentResult:
+            type: object
+            required: [title, bodyMatch, type, id]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+
+        SearchDocumentMessageResult:
+            type: object
+            required: [title, bodyMatch, type, id, threadId, index, author]
+            additionalProperties: false
+            properties:
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                type:
+                    const: DocumentMessage
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                threadId:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+
+        SearchPostResult:
+            type: object
+            required: [title, bodyMatch, type, id, author]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+
+        SearchPostMessageResult:
+            type: object
+            required: [title, bodyMatch, type, id, index, author]
+            additionalProperties: false
+            properties:
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                type:
+                    const: PostMessage
+                id:
+                    $ref: "#/components/schemas/PostId"
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+
+        SearchTaskResult:
+            type: object
+            required: [title, bodyMatch, type, id, status]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+
+        SearchTaskMessageResult:
+            type: object
+            required: [title, bodyMatch, type, id, index, author]
+            additionalProperties: false
+            properties:
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                type:
+                    const: TaskMessage
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+
+        SearchTaskCollectionResult:
+            type: object
+            required: [title, bodyMatch, type, id]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        SearchResultBodyMatch:
+            type: array
+            items:
+                type: object
+                required: [text]
+                additionalProperties: false
+                properties:
+                    text:
+                        type: string
+                    isMatch:
+                        const: true
+
+        SearchResultParsedFilter:
+            type: object
+            required: [summary]
+            additionalProperties: false
+            properties:
+                summary:
+                    type: string

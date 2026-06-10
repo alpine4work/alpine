@@ -6,7 +6,7 @@ import {useElementWithRef} from "~/client/web/helpers/refs/use_element_with_ref.
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -36,12 +36,13 @@ function ReactionTooltip(
     },
     ref: Ref<HTMLElement>,
 ) {
-    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {space, currentAccount} = useSpaceContext();
+    const element = useElementWithRef(children, ref);
 
     const allAccounts =
         useLazyLoadRpc(
             expensivelyGetAllSpaceAccounts,
-            reactions.length > 0 ? {spaceId: space.id} : null,
+            currentAccount && reactions.length > 0 ? {spaceId: space.id} : null,
             {
                 // Only fetch our space accounts once. Won't refetch as subsequent
                 // `<ReactionParty>` components mount. Also won't refetch if the user hides the
@@ -52,6 +53,10 @@ function ReactionTooltip(
                 onlyFetchIfNotAvailable: true,
             },
         ).output?.accounts ?? emptyArray;
+
+    if (!currentAccount) {
+        return element;
+    }
 
     return (
         <Tooltip
@@ -67,7 +72,7 @@ function ReactionTooltip(
                 />
             }
         >
-            {useElementWithRef(children, ref)}
+            {element}
         </Tooltip>
     );
 }
@@ -137,13 +142,12 @@ function ReactionTooltipContent({
                     accountNames.unshift(introduction ? "you" : "You");
                 }
 
-                // Use the unknown account name for any accounts we didn't find in
-                // `allAccounts`.
+                // Use the unknown account name for any accounts we didn't find in `allAccounts`.
                 while (
                     accountNames.length < maxAccountNameCount &&
                     reactionAccountIds.size > accountNames.length
                 ) {
-                    accountNames.push(AccountModel.getUnknown().initialData.name);
+                    accountNames.push(AccountModel.getUnknownData().name);
                 }
 
                 if (reactionAccountIds.size > accountNames.length) {

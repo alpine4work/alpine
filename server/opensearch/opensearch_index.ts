@@ -58,8 +58,8 @@ const opensearchIndexStaticSettingsKeys = filterMapArray(
 );
 
 /**
- * Take an OpenSearch index config and extract just the static properties out
- * of it.
+ * Take an OpenSearch index config and extract just the static properties out of
+ * it.
  */
 export function pickOpensearchStaticIndexConfig(config: OpensearchIndexConfig<string>) {
     return {
@@ -117,8 +117,8 @@ export class OpensearchIndex<
     public readonly name: string;
     public readonly config: OpensearchIndexConfig<FlattenedKeys>;
 
-    // These properties do nothing but make sure the associated generic parameters
-    // are used.
+    // These properties do nothing but make sure the associated generic parameters are
+    // used.
     private readonly _routing?: Routing;
     private readonly _docId?: DocId;
 
@@ -135,23 +135,23 @@ export class OpensearchIndex<
             name: string;
 
             /**
-             * The number of physical shards for this index in our cluster. Each shard
-             * comes with some overhead. It's recommended to have at least one shard per
-             * data node and to avoid over-sharding your cluster.
+             * The number of physical shards for this index in our cluster. Each shard comes
+             * with some overhead. It's recommended to have at least one shard per data node
+             * and to avoid over-sharding your cluster.
              *
              * Data nodes are the actual servers that run ElasticSearch. Each data node may
-             * have multiple primary shards and/or replica shards. You may add and remove
-             * data nodes at will. For optimal performance, data nodes should be a factor
-             * of `numberOfShards`. For example, if you have 6 shards then you should have
-             * only 1, 2, or 3 data nodes. If you have 4 data nodes then the 6 shards will
-             * not be evenly distributed across the data nodes.
+             * have multiple primary shards and/or replica shards. You may add and remove data
+             * nodes at will. For optimal performance, data nodes should be a factor of
+             * `numberOfShards`. For example, if you have 6 shards then you should have only 1,
+             * 2, or 3 data nodes. If you have 4 data nodes then the 6 shards will not be
+             * evenly distributed across the data nodes.
              *
              * `numberOfRoutingShards` influences how we can scale `numberOfShards` up.
-             * `numberOfRoutingShards` is the logical number of shards, not the physical
-             * number of shards. You can scale your index to a multiple of `numberOfShards`
-             * and a factor of `numberOfRoutingShards` using the [split index API][1]. For
-             * example, if `numberOfShards` is 5 and `numberOfRoutingShards` is 30 then you
-             * could perform the following splits:
+             * `numberOfRoutingShards` is the logical number of shards, not the physical number
+             * of shards. You can scale your index to a multiple of `numberOfShards` and a
+             * factor of `numberOfRoutingShards` using the [split index API][1]. For example,
+             * if `numberOfShards` is 5 and `numberOfRoutingShards` is 30 then you could
+             * perform the following splits:
              *
              * - 5 → 10 (split by 2)
              * - 5 → 15 (split by 3)
@@ -160,42 +160,42 @@ export class OpensearchIndex<
              * 10, 15, and 30 are multiples of 5 and factors of 30 which make them a valid
              * `numberOfShards` value to set in a split.
              *
-             * So when picking values here, it's important you pick a `numberOfShards`
-             * value that's not too large and a `numberOfRoutingShards` value with many
-             * factors that will let you scale `numberOfShards` in the future.
+             * So when picking values here, it's important you pick a `numberOfShards` value
+             * that's not too large and a `numberOfRoutingShards` value with many factors that
+             * will let you scale `numberOfShards` in the future.
              *
-             * Read AWS's "[choosing the number of shards][2]" article for recommendations
-             * on picking a shard count.
+             * Read AWS's "[choosing the number of shards][2]" article for recommendations on
+             * picking a shard count.
              *
              * I (@calebmer) picked the following values to start for the task index:
              *
-             * - `numberOfRoutingShards`: 2^5 * 3^3 * 5 (4,320). This lets us scale
-             *   `numberOfShards` by 2 three times, by 3 two times, and by five once. We
-             *   can't scale by 2 five times and by 3 three times since we start at 12
-             *   (2^2 * 3).
+             * - `numberOfRoutingShards`: 2^5 _ 3^3 _ 5 (4,320). This lets us scale
+             *   `numberOfShards` by 2 three times, by 3 two times, and by five once. We can't
+             *   scale by 2 five times and by 3 three times since we start at 12 (2^2 \* 3).
              *
-             * - `numberOfShards`: 4. The factors of 4 are 1, 2, and 4. So that's the
-             *   number of data nodes we could choose.
+             * - `numberOfShards`: 4. The factors of 4 are 1, 2, and 4. So that's the number of
+             *   data nodes we could choose.
              *
-             *   Let's analyze considering AWS's "[choosing the number of shards][2]"
-             *   article:
+             *     Let's analyze considering AWS's "[choosing the number of shards][2]"
+             *     article:
              *
-             *   > (Source data + room to grow) * (1 + indexing overhead) / desired shard
-             *   > size = approximate number of primary shards
+             *     > (Source data + room to grow) \* (1 + indexing overhead) / desired shard
+             *     > size = approximate number of primary shards
              *
-             *   As of 2025-04-13, we currently have 14.08 MiB between our `tasks`,
-             *   `task_collections`, and `search_entity_keywords` indexes. Our
-             *   `search_entity_embedding_chunks` index has another 24.25 MiB. This is just
-             *   for the internal Alpine workspace, so let's assume 1000x growth. 14.08 MiB
-             *   is 0.01375 GiB. Our desired shared size is 10 GiB which is optimized for
-             *   search performance.
+             *     As of 2025-04-13, we currently have 14.08 MiB between our `tasks`,
+             *     `task_collections`, and `search_entity_keywords` indexes. Our
+             *     `search_entity_embedding_chunks` index has another 24.25 MiB. This is just
+             *     for the internal Alpine workspace, so let's assume 1000x growth. 14.08 MiB
+             *     is 0.01375 GiB. Our desired shared size is 10 GiB which is optimized for
+             *     search performance.
              *
-             *   Running the calculation gives us: (0.01375 * 1000) * 1.1 / 10 = 1.5125. We
-             *   pick 4 even though the shards will be a little small so that we can
-             *   distribute the shards over 2 or 4 data nodes.
+             *     Running the calculation gives us: (0.01375 _ 1000) _ 1.1 / 10 = 1.5125. We
+             *     pick 4 even though the shards will be a little small so that we can
+             *     distribute the shards over 2 or 4 data nodes.
              *
              * [1]: https://opensearch.org/docs/latest/api-reference/index-apis/split/
-             * [2]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/bp-sharding.html
+             * [2]:
+             *     https://docs.aws.amazon.com/opensearch-service/latest/developerguide/bp-sharding.html
              */
             numberOfShards: number;
 
@@ -206,20 +206,20 @@ export class OpensearchIndex<
 
             /**
              * How should we [sort documents in this index][1]? (Links to ElasticSearch
-             * documentation because while [OpenSearch supports it, they don't
-             * document it][2].)
+             * documentation because while [OpenSearch supports it, they don't document
+             * it][2].)
              *
-             * An important feature for improving search performance for our tasks index
-             * given we frequently issue search queries that exclude closed task, for
-             * instance.
+             * An important feature for improving search performance for our tasks index given
+             * we frequently issue search queries that exclude closed task, for instance.
              *
-             * See [this blog post][3] for the motivation behind this feature and some of
-             * its applications.
+             * See [this blog post][3] for the motivation behind this feature and some of its
+             * applications.
              *
              * - `order` defaults to `asc`
              * - `missing` defaults to `_last`
              *
-             * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
+             * [1]:
+             *     https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
              * [2]: https://github.com/opensearch-project/documentation-website/issues/4650
              * [3]: https://www.elastic.co/blog/index-sorting-elasticsearch-6-0
              */
@@ -241,12 +241,12 @@ export class OpensearchIndex<
              * This is a dangerous feature to enable. From the [ElasticSearch
              * documentation][1]:
              *
-             * > Though very handy to have around, the source field does incur storage
-             * > overhead within the index. For this reason, it can be disabled [...]
+             * > Though very handy to have around, the source field does incur storage overhead
+             * > within the index. For this reason, it can be disabled [...]
              * >
              * > [...]
              * >
-             * > Warning: Think before disabling the _source field
+             * > Warning: Think before disabling the \_source field
              * >
              * > Users often disable the `_source` field without thinking about the
              * > consequences, and then live to regret it. If the `_source` field isn't
@@ -254,15 +254,15 @@ export class OpensearchIndex<
              * >
              * > - The `update`, `update_by_query`, and `reindex` APIs.
              * > - On the fly highlighting.
-             * > - The ability to reindex from one Elasticsearch index to another, either
-             * >   to change mappings or analysis, or to upgrade an index to a new major
-             * >   version.
+             * > - The ability to reindex from one Elasticsearch index to another, either to
+             * >   change mappings or analysis, or to upgrade an index to a new major version.
              * > - The ability to debug queries or aggregations by viewing the original
              * >   document used at index time.
              * > - Potentially in the future, the ability to repair index corruption
              * >   automatically.
              *
-             * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-source-field.html#disable-source-field
+             * [1]:
+             *     https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-source-field.html#disable-source-field
              */
             disableSourceField?: boolean;
         },
@@ -343,8 +343,8 @@ export class OpensearchIndex<
                 customFilterDefinitionByName.set(name, customFilter.getDefinitionConfig());
             }
 
-            // Break out of our loop once there are no new custom analyzers/filters we need
-            // to add to our config.
+            // Break out of our loop once there are no new custom analyzers/filters we need to
+            // add to our config.
             //
             // When getting custom analyzer/filter definitions they may recursively add new
             // custom analyzers/filters which is why we need to loop.
@@ -359,8 +359,8 @@ export class OpensearchIndex<
         this.config = {
             settings: {
                 index: {
-                    // When running tests (Jest or Playwright), only use a single shard to speed
-                    // things up.
+                    // When running tests (Jest or Playwright), only use a single shard to speed things
+                    // up.
                     number_of_shards: process.env.NODE_ENV === "test" ? 1 : numberOfShards,
                     number_of_routing_shards: numberOfRoutingShards,
                     sort: {
@@ -372,8 +372,8 @@ export class OpensearchIndex<
                     refresh_interval: process.env.NODE_ENV === "test" ? "-1" : refreshInterval,
                     // One copy of all indexes to increase availability and avoid data loss.
                     //
-                    // When running tests (Jest or Playwright), don't run any replicas to speed
-                    // things up.
+                    // When running tests (Jest or Playwright), don't run any replicas to speed things
+                    // up.
                     number_of_replicas: process.env.NODE_ENV !== "production" ? 0 : 1,
                     // Docs with the same `routing` value should always go to one shard so we never
                     // need to do a cross network search when searching within a `routing` value.
@@ -388,8 +388,8 @@ export class OpensearchIndex<
                 },
             },
             mappings: {
-                // Always require a custom routing value. Searches are almost always scoped
-                // by space.
+                // Always require a custom routing value. Searches are almost always scoped by
+                // space.
                 _routing: {
                     required: true,
                 },
@@ -409,9 +409,9 @@ let constructedOpensearchIndexCount = 0;
  * `recordConstructedOpensearchIndexes()` to make sure you've recorded all
  * constructed OpenSearch indexes.
  *
- * We can't add every OpenSearch index ever constructed to an array since the
- * array would grow indefinitely in our Vite dev server which re-evaluates
- * modules whenever they update.
+ * We can't add every OpenSearch index ever constructed to an array since the array
+ * would grow indefinitely in our Vite dev server which re-evaluates modules
+ * whenever they update.
  */
 export function getConstructedOpensearchIndexCount() {
     return constructedOpensearchIndexCount;
@@ -422,8 +422,8 @@ let recording: {
 } | null = null;
 
 /**
- * Record all OpenSearch indexes constructed during the provided action.
- * Doesn't record any OpenSearch indexes constructed before or after this.
+ * Record all OpenSearch indexes constructed during the provided action. Doesn't
+ * record any OpenSearch indexes constructed before or after this.
  */
 export async function recordConstructedOpensearchIndexes<Value>(
     action: () => Promise<Value>,

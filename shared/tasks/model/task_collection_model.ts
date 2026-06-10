@@ -4,15 +4,19 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskUpdateCollectionAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
+import {
+    TaskCollectionCreateAction,
+    getTaskCollectionCreateActionCreator,
+} from "~/shared/tasks/actions/task_collection_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {applyTaskCollectionActionToCollectionModelData} from "~/shared/tasks/model/apply_task_collection_action_to_collection_model_data.js";
 import {mergeTaskCollectionModelData} from "~/shared/tasks/model/merge_task_collection_model_data.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
+import {TaskCreatorSchema} from "~/shared/tasks/task_creator.js";
 
 export type TaskCollectionModelData = SchemaType<typeof TaskCollectionModelDataSchema>;
 
@@ -21,7 +25,7 @@ const TaskCollectionModelDataSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),
 
     createdTime: HybridLogicalTimeSchema,
-    creatorId: Schema.id<AccountId>().nullable().default(null),
+    creator: TaskCreatorSchema.nullable(),
     deletedTime: HybridLogicalTimeSchema.nullable(),
     undeletedTime: HybridLogicalTimeSchema.nullable(),
 
@@ -30,9 +34,9 @@ const TaskCollectionModelDataSchema = Schema.object({
     accessPolicy: AccessPolicyRegister.schema,
 });
 
-// Doesn't use the `Model` class since `rawData` contains "raw" properties
-// we want to provide clean accessors for. Like `isDeleted()` comparing
-// `deletedTime` and `undeletedTime`.
+// Doesn't use the `Model` class since `rawData` contains "raw" properties we want
+// to provide clean accessors for. Like `isDeleted()` comparing `deletedTime` and
+// `undeletedTime`.
 export class TaskCollectionModel {
     public static readonly schema = TaskCollectionModelDataSchema.transform<TaskCollectionModel>({
         serialize: task => task.rawData,
@@ -53,11 +57,12 @@ export class TaskCollectionModel {
         actionTime: HybridLogicalTime,
         action: TaskCollectionCreateAction,
     ) {
+        const creator = getTaskCollectionCreateActionCreator(action);
         return new TaskCollectionModel({
             spaceId,
             id: collectionId,
             createdTime: actionTime,
-            creatorId: action.creatorId,
+            creator,
             deletedTime: null,
             undeletedTime: null,
             name: new LabelStringRegister(action.name, actionTime),
@@ -67,10 +72,10 @@ export class TaskCollectionModel {
     }
 
     /**
-     * Apply an action to this collection. Collections are [CRDTs][1] which means
-     * their actions are commutative and idempotent. In practical language: you can
-     * apply actions many times and in any order. Our task backend takes advantage
-     * of this and doesn't bother enforcing a canonical task order.
+     * Apply an action to this collection. Collections are [CRDTs][1] which means their
+     * actions are commutative and idempotent. In practical language: you can apply
+     * actions many times and in any order. Our task backend takes advantage of this
+     * and doesn't bother enforcing a canonical task order.
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
@@ -87,17 +92,17 @@ export class TaskCollectionModel {
             action.collectionAction,
         );
 
-        // Optimization: Maintain referential integrity if the collection's data
-        // didn't change.
+        // Optimization: Maintain referential integrity if the collection's data didn't
+        // change.
         if (rawData === this.rawData) return this;
 
         return new TaskCollectionModel(rawData);
     }
 
     /**
-     * Merge this collection with another. Collections are [CRDTs][1] which means
-     * they have a well-defined merge operation where we converge eventually to the
-     * latest representation of a collection.
+     * Merge this collection with another. Collections are [CRDTs][1] which means they
+     * have a well-defined merge operation where we converge eventually to the latest
+     * representation of a collection.
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
@@ -112,15 +117,23 @@ export class TaskCollectionModel {
     }
 
     /**
-     * Make sure the hybrid logical clock's time is beyond any time observed by
-     * this collection.
+     * Make sure the hybrid logical clock's time is beyond any time observed by this
+     * collection.
      */
     public tick(clock: {tick(time: HybridLogicalTime): void}) {
         return tickTaskCollectionModelData(this.rawData, clock);
     }
 
+    public getSpaceId() {
+        return this.rawData.spaceId;
+    }
+
     public getCreatedTime() {
         return this.rawData.createdTime;
+    }
+
+    public getCreator() {
+        return this.rawData.creator;
     }
 
     public isDeleted() {

@@ -9,9 +9,9 @@ import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Archive an individual comment thread in a new comment threads inbox entry.
- * If this is the last comment thread to be archived then we archive the entire
- * new comment threads entry.
+ * Archive an individual comment thread in a new comment threads inbox entry. If
+ * this is the last comment thread to be archived then we archive the entire new
+ * comment threads entry.
  */
 export async function archiveInboxDocumentNewCommentThreadsEntryCommentThread(
     context: ServerSessionActionContext,
@@ -67,17 +67,17 @@ export async function archiveInboxDocumentNewCommentThreadsEntryCommentThread(
 
             // There's only a `DocumentCommentThreadEntry` for a comment thread in our
             // `DocumentNewCommentThreadsEntry` during race conditions. So for the initial
-            // attempt of this function, don't load the document comment thread entry. If
-            // this function retries, it may be because the `DocumentCommentThreadEntry`
-            // already exists and we need to update it instead.
+            // attempt of this function, don't load the document comment thread entry. If this
+            // function retries, it may be because the `DocumentCommentThreadEntry` already
+            // exists and we need to update it instead.
             const documentCommentThreadEntryItem = isInitialAttempt
                 ? null
                 : await InboxTable.getItemIfExists(context, documentCommentThreadEntryItemKey);
 
-            // When we delete the `CommentThreadId` from `commentThreads`, we need to create
-            // a `DocumentCommentThreadEntry` item if one doesn't already exist. So the
-            // user can go to the "Old" section of their inbox and unarchive this comment
-            // thread individually.
+            // When we delete the `CommentThreadId` from `commentThreads`, we need to create a
+            // `DocumentCommentThreadEntry` item if one doesn't already exist. So the user can
+            // go to the "Old" section of their inbox and unarchive this comment thread
+            // individually.
             if (!documentCommentThreadEntryItem) {
                 updateOtherInboxEntry(
                     documentCommentThreadEntryItemKey,

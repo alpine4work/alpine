@@ -77,8 +77,8 @@ const options = {
 };
 
 /**
- * As we add more filters, using a defaulted filter allows us to not have to specify
- * every item in a resulting filter.
+ * As we add more filters, using a defaulted filter allows us to not have to
+ * specify every item in a resulting filter.
  */
 function createDefaultedFilter(
     overrides: Partial<SearchNaturalLanguageFilter> = {},
@@ -99,20 +99,21 @@ describe("failure modes", () => {
     describe("describing time since now", () => {
         test("'my documents from the last 7 days' doesn't recognize control texts", () => {
             expect(
-                // From after 7 days ago is BETTER than "from the last 7 days"
-                // We should train the model to use that language instead. Honestly,
-                // when telling the LLM how to look for date related content, we should just point
-                // it to the `compromise-dates` plugin and tell it to use that documentation
-                // to build date qualifiers. However, this won't fix the user experience.
+                // From after 7 days ago is BETTER than "from the last 7 days" We should train the
+                // model to use that language instead. Honestly, when telling the LLM how to look
+                // for date related content, we should just point it to the `compromise-dates`
+                // plugin and tell it to use that documentation to build date qualifiers. However,
+                // this won't fix the user experience.
                 parseSearchNaturalLanguageQuery("my documents from the last 7 days", options),
             ).toEqual({
                 isLowConfidence: false,
-                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other tests
-                // "documents created by me and created yesterday" ->
-                //   - queryTexts: []
-                //   - controlQueryTexts: ["documents created by me and created yesterday"]
-                // If we're pattern matching, I'd expect this to say something like "my documents from
-                // the last 7 days"
+                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other
+                // tests "documents created by me and created yesterday" ->
+                //
+                // - queryTexts: []
+                // - controlQueryTexts: ["documents created by me and created yesterday"] If we're
+                //   pattern matching, I'd expect this to say something like "my documents from the
+                //   last 7 days"
                 queryTexts: ["from the last 7 days"],
                 controlQueryTexts: ["my documents"],
 
@@ -144,7 +145,8 @@ describe("failure modes", () => {
             ).toEqual({
                 isLowConfidence: false,
                 queryTexts: ["within the last 7 days"],
-                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other tests
+                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other
+                // tests
                 controlQueryTexts: ["documents I updated"],
                 filters: [
                     createDefaultedFilter({
@@ -165,25 +167,26 @@ describe("failure modes", () => {
             });
         });
 
-        // I believe this has the same intent as the previous 2 tests, but the wording feels much
-        // less natural
+        // I believe this has the same intent as the previous 2 tests, but the wording
+        // feels much less natural
         test("'my documents from after 7 days ago' recognizes control texts but feels unnatural", () => {
             expect(
-                // From after 7 days ago is BETTER than "from the last 7 days"
-                // We should train the model to use that language instead. Honestly,
-                // when telling the LLM how to look for date related content, we should just point
-                // it to the `compromise-dates` plugin and tell it to use that documentation
-                // to build date qualifiers. However, this won't fix the user experience.
+                // From after 7 days ago is BETTER than "from the last 7 days" We should train the
+                // model to use that language instead. Honestly, when telling the LLM how to look
+                // for date related content, we should just point it to the `compromise-dates`
+                // plugin and tell it to use that documentation to build date qualifiers. However,
+                // this won't fix the user experience.
                 parseSearchNaturalLanguageQuery("my documents from after 7 days ago", options),
             ).toEqual({
                 isLowConfidence: false,
                 queryTexts: [],
-                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other tests
-                // "documents created by me and created yesterday" ->
-                //   - queryTexts: []
-                //   - controlQueryTexts: ["documents created by me and created yesterday"]
-                // If we're pattern matching, I'd expect this to say something like "my documents from
-                // the last 7 days"
+                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other
+                // tests "documents created by me and created yesterday" ->
+                //
+                // - queryTexts: []
+                // - controlQueryTexts: ["documents created by me and created yesterday"] If we're
+                //   pattern matching, I'd expect this to say something like "my documents from the
+                //   last 7 days"
                 controlQueryTexts: ["my documents from after 7 days ago"],
                 filters: [
                     createDefaultedFilter({
@@ -198,8 +201,8 @@ describe("failure modes", () => {
                             ],
                         },
                         time: {
-                            // TODO(ifitzsimmons, #improve-search): Based on query, I think I'd
-                            // expect this to be LastUpdated?
+                            // TODO(ifitzsimmons, #improve-search): Based on query, I think I'd expect this to
+                            // be LastUpdated?
                             field: "Created",
                             range: {
                                 // "today date" is 1/4/2024 so this looks about right
@@ -2478,8 +2481,8 @@ describe("parses account name with some text between then entity type", () => {
     });
 
     // `compromise` is interpreting this as "john has neat documents about georgia"
-    // instead of interpreting "john's" as possessive. Find a way to tune
-    // `compromise` to consider this possessive instead.
+    // instead of interpreting "john's" as possessive. Find a way to tune `compromise`
+    // to consider this possessive instead.
     //
     // This is the code which disambiguates `'s` and needs to be updated:
     // https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/2-two/contraction-two/compute/isPossessive.js#L45-L56
@@ -2942,6 +2945,67 @@ describe("parses standalone entity type", () => {
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 }),
             ],
+        });
+    });
+
+    test("sites", () => {
+        expect(parseSearchNaturalLanguageQuery("sites", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: [],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("project x sites", () => {
+        expect(parseSearchNaturalLanguageQuery("project x sites", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["project x"],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("sites project x", () => {
+        expect(parseSearchNaturalLanguageQuery("sites project x", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["project x"],
+            controlQueryTexts: ["sites"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("singular 'site' is recognized", () => {
+        // The stemmer normalizes "site" to the same root as "sites".
+        expect(parseSearchNaturalLanguageQuery("site", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: [],
+            controlQueryTexts: ["site"],
+            filters: [createDefaultedFilter({entityTypes: ["Site"]})],
+        });
+    });
+
+    test("'side' is not fuzzy-matched as 'site'", () => {
+        // "site" is special-cased to disable fuzzy matching since "side", "size", and
+        // "sits" are all within one Levenshtein edit. So a query containing "side" should
+        // produce no entity-type filter.
+        expect(parseSearchNaturalLanguageQuery("side", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: ["side"],
+            controlQueryTexts: [],
+            filters: [],
+        });
+    });
+
+    test("tasks in a site fall through to keyword tag matching", () => {
+        // We intentionally don't have grammar for "tasks in site X". The leading "tasks"
+        // gives [Task, TaskCollection], and the rest ("in project x wiki") becomes
+        // free-text query that matches each task's site-name tag.
+        expect(parseSearchNaturalLanguageQuery("tasks in project x wiki", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["in project x wiki"],
+            controlQueryTexts: ["tasks"],
+            filters: [createDefaultedFilter({entityTypes: ["Task", "TaskCollection"]})],
         });
     });
 });
@@ -4294,6 +4358,40 @@ describe("parses entity type then account then shortcuts to time", () => {
         });
     });
 
+    test("tasks opened by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks opened by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks opened by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Creator",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks created by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks created by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks created by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Creator",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
+                    },
+                }),
+            ],
+        });
+    });
+
     test("tasks written by me yesterday", () => {
         expect(parseSearchNaturalLanguageQuery("tasks written by me yesterday", options)).toEqual({
             isLowConfidence: false,
@@ -5390,8 +5488,8 @@ describe("creates multiple filters", () => {
         });
     });
 
-    // TODO: The following query should probably generate a filter with multiple
-    // acount Ids.
+    // TODO: The following query should probably generate a filter with multiple acount
+    // Ids.
     test.todo("documents created by john and me");
 
     // TODO: The following query should probably generate multiple filters
@@ -5827,12 +5925,12 @@ describe("Assignee + Due date combinations", () => {
 });
 
 // Generate a bunch of tests to make sure our modifiers for tasks work as expected
-// Not all entity types support these modifiers, so we just choose tasks for these tests
-// You should rely on other tests to verify modifiers for other entity types
+// Not all entity types support these modifiers, so we just choose tasks for these
+// tests You should rely on other tests to verify modifiers for other entity types
 
-// Running all test cases takes an extra ~30s in our CI, so let's randomly pair it down to a smaller
-// subset. If you encounter an error in CI but not locally, bump this up to 1 to run all tests
-// in the suite.
+// Running all test cases takes an extra ~30s in our CI, so let's randomly pair it
+// down to a smaller subset. If you encounter an error in CI but not locally, bump
+// this up to 1 to run all tests in the suite.
 const generatedTaskModifierTestRunPercent = 0.25;
 describe("Generated task modifiers tests", () => {
     const opennessTestCases = {
@@ -5887,8 +5985,8 @@ describe("Generated task modifiers tests", () => {
     ) {
         const noun = "tasks";
 
-        // sort them in a predictable way so we run the same tests each time, but
-        // the same words aren't always at the beginning (i.e. "active")
+        // sort them in a predictable way so we run the same tests each time, but the same
+        // words aren't always at the beginning (i.e. "active")
         const sortedAdjectives = adjectives.sort((a, b) =>
             adjectives.length % 2 === 0 ? a.localeCompare(b) : b.localeCompare(a),
         );
@@ -6751,7 +6849,8 @@ describe("Modifiers before search entity", () => {
         });
 
         test("tasks about trains that are urgent", () => {
-            // Note: "about" breaks the forward modifier parsing, so "that are urgent" becomes query text
+            // Note: "about" breaks the forward modifier parsing, so "that are urgent" becomes
+            // query text
             expect(
                 parseSearchNaturalLanguageQuery("tasks about trains that are urgent", options),
             ).toEqual({
@@ -6785,8 +6884,8 @@ describe("Modifiers before search entity", () => {
 
     describe("Complex combinations", () => {
         test("my urgent open tasks created today about trains", () => {
-            // Note: With the LR(n) parser, prefix modifiers like "urgent open" ARE now captured
-            // before the entity type "tasks", making this parse more complete
+            // Note: With the LR(n) parser, prefix modifiers like "urgent open" ARE now
+            // captured before the entity type "tasks", making this parse more complete
             expect(
                 parseSearchNaturalLanguageQuery(
                     "my urgent open tasks created today about trains",
@@ -6834,9 +6933,9 @@ describe("Modifiers before search entity", () => {
         });
 
         test("important and urgent tasks that are open", () => {
-            // When parsing forward with the LR(n) parser:
-            // "important" → ["Urgent", "High"], then "urgent" → already has "Urgent" so only adds nothing
-            // Result is ["Urgent", "High"] in the order they were encountered
+            // When parsing forward with the LR(n) parser: "important" → ["Urgent", "High"],
+            // then "urgent" → already has "Urgent" so only adds nothing Result is ["Urgent",
+            // "High"] in the order they were encountered
             expect(
                 parseSearchNaturalLanguageQuery(
                     "important and urgent tasks that are open",
@@ -7047,6 +7146,51 @@ describe("Complex combinations with all filters", () => {
                             inclusiveUpperBound: new CalendarDate(2024, 1, 3),
                             inclusiveLowerBound: new CalendarDate(2024, 1, 3),
                         },
+                    },
+                    openness: ["Closed"],
+                }),
+            ],
+        });
+    });
+
+    test("tasks closed by John Smith last week", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("tasks closed by John Smith last week", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks closed by John Smith last week"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[1]!.id, name: accounts[1]!.initialData.name}],
+                    },
+                    openness: ["Closed"],
+                    time: {
+                        field: "LastUpdated",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2023-12-25T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
+
+    test("tasks closed by me", () => {
+        expect(parseSearchNaturalLanguageQuery("tasks closed by me", options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["tasks closed by me"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Task", "TaskCollection"],
+                    account: {
+                        field: "Assignee",
+                        accounts: [{id: accounts[0]!.id, name: accounts[0]!.initialData.name}],
                     },
                     openness: ["Closed"],
                 }),

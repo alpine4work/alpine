@@ -63,7 +63,7 @@ export async function handleResizeAvatarRequest(
         },
     });
 
-    return resizeAvatar(context, span, {
+    return await resizeAvatar(context, span, {
         requestSignal: request.signal,
         avatarEntityPath,
         avatarId,

@@ -28,8 +28,8 @@ async function main() {
                 tabWidth: 4,
             });
 
-            // The container hash added to this string is different on MacOS compared to
-            // our Linux CI GitHub runner. So replace with a placeholder tag, `latest`.
+            // The container hash added to this string is different on MacOS compared to our
+            // Linux CI GitHub runner. So replace with a placeholder tag, `latest`.
             templateYamlString = templateYamlString
                 .replaceAll(
                     new RegExp(
@@ -43,6 +43,7 @@ async function main() {
                 )
                 .replaceAll(
                     // i.e. separated on multiple lines.
+                    //
                     // - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
                     // - :<hash>
                     new RegExp(

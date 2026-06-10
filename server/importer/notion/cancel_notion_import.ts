@@ -10,8 +10,8 @@ import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
  * Cancels a Notion import that hasn't started processing yet.
  *
  * This deletes the import record from DynamoDB and the uploaded zip file from S3.
- * Can only be called by the user who started the import, and only if the import
- * is in a cancellable state (UploadPending, Validating, or Validated).
+ * Can only be called by the user who started the import, and only if the import is
+ * in a cancellable state (UploadPending, Validating, or Validated).
  */
 export async function cancelNotionImport(
     context: ServerSessionActionContext & {importer: ImporterContextModuleBase},
@@ -46,6 +46,15 @@ export async function cancelNotionImport(
         throw new FailedPreconditionError(
             "Cannot cancel an import that has already started processing",
         );
+    }
+
+    // If the import is still in UploadPending with an active multipart upload, abort
+    // it to clean up uploaded parts in S3.
+    if (item.status.type === "UploadPending" && item.multipartUploadId) {
+        await context.importer.abortMultipartUpload({
+            importKey: item.importKey,
+            uploadId: item.multipartUploadId,
+        });
     }
 
     await runAllPromises([

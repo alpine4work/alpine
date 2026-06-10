@@ -2,13 +2,12 @@ import {Ref} from "react";
 import {useOutsideInteraction} from "~/client/web/design/helpers/use_outside_interaction.js";
 
 /**
- * Helper for building editable elements that save inline. When the user
- * unfocuses the element they should be asked to confirm their changes.
- * Generally these elements also have an affordance that pressing enter will
- * also save.
+ * Helper for building editable elements that save inline. When the user unfocuses
+ * the element they should be asked to confirm their changes. Generally these
+ * elements also have an affordance that pressing enter will also save.
  *
- * This hook detects when the editable element is unfocused thus we should
- * present the user with a confirmation dialog for their change.
+ * This hook detects when the editable element is unfocused thus we should present
+ * the user with a confirmation dialog for their change.
  */
 export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
     isDisabled,
@@ -33,8 +32,7 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
         // The user may click within the close confirmation dialog.
         if (isConfirmingSave) return;
 
-        // If the user didn't type anything then close without asking
-        // for confirmation.
+        // If the user didn't type anything then close without asking for confirmation.
         if (!shouldConfirmSave) {
             onCancelSave();
             return;

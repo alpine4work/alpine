@@ -34,6 +34,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
+import {Color} from "~/shared/design/core/colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -49,6 +50,9 @@ type ButtonVariant =
     | "quiet"
     | "quieter"
     | "quietest"
+    | "quiet-even-when-disabled"
+    | "quieter-even-when-disabled"
+    | "quietest-even-when-disabled"
     | "quiet-on"
     | "quiet-off"
     | "neutral"
@@ -66,18 +70,18 @@ function Button(
         children: ReactNode;
 
         /**
-         * When the user presses a button we fire this event. Use it to perform
-         * an action in response to the button press.
+         * When the user presses a button we fire this event. Use it to perform an action
+         * in response to the button press.
          *
-         * If a promise is returned then the button is put into a pending state until
-         * the promise resolves.
+         * If a promise is returned then the button is put into a pending state until the
+         * promise resolves.
          */
         onPress?: (event: PressEvent) => void | Promise<void>;
 
         /**
-         * If an error occurs while running `onPress` we will report the error to the user with
-         * this title. It is the "what happened" part of an error message according to [Adobe
-         * Spectrum's][1] error content guidelines.
+         * If an error occurs while running `onPress` we will report the error to the user
+         * with this title. It is the "what happened" part of an error message according to
+         * [Adobe Spectrum's][1] error content guidelines.
          *
          * So for example it this is a delete comment action say "Couldn't delete comment".
          *
@@ -91,6 +95,11 @@ function Button(
          * Which styles should we apply to the variant?
          */
         variant?: ButtonVariant;
+
+        /**
+         * Override the text color set by the variant.
+         */
+        color?: Color;
 
         /**
          * An optional icon element rendered next to the button label.
@@ -113,24 +122,24 @@ function Button(
         keyboardShortcutHintTooltipOffset?: Spacing;
 
         /**
-         * Are we waiting for some asynchronous action that was initiated by our button
-         * to complete?
+         * Are we waiting for some asynchronous action that was initiated by our button to
+         * complete?
          *
-         * If your `onPress` event returns a promise then the button is automatically
-         * put into a pending state and you don't need to pass in this prop.
+         * If your `onPress` event returns a promise then the button is automatically put
+         * into a pending state and you don't need to pass in this prop.
          */
         isPending?: boolean;
 
         /**
          * Should we show the pending spinner even if the delay after switching to
-         * `isPending` hasn't occurred? If `undefined` then we only show the
-         * pending spinner after a short delay when `isPending` is set. If `false`
-         * then we never show the pending loading spinner and if `true` then we
-         * always show the pending loading spinner (if `isPending` is also true).
+         * `isPending` hasn't occurred? If `undefined` then we only show the pending
+         * spinner after a short delay when `isPending` is set. If `false` then we never
+         * show the pending loading spinner and if `true` then we always show the pending
+         * loading spinner (if `isPending` is also true).
          *
          * Generally you should avoid using this prop and let the button handle its own
-         * loading spinner. This is an advanced feature when you need to exactly
-         * control when the pending spinner shows.
+         * loading spinner. This is an advanced feature when you need to exactly control
+         * when the pending spinner shows.
          */
         shouldShowPendingSpinner?: boolean;
 
@@ -141,27 +150,26 @@ function Button(
         withoutLoadingIndicator?: boolean;
 
         /**
-         * Give the button a 100% width so it fills all available space. Defaults
-         * to false.
+         * Give the button a 100% width so it fills all available space. Defaults to false.
          */
         fullWidth?: boolean;
 
         /**
-         * Set the maximum width of the button. If the button exceeds this width the
-         * text will be truncated.
+         * Set the maximum width of the button. If the button exceeds this width the text
+         * will be truncated.
          */
         maxWidth?: "full";
 
         /**
-         * Should the button not have a default minimum width? Can be used when there's
-         * not much available space. Normally short buttons like "Ok" need a minimum
-         * width to continue looking like a button.
+         * Should the button not have a default minimum width? Can be used when there's not
+         * much available space. Normally short buttons like "Ok" need a minimum width to
+         * continue looking like a button.
          */
         withoutMinWidth?: boolean;
 
         /**
-         * Should this button submit an HTML `<form>` element that it is inside? You
-         * don't need a press event if true.
+         * Should this button submit an HTML `<form>` element that it is inside? You don't
+         * need a press event if true.
          */
         shouldSubmitForm?: boolean;
 
@@ -178,17 +186,23 @@ function Button(
         isPressed?: boolean;
 
         /**
+         * Should we show the hovered style even if the button isn't currently hovered?
+         * Useful if there's some secondary hover target for this icon button.
+         */
+        isHovered?: boolean;
+
+        /**
          * Is the button disabled? Does not display a reason tooltip like when you use
          * `disabledReason`. Generally you should prefer `disabledReason`. If you set
-         * `disabledReason` then you don't have to set `isDisabled`. Disabled actions
-         * may not be selected.
+         * `disabledReason` then you don't have to set `isDisabled`. Disabled actions may
+         * not be selected.
          */
         isDisabled?: boolean;
 
         /**
-         * Is this button disabled? If so, for what reason? We will display the reason
-         * as a tooltip if the user tries to interact with a disabled action. Disabled
-         * actions may not be selected.
+         * Is this button disabled? If so, for what reason? We will display the reason as a
+         * tooltip if the user tries to interact with a disabled action. Disabled actions
+         * may not be selected.
          */
         disabledReason?: string;
 
@@ -220,8 +234,8 @@ function Button(
         /**
          * The font size of the button. Defaults to `75`.
          */
-        // TODO(calebmer): Instead of having separate `paddingX`, `height`, and
-        // `fontSize` we should probably put together size presets that look nice like
+        // TODO(calebmer): Instead of having separate `paddingX`, `height`, and `fontSize`
+        // we should probably put together size presets that look nice like
         // `<IconButton>`'s `size` prop?
         fontSize?: "50" | "75" | "100" | "200";
 
@@ -231,8 +245,8 @@ function Button(
         borderRadius?: "1" | "1.5" | "2";
 
         /**
-         * Amount of border radius to apply to the right of the button. Defaults to
-         * `1`. Only really used to remove border radius.
+         * Amount of border radius to apply to the right of the button. Defaults to `1`.
+         * Only really used to remove border radius.
          */
         borderRightRadius?: "1" | "none";
 
@@ -242,23 +256,42 @@ function Button(
         flexShrink?: "0" | "1";
 
         /**
-         * Disable focusing this button through sequential keyboard navigation using
-         * the `Tab` button. This sets `tabindex="-1"` on the element. The element will
-         * still be programmatically focusable.
+         * Choose how to offset the focus ring around this button. Default is based on the
+         * button `variant`.
+         *
+         * The underlying `<FocusRing>` default is `0.5`. (But sometimes we choose `0`
+         * based on the variant.)
+         */
+        focusRingOffset?: "border" | "0" | "0.5";
+
+        /**
+         * Disable focusing this button through sequential keyboard navigation using the
+         * `Tab` button. This sets `tabindex="-1"` on the element. The element will still
+         * be programmatically focusable.
          *
          * Defaults to `true`.
          */
         isTabbable?: boolean;
 
         /**
-         * Disables the ability to focus this button. Turns the element into a `<div>`
-         * and doesn't set `tabindex` on the element. The element isn't even focusable
+         * Disables the ability to focus this button. Turns the element into a `<div>` and
+         * doesn't set `tabindex` on the element. The element isn't even focusable
          * programmatically. Useful if you don't want focus to move when the button is
          * pressed.
          *
          * Defaults to `true`.
          */
         isFocusable?: boolean;
+
+        /**
+         * Called when we start hovering the button.
+         */
+        onHoverStart?: () => void;
+
+        /**
+         * Called when we stop hovering the button.
+         */
+        onHoverEnd?: () => void;
     },
     foreignRef:
         | Ref<
@@ -267,8 +300,7 @@ function Button(
                   // call the button's press handler to properly handle loading states and error
                   // states.
                   //
-                  // You could call `click()` but that focuses the button which you might not
-                  // want.
+                  // You could call `click()` but that focuses the button which you might not want.
                   press(): void;
               }
           >
@@ -292,6 +324,7 @@ function Button(
         shouldSubmitForm = false,
         withoutFocusOnPress = false,
         isPressed: isPressedFromProps = false,
+        isHovered: isHoveredFromProps = false,
         onPress,
         pressErrorTitle,
         paddingX = "3",
@@ -301,8 +334,12 @@ function Button(
         borderRadius = "1",
         borderRightRadius,
         flexShrink = "0",
+        focusRingOffset,
         isTabbable = true,
         isFocusable = true,
+        color: colorFromProps,
+        onHoverStart,
+        onHoverEnd,
     } = props;
     const platform = usePlatform();
     const reporter = useReporter();
@@ -364,10 +401,10 @@ function Button(
         {
             ...props,
             elementType: isFocusable ? "button" : "div",
-            // NOTE(calebmer): Don't disable the button while it's pending. We don't want
-            // to run the press event handler again while the button is pending but we do
-            // still want the button to be interactive (`isPressed` should be true and we
-            // shouldn't set the `disabled` HTML property).
+            // NOTE(calebmer): Don't disable the button while it's pending. We don't want to
+            // run the press event handler again while the button is pending but we do still
+            // want the button to be interactive (`isPressed` should be true and we shouldn't
+            // set the `disabled` HTML property).
             isDisabled,
             type: shouldSubmitForm ? "submit" : undefined,
             onPress: handlePress,
@@ -379,10 +416,9 @@ function Button(
             // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/button/src/useButton.ts#L57-L58
             preventFocusOnPress: withoutFocusOnPress || platform === "mobile" || !isFocusable,
             onKeyDown: event => {
-                // `react-spectrum` prevents propagation by default. If
-                // `event.preventDefault()` wasn't called, we want the event to propagate. That
-                // way `<GlobalKeyDownEvent>` handlers can fire. Most notably our undo cmd-z
-                // handler.
+                // `react-spectrum` prevents propagation by default. If `event.preventDefault()`
+                // wasn't called, we want the event to propagate. That way `<GlobalKeyDownEvent>`
+                // handlers can fire. Most notably our undo cmd-z handler.
                 if (!event.defaultPrevented) {
                     event.continuePropagation();
                 }
@@ -393,19 +429,25 @@ function Button(
 
     const isPressed = isPressedFromButton || isPressedFromProps;
 
-    const {hoverProps, isHovered} = useHover({});
+    const {hoverProps, isHovered: isHoveredFromState} = useHover({
+        onHoverStart,
+        onHoverEnd,
+    });
 
-    // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our
-    // hover styles even though we aren't receiving pointer events since there's a
-    // cover over the DOM.
+    const isHovered = isHoveredFromProps || isHoveredFromState;
+
+    // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our hover
+    // styles even though we aren't receiving pointer events since there's a cover over
+    // the DOM.
     const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
 
     const isHoveredBackground = isHovered || isTriggeredOverlayOpen;
 
     const touchSlop = useTouchSlop(height);
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    // We wait a bit before showing our pending spinner. Some actions are very fast so
+    // we delay showing a spinner to avoid a loading spinner flicker which can be
+    // jarring.
     const shouldShowPendingSpinner =
         (useDelayLoadingIndicator(
             isPending && typeof shouldShowPendingSpinnerFromProps === "undefined",
@@ -422,8 +464,8 @@ function Button(
                 fontStyle: "truncate",
             })}
             style={{
-                // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold here.
-                // So tone down the font weight a bit.
+                // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold here. So
+                // tone down the font weight a bit.
                 fontWeight: isBold ? 425 : undefined,
             }}
         >
@@ -521,6 +563,60 @@ function Button(
                   };
             break;
         }
+        case "quiet-even-when-disabled": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredBackground
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-100",
+                  };
+            break;
+        }
+        case "quieter-even-when-disabled": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredBackground
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: isPressed ? "grey-100" : "grey-60",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-60",
+                  };
+            break;
+        }
+        case "quietest-even-when-disabled": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10-translucent"
+                          : isHoveredBackground
+                            ? "grey-5-translucent"
+                            : undefined,
+                      color: isPressed ? "grey-100" : "grey-50",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-50",
+                  };
+            break;
+        }
         case "quiet-on": {
             isQuietVariant = true;
 
@@ -568,10 +664,10 @@ function Button(
         case "neutral-disabled": {
             styles = {
                 backgroundColor: "grey-5",
-                // Slightly darker text color than the usual disabled color (`grey-30`) since
-                // we want to make the button look a little more interactive. If you use
-                // `neutral-disabled` instead of `isDisabled` it's probably because you want
-                // the button to do something when pressed.
+                // Slightly darker text color than the usual disabled color (`grey-30`) since we
+                // want to make the button look a little more interactive. If you use
+                // `neutral-disabled` instead of `isDisabled` it's probably because you want the
+                // button to do something when pressed.
                 color: "grey-40",
             };
             break;
@@ -588,9 +684,9 @@ function Button(
                   };
             break;
         }
-        // We have the accent styles even when the button is disabled. Disabling makes
-        // the button not clickable or focusable but does not visually change the
-        // button. Useful for buttons we really want to accent.
+        // We have the accent styles even when the button is disabled. Disabling makes the
+        // button not clickable or focusable but does not visually change the button.
+        // Useful for buttons we really want to accent.
         case "accent-even-when-disabled": {
             styles = {
                 backgroundColor: accentThemeBackgroundColor,
@@ -628,6 +724,10 @@ function Button(
             throw exhaustive(variant);
     }
 
+    if (colorFromProps) {
+        styles = {...styles, color: colorFromProps};
+    }
+
     const isOutlineVariant = variant === "outline";
 
     const willDarkenWithOverlayOnPress =
@@ -654,7 +754,10 @@ function Button(
     }, [isFocusable]);
 
     let node = (
-        <FocusRing offset={isQuietVariant ? "0" : "0.5"} insetY={touchSlop.slop}>
+        <FocusRing
+            offset={focusRingOffset ?? (isQuietVariant ? "0" : "0.5")}
+            insetY={touchSlop.slop}
+        >
             {createElement(
                 isFocusable ? "button" : "div",
                 // eslint-disable-next-line react-compiler/react-compiler
@@ -710,8 +813,8 @@ function Button(
                         paddingY: touchSlop.slop,
                         marginY: `-${touchSlop.slop}`,
                         borderRadius: "1",
-                        // If this button is in a `display: flex` element, don't shrink the button based
-                        // on other contents.
+                        // If this button is in a `display: flex` element, don't shrink the button based on
+                        // other contents.
                         flexShrink,
                         // You may notice our button doesn't have a pointer cursor. See:
                         // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
@@ -746,15 +849,14 @@ function Button(
                 >
                     {isPressed && willDarkenWithOverlayOnPress && (
                         // For accent buttons, instead of choosing a darker background color shade when
-                        // pressed we add a black overlay at a lowered opacity. We accomplish this with
-                        // an overlay element since such a color is not in our color scheme.
+                        // pressed we add a black overlay at a lowered opacity. We accomplish this with an
+                        // overlay element since such a color is not in our color scheme.
                         //
                         // Darker shades in our color scheme are more saturated. We want the effect of a
                         // button being physically pressed down.
                         //
-                        // When we added this there was a happy accident. The text color also got
-                        // darker! This is more fitting for the physical analogy of a button being
-                        // pressed down.
+                        // When we added this there was a happy accident. The text color also got darker!
+                        // This is more fitting for the physical analogy of a button being pressed down.
                         <span
                             className={sprinkles({
                                 zIndex: "50",
@@ -783,8 +885,8 @@ function Button(
                             maxWidth: "full",
                         })}
                         style={{
-                            // Keep the icon and label in the DOM so we keep the shape of the button but
-                            // hide them so we can show a spinner.
+                            // Keep the icon and label in the DOM so we keep the shape of the button but hide
+                            // them so we can show a spinner.
                             opacity: shouldShowPendingSpinner && !iconChild ? 0 : undefined,
                         }}
                     >

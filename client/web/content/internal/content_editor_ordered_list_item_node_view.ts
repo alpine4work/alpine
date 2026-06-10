@@ -5,18 +5,18 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 /**
- * Creates a node view for an `orderedListItem`. We need a custom node view so
- * we can use JavaScript to set the ordered list item number. We can't use CSS
- * to set the list item number because instead of having a proper `<ul>`/`<li>`
- * nesting structure for lists, each node is included flat in the parent.
+ * Creates a node view for an `orderedListItem`. We need a custom node view so we
+ * can use JavaScript to set the ordered list item number. We can't use CSS to set
+ * the list item number because instead of having a proper `<ul>`/`<li>` nesting
+ * structure for lists, each node is included flat in the parent.
  *
- * After our node is added to the DOM, we set its `data-list-number` property
- * to the correct value. We also set the `data-list-number` property for all
- * list items that follow.
+ * After our node is added to the DOM, we set its `data-list-number` property to
+ * the correct value. We also set the `data-list-number` property for all list
+ * items that follow.
  *
  * Then we have a mutation observer that watches for nodes removed above a list
- * item. If a node is removed above a list item then we may need to renumber
- * that list. For example, if we're merging two ordered lists together.
+ * item. If a node is removed above a list item then we may need to renumber that
+ * list. For example, if we're merging two ordered lists together.
  */
 export function createContentEditorOrderedListItemNodeView(node: Node): NodeView {
     const {dom, contentDOM: contentDom} = DOMSerializer.renderSpec(
@@ -29,8 +29,8 @@ export function createContentEditorOrderedListItemNodeView(node: Node): NodeView
     let isDestroyed = false;
     let unobserve: (() => void) | undefined;
 
-    // Wait until ProseMirror has updated the DOM to set our list item numbers.
-    // Since we set list item numbers by reading the DOM.
+    // Wait until ProseMirror has updated the DOM to set our list item numbers. Since
+    // we set list item numbers by reading the DOM.
     scheduleMicrotask(() => {
         if (isDestroyed) return;
         assert(dom.parentNode, "Expected node DOM to be synchronously inserted");
@@ -46,18 +46,17 @@ export function createContentEditorOrderedListItemNodeView(node: Node): NodeView
             unobserve?.();
         },
         ignoreMutation: mutation => {
-            // Prevent infinite recursion by telling ProseMirror to ignore the mutations to
-            // the `data-list-number` attribute that we're making.
+            // Prevent infinite recursion by telling ProseMirror to ignore the mutations to the
+            // `data-list-number` attribute that we're making.
             return mutation.type === "attributes" && mutation.attributeName === "data-list-number";
         },
     };
 }
 
 /**
- * Parses data from the element if its a list item. If its a list item returns
- * an object with indentation. If its an ordered list item then we'll also
- * return a non-null `number`. If it's not an ordered list item then `number`
- * will be null.
+ * Parses data from the element if its a list item. If its a list item returns an
+ * object with indentation. If its an ordered list item then we'll also return a
+ * non-null `number`. If it's not an ordered list item then `number` will be null.
  */
 function parseListItemData(
     element: HTMLElement,
@@ -89,8 +88,8 @@ function parseListItemData(
  * If the provided node is an ordered list item, set its `data-list-number`
  * attribute to the correct value.
  *
- * If `data-list-number` changed then we also update all ordered list items
- * that follow.
+ * If `data-list-number` changed then we also update all ordered list items that
+ * follow.
  */
 function setOrderedListItemNumber(element: HTMLElement) {
     const listItemData = parseListItemData(element);
@@ -129,8 +128,8 @@ function setOrderedListItemNumber(element: HTMLElement) {
             };
         } while (previousListItem.data.indent > listItemData.indent);
 
-        // If the previous list item is at a lower indentation then this is the start
-        // of our numbering for the indented list.
+        // If the previous list item is at a lower indentation then this is the start of
+        // our numbering for the indented list.
         if (previousListItem?.data.indent !== listItemData.indent) {
             previousListItem = null;
         }
@@ -146,8 +145,7 @@ function setOrderedListItemNumber(element: HTMLElement) {
 
     element.dataset.listNumber = String(newListItemNumber);
 
-    // The list items following this one may have incorrect numbers. Let's
-    // fix them.
+    // The list items following this one may have incorrect numbers. Let's fix them.
     resetSiblingOrderedListItemNumbers(
         listItemData.indent,
         element.nextSibling,
@@ -174,8 +172,7 @@ function resetSiblingOrderedListItemNumbers(
         // A list item at a lower indentation level ends the child list.
         if (nextListItemData.indent < indent) break;
 
-        // A list item at a higher indentation level is nested and should be
-        // skipped.
+        // A list item at a higher indentation level is nested and should be skipped.
         if (nextListItemData.indent > indent) {
             nextListItemElement = nextListItemElement.nextSibling;
             continue;
@@ -201,8 +198,8 @@ const orderListItemSiblingObserverByParentNode = new Map<
 >();
 
 /**
- * Watch the provided node and when nodes are removed above an ordered list
- * item, update the numbers for the list item.
+ * Watch the provided node and when nodes are removed above an ordered list item,
+ * update the numbers for the list item.
  */
 function observeOrderListItemSiblingMutations(parentNode: ParentNode): () => void {
     const observer = getOrSetDefaultMapValue(
@@ -228,8 +225,8 @@ function observeOrderListItemSiblingMutations(parentNode: ParentNode): () => voi
                         // Non-list items end the list.
                         if (!nextListItemData) break;
 
-                        // The first time we see a list item at a given indentation level, reset its
-                        // number in case the deleted element changed anything.
+                        // The first time we see a list item at a given indentation level, reset its number
+                        // in case the deleted element changed anything.
                         if (
                             currentListItemIndent === undefined ||
                             nextListItemData.indent < currentListItemIndent
@@ -238,8 +235,8 @@ function observeOrderListItemSiblingMutations(parentNode: ParentNode): () => voi
                             setOrderedListItemNumber(nextListItemElement);
                         }
 
-                        // Once we reach the lowest indentation level there's no other list sequence we
-                        // may need to reset.
+                        // Once we reach the lowest indentation level there's no other list sequence we may
+                        // need to reset.
                         if (currentListItemIndent === 0) break;
 
                         nextListItemElement = nextListItemElement.nextSibling;

@@ -1,7 +1,7 @@
 /**
- * Creates a promise that waits for the `AbortSignal` to fire. This promise
- * will only ever reject, it will never resolve. If the `AbortSignal` is never
- * fired then the promise never resolves.
+ * Creates a promise that waits for the `AbortSignal` to fire. This promise will
+ * only ever reject, it will never resolve. If the `AbortSignal` is never fired
+ * then the promise never resolves.
  */
 export function waitForAbort(signal: AbortSignal): Promise<never> {
     return new Promise((resolve, reject) => {

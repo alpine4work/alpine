@@ -2781,8 +2781,7 @@ test("can jump to arbitrary positions in list when rendering starts at the end",
 
         for (
             let index =
-                // `scrollOffset === 360` special case accounts for floating point math
-                // weirdness.
+                // `scrollOffset === 360` special case accounts for floating point math weirdness.
                 scrollOffset === 360 ? 30 : Math.max(0, Math.floor((scrollOffset - 50) / 10));
             index <= Math.floor((scrollOffset + 150 - 1) / 10);
             index++
@@ -3506,8 +3505,8 @@ test("reproduce jump to reply scroll bug", () => {
             getItem,
         });
 
-        // NOTE(calebmer): The bug was reading the `nextPosition` here BEFORE updating
-        // item heights. This ended up being a bug in `<VirtualizedScrollView>`, not
+        // NOTE(calebmer): The bug was reading the `nextPosition` here BEFORE updating item
+        // heights. This ended up being a bug in `<VirtualizedScrollView>`, not
         // `VirtualizedScrollViewState`. Leaving this test here since it exercises some
         // interesting behavior even though it didn't expose the bug I was looking for.
         //

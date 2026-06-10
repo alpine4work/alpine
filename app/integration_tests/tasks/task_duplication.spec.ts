@@ -1,7 +1,7 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 
 const {context, services} = createTestServices();
@@ -18,7 +18,7 @@ test("can duplicate a task without variables", async ({context: browserContext, 
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -36,8 +36,19 @@ test("can duplicate a task without variables", async ({context: browserContext, 
     }
     await page.getByText("Duplicate").click();
 
-    // The instructional modal appears for tasks without variables - click "Duplicate" to proceed
-    await page.getByRole("button", {name: "Duplicate"}).click();
+    // The instructional modal appears for tasks without variables - click "Duplicate"
+    // to proceed
+    const duplicationInstructionalModal = page.getByRole("alertdialog", {name: "Tip: Templates"});
+    await expect(duplicationInstructionalModal).toBeVisible();
+
+    const duplicateButton = duplicationInstructionalModal.getByRole("button", {name: "Duplicate"});
+
+    if (project.name === "webkit_mobile") {
+        await expect(duplicateButton).toBeFocused();
+        await page.keyboard.press("Enter");
+    } else {
+        await duplicateButton.click();
+    }
 
     // Wait for the duplicate to appear in the peek overlay
     if (project.name !== "webkit_mobile") {
@@ -59,7 +70,7 @@ test("can duplicate a task without variables", async ({context: browserContext, 
     ).toHaveText("Original Task (copy)");
 
     // The URL should have changed to the new task
-    expect(page.url()).toContain("/tasks/");
+    expect(page.url()).toContain("/task/");
     await expect(page).not.toHaveURL(new RegExp(task.id));
 
     // Content should be duplicated
@@ -79,7 +90,7 @@ test("can duplicate a task with template variables in title", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -108,7 +119,8 @@ test("can duplicate a task with template variables in title", async ({
     // Fill in the variable
     await page.getByLabel("ClientName").fill("Acme Corp");
 
-    // Click Create - on desktop scope to peek overlay, on mobile there's only one Create
+    // Click Create - on desktop scope to peek overlay, on mobile there's only one
+    // Create
     if (project.name === "webkit_mobile") {
         await page.getByRole("button", {name: "Create"}).click();
     } else {
@@ -151,7 +163,7 @@ test("can duplicate a task with template variables in notes", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -182,7 +194,8 @@ test("can duplicate a task with template variables in notes", async ({
         await page.getByTestId("PeekStackOverlay").getByRole("button", {name: "Create"}).click();
     }
 
-    // Wait for the new task to appear - title gets (copy) since the title itself had no variable
+    // Wait for the new task to appear - title gets (copy) since the title itself had
+    // no variable
     if (project.name !== "webkit_mobile") {
         await expect(
             page
@@ -218,7 +231,7 @@ test("duplicate with empty variable value leaves variable unchanged", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -246,7 +259,8 @@ test("duplicate with empty variable value leaves variable unchanged", async ({
         await page.getByTestId("PeekStackOverlay").getByRole("button", {name: "Create"}).click();
     }
 
-    // Wait for the new task to appear - title should still have variable and get (copy) suffix
+    // Wait for the new task to appear - title should still have variable and get
+    // (copy) suffix
     if (project.name !== "webkit_mobile") {
         await expect(
             page
@@ -282,7 +296,7 @@ test("can duplicate a task with variable in both title and notes", async ({
     await ProcessContextModule.waitForTestTasks();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}/tasks/${task.id}`);
+    await page.goto(`/task/${task.id}`);
 
     await expect(
         page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}),
@@ -300,7 +314,8 @@ test("can duplicate a task with variable in both title and notes", async ({
     }
     await page.getByText("Duplicate").click();
 
-    // Should only show ONE input for the shared variable (scope to peek to avoid counting other inputs)
+    // Should only show ONE input for the shared variable (scope to peek to avoid
+    // counting other inputs)
     const peekOrPage =
         project.name === "webkit_mobile" ? page : page.getByTestId("PeekStackOverlay");
     await expect(peekOrPage.getByLabel("ProjectName")).toBeVisible();

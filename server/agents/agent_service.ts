@@ -5,8 +5,8 @@ import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
-import {printApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
-import {ApiBotWebhookRequestBody} from "~/shared/api/types/api_specification_convenience_types.js";
+import {printApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
+import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -18,8 +18,8 @@ type AgentServiceRoute =
     | {type: "ChatGptConversationState"}
     | {type: "CursorWebhook"}
     | {type: "CursorCloudAgentsWebhook"; durableObjectId: string; agentId: string}
-    | {type: "MockWebhook"}
-    | {type: "MockRecording"}
+    | {type: "MockWebhook"; bot: "ChatGpt" | "Cursor"}
+    | {type: "MockRecording"; bot: "ChatGpt" | "Cursor"}
     | {type: "RefreshAccountEntitlements"}
     | {type: "NotFound"};
 
@@ -64,14 +64,24 @@ async function handleFetch(
                 route = {type: "CursorWebhook"};
                 break;
             }
-            case "/mock/webhook": {
-                routeString = "/mock/webhook";
-                route = {type: "MockWebhook"};
+            case "/mock/chat-gpt/webhook": {
+                routeString = "/mock/chat-gpt/webhook";
+                route = {type: "MockWebhook", bot: "ChatGpt"};
                 break;
             }
-            case "/mock/recording": {
-                routeString = "/mock/recording";
-                route = {type: "MockRecording"};
+            case "/mock/chat-gpt/recording": {
+                routeString = "/mock/chat-gpt/recording";
+                route = {type: "MockRecording", bot: "ChatGpt"};
+                break;
+            }
+            case "/mock/cursor/webhook": {
+                routeString = "/mock/cursor/webhook";
+                route = {type: "MockWebhook", bot: "Cursor"};
+                break;
+            }
+            case "/mock/cursor/recording": {
+                routeString = "/mock/cursor/recording";
+                route = {type: "MockRecording", bot: "Cursor"};
                 break;
             }
             case "/refresh-account-entitlements": {
@@ -91,9 +101,9 @@ async function handleFetch(
     if (!streamName && process.env.NODE_ENV === "production")
         throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
 
-    // Create a new tracer for every request because we need a Honeycomb client and
-    // the Honeycomb client needs `executionContext.waitUntil()` which is request
-    // scoped. Tracers are cheap to construct so this is fine.
+    // Create a new tracer for every request because we need a Honeycomb client and the
+    // Honeycomb client needs `executionContext.waitUntil()` which is request scoped.
+    // Tracers are cheap to construct so this is fine.
     const tracer = createServerTracer({
         serviceName: "AgentService",
         jsHost: "CloudflareWorker",
@@ -117,7 +127,7 @@ async function handleFetch(
             : undefined,
     });
 
-    return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
+    return await traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         try {
             switch (route.type) {
                 case "NotFound": {
@@ -127,20 +137,14 @@ async function handleFetch(
                     });
                 }
                 case "ChatGptWebhook": {
-                    const requestBody: ApiBotWebhookRequestBody = await request.json();
-
-                    const newUrl = new URL(request.url);
-                    newUrl.pathname = "/webhook";
-
-                    return fetchFromDurableObject(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return handleDurableObjectPostRequest(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
-                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
-                        new Request(newUrl, {
-                            method: request.method,
-                            headers: request.headers,
-                            body: JSON.stringify(requestBody),
-                        }),
+                        request,
+                        "/webhook",
                     );
                 }
                 case "ChatGptConversationState": {
@@ -155,6 +159,9 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/conversation-state";
 
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return fetchFromDurableObject(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
@@ -166,26 +173,23 @@ async function handleFetch(
                     );
                 }
                 case "CursorWebhook": {
-                    const requestBody: ApiBotWebhookRequestBody = await request.json();
-
-                    const newUrl = new URL(request.url);
-                    newUrl.pathname = "/webhook";
-
-                    return fetchFromDurableObject(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return handleDurableObjectPostRequest(
                         span,
                         env.CursorAgentDurableObjectNamespace,
-                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
-                        new Request(newUrl, {
-                            method: request.method,
-                            headers: request.headers,
-                            body: JSON.stringify(requestBody),
-                        }),
+                        request,
+                        "/webhook",
                     );
                 }
                 case "CursorCloudAgentsWebhook": {
                     const newUrl = new URL(request.url);
                     newUrl.pathname = `/cloud-agents-webhook/${route.agentId}`;
 
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return fetchFromDurableObjectWithId(
                         span,
                         env.CursorAgentDurableObjectNamespace,
@@ -198,23 +202,41 @@ async function handleFetch(
                     );
                 }
                 case "MockWebhook": {
-                    const requestBody: ApiBotWebhookRequestBody = await request.json();
+                    let durableObjectNamespace: DurableObjectNamespace;
+                    switch (route.bot) {
+                        case "ChatGpt":
+                            durableObjectNamespace = env.MockChatGptAgentDurableObjectNamespace;
+                            break;
+                        case "Cursor":
+                            durableObjectNamespace = env.MockCursorAgentDurableObjectNamespace;
+                            break;
+                        default:
+                            throw exhaustive(route.bot);
+                    }
 
-                    const newUrl = new URL(request.url);
-                    newUrl.pathname = "/webhook";
-
-                    return fetchFromDurableObject(
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
+                    return handleDurableObjectPostRequest(
                         span,
-                        env.MockAgentDurableObjectNamespace,
-                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
-                        new Request(newUrl, {
-                            method: request.method,
-                            headers: request.headers,
-                            body: JSON.stringify(requestBody),
-                        }),
+                        durableObjectNamespace,
+                        request,
+                        "/webhook",
                     );
                 }
                 case "MockRecording": {
+                    let durableObjectNamespace: DurableObjectNamespace;
+                    switch (route.bot) {
+                        case "ChatGpt":
+                            durableObjectNamespace = env.MockChatGptAgentDurableObjectNamespace;
+                            break;
+                        case "Cursor":
+                            durableObjectNamespace = env.MockCursorAgentDurableObjectNamespace;
+                            break;
+                        default:
+                            throw exhaustive(route.bot);
+                    }
+
                     const accountId = url.searchParams.get("accountId");
                     const roomPath = url.searchParams.get("roomPath");
 
@@ -226,9 +248,12 @@ async function handleFetch(
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/recording";
 
+                    // TODO: Re-enable `@typescript-eslint/return-await` after deciding
+                    // whether this `try`/`catch` should handle durable object failures.
+                    // eslint-disable-next-line @typescript-eslint/return-await
                     return fetchFromDurableObject(
                         span,
-                        env.MockAgentDurableObjectNamespace,
+                        durableObjectNamespace,
                         `${accountId}:${roomPath}`,
                         new Request(newUrl, {
                             method: request.method,
@@ -271,7 +296,37 @@ async function handleFetch(
     });
 }
 
-function fetchFromDurableObject(
+async function handleDurableObjectPostRequest(
+    span: TracerSpan,
+    durableObjectNamespace: DurableObjectNamespace,
+    request: Request,
+    newUrlPath: string,
+) {
+    if (request.method !== "POST") {
+        return new Response("405 Method Not Allowed", {
+            status: 405,
+            headers: {"content-type": "text/plain"},
+        });
+    }
+
+    const requestBody: ApiBotWebhookRequestBody = await request.json();
+
+    const newUrl = new URL(request.url);
+    newUrl.pathname = newUrlPath;
+
+    return await fetchFromDurableObject(
+        span,
+        durableObjectNamespace,
+        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
+        new Request(newUrl, {
+            method: request.method,
+            headers: request.headers,
+            body: JSON.stringify(requestBody),
+        }),
+    );
+}
+
+async function fetchFromDurableObject(
     span: TracerSpan,
     durableObjectNamespace: DurableObjectNamespace,
     name: string,
@@ -279,10 +334,10 @@ function fetchFromDurableObject(
 ) {
     const id = durableObjectNamespace.idFromName(name);
 
-    return fetchFromDurableObjectWithId(span, durableObjectNamespace, id, request);
+    return await fetchFromDurableObjectWithId(span, durableObjectNamespace, id, request);
 }
 
-function fetchFromDurableObjectWithId(
+async function fetchFromDurableObjectWithId(
     span: TracerSpan,
     durableObjectNamespace: DurableObjectNamespace,
     id: DurableObjectId,
@@ -290,18 +345,18 @@ function fetchFromDurableObjectWithId(
 ) {
     const durableObjectStub = durableObjectNamespace.get(id, {
         // Currently, we only have data in the AWS region `us-east-1`. So place Durable
-        // Objects in the Eastern North America region so Durable Objects get low
-        // latency when making calls to `ApiService` in AWS.
+        // Objects in the Eastern North America region so Durable Objects get low latency
+        // when making calls to `ApiService` in AWS.
         //
         // Long term, ideally we'll put space data in the nearest AWS region to the
-        // customer and our Durable Objects should be created near that data center
-        // as well. Or we'll have DynamoDB replicas in multiple regions.
+        // customer and our Durable Objects should be created near that data center as
+        // well. Or we'll have DynamoDB replicas in multiple regions.
         locationHint: "enam",
     });
 
     addTracerPropagationContextHeader(request.headers, span);
 
-    return durableObjectStub.fetch(request);
+    return await durableObjectStub.fetch(request);
 }
 
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
@@ -317,5 +372,8 @@ function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestB
 export default {fetch: handleFetch};
 
 export {ChatGptAgentDurableObject} from "~/server/agents/internal/chat_gpt_agent_durable_object.js";
-export {MockAgentDurableObject} from "~/server/agents/internal/mock_agent_durable_object.js";
+export {
+    MockChatGptAgentDurableObject,
+    MockCursorAgentDurableObject,
+} from "~/server/agents/internal/mock_agent_durable_object.js";
 export {CursorAgentDurableObject} from "~/server/agents/internal/cursor/cursor_agent_durable_object.js";

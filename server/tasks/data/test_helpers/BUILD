@@ -1,0 +1,38 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "test_helpers",
+    visibility = [
+        "//admin:__subpackages__",
+        "//app/integration_tests:__subpackages__",
+        "//app/screenshot_tests:__subpackages__",
+        "//server:__subpackages__",
+    ],
+    deps = [
+        "//:node_modules/@internationalized/date",
+        "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-transform",
+        "//server/access/test_helpers",
+        "//server/context",
+        "//server/dynamo/core",
+        "//server/files/data",
+        "//server/files/test_helpers",
+        "//server/messaging/test_helpers",
+        "//server/opensearch",
+        "//server/spaces/test_helpers",
+        "//server/tasks/data",
+        "//server/tokens",
+        "//shared/access/model",
+        "//shared/api/content",
+        "//shared/api/markdown",
+        "//shared/content",
+        "//shared/context",
+        "//shared/design",
+        "//shared/error",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/messaging",
+        "//shared/reactions",
+        "//shared/tasks",
+    ],
+)

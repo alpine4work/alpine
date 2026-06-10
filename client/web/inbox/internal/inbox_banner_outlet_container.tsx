@@ -6,8 +6,9 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {renderKeyboardShortcutHint} from "~/client/web/design/render_keyboard_shortcut_hint.js";
 import {Spacer} from "~/client/web/design/spacer.js";
-import {useDynamoGeneralRealtimeItemBase} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useRynamoItemBase} from "~/client/web/dynamo/use_rynamo_item.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
@@ -32,7 +33,7 @@ import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_
 import {inboxBannerHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {createInboxDocumentCommentThreadEntryDynamoItemKey} from "~/shared/notifications/create_inbox_document_comment_thread_entry_dynamo_item_key.js";
 import {createInboxPostCommentsEntryDynamoItemKey} from "~/shared/notifications/create_inbox_post_comments_entry_dynamo_item_key.js";
@@ -44,7 +45,7 @@ import {
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
-import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
+import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
 export function InboxBannerOutletContainer({
@@ -55,8 +56,8 @@ export function InboxBannerOutletContainer({
     withoutArchiveButton,
     children,
 }: {
-    initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel>;
-    parentEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    initialEntry: RynamoItem<InboxEntryModel>;
+    parentEntry: RynamoItem<InboxEntryModel> | null;
     navigation: InboxContextNavigation | null;
     maxWidth: Spacing | "full";
     withoutArchiveButton?: boolean;
@@ -67,7 +68,8 @@ export function InboxBannerOutletContainer({
     const navigate = useNavigate();
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
-    const {locale, isAppleDevice} = useClientInfo();
+    const clientInfo = useClientInfo();
+    const {locale} = clientInfo;
     const location = useLocation();
     const accountRegistry = useAccountRegistry();
     const {space, currentAccount} = useSpaceContext();
@@ -79,12 +81,12 @@ export function InboxBannerOutletContainer({
     const doneButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
     const [entry, updateEntry, actuallyUpdateEntryOptimistically, entryWithoutOptimisticUpdates] =
-        useStateWithOptimisticUpdates<
-            DynamoGeneralRealtimeItem<InboxEntryModel> & {readonly isDeleted?: true}
-        >(parentEntry ?? initialEntry);
+        useStateWithOptimisticUpdates<RynamoItem<InboxEntryModel> & {readonly isDeleted?: true}>(
+            parentEntry ?? initialEntry,
+        );
 
-    // If the parent provided a newer version of the entry we're rendering then use
-    // the parent's version.
+    // If the parent provided a newer version of the entry we're rendering then use the
+    // parent's version.
     if (
         parentEntry &&
         parentEntry.key === entryWithoutOptimisticUpdates.key &&
@@ -103,22 +105,20 @@ export function InboxBannerOutletContainer({
     const updateEntryOptimistically = useCallback(
         (
             promise: Promise<unknown>,
-            update: (
-                entry: DynamoGeneralRealtimeItem<InboxEntryModel>,
-            ) => DynamoGeneralRealtimeItem<InboxEntryModel>,
+            update: (entry: RynamoItem<InboxEntryModel>) => RynamoItem<InboxEntryModel>,
         ) => {
             actuallyUpdateEntryOptimistically(
                 promise.then(() =>
                     // Wait to resolve our optimistic update until we receive a realtime event that
                     // turns our optimistic update into a noop.
                     //
-                    // That's because we don't trust that by the time `promise` resolves we've seen
-                    // the realtime event from our WebSocket. `promise` may be from an RPC call
-                    // which kicks off a background `NotificationEvent` job that eventually sends
-                    // the realtime event we're looking for. We don't want to resolve our optimistic
-                    // update until that background job finishes and we've seen the realtime event.
-                    // Otherwise unrelated realtime events may overwrite our optimistic update
-                    // causing the UI to glitch for the user.
+                    // That's because we don't trust that by the time `promise` resolves we've seen the
+                    // realtime event from our WebSocket. `promise` may be from an RPC call which kicks
+                    // off a background `NotificationEvent` job that eventually sends the realtime
+                    // event we're looking for. We don't want to resolve our optimistic update until
+                    // that background job finishes and we've seen the realtime event. Otherwise
+                    // unrelated realtime events may overwrite our optimistic update causing the UI to
+                    // glitch for the user.
                     waitForEntryWithoutOptimisticUpdates(entry => update(entry) === entry),
                 ),
                 update,
@@ -161,9 +161,9 @@ export function InboxBannerOutletContainer({
         });
     }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
-    // If we're archiving the last post in a `ChannelPosts` inbox entry then we
-    // need to replace the `ChannelPosts` entry with an archived `PostComments`
-    // entry since the `ChannelPosts` entry will be deleted on the server!
+    // If we're archiving the last post in a `ChannelPosts` inbox entry then we need to
+    // replace the `ChannelPosts` entry with an archived `PostComments` entry since the
+    // `ChannelPosts` entry will be deleted on the server!
     useEffect(() => {
         return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
             if (event.entryKey !== entry.key) return;
@@ -197,8 +197,8 @@ export function InboxBannerOutletContainer({
 
             actuallyUpdateEntryOptimistically(
                 event.promise.then(() =>
-                    // Wait for the entry to be deleted in realtime before we fully replace
-                    // the entry for real.
+                    // Wait for the entry to be deleted in realtime before we fully replace the entry
+                    // for real.
                     waitForEntryWithoutOptimisticUpdates(entry => entry.isDeleted ?? false),
                 ),
                 () => replaceItem,
@@ -211,10 +211,10 @@ export function InboxBannerOutletContainer({
         waitForEntryWithoutOptimisticUpdates,
     ]);
 
-    // If we're archiving the last post in a `DocumentNewCommentThreads` inbox
-    // entry then we need to replace the `DocumentNewCommentThreads` entry with
-    // an archived `DocumentCommentThread` entry since the
-    // `DocumentNewCommentThreads` entry will be deleted on the server!
+    // If we're archiving the last post in a `DocumentNewCommentThreads` inbox entry
+    // then we need to replace the `DocumentNewCommentThreads` entry with an archived
+    // `DocumentCommentThread` entry since the `DocumentNewCommentThreads` entry will
+    // be deleted on the server!
     useEffect(() => {
         return subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
             event => {
@@ -243,6 +243,7 @@ export function InboxBannerOutletContainer({
                         latestComment: {
                             author: entry.model.firstCommentThread.author,
                             createdTime: entry.model.firstCommentThread.createdTime,
+                            index: 0,
                             contentTextSnippet: entry.model.firstCommentThread.contentTextSnippet,
                             isStickyMention: false,
                         },
@@ -253,8 +254,8 @@ export function InboxBannerOutletContainer({
 
                 actuallyUpdateEntryOptimistically(
                     event.promise.then(() =>
-                        // Wait for the entry to be deleted in realtime before we fully replace
-                        // the entry for real.
+                        // Wait for the entry to be deleted in realtime before we fully replace the entry
+                        // for real.
                         waitForEntryWithoutOptimisticUpdates(entry => entry.isDeleted ?? false),
                     ),
                     () => replaceItem,
@@ -271,18 +272,18 @@ export function InboxBannerOutletContainer({
     const withoutReloadItem: boolean =
         !!parentEntry && parentEntry.key === entryWithoutOptimisticUpdates.key;
 
-    useDynamoGeneralRealtimeItemBase(
+    useRynamoItemBase(
         {item: entryWithoutOptimisticUpdates, onUpdateItem: updateEntry},
         {
             isConnected,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber => subscribeToEvents(event => subscriber(event.events)),
                 [subscribeToEvents],
             ),
             reloadItemWithStrongReadConsistency: useCallback(async () => {
-                // We don't need to reload the item if we were provided a `parentEntry`. Since
-                // the `parentEntry` is kept up-to-date in realtime. So we know we have the
-                // latest data.
+                // We don't need to reload the item if we were provided a `parentEntry`. Since the
+                // `parentEntry` is kept up-to-date in realtime. So we know we have the latest
+                // data.
                 if (withoutReloadItem) return;
 
                 const {entry} = await getInboxEntryWithStrongReadConsistency(context, {
@@ -304,9 +305,9 @@ export function InboxBannerOutletContainer({
             () =>
                 printInboxEntryDisplayContentSummaryWithoutInteractivityStore(
                     accountRegistry,
-                    entryDisplay.summary,
+                    entryDisplay.title,
                 ),
-            [accountRegistry, entryDisplay.summary],
+            [accountRegistry, entryDisplay.title],
         ),
     );
 
@@ -318,16 +319,16 @@ export function InboxBannerOutletContainer({
             });
 
             if (!navigation && routeLayout === "narrow") {
-                // Navigate back, if this is in a peek we'll close the peek. If this is on
-                // mobile or we have no previous entries in browser history we'll go back to inbox.
+                // Navigate back, if this is in a peek we'll close the peek. If this is on mobile
+                // or we have no previous entries in browser history we'll go back to inbox.
                 //
-                // If this is a wide layout (desktop) then that's because the user expanded
-                // the notification. Don't navigate if the user took an intentional action to
-                // expand the peek.
+                // If this is a wide layout (desktop) then that's because the user expanded the
+                // notification. Don't navigate if the user took an intentional action to expand
+                // the peek.
                 if (navigationState.hasPreviousLocation) {
                     await navigate(-1);
                 } else {
-                    await navigate(`/s/${entry.model.spaceId}/inbox`);
+                    await navigate(`/inbox/${entry.model.spaceId}`);
                 }
             }
 
@@ -341,15 +342,15 @@ export function InboxBannerOutletContainer({
                 }
             }
         }
-        // This button works as a toggle button. If you click it when the notification
-        // has already been archived then we'll unarchive.
+        // This button works as a toggle button. If you click it when the notification has
+        // already been archived then we'll unarchive.
         else {
             unarchiveInboxEntry({
                 entry,
                 withAnimation: true,
             });
 
-            if (navigation?.filter === "Archive") {
+            if (navigation?.filter === "Done") {
                 if (navigation.nextEntry) {
                     await navigation.selectEntry(navigation.nextEntry);
                 } else if (navigation.previousEntry) {
@@ -364,13 +365,15 @@ export function InboxBannerOutletContainer({
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                if (event.key === "d" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                if (
+                    event.key === "d" &&
+                    (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                ) {
                     event.preventDefault();
                     event.stopPropagation();
 
                     if (!entry.model.isArchived) {
-                        // Programmatically click the button to correctly handle loading and
-                        // error states.
+                        // Programmatically click the button to correctly handle loading and error states.
                         if (doneButtonRef.current) {
                             doneButtonRef.current.press();
                         }
@@ -399,8 +402,8 @@ export function InboxBannerOutletContainer({
                             void navigation.selectEntry(navigation.previousEntry);
                         }
                     } else {
-                        // If the entry is already archived (e.g. because of a comment) we still want
-                        // Cmd-D to close the peek so users can maintain that workflow.
+                        // If the entry is already archived (e.g. because of a comment) we still want Cmd-D
+                        // to close the peek so users can maintain that workflow.
                         navigate(-1);
                     }
                 }
@@ -459,8 +462,8 @@ export function InboxBannerOutletContainer({
                                     size="xs"
                                     description="Open in inbox"
                                     tooltipPlacement="bottom"
-                                    // The inbox will show a loading shimmer when it opens. We don't need to
-                                    // also show a loading indicator here.
+                                    // The inbox will show a loading shimmer when it opens. We don't need to also show
+                                    // a loading indicator here.
                                     withoutLoadingIndicator
                                     pressErrorTitle="Couldn&#x2019;t open in inbox"
                                     onPress={async () => {
@@ -472,28 +475,19 @@ export function InboxBannerOutletContainer({
                                         );
                                         newSearchParams.delete("inbox");
 
-                                        const result = convertPeekPathToSpacePathParts(
-                                            location.pathname,
-                                            newSearchParams,
+                                        const newLocation = convertPeekPathToSpacePath(
+                                            {...location, search: newSearchParams.toString()},
                                             {routeLayout: "wide"},
                                         );
 
-                                        const newLocation = {
-                                            ...location,
-                                            pathname:
-                                                result?.pathnameParts[1].slice(1) ??
-                                                location.pathname.replace(/^\/s\/[^/]+\//, ""),
-                                            search: result?.search ?? newSearchParams.toString(),
-                                        };
-
                                         const selectedSearchParam = encodeBase64(
-                                            textEncoder.encode(createPath(newLocation)),
+                                            textEncoder.encode(createPath(newLocation ?? location)),
                                             "Rfc4648Url",
                                         );
 
                                         await rootNavigate(
-                                            `/s/${space.id}/inbox?${
-                                                entry.model.isArchived ? `tab=old&` : ""
+                                            `/inbox/${space.id}?${
+                                                entry.model.isArchived ? `tab=done&` : ""
                                             }selected=${selectedSearchParam}`,
                                         );
                                     }}
@@ -549,9 +543,7 @@ export function InboxBannerOutletContainer({
                                     icon={<Check />}
                                     keyboardShortcutHint={
                                         !entry.model.isArchived
-                                            ? isAppleDevice
-                                                ? "⌘+D"
-                                                : "Ctrl+D"
+                                            ? renderKeyboardShortcutHint(clientInfo, "mod", "d")
                                             : undefined
                                     }
                                     pressErrorTitle="Can&#x2019;t mark as done"

@@ -7,7 +7,7 @@ import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_refe
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkContent} from "~/server/agents/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -87,6 +87,7 @@ describe("loadAgentMessagesListLinkContent", () => {
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -138,6 +139,7 @@ Hello!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -148,6 +150,7 @@ Hello!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello hello!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -209,6 +212,7 @@ Hello hello!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -219,6 +223,7 @@ Hello hello!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello hello!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -229,6 +234,7 @@ Hello hello!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello Charlie!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -239,6 +245,7 @@ Hello hello!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello David!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -304,6 +311,7 @@ Hello David!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Looks comprehensive!"),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -314,6 +322,7 @@ Hello David!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Thanks Alice!"),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -372,6 +381,7 @@ Thanks Alice!
                     payload: {
                         type: "Content",
                         content: createSampleContent("Started implementation!"),
+                        files: [],
                     },
                     createdTimeZone: defaultTimeZone,
                 },
@@ -444,6 +454,7 @@ Started implementation!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello Bob!"),
+                            files: [],
                         },
                     },
                 ],
@@ -461,6 +472,7 @@ Started implementation!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hi Alice, how are you?"),
+                            files: [],
                         },
                     },
                     {
@@ -471,6 +483,7 @@ Started implementation!
                         payload: {
                             type: "Content",
                             content: createSampleContent("I'm doing great, thanks!"),
+                            files: [],
                         },
                     },
                 ],
@@ -531,6 +544,7 @@ I'm doing great, thanks!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello Bob!"),
+                            files: [],
                         },
                     },
                 ],
@@ -548,6 +562,7 @@ I'm doing great, thanks!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hi Alice, how are you?".repeat(200)),
+                            files: [],
                         },
                     },
                     {
@@ -558,6 +573,7 @@ I'm doing great, thanks!
                         payload: {
                             type: "Content",
                             content: createSampleContent("I'm doing great, thanks!".repeat(200)),
+                            files: [],
                         },
                     },
                 ],
@@ -614,6 +630,7 @@ ${"Hi Alice, how are you?".repeat(200)}
                         payload: {
                             type: "Content",
                             content: createSampleContent("First message"),
+                            files: [],
                         },
                     },
                     {
@@ -624,6 +641,7 @@ ${"Hi Alice, how are you?".repeat(200)}
                         payload: {
                             type: "Content",
                             content: createSampleContent("Second message"),
+                            files: [],
                         },
                     },
                 ],
@@ -675,6 +693,7 @@ Second message
                     payload: {
                         type: "Content" as const,
                         content: createSampleContent("Long message content.".repeat(200)),
+                        files: [],
                     },
                 });
             }
@@ -731,6 +750,7 @@ ${"Long message content.".repeat(200)}
                     payload: {
                         type: "Content" as const,
                         content: createSampleContent("Long message content.".repeat(100)),
+                        files: [],
                     },
                 });
             }
@@ -747,6 +767,7 @@ ${"Long message content.".repeat(200)}
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello Bob!".repeat(100)),
+                            files: [],
                         },
                     },
                     {
@@ -759,6 +780,7 @@ ${"Long message content.".repeat(200)}
                             content: createSampleContent(
                                 "First message before the index".repeat(200),
                             ),
+                            files: [],
                         },
                     },
                 ],
@@ -819,6 +841,7 @@ ${"Long message content.".repeat(100)}
                     payload: {
                         type: "Content" as const,
                         content: createSampleContent("Long message content.".repeat(100)),
+                        files: [],
                     },
                 });
             }
@@ -835,6 +858,7 @@ ${"Long message content.".repeat(100)}
                         payload: {
                             type: "Content",
                             content: createSampleContent("First message before the index"),
+                            files: [],
                         },
                     },
                     {
@@ -845,6 +869,7 @@ ${"Long message content.".repeat(100)}
                         payload: {
                             type: "Content",
                             content: createSampleContent("Hello Bob!"),
+                            files: [],
                         },
                     },
                 ],
@@ -954,6 +979,7 @@ ${"Long message content.".repeat(100)}
                         payload: {
                             type: "Content",
                             content: createSampleContent("Looks comprehensive!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -964,6 +990,7 @@ ${"Long message content.".repeat(100)}
                         payload: {
                             type: "Content",
                             content: createSampleContent("Thanks Alice!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1129,6 +1156,7 @@ Thanks Alice!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Looks comprehensive!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1139,6 +1167,7 @@ Thanks Alice!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Thanks Alice!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1206,6 +1235,7 @@ Thanks Alice!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Looks comprehensive!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1216,6 +1246,7 @@ Thanks Alice!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Thanks Alice!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1285,6 +1316,7 @@ Thanks Alice!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Good stuff!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1339,6 +1371,7 @@ Good stuff!
                         payload: {
                             type: "Content",
                             content: createSampleContent("First comment."),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1395,6 +1428,7 @@ First comment.
                         payload: {
                             type: "Content",
                             content: createSampleContent("Long comment.".repeat(100)),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1456,6 +1490,7 @@ ${"Long comment.".repeat(100)}
                         payload: {
                             type: "Content",
                             content: createSampleContent("Started working on this!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1510,6 +1545,7 @@ Started working on this!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Making progress!"),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1568,6 +1604,7 @@ Making progress!
                         payload: {
                             type: "Content",
                             content: createSampleContent("Investigating the issue."),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },
@@ -1622,6 +1659,7 @@ Investigating the issue.
                         payload: {
                             type: "Content",
                             content: createSampleContent("Detailed review notes."),
+                            files: [],
                         },
                         createdTimeZone: defaultTimeZone,
                     },

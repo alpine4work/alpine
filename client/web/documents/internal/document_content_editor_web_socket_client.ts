@@ -21,7 +21,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -46,34 +46,33 @@ export type DocumentContentEditorWebSocketClientProcedures = Pick<
 >;
 
 /**
- * Object representing our connection to the document collaboration service for
- * our `<DocumentContentEditor>` component. When connected we will backfill the
+ * Object representing our connection to the document collaboration service for our
+ * `<DocumentContentEditor>` component. When connected we will backfill the
  * document loaded from the server and listen to all future realtime changes.
  *
  * This class used to be implemented as a React hook called
  * `useDocumentContentEditorState()` where the state lived in a `useReducer()`.
- * Which is why we have an immutable state object with `dispatch()` function.
- * We would have kept as a React hook except we want to share this object
- * between a document route and a document comment thread peek rendered on top
- * of the document. Peeks are rendered at the space level and we can't pass
- * props up the component tree so instead we have an external store of document
- * content editor WebSocket connections accessible from anywhere.
+ * Which is why we have an immutable state object with `dispatch()` function. We
+ * would have kept as a React hook except we want to share this object between a
+ * document route and a document comment thread peek rendered on top of the
+ * document. Peeks are rendered at the space level and we can't pass props up the
+ * component tree so instead we have an external store of document content editor
+ * WebSocket connections accessible from anywhere.
  *
  * Useful test cases I've (@calebmer) used when working on this file:
  *
  * - Setup 2-4 browsers with a `while` loop around
  *   `ContentEditorDebugTools.simulateTyping()`. Make sure they can run forever
  *   without crashing.
+ *     - Open a separate browser and reload the page a couple times. It probably
+ *       loads the document at an old version but should eventually see all the
+ *       typing.
  *
- *     - Open a separate browser and reload the page a couple times. It
- *       probably loads the document at an old version but should eventually
- *       see all the typing.
- *
- * - Open three browsers. In browser 1 put your cursor somewhere in the
- *   document, in browser 2 add network throttling, in browser 3 make some
- *   changes. Then reload browser 2 and while browser 2 is loading make changes
- *   with browser 3. Browser 2 should eventually see all the updates and browser
- *   1's cursor. (This exercises `rememberedSteps`.)
+ * - Open three browsers. In browser 1 put your cursor somewhere in the document,
+ *   in browser 2 add network throttling, in browser 3 make some changes. Then
+ *   reload browser 2 and while browser 2 is loading make changes with browser 3.
+ *   Browser 2 should eventually see all the updates and browser 1's cursor. (This
+ *   exercises `rememberedSteps`.)
  */
 export class DocumentContentEditorWebSocketClient {
     public static readonly procedureNames = [
@@ -107,9 +106,8 @@ export class DocumentContentEditorWebSocketClient {
     private readonly _state: ValueStore<DocumentContentEditorState>;
     private _disconnect: (() => void) | null = null;
 
-    // The number of times `updateContent()` has thrown an error. Stored at the
-    // class level to survive across reconnects. Reset once `updateContent()`
-    // succeeds.
+    // The number of times `updateContent()` has thrown an error. Stored at the class
+    // level to survive across reconnects. Reset once `updateContent()` succeeds.
     private _updateContentRetryErrorCount = 0;
 
     // We provide access to procedures regarding document comments. Procedures that
@@ -164,14 +162,14 @@ export class DocumentContentEditorWebSocketClient {
             ) => {
                 const output = await this._client.procedures.backfillComments(input);
 
-                // We keep comment threads up-to-date with best effort. There are likely a
-                // handful of rare correctness bugs. For instance, we don't backfill comment
-                // counts! So if you miss a new comment while the page is loading you may see an
-                // old comment count. However, the UI will eventually converge to the correct
-                // comment count on the next realtime message or `backfillComments()` RPC call.
-                // However the UI may not converge on the right set of comment authors since
-                // the full author list is not included in realtime events unlike the full
-                // comment count. We consider this acceptable.
+                // We keep comment threads up-to-date with best effort. There are likely a handful
+                // of rare correctness bugs. For instance, we don't backfill comment counts! So if
+                // you miss a new comment while the page is loading you may see an old comment
+                // count. However, the UI will eventually converge to the correct comment count on
+                // the next realtime message or `backfillComments()` RPC call. However the UI may
+                // not converge on the right set of comment authors since the full author list is
+                // not included in realtime events unlike the full comment count. We consider this
+                // acceptable.
                 this._dispatch({
                     type: "Extra",
                     extra: {
@@ -223,8 +221,8 @@ export class DocumentContentEditorWebSocketClient {
                 maybeSendUpdatesToServer();
             }
 
-            // Whenever we successfully connect to the WebSocket, send a backfill request
-            // so we can get any steps we missed while disconnected from the WebSocket.
+            // Whenever we successfully connect to the WebSocket, send a backfill request so we
+            // can get any steps we missed while disconnected from the WebSocket.
             if (connectionState === null && clientState.isConnected) {
                 const ourConnectionState = {isBackfilling: true};
                 connectionState = ourConnectionState;
@@ -236,13 +234,13 @@ export class DocumentContentEditorWebSocketClient {
                         })
                         .then(
                             output => {
-                                // If while waiting on our backfill we disconnected then don't update
-                                // our state. We use an object to make sure if we connect/reconnect quickly we
-                                // still ignore the backfill result.
+                                // If while waiting on our backfill we disconnected then don't update our state. We
+                                // use an object to make sure if we connect/reconnect quickly we still ignore the
+                                // backfill result.
                                 if (connectionState !== ourConnectionState) return;
 
-                                // One dispatch call just to make sure React applies these actions atomically
-                                // and doesn't do any scheduling weirdness.
+                                // One dispatch call just to make sure React applies these actions atomically and
+                                // doesn't do any scheduling weirdness.
                                 this._dispatchBatch([
                                     {
                                         type: "Extra",
@@ -270,10 +268,9 @@ export class DocumentContentEditorWebSocketClient {
                                         newVersion: output.persistedVersion,
                                     },
 
-                                    // Unconditionally run this action even if we have no new remembered steps
-                                    // because it will throw if the editor version in state is not
-                                    // `expectedVersion`. This is a nice way to double check that our previous
-                                    // action actually caught us up.
+                                    // Unconditionally run this action even if we have no new remembered steps because
+                                    // it will throw if the editor version in state is not `expectedVersion`. This is a
+                                    // nice way to double check that our previous action actually caught us up.
                                     {
                                         type: "Extra",
                                         extra: {
@@ -292,23 +289,23 @@ export class DocumentContentEditorWebSocketClient {
                                 maybeSendUpdatesToServer();
                             },
                             error => {
-                                // If while waiting on our backfill we disconnected then don't update
-                                // our state. We use an object to make sure if we connect/reconnect quickly we
-                                // still ignore the backfill result.
+                                // If while waiting on our backfill we disconnected then don't update our state. We
+                                // use an object to make sure if we connect/reconnect quickly we still ignore the
+                                // backfill result.
                                 if (connectionState !== ourConnectionState) return;
 
                                 try {
-                                    // If the collaboration service is telling us that we're trying to backfill at
-                                    // a future version then that may be because we have steps a previous
-                                    // collaboration service confirmed but couldn't persist. Let's try reverting
-                                    // those steps and retrying our backfill.
+                                    // If the collaboration service is telling us that we're trying to backfill at a
+                                    // future version then that may be because we have steps a previous collaboration
+                                    // service confirmed but couldn't persist. Let's try reverting those steps and
+                                    // retrying our backfill.
                                     //
                                     // To test this branch try throwing an error from `updateDocumentContent()` in
                                     // `documents_table.ts` for some step (maybe any step that adds a "t"). The
                                     // collaboration service should accept this step but fail to persist it in the
-                                    // database. An error should show up in your client, then you should hit
-                                    // "Retry". At which point we'll try backfilling, hit this error, then reset
-                                    // the client to a good state.
+                                    // database. An error should show up in your client, then you should hit "Retry".
+                                    // At which point we'll try backfilling, hit this error, then reset the client to a
+                                    // good state.
                                     //
                                     // TODO(calebmer): This logic needs to be ported to
                                     // `TaskDetailNotesContentEditorWebSocketClient` but task notes currently doesn't
@@ -322,8 +319,7 @@ export class DocumentContentEditorWebSocketClient {
                                         state.persistedVersion < state.editorState.getVersion()
                                     ) {
                                         // Dispatching `ResetToPersistedVersion` also resets `pendingSendableSteps` and
-                                        // `ourPresenceState`. Reset these variables so the next update can work
-                                        // properly.
+                                        // `ourPresenceState`. Reset these variables so the next update can work properly.
                                         updateGeneration += 1;
                                         lastPendingSendableStepsVersionSentToServer = null;
                                         lastOurPresenceStateSentToServer = null;
@@ -333,9 +329,8 @@ export class DocumentContentEditorWebSocketClient {
                                             extra: {type: "ResetToPersistedVersion"},
                                         });
 
-                                        // Check that the state's version moved back to
-                                        // `state.persistedVersion`. This makes sure we won't get stuck in an infinite
-                                        // retry loop.
+                                        // Check that the state's version moved back to `state.persistedVersion`. This
+                                        // makes sure we won't get stuck in an infinite retry loop.
                                         state = this._state.getSnapshot();
                                         assert(
                                             state.persistedVersion ===
@@ -380,9 +375,8 @@ export class DocumentContentEditorWebSocketClient {
                     // If this was an acknowledgement message from our own client, don't add the
                     // presence state to our map.
                     //
-                    // If we don't have an editor state then our document is loading so there should
-                    // be no updates from this client and we should always update the presence
-                    // state.
+                    // If we don't have an editor state then our document is loading so there should be
+                    // no updates from this client and we should always update the presence state.
                     if (
                         event.clientId !== this._state.getSnapshot().editorState.getClientId() &&
                         event.updateOtherPresenceState
@@ -436,17 +430,17 @@ export class DocumentContentEditorWebSocketClient {
                 }
                 case "Comments": {
                     // Comment realtime events are handled by callers to
-                    // `subscribeToCommentThreadMessages()`. Keep our editor state up to date here
-                    // by dispatching an action to update our references.
+                    // `subscribeToCommentThreadMessages()`. Keep our editor state up to date here by
+                    // dispatching an action to update our references.
                     //
-                    // We keep comment threads up-to-date with best effort. There are likely a
-                    // handful of rare correctness bugs. For instance, we don't backfill comment
-                    // counts! So if you miss a new comment while the page is loading you may see an
-                    // old comment count. However, the UI will eventually converge to the correct
-                    // comment count on the next realtime message or `backfillComments()` RPC call.
-                    // However the UI may not converge on the right set of comment authors since
-                    // the full author list is not included in realtime events unlike the full
-                    // comment count. We consider this acceptable.
+                    // We keep comment threads up-to-date with best effort. There are likely a handful
+                    // of rare correctness bugs. For instance, we don't backfill comment counts! So if
+                    // you miss a new comment while the page is loading you may see an old comment
+                    // count. However, the UI will eventually converge to the correct comment count on
+                    // the next realtime message or `backfillComments()` RPC call. However the UI may
+                    // not converge on the right set of comment authors since the full author list is
+                    // not included in realtime events unlike the full comment count. We consider this
+                    // acceptable.
                     if (event.event.type === "NewMessage") {
                         this._dispatch({
                             type: "Extra",
@@ -460,7 +454,7 @@ export class DocumentContentEditorWebSocketClient {
                     }
                     break;
                 }
-                case "SpellCheckRealtimeEventTransaction": {
+                case "SpellCheckRealtimeEvents": {
                     break;
                 }
                 default:
@@ -482,9 +476,9 @@ export class DocumentContentEditorWebSocketClient {
 
         // NOTE(calebmer): Originally this function (and everything around it) was
         // implemented as a `useDocumentContentEditorState()` hook. This function
-        // specifically was was in a `useEffect()` so the code style makes more sense
-        // in that context. This function was written assuming it could be called on
-        // basically any update.
+        // specifically was was in a `useEffect()` so the code style makes more sense in
+        // that context. This function was written assuming it could be called on basically
+        // any update.
         const maybeSendUpdatesToServer = () => {
             const state = this._state.getSnapshot();
 
@@ -493,8 +487,8 @@ export class DocumentContentEditorWebSocketClient {
             // 1. We're disconnected (`connectionState === null`)
             // 2. We're waiting on a backfill (`connectionState.isBackfilling === true`)
             //
-            // We have to wait for a backfill (2) in case we were connected previously,
-            // sent an update, but didn't get an acknowledgement for the update back.
+            // We have to wait for a backfill (2) in case we were connected previously, sent an
+            // update, but didn't get an acknowledgement for the update back.
             if (connectionState === null || connectionState.isBackfilling === true) {
                 cursorDisappearTimeout?.clear();
                 cursorDisappearTimeout = null;
@@ -538,16 +532,16 @@ export class DocumentContentEditorWebSocketClient {
                             this._updateContentRetryErrorCount = 0;
                         },
                         error => {
-                            // If we're connected when an error occurs then this isn't a network related
-                            // issue. Present the error to the user. If we're disconnected when an error
-                            // occurs silently log and we want to retry when the WebSocket reconnects.
+                            // If we're connected when an error occurs then this isn't a network related issue.
+                            // Present the error to the user. If we're disconnected when an error occurs
+                            // silently log and we want to retry when the WebSocket reconnects.
                             if (this._client.state.getSnapshot().isConnected) {
-                                // If this is a transient error, don't try resetting the user's pending steps
-                                // until we've retried 2 times. This means the user will manually need to hit
-                                // the "Retry" button twice before we reset their state.
+                                // If this is a transient error, don't try resetting the user's pending steps until
+                                // we've retried 2 times. This means the user will manually need to hit the "Retry"
+                                // button twice before we reset their state.
                                 //
-                                // We'd like to avoid resetting the user's pending steps if possible since
-                                // that's data loss.
+                                // We'd like to avoid resetting the user's pending steps if possible since that's
+                                // data loss.
                                 //
                                 // TODO(calebmer): This logic needs to be ported to
                                 // `TaskDetailNotesContentEditorWebSocketClient` but task notes currently doesn't
@@ -562,8 +556,7 @@ export class DocumentContentEditorWebSocketClient {
                                     this._updateContentRetryErrorCount = 0;
 
                                     // Dispatching `ResetToPersistedVersion` also resets `pendingSendableSteps` and
-                                    // `ourPresenceState`. Reset these variables so the next update can work
-                                    // properly.
+                                    // `ourPresenceState`. Reset these variables so the next update can work properly.
                                     updateGeneration += 1;
                                     lastPendingSendableStepsVersionSentToServer = null;
                                     lastOurPresenceStateSentToServer = null;
@@ -633,8 +626,8 @@ export class DocumentContentEditorWebSocketClient {
                             .tracer.getRoot()
                             .logException("Couldn\u2019t update our presence state", error);
 
-                        // Next time we send updates, we'll silently retry sending our presence state
-                        // if another `updateOurPresenceState()` call hasn't happened in the meantime.
+                        // Next time we send updates, we'll silently retry sending our presence state if
+                        // another `updateOurPresenceState()` call hasn't happened in the meantime.
                         //
                         // For example, maybe the WebSocket abruptly disconnected while executing this
                         // procedure. When the WebSocket reconnects we'll try again.
@@ -646,9 +639,9 @@ export class DocumentContentEditorWebSocketClient {
                 // Clear our presence state after some period of inactivity so you don't have a
                 // bunch of cursors laying around the document.
                 if (state.extra.ourPresenceState) {
-                    // We have a much shorter timeout if our presence state is just a cursor. If
-                    // the user has selected some text, we take longer to clear that timeout since
-                    // maybe the user was intentionally trying to highlight text to show someone?
+                    // We have a much shorter timeout if our presence state is just a cursor. If the
+                    // user has selected some text, we take longer to clear that timeout since maybe
+                    // the user was intentionally trying to highlight text to show someone?
                     const cursorDisappearTimeoutMs =
                         state.extra.ourPresenceState.selection.from ===
                         state.extra.ourPresenceState.selection.to
@@ -668,8 +661,8 @@ export class DocumentContentEditorWebSocketClient {
                                     .tracer.getRoot()
                                     .logException("Couldn\u2019t update our presence state", error);
 
-                                // Next time we send updates, we'll silently retry sending our presence state
-                                // if another `updateOurPresenceState()` call hasn't happened in the meantime.
+                                // Next time we send updates, we'll silently retry sending our presence state if
+                                // another `updateOurPresenceState()` call hasn't happened in the meantime.
                                 //
                                 // For example, maybe the WebSocket abruptly disconnected while executing this
                                 // procedure. When the WebSocket reconnects we'll try again.
@@ -731,13 +724,11 @@ export class DocumentContentEditorWebSocketClient {
     }
 
     public subscribeToSpellCheckIgnoredLints(
-        subscriber: (
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>,
-        ) => void,
+        subscriber: (events: ReadonlyArray<RynamoEvent<SpellCheckIgnoredLintModel>>) => void,
     ) {
         return this._client.subscribeToEvents(event => {
-            if (event.type === "SpellCheckRealtimeEventTransaction") {
-                subscriber(event.eventTransaction);
+            if (event.type === "SpellCheckRealtimeEvents") {
+                subscriber(event.events);
             }
         });
     }

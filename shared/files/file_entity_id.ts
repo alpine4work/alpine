@@ -1,32 +1,34 @@
 import {InternalError} from "~/shared/error/error.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {
     ChannelId,
+    ChatId,
     DocumentId,
     FileId,
     PostId,
-    SpaceId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
- * Search entities you can create file nodes in content for. This embeds a
- * preview of the entity inline which looks nice within prose.
+ * Search entities you can create file nodes in content for. This embeds a preview
+ * of the entity inline which looks nice within prose.
  */
 export type FileEntityId =
     | `Document:${DocumentId}`
     | `Task:${TaskId}`
     | `TaskCollection:${TaskCollectionId}`
     | `Channel:${ChannelId}`
-    | `Post:${PostId}`;
+    | `Chat:${ChatId}`
+    | `Post:${PostId}`
+    | `Site:${SiteId}`;
 
 export const FileEntityIdSchema = Schema.string as Schema<FileEntityId>;
 
@@ -49,7 +51,9 @@ export type FileEntityIdObject =
     | {readonly type: "Task"; readonly taskId: TaskId}
     | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
     | {readonly type: "Channel"; readonly channelId: ChannelId}
-    | {readonly type: "Post"; readonly postId: PostId};
+    | {readonly type: "Chat"; readonly chatId: ChatId}
+    | {readonly type: "Post"; readonly postId: PostId}
+    | {readonly type: "Site"; readonly siteId: SiteId};
 
 /**
  * Parse a `FileEntityId` into a more convenient to use object format.
@@ -67,8 +71,12 @@ export function parseFileEntityId(id: FileEntityId): FileEntityIdObject {
             return {type: "TaskCollection", collectionId: idPayloadParts[0] as TaskCollectionId};
         case "Channel":
             return {type: "Channel", channelId: idPayloadParts[0] as ChannelId};
+        case "Chat":
+            return {type: "Chat", chatId: idPayloadParts[0] as ChatId};
         case "Post":
             return {type: "Post", postId: idPayloadParts[0] as PostId};
+        case "Site":
+            return {type: "Site", siteId: idPayloadParts[0] as SiteId};
         default:
             throw new InternalError(quote`Unrecognized \`FileEntityId\` type ${idType ?? ""}`);
     }
@@ -87,7 +95,9 @@ const fileEntityIdTestMap: GetFileEntityIdTestMapType<FileEntityId> = {
     Task: isId,
     TaskCollection: isId,
     Channel: isId,
+    Chat: isId,
     Post: isId,
+    Site: isId,
 };
 
 assertEqualTypes<keyof typeof fileEntityIdTestMap, FileEntityIdObject["type"]>();
@@ -121,26 +131,4 @@ export function isFileEntityId(id: string): id is FileEntityId {
     }
 
     return idTest(idRest);
-}
-
-/**
- * Get the path corresponding to the provided `FileEntityId`.
- */
-export function printFileEntityIdIntoPath(spaceId: SpaceId, id: FileEntityId): string {
-    const idObject = parseFileEntityId(id);
-
-    switch (idObject.type) {
-        case "Document":
-            return `/s/${spaceId}/documents/${idObject.documentId}`;
-        case "Task":
-            return `/s/${spaceId}/tasks/${idObject.taskId}`;
-        case "TaskCollection":
-            return `/s/${spaceId}/tasks/collections/${idObject.collectionId}`;
-        case "Channel":
-            return `/s/${spaceId}/channels/${idObject.channelId}`;
-        case "Post":
-            return `/s/${spaceId}/posts/${idObject.postId}`;
-        default:
-            throw exhaustive(idObject);
-    }
 }

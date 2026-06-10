@@ -10,12 +10,13 @@ import {
 import {
     ApiContent,
     ApiErrorResponseBody,
+    ApiMentionResponse,
+    ApiMentionTarget,
     ApiMessageContentPayloadParent,
     ApiMessageRoomTarget,
     ApiMessageStreamPartPayload,
-    ApiSearchMentionTarget,
-} from "~/shared/api/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
@@ -70,10 +71,10 @@ export function createApiClient({
     accessToken: string;
 }): ApiClient {
     const routeBySchemaPath = new DefaultMap<string, string>(schemaPath => {
-        // Convert path params from the OpenAPI format (`/hello/{name}`) to the
-        // format expected by `fetchWithTracer()` (`/hello/:name`). Right now we only
-        // support path params that are an entire path segment. Paths like
-        // `/report.{format}` aren't currently accepted.
+        // Convert path params from the OpenAPI format (`/hello/{name}`) to the format
+        // expected by `fetchWithTracer()` (`/hello/:name`). Right now we only support path
+        // params that are an entire path segment. Paths like `/report.{format}` aren't
+        // currently accepted.
         const route = schemaPath
             .split("/")
             .map(pathSegment => {
@@ -123,19 +124,19 @@ export function createApiClient({
                             signal: request.signal,
                         },
                         async response => {
-                            // If the request failed, then throw an error. We want to mark this span as
-                            // failed and we don't want to handle errors inline.
+                            // If the request failed, then throw an error. We want to mark this span as failed
+                            // and we don't want to handle errors inline.
                             if (!response.ok) {
                                 const responseBody: ApiErrorResponseBody = await response.json();
 
-                                // Our API doesn't share the internal `ErrorCode` we use, so infer an error
-                                // code from the HTTP status code.
+                                // Our API doesn't share the internal `ErrorCode` we use, so infer an error code
+                                // from the HTTP status code.
                                 const errorCode = getErrorCodeForHttpStatusCode(response.status);
                                 const ErrorConstructor = getErrorConstructorForCode(errorCode);
 
                                 const error = new ErrorConstructor("API request failed", {
-                                    // The error message might contain sensitive user data. So treat the whole
-                                    // error message as sensitive text.
+                                    // The error message might contain sensitive user data. So treat the whole error
+                                    // message as sensitive text.
                                     displayMessage: errorDisplayMessage`${responseBody.error.message}`,
                                     cause: {status: response.status, ...responseBody},
                                 });
@@ -151,21 +152,23 @@ export function createApiClient({
                                 return response;
                             }
 
-                            // Parse the response body in our `fetchWithTracer()` action so the time it
-                            // takes for the response body to be streamed is included in the span.
+                            // Parse the response body in our `fetchWithTracer()` action so the time it takes
+                            // for the response body to be streamed is included in the span.
                             const responseBody = await response[options.parseAs]();
 
-                            // Don't throw an error when `openapi-fetch` [calls this method a second
-                            // time][1]. Instead return what we already parsed.
+                            // Don't throw an error when `openapi-fetch` [calls this method a second time][1].
+                            // Instead return what we already parsed.
                             //
-                            // [1]: https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L234-L241
+                            // [1]:
+                            //     https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L234-L241
                             (response as any)[options.parseAs] = () => responseBody;
 
-                            // For error handling `openapi-fetch` [calls `response.text()` and tries to
-                            // parse it as JSON][1]. So add a `text()` handler if we're parsing as JSON and
-                            // the request is not ok.
+                            // For error handling `openapi-fetch` [calls `response.text()` and tries to parse
+                            // it as JSON][1]. So add a `text()` handler if we're parsing as JSON and the
+                            // request is not ok.
                             //
-                            // [1]: https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L243-L250
+                            // [1]:
+                            //     https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L243-L250
                             if (!response.ok && options.parseAs === "json") {
                                 (response as any).text = () => JSON.stringify(responseBody);
                             }
@@ -427,11 +430,10 @@ export async function putApiMessageStreamPart(
     partIndex: number,
     body: {payload: ApiMessageStreamPartPayload},
 ) {
-    // Micro-optimization, `waitForTest()` is noops if `!import.meta.jest` anyway
-    // but `response.output_text.delta` is a hot code path in production. So add an
-    // extra `import.meta.jest` check here to make sure we don't pay the microtask
-    // price in production (an `await` schedules a microtask even when immediately
-    // resolved).
+    // Micro-optimization, `waitForTest()` is noops if `!import.meta.jest` anyway but
+    // `response.output_text.delta` is a hot code path in production. So add an extra
+    // `import.meta.jest` check here to make sure we don't pay the microtask price in
+    // production (an `await` schedules a microtask even when immediately resolved).
     if (import.meta.jest) {
         await putApiMessageStreamPartBeforeFetchTestCheckpoint.waitForTest([
             messageIndex,
@@ -441,13 +443,17 @@ export async function putApiMessageStreamPart(
 
     switch (room.type) {
         case "Chat": {
-            return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: room.id, index: messageIndex, partIndex}},
-                body,
-            });
+            return await apiClient.put(
+                tracer,
+                "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
         }
         case "DocumentCommentThread": {
-            return apiClient.put(
+            return await apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}",
                 {
@@ -464,16 +470,24 @@ export async function putApiMessageStreamPart(
             );
         }
         case "Post": {
-            return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: room.id, index: messageIndex, partIndex}},
-                body,
-            });
+            return await apiClient.put(
+                tracer,
+                "/posts/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
         }
         case "Task": {
-            return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: room.id, index: messageIndex, partIndex}},
-                body,
-            });
+            return await apiClient.put(
+                tracer,
+                "/tasks/{id}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {path: {id: room.id, index: messageIndex, partIndex}},
+                    body,
+                },
+            );
         }
         default:
             throw exhaustive(room);
@@ -570,12 +584,17 @@ export function pingApiMessageStream(
     }
 }
 
-export function getApiSearchMention(
+export function getApiMention(
     tracer: TracerBase,
     apiClient: ApiClient,
-    target: ApiSearchMentionTarget,
-) {
+    target: ApiMentionTarget,
+): Promise<{data: {mention: ApiMentionResponse}}> {
     switch (target.type) {
+        case "Account": {
+            return apiClient.get(tracer, "/accounts/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
         case "Document": {
             return apiClient.get(tracer, "/documents/{id}/mention", {
                 params: {path: {id: target.id}},
@@ -583,6 +602,11 @@ export function getApiSearchMention(
         }
         case "Channel": {
             return apiClient.get(tracer, "/channels/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
+        case "Chat": {
+            return apiClient.get(tracer, "/chats/{id}/mention", {
                 params: {path: {id: target.id}},
             });
         }

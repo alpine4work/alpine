@@ -5,14 +5,14 @@ import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
- * Requests sent to AWS [need to be signed][1] by AWS credentials. This is
- * usually handled by the AWS SDK. However, sometimes you want to send requests
- * to AWS directly with an HTTP client. This class allows you to do that. You
- * provide AWS credentials (or a credential provider) and you'll get a function
- * to sign requests.
+ * Requests sent to AWS [need to be signed][1] by AWS credentials. This is usually
+ * handled by the AWS SDK. However, sometimes you want to send requests to AWS
+ * directly with an HTTP client. This class allows you to do that. You provide AWS
+ * credentials (or a credential provider) and you'll get a function to sign
+ * requests.
  *
- * If you don't provide credentials we'll use the default Node.js AWS
- * credentials provider.
+ * If you don't provide credentials we'll use the default Node.js AWS credentials
+ * provider.
  *
  * [1]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_aws-signing.html
  */
@@ -87,23 +87,23 @@ export class AwsRequestSigner {
         if (state.credentials.expiration) {
             const expirationTime = state.credentials.expiration.getTime();
 
-            // Fetch new AWS credentials 5 seconds before our current credentials expire.
-            // That way we have new credentials available immediately after our current
-            // credentials expire.
+            // Fetch new AWS credentials 5 seconds before our current credentials expire. That
+            // way we have new credentials available immediately after our current credentials
+            // expire.
             if (currentTime - 5 * 1000 > expirationTime && this._nextState === null) {
                 this._nextState = this._fetchState(span);
             }
 
-            // If our credentials have expired then use the next state promise if it
-            // exists, otherwise we need to fetch our state fresh.
+            // If our credentials have expired then use the next state promise if it exists,
+            // otherwise we need to fetch our state fresh.
             if (currentTime > expirationTime) {
                 if (this._nextState !== null) {
                     this._currentState = this._nextState;
                     this._nextState = null;
-                    return this._getState(span);
+                    return await this._getState(span);
                 } else {
                     this._currentState = this._fetchState(span);
-                    return this._getState(span);
+                    return await this._getState(span);
                 }
             }
         }
@@ -112,8 +112,8 @@ export class AwsRequestSigner {
     }
 
     /**
-     * Make sure the credentials are available for signing so we don't have to wait
-     * for them to be fetched.
+     * Make sure the credentials are available for signing so we don't have to wait for
+     * them to be fetched.
      */
     public async prefetchState(span: TracerSpan) {
         await this._getState(span);
@@ -123,6 +123,6 @@ export class AwsRequestSigner {
     // `fetch(url, {sign: signer.sign})`.
     public readonly sign = async (request: Request, span?: TracerSpan): Promise<Request> => {
         const state = await this._getState(span);
-        return state.client.sign(request);
+        return await state.client.sign(request);
     };
 }

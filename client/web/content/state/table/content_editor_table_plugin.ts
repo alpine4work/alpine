@@ -1,8 +1,8 @@
 /**
- * NOTE(rohitt-gupta, 2024-11-26): This file combines the table editing plugin
- * and column resizing plugin from `prosemirror-tables`. has been modified to
- * remove features we don't use and customize the user experience. You can find
- * the original files in the `prosemirror-tables` package at:
+ * NOTE(rohitt-gupta, 2024-11-26): This file combines the table editing plugin and
+ * column resizing plugin from `prosemirror-tables`. has been modified to remove
+ * features we don't use and customize the user experience. You can find the
+ * original files in the `prosemirror-tables` package at:
  *
  * - https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/index.ts
  * - https://github.com/ProseMirror/prosemirror-tables/blob/582b4e45b70da49472eed91698e5d3ecfbfcf5eb/src/columnresizing.ts
@@ -11,32 +11,30 @@
  *
  * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 // Comment from `prosemirror-tables` `src/index.ts` file:
 //
-// This file defines a plugin that handles the drawing of cell
-// selections and the basic user interactions for creating and working
-// with such selections. It also makes sure that, after each
-// transaction, the shapes of tables are normalized to be rectangular
-// and not contain overlapping cells.
+// This file defines a plugin that handles the drawing of cell selections and the
+// basic user interactions for creating and working with such selections. It also
+// makes sure that, after each transaction, the shapes of tables are normalized to
+// be rectangular and not contain overlapping cells.
 
 import {Node, ResolvedPos} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
@@ -102,9 +100,8 @@ const optimisticContentEditorTableLayoutStoreByElement = new DefaultWeakMap(
 );
 
 /**
- * Get a store representing the table's optimistic layout. We update the
- * optimistic layout while dragging to resize and save the update when the
- * drag ends.
+ * Get a store representing the table's optimistic layout. We update the optimistic
+ * layout while dragging to resize and save the update when the drag ends.
  */
 export function getOptimisticContentEditorTableLayoutStore(
     tableElement: HTMLTableElement,
@@ -127,27 +124,26 @@ function areContentEditorTableLayoutsEqual(
 }
 
 /**
- * Creates a [plugin](http://prosemirror.net/docs/ref/#state.Plugin)
- * that, when added to an editor, enables cell-selection, handles
- * cell-based copy/paste, and makes sure tables stay well-formed (each
- * row has the same width, and cells don't overlap).
+ * Creates a [plugin](http://prosemirror.net/docs/ref/#state.Plugin) that, when
+ * added to an editor, enables cell-selection, handles cell-based copy/paste, and
+ * makes sure tables stay well-formed (each row has the same width, and cells don't
+ * overlap).
  *
- * You should probably put this plugin near the end of your array of
- * plugins, since it handles mouse and arrow key events in tables
- * rather broadly, and other plugins, like the gap cursor or the
- * column-width dragging plugin, might want to get a turn first to
- * perform more specific behavior.
+ * You should probably put this plugin near the end of your array of plugins, since
+ * it handles mouse and arrow key events in tables rather broadly, and other
+ * plugins, like the gap cursor or the column-width dragging plugin, might want to
+ * get a turn first to perform more specific behavior.
  *
  * This is a combination of `prosemirror-table`'s `tableEditing()` plugin and
  * `columnResizing()` plugin.
  *
- * How column resizing works: This plugin sets up event handlers for mouse
- * events related to column resizing. When the user clicks and drags on a
- * column border, the handleMouseDown function is called, which initiates the
- * column resizing process. As the user drags the mouse, the move function is
- * called repeatedly, updating the column width based on the mouse position.
- * When the user releases the mouse button, the finish function is called,
- * which commits the column width changes.
+ * How column resizing works: This plugin sets up event handlers for mouse events
+ * related to column resizing. When the user clicks and drags on a column border,
+ * the handleMouseDown function is called, which initiates the column resizing
+ * process. As the user drags the mouse, the move function is called repeatedly,
+ * updating the column width based on the mouse position. When the user releases
+ * the mouse button, the finish function is called, which commits the column width
+ * changes.
  */
 export function contentEditorTablePlugin(): Plugin {
     let currentView: EditorView | null = null;
@@ -235,11 +231,10 @@ export function contentEditorTablePlugin(): Plugin {
 
                     const pluginState = contentEditorTablePluginKey.getState(view.state);
 
-                    // We have a short delay before showing column resize handles or row grips so
-                    // that if the user is quickly moving their mouse over the table they won't
-                    // show up. The delay is fast enough that the user perceives the delay as
-                    // instant if they're intentionally moving to the row grip or column resize
-                    // handle.
+                    // We have a short delay before showing column resize handles or row grips so that
+                    // if the user is quickly moving their mouse over the table they won't show up. The
+                    // delay is fast enough that the user perceives the delay as instant if they're
+                    // intentionally moving to the row grip or column resize handle.
                     if (
                         pluginState?.type === "Hovering" &&
                         pluginState.hovering.isWaitingForMouseOverDelay
@@ -690,8 +685,8 @@ function handleMouseMove(
     const pluginState = contentEditorTablePluginKey.getState(view.state);
     if ((pluginState && pluginState.type !== "Hovering") || pluginState?.hovering.dragging) return;
 
-    // If the user is pressing their mouse while moving over the resize handle then
-    // we don't show the resize handle. e.g. If the user is clicking in a cell and
+    // If the user is pressing their mouse while moving over the resize handle then we
+    // don't show the resize handle. e.g. If the user is clicking in a cell and
     // dragging to select cells.
     if (event.which) return;
 
@@ -731,8 +726,8 @@ function handleMouseMove(
                 convertRemLengthToPx(contentStyles.tableColumnResizeHandleWidth, spacingScale) / 2,
             ) -
             // Subtract 1px to avoid subpixel rendering edge cases where we think we're
-            // hovering over the resize handle but the DOM element doesn't actually cover
-            // the pixel.
+            // hovering over the resize handle but the DOM element doesn't actually cover the
+            // pixel.
             1;
 
         const cellTargetElement = getContentTableCellElementAround(targetElement);
@@ -751,8 +746,8 @@ function handleMouseMove(
                     if (cellPos !== null) {
                         const $cell = view.state.doc.resolve(cellPos);
                         type =
-                            // If we're hovering the left edge of the table then the parent of `$cell` will
-                            // be `table` instead of `tableRow`.
+                            // If we're hovering the left edge of the table then the parent of `$cell` will be
+                            // `table` instead of `tableRow`.
                             $cell.parent.type.name === "table" ? "RowGrip" : "ColumnResizeHandle";
                     }
                     return true;
@@ -767,8 +762,8 @@ function handleMouseMove(
                     if (cellPos !== null) {
                         const $cell = view.state.doc.resolve(cellPos);
                         type =
-                            // If we're hovering the left edge of the table then the parent of `$cell` will
-                            // be `table` instead of `tableRow`.
+                            // If we're hovering the left edge of the table then the parent of `$cell` will be
+                            // `table` instead of `tableRow`.
                             $cell.parent.type.name === "table" ? "RowGrip" : "ColumnResizeHandle";
                     }
                     return true;
@@ -786,8 +781,8 @@ function handleMouseMove(
                         halfColumnResizeHandleWidth,
                     );
 
-                    // Check that the cell is a part of the first row. We only render a column grip
-                    // for the first row.
+                    // Check that the cell is a part of the first row. We only render a column grip for
+                    // the first row.
                     if (cellPos !== null) {
                         const $cell = view.state.doc.resolve(cellPos);
 
@@ -824,8 +819,8 @@ function handleMouseMove(
                         halfColumnResizeHandleWidth,
                     );
 
-                    // Check that the cell is a part of the last row. We only render an add row
-                    // button for the last row.
+                    // Check that the cell is a part of the last row. We only render an add row button
+                    // for the last row.
                     if (cellPos !== null) {
                         const $cell = view.state.doc.resolve(cellPos);
 
@@ -859,9 +854,9 @@ function handleMouseMove(
                 }
             };
 
-            // If the user was hovering over a column grip then try to maintain the
-            // horizontal column grip before switching to checking for vertical row grips
-            // or column resize handles.
+            // If the user was hovering over a column grip then try to maintain the horizontal
+            // column grip before switching to checking for vertical row grips or column resize
+            // handles.
             if (pluginState?.hovering.type === "ColumnGrip") {
                 if (!tryHorizontal()) {
                     tryVertical();
@@ -877,8 +872,8 @@ function handleMouseMove(
                 const {top, bottom, left, right} = tableTargetElement.getBoundingClientRect();
 
                 const tryVertical = (): boolean => {
-                    // This case occurs when the mouse is outside the table and approaching the
-                    // left edge.
+                    // This case occurs when the mouse is outside the table and approaching the left
+                    // edge.
                     if (
                         event.clientX <= left &&
                         left - event.clientX <= halfColumnResizeHandleWidth
@@ -893,16 +888,16 @@ function handleMouseMove(
                         if (cellPos !== null) {
                             const $cell = view.state.doc.resolve(cellPos);
                             type =
-                                // If we're hovering the left edge of the table then the parent of `$cell` will
-                                // be `table` instead of `tableRow`.
+                                // If we're hovering the left edge of the table then the parent of `$cell` will be
+                                // `table` instead of `tableRow`.
                                 $cell.parent.type.name === "table"
                                     ? "RowGrip"
                                     : "ColumnResizeHandle";
                         }
                         return true;
                     }
-                    // This case occurs when the mouse is outside the table and approaching the
-                    // right edge.
+                    // This case occurs when the mouse is outside the table and approaching the right
+                    // edge.
                     else if (
                         event.clientX >= right &&
                         event.clientX - right <= halfColumnResizeHandleWidth
@@ -917,8 +912,8 @@ function handleMouseMove(
                         if (cellPos !== null) {
                             const $cell = view.state.doc.resolve(cellPos);
                             type =
-                                // If we're hovering the left edge of the table then the parent of `$cell` will
-                                // be `table` instead of `tableRow`.
+                                // If we're hovering the left edge of the table then the parent of `$cell` will be
+                                // `table` instead of `tableRow`.
                                 $cell.parent.type.name === "table"
                                     ? "RowGrip"
                                     : "ColumnResizeHandle";
@@ -930,8 +925,8 @@ function handleMouseMove(
                 };
 
                 const tryHorizontal = (): boolean => {
-                    // This case occurs when the mouse is outside the table and approaching the
-                    // top edge.
+                    // This case occurs when the mouse is outside the table and approaching the top
+                    // edge.
                     if (
                         event.clientY <= top &&
                         top - event.clientY <= halfColumnResizeHandleWidth
@@ -943,8 +938,8 @@ function handleMouseMove(
                             halfColumnResizeHandleWidth,
                         );
 
-                        // Check that the cell is a part of the first row. We only render a column grip
-                        // for the first row.
+                        // Check that the cell is a part of the first row. We only render a column grip for
+                        // the first row.
                         if (cellPos !== null) {
                             const $cell = view.state.doc.resolve(cellPos);
 
@@ -974,8 +969,8 @@ function handleMouseMove(
 
                         return true;
                     }
-                    // This case occurs when the mouse is outside the table and approaching the
-                    // bottom edge.
+                    // This case occurs when the mouse is outside the table and approaching the bottom
+                    // edge.
                     else if (
                         event.clientY >= bottom &&
                         event.clientY - bottom <= halfColumnResizeHandleWidth
@@ -987,8 +982,8 @@ function handleMouseMove(
                             halfColumnResizeHandleWidth,
                         );
 
-                        // Check that the cell is a part of the last row. We only render an add row
-                        // button for the last row.
+                        // Check that the cell is a part of the last row. We only render an add row button
+                        // for the last row.
                         if (cellPos !== null) {
                             const $cell = view.state.doc.resolve(cellPos);
 
@@ -1022,9 +1017,9 @@ function handleMouseMove(
                     }
                 };
 
-                // If the user was hovering over a column grip then try to maintain the
-                // horizontal column grip before switching to checking for vertical row grips
-                // or column resize handles.
+                // If the user was hovering over a column grip then try to maintain the horizontal
+                // column grip before switching to checking for vertical row grips or column resize
+                // handles.
                 if (pluginState?.hovering.type === "ColumnGrip") {
                     if (!tryHorizontal()) {
                         tryVertical();
@@ -1191,8 +1186,7 @@ function handleMouseDown(
 // Handle mouse down event for table, responsible for creating a cell selection
 // when the user drags over a cell
 //
-// Originally, this function is from `prosemirror-tables`'s `src/input.ts`
-// file.
+// Originally, this function is from `prosemirror-tables`'s `src/input.ts` file.
 function handleDraggingCellSelectionMouseDown(
     view: EditorView & {getAccessLevel?: () => AccessLevel},
     startEvent: MouseEvent,
@@ -1215,8 +1209,8 @@ function handleDraggingCellSelectionMouseDown(
         ($anchor = contentTableCellAround(view.state.selection.$anchor)) != null &&
         cellUnderMouse(view, startEvent)?.pos != $anchor.pos
     ) {
-        // Adding to a selection that starts in another cell (causing a
-        // cell selection to be created).
+        // Adding to a selection that starts in another cell (causing a cell selection to
+        // be created).
         setCellSelection($anchor, startEvent);
         startEvent.preventDefault();
     } else if (!startDOMCell) {
@@ -1224,14 +1218,14 @@ function handleDraggingCellSelectionMouseDown(
         return false;
     }
 
-    // NOTE: To prevent default mouse down behavior of table which dragging files(fileRowTable)
-    // we use this check.
+    // NOTE: To prevent default mouse down behavior of table which dragging
+    // files(fileRowTable) we use this check.
     if ((startEvent.target as HTMLElement).closest(`.${fileClassName}`)) {
         return false;
     }
 
-    // Create and dispatch a cell selection between the given anchor and
-    // the position under the mouse.
+    // Create and dispatch a cell selection between the given anchor and the position
+    // under the mouse.
     function setCellSelection($anchor: ResolvedPos, event: MouseEvent): void {
         let $head = cellUnderMouse(view, event);
         const starting =
@@ -1243,9 +1237,9 @@ function handleDraggingCellSelectionMouseDown(
 
         const selection = new ContentTableCellSelection($anchor, $head);
         if (starting || !view.state.selection.eq(selection)) {
-            // NOTE(calebmer): UX improvement, empty the DOM selection when we start our
-            // cell selection. If we don't have this then in some cases the DOM selection
-            // continues moving underneath our cursor as we drag.
+            // NOTE(calebmer): UX improvement, empty the DOM selection when we start our cell
+            // selection. If we don't have this then in some cases the DOM selection continues
+            // moving underneath our cursor as we drag.
             if (starting) window.getSelection()?.empty();
 
             dispatchContentEditorTablePluginAction({
@@ -1291,8 +1285,8 @@ function handleDraggingCellSelectionMouseDown(
     }
 
     function handleDragStart(event: Event) {
-        // Don't allow browser drag-and-drop if there's currently a cell selection.
-        // We've observed sometimes dragging in a selected cell will trigger browser
+        // Don't allow browser drag-and-drop if there's currently a cell selection. We've
+        // observed sometimes dragging in a selected cell will trigger browser
         // drag-and-drop instead of picking a new cell selection.
         if (view.state.selection instanceof ContentTableCellSelection) {
             event.preventDefault();
@@ -1373,8 +1367,8 @@ function handleColumnResizeHandleMouseDown(
     function setOptimisticTableLayout(
         newTableLayout: (ContentEditorTableLayout & {scrollLeftPx?: number}) | null,
     ) {
-        // Flush synchronously so if any React code is listening, we perform any
-        // re-renders at the same time as we update table node views.
+        // Flush synchronously so if any React code is listening, we perform any re-renders
+        // at the same time as we update table node views.
         flushSync(() => {
             optimisticTableLayoutStore.set(oldTableLayout => {
                 if (newTableLayout === null) return null;
@@ -1422,12 +1416,12 @@ function handleColumnResizeHandleMouseDown(
 
         setOptimisticTableLayout(newTableLayout);
 
-        // If you're dragging the edge of a table to make the table larger while you
-        // also have a selected file inside the table then we need to make sure the
-        // blue focus ring and toolbar floating above the image move with the image.
-        // The blue focus ring and toolbar are rendered with `<Overlay>`s that target
-        // the element. So manually force all overlays targeting elements inside the
-        // table to update their positions.
+        // If you're dragging the edge of a table to make the table larger while you also
+        // have a selected file inside the table then we need to make sure the blue focus
+        // ring and toolbar floating above the image move with the image. The blue focus
+        // ring and toolbar are rendered with `<Overlay>`s that target the element. So
+        // manually force all overlays targeting elements inside the table to update their
+        // positions.
         //
         // Task with a video reproducing the bug:
         // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0qhp54p6crnsfj63fhbfnmmrc0
@@ -1495,12 +1489,12 @@ function handleColumnResizeHandleMouseDown(
 
             setOptimisticTableLayout(newTableLayout);
 
-            // If you're dragging the edge of a table to make the table larger while you
-            // also have a selected file inside the table then we need to make sure the
-            // blue focus ring and toolbar floating above the image move with the image.
-            // The blue focus ring and toolbar are rendered with `<Overlay>`s that target
-            // the element. So manually force all overlays targeting elements inside the
-            // table to update their positions.
+            // If you're dragging the edge of a table to make the table larger while you also
+            // have a selected file inside the table then we need to make sure the blue focus
+            // ring and toolbar floating above the image move with the image. The blue focus
+            // ring and toolbar are rendered with `<Overlay>`s that target the element. So
+            // manually force all overlays targeting elements inside the table to update their
+            // positions.
             //
             // Task with a video reproducing the bug:
             // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0qhp54p6crnsfj63fhbfnmmrc0
@@ -1528,12 +1522,12 @@ function handleColumnResizeHandleMouseDown(
 
             setOptimisticTableLayout(newTableLayout);
 
-            // If you're dragging the edge of a table to make the table larger while you
-            // also have a selected file inside the table then we need to make sure the
-            // blue focus ring and toolbar floating above the image move with the image.
-            // The blue focus ring and toolbar are rendered with `<Overlay>`s that target
-            // the element. So manually force all overlays targeting elements inside the
-            // table to update their positions.
+            // If you're dragging the edge of a table to make the table larger while you also
+            // have a selected file inside the table then we need to make sure the blue focus
+            // ring and toolbar floating above the image move with the image. The blue focus
+            // ring and toolbar are rendered with `<Overlay>`s that target the element. So
+            // manually force all overlays targeting elements inside the table to update their
+            // positions.
             //
             // Task with a video reproducing the bug:
             // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0qhp54p6crnsfj63fhbfnmmrc0
@@ -1624,14 +1618,14 @@ function handleGripMouseDown(
             return;
         }
 
-        // If the user has selected the full table, we allow grips to be clicked and
-        // turn the cursor into a grabbing cursor as feedback for clicking, but
-        // dragging does nothing.
+        // If the user has selected the full table, we allow grips to be clicked and turn
+        // the cursor into a grabbing cursor as feedback for clicking, but dragging does
+        // nothing.
         if (isRowSelection && isColumnSelection) return;
 
-        // Wait until the user has moved more than 4px with their drag to actually
-        // start the dragging state. This way if the user clicks on a grip to select
-        // the column or row we don't immediately show the drag phantom.
+        // Wait until the user has moved more than 4px with their drag to actually start
+        // the dragging state. This way if the user clicks on a grip to select the column
+        // or row we don't immediately show the drag phantom.
         if (!hasAddedDragPhantomElement) {
             const distance = Math.sqrt(
                 Math.abs(mouseXPx - initialMouseXPx) ** 2 +
@@ -1733,9 +1727,9 @@ function handleGripMouseDown(
 
         dispatchContentEditorTablePluginAction({type: "Reset"})(view.state, view.dispatch);
 
-        // If the user has selected the full table, we allow grips to be clicked and
-        // turn the cursor into a grabbing cursor as feedback for clicking, but
-        // dragging does nothing.
+        // If the user has selected the full table, we allow grips to be clicked and turn
+        // the cursor into a grabbing cursor as feedback for clicking, but dragging does
+        // nothing.
         if (isRowSelection && isColumnSelection) return;
 
         if (!hasAddedDragPhantomElement) return;
@@ -1822,9 +1816,9 @@ function handleGripMouseDown(
         assert(!hasAddedDragPhantomElement);
         hasAddedDragPhantomElement = true;
 
-        // If the user has selected the full table, we allow grips to be clicked and
-        // turn the cursor into a grabbing cursor as feedback for clicking, but
-        // dragging does nothing.
+        // If the user has selected the full table, we allow grips to be clicked and turn
+        // the cursor into a grabbing cursor as feedback for clicking, but dragging does
+        // nothing.
         if (isRowSelection && isColumnSelection) return;
 
         dragPhantomElement = document.createElement("div");
@@ -2014,9 +2008,9 @@ function getEdgeContentTableCell(
     side: "left" | "right" | "top" | "bottom",
     handleWidth: number,
 ): number | null {
-    // posAtCoords returns inconsistent positions when cursor is moving
-    // across a collapsed table border. Use an offset to adjust the
-    // target viewport coordinates away from the table border.
+    // posAtCoords returns inconsistent positions when cursor is moving across a
+    // collapsed table border. Use an offset to adjust the target viewport coordinates
+    // away from the table border.
     const found = view.posAtCoords({
         left: event.clientX + (side === "right" ? -handleWidth : side === "left" ? handleWidth : 0),
         top: event.clientY + (side === "top" ? handleWidth : side === "bottom" ? -handleWidth : 0),
@@ -2151,8 +2145,8 @@ function createContentEditorTablePluginDecorationElementCache(
 
                 addContentTableRowAtIndex(tablePos, tableMap.height)(view.state, transaction => {
                     view.dispatch(
-                        // Also clear hovering state since adding a row with the "add row button" means
-                        // the mouse implicitly won't be at the end of the table anymore.
+                        // Also clear hovering state since adding a row with the "add row button" means the
+                        // mouse implicitly won't be at the end of the table anymore.
                         transaction.setMeta(contentEditorTablePluginKey, {type: "Reset"}),
                     );
                 });

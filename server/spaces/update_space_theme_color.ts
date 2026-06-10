@@ -14,7 +14,7 @@ export async function updateSpaceThemeColor(
 ): Promise<SpaceModel> {
     await authorizeSpaceAccess(context, spaceId, "Admin");
 
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const spaceItem = await getSpaceItem(context, spaceId);
 
         const newSpaceAttributesItem = {

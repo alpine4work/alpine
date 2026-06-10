@@ -13,14 +13,16 @@ import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**
- * Create or update a web push subscription for an account and `browserId` pair. Optionally accepts
- * a `spaceIdToOptIn` to remove a space from an existing subscription's `optedOutSpaceIds` set. This
- * is useful for updating a subscription and opting back in to a space at the same time. If a space
- * has not been opted out of previously, it is not necessary to opt in as all spaces begin opted in
- * by default.
+ * Create or update a web push subscription for an account and `browserId` pair.
+ * Optionally accepts a `spaceIdToOptIn` to remove a space from an existing
+ * subscription's `optedOutSpaceIds` set. This is useful for updating a
+ * subscription and opting back in to a space at the same time. If a space has not
+ * been opted out of previously, it is not necessary to opt in as all spaces begin
+ * opted in by default.
  *
- * Performs no authorization, you should use `createOrUpdateAccountWebPushSubscription()` or ensure
- * you check authorization before calling this function.
+ * Performs no authorization, you should use
+ * `createOrUpdateAccountWebPushSubscription()` or ensure you check authorization
+ * before calling this function.
  */
 export async function createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(
     context: ServerActionContext,
@@ -36,7 +38,7 @@ export async function createOrUpdateAccountWebPushSubscriptionWithoutAuthorizati
         spaceIdToOptIn?: SpaceId;
     },
 ): Promise<void> {
-    return context.dynamo.retryTransaction(async context => {
+    return await context.dynamo.retryTransaction(async context => {
         const transactionEntries: Array<DynamoTransactionEntry> = [];
         const currentTime = new Date();
 
@@ -47,8 +49,8 @@ export async function createOrUpdateAccountWebPushSubscriptionWithoutAuthorizati
             {accountId, browserId},
             {consistency: "Strong"},
         );
-        // Optimization: skip updating if the subscription is the same and we're not opted out of
-        // notifications for the space we're opting in to.
+        // Optimization: skip updating if the subscription is the same and we're not opted
+        // out of notifications for the space we're opting in to.
         if (
             existingSubscriptionItem &&
             isDeepEqual(existingSubscriptionItem.subscription, subscription) &&
@@ -58,10 +60,10 @@ export async function createOrUpdateAccountWebPushSubscriptionWithoutAuthorizati
             return;
         }
 
-        // If this is a new subscription for this browserId, check if a different browserId has already
-        // registered this endpoint. If the endpoint is already registered, it means this is the same
-        // browser but the `browserId` changed, so we should carry over the existing opt-out state and
-        // remove the old subscription.
+        // If this is a new subscription for this browserId, check if a different browserId
+        // has already registered this endpoint. If the endpoint is already registered, it
+        // means this is the same browser but the `browserId` changed, so we should carry
+        // over the existing opt-out state and remove the old subscription.
         if (!existingSubscriptionItem && subscription?.endpoint) {
             const staleSubscriptionItem =
                 await getWebPushSubscriptionItemByEndpointIfExistsWithoutAuthorization(

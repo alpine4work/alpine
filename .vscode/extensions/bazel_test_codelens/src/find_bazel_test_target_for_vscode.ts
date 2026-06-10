@@ -1,15 +1,15 @@
-import * as path from "path";
-import * as vscode from "vscode";
+import {basename, dirname, relative} from "path";
+import {Uri, workspace} from "vscode";
 
-export async function findBazelTestTargetForVscode(uri: vscode.Uri): Promise<string | null> {
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+export async function findBazelTestTargetForVscode(uri: Uri): Promise<string | null> {
+    const workspaceFolder = workspace.getWorkspaceFolder(uri);
     if (!workspaceFolder) return null;
 
-    const relativePath = vscode.workspace.asRelativePath(uri);
-    const dir = path.dirname(relativePath);
+    const relativePath = workspace.asRelativePath(uri);
+    const dir = dirname(relativePath);
 
     // Get the filename without extension
-    const fileName = path.basename(uri.fsPath);
+    const fileName = basename(uri.fsPath);
 
     // Check if this is a test file
     if (!/\.(test)\.(ts|js|tsx|jsx)$/.test(fileName)) {
@@ -20,14 +20,14 @@ export async function findBazelTestTargetForVscode(uri: vscode.Uri): Promise<str
     let buildFileDir = dir;
 
     while (buildFileDir) {
-        const buildFilePath = vscode.Uri.joinPath(workspaceFolder.uri, buildFileDir, "BUILD");
+        const buildFilePath = Uri.joinPath(workspaceFolder.uri, buildFileDir, "BUILD");
 
         try {
-            await vscode.workspace.fs.stat(buildFilePath);
+            await workspace.fs.stat(buildFilePath);
             break;
         } catch {
             // Continue searching in parent directory
-            const parentDir = path.dirname(buildFileDir);
+            const parentDir = dirname(buildFileDir);
             if (parentDir === buildFileDir || parentDir === ".") {
                 break;
             }
@@ -39,17 +39,18 @@ export async function findBazelTestTargetForVscode(uri: vscode.Uri): Promise<str
         return null;
     }
 
-    // // Calculate the package path (where the BUILD file is located)
-    // const packagePath = path.dirname(path.relative(workspaceFolder.uri.fsPath, buildFile.fsPath));
+    // // Calculate the package path (where the BUILD file is located) const
+    // packagePath = path.dirname(path.relative(workspaceFolder.uri.fsPath,
+    // buildFile.fsPath));
 
     // // Calculate the relative path from the BUILD file directory to the test file
     // const buildFileDir = path.dirname(buildFile.fsPath);
-    const buildFileDirAbsolutePath = vscode.Uri.joinPath(workspaceFolder.uri, buildFileDir).fsPath;
-    const relativeFromBuildFile = path.relative(buildFileDirAbsolutePath, uri.fsPath);
+    const buildFileDirAbsolutePath = Uri.joinPath(workspaceFolder.uri, buildFileDir).fsPath;
+    const relativeFromBuildFile = relative(buildFileDirAbsolutePath, uri.fsPath);
 
-    // Convert the test file path to the target name
-    // e.g., "internal/content_file_task_collection_entity_preview.test.ts"
-    // becomes "internal/content_file_task_collection_entity_preview_test"
+    // Convert the test file path to the target name e.g.,
+    // "internal/content_file_task_collection_entity_preview.test.ts" becomes
+    // "internal/content_file_task_collection_entity_preview_test"
     const targetName = relativeFromBuildFile
         .replace(/\.(test|spec)\.(ts|js|tsx|jsx)$/, "_test")
         .replace(/\\/g, "/"); // Normalize path separators

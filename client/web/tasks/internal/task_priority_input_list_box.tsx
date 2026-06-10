@@ -46,10 +46,9 @@ export function TaskPriorityInputListBox({
 
     return (
         <div
-            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
-            // doesn't need to add a resize listener to every child. This means we need to
-            // provide `useListBox()` a `scrollRef` if we want to scroll to the
-            // focused option.
+            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()` doesn't
+            // need to add a resize listener to every child. This means we need to provide
+            // `useListBox()` a `scrollRef` if we want to scroll to the focused option.
             ref={useMergedRefs(useScrollbar(), scrollRef)}
             className={classNames(
                 greyElevated2ClassName,
@@ -65,8 +64,8 @@ export function TaskPriorityInputListBox({
                 }),
             )}
             style={{
-                // On mobile the height needs to be less than half of the available space when
-                // the keyboard and navigation bar are open.
+                // On mobile the height needs to be less than half of the available space when the
+                // keyboard and navigation bar are open.
                 maxHeight: platform === "mobile" ? "10rem" : spacing["64"],
             }}
         >
@@ -107,12 +106,11 @@ function TaskPriorityInputListBoxOption({
         {
             key: item.key,
             // By default `@react-aria/listbox` allows you to press on the combobox trigger
-            // then drag up and release to select an item. This is not a common interaction
-            // and not something we want to support (our `<MenuButton>` doesn't support
-            // this). Furthermore, on mobile it means if you press an option in a combobox
-            // then scroll and release that option will be selected! Instead the scroll
-            // should cancel the press. We really want to disable that behavior since it
-            // feels broken.
+            // then drag up and release to select an item. This is not a common interaction and
+            // not something we want to support (our `<MenuButton>` doesn't support this).
+            // Furthermore, on mobile it means if you press an option in a combobox then scroll
+            // and release that option will be selected! Instead the scroll should cancel the
+            // press. We really want to disable that behavior since it feels broken.
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,

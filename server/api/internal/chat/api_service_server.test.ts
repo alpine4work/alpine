@@ -4,12 +4,12 @@
 
 import {apiChatPaths} from "~/server/api/internal/chat/api_chat_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
-import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {generateApiKey} from "~/shared/id/api_key.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -298,8 +298,8 @@ test("rejects non-bot token payload", async () => {
     });
 });
 
-// This also tests that a short lived token is considered valid if all the
-// claims + signatures are correct.
+// This also tests that a short lived token is considered valid if all the claims +
+// signatures are correct.
 test("rejects unknown API key (with short lived token)", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
@@ -938,11 +938,9 @@ test("can read messages", async () => {
         }),
     });
 
-    expect(
-        printApiContentToMarkdown(response.body.messages[0].payload.content, {
-            spaceId: space.id,
-        }),
-    ).toEqual("Hello, world!\n");
+    expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
+        "Hello, world!\n",
+    );
 });
 
 test("can\u2019t read message with invalid string query parameter", async () => {

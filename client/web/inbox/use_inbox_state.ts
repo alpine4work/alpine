@@ -1,8 +1,8 @@
 import {useCallback, useEffect, useReducer, useRef} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/web/dynamo/dynamo_general_realtime_index_query.js";
-import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/web/dynamo/use_dynamo_general_realtime_index_query.js";
+import {RynamoIndexQuery} from "~/client/web/dynamo/rynamo_index_query.js";
+import {useRynamoIndexQueryBase} from "~/client/web/dynamo/use_rynamo_index_query.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {
@@ -24,12 +24,10 @@ import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/web/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {
-    DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
     backfillInboxEntries,
@@ -38,17 +36,17 @@ import {
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 
 type InboxState = {
-    readonly query: StateWithOptimisticUpdates<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>>;
+    readonly query: StateWithOptimisticUpdates<RynamoIndexQuery<InboxEntryModel>>;
     readonly withoutAnimation: boolean;
     readonly itemsDeletedByLastChangeForAnimation: ReadonlyArray<{
         readonly index: number;
         readonly cursor: DynamoIndexCursor;
-        readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+        readonly item: RynamoItem<InboxEntryModel>;
     }>;
 };
 
 type InboxStateAction =
-    | (ActionForStateWithOptimisticUpdates<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>> & {
+    | (ActionForStateWithOptimisticUpdates<RynamoIndexQuery<InboxEntryModel>> & {
           readonly withAnimation: boolean;
       })
     | {
@@ -60,10 +58,10 @@ function getInitialInboxState({
     initialEntriesResult,
     withoutAnimation = false,
 }: {
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
     withoutAnimation?: boolean;
 }): InboxState {
-    const query = DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult);
+    const query = RynamoIndexQuery.new(initialEntriesResult);
 
     return {
         query: getInitialStateWithOptimisticUpdates(query),
@@ -101,8 +99,8 @@ function reduceInboxState(state: InboxState, action: InboxStateAction): InboxSta
  * - Provides a function to load more data based on what's rendered
  */
 export function useInboxState(props: {
-    filter: "New" | "Archive";
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    filter: InboxEntryStatus;
+    initialEntriesResult: RynamoIndexQueryResult<InboxEntryModel>;
     withoutAnimation?: boolean;
 }) {
     const {filter} = props;
@@ -142,9 +140,7 @@ export function useInboxState(props: {
     const updateQueryOptimistically = useCallback(
         (
             event: {promise: Promise<unknown>; withAnimation: boolean},
-            update: (
-                query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-            ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+            update: (query: RynamoIndexQuery<InboxEntryModel>) => RynamoIndexQuery<InboxEntryModel>,
         ) => {
             dispatch({
                 type: "OptimisticUpdate",
@@ -153,13 +149,13 @@ export function useInboxState(props: {
                     // Wait to resolve our optimistic update until we receive a realtime event that
                     // turns our optimistic update into a noop.
                     //
-                    // That's because we don't trust that by the time `promise` resolves we've seen
-                    // the realtime event from our WebSocket. `promise` may be from an RPC call
-                    // which kicks off a background `NotificationEvent` job that eventually sends
-                    // the realtime event we're looking for. We don't want to resolve our optimistic
-                    // update until that background job finishes and we've seen the realtime event.
-                    // Otherwise unrelated realtime events may overwrite our optimistic update
-                    // causing the UI to glitch for the user.
+                    // That's because we don't trust that by the time `promise` resolves we've seen the
+                    // realtime event from our WebSocket. `promise` may be from an RPC call which kicks
+                    // off a background `NotificationEvent` job that eventually sends the realtime
+                    // event we're looking for. We don't want to resolve our optimistic update until
+                    // that background job finishes and we've seen the realtime event. Otherwise
+                    // unrelated realtime events may overwrite our optimistic update causing the UI to
+                    // glitch for the user.
                     waitForQueryWithoutOptimisticUpdates(query => update(query) === query),
                 ),
                 update,
@@ -184,14 +180,14 @@ export function useInboxState(props: {
         }
     }, [filter, space.id, updateQueryOptimistically]);
 
-    useDynamoGeneralRealtimeIndexQueryBase(
+    useRynamoIndexQueryBase(
         {
             query,
             onUpdateQuery: useCallback(
                 (
                     update: (
-                        query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-                    ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+                        query: RynamoIndexQuery<InboxEntryModel>,
+                    ) => RynamoIndexQuery<InboxEntryModel>,
                 ) => dispatch({type: "Update", update, withAnimation: true}),
                 [],
             ),
@@ -200,7 +196,7 @@ export function useInboxState(props: {
             isConnected,
             subscribeToPongs,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                subscriber => subscribeToEvents(event => subscriber(event.events)),
                 [subscribeToEvents],
             ),
             backfillQuery: useCallback(
@@ -208,9 +204,9 @@ export function useInboxState(props: {
                     // Also observe the inbox when we successfully connect to realtime. When we're
                     // connected to realtime this also incidentally means the page is visible.
                     //
-                    // We find this a pretty reasonable place to say "ok, the user is actually
-                    // looking at the inbox" whether they are looking at the inbox page or the
-                    // inbox preview overlay.
+                    // We find this a pretty reasonable place to say "ok, the user is actually looking
+                    // at the inbox" whether they are looking at the inbox page or the inbox preview
+                    // overlay.
                     //
                     // It's also nice that we create an RPC batch with the backfill request.
                     observeInbox(context, {spaceId: space.id}).catch(error => {
@@ -278,8 +274,8 @@ export function useInboxState(props: {
                 if (!afterCursor) return {isLoading: false};
 
                 const promise = (async () => {
-                    // The limit of items we will load is one view worth of entries. This gives
-                    // the user some space to scroll and read before we need to load more entries.
+                    // The limit of items we will load is one view worth of entries. This gives the
+                    // user some space to scroll and read before we need to load more entries.
                     const limit = Math.max(
                         20,
                         Math.ceil(

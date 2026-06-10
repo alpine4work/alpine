@@ -14,11 +14,13 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 
 /**
- * If `evaluateAccessPolicy()` returns `false` then call this function to
- * create a nice error message. We'll figure out the best error message to
- * present to the user.
+ * If `evaluateAccessPolicy()` returns `false` then call this function to create a
+ * nice error message. We'll figure out the best error message to present to the
+ * user.
  */
-export async function createAccessPolicyPermissionDeniedError(
+export async function createAccessPolicyPermissionDeniedError<
+    ExpectedAccessLevel extends AccessLevel,
+>(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
@@ -33,14 +35,18 @@ export async function createAccessPolicyPermissionDeniedError(
         displayMessages,
     }: {
         spaceId: SpaceId;
-        expectedAccessLevel: AccessLevel;
+        expectedAccessLevel: ExpectedAccessLevel;
         aggregateDedupeKey?: string;
-        displayMessages: Record<AccessLevel, ErrorDisplayMessage>;
+        // Keyed by the same subset of `AccessLevel` the caller might pass as
+        // `expectedAccessLevel`. Callers that only support a couple of levels (e.g. inbox
+        // only allows `View | Manage`) get to express that in the type rather than provide
+        // stub entries for unreachable levels.
+        displayMessages: Record<ExpectedAccessLevel, ErrorDisplayMessage>;
     },
 ): Promise<ErrorBase> {
-    // Throw an unauthenticated error if this is an anonymous user instead of
-    // returning false. We want to show the user the unauthenticated error display
-    // message when they don't have access.
+    // Throw an unauthenticated error if this is an anonymous user instead of returning
+    // false. We want to show the user the unauthenticated error display message when
+    // they don't have access.
     if (context.actor.type === "Anonymous") {
         return unauthenticatedSessionError();
     } else if (context.actor.type === "System" && context.actor.getSpaceId() !== spaceId) {

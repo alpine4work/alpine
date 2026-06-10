@@ -28,6 +28,8 @@ import {
     NotificationsInjectionContextModule,
     SearchInjection,
     SearchInjectionContextModule,
+    SitesInjection,
+    SitesInjectionContextModule,
     SpacesInjection,
     SpacesInjectionContextModule,
     TasksInjection,
@@ -51,7 +53,9 @@ import {
     UnknownActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
-import {TestImporterContextModule} from "~/server/importer/importer_context_module_test.js";
+import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
+import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
+import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_context_module.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -62,6 +66,7 @@ import {
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {LogoDevNoopContextModule} from "~/server/spaces/logo_dev_context_module.js";
+import {LoopsNoopContextModule} from "~/server/spaces/loops_context_module.js";
 import {
     TestAnonymousActionContext,
     TestBotActionContext,
@@ -74,7 +79,11 @@ import {
     TestSystemActionContextModules,
     TestUnknownActionContext,
 } from "~/server/spaces/test_helpers/test_context.js";
+import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
@@ -84,6 +93,7 @@ import {ForkActionContextModule} from "~/shared/context/fork_action_context_modu
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -91,14 +101,15 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-// This file should only run in a Node.js test environment. Either Jest
-// or Playwright.
+// This file should only run in a Node.js test environment. Either Jest or
+// Playwright.
 assert(process.release.name === "node");
 assert(isTestNodeEnvOrAdminScenariosScript);
 
@@ -106,10 +117,15 @@ const debug = createDebug(import.meta.url);
 
 const env = parseDotenv();
 
-// Assign AWS env variables to `process.env` so
-// `@aws-sdk/credential-provider-node` picks them up.
+// Assign AWS env variables to `process.env` so `@aws-sdk/credential-provider-node`
+// picks them up. Clear `AWS_PROFILE` and `AWS_SESSION_TOKEN` from the ambient
+// shell (developers often have these set for real AWS work) since
+// `defaultProvider()` prefers `AWS_PROFILE` over `AWS_ACCESS_KEY_ID`/
+// `AWS_SECRET_ACCESS_KEY`.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
+delete process.env.AWS_PROFILE;
+delete process.env.AWS_SESSION_TOKEN;
 
 export type TestActualContext = Context<TestContextModules> &
     TestActualContextHelpers<TestContextModules>;
@@ -136,12 +152,14 @@ type TestActualContextAdditionalHelpers<Modules extends {[key: string]: ContextM
     getSqsLocalFileProcessorJobQueueUrl(): string;
     getSqsLocalFileProcessorLightJobQueueUrl(): string;
     getSqsLocalFileProcessorHeavyJobQueueUrl(): string;
+    waitForSqsProcessJobs(): Promise<void>;
+
     restartSqsLocal(): Promise<void>;
     resetDynamoLocal(): Promise<void>;
 
     /**
-     * Add a `CacheContextModule` to our test context. Each time you call
-     * `withCache()` we create a new cache for the returned context object.
+     * Add a `CacheContextModule` to our test context. Each time you call `withCache()`
+     * we create a new cache for the returned context object.
      */
     withCache(): Context<
         TestContextModules & {
@@ -159,8 +177,8 @@ type TestActualContextAdditionalHelpers<Modules extends {[key: string]: ContextM
     ): TestActualContextWithDestroy<Replace<Modules, NewModules>>;
 
     /**
-     * Set the job processing function for this context. Throws an error if the
-     * job processing function has already been set.
+     * Set the job processing function for this context. Throws an error if the job
+     * processing function has already been set.
      */
     setProcessJob(
         processJob: (
@@ -186,21 +204,21 @@ type TestActualContextAdditionalHelpers<Modules extends {[key: string]: ContextM
  * Create a mock test context for Jest tests. It executes all DynamoDB commands
  * against DynamoDB database that is local to this test.
  *
- * The context has all the modules in `AppProcessContext` and you can easily
- * create `AppActionContext`s.
+ * The context has all the modules in `AppProcessContext` and you can easily create
+ * `AppActionContext`s.
  *
- * - By default, we don't render emails for this test context since rendering happens
- *   asynchronously and may cause tests that use waitForTestTasks to hang.
+ * - By default, we don't render emails for this test context since rendering
+ *   happens asynchronously and may cause tests that use waitForTestTasks to hang.
  *   Set `shouldRenderEmails: true` if you need to render emails in your tests..
  *
- * - By default, we don't start OpenSearch for this test context since it's
- *   slow to start. Set `shouldStartOpensearch: true` if you need to write
- *   tests against OpenSearch.
+ * - By default, we don't start OpenSearch for this test context since it's slow to
+ *   start. Set `shouldStartOpensearch: true` if you need to write tests against
+ *   OpenSearch.
  *
  * - By default, ignore jobs in the local test process. Provide `processJob` to
- *   process a job in the local text context. Provide `shouldSendJobsToSqs` to
- *   add your jobs to a local SQS server so a `JobConsumer` can process them
- *   instead of processing them locally.
+ *   process a job in the local text context. Provide `shouldSendJobsToSqs` to add
+ *   your jobs to a local SQS server so a `JobConsumer` can process them instead of
+ *   processing them locally.
  */
 export async function withUnitTestEnvironment<Value>(
     options: Parameters<typeof actuallyCreateUnitTestEnvironment>[1],
@@ -230,7 +248,23 @@ export async function withUnitTestEnvironment<Value>(
     }
 
     try {
-        const value = await action(context);
+        const promiseWaiter = new PromiseWaiter();
+
+        const actualContext = context.cloneWithHelpers({
+            process: new ProcessContextModule({
+                waitUntil: promise => {
+                    promiseWaiter.waitUntil(promise);
+                    context.process.waitUntil(promise);
+                },
+            }),
+        });
+
+        const value = await action(actualContext);
+
+        // Wait for all `waitUntil()` promises to resolve before cleaning up the
+        // environment.
+        await promiseWaiter.wait();
+
         return value;
     } finally {
         for (const callback of afterEachCallbacks) {
@@ -244,16 +278,15 @@ export async function withUnitTestEnvironment<Value>(
 }
 
 /**
- * Creates a unit test environment and the associated `TestActualContext`
- * object. Designed to be used in Jest tests where setup/teardown is managed by
+ * Creates a unit test environment and the associated `TestActualContext` object.
+ * Designed to be used in Jest tests where setup/teardown is managed by
  * `beforeAll()` and `afterAll()` callbacks.
  *
- * When writing a unit test, prefer using `createTestContext()` which provides
- * a more convenient interface for establishing a unit test environment in
- * Jest.
+ * When writing a unit test, prefer using `createTestContext()` which provides a
+ * more convenient interface for establishing a unit test environment in Jest.
  *
- * If you need a unit test environment outside of Jest (e.g. in an adhoc
- * script), use `withUnitTestEnvironmentContext()` which automatically manages
+ * If you need a unit test environment outside of Jest (e.g. in an adhoc script),
+ * use `withUnitTestEnvironmentContext()` which automatically manages
  * setup/teardown of the environment for you.
  */
 export function actuallyCreateUnitTestEnvironment(
@@ -268,13 +301,27 @@ export function actuallyCreateUnitTestEnvironment(
         createTemporaryDirectoryPath: () => Promise<string>;
         shouldRenderEmails?: boolean;
         shouldStartOpensearch?: boolean;
+        sendRequestToDurableObject?: (
+            context: Context<{}>,
+            request: {
+                url: `/api/durable-objects/${string}`;
+                serviceName: TokenServiceName;
+                route: `/api/durable-objects/${string}`;
+                body?: SchemaSerializedValue | null;
+            },
+        ) => Promise<any>;
         chatInjection?: Partial<ChatInjection>;
         documentsInjection?: Partial<DocumentsInjection>;
         forumInjection?: Partial<ForumInjection>;
         notificationsInjection?: Partial<NotificationsInjection>;
         searchInjection?: Partial<SearchInjection>;
+        sitesInjection?: Partial<SitesInjection>;
         spacesInjection?: Partial<SpacesInjection>;
         tasksInjection?: Partial<TasksInjection>;
+        taskContextModule?: {
+            tokenAgent: MaybeThunk<TokenAgent>;
+            router: TaskRealtimeServiceRouterBase;
+        };
     } & (
         | {
               shouldSendJobsToSqs: true;
@@ -373,6 +420,20 @@ export function actuallyCreateUnitTestEnvironment(
         return `http://localhost:${getSqsLocalPort()}/local/FileProcessorHeavyJobQueue`;
     };
 
+    const waitForSqsProcessJobs = () => {
+        if (sqsLocal === null) {
+            if (shouldSendJobsToSqs) {
+                throw new InternalError("SQS local has not started");
+            } else {
+                throw new InternalError(
+                    "SQS local is not enabled for this test context, to start SQS set `shouldSendJobsToSqs: true` in `createTestContext()`",
+                );
+            }
+        }
+
+        return sqsLocal.waitForProcessJobs();
+    };
+
     const restartSqsLocal = async () => {
         assert(sqsLocal, "SQS local must have been started before");
 
@@ -394,7 +455,7 @@ export function actuallyCreateUnitTestEnvironment(
                     : currentSqsLocal.logsPath
             }-${counter}`,
             port: currentSqsLocal.port,
-            statsPort: null,
+            statsPort: currentSqsLocal.statsPort,
         });
     };
 
@@ -582,8 +643,8 @@ export function actuallyCreateUnitTestEnvironment(
 
     let tasksInjection = options.tasksInjection;
 
-    // If OpenSearch is disabled we don't need to index task actions. Noop instead
-    // of throw.
+    // If OpenSearch is disabled we don't need to index task actions. Noop instead of
+    // throw.
     if (!shouldStartOpensearch) {
         tasksInjection = {
             indexTaskActionTransactionAssumingItsCommitted: asyncNoop,
@@ -591,17 +652,34 @@ export function actuallyCreateUnitTestEnvironment(
         };
     }
 
+    const taskContextModule = options.taskContextModule
+        ? new TaskContextModule({
+              tokenAgent: options.taskContextModule.tokenAgent,
+              router: options.taskContextModule.router,
+              dangerouslyEscalateToSystemContext: escalateToSystemContext,
+          })
+        : new TestTaskContextModule({
+              dangerouslyEscalateToSystemContext: escalateToSystemContext,
+          });
+
     let durableObjectBroadcasts: Array<{
+        readonly url: `/api/durable-objects/${string}`;
+        readonly body: SchemaSerializedValue | null | undefined;
+    }> = [];
+
+    let durableObjectRequests: Array<{
         readonly url: `/api/durable-objects/${string}`;
         readonly body: SchemaSerializedValue | null | undefined;
     }> = [];
 
     testHooks.beforeEach(async () => {
         durableObjectBroadcasts = [];
+        durableObjectRequests = [];
     });
 
     testHooks.afterEach(async () => {
         durableObjectBroadcasts = [];
+        durableObjectRequests = [];
     });
 
     const processContext = Context.new<TestContextModules>({
@@ -615,11 +693,16 @@ export function actuallyCreateUnitTestEnvironment(
         jobs: jobsContextModule,
         constants: constantsContextModule,
         edge: new TestLocalEdgeServiceContextModule({
-            pushDurableObjectBroadcast: broadcast => durableObjectBroadcasts.push(broadcast),
+            broadcastToDurableObject: broadcast => durableObjectBroadcasts.push(broadcast),
+            sendRequestToDurableObject: async (context, request) => {
+                durableObjectRequests.push(request);
+                return await options.sendRequestToDurableObject?.(context, request);
+            },
         }),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),
         logoDev: new LogoDevNoopContextModule(),
+        loops: new LoopsNoopContextModule(),
         chatInjection: ChatInjectionContextModule.test(options.chatInjection),
         documentsInjection: DocumentsInjectionContextModule.test(options.documentsInjection),
         forumInjection: ForumInjectionContextModule.test(options.forumInjection),
@@ -627,13 +710,24 @@ export function actuallyCreateUnitTestEnvironment(
             options.notificationsInjection,
         ),
         searchInjection: SearchInjectionContextModule.test(options.searchInjection),
+        sitesInjection: SitesInjectionContextModule.test(options.sitesInjection),
         spacesInjection: SpacesInjectionContextModule.test(options.spacesInjection),
         tasksInjection: TasksInjectionContextModule.test(tasksInjection),
-        tasks: new TestTaskContextModule({
-            dangerouslyEscalateToSystemContext: escalateToSystemContext,
-        }),
+        tasks: taskContextModule,
         billing: new BillingNoopDevelopmentContextModule(),
-        importer: new TestImporterContextModule(),
+        // Tests that just want to track calls to startValidateNotionImport and
+        // startNotionImport use TestImporterContextModule without a callback. Only tests
+        // that actually want to run import processing should pass a callback. See
+        // TestImporterContextModule for details.
+        importer: new TestImporterContextModule({
+            getLocalUploadPath: getTemporaryDirectoryPath,
+        }),
+        // Importer service module for tests that need to read uploaded files. Uses
+        // TEST_TMPDIR provided by Bazel for test isolation.
+        importerService: new ImporterServiceDevelopmentContextModule({
+            getLocalUploadPath: getTemporaryDirectoryPath,
+        }),
+        slack: new NoopSlackContextModule(),
     });
 
     const helpers: TestActualContextHelpers<TestContextModules> = {
@@ -647,6 +741,7 @@ export function actuallyCreateUnitTestEnvironment(
         getSqsLocalFileProcessorJobQueueUrl,
         getSqsLocalFileProcessorLightJobQueueUrl,
         getSqsLocalFileProcessorHeavyJobQueueUrl,
+        waitForSqsProcessJobs,
         restartSqsLocal,
         resetDynamoLocal,
         action: createSessionContext,
@@ -676,9 +771,9 @@ export function actuallyCreateUnitTestEnvironment(
 
     const context = Object.assign(processContext, helpers);
 
-    // Create `TestLocalJobSender` outside of `beforeAll` so its `afterEach`
-    // hook gets registered synchronously before any tests run. Jest doesn't
-    // allow new hooks to be registered after tests have started.
+    // Create `TestLocalJobSender` outside of `beforeAll` so its `afterEach` hook gets
+    // registered synchronously before any tests run. Jest doesn't allow new hooks to
+    // be registered after tests have started.
     const localJobSender = !shouldSendJobsToSqs
         ? new TestLocalJobSender({
               processJob: async (context, job, jobStartTime, span) => {
@@ -698,12 +793,12 @@ export function actuallyCreateUnitTestEnvironment(
     testHooks.beforeAll(async () => {
         debug("Starting services");
 
-        const [newTemporaryDirectoryPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] =
+        const [newTemporaryDirectoryPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPorts] =
             await runAllPromises([
                 createTemporaryDirectoryPath(),
                 getPort(),
                 shouldStartOpensearch ? getPort() : null,
-                shouldSendJobsToSqs ? getPort() : null,
+                shouldSendJobsToSqs ? runAllPromises([getPort(), getPort()]) : null,
             ]);
 
         temporaryDirectoryPath = newTemporaryDirectoryPath;
@@ -725,20 +820,20 @@ export function actuallyCreateUnitTestEnvironment(
                       dataPath: joinPath(temporaryDirectoryPath, "opensearch/data"),
                       logsPath: joinPath(undeclaredOutputsDirectoryPath, "opensearch"),
                       port: assertExists(opensearchLocalPort),
-                  }).then(dynamoLocal => {
+                  }).then(opensearchLocal => {
                       debug("OpenSearch is ready");
-                      return dynamoLocal;
+                      return opensearchLocal;
                   })
                 : null,
             shouldSendJobsToSqs
                 ? startSqsLocal({
                       withInMemoryData: true,
                       logsPath: joinPath(undeclaredOutputsDirectoryPath, "sqs"),
-                      port: assertExists(sqsLocalPort),
-                      statsPort: null,
-                  }).then(dynamoLocal => {
+                      port: assertExists(sqsLocalPorts)[0],
+                      statsPort: assertExists(sqsLocalPorts)[1],
+                  }).then(sqsLocal => {
                       debug("SQS is ready");
-                      return dynamoLocal;
+                      return sqsLocal;
                   })
                 : null,
         ]);

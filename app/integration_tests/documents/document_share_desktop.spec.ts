@@ -1,20 +1,44 @@
-import {expect, test} from "@playwright/test";
+import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
+import {generateId} from "~/shared/id/id.js";
 
 const {context, services} = createTestServices();
 
 const mentionText = "\u00A0\u00A0\u202FSara";
+
+function generateInviteEmailAddress(domain = "test.cyberworlds.dev") {
+    return `invite.${generateId().slice(0, 8)}@${domain}`;
+}
+
+async function openInviteAccountsModalFromShareOverlay(page: Page, emailAddress: string) {
+    await page.getByRole("button", {name: "Share"}).click();
+
+    const addPeopleInput = page.getByPlaceholder("Add people");
+    await addPeopleInput.fill(emailAddress);
+
+    const inviteOption = page.getByRole("option", {
+        name: new RegExp(`Invite.*${escapeRegExp(emailAddress)}`),
+    });
+    await inviteOption.click();
+
+    const inviteModal = page.getByRole("alertdialog", {name: "Invite people"});
+    await expect(inviteModal).toBeVisible();
+
+    return inviteModal;
+}
 
 test("can toggle document sharing on/off with switch", async ({
     browser,
@@ -27,12 +51,12 @@ test("can toggle document sharing on/off with switch", async ({
     const document = await TestDocument.create(session1, {title: "Test Document"});
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -107,12 +131,12 @@ test("can toggle document sharing on/off with share dialog default grant", async
     const document = await TestDocument.create(session1, {title: "Test Document"});
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -212,12 +236,12 @@ test("can toggle document sharing on/off with share dialog url grant", async ({
     const document = await TestDocument.create(session1, {title: "Test Document"});
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -314,12 +338,12 @@ test("can toggle document sharing on/off with share dialog account grant", async
     const document = await TestDocument.create(session1, {title: "Test Document"});
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -417,7 +441,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
         await document.createCommentThread(session1, range, "Test document comment");
 
         await services.signIn(browserContext, session2);
-        await page.goto(`/s/${space.id}/documents/${document.id}`);
+        await page.goto(`/doc/${document.id}`);
 
         await expect(page.getByRole("heading", {name: "Test Document"})).toBeVisible();
         await expect(page.getByRole("textbox", {name: "Document"})).toBeVisible();
@@ -572,7 +596,7 @@ test("can comment on document with comment only access", async ({
     await document.type(session1, "Lorem ipsum dolor sit amet.");
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page.getByRole("textbox", {name: "Document"})).toBeVisible();
@@ -635,12 +659,12 @@ test("can switch other account access level between comment and view in realtime
     await document.createCommentThread(session2, range);
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
@@ -723,7 +747,7 @@ test("can switch own account access level between manage and view in realtime", 
     await document.createCommentThread(session1, range);
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await expect(page.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(
@@ -804,11 +828,11 @@ test("anonymous accounts can see document shared with url grant", async ({
     await document.attachFile(session, file);
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -966,12 +990,12 @@ test("accounts from another space can see document shared with url grant", async
     await document.attachFile(session, file);
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
     await services.signIn(browserContext1, otherSession);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -1127,12 +1151,12 @@ test("accounts from same space can see document shared with url grant", async ({
     await document.attachFile(session, file);
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
     await services.signIn(browserContext1, otherSession);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -1300,12 +1324,12 @@ test("account that used to be a member of space but was removed can see document
     await document.attachFile(session, file);
 
     await services.signIn(browserContext2, session);
-    await page2.goto(`/s/${space.id}/documents/${document.id}`);
+    await page2.goto(`/doc/${document.id}`);
 
     const browserContext1 = await browser.newContext();
     const page1 = await browserContext1.newPage();
     await services.signIn(browserContext1, otherSession);
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page2.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page2.getByRole("button", {name: "Toggle sharing"})).toBeVisible();
@@ -1447,7 +1471,7 @@ test("can\u2019t change permission level of account who invited you", async ({
     await document.access.grant(session1, session2);
 
     await services.signIn(browserContext, session2);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await page.getByRole("button", {name: "Share"}).click();
 
@@ -1518,7 +1542,7 @@ test("can\u2019t change permission level of account who invited the account who 
     await document.access.grant(session2, session3);
 
     await services.signIn(browserContext, session3);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await page.getByRole("button", {name: "Share"}).click();
 
@@ -1588,7 +1612,7 @@ test("will be warned before lowering your own permission level", async ({
     await document.access.grant(session1, session2);
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await page.getByRole("button", {name: "Share"}).click();
 
@@ -1660,7 +1684,7 @@ test("will be prevented from lowering your own permission level if you\u2019re t
     await document.access.grant(session1, session2, "Edit");
 
     await services.signIn(browserContext, session1);
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     await page.getByRole("button", {name: "Share"}).click();
 
@@ -1742,12 +1766,12 @@ test("will send a notification when sharing with account", async ({
     const document = await TestDocument.create(session1, {title: "Test Document"});
 
     await services.signIn(browserContext2, session2);
-    await page2.goto(`/s/${space.id}/inbox`);
+    await page2.goto(`/inbox/${space.id}`);
 
     const browserContext1 = await browser.newContext();
     await services.signIn(browserContext1, session1);
     const page1 = await browserContext1.newPage();
-    await page1.goto(`/s/${space.id}/documents/${document.id}`);
+    await page1.goto(`/doc/${document.id}`);
 
     await expect(page1.getByRole("heading", {name: "Test Document"})).toBeVisible();
     await expect(page1.getByText("Couldn\u2019t open document")).toBeHidden();
@@ -1771,6 +1795,128 @@ test("will send a notification when sharing with account", async ({
     await expect(page2.getByText("Test shared a document with you")).toBeVisible();
 
     await browserContext1.close();
+});
+
+test("can invite account from share overlay and use optimistic account update", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession({role: "Owner"});
+    const document = await TestDocument.create(session, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/doc/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await expect(inviteModal.getByRole("textbox", {name: "Emails"})).toHaveValue(
+        inviteEmailAddress,
+    );
+
+    await inviteModal.getByRole("button", {name: "Send"}).click();
+
+    await expect(inviteModal).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Message"})).toBeVisible();
+
+    const accountInput = page.getByTestId("ShareOverlayAccountInput").locator("input");
+    await accountInput.click();
+    await accountInput.press("Backspace");
+
+    await expect(page.getByRole("textbox", {name: "Message"})).toBeHidden();
+
+    await accountInput.fill(inviteEmailAddress);
+
+    // If our optimistic update worked then we'll see the newly invited email in the
+    // list of space accounts.
+    await expect(page.getByRole("option", {name: inviteEmailAddress, exact: true})).toBeVisible();
+});
+
+test("escape closes invite modal but leaves share overlay open", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession({role: "Owner"});
+    const document = await TestDocument.create(session, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/doc/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await page.keyboard.press("Escape");
+
+    await expect(inviteModal).toBeHidden();
+    await expect(page.getByPlaceholder("Add people")).toBeVisible();
+    await expect(page.getByTestId("ShareOverlayDefaultGrant")).toBeVisible();
+});
+
+test("can send invite from modal with keyboard shortcut", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession({role: "Owner"});
+    const document = await TestDocument.create(session, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress();
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/doc/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await inviteModal.getByRole("textbox", {name: "Emails"}).click();
+
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "enter"));
+
+    await expect(inviteModal).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Message"})).toBeVisible();
+});
+
+test("member sees admin-only error when inviting non-domain account from share overlay", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    await space.createSession({role: "Owner"});
+    const memberSession = await space.createSession({role: "Member"});
+
+    const document = await TestDocument.create(memberSession, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress("outside-company.com");
+
+    await services.signIn(browserContext, memberSession);
+    await page.goto(`/doc/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await inviteModal.getByRole("button", {name: "Send"}).click();
+
+    await expect(inviteModal).toBeVisible();
+    await expect(page.getByTestId("InviteErroredEmailAddresses")).toContainText(
+        "can only be invited by an admin",
+    );
+    await expect(inviteModal.getByRole("textbox", {name: "Emails"})).toHaveValue(
+        inviteEmailAddress,
+    );
+});
+
+test("member can invite linked-domain account from share overlay", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.createWithAutoAddAccountsFromEmailDomain(context);
+
+    const memberSession = await space.createSession({role: "Member"});
+    const document = await TestDocument.create(memberSession, {title: "Test Document"});
+    const inviteEmailAddress = generateInviteEmailAddress(space.emailDomain);
+
+    await services.signIn(browserContext, memberSession);
+    await page.goto(`/doc/${document.id}`);
+
+    const inviteModal = await openInviteAccountsModalFromShareOverlay(page, inviteEmailAddress);
+    await inviteModal.getByRole("button", {name: "Send"}).click();
+
+    await expect(inviteModal).toBeHidden();
+    await expect(page.getByRole("textbox", {name: "Message"})).toBeVisible();
 });
 
 test("anonymous users can see document with url grant but only public mentions", async ({page}) => {
@@ -1894,7 +2040,7 @@ test("anonymous users can see document with url grant but only public mentions",
     await document.access.grantUrl(session, "View");
 
     // Don't log in
-    await page.goto(`/s/${space.id}/documents/${document.id}`);
+    await page.goto(`/doc/${document.id}`);
 
     // Wait for the document to load for anonymous user
     await expect(page.getByRole("heading", {name: "Test Document with Mentions"})).toBeVisible();

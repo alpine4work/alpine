@@ -84,8 +84,8 @@ export async function loader({params, context}: LoaderArgs) {
         const renderedEmail = await emailTemplatePreview.render(context.tracer);
         const plainText = toPlainText(renderedEmail.html);
 
-        // HACK: HTML parsing with regex is bad, but for our internal dev testing,
-        // I think we can be a lil' ok with it. Let's find the preview by the data-email-preview
+        // HACK: HTML parsing with regex is bad, but for our internal dev testing, I think
+        // we can be a lil' ok with it. Let's find the preview by the data-email-preview
         // tag on a div. We assume the preview is text only (as it's also enforced by TS).
         // NOTE: this will break if the preview contains a "<" currently.
         const previewMatch = renderedEmail.html.match(

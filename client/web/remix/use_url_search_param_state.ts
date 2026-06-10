@@ -3,8 +3,8 @@ import {useLocation} from "react-router-dom";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 
 /**
- * Convenient React-style state for a string that is persisted in the URL's
- * search parameters.
+ * Convenient React-style state for a string that is persisted in the URL's search
+ * parameters.
  */
 export function useUrlSearchParamState(
     searchParamName: string,

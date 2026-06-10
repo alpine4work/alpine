@@ -1,11 +1,11 @@
-import {Locator, Page, expect} from "@playwright/test";
+import {Locator, Page, expect, test} from "@playwright/test";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 type ExpectTaskGridViewTaskDefinitionAttributes = [
-    // `true` is `OpenInactive`, `false` is `Closed`, and `null` is no status
-    // button (for ghost row).
+    // `true` is `OpenInactive`, `false` is `Closed`, and `null` is no status button
+    // (for ghost row).
     status: TaskDisplayStatus | boolean | null,
     title: string,
     assignee?: string,
@@ -36,8 +36,8 @@ function getExpectTaskGridViewTaskDefinitionChildren(
 }
 
 /**
- * Convenient function for asserting a task grid view has all the tasks you
- * expect with the right data in each position.
+ * Convenient function for asserting a task grid view has all the tasks you expect
+ * with the right data in each position.
  */
 export async function expectTaskGridView(
     page: Page,
@@ -151,13 +151,15 @@ export async function expectTaskGridView(
         }
     };
 
-    for (const taskDefinition of taskDefinitions) {
-        await expectTaskDefinition(0, taskDefinition);
-    }
+    await test.step("expectTaskGridView", async () => {
+        for (const taskDefinition of taskDefinitions) {
+            await expectTaskDefinition(0, taskDefinition);
+        }
 
-    await expect(page.getByTestId(/^TaskRowView:/)).toHaveCount(
-        taskCount + (hasGhostTaskRow ? 1 : 0),
-    );
+        await expect(page.getByTestId(/^TaskRowView:/)).toHaveCount(
+            taskCount + (hasGhostTaskRow ? 1 : 0),
+        );
+    });
 }
 
 export async function expectTaskRowViewPriority(locator: Locator, priority: string) {

@@ -10,24 +10,27 @@ import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
  * Called by the client after the file upload to S3/local storage completes.
  *
  * This function:
+ *
  * 1. Verifies the import exists and is in the correct state (UploadPending)
- * 2. Verifies the uploaded file exists in storage
- * 3. Transitions the import to Validating status
- * 4. Queues the validation job to extract metadata from the uploaded zip
+ * 2. Completes the S3 multipart upload (assembles all parts into final object)
+ * 3. Verifies the uploaded file exists in storage
+ * 4. Transitions the import to Validating status
+ * 5. Queues the validation job to extract metadata from the uploaded zip
  *
  * ## Why use an RPC instead of S3 event notifications?
  *
- * Previously, we used S3 event notifications to trigger a Lambda function
- * that would queue the validation job. This had several downsides:
+ * Previously, we used S3 event notifications to trigger a Lambda function that
+ * would queue the validation job. This had several downsides:
  *
- * - **Complexity**: Required Lambda infrastructure, IAM permissions, and
- *   S3 bucket notification configuration
- * - **Development friction**: Needed a separate dev endpoint to mimic the
- *   S3 -> Lambda flow locally
+ * - **Complexity**: Required Lambda infrastructure, IAM permissions, and S3 bucket
+ *   notification configuration
+ * - **Development friction**: Needed a separate dev endpoint to mimic the S3 ->
+ *   Lambda flow locally
  * - **Debugging**: Harder to trace issues across the async Lambda boundary
  * - **Timing**: S3 notifications can be delayed; RPC gives immediate feedback
  *
  * With this RPC approach:
+ *
  * - Same code path runs in dev and production
  * - Client controls exactly when validation starts (after upload completes)
  * - Full observability in the main request tracing
@@ -38,9 +41,13 @@ export async function finishedNotionImportUpload(
     {
         spaceId,
         notionImportId,
+        uploadId,
+        parts,
     }: {
         spaceId: SpaceId;
         notionImportId: NotionImportId;
+        uploadId: string;
+        parts: ReadonlyArray<{partNumber: number; etag: string}>;
     },
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId, "Member");
@@ -63,12 +70,17 @@ export async function finishedNotionImportUpload(
         throw new FailedPreconditionError("Status is not in the correct state for processing");
     }
 
-    // Verify the uploaded file exists before transitioning status.
+    // Complete the multipart upload to assemble all parts into the final object.
     const importKey = assertExists(importItem.importKey);
+    await context.importer.completeMultipartUpload({importKey, uploadId, parts});
+
+    // Verify the uploaded file exists before transitioning status.
     const fileExists = await context.importer.hasUploadedFile(importKey);
     if (!fileExists) {
         throw new InvalidArgumentError(`Uploaded file not found for import ${notionImportId}`);
     }
+
+    const startedValidatingTime = new Date();
 
     await NotionImporterTable.updateItem(
         context,
@@ -76,13 +88,17 @@ export async function finishedNotionImportUpload(
         item => ({
             ...assertExists(item),
             status: {type: "ValidateQueued"},
-            updatedTime: new Date(),
+            updatedTime: startedValidatingTime,
+            startedValidatingTime,
+            multipartUploadId: null,
         }),
     );
 
-    context.jobs.send({
-        type: "ValidateNotionImportAndExtractMetadata",
+    // Start the validation process. In development, this runs directly in the current
+    // process. In production, this spawns an ECS task.
+    await context.importer.startValidateNotionImport({
         spaceId,
         notionImportId,
+        importZipSize: importItem.importZipSize,
     });
 }

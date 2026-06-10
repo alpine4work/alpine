@@ -8,8 +8,8 @@ import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/ge
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
- * Make transaction entries that create a new account with the provided name
- * and email address. The account starts with an unverified email address.
+ * Make transaction entries that create a new account with the provided name and
+ * email address. The account starts with an unverified email address.
  *
  * This is meant to be used for creating accounts during closed alpha.
  */
@@ -51,13 +51,13 @@ export function createAccountTransactionEntries({
     name: string;
 
     /**
-     * This is set when instantiating a bot to mark the account as a bot account.
-     * This is dangerous since when creating a bot account we need to make sure
-     * there's no other account for the bot in the space (and that the `BotId`
-     * exists). This function doesn't make those checks.
+     * This is set when instantiating a bot to mark the account as a bot account. This
+     * is dangerous since when creating a bot account we need to make sure there's no
+     * other account for the bot in the space (and that the `BotId` exists). This
+     * function doesn't make those checks.
      *
-     * Only the `instantiateBotSpaceAccount()` function in `spaces_table.ts` should
-     * use this.
+     * Only the `instantiateBotSpaceAccount()` function in `spaces_table.ts` should use
+     * this.
      */
     dangerouslyInstantiateBot?: {
         botId: BotId;

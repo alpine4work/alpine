@@ -28,12 +28,11 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
         {
             key: item.key,
             // By default `@react-aria/listbox` allows you to press on the combobox trigger
-            // then drag up and release to select an item. This is not a common interaction
-            // and not something we want to support (our `<MenuButton>` doesn't support
-            // this). Furthermore, on mobile it means if you press an option in a combobox
-            // then scroll and release that option will be selected! Instead the scroll
-            // should cancel the press. We really want to disable that behavior since it
-            // feels broken.
+            // then drag up and release to select an item. This is not a common interaction and
+            // not something we want to support (our `<MenuButton>` doesn't support this).
+            // Furthermore, on mobile it means if you press an option in a combobox then scroll
+            // and release that option will be selected! Instead the scroll should cancel the
+            // press. We really want to disable that behavior since it feels broken.
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,
@@ -47,12 +46,13 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
         if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
     }, [isFocused]);
 
-    // We wait a bit before showing our pending spinner. Some actions are very fast so we
-    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    // We wait a bit before showing our pending spinner. Some actions are very fast so
+    // we delay showing a spinner to avoid a loading spinner flicker which can be
+    // jarring.
     const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
-    // We expect the rendered item to be a simple string since we want to render
-    // our own text that includes the `inputValue`. If the `inputValue` was in
+    // We expect the rendered item to be a simple string since we want to render our
+    // own text that includes the `inputValue`. If the `inputValue` was in
     // `item.rendered` it would only change if the underlying item changes.
     assert(item.rendered === "Create collection");
 
@@ -85,15 +85,14 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
             >
                 {isPressed && !isQuiet && (
                     // For accent buttons, instead of choosing a darker background color shade when
-                    // pressed we add a black overlay at a lowered opacity. We accomplish this with
-                    // an overlay element since such a color is not in our color scheme.
+                    // pressed we add a black overlay at a lowered opacity. We accomplish this with an
+                    // overlay element since such a color is not in our color scheme.
                     //
                     // Darker shades in our color scheme are more saturated. We want the effect of a
                     // button being physically pressed down.
                     //
-                    // When we added this there was a happy accident. The text color also got
-                    // darker! This is more fitting for the physical analogy of a button being
-                    // pressed down.
+                    // When we added this there was a happy accident. The text color also got darker!
+                    // This is more fitting for the physical analogy of a button being pressed down.
                     <span
                         className={sprinkles({
                             position: "absolute",

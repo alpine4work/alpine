@@ -3,6 +3,7 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/web/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {Box} from "~/client/web/design/box.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {
@@ -55,7 +56,7 @@ function ContentEditorCursorTracker(
 export function useContentEditorTracker({
     state,
     viewRef,
-    pos,
+    pos: posFromProps,
     side,
     onUpdatePosition,
     shouldUseLineHeight = false,
@@ -90,10 +91,19 @@ export function useContentEditorTracker({
 
             let coords: {top: number; bottom: number; left: number; right: number} | undefined;
 
-            // If this is a non-text node like `file` then get the DOM element for the node
-            // and use the dimensions of that element instead of the result of
-            // `coordsAtPos()` which will have a height of 0.
-            if (typeof pos === "number") {
+            let pos = posFromProps;
+
+            if (typeof pos !== "number") {
+                const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes({
+                    $from: state.doc.resolve(pos.from),
+                    $to: state.doc.resolve(pos.to),
+                });
+                pos = {from: $from.pos, to: $to.pos};
+            }
+            // If this is a non-text node like `file` then get the DOM element for the node and
+            // use the dimensions of that element instead of the result of `coordsAtPos()`
+            // which will have a height of 0.
+            else {
                 const $pos = state.doc.resolve(pos);
                 if (
                     !$pos.parent.isTextblock &&
@@ -123,11 +133,10 @@ export function useContentEditorTracker({
                     coords = coordsFrom;
                 } else {
                     // When determining the coordinates of a selection range to position our cursor
-                    // tracker, remember the overlay attached to the cursor tracker needs to look
-                    // good above and below the selection. For example
-                    // `<ContentEditorPointerToolbar>` when editing a post view on desktop with text
-                    // selected at the start of the post will need to flip down to avoid the post
-                    // navigation bar.
+                    // tracker, remember the overlay attached to the cursor tracker needs to look good
+                    // above and below the selection. For example `<ContentEditorPointerToolbar>` when
+                    // editing a post view on desktop with text selected at the start of the post will
+                    // need to flip down to avoid the post navigation bar.
                     coords = {
                         top: Math.min(coordsFrom.top, coordsTo.top),
                         bottom: Math.max(coordsFrom.bottom, coordsTo.bottom),
@@ -137,8 +146,8 @@ export function useContentEditorTracker({
                 }
             }
 
-            // `coords` are relative to the viewport, so get our offset parent's viewport
-            // rect so we can correctly position our selection target in the offset parent.
+            // `coords` are relative to the viewport, so get our offset parent's viewport rect
+            // so we can correctly position our selection target in the offset parent.
             const offsetParentRect = localRef.current.offsetParent.getBoundingClientRect();
             let scrollOffset = 0;
 
@@ -184,13 +193,13 @@ export function useContentEditorTracker({
         let removeResizeListener: (() => void) | null;
 
         // In React, child component effects run before parent component effects. So
-        // `viewRef` is assigned after our effect runs. By scheduling a microtask we
-        // wait until our parent's effect runs.
+        // `viewRef` is assigned after our effect runs. By scheduling a microtask we wait
+        // until our parent's effect runs.
         scheduleMicrotask(() => {
             if (isCancelled) return;
 
-            // Make sure that whenever our view element resizes, we update the position of
-            // our tracker.
+            // Make sure that whenever our view element resizes, we update the position of our
+            // tracker.
             assert(viewRef.current);
             const viewElement = viewRef.current.dom;
             addResizeListenerForElement(viewElement, run);
@@ -203,7 +212,7 @@ export function useContentEditorTracker({
             isCancelled = true;
             removeResizeListener?.();
         };
-    }, [onUpdatePosition, pos, shouldUseLineHeight, side, state.doc, viewRef]);
+    }, [onUpdatePosition, posFromProps, shouldUseLineHeight, side, state.doc, viewRef]);
 
     return localRef;
 }

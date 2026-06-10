@@ -1,38 +1,47 @@
 import {getBotAccessPolicy} from "~/server/access/get_bot_access_policy.js";
-import {ServerBotActionContext} from "~/server/context/server_action_context.js";
+import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
-import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
+import {AccessPolicyAccountGrant, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
+/**
+ * Creates a _Local_ access policy for content created by a bot. For now, bots will
+ * never create content directly within a site. Instead, they'll create content
+ * with the permissions equal to the permissions of their current scope, and a
+ * human will need to add the content to the site.
+ *
+ * Sites themselves are highly organized by nature, so it's unlikely that a bot
+ * will create content and then figure out where to insert it within the site's
+ * tree.
+ */
 export async function createAccessPolicyForContentCreatedByBot(
-    context: ServerBotActionContext,
+    context: ServerMinimalBotActionContext,
     spaceId: SpaceId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<AccessPolicy> {
+): Promise<LocalAccessPolicy> {
     const botAccessPolicy = await getBotAccessPolicy(context, options);
 
     const humanAccountIdsWithAccess = (
         await runAllPromises(
             botAccessPolicy.accountGrantById.keys().map(async accountId => {
                 // it's possible that someone in the bot's scope was removed from the space.
-                // if/when they're added back to the space, they shouldn't have access to
-                // the content by default, right?
+                // if/when they're added back to the space, they shouldn't have access to the
+                // content by default, right?
                 const isMember = await isAccountMemberOfSpace(context, spaceId, accountId);
                 if (!isMember) return null;
 
-                // Bots should not be added directly to an access policy. They have access
-                // to content based on their current scope. As soon as the bot creates
-                // the content within a given scope, it'll be able to read that content
-                // back from that scope. When asked to update the content, it will only
-                // be able to do so if the request is coming from a scope that also has
-                // access to the document.
+                // Bots should not be added directly to an access policy. They have access to
+                // content based on their current scope. As soon as the bot creates the content
+                // within a given scope, it'll be able to read that content back from that scope.
+                // When asked to update the content, it will only be able to do so if the request
+                // is coming from a scope that also has access to the document.
                 //
-                // I think this is right. This prevents a bad actor who doesn't have access
-                // to the content from being able to read it through the access policy.
+                // I think this is right. This prevents a bad actor who doesn't have access to the
+                // content from being able to read it through the access policy.
                 const isBot = await isBotSpaceAccount(context, spaceId, accountId);
                 if (isBot) return null;
 
@@ -54,7 +63,8 @@ export async function createAccessPolicyForContentCreatedByBot(
         humanAccountIdsWithAccess.map(accountId => [accountId, {level: "Manage", generation: 0}]),
     );
 
-    // Add generation to defaultGrant if it's "Manage" level (required by AccessPolicy schema)
+    // Add generation to defaultGrant if it's "Manage" level (required by AccessPolicy
+    // schema)
     const defaultGrant = botAccessPolicy.defaultGrant
         ? botAccessPolicy.defaultGrant.level === "Manage"
             ? {level: "Manage" as const, generation: 0}
@@ -62,6 +72,7 @@ export async function createAccessPolicyForContentCreatedByBot(
         : null;
 
     return {
+        type: "Local",
         accountGrantById: accountGrantsByIdForHumansWithAccess,
         defaultGrant,
         urlGrant: null,

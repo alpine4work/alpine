@@ -24,8 +24,9 @@ export type LambdaRuntimeServerOptions = {
 };
 
 /**
- * Single Lambda runtime server that can handle multiple Lambda functions with routing.
- * Routes requests to appropriate Lambda handlers based on URL path patterns.
+ * Single Lambda runtime server that can handle multiple Lambda functions with
+ * routing. Routes requests to appropriate Lambda handlers based on URL path
+ * patterns.
  */
 export function startLambdaLocal(
     processContext: LambdaActionContext,
@@ -48,7 +49,7 @@ export function startLambdaLocal(
         server,
         port,
         stop: async () => {
-            return new Promise<void>(resolve => {
+            return await new Promise<void>(resolve => {
                 runAllPromises(sqsConsumers.map(consumer => consumer.stop()))
                     .then(() => {
                         resolve();

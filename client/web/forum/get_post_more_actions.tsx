@@ -21,10 +21,7 @@ export function getPostMoreActions({
                 iconPlacement: "end",
                 pressErrorTitle: "Couldn\u2019t copy post link",
                 onPress: async () => {
-                    const url = new URL(
-                        `/s/${post.spaceId}/posts/${post.id}`,
-                        window.location.href,
-                    );
+                    const url = new URL(`/post/${post.id}`, window.location.href);
                     await writeTextToClipboard(url.toString());
                 },
             },

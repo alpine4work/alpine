@@ -27,11 +27,11 @@ export class AwsDynamo {
             const tableName = tableSchema.getName();
             const tableDescription = tableSchema.getDescription();
 
-            // NOTE(calebmer, 2023-11-03): This class was initially written before I
-            // adopted the pattern of organizing resources into `Construct`s. `Construct`s
-            // make it easier to explore CloudFormation resources in a tree view. Now we
-            // can't change the logical ID of resources so DynamoDB tables have to be
-            // added directly to our stack like this forever.
+            // NOTE(calebmer, 2023-11-03): This class was initially written before I adopted
+            // the pattern of organizing resources into `Construct`s. `Construct`s make it
+            // easier to explore CloudFormation resources in a tree view. Now we can't change
+            // the logical ID of resources so DynamoDB tables have to be added directly to our
+            // stack like this forever.
             const table = new Table(parentScope, `${tableName}Table`, {
                 tableName,
                 partitionKey: {
@@ -45,9 +45,9 @@ export class AwsDynamo {
                 timeToLiveAttribute: "expirationTime",
                 // Don't allow our tables to be deleted. They contain critical data!
                 deletionProtection: true,
-                // Enable point-in-time recovery as insurance against disaster. This
-                // effectively doubles our storage costs. As our costs increase we should
-                // consider only turning this on for tables that absolutely need it.
+                // Enable point-in-time recovery as insurance against disaster. This effectively
+                // doubles our storage costs. As our costs increase we should consider only turning
+                // this on for tables that absolutely need it.
                 pointInTimeRecoverySpecification: {pointInTimeRecoveryEnabled: true},
 
                 // If we have predictable traffic patterns then provisioned billing mode may be

@@ -12,8 +12,8 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {MessageStream} from "~/shared/messaging/message_schema.js";
 
 /**
- * Cut the message content. If the message is a stream then we include stream
- * parts in the cut content.
+ * Cut the message content. If the message is a stream then we include stream parts
+ * in the cut content.
  */
 export function cutMessageContentPayload(
     message: {
@@ -70,9 +70,9 @@ export function cutMessageContentPayload(
 }
 
 /**
- * Cut the message content. If the message is a stream then we include stream
- * parts in the cut content. Behaves the same as `cutMessageContentPayload` but
- * also returns any references from the message payload.
+ * Cut the message content. If the message is a stream then we include stream parts
+ * in the cut content. Behaves the same as `cutMessageContentPayload` but also
+ * returns any references from the message payload.
  */
 export function cutMessageContentPayloadWithReferences(
     message: {

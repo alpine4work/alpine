@@ -77,10 +77,10 @@ export function isInboxEligibleForDigestNotification(
         return false;
     }
 
-    // If we've already sent a digest notification since the latest entry update, they've already received
-    // a digest from this inbox so we don't need to send another one. This allows us to ensure stale
-    // retries don't cause us to send out of date digests. Uses a 50ms uncertainty window to account
-    // for clock skew.
+    // If we've already sent a digest notification since the latest entry update,
+    // they've already received a digest from this inbox so we don't need to send
+    // another one. This allows us to ensure stale retries don't cause us to send out
+    // of date digests. Uses a 50ms uncertainty window to account for clock skew.
     if (
         digestNotificationsLastSentTime &&
         isDateDefinitelyLessThanWithUncertaintyWindow(

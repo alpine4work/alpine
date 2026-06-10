@@ -41,8 +41,11 @@ const commentFileAttachmentTarget = markMemoIfNotRendering({
 function TestContentEditor({initialContent}: {initialContent?: Node}) {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: initialContent ?? emptyDocumentWithoutTitleContent,
-            references: emptyContentReferences,
+            spaceId: null,
+            content: {
+                doc: initialContent ?? emptyDocumentWithoutTitleContent,
+                references: emptyContentReferences,
+            },
         }),
     );
     return (

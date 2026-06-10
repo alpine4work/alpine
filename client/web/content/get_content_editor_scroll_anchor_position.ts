@@ -16,8 +16,8 @@ export function getContentEditorScrollAnchorPosition<Content extends ContentWith
         const {activeElement} = document;
 
         if (activeElement !== null) {
-            // If we focused on a listbox, scroll to make sure the element the listbox
-            // controls is visible. For example, the code block language picker
+            // If we focused on a listbox, scroll to make sure the element the listbox controls
+            // is visible. For example, the code block language picker
             // (`<ContentEditorCodeBlockLanguagePickerComboBox>`).
             const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
             if (ariaControlsAttribute) {

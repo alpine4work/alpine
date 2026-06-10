@@ -43,7 +43,7 @@ has_arg() {
     return 1
 }
 
-if has_arg "--help" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@" && ! has_arg "agents" "$@"; then
+if has_arg "--help" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@" && ! has_arg "agents" "$@" && ! has_arg "demo" "$@"; then
     # Notational conventions:
     #
     # - `[arg]`: Optional argument
@@ -58,6 +58,7 @@ Usage:
     dev check --all          Run all source code checks
     dev format               Run ESLint with --fix and Prettier on changed files
     dev format [...paths]    Run ESLint with --fix and Prettier on the provided files
+    dev format --all         Run ESLint with --fix and Prettier on all files
     dev test                 Run unit tests for changed files
     dev test [...paths]      Run unit tests for the provided files
     dev test --all           Run all unit tests
@@ -70,8 +71,12 @@ Usage:
     dev path [name]          Print a single path in your development environment
     dev deployed             Check if the head commit has been deployed
     dev deployed [commit]    Check if the provided commit has been deployed
+    dev sourcemap            Resolve a production stack trace using sourcemaps
+    dev adhoc                List ad-hoc scripts
+    dev adhoc <command>      Create or run ad-hoc scripts
     dev agents <command>     Manage agents-related services
     dev experimental         Run experimental scripts
+    dev demo <command>       Manage scalable demo videos
     dev --help               Print this message"
     exit 0
 fi
@@ -130,9 +135,13 @@ case "$1" in
         file_description="specified files"
 
         # Determine which files to format
-        if [ -z "$2" ]; then
+        if has_arg "--all" "${@:2}"; then
+            # Run format on all tracked files.
+            format_files=$(git ls-files | grep -E '\.(tsx?|[cm]ts|jsx?|[cm]?js|css|json|md)$' | tr '\n' ' ')
+            file_description="all files"
+        elif [ -z "$2" ]; then
             # Run format on changed files
-            format_files=$(git diff --name-only main | grep -E '\.(tsx?|jsx?|[cm]?js|css|json|md)$' | xargs find 2> /dev/null | tr '\n' ' ')
+            format_files=$(git diff --name-only main | grep -E '\.(tsx?|[cm]ts|jsx?|[cm]?js|css|json|md)$' | xargs find 2> /dev/null | tr '\n' ' ')
             file_description="changed files"
         fi
 
@@ -144,7 +153,7 @@ case "$1" in
             echo
 
             # First run ESLint --fix on TypeScript/JavaScript files
-            js_files=$(echo "$format_files" | tr ' ' '\n' | grep -E '\.(tsx?|jsx?|[cm]?js)$' | tr '\n' ' ')
+            js_files=$(echo "$format_files" | tr ' ' '\n' | grep -E '\.(tsx?|[cm]ts|jsx?|[cm]?js)$' | tr '\n' ' ')
             if [ -n "$js_files" ]; then
                 echo "Running ESLint --fix..."
                 ./admin/bin/node admin/eslint/eslint_test.cjs --fix $js_files
@@ -309,8 +318,80 @@ EOF
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:deployed -- ${@:2}
         ;;
 
+    sourcemap)
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:sourcemap -- ${@:2}
+        ;;
+
+    adhoc)
+        if [ -z "$2" ]; then
+            ./admin/bin/bazel run --ui_event_filters=-info //admin/adhoc -- list
+        else
+            ./admin/bin/bazel run --ui_event_filters=-info //admin/adhoc -- "${@:2}"
+        fi
+        ;;
+
     agents)
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:agents -- "${@:2}"
+        ;;
+
+    # This is temporary, once we're done with our demo comment format we'll delete this command
+    demo)
+        case "$2" in
+            studio)
+                exec ./admin/marketing/2026_04_scalable_demos/remotion_studio.sh
+                ;;
+            update-public)
+                exec ./admin/bin/bazel build //admin/marketing/2026_04_scalable_demos:public
+                ;;
+            content-prompt)
+                exec ./admin/bin/bazel run //admin/marketing/2026_04_scalable_demos:content_prompt -- "${@:3}"
+                ;;
+            new)
+                ./admin/bin/bazel run --ui_event_filters=-info //admin/marketing/2026_04_scalable_demos:new_demo -- "${@:3}"
+                ;;
+            run)
+                demo_arg="$3"
+                if [ -z "$demo_arg" ]; then
+                    echo "Usage: dev demo run <number-or-name>"
+                    echo "  e.g. dev demo run 5"
+                    echo "       dev demo run 005"
+                    echo "       dev demo run 005_export_table_to_markdown"
+                    exit 1
+                fi
+
+                demos_dir="./admin/marketing/2026_04_scalable_demos/demos"
+
+                # Accept bare number (`5`, `005`) or full/partial name prefix
+                # (`005_export_table_to_markdown`). Zero-pad numeric inputs and
+                # glob the demos directory for the matching recorder file.
+                if [[ "$demo_arg" =~ ^[0-9]+$ ]]; then
+                    padded=$(printf "%03d" "$((10#$demo_arg))")
+                    matches=($demos_dir/${padded}_*_demo_recorder.ts)
+                else
+                    matches=($demos_dir/${demo_arg}*_demo_recorder.ts)
+                fi
+
+                if [ ! -f "${matches[0]}" ]; then
+                    echo "No demo recorder found matching: $demo_arg" >&2
+                    exit 1
+                fi
+
+                if [ ${#matches[@]} -gt 1 ]; then
+                    echo "Multiple demos matched \"$demo_arg\":" >&2
+                    for m in "${matches[@]}"; do
+                        echo "  $m" >&2
+                    done
+                    exit 1
+                fi
+
+                label=$(basename "${matches[0]}" .ts)
+                exec ./admin/bin/bazel run //admin/marketing/2026_04_scalable_demos:${label}
+                ;;
+            *)
+                echo "Usage: dev demo <studio|update-public|content-prompt|new|run>"
+                exit 1
+                ;;
+        esac
         ;;
 
     experimental)

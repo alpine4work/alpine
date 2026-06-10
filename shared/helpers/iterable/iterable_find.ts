@@ -1,6 +1,6 @@
 /**
- * Returns the first value where the predicate function returns true. The same
- * as `Array.find()` but for iterables.
+ * Returns the first value where the predicate function returns true. The same as
+ * `Array.find()` but for iterables.
  */
 export function iterableFind<Value>(
     iterable: Iterable<Value>,

@@ -74,6 +74,14 @@ class_name = "TaskNotesCollaborationDurableObject"
 name = "ChannelRealtimeDurableObjectNamespace"
 class_name = "ChannelRealtimeDurableObject"
 
+[[durable_objects.bindings]]
+name = "SiteRealtimeDurableObjectNamespace"
+class_name = "SiteRealtimeDurableObject"
+
+[[durable_objects.bindings]]
+name = "DatabaseGroupDurableObjectNamespace"
+class_name = "DatabaseGroupDurableObject"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["DocumentCollaborationDurableObject"]
@@ -94,14 +102,14 @@ new_classes = ["MyAccountDurableObject"]
 tag = "v5"
 new_classes = ["TaskNotesCollaborationDurableObject"]
 
-[[durable_objects.bindings]]
-name = "DatabaseGroupDurableObjectNamespace"
-class_name = "DatabaseGroupDurableObject"
-
 [[migrations]]
 tag = "v6"
 new_classes = ["ChannelRealtimeDurableObject"]
 
 [[migrations]]
 tag = "v7"
+new_classes = ["SiteRealtimeDurableObject"]
+
+[[migrations]]
+tag = "v8"
 new_sqlite_classes = ["DatabaseGroupDurableObject"]

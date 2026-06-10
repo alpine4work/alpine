@@ -1,6 +1,6 @@
 // Cloudflare allows attaching a `webSocket` to a response object. Our Node.js
-// `createStandardizedServer()` uses the same API for WebSockets so knows to
-// look for this property.
+// `createStandardizedServer()` uses the same API for WebSockets so knows to look
+// for this property.
 //
 // https://developers.cloudflare.com/workers/runtime-apis/websockets/use-websockets/
 declare global {
@@ -15,8 +15,8 @@ declare global {
 
 let ActualResponse = globalThis.Response;
 
-// If we are in a Node.js environment then replace the `Response` global with
-// one that supports `webSocket` in its `RequestInit`.
+// If we are in a Node.js environment then replace the `Response` global with one
+// that supports `webSocket` in its `RequestInit`.
 if (process.versions.node) {
     const OriginalResponse = globalThis.Response;
 
@@ -30,8 +30,8 @@ if (process.versions.node) {
             let status: number | undefined;
             let webSocket: globalThis.WebSocket | undefined;
 
-            // Status 101 Switching Protocols would normally throw a RangeError, but we
-            // need to allow it for WebSockets
+            // Status 101 Switching Protocols would normally throw a RangeError, but we need to
+            // allow it for WebSockets
             if (init && init.webSocket) {
                 if (init.status !== 101) {
                     throw new RangeError("Responses with a WebSocket must have status code 101.");

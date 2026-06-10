@@ -33,9 +33,8 @@ import type {
 const testDatabaseGroupId = generateId<DatabaseGroupId>();
 
 /**
- * Creates a {@link DatabaseClient} seeded into the
- * per-database OPFS subdirectory so that the mock
- * worker can find it.
+ * Creates a {@link DatabaseClient} seeded into the per-database OPFS subdirectory
+ * so that the mock worker can find it.
  */
 async function createSeededClient(
     dir: OpfsDirectoryHandle,
@@ -47,11 +46,10 @@ async function createSeededClient(
 }
 
 /**
- * Seed a group's main database with the Alpine routing
- * schema, as the server always does before a client opens
- * it. Without this the client's cold-open (which attaches
- * existing tables + prefetches schema pages) has no
- * `_alpine_tables` to read.
+ * Seed a group's main database with the Alpine routing schema, as the server
+ * always does before a client opens it. Without this the client's cold-open (which
+ * attaches existing tables + prefetches schema pages) has no `_alpine_tables` to
+ * read.
  */
 async function seedMainSchema(
     dir: OpfsDirectoryHandle,
@@ -84,7 +82,9 @@ async function executeSql(
 // per-database-group subdirectory structure that the
 // active-tab worker creates, then delegates to the
 // shared OPFS helper.
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 async function extractPages(
     dir: OpfsDirectoryHandle,
@@ -98,7 +98,9 @@ async function extractPages(
 
 // ---------------------------------------------------------------------------
 // Mock MessagePort pair
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 function createMockPortPair(): [ActiveTabPort, ActiveTabPort] {
     const portA: ActiveTabPort = {
@@ -135,7 +137,9 @@ function createMockMessageChannel(): {port1: ActiveTabPort; port2: ActiveTabPort
 
 // ---------------------------------------------------------------------------
 // Mock LockManager — supports ifAvailable and blocking wait
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 class MockLockManager implements ActiveTabLockManager {
     private readonly held = new Set<string>();
@@ -188,7 +192,9 @@ class MockLockManager implements ActiveTabLockManager {
 
 // ---------------------------------------------------------------------------
 // Mock BroadcastChannel bus
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 class MockBroadcastChannelBus {
     private readonly channels = new Map<string, Set<ActiveTabBroadcastChannel>>();
@@ -224,13 +230,14 @@ class MockBroadcastChannelBus {
 
 // ---------------------------------------------------------------------------
 // Mock ServiceWorker bridge
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 /**
- * Simulates the ServiceWorker's port relay. Creates
- * {@link ActiveTabServiceWorkerContainer} instances
- * for each "tab" and routes messages through a real
- * {@link DatabaseActiveTabServiceWorker} instance.
+ * Simulates the ServiceWorker's port relay. Creates {@link
+ * ActiveTabServiceWorkerContainer} instances for each "tab" and routes messages
+ * through a real {@link DatabaseActiveTabServiceWorker} instance.
  */
 class MockServiceWorkerBridge {
     private readonly sw: DatabaseActiveTabServiceWorker;
@@ -273,7 +280,9 @@ class MockServiceWorkerBridge {
 
 // ---------------------------------------------------------------------------
 // Mock worker
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 function createMockWorker(dir: OpfsDirectoryHandle): {
     handle: ActiveTabWorkerHandle;
@@ -315,7 +324,9 @@ function createMockWorker(dir: OpfsDirectoryHandle): {
 
 // ---------------------------------------------------------------------------
 // Test helper — creates a tab simulation
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 function createTestTab(config: {
     locks: MockLockManager;
@@ -354,8 +365,7 @@ function createTestTab(config: {
         executeActionServer:
             config.executeActionServer ??
             (() => {
-                // Return a never-resolving promise so optimistic
-                // pages are preserved during tests.
+                // Return a never-resolving promise so optimistic pages are preserved during tests.
                 return new Promise(() => {});
             }),
         ensureCacheIsUpToDate: async pageVersionsByTable => {
@@ -375,9 +385,8 @@ function createTestTab(config: {
                 ]),
             };
 
-            // Read the local OPFS index to compare against
-            // client versions, simulating a server that
-            // agrees with the local cache.
+            // Read the local OPFS index to compare against client versions, simulating a
+            // server that agrees with the local cache.
             try {
                 const dbsDir = await config.dir.getDirectoryHandle("databases");
                 const databaseGroupId = config.databaseGroupId ?? testDatabaseGroupId;
@@ -397,8 +406,7 @@ function createTestTab(config: {
                         serverVersions.set(pageIndex, version);
                     }
 
-                    // Test page counts are tiny — always
-                    // return inline data for stale pages.
+                    // Test page counts are tiny — always return inline data for stale pages.
                     const pagesHandle = await (
                         await dataDir.getFileHandle("pages.bin")
                     ).createSyncAccessHandle();
@@ -454,7 +462,9 @@ function createTestTab(config: {
 
 // ---------------------------------------------------------------------------
 // Tests
-// ---------------------------------------------------------------------------
+// ---
+//
+// ---
 
 describe("DatabaseActiveTabManager", () => {
     test("leader can execute queries", async () => {
@@ -546,9 +556,8 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Leader dies — release the lock
         locks.release("alpine-db");
 
-        // Follower's connection should still work (it
-        // becomes the new leader via lock-wait). The call
-        // is queued until promotion completes.
+        // Follower's connection should still work (it becomes the new leader via
+        // lock-wait). The call is queued until promotion completes.
         const rows = await executeSql(connB, "SELECT * FROM t");
         expect(rows).toMatchObject([{id: 42}]);
     });
@@ -609,8 +618,8 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Kill leader
         locks.release("alpine-db");
 
-        // Submit multiple queries before reconnection settles — they
-        // should all be queued and eventually resolve.
+        // Submit multiple queries before reconnection settles — they should all be queued
+        // and eventually resolve.
         const [rows1, rows2] = await Promise.all([
             executeSql(connB, "SELECT * FROM t WHERE id = 1"),
             executeSql(connB, "SELECT * FROM t WHERE id = 2"),
@@ -641,13 +650,12 @@ describe("DatabaseActiveTabManager resilience", () => {
         const {manager: managerB} = createTestTab({locks, sw, bc, clientId: "tab-b", dir});
         const connB = await managerB.connect();
 
-        // Leader's component unmounts (page navigation) —
-        // conn.close() is called but the tab stays alive.
+        // Leader's component unmounts (page navigation) — conn.close() is called but the
+        // tab stays alive.
         connA.close();
 
-        // Follower should recover: lock is released by
-        // closeConnection(), lock-wait fires, follower
-        // promotes to leader.
+        // Follower should recover: lock is released by closeConnection(), lock-wait fires,
+        // follower promotes to leader.
         const rows = await executeSql(connB, "SELECT * FROM t");
         expect(rows).toMatchObject([{id: 1, val: "nav"}]);
     });
@@ -675,8 +683,8 @@ describe("DatabaseActiveTabManager resilience", () => {
         // Kill leader
         locks.release("alpine-db");
 
-        // Both followers should recover — one becomes
-        // leader, the other reconnects as follower to it.
+        // Both followers should recover — one becomes leader, the other reconnects as
+        // follower to it.
         const [rowsB, rowsC] = await Promise.all([
             executeSql(connB, "SELECT * FROM t"),
             executeSql(connC, "SELECT * FROM t"),
@@ -703,9 +711,8 @@ describe("DatabaseActiveTabManager mutations", () => {
             dir,
             executeActionServer: (_action, options) => {
                 capturedMutationId = options.mutationId;
-                // Return a never-resolving promise so the
-                // background assertion (realtime must confirm
-                // before server responds) doesn't fire.
+                // Return a never-resolving promise so the background assertion (realtime must
+                // confirm before server responds) doesn't fire.
                 return new Promise(() => {});
             },
         });
@@ -842,21 +849,21 @@ describe("Reactive actions", () => {
         await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v1')");
 
-        // Use watchAction so the store snapshot reflects
-        // re-executions (registerReactiveAction directly is
-        // fire-and-forget; nothing observable downstream).
+        // Use watchAction so the store snapshot reflects re-executions
+        // (registerReactiveAction directly is fire-and-forget; nothing observable
+        // downstream).
         const handle = await conn.watchAction("readonlyRawSql", {sql: "SELECT * FROM t"});
         expect(handle.store.getSnapshot()).toMatchObject({
             ok: true,
             value: {rows: [{id: 1, val: "v1"}]},
         });
 
-        // Insert another row — this writes pages that
-        // overlap with the reactive action's read-set.
+        // Insert another row — this writes pages that overlap with the reactive action's
+        // read-set.
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
 
-        // Realtime confirmation with newer versions;
-        // empty diffs because OPFS already has the content.
+        // Realtime confirmation with newer versions; empty diffs because OPFS already has
+        // the content.
         const pages = await extractPages(dir);
         const newerDiffs = new Map(
             pages.map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
@@ -890,9 +897,8 @@ describe("Reactive actions", () => {
         const tab = createTestTab({locks, sw, bc, clientId: "tab-a", dir});
         const conn = await tab.manager.connect();
 
-        // All setup writes go to the base store via
-        // executeLocallyForTests so we control the page
-        // change set we then ship as a realtime event.
+        // All setup writes go to the base store via executeLocallyForTests so we control
+        // the page change set we then ship as a realtime event.
         await tab.worker.executeLocallyForTests(
             testDatabaseGroupId,
             "CREATE TABLE t1 (id INTEGER PRIMARY KEY, val TEXT)",
@@ -926,8 +932,7 @@ describe("Reactive actions", () => {
         };
         handle.store.addListener(listener);
 
-        // Mutate t2 via the base store, then take diff
-        // between before/after snapshots.
+        // Mutate t2 via the base store, then take diff between before/after snapshots.
         const pagesBefore = await extractPages(dir);
         await tab.worker.executeLocallyForTests(
             testDatabaseGroupId,
@@ -936,11 +941,9 @@ describe("Reactive actions", () => {
         await tab.worker.commitOptimisticPagesForTests(testDatabaseGroupId);
         const pagesAfter = await extractPages(dir);
 
-        // Drop page 0 — SQLite touches its file-change
-        // counter on every write, and that's a noise
-        // region the production code filters out via
-        // shouldIgnorePageInvalidation. The point of this
-        // test is the non-page-0 case.
+        // Drop page 0 — SQLite touches its file-change counter on every write, and that's
+        // a noise region the production code filters out via shouldIgnorePageInvalidation.
+        // The point of this test is the non-page-0 case.
         const changedDiffs = new Map(
             pagesAfter
                 .filter(after => {
@@ -951,9 +954,8 @@ describe("Reactive actions", () => {
                 .map(({pageIndex, version}) => [pageIndex, {version: version + 1, diff: []}]),
         );
 
-        // Sanity: the t2 mutation should have changed at
-        // least one non-page-0 page; otherwise the test
-        // tells us nothing.
+        // Sanity: the t2 mutation should have changed at least one non-page-0 page;
+        // otherwise the test tells us nothing.
         expect(changedDiffs.size).toBeGreaterThan(0);
 
         await conn.call("writePageDiffsFromRealtime", {
@@ -998,8 +1000,7 @@ describe("Reactive actions", () => {
             if (snap !== initial) updates.push(snap);
         });
 
-        // Unregister, then write pages that would normally
-        // invalidate the watch.
+        // Unregister, then write pages that would normally invalidate the watch.
         handle.unwatch();
 
         await executeSql(conn, "INSERT INTO t (val) VALUES ('v2')");
@@ -1053,8 +1054,7 @@ describe("watchAction", () => {
         const bc = new MockBroadcastChannelBus();
         const dir = await createSeededTestDir();
 
-        // Pre-populate OPFS so data is in the base store
-        // (no optimistic queue to replay on
+        // Pre-populate OPFS so data is in the base store (no optimistic queue to replay on
         // writePageDiffsFromRealtime).
         const seed = await createSeededClient(dir);
         seed.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
@@ -1075,8 +1075,8 @@ describe("watchAction", () => {
         // Extract the seed state as the "before" snapshot.
         const seedPages = await extractPages(dir);
 
-        // Build "after" state in a separate database that
-        // has both rows — simulates a server-side mutation.
+        // Build "after" state in a separate database that has both rows — simulates a
+        // server-side mutation.
         const serverDir = await createSeededTestDir();
         const server = await createSeededClient(serverDir);
         server.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
@@ -1087,11 +1087,9 @@ describe("watchAction", () => {
         server.commitOptimisticPagesForTests();
         const serverPages = await extractPages(serverDir);
 
-        // Compute actual diffs between seed and server
-        // so writePageDiffsFromRealtime applies real changes.
-        // Seed pages were committed at small versions; pick
-        // a sufficiently large one so writePageIfNewer
-        // overwrites them.
+        // Compute actual diffs between seed and server so writePageDiffsFromRealtime
+        // applies real changes. Seed pages were committed at small versions; pick a
+        // sufficiently large one so writePageIfNewer overwrites them.
         const newerDiffs = new Map(
             serverPages.map(sp => {
                 const seedPage = seedPages.find(p => p.pageIndex === sp.pageIndex);
@@ -1159,9 +1157,8 @@ describe("watchAction", () => {
         // Wait for promotion + re-registration
         await new Promise(resolve => setTimeout(resolve, 200));
 
-        // Watch should still work — verify by checking
-        // the store has data (re-registration re-executed
-        // the action on the new leader).
+        // Watch should still work — verify by checking the store has data (re-registration
+        // re-executed the action on the new leader).
         const afterPromotion = handle.store.getSnapshot();
         expect(afterPromotion).toMatchObject({ok: true, value: {rows: [{id: 1, val: "hello"}]}});
 

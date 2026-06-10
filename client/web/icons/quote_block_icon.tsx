@@ -1,8 +1,8 @@
 import {IconContext} from "phosphor-react";
 import {CSSProperties, useContext} from "react";
 
-// NOTE(calebmer): This icon was derived from Phosphor's `<TextIndent>` icon
-// and inspired by the design of [Font Awesome's `block-quote` icon][1].
+// NOTE(calebmer): This icon was derived from Phosphor's `<TextIndent>` icon and
+// inspired by the design of [Font Awesome's `block-quote` icon][1].
 //
 // [1]: https://fontawesome.com/icons/block-quote?s=solid
 export function QuoteBlockIcon({
@@ -28,8 +28,8 @@ export function QuoteBlockIcon({
             viewBox="0 0 32 32"
             fill={color ?? contextColor}
             {...context}
-            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
-            // set to rem units so use `style` instead.
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being set to
+            // rem units so use `style` instead.
             style={{
                 width: size ?? contextSize,
                 height: size ?? contextSize,

@@ -2,8 +2,8 @@ import {useState} from "react";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 
 /**
- * The first couple times you add tasks we show a short tutorial in the
- * placeholder of the ghost row. These are the entries in that tutorial.
+ * The first couple times you add tasks we show a short tutorial in the placeholder
+ * of the ghost row. These are the entries in that tutorial.
  */
 const taskGhostRowPlaceholderTutorialByPlatform = {
     desktop: [
@@ -12,8 +12,8 @@ const taskGhostRowPlaceholderTutorialByPlatform = {
         "Press tab to convert into a subtask…",
         "Keep adding tasks…",
     ],
-    // TODO(calebmer): We don't have an easy instruction for indenting another
-    // task. Maybe we have some other instruction in this tutorial?
+    // TODO(calebmer): We don't have an easy instruction for indenting another task.
+    // Maybe we have some other instruction in this tutorial?
     mobile: ["Tap to add a task…", "Press return to add another task…", "Keep adding tasks…"],
 };
 
@@ -27,8 +27,7 @@ export function useTaskGhostRowPlaceholderTutorial(taskRowCount: number) {
         setShouldShowTaskGhostRowPlaceholderTutorial,
     ] = useState(taskRowCount === 0);
 
-    // If the user deletes all their tasks then show the placeholder
-    // tutorial again.
+    // If the user deletes all their tasks then show the placeholder tutorial again.
     if (taskRowCount === 0 && !shouldShowTaskGhostRowPlaceholderTutorial) {
         setShouldShowTaskGhostRowPlaceholderTutorial(true);
     }

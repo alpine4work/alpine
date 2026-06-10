@@ -26,8 +26,8 @@ export function createLambdaTracerAndHoneycombClient({
     kinesisTracerStreamName: string;
     awsSigner: AwsRequestSigner;
 }): [TracerRoot, TracerClient | null] {
-    // If a Honeycomb API key is not provided in production then we get no logging
-    // from our service.
+    // If a Honeycomb API key is not provided in production then we get no logging from
+    // our service.
     if (!honeycombApiKey && process.env.NODE_ENV === "production")
         throw new InternalError(
             "Must provide `honeycombApiKey` environment variable in production",

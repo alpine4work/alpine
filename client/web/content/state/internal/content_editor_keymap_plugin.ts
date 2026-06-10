@@ -97,28 +97,28 @@ export function buildContentEditorKeymapPlugin(
         keys.set("Mod-shift-z", redo);
         keys.set("Mod-y", redo); // https://en.wikipedia.org/wiki/Control-Y
     } else {
-        // Special behaviors of undo out of the undo stack should still work when
-        // keyboard shortcuts are disabled. A rendering component will disable keyboard
-        // shortcuts when it's managing its own undo stack. These changes are not part
-        // of the undo stack.
+        // Special behaviors of undo out of the undo stack should still work when keyboard
+        // shortcuts are disabled. A rendering component will disable keyboard shortcuts
+        // when it's managing its own undo stack. These changes are not part of the undo
+        // stack.
         keys.set("Mod-z", quickUndoCommand);
     }
 
     const enterCommand: Command = chainCommands(
-        // If "Enter" is pressed in an empty paragraph textblock which is wrapped
-        // in another block then remove the wrapping.
+        // If "Enter" is pressed in an empty paragraph textblock which is wrapped in
+        // another block then remove the wrapping.
         //
-        // For example, if "Enter" is pressed in an empty quote we will convert
-        // it to a paragraph.
+        // For example, if "Enter" is pressed in an empty quote we will convert it to a
+        // paragraph.
         (state, dispatch) => {
             const {$from, $to} = state.selection;
             const node = $from.node();
             const parentNode = $from.node($from.depth - 1);
 
-            // If we are inside a `codeBlock` and `codeBlockLine` we DO NOT WANT
-            // the `liftEmptyBlock` behavior to break the `codeBlock`, instead we
-            // want to use `splitBlock`. `LiftEmptyBlock` behavior splits the
-            // `codeBlock` into two separate codeBlocks.
+            // If we are inside a `codeBlock` and `codeBlockLine` we DO NOT WANT the
+            // `liftEmptyBlock` behavior to break the `codeBlock`, instead we want to use
+            // `splitBlock`. `LiftEmptyBlock` behavior splits the `codeBlock` into two separate
+            // codeBlocks.
             //
             // For example (behavior we do NOT want): if the cursor is at `|`:
             //
@@ -129,6 +129,7 @@ export function buildContentEditorKeymapPlugin(
             // ```
             //
             // Then you press enter:
+            //
             // ```
             // 1
             // 2
@@ -143,9 +144,9 @@ export function buildContentEditorKeymapPlugin(
                 return false;
             }
 
-            // If we are inside an empty paragraph in a `quoteBlock` then we always want to
-            // use `lift()` not `split()`. `lift()` will make sure the empty paragraph is
-            // always lifted to the top level. By default if our cursor `|` is here:
+            // If we are inside an empty paragraph in a `quoteBlock` then we always want to use
+            // `lift()` not `split()`. `lift()` will make sure the empty paragraph is always
+            // lifted to the top level. By default if our cursor `|` is here:
             //
             // ```
             // > foo
@@ -162,8 +163,8 @@ export function buildContentEditorKeymapPlugin(
             // > bar
             // ```
             //
-            // Note that there's not an empty paragraph between the two quote blocks. It's
-            // two adjacent quote blocks. Instead we want this:
+            // Note that there's not an empty paragraph between the two quote blocks. It's two
+            // adjacent quote blocks. Instead we want this:
             //
             // ```
             // > foo
@@ -174,10 +175,11 @@ export function buildContentEditorKeymapPlugin(
             // ```
             //
             // Under some conditions, the [`liftEmptyBlock` command will use the `split()`
-            // transform instead of the `lift()` transform][1]. Effectively we're making
-            // sure we always call the `lift()` branch of `liftEmptyBlock` in this case.
+            // transform instead of the `lift()` transform][1]. Effectively we're making sure
+            // we always call the `lift()` branch of `liftEmptyBlock` in this case.
             //
-            // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L342-L348
+            // [1]:
+            //     https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L342-L348
             if (
                 $from.pos === $to.pos &&
                 node.type.name === "paragraph" &&
@@ -191,10 +193,9 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             }
 
-            // If "Enter" is pressed in an empty indented list item, dedent the
-            // list item instead of removing it entirely. The `liftEmptyBlock`
-            // command below handles the indent=0 case by clearing the list
-            // item state.
+            // If "Enter" is pressed in an empty indented list item, dedent the list item
+            // instead of removing it entirely. The `liftEmptyBlock` command below handles the
+            // indent=0 case by clearing the list item state.
             //
             // For example, if the cursor is at `|`:
             //
@@ -227,8 +228,8 @@ export function buildContentEditorKeymapPlugin(
             return liftEmptyBlock(state, dispatch);
         },
 
-        // If "Enter" is pressed in an empty non-paragraph textblock (like a
-        // header) then we want to convert that textblock back to a paragraph.
+        // If "Enter" is pressed in an empty non-paragraph textblock (like a header) then
+        // we want to convert that textblock back to a paragraph.
         //
         // For example, if the cursor is at `|`:
         //
@@ -270,9 +271,8 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // When pressing enter in a list item we should create a new list item.
-        // The most basic version of this creates a new list item at the end
-        // of the current one.
+        // When pressing enter in a list item we should create a new list item. The most
+        // basic version of this creates a new list item at the end of the current one.
         //
         // For example, if the cursor is at `|`:
         //
@@ -312,10 +312,10 @@ export function buildContentEditorKeymapPlugin(
         },
 
         // If the user presses enter while a file is selected we create a new paragraph
-        // underneath the file so the user can continue typing. This is different from
-        // the usual behavior of enter deleting the selection and replacing it with a
-        // paragraph. Files are typically added with a lot of intention from the user
-        // so protect them from accidentally deleting their file by typing over it.
+        // underneath the file so the user can continue typing. This is different from the
+        // usual behavior of enter deleting the selection and replacing it with a
+        // paragraph. Files are typically added with a lot of intention from the user so
+        // protect them from accidentally deleting their file by typing over it.
         //
         // We have similar logic in `handleTextInput` below when we create our keymap
         // plugin.
@@ -346,10 +346,9 @@ export function buildContentEditorKeymapPlugin(
 
         // If the user presses enter while table cells are selected we create a new
         // paragraph underneath the table so the user can continue typing. This is
-        // different from the usual behavior of enter deleting the selection and
-        // replacing it with a paragraph. Tables are typically added with a lot of
-        // intention from the user so protect them from accidentally deleting their
-        // table by typing over it.
+        // different from the usual behavior of enter deleting the selection and replacing
+        // it with a paragraph. Tables are typically added with a lot of intention from the
+        // user so protect them from accidentally deleting their table by typing over it.
         (state, dispatch) => {
             if (!(state.selection instanceof ContentTableCellSelection)) return false;
 
@@ -375,19 +374,17 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // Create a new node by splitting the current block at the cursor. If the
-        // cursor is at the end of the block this will simply create a new block.
-        // If the cursor is in the middle of the block it will split the block
-        // in two.
+        // Create a new node by splitting the current block at the cursor. If the cursor is
+        // at the end of the block this will simply create a new block. If the cursor is in
+        // the middle of the block it will split the block in two.
         (state, dispatch) => {
             const {$from} = state.selection;
             const fromNode = $from.node();
             const isSelectionInCodeBlockLine = fromNode.type.name === "codeBlockLine";
 
             if (isSelectionInCodeBlockLine) {
-                // If we're in a code block then we want to preserve the indentation level of
-                // the line we're currently on. So if this is a code block and `|` is the
-                // cursor:
+                // If we're in a code block then we want to preserve the indentation level of the
+                // line we're currently on. So if this is a code block and `|` is the cursor:
                 //
                 // ```
                 // 1    test|
@@ -406,21 +403,20 @@ export function buildContentEditorKeymapPlugin(
         },
     );
 
-    // Enter and Shift-Enter do the same thing. That's because in some contexts
-    // enter will send a message being composed by the content editor. If the
-    // user wants to insert more lines, they can use Shift-Enter to avoid
-    // sending the message.
+    // Enter and Shift-Enter do the same thing. That's because in some contexts enter
+    // will send a message being composed by the content editor. If the user wants to
+    // insert more lines, they can use Shift-Enter to avoid sending the message.
     //
     // To insert single lines you may use Alt-Enter or Ctrl-Enter.
     keys.set("Enter", enterCommand);
     keys.set("Shift-Enter", enterCommand);
 
     const altEnterCommand: Command = chainCommands(
-        // If the user presses alt+enter while a file is selected we create a new
-        // paragraph above the file so the user can continue typing. This is different
-        // from the usual behavior of enter deleting the selection and replacing it
-        // with a paragraph. Files are typically added with a lot of intention from the user
-        // so protect them from accidentally deleting their file by typing over it.
+        // If the user presses alt+enter while a file is selected we create a new paragraph
+        // above the file so the user can continue typing. This is different from the usual
+        // behavior of enter deleting the selection and replacing it with a paragraph.
+        // Files are typically added with a lot of intention from the user so protect them
+        // from accidentally deleting their file by typing over it.
         (state, dispatch) => {
             if (!(state.selection instanceof NodeSelection)) return false;
             if (state.selection.node.type.name !== "file") return false;
@@ -447,11 +443,10 @@ export function buildContentEditorKeymapPlugin(
         },
 
         // If the user presses alt+enter while table cells are selected we create a new
-        // paragraph above the table so the user can continue typing. This is
-        // different from the usual behavior of enter deleting the selection and
-        // replacing it with a paragraph. Tables are typically added with a lot of
-        // intention from the user so protect them from accidentally deleting their
-        // table by typing over it.
+        // paragraph above the table so the user can continue typing. This is different
+        // from the usual behavior of enter deleting the selection and replacing it with a
+        // paragraph. Tables are typically added with a lot of intention from the user so
+        // protect them from accidentally deleting their table by typing over it.
         (state, dispatch) => {
             if (!(state.selection instanceof ContentTableCellSelection)) return false;
 
@@ -473,20 +468,20 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // Pressing alt+enter in a code block should split the code block at the
-        // selection and insert a paragraph. This is how you escape from the code block
-        // which otherwise traps "enter" key presses.
+        // Pressing alt+enter in a code block should split the code block at the selection
+        // and insert a paragraph. This is how you escape from the code block which
+        // otherwise traps "enter" key presses.
         //
-        // The most useful version of this behavior is escaping the end of a code
-        // block. Imagine the following code block:
+        // The most useful version of this behavior is escaping the end of a code block.
+        // Imagine the following code block:
         //
         // ```
         // 1 foo
         // 2 bar|
         // ```
         //
-        // Pressing alt+enter should create a new paragraph below and move your
-        // selection there:
+        // Pressing alt+enter should create a new paragraph below and move your selection
+        // there:
         //
         // ```
         // 1 foo
@@ -502,8 +497,8 @@ export function buildContentEditorKeymapPlugin(
         // 2 bar
         // ```
         //
-        // Then alt+enter should create a paragraph above the code block and move
-        // selection there:
+        // Then alt+enter should create a paragraph above the code block and move selection
+        // there:
         //
         // ```
         // |
@@ -512,9 +507,9 @@ export function buildContentEditorKeymapPlugin(
         // 2 bar
         // ```
         //
-        // If your selection is in the middle of a code block then it splits the code
-        // block into two with a new paragraph in between where your selection is
-        // placed. So this:
+        // If your selection is in the middle of a code block then it splits the code block
+        // into two with a new paragraph in between where your selection is placed. So
+        // this:
         //
         // ```
         // 1 foo
@@ -534,8 +529,8 @@ export function buildContentEditorKeymapPlugin(
         // 2 bar
         // ```
         //
-        // Small variation on that last example. If your selection is in the middle of
-        // a code block on an empty line then that empty code line will be deleted:
+        // Small variation on that last example. If your selection is in the middle of a
+        // code block on an empty line then that empty code line will be deleted:
         //
         // ```
         // 1 foo
@@ -563,8 +558,8 @@ export function buildContentEditorKeymapPlugin(
             let from = $from.pos;
             let to = $to.pos;
 
-            // If we're at the beginning of a `codeBlockLine` then we don't want to leave
-            // an empty `codeBlockLine` behind when we insert our paragraph.
+            // If we're at the beginning of a `codeBlockLine` then we don't want to leave an
+            // empty `codeBlockLine` behind when we insert our paragraph.
             if ($from.parentOffset === 0) {
                 from -= 1;
 
@@ -575,13 +570,13 @@ export function buildContentEditorKeymapPlugin(
                 }
             }
 
-            // If we're at the end of a `codeBlockLine` then we don't want to leave
-            // an empty `codeBlockLine` behind when we insert our paragraph.
+            // If we're at the end of a `codeBlockLine` then we don't want to leave an empty
+            // `codeBlockLine` behind when we insert our paragraph.
             if (toNode.type.name === "codeBlockLine" && $to.parentOffset === toNode.content.size) {
                 to += 1;
 
-                // If we're in the last code block line then we want our new paragraph to be
-                // placed completely below the `codeBlock`.
+                // If we're in the last code block line then we want our new paragraph to be placed
+                // completely below the `codeBlock`.
                 if ($to.index(-1) === $to.node(-1).childCount - 1) {
                     to += 1;
                 }
@@ -597,8 +592,8 @@ export function buildContentEditorKeymapPlugin(
 
             let $newFrom = transaction.doc.resolve(from);
 
-            // In case `from` mapped to a position still inside the code block, get the
-            // first position out of the code block (which should be our new paragraph).
+            // In case `from` mapped to a position still inside the code block, get the first
+            // position out of the code block (which should be our new paragraph).
             if ($newFrom.parent.type.name === "codeBlockLine") {
                 $newFrom = transaction.doc.resolve($newFrom.after(-1));
             }
@@ -609,8 +604,8 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // Pressing alt+enter creates a hard break (aka a new line). You can use
-        // alt+enter to create a list item with multiple lines, for instance.
+        // Pressing alt+enter creates a hard break (aka a new line). You can use alt+enter
+        // to create a list item with multiple lines, for instance.
         (state, dispatch) => {
             dispatch?.(state.tr.replaceSelectionWith(schema.nodes.break.create()).scrollIntoView());
             return true;
@@ -663,10 +658,10 @@ export function buildContentEditorKeymapPlugin(
     const actuallyDeleteSelection =
         (isBackspace: boolean): Command =>
         (state, dispatch, view) => {
-            // If we're about to delete the only file in a file row and there's no previous file
-            // row to navigate to, replace the file row with an empty paragraph instead of deleting
-            // it entirely. This keeps the user's cursor in place rather than jumping to whatever
-            // content follows.
+            // If we're about to delete the only file in a file row and there's no previous
+            // file row to navigate to, replace the file row with an empty paragraph instead of
+            // deleting it entirely. This keeps the user's cursor in place rather than jumping
+            // to whatever content follows.
             if (
                 state.selection instanceof NodeSelection &&
                 state.selection.node.type.name === "file" &&
@@ -676,8 +671,8 @@ export function buildContentEditorKeymapPlugin(
                 const isOnlyFileInRow = fileRowLikeNode.childCount === 1;
 
                 if (isOnlyFileInRow) {
-                    // Check if there's an adjacent fileRowLike sibling (gallery context). If there
-                    // is, we should navigate to the nearest file in the gallery.
+                    // Check if there's an adjacent fileRowLike sibling (gallery context). If there is,
+                    // we should navigate to the nearest file in the gallery.
                     let hasAdjacentFileRowLike = false;
 
                     const fileRowLikeParentDepth = state.selection.$from.depth - 1;
@@ -705,8 +700,8 @@ export function buildContentEditorKeymapPlugin(
 
                     if (!hasAdjacentFileRowLike) {
                         // Replace the file row with an empty paragraph.
-                        // $anchor.depth is the depth of the fileRow, so before($anchor.depth)
-                        // gives us the position right before the fileRow.
+                        // $anchor.depth is the depth of the fileRow, so before($anchor.depth) gives us the
+                        // position right before the fileRow.
                         const fileRowLikePos = state.selection.$anchor.before();
                         const transaction = state.tr.replaceWith(
                             fileRowLikePos,
@@ -729,15 +724,14 @@ export function buildContentEditorKeymapPlugin(
                 const originalDispatch = dispatch;
 
                 dispatch = transaction => {
-                    // If we had a `file` `NodeSelection` when backspace was pressed and we don't
-                    // have a `file` `NodeSelection` anymore because we deleted the last file in a
-                    // gallery so the next position is in a paragraph or whatever's next then we
-                    // want to search backwards for the last file in the gallery and put our
-                    // selection there.
+                    // If we had a `file` `NodeSelection` when backspace was pressed and we don't have
+                    // a `file` `NodeSelection` anymore because we deleted the last file in a gallery
+                    // so the next position is in a paragraph or whatever's next then we want to search
+                    // backwards for the last file in the gallery and put our selection there.
                     //
-                    // The user expects their selection to stay in the gallery while issuing
-                    // keyboard commands. So it's weird if hitting delete causes their selection
-                    // to leave the gallery.
+                    // The user expects their selection to stay in the gallery while issuing keyboard
+                    // commands. So it's weird if hitting delete causes their selection to leave the
+                    // gallery.
                     if (
                         state.selection instanceof NodeSelection &&
                         state.selection.node.type.name === "file" &&
@@ -753,8 +747,8 @@ export function buildContentEditorKeymapPlugin(
                             setSelectionToPreviousFileIfExists(transaction);
                         }
                     }
-                    // If backspace was pressed on a `NodeSelection`, we want to make sure the
-                    // cursor is placed before the node not after the node.
+                    // If backspace was pressed on a `NodeSelection`, we want to make sure the cursor
+                    // is placed before the node not after the node.
                     else if (isBackspace && state.selection instanceof NodeSelection) {
                         transaction.setSelection(
                             Selection.near(transaction.doc.resolve(state.selection.anchor), -1),
@@ -769,18 +763,18 @@ export function buildContentEditorKeymapPlugin(
         };
 
     const backspaceCommandWithoutContainSelectionInTableCell: Command = chainCommands(
-        // This one is simple. If there is a selection, delete it. If the
-        // selection ranges a couple nodes the delete will do the right thing.
+        // This one is simple. If there is a selection, delete it. If the selection ranges
+        // a couple nodes the delete will do the right thing.
         actuallyDeleteSelection(true),
 
         // Run quick undos triggered with `Backspace`.
         contentEditorQuickUndoCommand("Backspace"),
 
         // If you're at the start of a text block (e.g. `paragraph`) at the start of a
-        // `tableCell` then instead of deleting table structure, navigate to the
-        // previous cell in right-to-left bottom-to-top order. If you press backspace
-        // in the top left-cell it will select the table and you can hit backspace
-        // again to delete the table.
+        // `tableCell` then instead of deleting table structure, navigate to the previous
+        // cell in right-to-left bottom-to-top order. If you press backspace in the top
+        // left-cell it will select the table and you can hit backspace again to delete the
+        // table.
         (state, dispatch) => {
             const {doc, selection} = state;
             const {$from, $to} = selection;
@@ -820,8 +814,8 @@ export function buildContentEditorKeymapPlugin(
             } else {
                 dispatch?.(
                     state.tr.setSelection(
-                        // `assertExists()` should be safe. If this is the first cell then the branch
-                        // above should run and select the table.
+                        // `assertExists()` should be safe. If this is the first cell then the branch above
+                        // should run and select the table.
                         assertExists(Selection.findFrom(doc.resolve($from.before()), -1)),
                     ),
                 );
@@ -830,8 +824,8 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If "Backspace" is pressed in an empty non-paragraph textblock (like a
-        // header) then we want to convert that textblock back to a paragraph.
+        // If "Backspace" is pressed in an empty non-paragraph textblock (like a header)
+        // then we want to convert that textblock back to a paragraph.
         //
         // For example, if the cursor is at `|`:
         //
@@ -848,8 +842,8 @@ export function buildContentEditorKeymapPlugin(
             const {$from, $to} = state.selection;
             const node = $from.node();
 
-            // 1. Should be an empty non-paragraph textblock (e.g. header) and the
-            // cursor should be at the beginning of the block.
+            // 1. Should be an empty non-paragraph textblock (e.g. header) and the cursor
+            //    should be at the beginning of the block.
             const isSelectionAtFirstOffsetOfTextblock =
                 node.isTextblock &&
                 node.type.name !== "paragraph" &&
@@ -872,8 +866,8 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If "Backspace" is pressed at the beginning of a paragraph in a quote block
-        // or list item then remove the styling and lift the paragraph out.
+        // If "Backspace" is pressed at the beginning of a paragraph in a quote block or
+        // list item then remove the styling and lift the paragraph out.
         //
         // For example if the cursor is at `|`:
         //
@@ -900,14 +894,14 @@ export function buildContentEditorKeymapPlugin(
                     : null;
 
             // 1. Should be an empty paragraph text block in a quote block and the cursor
-            // should be at the beginning of the block.
+            //    should be at the beginning of the block.
             const isSelectionAtFirstOffsetOfParagraphInQuoteBlock =
                 node.type.name === "paragraph" &&
                 (parentNode.type.name === "quoteBlock" ||
                     (parentNode.type.groups.includes("listItem") &&
-                        // If the previous node is a list item and we are the first paragraph in our
-                        // list item, join with the last list item instead of removing the list item
-                        // style entirely.
+                        // If the previous node is a list item and we are the first paragraph in our list
+                        // item, join with the last list item instead of removing the list item style
+                        // entirely.
                         !(
                             beforeParentNode &&
                             beforeParentNode.type.groups.includes("listItem") &&
@@ -923,8 +917,8 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If "Backspace" is pressed in an empty paragraph between two quote blocks
-        // then merge the quote blocks together.
+        // If "Backspace" is pressed in an empty paragraph between two quote blocks then
+        // merge the quote blocks together.
         //
         // For example, if the cursor is in the middle, empty paragraph:
         //
@@ -973,8 +967,8 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If we delete at the beginning of a paragraph that comes after a list
-        // (or quote block) then merge the paragraph with the list's last bullet.
+        // If we delete at the beginning of a paragraph that comes after a list (or quote
+        // block) then merge the paragraph with the list's last bullet.
         //
         // For example, if the cursor is at `|`:
         //
@@ -1023,9 +1017,9 @@ export function buildContentEditorKeymapPlugin(
                             .scrollIntoView(),
                     );
                 } else {
-                    // 4. If the list item is empty then our above transaction will
-                    // delete the list item styling. So detect when the list is empty
-                    // and wrap the paragraph in an identical list item before deleting.
+                    // 4. If the list item is empty then our above transaction will delete the list
+                    //    item styling. So detect when the list is empty and wrap the paragraph in an
+                    //    identical list item before deleting.
                     dispatch(
                         state.tr
                             .wrap($from.blockRange()!, [lastNode])
@@ -1037,12 +1031,11 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // We only want to delete the code block if the code block is empty,
-        // has only one code block line, and if the selection is at
-        // the beginning of the code block.
+        // We only want to delete the code block if the code block is empty, has only one
+        // code block line, and if the selection is at the beginning of the code block.
         //
-        // Also handles the case when deleting the code block at the top
-        // of the document, below the title.
+        // Also handles the case when deleting the code block at the top of the document,
+        // below the title.
         (state, dispatch) => {
             const {$from, $to} = state.selection;
             const currentNode = $from.node();
@@ -1081,11 +1074,11 @@ export function buildContentEditorKeymapPlugin(
         },
 
         // If the selection is at the beginning of a text block and there's a `fileRow`
-        // right before the selection then we want backspace to select the previous
-        // file but not delete it! We select the previous file as a way to confirm with
-        // the user "are you sure you want to delete this?" Files are added with a lot
-        // of intention from the user so we want to help protect the user from
-        // accidentally deleting their attached files.
+        // right before the selection then we want backspace to select the previous file
+        // but not delete it! We select the previous file as a way to confirm with the user
+        // "are you sure you want to delete this?" Files are added with a lot of intention
+        // from the user so we want to help protect the user from accidentally deleting
+        // their attached files.
         (state, dispatch) => {
             const {$from, $to} = state.selection;
 
@@ -1102,8 +1095,8 @@ export function buildContentEditorKeymapPlugin(
                 const index = state.selection.$from.index(depth);
                 if (!(index - 1 >= 0)) continue;
 
-                // If our previous sibling is not a file row (like lines of a code block),
-                // don't traverse up any further and prevent selecting the previous file.
+                // If our previous sibling is not a file row (like lines of a code block), don't
+                // traverse up any further and prevent selecting the previous file.
                 const siblingNode = node.child(index - 1);
                 if (!siblingNode.type.groups.includes("fileRowLike")) return false;
 
@@ -1117,8 +1110,8 @@ export function buildContentEditorKeymapPlugin(
             assert($previousFile.parent.type.groups.includes("fileRowLike"));
             assert($previousFile.nodeAfter?.type.name === "file");
 
-            // If the textblock is empty then hitting backspace should delete the
-            // textblock select the previous file.
+            // If the textblock is empty then hitting backspace should delete the textblock
+            // select the previous file.
             if ($from.parent.nodeSize <= 2) {
                 dispatch?.(
                     setSelectionToPreviousFileIfExists(
@@ -1132,20 +1125,20 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If the cursor is at the beginning of a block and the user presses
-        // backspace then join with the prior block.
+        // If the cursor is at the beginning of a block and the user presses backspace then
+        // join with the prior block.
         joinBackward,
 
-        // In a document with only a title and a single paragraph, if you hit backspace
-        // at the start of the paragraph the paragraph should be joined with the title
-        // above. However, `joinBackward()` can't do this since it would remove the one
-        // and only paragraph making the document invalid. So detect this case and
-        // pretend like there's another empty paragraph at the end of the document.
-        // Then `joinBackward()` can work and the empty paragraph will become the
-        // document's one paragraph.
+        // In a document with only a title and a single paragraph, if you hit backspace at
+        // the start of the paragraph the paragraph should be joined with the title above.
+        // However, `joinBackward()` can't do this since it would remove the one and only
+        // paragraph making the document invalid. So detect this case and pretend like
+        // there's another empty paragraph at the end of the document. Then
+        // `joinBackward()` can work and the empty paragraph will become the document's one
+        // paragraph.
         //
-        // For example, if the cursor is at `|` the title is `<h1>` and a paragraph is
-        // in `<p>`:
+        // For example, if the cursor is at `|` the title is `<h1>` and a paragraph is in
+        // `<p>`:
         //
         // ```
         // <h1>foo</h1>
@@ -1181,12 +1174,12 @@ export function buildContentEditorKeymapPlugin(
                 state.schema.nodes.paragraph!.create(),
             );
 
-            // 5. Retry `joinBackward()` but with an empty paragraph inserted at the end of
-            //    the document
+            // 5. Retry `joinBackward()` but with an empty paragraph inserted at the end of the
+            //    document
             return joinBackward(
                 state.apply(transaction),
-                // Copy the transaction this function was called with (`actualTransaction`)
-                // into `transaction` which the new paragraph insertion.
+                // Copy the transaction this function was called with (`actualTransaction`) into
+                // `transaction` which the new paragraph insertion.
                 dispatch
                     ? actualTransaction => {
                           for (const step of actualTransaction.steps) {
@@ -1211,14 +1204,15 @@ export function buildContentEditorKeymapPlugin(
             );
         },
 
-        // [Reimplement `selectNodeBackward()`][1] except if we see a `table` node
-        // create a cell selection for the table instead of `NodeSelection` (which
-        // won't work since tables aren't selectable).
+        // [Reimplement `selectNodeBackward()`][1] except if we see a `table` node create a
+        // cell selection for the table instead of `NodeSelection` (which won't work since
+        // tables aren't selectable).
         //
-        // After selecting the table you can hit backspace again to clear it and
-        // backspace again to delete the table.
+        // After selecting the table you can hit backspace again to clear it and backspace
+        // again to delete the table.
         //
-        // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L132-L151
+        // [1]:
+        //     https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L132-L151
         (state, dispatch, view) => {
             const {$head, empty} = state.selection;
             let $cut: ResolvedPos | null = $head;
@@ -1262,25 +1256,25 @@ export function buildContentEditorKeymapPlugin(
             }
         },
 
-        // If we can't join with the previous block, the fallback is to select the
-        // previous block.
+        // If we can't join with the previous block, the fallback is to select the previous
+        // block.
         selectNodeBackward,
     );
 
-    // If the selection was originally within one table cell then this function
-    // will modify the `transaction` to make sure the selection stays within the
-    // original table cell instead of moving somewhere else in the doc.
+    // If the selection was originally within one table cell then this function will
+    // modify the `transaction` to make sure the selection stays within the original
+    // table cell instead of moving somewhere else in the doc.
     //
     // Examples:
     //
-    // - Single file alone in a table cell, when you select the file and hit
-    //   backspace or delete selection should stay in the cell.
+    // - Single file alone in a table cell, when you select the file and hit backspace
+    //   or delete selection should stay in the cell.
     //
     // - File at the start/end of a table cell, when you select the file and hit
     //   backspace or delete selection should stay in the cell.
     //
-    // - Empty code block with nothing else in the cell. Hitting delete should
-    //   keep the selection in the cell.
+    // - Empty code block with nothing else in the cell. Hitting delete should keep the
+    //   selection in the cell.
     const containSelectionInTableCell = (oldState: EditorState, transaction: Transaction) => {
         // Selection was not in a table...
         if (!isInContentTable(oldState)) return;
@@ -1309,8 +1303,7 @@ export function buildContentEditorKeymapPlugin(
         const containFrom = $newCell.pos + 1;
         const containTo = $newCell.pos + $newCell.nodeAfter!.nodeSize - 1;
 
-        // Selection stayed within the table cell. We don't need to modify the
-        // selection.
+        // Selection stayed within the table cell. We don't need to modify the selection.
         if (
             isRangeContained(
                 containFrom,
@@ -1345,9 +1338,9 @@ export function buildContentEditorKeymapPlugin(
             const originalDispatch = dispatch;
 
             dispatch = transaction => {
-                // Don't contain selection if the doc didn't change. If the doc didn't change
-                // then we're using backspace at the beginning of a cell to navigate to the
-                // previous cell. Only contain if some other document change happened.
+                // Don't contain selection if the doc didn't change. If the doc didn't change then
+                // we're using backspace at the beginning of a cell to navigate to the previous
+                // cell. Only contain if some other document change happened.
                 if (transaction.docChanged) {
                     containSelectionInTableCell(state, transaction);
                 }
@@ -1359,8 +1352,8 @@ export function buildContentEditorKeymapPlugin(
     };
 
     const wordBackspaceCommand: Command = chainCommands(
-        // If we delete before a mention and the mention is not a short mention, update
-        // the mention to a short mention. Another delete will delete the mention.
+        // If we delete before a mention and the mention is not a short mention, update the
+        // mention to a short mention. Another delete will delete the mention.
         //
         // For example, if the cursor is at `|`:
         //
@@ -1399,8 +1392,8 @@ export function buildContentEditorKeymapPlugin(
 
         // If you hit backspace in a code block line within indentation spaces for the
         // line, we want to delete a level of indentation instead of deleting a single
-        // character. If you want unaligned indentation you may insert a space back
-        // with the space key.
+        // character. If you want unaligned indentation you may insert a space back with
+        // the space key.
         //
         // ### Example 1
         //
@@ -1424,8 +1417,8 @@ export function buildContentEditorKeymapPlugin(
         //
         // ### Example 2
         //
-        // If your cursor is somewhere inside the indentation it also deletes two
-        // spaces, for example:
+        // If your cursor is somewhere inside the indentation it also deletes two spaces,
+        // for example:
         //
         // ```
         //   |  test
@@ -1439,8 +1432,8 @@ export function buildContentEditorKeymapPlugin(
         //
         // ### Example 3
         //
-        // We align deletes to the nearest indentation level. If you cursor is three
-        // spaces in we delete only one space instead of two, this:
+        // We align deletes to the nearest indentation level. If you cursor is three spaces
+        // in we delete only one space instead of two, this:
         //
         // ```
         //    |  test
@@ -1516,15 +1509,15 @@ export function buildContentEditorKeymapPlugin(
     keys.set("Mod-Backspace", backspaceCommand);
 
     const deleteCommandWithoutContainSelectionInTableCell: Command = chainCommands(
-        // This one is simple. If there is a selection, delete it. If the
-        // selection ranges a couple nodes the delete will do the right thing.
+        // This one is simple. If there is a selection, delete it. If the selection ranges
+        // a couple nodes the delete will do the right thing.
         actuallyDeleteSelection(false),
 
         // If you're at the end of a text block (e.g. `paragraph`) at the end of a
-        // `tableCell` then instead of deleting table structure, navigate to the
-        // previous cell in right-to-left bottom-to-top order. If you press delete in
-        // the top left-cell it will select the table and you can hit delete again to
-        // delete the table.
+        // `tableCell` then instead of deleting table structure, navigate to the previous
+        // cell in right-to-left bottom-to-top order. If you press delete in the top
+        // left-cell it will select the table and you can hit delete again to delete the
+        // table.
         (state, dispatch) => {
             const {doc, selection} = state;
             const {$from, $to} = selection;
@@ -1569,8 +1562,8 @@ export function buildContentEditorKeymapPlugin(
             } else {
                 dispatch?.(
                     state.tr.setSelection(
-                        // `assertExists()` should be safe. If this is the last cell then the branch
-                        // above should run and select the table.
+                        // `assertExists()` should be safe. If this is the last cell then the branch above
+                        // should run and select the table.
                         assertExists(Selection.findFrom(doc.resolve($from.after()), 1)),
                     ),
                 );
@@ -1581,8 +1574,8 @@ export function buildContentEditorKeymapPlugin(
 
         // If delete is pressed in an empty paragraph, remove the paragraph.
         //
-        // This feels better than `joinForward` because content immediately jumps
-        // to your cursor instead of taking smaller steps.
+        // This feels better than `joinForward` because content immediately jumps to your
+        // cursor instead of taking smaller steps.
         //
         // For example, if the cursor is at `|`:
         //
@@ -1617,8 +1610,8 @@ export function buildContentEditorKeymapPlugin(
         // If delete is pressed at the end of a textblock, find the next textblock and
         // delete everything in between.
         //
-        // This feels better than `joinForward` because content immediately jumps to
-        // your cursor instead of taking smaller steps.
+        // This feels better than `joinForward` because content immediately jumps to your
+        // cursor instead of taking smaller steps.
         //
         // For example, if the cursor is at `|`:
         //
@@ -1675,12 +1668,12 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If the selection is at the end of a text block and there's a `fileRow`
-        // right after the selection then we want delete to select the next
-        // file but not delete it! We select the next file as a way to confirm with
-        // the user "are you sure you want to delete this?" Files are added with a lot
-        // of intention from the user so we want to help protect the user from
-        // accidentally deleting their attached files.
+        // If the selection is at the end of a text block and there's a `fileRow` right
+        // after the selection then we want delete to select the next file but not delete
+        // it! We select the next file as a way to confirm with the user "are you sure you
+        // want to delete this?" Files are added with a lot of intention from the user so
+        // we want to help protect the user from accidentally deleting their attached
+        // files.
         (state, dispatch) => {
             const {$from, $to} = state.selection;
 
@@ -1713,8 +1706,8 @@ export function buildContentEditorKeymapPlugin(
             assert($nextFile.parent.type.groups.includes("fileRowLike"));
             assert($nextFile.nodeAfter?.type.name === "file");
 
-            // If the textblock is empty then hitting backspace should delete the
-            // textblock. Not delete the file.
+            // If the textblock is empty then hitting backspace should delete the textblock.
+            // Not delete the file.
             if ($from.parent.nodeSize <= 2) {
                 dispatch?.(
                     setSelectionToNextFileIfExists(
@@ -1728,18 +1721,19 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If the cursor is at the end of a block and the user presses
-        // delete then join with the next block.
+        // If the cursor is at the end of a block and the user presses delete then join
+        // with the next block.
         joinForward,
 
-        // [Reimplement `selectNodeForward()`][1] except if we see a `table` node
-        // create a cell selection for the table instead of `NodeSelection` (which
-        // won't work since tables aren't selectable).
+        // [Reimplement `selectNodeForward()`][1] except if we see a `table` node create a
+        // cell selection for the table instead of `NodeSelection` (which won't work since
+        // tables aren't selectable).
         //
-        // After selecting the table you can hit delete again to clear it and
-        // delete again to delete the table.
+        // After selecting the table you can hit delete again to clear it and delete again
+        // to delete the table.
         //
-        // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L211-L230
+        // [1]:
+        //     https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L211-L230
         (state, dispatch, view) => {
             const {$head, empty} = state.selection;
             let $cut: ResolvedPos | null = $head;
@@ -1789,8 +1783,8 @@ export function buildContentEditorKeymapPlugin(
             }
         },
 
-        // If we can't join with the previous block, the fallback is to select the
-        // next block.
+        // If we can't join with the previous block, the fallback is to select the next
+        // block.
         selectNodeForward,
     );
 
@@ -1799,9 +1793,9 @@ export function buildContentEditorKeymapPlugin(
             const originalDispatch = dispatch;
 
             dispatch = transaction => {
-                // Don't contain selection if the doc didn't change. If the doc didn't change
-                // then we're using delete at the end of a cell to navigate to the
-                // next cell. Only contain if some other document change happened.
+                // Don't contain selection if the doc didn't change. If the doc didn't change then
+                // we're using delete at the end of a cell to navigate to the next cell. Only
+                // contain if some other document change happened.
                 if (transaction.docChanged) {
                     containSelectionInTableCell(state, transaction);
                 }
@@ -1823,9 +1817,8 @@ export function buildContentEditorKeymapPlugin(
         chainCommands(
             indentListItemCommand,
 
-            // When the user hits tab inside of a document title node, move selection to
-            // the next node as if the title and body were two separate inputs as a
-            // convenience.
+            // When the user hits tab inside of a document title node, move selection to the
+            // next node as if the title and body were two separate inputs as a convenience.
             (state, dispatch) => {
                 const {$from, $to} = state.selection;
 
@@ -1842,8 +1835,8 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             },
 
-            // When the user hits tab inside of a code block line, we insert 2 spaces
-            // of indentation to the current selection.
+            // When the user hits tab inside of a code block line, we insert 2 spaces of
+            // indentation to the current selection.
             (state, dispatch) => {
                 const {$from, $to} = state.selection;
                 const fromNode = $from.node();
@@ -1863,9 +1856,9 @@ export function buildContentEditorKeymapPlugin(
                     const transaction = state.tr;
                     const lineStartPos = $from.start($from.depth);
 
-                    // If there is no selection and the cursor is in a empty code block line or
-                    // in between content inside of a code block line, we still want to insert
-                    // indentation to the line start
+                    // If there is no selection and the cursor is in a empty code block line or in
+                    // between content inside of a code block line, we still want to insert indentation
+                    // to the line start
                     if ($from.pos === $to.pos) {
                         let minIndentationSpaceCount = 0;
 
@@ -1893,8 +1886,8 @@ export function buildContentEditorKeymapPlugin(
                             if (pos >= $from.pos) break;
                         }
 
-                        // If the selection is in the line's initial indentation space, then hitting
-                        // tab should go to the maximum indentation of the two adjacent lines.
+                        // If the selection is in the line's initial indentation space, then hitting tab
+                        // should go to the maximum indentation of the two adjacent lines.
                         //
                         // Get the indentation of the two adjacent lines and adjust
                         // `minIndentationSpaceCount` so the indentation we add will get us to match
@@ -1926,9 +1919,9 @@ export function buildContentEditorKeymapPlugin(
                         let addedChars = 0;
                         let newSelectionTo = $to.pos;
 
-                        // `nodesBetween` lets us loop through each node and find
-                        // the node to add spaces. `addedChars` let's us account for inserted spaces to
-                        // ensure the subsequent node inserts are positioned accurately.
+                        // `nodesBetween` lets us loop through each node and find the node to add spaces.
+                        // `addedChars` let's us account for inserted spaces to ensure the subsequent node
+                        // inserts are positioned accurately.
                         state.doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
                             if (node.type.name === "codeBlockLine" && !isNodeSpacesOnly(node)) {
                                 const insertPos = pos + 1 + addedChars;
@@ -1951,13 +1944,32 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             },
 
-            // Don't move focus if we don't apply a shortcut.
-            //
-            // TODO(calebmer): Kinda clearly this is pretty bad for accessibility.
-            // We need to make sure `Esc` unfocuses and allows the keyboard user to
-            // resume tab order.
-            () => {
-                return true;
+            state => {
+                const {$from, $to} = state.selection;
+
+                let shouldTrapFocus = false;
+
+                state.doc.nodesBetween($from.pos, $to.pos, node => {
+                    // If the user press "Tab" or "Shift-Tab" when their selection is in a code block
+                    // or list item then we trap focus since the tab keyboard shortcut means something
+                    // else in these contexts.
+                    //
+                    // TODO(calebmer): We need to implement a way to escape the focus trap of code
+                    // blocks and list items. In the future maybe pressing tab/shift-tab three times
+                    // could move you if you're trapped? First press, nothing happens. Second press we
+                    // show a hint saying "press tab one more time to move" and on that third press we
+                    // actually move.
+                    if (node.type.name === "codeBlock" || node.type.groups.includes("listItem")) {
+                        shouldTrapFocus = true;
+                    }
+
+                    // We don't need to recurse over textblock children.
+                    if (node.isTextblock) return false;
+                });
+
+                if (shouldTrapFocus) return true;
+
+                return false;
             },
         ),
     );
@@ -1968,8 +1980,8 @@ export function buildContentEditorKeymapPlugin(
             dedentListItemCommand,
 
             // When the user hits shift-tab inside of a node when the previous node is a
-            // document title, move selection to the document title as if the title and
-            // body were two separate inputs as a convenience.
+            // document title, move selection to the document title as if the title and body
+            // were two separate inputs as a convenience.
             (state, dispatch) => {
                 const {$from, $to} = state.selection;
 
@@ -1994,8 +2006,8 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             },
 
-            // When the user hits shift-tab inside of a code block, we remove 2 spaces
-            // of indentation to the current selection.
+            // When the user hits shift-tab inside of a code block, we remove 2 spaces of
+            // indentation to the current selection.
             (state, dispatch) => {
                 const {from, to, $from, $to} = state.selection;
                 const fromNode = $from.node();
@@ -2015,8 +2027,8 @@ export function buildContentEditorKeymapPlugin(
                     const transaction = state.tr;
                     let removedCharacters = 0;
 
-                    // Loop through the nodes of the selection and determine
-                    // start and end positions of the codeBlockLine
+                    // Loop through the nodes of the selection and determine start and end positions of
+                    // the codeBlockLine
                     state.doc.nodesBetween(from, to, (node, pos) => {
                         if (node.type.name !== "codeBlockLine") return;
 
@@ -2034,9 +2046,8 @@ export function buildContentEditorKeymapPlugin(
                             return false;
                         }
 
-                        // Calculate how many spaces to remove from beginning
-                        // of codeBlockLine, either remove two space indentation
-                        // or one space.
+                        // Calculate how many spaces to remove from beginning of codeBlockLine, either
+                        // remove two space indentation or one space.
                         const numberOfIndentationToRemove = indentationToRemove(lineText);
 
                         transaction.delete(
@@ -2044,8 +2055,7 @@ export function buildContentEditorKeymapPlugin(
                             codeBlockLineIndentationStart + numberOfIndentationToRemove,
                         );
 
-                        // Update removedCharacters, in order to maintain
-                        // codeBlockLine start position
+                        // Update removedCharacters, in order to maintain codeBlockLine start position
                         removedCharacters -= numberOfIndentationToRemove;
                     });
                     dispatch(transaction);
@@ -2053,13 +2063,32 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             },
 
-            // Don't move focus if we don't apply a shortcut.
-            //
-            // TODO(calebmer): Kinda clearly this is pretty bad for accessibility.
-            // We need to make sure `Esc` unfocuses and allows the keyboard user to
-            // resume tab order.
-            () => {
-                return true;
+            state => {
+                const {$from, $to} = state.selection;
+
+                let shouldTrapFocus = false;
+
+                state.doc.nodesBetween($from.pos, $to.pos, node => {
+                    // If the user press "Tab" or "Shift-Tab" when their selection is in a code block
+                    // or list item then we trap focus since the tab keyboard shortcut means something
+                    // else in these contexts.
+                    //
+                    // TODO(calebmer): We need to implement a way to escape the focus trap of code
+                    // blocks and list items. In the future maybe pressing tab/shift-tab three times
+                    // could move you if you're trapped? First press, nothing happens. Second press we
+                    // show a hint saying "press tab one more time to move" and on that third press we
+                    // actually move.
+                    if (node.type.name === "codeBlock" || node.type.groups.includes("listItem")) {
+                        shouldTrapFocus = true;
+                    }
+
+                    // We don't need to recurse over textblock children.
+                    if (node.isTextblock) return false;
+                });
+
+                if (shouldTrapFocus) return true;
+
+                return false;
             },
         ),
     );
@@ -2067,15 +2096,14 @@ export function buildContentEditorKeymapPlugin(
     keys.set(
         "ArrowUp",
         chainCommands(
-            // To escape certain nodes pressing up at the start of a document should create
-            // a new empty paragraph and move the cursor there. That way the user doesn't
-            // get stuck editing the element.
+            // To escape certain nodes pressing up at the start of a document should create a
+            // new empty paragraph and move the cursor there. That way the user doesn't get
+            // stuck editing the element.
             //
-            // For example, consider a `fileRow` element in a post. If a `fileRow` is the
-            // first element in the post how would you write some text above it? Without
-            // this shortcut there's no keyboard accessible way to do so. With this
-            // shortcut if you hit the up arrow we create an empty paragraph where you
-            // can continue typing.
+            // For example, consider a `fileRow` element in a post. If a `fileRow` is the first
+            // element in the post how would you write some text above it? Without this
+            // shortcut there's no keyboard accessible way to do so. With this shortcut if you
+            // hit the up arrow we create an empty paragraph where you can continue typing.
             (state, dispatch) => {
                 const {selection, schema} = state;
                 const {$from} = selection;
@@ -2089,8 +2117,8 @@ export function buildContentEditorKeymapPlugin(
                 const parentNode = $from.node($from.depth - 1);
                 const currentNode = $from.node();
 
-                // 2. Check if the selection is a `codeBlockLine` within `codeBlock`, a
-                //    `divider`, or a `file`
+                // 2. Check if the selection is a `codeBlockLine` within `codeBlock`, a `divider`,
+                //    or a `file`
                 if (
                     (currentNode.type.name === "codeBlockLine" &&
                         parentNode.type.name === "codeBlock") ||
@@ -2121,9 +2149,9 @@ export function buildContentEditorKeymapPlugin(
         ),
     );
 
-    // In a code block, if you hit the line start shortcut, it should go to the
-    // start of the line excluding indentation spaces. For example if this is a
-    // code block and your cursor is `|`:
+    // In a code block, if you hit the line start shortcut, it should go to the start
+    // of the line excluding indentation spaces. For example if this is a code block
+    // and your cursor is `|`:
     //
     // ```
     //     test|
@@ -2141,9 +2169,9 @@ export function buildContentEditorKeymapPlugin(
     // |    test
     // ```
     //
-    // Then hitting Command-Left a third time should go back to the start of the
-    // code line (this alternating pattern is what VS Code does, it's convenient if
-    // you accidentally hit Command-Left a second time).
+    // Then hitting Command-Left a third time should go back to the start of the code
+    // line (this alternating pattern is what VS Code does, it's convenient if you
+    // accidentally hit Command-Left a second time).
     //
     // ```
     //     |test
@@ -2189,10 +2217,10 @@ export function buildContentEditorKeymapPlugin(
         return true;
     });
 
-    // In a code block, if you hit the line start shortcut, it should go to the
-    // start of the line excluding indentation spaces. If you also hold shift then
-    // it should select the text in between your existing cursor and the new
-    // location. For example if this is a code block and your cursor is `|`:
+    // In a code block, if you hit the line start shortcut, it should go to the start
+    // of the line excluding indentation spaces. If you also hold shift then it should
+    // select the text in between your existing cursor and the new location. For
+    // example if this is a code block and your cursor is `|`:
     //
     // ```
     //     test|
@@ -2210,9 +2238,9 @@ export function buildContentEditorKeymapPlugin(
     // |    test|
     // ```
     //
-    // Then hitting Command-Shift-Left a third time should go back to the start of
-    // the code line (this alternating pattern is what VS Code does, it's
-    // convenient if you accidentally hit Command-Shift-Left a second time).
+    // Then hitting Command-Shift-Left a third time should go back to the start of the
+    // code line (this alternating pattern is what VS Code does, it's convenient if you
+    // accidentally hit Command-Shift-Left a second time).
     //
     // ```
     //     |test|
@@ -2263,9 +2291,9 @@ export function buildContentEditorKeymapPlugin(
         return true;
     });
 
-    // If "Home" is pressed in a file gallery then navigate to the first file in
-    // the gallery. A file gallery is defined as the current file row and any
-    // adjacent file rows above or below.
+    // If "Home" is pressed in a file gallery then navigate to the first file in the
+    // gallery. A file gallery is defined as the current file row and any adjacent file
+    // rows above or below.
     keys.set("Home", (state, dispatch) => {
         if (!(state.selection instanceof NodeSelection)) return false;
         if (state.selection.node.type.name !== "file") return false;
@@ -2292,9 +2320,9 @@ export function buildContentEditorKeymapPlugin(
         return false;
     });
 
-    // If "End" is pressed in a file gallery then navigate to the last file in
-    // the gallery. A file gallery is defined as the current file row and any
-    // adjacent file rows above or below.
+    // If "End" is pressed in a file gallery then navigate to the last file in the
+    // gallery. A file gallery is defined as the current file row and any adjacent file
+    // rows above or below.
     keys.set("End", (state, dispatch) => {
         if (!(state.selection instanceof NodeSelection)) return false;
         if (state.selection.node.type.name !== "file") return false;
@@ -2382,8 +2410,8 @@ export function buildContentEditorKeymapPlugin(
 
     // Link overlay
     //
-    // If you used shift to select text, you're may still be holding shift when
-    // hitting the link shortcut. So cmd-shift-k opens the link input as well.
+    // If you used shift to select text, you're may still be holding shift when hitting
+    // the link shortcut. So cmd-shift-k opens the link input as well.
     keys.set("Mod-k", linkCommand);
     keys.set("Mod-shift-k", linkCommand);
 
@@ -2410,13 +2438,14 @@ export function buildContentEditorKeymapPlugin(
         });
     }
 
-    // Based on the [ProseMirror base MacOS keybinding][1] map and the [MacOS
-    // keyboard shortcut][2] documentation.
+    // Based on the [ProseMirror base MacOS keybinding][1] map and the [MacOS keyboard
+    // shortcut][2] documentation.
     //
-    // We're ok not adding these keybindings on the server. It doesn't influence
-    // server rendered HTML.
+    // We're ok not adding these keybindings on the server. It doesn't influence server
+    // rendered HTML.
     //
-    // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/3126d5c625953ba590c5d3a0db7f1009f46f1571/src/commands.js#L588
+    // [1]:
+    //     https://github.com/ProseMirror/prosemirror-commands/blob/3126d5c625953ba590c5d3a0db7f1009f46f1571/src/commands.js#L588
     // [2]: https://support.apple.com/en-us/HT201236
     if (typeof window !== "undefined" && getClientInfo().isAppleDevice) {
         keys.set("Alt-Backspace", wordBackspaceCommand);
@@ -2446,9 +2475,8 @@ export function buildContentEditorKeymapPlugin(
     return new Plugin({
         props: {
             handleKeyDown: (view, event) => {
-                // First, run our content table `keydown` handlers. That way the
-                // `Shift-ArrowUp` and `Shift-ArrowDown` handlers can run before
-                // our vertical navigation logic.
+                // First, run our content table `keydown` handlers. That way the `Shift-ArrowUp`
+                // and `Shift-ArrowDown` handlers can run before our vertical navigation logic.
                 if (handleContentTableKeyDown(view, event)) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -2457,13 +2485,13 @@ export function buildContentEditorKeymapPlugin(
 
                 // Our codebase convention is to call `event.preventDefault()` and
                 // `event.stopPropagation()` whenever a `keydown` event is handled. ProseMirror
-                // will only call `event.preventDefault()` when a keydown handler returns true.
-                // So construct a plugin where we also call `event.stopPropagation()`.
+                // will only call `event.preventDefault()` when a keydown handler returns true. So
+                // construct a plugin where we also call `event.stopPropagation()`.
                 //
-                // We call `event.stopPropagation()` so global `keydown` handlers don't see
-                // events we've already handled. Particularly important for undo where we have
-                // a global undo handler and a local undo handler. If our local undo handles
-                // the keyboard shortcut we don't want to run our global handler.
+                // We call `event.stopPropagation()` so global `keydown` handlers don't see events
+                // we've already handled. Particularly important for undo where we have a global
+                // undo handler and a local undo handler. If our local undo handles the keyboard
+                // shortcut we don't want to run our global handler.
                 if (handleKeyDown(view, event)) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -2471,8 +2499,8 @@ export function buildContentEditorKeymapPlugin(
                 }
 
                 // We don't use `prosemirror-keymap` for these event handlers since we want the
-                // `KeyboardEvent` itself to mimic the exact implementation from
-                // `prosemirror-view` for vertical navigation.
+                // `KeyboardEvent` itself to mimic the exact implementation from `prosemirror-view`
+                // for vertical navigation.
                 {
                     if (event.key === "ArrowDown" && handleVerticalArrowKeyDown(view, 1, event)) {
                         event.preventDefault();
@@ -2494,13 +2522,13 @@ export function buildContentEditorKeymapPlugin(
                 const {state} = view;
 
                 // If the user tries to type text while a `file` is selected then instead of
-                // replacing the file selection with the text let's create a new paragraph
-                // below the file and let the user continue typing there. Files are typically
-                // added with a lot of intention from the user so protect them from
-                // accidentally deleting their file by typing over it.
+                // replacing the file selection with the text let's create a new paragraph below
+                // the file and let the user continue typing there. Files are typically added with
+                // a lot of intention from the user so protect them from accidentally deleting
+                // their file by typing over it.
                 //
-                // We have similar logic for the "Enter" keyboard shortcut. We create a
-                // paragraph below the file instead of replacing the file.
+                // We have similar logic for the "Enter" keyboard shortcut. We create a paragraph
+                // below the file instead of replacing the file.
                 if (
                     state.selection instanceof NodeSelection &&
                     state.selection.node.type.name === "file" &&

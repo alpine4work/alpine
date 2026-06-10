@@ -10,19 +10,19 @@ import {
 } from "~/shared/schema/schema.js";
 
 /**
- * A SQL query with parameter bindings and typed execution
- * helpers. Constructed via the {@link sql} tagged template,
- * {@link sql.raw}, or directly for advanced use cases.
+ * A SQL query with parameter bindings and typed execution helpers. Constructed via
+ * the {@link sql} tagged template, {@link sql.raw}, or directly for advanced use
+ * cases.
  *
  * ```ts
  * sql`SELECT * FROM t WHERE id = ${id}`.all(db, {
  *     id: Schema.integer,
  *     name: Schema.string,
- * })
+ * });
  * ```
  *
- * Interpolating a `SqlQuery` inside a tagged template
- * inlines its text and merges its bindings:
+ * Interpolating a `SqlQuery` inside a tagged template inlines its text and merges
+ * its bindings:
  *
  * ```ts
  * const sub = sql`SELECT id FROM other WHERE x = ${42}`;
@@ -38,9 +38,8 @@ class SqlQuery {
     ) {}
 
     /**
-     * Execute and return all result rows, deserialized
-     * in a single pass by stepping through the prepared
-     * statement column-by-column.
+     * Execute and return all result rows, deserialized in a single pass by stepping
+     * through the prepared statement column-by-column.
      */
     selectAll<Config extends ObjectSchemaConfigBase>(
         db: Database,
@@ -50,8 +49,8 @@ class SqlQuery {
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
 
-            // Map each SQL column index to its config key
-            // and value schema for single-pass deserialization.
+            // Map each SQL column index to its config key and value schema for single-pass
+            // deserialization.
             const columnNames = stmt.getColumnNames();
             const propertyByColumnName = new Map<string, [string, Schema<unknown>]>();
             for (const [key, schema] of Object.entries(config)) {
@@ -93,8 +92,7 @@ class SqlQuery {
     }
 
     /**
-     * Execute and return at most one row. Returns `null`
-     * when zero rows match.
+     * Execute and return at most one row. Returns `null` when zero rows match.
      */
     selectOneOrNone<Config extends ObjectSchemaConfigBase>(
         db: Database,
@@ -106,8 +104,8 @@ class SqlQuery {
     }
 
     /**
-     * Execute and return a single scalar value. Asserts
-     * exactly one row with one column.
+     * Execute and return a single scalar value. Asserts exactly one row with one
+     * column.
      */
     selectValue<Value>(db: Database, schema: Schema<Value>): Value {
         const stmt = db.prepare(this.query);
@@ -124,9 +122,8 @@ class SqlQuery {
     }
 
     /**
-     * Execute and return every row's single column as an
-     * array of values, deserialized through `schema`.
-     * Asserts the query selects exactly one column.
+     * Execute and return every row's single column as an array of values, deserialized
+     * through `schema`. Asserts the query selects exactly one column.
      */
     selectValues<Value>(db: Database, schema: Schema<Value>): Array<Value> {
         const stmt = db.prepare(this.query);
@@ -144,9 +141,8 @@ class SqlQuery {
     }
 
     /**
-     * Execute and return all rows as untyped objects. Use
-     * when the result schema is not known statically (e.g.
-     * user-provided SQL).
+     * Execute and return all rows as untyped objects. Use when the result schema is
+     * not known statically (e.g. user-provided SQL).
      */
     selectAllUnknown(db: Database): Array<Record<string, unknown>> {
         const stmt = db.prepare(this.query);
@@ -163,15 +159,12 @@ class SqlQuery {
     }
 
     /**
-     * Execute and return all rows as arrays of values.
-     * Column order matches the SELECT list. Use when
-     * the caller needs positional access rather than
-     * named columns.
+     * Execute and return all rows as arrays of values. Column order matches the SELECT
+     * list. Use when the caller needs positional access rather than named columns.
      *
-     * When `schemas` is provided, each column value is
-     * deserialized through the corresponding schema
-     * (stepping through the prepared statement
-     * column-by-column, like {@link selectAll}).
+     * When `schemas` is provided, each column value is deserialized through the
+     * corresponding schema (stepping through the prepared statement column-by-column,
+     * like {@link selectAll}).
      */
     selectAllArrays(db: Database, schemas: ReadonlyArray<Schema<unknown>>): Array<Array<unknown>> {
         const stmt = db.prepare(this.query);
@@ -198,15 +191,14 @@ class SqlQuery {
 }
 
 /**
- * Tagged template that builds a {@link SqlQuery}. Interpolated
- * values become `?` placeholders; {@link SqlQuery} values are
- * inlined with their bindings merged.
+ * Tagged template that builds a {@link SqlQuery}. Interpolated values become `?`
+ * placeholders; {@link SqlQuery} values are inlined with their bindings merged.
  *
  * ```ts
- * sql`SELECT * FROM t WHERE id = ${id}`
+ * sql`SELECT * FROM t WHERE id = ${id}`;
  * // → SqlQuery { query: "SELECT * FROM t WHERE id = ?", bind: [id] }
  *
- * sql`SELECT * FROM ${sql.identifier("my table")} WHERE id = ${id}`
+ * sql`SELECT * FROM ${sql.identifier("my table")} WHERE id = ${id}`;
  * // → SqlQuery { query: 'SELECT * FROM "my table" WHERE id = ?', bind: [id] }
  * ```
  */
@@ -225,10 +217,9 @@ function sql(
                 bind.push(...value.bind);
             } else {
                 query += "?";
-                // Bind plain objects/arrays as JSON text. A Uint8Array
-                // (incl. JsonStringifiableUint8Array) passes through
-                // untouched so SQLite binds it as a BLOB — JSON-stringifying
-                // would corrupt it into `{"0":12,...}`.
+                // Bind plain objects/arrays as JSON text. A Uint8Array (incl.
+                // JsonStringifiableUint8Array) passes through untouched so SQLite binds it as a
+                // BLOB — JSON-stringifying would corrupt it into `{"0":12,...}`.
                 bind.push(
                     value !== null && typeof value === "object" && !(value instanceof Uint8Array)
                         ? JSON.stringify(value)
@@ -241,49 +232,42 @@ function sql(
 }
 
 /**
- * Create a {@link SqlQuery} from a raw SQL string. Use for
- * dynamic SQL or to inline SQL fragments in a tagged
- * template.
+ * Create a {@link SqlQuery} from a raw SQL string. Use for dynamic SQL or to
+ * inline SQL fragments in a tagged template.
  */
 sql.raw = (text: string): SqlQuery => new SqlQuery(text);
 
 /**
- * Create a quoted SQL identifier. Double-quotes are escaped
- * per the SQL standard (`"` → `""`). Returns a
- * {@link SqlQuery} that can be interpolated into a tagged
+ * Create a quoted SQL identifier. Double-quotes are escaped per the SQL standard
+ * (`"` → `""`). Returns a {@link SqlQuery} that can be interpolated into a tagged
  * template.
  */
 // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
 sql.identifier = (name: string): SqlQuery => new SqlQuery(`"${name.replace(/"/g, '""')}"`);
 
 /**
- * Prefix for the SQLite schema name of a table's `ATTACH`-ed
- * per-db file. Deliberately verbose and unique so it can be
- * matched back out of SQLite's "no such table" / "unknown
- * database" error text to recover the {@link DatabaseTableId}
- * (see `Database`'s unattached-table detection). The leading
- * `_` also marks it internal, matching the `_alpine_*` table
- * convention.
+ * Prefix for the SQLite schema name of a table's `ATTACH`-ed per-db file.
+ * Deliberately verbose and unique so it can be matched back out of SQLite's "no
+ * such table" / "unknown database" error text to recover the {@link
+ * DatabaseTableId} (see `Database`'s unattached-table detection). The leading `_`
+ * also marks it internal, matching the `_alpine_*` table convention.
  */
 export const databaseTableSchemaNamePrefix = "_alpine_schema_";
 
 /**
- * SQLite schema name for a table's `ATTACH`-ed per-db file:
- * {@link databaseTableSchemaNamePrefix} followed by the table
- * id. Both {@link sql.tableRef} and {@link Database.attach}
- * use this so the attach name and every reference to it stay
- * in sync.
+ * SQLite schema name for a table's `ATTACH`-ed per-db file: {@link
+ * databaseTableSchemaNamePrefix} followed by the table id. Both {@link
+ * sql.tableRef} and {@link Database.attach} use this so the attach name and every
+ * reference to it stay in sync.
  */
 export function databaseTableSchemaName(tableId: DatabaseTableId): string {
     return `${databaseTableSchemaNamePrefix}${tableId}`;
 }
 
 /**
- * Create a schema-qualified SQL identifier,
- * `"_alpine_schema_{tableId}"."name"`, for referencing a table
- * (or index) in a {@link DatabaseTableId}'s `ATTACH`-ed per-db
- * file. Both parts are quoted and escaped via
- * {@link sql.identifier}.
+ * Create a schema-qualified SQL identifier, `"_alpine_schema_{tableId}"."name"`,
+ * for referencing a table (or index) in a {@link DatabaseTableId}'s `ATTACH`-ed
+ * per-db file. Both parts are quoted and escaped via {@link sql.identifier}.
  */
 sql.tableRef = (schema: DatabaseTableId, name: string): SqlQuery =>
     new SqlQuery(

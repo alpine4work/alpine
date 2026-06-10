@@ -9,8 +9,8 @@ import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_en
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
- * Runs a test server for Playwright tests using the test context's DynamoDB.
- * Also sets that server as the base URL for future tests.
+ * Runs a test server for Playwright tests using the test context's DynamoDB. Also
+ * sets that server as the base URL for future tests.
  */
 export function createTestServices(): {
     context: TestActualContext;
@@ -28,7 +28,7 @@ export function createTestServices(): {
                 await fs.mkdirs(testTmpdirPath);
             }
 
-            return fs.mkdtemp(joinPath(testTmpdirPath, "cyberworlds_test_"));
+            return await fs.mkdtemp(joinPath(testTmpdirPath, "cyberworlds_test_"));
         },
     });
 

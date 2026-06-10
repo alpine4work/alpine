@@ -41,8 +41,7 @@ export type MessageListOptimisticItem = {
     /**
      * What is the index of this message relative to other optimistic messages? For
      * example, if this is the second optimistic message and we have 10 loaded
-     * messages, this will be 1 because it is index 1 in the optimistic messages
-     * array.
+     * messages, this will be 1 because it is index 1 in the optimistic messages array.
      */
     readonly optimisticMessageIndex: number;
 };
@@ -54,85 +53,84 @@ export type MessageListTypingIndicatorsItem = {
 };
 
 /**
- * Immutable state for keeping track of a list of messages. The message list
- * may be partially loaded at any time with gaps between messages.
+ * Immutable state for keeping track of a list of messages. The message list may be
+ * partially loaded at any time with gaps between messages.
  */
 export class MessageList<Message extends MessageModel> {
     /**
      * The number of messages in the list excluding optimistic messages.
      *
-     * This corresponds to the `messageCount` property we receive when loading
-     * a message list. Or that's on the messaging room model (e.g. `PostModel`'s
+     * This corresponds to the `messageCount` property we receive when loading a
+     * message list. Or that's on the messaging room model (e.g. `PostModel`'s
      * `commentCount` property).
      *
-     * When getting the message count from `MessageList` we required you to make
-     * an explicit choice between "including optimistic messages" or "excluding
-     * optimistic messages" to avoid bugs. For example, in the UI when rendering a
-     * message count you may want to include optimistic messages but when running a
-     * realtime event backfill you may want to exclude optimistic messages since
-     * the server might not know about optimistic messages yet.
+     * When getting the message count from `MessageList` we required you to make an
+     * explicit choice between "including optimistic messages" or "excluding optimistic
+     * messages" to avoid bugs. For example, in the UI when rendering a message count
+     * you may want to include optimistic messages but when running a realtime event
+     * backfill you may want to exclude optimistic messages since the server might not
+     * know about optimistic messages yet.
      */
     private readonly _messageCountExcludingOptimisticMessages: number;
 
     /**
      * The loaded messages in our list.
      *
-     * Messages are a dense list with no gaps. If you have a message at index 8
-     * then you know there's a message at index 7, 6, 5, etc. If you have a
-     * `messageCount` of 100 then you know the first message's index is 0 and the
-     * last message's index is 99. This allows you to paginate to arbitrary points
-     * within the message list with ease.
+     * Messages are a dense list with no gaps. If you have a message at index 8 then
+     * you know there's a message at index 7, 6, 5, etc. If you have a `messageCount`
+     * of 100 then you know the first message's index is 0 and the last message's index
+     * is 99. This allows you to paginate to arbitrary points within the message list
+     * with ease.
      *
-     * However, the _loaded_ messages on the client are sparse! We don't always
-     * have the full message list loaded in memory. In a chat with 1000 messages we
-     * may only have the last 20 messages loaded. If one of those 20 messages is a
-     * reply to message with index 532 then this property will have the last 20
-     * messages (indexes 979-999) and index 532 loaded (so we can render the
-     * content of message 532).
+     * However, the _loaded_ messages on the client are sparse! We don't always have
+     * the full message list loaded in memory. In a chat with 1000 messages we may only
+     * have the last 20 messages loaded. If one of those 20 messages is a reply to
+     * message with index 532 then this property will have the last 20 messages
+     * (indexes 979-999) and index 532 loaded (so we can render the content of message
+     * 532).
      *
-     * If the user clicks on that reply then we'll load the messages around index
-     * 532 and jump the user to that position. At that point this property may have
-     * the original messages (indexes 979-999) in addition to 20 new messages
-     * around index 532 (indexes 522-542).
+     * If the user clicks on that reply then we'll load the messages around index 532
+     * and jump the user to that position. At that point this property may have the
+     * original messages (indexes 979-999) in addition to 20 new messages around index
+     * 532 (indexes 522-542).
      *
-     * This is a binary tree so we have O(log(n)) time complexity for
-     * immutable insertion/updates.
+     * This is a binary tree so we have O(log(n)) time complexity for immutable
+     * insertion/updates.
      */
     private readonly _messages: Tree<number, Message>;
 
     /**
      * Tracks ranges of unloaded messages in the list.
      *
-     * Allows us to efficiently ask "what's the first unloaded message after index
-     * N" without doing an O(n) scan through the loaded messages data.
+     * Allows us to efficiently ask "what's the first unloaded message after index N"
+     * without doing an O(n) scan through the loaded messages data.
      */
-    // TODO: Document this format. I'll be honest, it's been a while since I wrote
-    // this code and I forget the exact format. This file could also use tests too.
-    // It's something like a range of loaded (or unloaded) messages is represented
-    // by a pair of `Lower`/`Upper` values. One at the start of the loaded (or
-    // unloaded) message range and one at the end.
+    // TODO: Document this format. I'll be honest, it's been a while since I wrote this
+    // code and I forget the exact format. This file could also use tests too. It's
+    // something like a range of loaded (or unloaded) messages is represented by a pair
+    // of `Lower`/`Upper` values. One at the start of the loaded (or unloaded) message
+    // range and one at the end.
     private readonly _unloadedMessages: Tree<number, "Upper" | "Lower">;
 
     /**
-     * Optimistic messages are messages that haven't been created on the server yet
-     * but we're rendering as a part of the message list on the client so the UI
-     * for sending messages feels instant.
+     * Optimistic messages are messages that haven't been created on the server yet but
+     * we're rendering as a part of the message list on the client so the UI for
+     * sending messages feels instant.
      *
      * These messages are rendered at the end of the message list and haven't been
-     * given `index`s yet. Since only the server can decide the final `index` for a
-     * new message.
+     * given `index`s yet. Since only the server can decide the final `index` for a new
+     * message.
      *
-     * If the user sends a message and before it's been saved on the server, the
-     * client receives a `NewMessage` event from another user then that message
-     * will be rendered _above_ our optimistic message since once the server
-     * finishes saving our new message it'll end up with a later `index` anyway.
+     * If the user sends a message and before it's been saved on the server, the client
+     * receives a `NewMessage` event from another user then that message will be
+     * rendered _above_ our optimistic message since once the server finishes saving
+     * our new message it'll end up with a later `index` anyway.
      */
     private readonly _optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
 
     /**
-     * Tracks state for typing indicators. When a user starts typing an entry is
-     * added to this map. When they stop typing the same entry is removed from
-     * this map.
+     * Tracks state for typing indicators. When a user starts typing an entry is added
+     * to this map. When they stop typing the same entry is removed from this map.
      */
     private readonly _typingStateByConnectionId: ImmutableMap<
         WebSocketConnectionId,
@@ -140,39 +138,37 @@ export class MessageList<Message extends MessageModel> {
     >;
 
     /**
-     * This is a mutable piece of state inside our otherwise immutable data type.
-     * A functional programming sin! However, we do it since it's practical.
+     * This is a mutable piece of state inside our otherwise immutable data type. A
+     * functional programming sin! However, we do it since it's practical.
      *
      * The `ServerSynchronizationCheckpoint` tells us how up-to-date our client's
-     * realtime data is based on what's on the server. When we backfill realtime
-     * events we send our checkpoint to the server and the server will return all
-     * realtime events that happened between the checkpoint and now. So for example
-     * if our WebSocket disconnects for two minutes because the user lost internet,
-     * when the WebSocket reconnects we'll send the last checkpoint we had from the
-     * server (which is the time two minutes ago) and receive all realtime events
-     * we missed while we were disconnected.
+     * realtime data is based on what's on the server. When we backfill realtime events
+     * we send our checkpoint to the server and the server will return all realtime
+     * events that happened between the checkpoint and now. So for example if our
+     * WebSocket disconnects for two minutes because the user lost internet, when the
+     * WebSocket reconnects we'll send the last checkpoint we had from the server
+     * (which is the time two minutes ago) and receive all realtime events we missed
+     * while we were disconnected.
      *
      * The `ServerSynchronizationCheckpoint` is set:
      *
      * 1. When we initially load data.
      *
      * 2. Every `Ping`/`Pong` message from our WebSocket server. Since while we're
-     *    connected to the WebSocket server we know we're seeing all realtime
-     *    events. As soon as the WebSocket disconnects (and we stop receiving
-     *    `Pong` messages) our client data may be falling out-of-date with the
-     *    server since there's realtime events we're not seeing.
+     *    connected to the WebSocket server we know we're seeing all realtime events.
+     *    As soon as the WebSocket disconnects (and we stop receiving `Pong` messages)
+     *    our client data may be falling out-of-date with the server since there's
+     *    realtime events we're not seeing.
      *
-     * We ping the WebSocket server every minute. If this were an immutable
-     * property on the list we'd end up re-rendering the entire view
-     * depending on this list once per minute. Which feels inefficient. Especially
-     * if the user is actively interacting with the view and we block some other
-     * update.
+     * We ping the WebSocket server every minute. If this were an immutable property on
+     * the list we'd end up re-rendering the entire view depending on this list once
+     * per minute. Which feels inefficient. Especially if the user is actively
+     * interacting with the view and we block some other update.
      *
-     * Instead, we update a mutable property on the data type. This makes the data
-     * type "impure" in a functional programming sense but it's fine, we're not
-     * caching and reusing these objects. Making this a mutable property may be a
-     * premature optimization but mutability just doesn't seem like a big
-     * deal here.
+     * Instead, we update a mutable property on the data type. This makes the data type
+     * "impure" in a functional programming sense but it's fine, we're not caching and
+     * reusing these objects. Making this a mutable property may be a premature
+     * optimization but mutability just doesn't seem like a big deal here.
      */
     private _mutableCheckpoint: ServerSynchronizationCheckpoint | null;
 
@@ -197,11 +193,11 @@ export class MessageList<Message extends MessageModel> {
         // realtime connection.
         //
         // We allow the `MessageList` to have a null checkpoint to support specifically
-        // `<PostListView>` with collapsed post comments. When a post's comments are
-        // opened we start loading the initial comments, if the initial comments don't
-        // return after ~100ms then we open the post's comments anyway to show loading
-        // shimmers. So we need a `MessageList` in this case for when we haven't
-        // finished loading post comments yet.
+        // `<PostListView>` with collapsed post comments. When a post's comments are opened
+        // we start loading the initial comments, if the initial comments don't return
+        // after ~100ms then we open the post's comments anyway to show loading shimmers.
+        // So we need a `MessageList` in this case for when we haven't finished loading
+        // post comments yet.
         if (mutableCheckpoint === null) {
             assert(
                 messages.length === 0,
@@ -273,8 +269,8 @@ export class MessageList<Message extends MessageModel> {
         messageCount,
         typingStateByConnectionId,
     }: {
-        // Will throw if this is null and you try to call `loadMessages()`!
-        // `checkpoint` can only be null while all messages are unloaded.
+        // Will throw if this is null and you try to call `loadMessages()`! `checkpoint`
+        // can only be null while all messages are unloaded.
         checkpoint: ServerSynchronizationCheckpoint | null;
         messageCount: number;
         typingStateByConnectionId?: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
@@ -292,8 +288,8 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Get the number of items in the list. Will mostly be messages but there may
-     * be some visual only items.
+     * Get the number of items in the list. Will mostly be messages but there may be
+     * some visual only items.
      */
     public getItemCount(): number {
         return (
@@ -334,8 +330,8 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Transform a range against our list's items to a range just against the
-     * list's messages. Excludes any UI only items.
+     * Transform a range against our list's items to a range just against the list's
+     * messages. Excludes any UI only items.
      */
     public getMessagesRange(range: {startIndex: number; endIndex: number} | null): {
         startIndex: number;
@@ -360,8 +356,8 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Get the message at the provided index. If we haven't loaded the message
-     * we'll return `type: "Unloaded"`. Throws if the index is out of bounds.
+     * Get the message at the provided index. If we haven't loaded the message we'll
+     * return `type: "Unloaded"`. Throws if the index is out of bounds.
      */
     public getItem(index: number): MessageListItem<Message> {
         if (!Number.isSafeInteger(index))
@@ -413,19 +409,18 @@ export class MessageList<Message extends MessageModel> {
 
     /**
      * Get the first loaded message after the provided index. If there is no loaded
-     * message after the provided index we return null. Throws an error if the
-     * index is out of bounds.
+     * message after the provided index we return null. Throws an error if the index is
+     * out of bounds.
      *
      * - If the index is loaded and the next index is loaded then return the next
      *   message.
-     * - If the index is loaded and the next index is unloaded then return the
-     *   first loaded message after the unloaded segment (or null if there is none).
+     * - If the index is loaded and the next index is unloaded then return the first
+     *   loaded message after the unloaded segment (or null if there is none).
      * - If the index is unloaded then return the first loaded message after the
      *   unloaded segment (or null if there is none).
      *
-     * Excludes optimistic messages. If `index` is for an optimistic message you
-     * will get `null` since there are no loaded messages after an optimistic
-     * message.
+     * Excludes optimistic messages. If `index` is for an optimistic message you will
+     * get `null` since there are no loaded messages after an optimistic message.
      */
     public getFirstLoadedMessageAfterIfExists(index: number): Message | null {
         const iterator = this._messages.gt(index);
@@ -436,15 +431,15 @@ export class MessageList<Message extends MessageModel> {
 
     /**
      * Get the last loaded message before the provided index. If there is no loaded
-     * message before the provided index we return null. Throws an error if the
-     * index is out of bounds.
+     * message before the provided index we return null. Throws an error if the index
+     * is out of bounds.
      *
      * - If the index is loaded and the previous index is loaded then return the
      *   previous message.
-     * - If the index is loaded and the previous index is unloaded then return the
-     *   last loaded message before the unloaded segment (or null if there is none).
-     * - If the index is unloaded then return the last loaded message before
-     *   the unloaded segment (or null if there is none).
+     * - If the index is loaded and the previous index is unloaded then return the last
+     *   loaded message before the unloaded segment (or null if there is none).
+     * - If the index is unloaded then return the last loaded message before the
+     *   unloaded segment (or null if there is none).
      *
      * Excludes optimistic messages.
      */
@@ -456,17 +451,16 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Get the first unloaded index after the provided index. If there is no
-     * unloaded message after the provided index we return null.
+     * Get the first unloaded index after the provided index. If there is no unloaded
+     * message after the provided index we return null.
      *
-     * - If the index is unloaded and the next index is unloaded then return the
-     *   next index.
-     * - If the index is unloaded and the next index is loaded then return the
-     *   first unloaded message after the loaded segment (or null if we have loaded
-     *   messages until the end of the list).
-     * - If the index is loaded then return the first unloaded index after the
-     *   loaded segment (or null if we have loaded messages until the end of the
-     *   list).
+     * - If the index is unloaded and the next index is unloaded then return the next
+     *   index.
+     * - If the index is unloaded and the next index is loaded then return the first
+     *   unloaded message after the loaded segment (or null if we have loaded messages
+     *   until the end of the list).
+     * - If the index is loaded then return the first unloaded index after the loaded
+     *   segment (or null if we have loaded messages until the end of the list).
      */
     public getFirstUnloadedMessageIndexAfterIfExists(index: number): number | null {
         const iterator = this._unloadedMessages.ge(index);
@@ -499,17 +493,16 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Get the last unloaded index before the provided index. If there is no
-     * unloaded index before the provided index we return null.
+     * Get the last unloaded index before the provided index. If there is no unloaded
+     * index before the provided index we return null.
      *
-     * - If the index is unloaded and the previous index is unloaded then return
-     *   the previous index.
-     * - If the index is unloaded and the previous index is loaded then return the
-     *   last unloaded index before the loaded segment (or null if all messages to
-     *   the beginning of the list are loaded).
-     * - If the index is loaded then return the last unloaded index before
-     *   the loaded segment (or null if all messages to the beginning of the list
-     *   are loaded).
+     * - If the index is unloaded and the previous index is unloaded then return the
+     *   previous index.
+     * - If the index is unloaded and the previous index is loaded then return the last
+     *   unloaded index before the loaded segment (or null if all messages to the
+     *   beginning of the list are loaded).
+     * - If the index is loaded then return the last unloaded index before the loaded
+     *   segment (or null if all messages to the beginning of the list are loaded).
      */
     public getLastUnloadedMessageIndexBeforeIfExists(index: number): number | null {
         const iterator = this._unloadedMessages.lt(index);
@@ -535,8 +528,8 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Iterate loaded messages in the list. Optionally starting with the
-     * provided index.
+     * Iterate loaded messages in the list. Optionally starting with the provided
+     * index.
      */
     public *iterateMessages(
         startIndex: number = 0,
@@ -601,9 +594,9 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Sets messages in the list at their index. If the message index is greater
-     * than our message count then we will extend the message count. If the message
-     * with the same index already exists then it will be replaced.
+     * Sets messages in the list at their index. If the message index is greater than
+     * our message count then we will extend the message count. If the message with the
+     * same index already exists then it will be replaced.
      */
     private _setMessages(newMessages: ReadonlyArray<Message>): MessageList<Message> {
         if (newMessages.length === 0) return this;
@@ -619,8 +612,8 @@ export class MessageList<Message extends MessageModel> {
             const iterator = messages.find(message.index);
 
             if (iterator.value && iterator.value.version >= message.version) {
-                // Only override the existing message if it has a later version. Otherwise
-                // keep the current message in the map.
+                // Only override the existing message if it has a later version. Otherwise keep the
+                // current message in the map.
                 continue;
             } else {
                 messages = iterator.node
@@ -630,8 +623,8 @@ export class MessageList<Message extends MessageModel> {
 
             messageCount = Math.max(messageCount, message.index + 1);
 
-            // If we have an equivalent optimistic message, remove it from the list now
-            // that we have the real loaded message in the correct position.
+            // If we have an equivalent optimistic message, remove it from the list now that we
+            // have the real loaded message in the correct position.
             const optimisticMessage = optimisticMessages.find(
                 optimisticMessage =>
                     optimisticMessage.author.id === message.author.id &&
@@ -685,10 +678,10 @@ export class MessageList<Message extends MessageModel> {
             }
         }
 
-        // Update `unloadedMessages` based on our newly loaded message ranges. We want
-        // a `Lower` entry before each loaded message segment and an `Upper` entry
-        // after each loaded message segment. The tree must have alternating
-        // `Lower`/`Upper` entries to be considered well formed.
+        // Update `unloadedMessages` based on our newly loaded message ranges. We want a
+        // `Lower` entry before each loaded message segment and an `Upper` entry after each
+        // loaded message segment. The tree must have alternating `Lower`/`Upper` entries
+        // to be considered well formed.
         for (const loadedMessageRange of loadedMessageRanges) {
             // Clear out any boundaries within the range. Any unloaded messages within this
             // range are now loaded!
@@ -810,10 +803,9 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Backfills missing messages and message changes into the list. We call this
-     * after a `BackfillMessagesResponse` realtime event. The
-     * `BackfillMessagesRequest` realtime event should use
-     * `getMessageCountExcludingOptimisticMessages()` and
+     * Backfills missing messages and message changes into the list. We call this after
+     * a `BackfillMessagesResponse` realtime event. The `BackfillMessagesRequest`
+     * realtime event should use `getMessageCountExcludingOptimisticMessages()` and
      * `getLastMessageChangeTime()` from this list.
      */
     public backfillMessages({
@@ -842,20 +834,20 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Adds a message in the list at its index. If the message index is greater
-     * than our message count then we will extend the message count. If the message
-     * with the same index already exists then it will be replaced.
+     * Adds a message in the list at its index. If the message index is greater than
+     * our message count then we will extend the message count. If the message with the
+     * same index already exists then it will be replaced.
      */
     public setMessage(message: Message): MessageList<Message> {
         return this._setMessages([message]);
     }
 
     /**
-     * Updates a message with the provided index if the message exists and is
-     * loaded. Does nothing if the message doesn't exist or isn't loaded.
+     * Updates a message with the provided index if the message exists and is loaded.
+     * Does nothing if the message doesn't exist or isn't loaded.
      *
-     * Won't actually update the message unless the new message's version is
-     * greater than the old message's version.
+     * Won't actually update the message unless the new message's version is greater
+     * than the old message's version.
      */
     public updateMessage(
         messageIndex: number,
@@ -873,8 +865,7 @@ export class MessageList<Message extends MessageModel> {
     /**
      * Adds an optimistic message to the message list.
      *
-     * The optimistic message will be cleared when a new message is added
-     * that's equal.
+     * The optimistic message will be cleared when a new message is added that's equal.
      */
     public addOptimisticMessage(message: OptimisticMessageModel): MessageList<Message> {
         return new MessageList({
@@ -888,8 +879,8 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Updates the optimistic message with the specified id. If no optimistic
-     * message with the provided id exists then this function does nothing.
+     * Updates the optimistic message with the specified id. If no optimistic message
+     * with the provided id exists then this function does nothing.
      */
     public updateOptimisticMessage(
         optimisticId: Id,
@@ -912,17 +903,16 @@ export class MessageList<Message extends MessageModel> {
     /**
      * Has the checkpoint been initialized?
      *
-     * Whether or not the checkpoint has been initialized is an immutable fact. So
-     * if you depend on this your effect/component will re-run when the checkpoint
-     * is initialized.
+     * Whether or not the checkpoint has been initialized is an immutable fact. So if
+     * you depend on this your effect/component will re-run when the checkpoint is
+     * initialized.
      */
     public isCheckpointInitialized(): boolean {
         return this._mutableCheckpoint !== null;
     }
 
     /**
-     * Initialize the `MessageList`'s checkpoint if it hasn't already
-     * been initialized.
+     * Initialize the `MessageList`'s checkpoint if it hasn't already been initialized.
      *
      * This is an immutable update to trigger a re-render. So any effects that were
      * waiting on the checkpoint can now run.
@@ -958,8 +948,8 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Set the mutable checkpoint property on this query object. Noops if the
-     * provided `checkpoint` is older than the current checkpoint.
+     * Set the mutable checkpoint property on this query object. Noops if the provided
+     * `checkpoint` is older than the current checkpoint.
      *
      * Throws if `isCheckpointInitialized()` is false.
      */
@@ -976,16 +966,16 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
-     * Set the entire typing state by connection map to the provided value.
-     * Used when backfilling when we get new states.
+     * Set the entire typing state by connection map to the provided value. Used when
+     * backfilling when we get new states.
      */
     private _setTypingStateByConnectionId(
         typingStateByConnectionId: Iterable<[WebSocketConnectionId, MessagingTypingState]>,
     ) {
         const newTypingStateByConnectionId = ImmutableMap.from(typingStateByConnectionId);
 
-        // If there are no typing states before and after this update we don't need a
-        // new message list.
+        // If there are no typing states before and after this update we don't need a new
+        // message list.
         if (this._typingStateByConnectionId.size === 0 && newTypingStateByConnectionId.size === 0)
             return this;
 
@@ -1031,10 +1021,9 @@ export class MessageList<Message extends MessageModel> {
         const iterator = this._messages.find(event.index);
         if (!iterator.value) return this;
 
-        // TODO(calebmer, #ai-realtime-hacks): What if we receive a
-        // `PutMessageStreamPart` event before a `NewMessage` event? I don't think
-        // there's anything in `MessagingRealtimeConnection` that stops this from
-        // happening right now.
+        // TODO(calebmer, #ai-realtime-hacks): What if we receive a `PutMessageStreamPart`
+        // event before a `NewMessage` event? I don't think there's anything in
+        // `MessagingRealtimeConnection` that stops this from happening right now.
         const message = iterator.value;
         if (message.payload.type !== "Content") return this;
         if (!message.stream) return this;
@@ -1055,16 +1044,14 @@ export class MessageList<Message extends MessageModel> {
             // For when we receive parts out of order. Put a placeholder part to make sure
             // we're inserting the new part at the correct index.
             //
-            // TODO(calebmer, #ai-realtime-hacks): This is a bad UX. A better UX would be
-            // to have a list of "pending parts" and wait to add those parts until we
-            // receive all preceding parts. But I'm moving fast today so not
-            // implementing this.
+            // TODO(calebmer, #ai-realtime-hacks): This is a bad UX. A better UX would be to
+            // have a list of "pending parts" and wait to add those parts until we receive all
+            // preceding parts. But I'm moving fast today so not implementing this.
             //
-            // TODO(calebmer, #ai-realtime-hacks): Relatedly, we continue applying part
-            // updates even after the stream is completed. That's also not a great UX if
-            // we're showing a loading spinner while the stream hasn't completed. Ideally
-            // the completion event would go into a "pending" list as well if we're waiting
-            // on a part update.
+            // TODO(calebmer, #ai-realtime-hacks): Relatedly, we continue applying part updates
+            // even after the stream is completed. That's also not a great UX if we're showing
+            // a loading spinner while the stream hasn't completed. Ideally the completion
+            // event would go into a "pending" list as well if we're waiting on a part update.
             for (let i = newParts.length; i < event.partIndex; i++) {
                 newParts.push({
                     version: -1,
@@ -1082,8 +1069,8 @@ export class MessageList<Message extends MessageModel> {
             parts: newParts,
         };
 
-        // Merge in the new references for the stream part. All stream parts in a
-        // single message share the same references object.
+        // Merge in the new references for the stream part. All stream parts in a single
+        // message share the same references object.
         const newReferences = mergeContentReferences(
             message.payload.content.references,
             event.references,

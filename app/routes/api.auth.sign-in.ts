@@ -2,7 +2,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {attemptOneTimePasswordSignInAndGetLastOpenedSpace} from "~/server/spaces/create/attempt_one_time_password_sign_in_and_get_last_opened_space.js";
 import {getRequestIpAddress} from "~/server/tracer/trace_server_response.js";
 import {
-    AuthSignInOrSignUpInputSchema,
+    AuthSignInInputSchema,
     AuthSignInOrSignUpOutputSchema,
 } from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -14,7 +14,7 @@ export async function action({request, context, span}: LoaderArgs) {
         if (request.method !== "POST")
             throw new InvalidArgumentError(quote`Invalid HTTP method: ${request.method}`);
 
-        const input = AuthSignInOrSignUpInputSchema.deserialize(await request.json());
+        const input = AuthSignInInputSchema.deserialize(await request.json());
 
         const {sessionId, sessionAccountId, openSpaceId} =
             await attemptOneTimePasswordSignInAndGetLastOpenedSpace(
@@ -38,7 +38,7 @@ export async function action({request, context, span}: LoaderArgs) {
             JSON.stringify(
                 AuthSignInOrSignUpOutputSchema.serialize({
                     ok: true,
-                    openSpaceId,
+                    open: openSpaceId ? {type: "ActiveSpace" as const, spaceId: openSpaceId} : null,
                 }),
             ),
             {

@@ -74,25 +74,23 @@ function parseRoute(url: URL): [string, FileProcessorServiceRoute] {
 }
 
 // NOTE(calebmer, 2024-11-17): When I initially wrote `FileProcessorService` it
-// handled uploads as well. There was an `/upload` route we'd stream data into
-// and then the stream would be split to 1) a Cloudflare `PutObject` action, 2)
-// file processing. However, there were issues deploying this to production.
-// And I also had concerns around reliability (what happens if the server
-// crashes?). So uploads were moved entirely to our Cloudflare `EdgeService`
-// and processing was moved to be performed asynchronously in response to an
-// SQS message.
+// handled uploads as well. There was an `/upload` route we'd stream data into and
+// then the stream would be split to 1) a Cloudflare `PutObject` action, 2) file
+// processing. However, there were issues deploying this to production. And I also
+// had concerns around reliability (what happens if the server crashes?). So
+// uploads were moved entirely to our Cloudflare `EdgeService` and processing was
+// moved to be performed asynchronously in response to an SQS message.
 //
-// Since in our original architecture this service performed processing through
-// an HTTP server it was also easy to add a `/resize` route. Now that we've
-// removed the `/upload` route we still need the `/resize` route. If we were
-// designing `FileProcessorService` from scratch we might not have given it an
-// HTTP server but since `FileProcessorService` inherits the `/resize` route
-// from the old upload service here we are.
+// Since in our original architecture this service performed processing through an
+// HTTP server it was also easy to add a `/resize` route. Now that we've removed
+// the `/upload` route we still need the `/resize` route. If we were designing
+// `FileProcessorService` from scratch we might not have given it an HTTP server
+// but since `FileProcessorService` inherits the `/resize` route from the old
+// upload service here we are.
 //
 // Ideally the `/resize` route could be implemented as a Rust edge function.
-// Cloudflare supports Rust workers. Maybe someday we create a Rust program
-// that resizes images and get rid of the HTTP server in
-// `FileProcessorService`.
+// Cloudflare supports Rust workers. Maybe someday we create a Rust program that
+// resizes images and get rid of the HTTP server in `FileProcessorService`.
 export function createFileProcessorServiceServer(
     processContext: FileProcessorProcessContext,
     {
@@ -132,7 +130,7 @@ export function createFileProcessorServiceServer(
                 });
             }
             case "InternalMiniflareGetObject": {
-                return handleInternalMiniflareGetObject(processContext, {
+                return await handleInternalMiniflareGetObject(processContext, {
                     url,
                     request,
                     bucketName: route.bucketName,
@@ -161,7 +159,7 @@ export function createFileProcessorServiceServer(
         // Add identification information for the actor to all child spans.
         span.addPropagatedData(actorContextModule.getPropagatedData());
 
-        return baseActionContext.with({actor: actorContextModule}, context => {
+        return await baseActionContext.with({actor: actorContextModule}, context => {
             switch (route.type) {
                 case "Resize": {
                     return resizeFile(context, span, {

@@ -79,25 +79,23 @@ export const InboxEntryKeySchema = Schema.union({
 export function getInboxEntryKeyPath(
     spaceId: SpaceId,
     key: InboxEntryKey,
+    // Keeping this parameter for now. We may use it in the future.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     routeLayout: RouteLayout,
 ): string {
     switch (key.type) {
         case "Chat":
-            return `/s/${spaceId}/chat/${key.chatId}?inbox=show`;
+            return `/chat/${key.chatId}?inbox=show`;
         case "PostComments":
-            return `/s/${spaceId}/posts/${key.postId}?inbox=show`;
+            return `/post/${key.postId}?inbox=show`;
         case "ChannelPosts":
-            return `/s/${spaceId}/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}?inbox=show`;
+            return `/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}?inbox=show`;
         case "DocumentCommentThread":
-            return `/s/${spaceId}/documents/${key.documentId}/comments/${key.commentThreadId}?inbox=show`;
+            return `/doc/${key.documentId}/thread/${key.commentThreadId}?inbox=show`;
         case "DocumentNewCommentThreads":
-            return `/s/${spaceId}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`;
+            return `/notifications/document-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`;
         case "Task": {
-            if (routeLayout === "wide") {
-                return `/s/${spaceId}/tasks/${key.taskId}?inbox=show&comments=show`;
-            } else {
-                return `/s/${spaceId}/tasks/${key.taskId}/comments?inbox=show`;
-            }
+            return `/task/${key.taskId}?inbox=show`;
         }
         default:
             throw exhaustive(key);
@@ -112,8 +110,9 @@ export function getInboxEntryPath(
 }
 
 /**
- * Gets the path for an inbox entry and base64 encodes it to hide the fact that it's a URL.
- * Intended for use in search params, such as the `selected` search param (e.g. https://alpine.inc/s/1234/inbox?selected=<encoded entry path>).
+ * Gets the path for an inbox entry and base64 encodes it to hide the fact that
+ * it's a URL. Intended for use in search params, such as the `selected` search
+ * param (e.g. https://alpine.inc/inbox/1234?selected=<encoded entry path>).
  */
 export function getEncodedInboxEntryPath(
     model: InboxEntryModelInterface,
@@ -121,7 +120,7 @@ export function getEncodedInboxEntryPath(
 ): string {
     const entryPath = getInboxEntryPath(model, routeLayout);
     const textEncoder = new TextEncoder();
-    return encodeBase64(textEncoder.encode(entryPath.replace(/^(\/s\/[^/]+\/)/, "")), "Rfc4648Url");
+    return encodeBase64(textEncoder.encode(entryPath), "Rfc4648Url");
 }
 
 interface InboxEntryModelInterface {
@@ -136,12 +135,32 @@ export class InboxChatEntryModel
             spaceId: Schema.id<SpaceId>(),
             accountId: Schema.id<AccountId>(),
             chatId: Schema.id<ChatId>(),
-            chatAccountCount: Schema.integer,
+            definition: Schema.union({
+                Direct: Schema.object({
+                    type: Schema.value("Direct"),
+                    accountCount: Schema.integer,
+                }),
+                Room: Schema.booleanUnion(
+                    "isPrivate",
+                    Schema.object({
+                        type: Schema.value("Room"),
+                        isPrivate: Schema.value(true),
+                    }),
+                    Schema.object({
+                        type: Schema.value("Room"),
+                        isPrivate: Schema.value(false),
+                        name: Schema.string,
+                    }),
+                ),
+            })
+                .wrapOriginalPropertyInUnionVariant("Direct", "accountCount", {})
+                .originalPropertyKey("chatAccountCount"),
             loudNotificationCount: Schema.integer.min(0),
             isArchived: Schema.boolean,
             latestMessage: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
+                index: Schema.integer.min(0),
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean.default(false),
                 clerical: MessageContentPayloadClericalSchema.optional(),
@@ -183,6 +202,7 @@ export class InboxPostCommentsEntryModel
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
+                index: Schema.integer.min(0),
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean.default(false),
             }).nullable(),
@@ -220,6 +240,10 @@ export class InboxChannelPostsEntryModel
             postAuthorCount: Schema.integer.min(1),
             postIds: Schema.set(Schema.id<PostId>()).minSize(1),
             latestPost: Schema.object({
+                // TODO (rmtobin, #inbox-entry-updates): This is optional to support backwards
+                // compatibility during the initial deploy of this code. Once it has been deployed,
+                // it can be made required.
+                id: Schema.id<PostId>().optional(),
                 author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentTextSnippet: Schema.string,
@@ -267,6 +291,7 @@ export class InboxDocumentCommentThreadEntryModel
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
+                index: Schema.integer.min(0),
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean.default(false),
             }),
@@ -313,6 +338,10 @@ export class InboxDocumentNewCommentThreadsEntryModel
             commentThreadAuthorCount: Schema.integer.min(1),
             commentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>()).minSize(1),
             firstCommentThread: Schema.object({
+                // TODO (rmtobin, #inbox-entry-updates): This is optional to support backwards
+                // compatibility during the initial deploy of this code. Once it has been deployed,
+                // it can be made required.
+                id: Schema.id<DocumentCommentThreadId>().optional(),
                 author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentTextSnippet: Schema.string,
@@ -359,6 +388,7 @@ export class InboxTaskEntryModel
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
+                index: Schema.integer.min(0),
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean,
             }),

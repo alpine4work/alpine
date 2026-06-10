@@ -13,38 +13,45 @@ import {CfnDeliveryStream, DeliveryStream, IDeliveryStream} from "aws-cdk-lib/aw
 import {Bucket} from "aws-cdk-lib/aws-s3";
 import {CfnAssociation, ParameterTier, StringParameter} from "aws-cdk-lib/aws-ssm";
 import {Construct, IConstruct} from "constructs";
+import {generateTracerEventGlueSchema} from "~/admin/analytics/generate_tracer_event_glue_schema.js";
 import {cloudwatchAgentConfig} from "~/admin/aws/internal/cloudwatch_agent_config.js";
-import {generateTracerEventGlueSchema} from "~/admin/glue/generate_tracer_event_glue_schema.js";
 
 /**
- * Construct to set up shared observability resources for our infrastructure and services.
+ * Construct to set up shared observability resources for our infrastructure and
+ * services.
  *
- * - Creates a shared S3 bucket for storing logs and tracer events. Logs should be stored under
- * the `logsBucketPrefix` and tracer events should be stored under the `tracerEventBucketPrefix`
- * to ensure the correct lifecycle rules are applied.
+ * - Creates a shared S3 bucket for storing logs and tracer events. Logs should be
+ *   stored under the `logsBucketPrefix` and tracer events should be stored under
+ *   the `tracerEventBucketPrefix` to ensure the correct lifecycle rules are
+ *   applied.
  *
- * - Sets up a Kinesis Data Stream as the entry point for tracer events. Services write to this
- * stream which, for now, provides the data to single Firehose delivery stream:
+ * - Sets up a Kinesis Data Stream as the entry point for tracer events. Services
+ *   write to this stream which, for now, provides the data to single Firehose
+ *   delivery stream:
  * - S3 delivery stream - Converts records to Parquet format for efficient querying
  *
- * Eventually we will add support for a Honeycomb delivery stream (see #local-kinesis TODOs).
+ * Eventually we will add support for a Honeycomb delivery stream (see
+ * #local-kinesis TODOs).
  *
- * - Sets up a Systems Manager association that will install, configure, and start the CloudWatch
- * Agent on any instance tagged with `CloudWatchAgent=true`. This is used to collect metrics and
- * logs from the instance and send them to CloudWatch.
+ * - Sets up a Systems Manager association that will install, configure, and start
+ *   the CloudWatch Agent on any instance tagged with `CloudWatchAgent=true`. This
+ *   is used to collect metrics and logs from the instance and send them to
+ *   CloudWatch.
  */
 export class AwsObservability extends Construct {
     private readonly _logsBucketPrefix = "logs/";
     private readonly _tracerEventBucketPrefix = "tracer/events";
     private readonly _tracerEventS3FirehoseStreamName = "tracer-events-s3";
     private readonly _tracerEventGlueDatabaseName = "tracer";
+    private readonly _analyticsDimensionGlueDatabaseName = "analytics";
+    private readonly _dynamoExportPrefix = "exports";
 
     private readonly _loggingBucket: Bucket;
     private readonly _tracerEventStream: KinesisDataStream;
 
-    // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for now
-    // in order to unblock CI. Without it, CloudFormation tries to delete the exported
-    // resource but stops since it is used in other stacks
+    // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for
+    // now in order to unblock CI. Without it, CloudFormation tries to delete the
+    // exported resource but stops since it is used in other stacks
     private readonly _tracerHoneycombFirehoseDeliveryStream: IDeliveryStream;
 
     constructor(parentConstruct: Construct) {
@@ -67,10 +74,10 @@ export class AwsObservability extends Construct {
         );
 
         // This sets up a Systems Manager association that runs the AWS-managed
-        // `AWSQuickSetupType-InstallAndManageCloudWatchAgent` document on instance startup.
-        // This document installs the CloudWatch Agent package, configures it using an SSM parameter,
-        // and starts it. Any instance tagged with `CloudWatchAgent=true` will be targeted by this
-        // association.
+        // `AWSQuickSetupType-InstallAndManageCloudWatchAgent` document on instance
+        // startup. This document installs the CloudWatch Agent package, configures it
+        // using an SSM parameter, and starts it. Any instance tagged with
+        // `CloudWatchAgent=true` will be targeted by this association.
         new CfnAssociation(this, "InstallAndManageCloudWatchAgent", {
             name: "AWSQuickSetupType-InstallAndManageCloudWatchAgent",
             targets: [
@@ -87,8 +94,9 @@ export class AwsObservability extends Construct {
             },
         });
 
-        // Create the Kinesis Data Stream as the entry point for tracer events. Services write
-        // records to this stream, and it fans out to multiple Firehose delivery streams.
+        // Create the Kinesis Data Stream as the entry point for tracer events. Services
+        // write records to this stream, and it fans out to multiple Firehose delivery
+        // streams.
         this._tracerEventStream = new KinesisDataStream(this, "TracerEventStream", {
             streamName: "tracer-events",
             streamMode: StreamMode.ON_DEMAND,
@@ -128,12 +136,12 @@ export class AwsObservability extends Construct {
                         // eslint-disable-next-line no-template-curly-in-string
                         "s3://cyberworlds-observability-logs/tracer/events/parquet/${partition_date}/",
                 },
-                // NOTE(ifitzsimmons): This is absolutely derived from Stack Overflow [1]
-                // [1]: https://stackoverflow.com/questions/71213512/how-to-add-serde-parameters-in-cdk
+                // NOTE(ifitzsimmons): This is absolutely derived from Stack Overflow [1] [1]:
+                // https://stackoverflow.com/questions/71213512/how-to-add-serde-parameters-in-cdk
                 storageDescriptor: {
                     columns: [
-                        // Added manually since it's not part of the tracer event data schema
-                        // in TracerEvent.getFlatDataForKinesis()
+                        // Added manually since it's not part of the tracer event data schema in
+                        // TracerEvent.getFlatDataForKinesis()
                         {name: "time", type: "string"},
                         {name: "end_time", type: "string"},
                         ...generateTracerEventGlueSchema(),
@@ -160,12 +168,11 @@ export class AwsObservability extends Construct {
         const s3FirehoseRole = new Role(this, "S3FirehoseRole", {
             assumedBy: new ServicePrincipal("firehose.amazonaws.com"),
             inlinePolicies: {
-                // NOTE(ifitzsimmons): We need to create this inline because
-                // CloudFormation will start deploying the firehose stream as soon
-                // as the IAM role is created (and potentially before the policies)
-                // are applied. However, in order to create a Firehose stream that
-                // consumes the Kinesis stream, it needs to be able to describe the
-                // stream.
+                // NOTE(ifitzsimmons): We need to create this inline because CloudFormation will
+                // start deploying the firehose stream as soon as the IAM role is created (and
+                // potentially before the policies) are applied. However, in order to create a
+                // Firehose stream that consumes the Kinesis stream, it needs to be able to
+                // describe the stream.
                 default: new PolicyDocument({
                     statements: [
                         new PolicyStatement({
@@ -203,10 +210,11 @@ export class AwsObservability extends Construct {
 
         // Firehose delivery stream for S3 with Parquet format conversion
         // TODO(ifitzsimmons): We should use the L2 DeliveryStream construct instead of
-        // CfnDeliveryStream. We need to update our CDK version and will likely need to
-        // use the AWS CDK Toolkit to manage deploys [1].
+        // CfnDeliveryStream. We need to update our CDK version and will likely need to use
+        // the AWS CDK Toolkit to manage deploys [1].
         //
-        // [1]: https://app.graphite.com/github/pr/cyberworlds/cyberworlds/1190/Add-infra-for-tracer-events-in-S3-and-start-sending-events-from-AWS-services#comment-PRRC_kwDOH2ktg86mAm3e
+        // [1]:
+        //     https://app.graphite.com/github/pr/cyberworlds/cyberworlds/1190/Add-infra-for-tracer-events-in-S3-and-start-sending-events-from-AWS-services#comment-PRRC_kwDOH2ktg86mAm3e
         new CfnDeliveryStream(this, "TracerS3FirehoseDeliveryStream", {
             deliveryStreamName: this._tracerEventS3FirehoseStreamName,
             deliveryStreamType: "KinesisStreamAsSource",
@@ -247,9 +255,9 @@ export class AwsObservability extends Construct {
             },
         });
 
-        // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for now
-        // in order to unblock CI. Without it, CloudFormation tries to delete the exported
-        // resource but stops since it is used in other stacks
+        // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for
+        // now in order to unblock CI. Without it, CloudFormation tries to delete the
+        // exported resource but stops since it is used in other stacks
         {
             const tracerFirehoseDeliveryStreamCfn = new CfnDeliveryStream(
                 this,
@@ -296,7 +304,8 @@ export class AwsObservability extends Construct {
         this._tracerEventStream.grantWrite(grantee);
     }
 
-    // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for now
+    // TODO(ifitzsimmons): Remove this. We need to continue exporting this stream for
+    // now
     public grantPutToTracerHoneycombFirehoseDeliveryStream(grantee: IGrantable) {
         this._tracerHoneycombFirehoseDeliveryStream.grantPutRecords(grantee);
     }
@@ -304,14 +313,30 @@ export class AwsObservability extends Construct {
     public installCloudWatchAgent(construct: IConstruct) {
         Tags.of(construct).add("CloudWatchAgent", "true");
     }
+
+    public get dynamoExportPrefix(): string {
+        return this._dynamoExportPrefix;
+    }
+
+    public get loggingBucketName(): string {
+        return this._loggingBucket.bucketName;
+    }
+
+    public get loggingBucketArn(): string {
+        return this._loggingBucket.bucketArn;
+    }
+
+    public grantReadWriteToLoggingBucket(grantee: IGrantable) {
+        this._loggingBucket.grantReadWrite(grantee);
+    }
 }
 
 /**
  * IMPORTANT: This creates the user but DOES NOT CREATE THE ACCESS KEYS.
  *
- * You must manually go to the console, find the user, generate access keys,
- * and then set the access key ID and secret access key as secret variables
- * in Cloudflare (and whatever other external services we may need)
+ * You must manually go to the console, find the user, generate access keys, and
+ * then set the access key ID and secret access key as secret variables in
+ * Cloudflare (and whatever other external services we may need)
  */
 function createUserForKinesisStreamPuts(parentConstruct: Construct, stream: KinesisDataStream) {
     const user = new User(parentConstruct, "KinesisStreamPutsUser", {

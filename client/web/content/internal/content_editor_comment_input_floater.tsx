@@ -116,9 +116,9 @@ export function ContentEditorCommentInputFloater({
     const {space} = useSpaceContext();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
-    // We use desktop measurements for `contentEditorCommentInputFloaterMinHeight`
-    // and `contentEditorCommentInputFloaterAccountAvatarPaddingY` so assert this
-    // component isn't rendered on mobile.
+    // We use desktop measurements for `contentEditorCommentInputFloaterMinHeight` and
+    // `contentEditorCommentInputFloaterAccountAvatarPaddingY` so assert this component
+    // isn't rendered on mobile.
     const platform = usePlatform();
     assert(platform !== "mobile");
 
@@ -165,7 +165,7 @@ export function ContentEditorCommentInputFloater({
     }, [range.from, range.to, state.doc, state.schema.marks.comment]);
 
     const [commentState, setCommentState] = useState(() =>
-        ContentEditorState.create(emptyMessageContentWithReferences),
+        ContentEditorState.create({spaceId: space.id, content: emptyMessageContentWithReferences}),
     );
     const [files, setFiles] = useState<ReadonlyArray<MessageInputFile>>(emptyArray);
 
@@ -202,15 +202,15 @@ export function ContentEditorCommentInputFloater({
                 // input (keyboard shortcut). But we do animate out because closing is less
                 // intentional.
                 //
-                // Also it looks a little better to not animate when replacing a possibly
-                // existing toolbar.
+                // Also it looks a little better to not animate when replacing a possibly existing
+                // toolbar.
                 isVisible={!isClosing}
                 disableAnimation={!isClosing}
                 isBlocking={true}
                 placement="bottom"
                 offset="3"
-                // No fallback placements! The comment input always stays at the end of the
-                // text its commenting on.
+                // No fallback placements! The comment input always stays at the end of the text
+                // its commenting on.
                 fallbackPlacements={emptyArray}
                 overlay={
                     <Box data-testid="ContentEditorCommentInputFloater">
@@ -350,8 +350,8 @@ function ContentEditorCommentInput({
 
         assertExists(documentViewRef.current).dispatch(transaction);
 
-        // `<DocumentContentEditor>` may open the comment thread after we create it.
-        // Don't close our floater until this has happened.
+        // `<DocumentContentEditor>` may open the comment thread after we create it. Don't
+        // close our floater until this has happened.
         await openCommentThreadPromiseRef.current;
 
         onCloseWithoutAnimation();
@@ -430,14 +430,13 @@ function ContentEditorCommentInput({
                 onPointerDownCapture={event => {
                     const editor = assertExists(editorRef.current);
 
-                    // Tapping anywhere on the message input shouldn't unfocus the content editor
-                    // since that will hide the virtual keyboard on mobile.
+                    // Tapping anywhere on the message input shouldn't unfocus the content editor since
+                    // that will hide the virtual keyboard on mobile.
                     if (
                         event.target instanceof Element &&
                         // Exclude tapping in a portaled element. Like inputs in the link modal.
                         event.currentTarget.contains(event.target) &&
-                        // Exclude tapping in the message input itself. Tapping there should do
-                        // something.
+                        // Exclude tapping in the message input itself. Tapping there should do something.
                         !editor.contains(event.target)
                     ) {
                         event.preventDefault();
@@ -463,9 +462,9 @@ function ContentEditorCommentInput({
                 }}
                 onDragEnter={event => {
                     // If this drag only has `text/plain` and `text/html` it's probably because the
-                    // user is dragging some content from either their browser or another app. If
-                    // the user is dragging text, we want to let the message input's
-                    // `<ContentEditor>` handle dropped text.
+                    // user is dragging some content from either their browser or another app. If the
+                    // user is dragging text, we want to let the message input's `<ContentEditor>`
+                    // handle dropped text.
                     const hasNonTextType = event.dataTransfer.types.some(type => {
                         if (type === "Files") return true;
                         const canonicalType = canonicalizeFileContentTypeIfExists(type);
@@ -480,12 +479,12 @@ function ContentEditorCommentInput({
                 onDragLeave={() => {
                     // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
                     // reliably had access to `event.relatedTarget` we'd check:
-                    // `event.currentTarget.contains(event.relatedTarget)` to know whether we need
-                    // to reset our drag state.
+                    // `event.currentTarget.contains(event.relatedTarget)` to know whether we need to
+                    // reset our drag state.
                     //
-                    // Instead we look at `dragenter` event counts. Once we reach 0 that means the
-                    // user has fully dragged out of the container. We got the idea for this fix
-                    // from [this Gist][2].
+                    // Instead we look at `dragenter` event counts. Once we reach 0 that means the user
+                    // has fully dragged out of the container. We got the idea for this fix from [this
+                    // Gist][2].
                     //
                     // We use this method in Chrome as well (even though we could use
                     // `event.relatedTarget`) to have consistent behavior across all browsers.
@@ -527,8 +526,8 @@ function ContentEditorCommentInput({
                     >
                         <MenuButton
                             withoutButtonElementRequirement={true}
-                            // Generally since the message input is at the bottom of the screen the add
-                            // menu opens above the input. Let's make that pattern consistent.
+                            // Generally since the message input is at the bottom of the screen the add menu
+                            // opens above the input. Let's make that pattern consistent.
                             placement="top-start"
                             actions={[
                                 {
@@ -538,9 +537,8 @@ function ContentEditorCommentInput({
                                         selectFiles(assertExists(containerRef.current), {
                                             multiple: true,
                                             acceptContentTypes: getFileImageContentTypes(),
-                                            // It's important to return focus before removing the temporary input element
-                                            // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                            // finished.
+                                            // It's important to return focus before removing the temporary input element so
+                                            // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                             onReturnFocus: () => editorRef.current?.focus(),
                                         })
                                             .then(files => {
@@ -567,9 +565,8 @@ function ContentEditorCommentInput({
                                         selectFiles(assertExists(containerRef.current), {
                                             multiple: true,
                                             acceptContentTypes: getFileVideoContentTypes(),
-                                            // It's important to return focus before removing the temporary input element
-                                            // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                            // finished.
+                                            // It's important to return focus before removing the temporary input element so
+                                            // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                             onReturnFocus: () => editorRef.current?.focus(),
                                         })
                                             .then(files => {
@@ -596,9 +593,8 @@ function ContentEditorCommentInput({
                                         selectFiles(assertExists(containerRef.current), {
                                             multiple: true,
                                             acceptContentTypes: getFileAudioContentTypes(),
-                                            // It's important to return focus before removing the temporary input element
-                                            // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                            // finished.
+                                            // It's important to return focus before removing the temporary input element so
+                                            // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                             onReturnFocus: () => editorRef.current?.focus(),
                                         })
                                             .then(files => {
@@ -624,9 +620,8 @@ function ContentEditorCommentInput({
                                     onPress: () => {
                                         selectFiles(assertExists(containerRef.current), {
                                             multiple: true,
-                                            // It's important to return focus before removing the temporary input element
-                                            // so that `useConfirmSaveAfterLosingFocus()` doesn't think editing has
-                                            // finished.
+                                            // It's important to return focus before removing the temporary input element so
+                                            // that `useConfirmSaveAfterLosingFocus()` doesn't think editing has finished.
                                             onReturnFocus: () => editorRef.current?.focus(),
                                         })
                                             .then(files => {
@@ -652,10 +647,10 @@ function ContentEditorCommentInput({
                                 size={messageInputEditorIconButtonSize}
                                 description="Add"
                                 withoutTooltip={true}
-                                // The add icon button is not focusable. That's because we don't want to
-                                // remove focus from the message input when the add button is pressed. That
-                                // way on mobile you can keep typing and sending messages because the software
-                                // keyboard doesn't disappear.
+                                // The add icon button is not focusable. That's because we don't want to remove
+                                // focus from the message input when the add button is pressed. That way on mobile
+                                // you can keep typing and sending messages because the software keyboard doesn't
+                                // disappear.
                                 //
                                 // On desktop, hitting enter in the message input is sufficient for keyboard
                                 // control of the message input.
@@ -673,8 +668,7 @@ function ContentEditorCommentInput({
                         <Box
                             ref={useScrollbar({
                                 insetTop: messageInputEditorBorderRadiusPx[platform][spacingScale],
-                                // Don't overlap the send button which is rendered at the bottom of
-                                // the input.
+                                // Don't overlap the send button which is rendered at the bottom of the input.
                                 insetBottom: messageInputEditorMinHeightPx[platform][spacingScale],
                             })}
                             maxHeight="96"
@@ -683,8 +677,8 @@ function ContentEditorCommentInput({
                             overflowY="auto"
                             style={{
                                 minHeight: messageInputEditorMinHeightPx[platform][spacingScale],
-                                // This border radius is used by the `<FocusRing>` when the
-                                // `<FocusRing>` is visible.
+                                // This border radius is used by the `<FocusRing>` when the `<FocusRing>` is
+                                // visible.
                                 borderTopLeftRadius:
                                     messageInputEditorBorderRadiusPx[platform][spacingScale],
                                 borderTopRightRadius:
@@ -698,10 +692,9 @@ function ContentEditorCommentInput({
                                         ? messageInputEditorBorderRadiusPx[platform][spacingScale]
                                         : undefined,
                             }}
-                            // Turn off pointer events when we've dragged a file over this input. Otherwise
-                            // the file is uploaded twice! Since we upload once for the `onDrop` handler on
-                            // our parent element and again for the `onDrop` handler on the
-                            // `<ContentEditor>`.
+                            // Turn off pointer events when we've dragged a file over this input. Otherwise the
+                            // file is uploaded twice! Since we upload once for the `onDrop` handler on our
+                            // parent element and again for the `onDrop` handler on the `<ContentEditor>`.
                             pointerEvents={
                                 !isDraggingFileWithin && dragEnterState?.hasNonTextType
                                     ? "none"
@@ -740,12 +733,15 @@ function ContentEditorCommentInput({
                                             fileInfos,
                                         )
                                     }
-                                    // Don't render the default content editor mobile keyboard toolbar. We render
-                                    // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                    // Don't render the default content editor mobile keyboard toolbar. We render our
+                                    // own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
                                     withoutMobileKeyboardToolbar={true}
                                     // Message input is always editable, never interactive on mobile. So you can't
                                     // click links among other things.
                                     withoutMobileDualModality={true}
+                                    // Given the message input has its own scroll area, don't use the navigation bar as
+                                    // our scroll margin top when scrolling some content into view.
+                                    withoutNavigationBarScrollMarginTop={true}
                                 />
                             </ContentBlockWidthContextProvider>
                         </Box>
@@ -772,10 +768,10 @@ function ContentEditorCommentInput({
                             pressErrorTitle="Can&#x2019;t save comment"
                             onPress={sendComment}
                             isDisabled={isSendButtonDisabled}
-                            // The send icon button is not focusable. That's because we don't want to
-                            // remove focus from the message input when the send button is pressed. That
-                            // way on mobile you can keep typing and sending messages because the software
-                            // keyboard doesn't disappear.
+                            // The send icon button is not focusable. That's because we don't want to remove
+                            // focus from the message input when the send button is pressed. That way on mobile
+                            // you can keep typing and sending messages because the software keyboard doesn't
+                            // disappear.
                             //
                             // On desktop, hitting enter in the message input is sufficient for keyboard
                             // control of the message input.
@@ -898,8 +894,8 @@ function ContentEditorCommentInput({
                     title="Save comment"
                     description="Would you like to save your comment?"
                     onClose={() => {
-                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
-                        // and lets the user continue writing.
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel" and
+                        // lets the user continue writing.
                         shouldFocusNextRenderRef.current = true;
                         setShouldShowConfirmCloseDialog(false);
                     }}

@@ -19,7 +19,7 @@ import {
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
-import {ChatMessageModel} from "~/shared/chat/chat_model.js";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -33,6 +33,7 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     backfillChatMessages,
+    convertDirectChatToRoomChat,
     deleteChatMessage,
     deleteChatMessageReaction,
     getChatMessageAtVersion,
@@ -40,9 +41,21 @@ import {
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
+    updateRoomChatAccessPolicy,
+    updateRoomChatName,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 
+export type ChatRealtimeConnectionEventStub =
+    | MessagingRealtimeEventStub
+    | {readonly type: "UpdateChat"; readonly chat: ChatModel};
+
 export class ChatRealtimeConnection {
+    private readonly _chatId: ChatId;
+    private readonly _sendEventToOthers: (
+        context: WorkerProcessContext,
+        event: ChatRealtimeConnectionEventStub,
+    ) => void;
+
     private readonly _connection: MessagingRealtimeConnection<ChatId, ChatMessageModel>;
 
     constructor({
@@ -60,14 +73,17 @@ export class ChatRealtimeConnection {
         chatId: ChatId;
         sendEvent: (
             context: WorkerProcessContext,
-            event: MessagingRealtimeEventStub,
+            event: ChatRealtimeConnectionEventStub,
         ) => SafeFloatingPromise<void>;
         sendEventToOthers: (
             context: WorkerProcessContext,
-            event: MessagingRealtimeEventStub,
+            event: ChatRealtimeConnectionEventStub,
         ) => void;
         iterateOtherConnections: () => Iterable<ChatRealtimeConnection>;
     }) {
+        this._chatId = chatId;
+        this._sendEventToOthers = sendEventToOthers;
+
         this._connection = new MessagingRealtimeConnection({
             connectionId,
             spaceId,
@@ -119,6 +135,48 @@ export class ChatRealtimeConnection {
             this._connection.startTypingInMessageInput(context, input),
         stopTypingInMessageInput: (context, input) =>
             this._connection.stopTypingInMessageInput(context, input),
+
+        convertDirectChatToRoomChat: async (context, input) => {
+            const {chat} = await convertDirectChatToRoomChat(context, {
+                ...input,
+                chatId: this._chatId,
+            });
+
+            this._sendEventToOthers(context, {
+                type: "UpdateChat",
+                chat,
+            });
+
+            return {chat};
+        },
+
+        updateRoomChatName: async (context, input) => {
+            const {chat} = await updateRoomChatName(context, {
+                ...input,
+                chatId: this._chatId,
+            });
+
+            this._sendEventToOthers(context, {
+                type: "UpdateChat",
+                chat,
+            });
+
+            return {chat};
+        },
+
+        updateRoomChatAccessPolicy: async (context, input) => {
+            const {chat} = await updateRoomChatAccessPolicy(context, {
+                ...input,
+                chatId: this._chatId,
+            });
+
+            this._sendEventToOthers(context, {
+                type: "UpdateChat",
+                chat,
+            });
+
+            return {chat};
+        },
     };
 
     public static broadcastNewMessage(
@@ -153,9 +211,13 @@ export class ChatRealtimeConnection {
 
     public async transformEvent(
         context: WorkerSessionActionContext,
-        eventStub: MessagingRealtimeEventStub,
+        eventStub: ChatRealtimeConnectionEventStub,
     ): Promise<ChatRealtimeEvent> {
-        return this._connection.transformEvent(context, eventStub);
+        if (eventStub.type === "UpdateChat") {
+            return eventStub;
+        } else {
+            return await this._connection.transformEvent(context, eventStub);
+        }
     }
 
     public async handleClose(context: WorkerProcessContext) {

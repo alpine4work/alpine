@@ -24,8 +24,8 @@ function cyrb53(baseString: string, keyString: string, seed = 0) {
 /**
  * Stable, hash-based random number generator.
  *
- * Pass each method a keyString to turn into a random number. Pass a
- * second index integer to generate several random numbers for a single key string.
+ * Pass each method a keyString to turn into a random number. Pass a second index
+ * integer to generate several random numbers for a single key string.
  */
 export class StableRandom {
     private readonly _baseString: string;
@@ -34,7 +34,7 @@ export class StableRandom {
         this._baseString = baseString;
     }
 
-    /** Generate a random number between 0 and 1 based on  */
+    /** Generate a random number between 0 and 1 based on */
     random(keyString: string, index: number) {
         return cyrb53(this._baseString, keyString, index) / Number.MAX_SAFE_INTEGER;
     }
@@ -42,8 +42,7 @@ export class StableRandom {
     /**
      * Generates a stable random integer between `a` and `b` (exclusive).
      *
-     * If `b` is not defined, generates a random integer between 0 and `a`
-     * (exclusive).
+     * If `b` is not defined, generates a random integer between 0 and `a` (exclusive).
      */
     randomInteger(keyString: string, index: number, a: number, b?: number) {
         return Math.floor(this.randomFloat(keyString, index, a, b));
@@ -62,8 +61,8 @@ export class StableRandom {
     }
 
     /**
-     * Generate a random number following a normal distribution.
-     * Approximate range is -3 to 3.
+     * Generate a random number following a normal distribution. Approximate range is
+     * -3 to 3.
      */
     randomNormalDistribution(keyString: string, index: number) {
         const u = 1 - this.random(keyString, index);

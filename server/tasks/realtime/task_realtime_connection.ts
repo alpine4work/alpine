@@ -1,6 +1,9 @@
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
+import {authorizeTaskCollectionIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_index_doc_access_if_possible.js";
+import {authorizeTaskIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_index_doc_access_if_possible.js";
+import {getTaskGridViewExpansionState} from "~/server/tasks/data/get_task_grid_view_expansion_state.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
@@ -10,11 +13,6 @@ import {
     TaskRealtimeSessionActionContextModules,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
-import {
-    authorizeTaskCollectionIndexDocAccessIfPossible,
-    authorizeTaskIndexDocAccessIfPossible,
-    getTaskGridViewExpansionState,
-} from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {
     TaskRealtimeCollectionSubscription,
@@ -80,9 +78,9 @@ export const taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint =
     new TestCheckpoint<SpaceId>();
 
 /**
- * Manages a client's WebSocket connection with `TaskRealtimeService`. A client
- * may be connected to any number of resources (queries, tasks, collections)
- * and it expects to get updates for those resources over time.
+ * Manages a client's WebSocket connection with `TaskRealtimeService`. A client may
+ * be connected to any number of resources (queries, tasks, collections) and it
+ * expects to get updates for those resources over time.
  */
 export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection {
     private readonly _server: TaskRealtimeServer;
@@ -112,6 +110,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     ) => SafeFloatingPromise<void>;
     private readonly _closeWithError: (context: TaskRealtimeProcessContext, error: unknown) => void;
     private readonly _resetAuthorizationTimer: (context: TaskRealtimeProcessContext) => void;
+    private readonly _resetAuthorizationTimerForEventBuilders =
+        new WeakSet<TaskRealtimeUpdateEventBuilderBase>();
 
     private readonly _querySubscriptionById = new Map<
         TaskRealtimeQuerySubscriptionId,
@@ -255,10 +255,10 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             ),
         ]);
 
-        // 5. Reauthorize the referenced tasks within a query subscription.
+        // 5. Reauthorize the referenced tasks/collections within a query subscription.
         //
-        // This happens after authorizing subscriptions in case we need to unsubscribe
-        // any of our subscriptions first.
+        // This happens after authorizing subscriptions in case we need to unsubscribe any
+        // of our subscriptions first.
         await this._dangerouslyEscalateToSystemContext(context, this.spaceId, async context => {
             const eventBuilder = await this._authorizeReferencedTasksAndCollections(context);
 
@@ -409,8 +409,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                                 childrenQuerySubscription,
                             );
 
-                            // Immediately keep track of the new subscription. If there's an error we want
-                            // to unsubscribe.
+                            // Immediately keep track of the new subscription. If there's an error we want to
+                            // unsubscribe.
                             childrenQuerySubscriptionById.set(
                                 childrenQuerySubscriptionId,
                                 childrenQuerySubscription,
@@ -429,9 +429,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                                 sorts: childrenSorts,
                                 limit: childrenLimit,
                                 loadedState: childrenLoadedState,
-                                // This property can only be computed right before we send our procedure
-                                // response which is why it's in a function. Otherwise we may miss
-                                // realtime updates.
+                                // This property can only be computed right before we send our procedure response
+                                // which is why it's in a function. Otherwise we may miss realtime updates.
                                 getPreviouslyBackfilledTaskIds: () => {
                                     // All the tasks we loaded that weren't backfilled we send in a
                                     // `previouslyBackfilledTaskIds` array so the client can add them to its local
@@ -462,8 +461,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                 return {
                     querySubscriptionId,
                     loadedState,
-                    // This property can only be computed after `eventBuilder.send()` which is why
-                    // it's in a function.
+                    // This property can only be computed after `eventBuilder.send()` which is why it's
+                    // in a function.
                     getPreviouslyBackfilledTaskIds: () => {
                         // All the tasks we loaded that weren't backfilled we send in a
                         // `previouslyBackfilledTaskIds` array so the client can add them to its local
@@ -483,9 +482,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     extraQueries: extraQueries.filter(isNonNullable),
                 };
             } catch (error) {
-                // If we erred before we could return our subscription IDs to the client then
-                // we need to unsubscribe from all our subscriptions here so we don't have a
-                // memory leak.
+                // If we erred before we could return our subscription IDs to the client then we
+                // need to unsubscribe from all our subscriptions here so we don't have a memory
+                // leak.
                 await runAllPromises(
                     mapIterable(
                         concatIterables(
@@ -514,9 +513,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     ) {
         const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
 
-        // Noop if we've already unsubscribed. If authorization for a subscription
-        // fails then we immediately unsubscribe but the client may continue to think
-        // it's subscribed.
+        // Noop if we've already unsubscribed. If authorization for a subscription fails
+        // then we immediately unsubscribe but the client may continue to think it's
+        // subscribed.
         if (!querySubscription) return;
 
         this._querySubscriptionById.delete(querySubscriptionId);
@@ -565,9 +564,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     ) {
         const taskSubscription = this._taskSubscriptionById.get(taskSubscriptionId);
 
-        // Noop if we've already unsubscribed. If authorization for a subscription
-        // fails then we immediately unsubscribe but the client may continue to think
-        // it's subscribed.
+        // Noop if we've already unsubscribed. If authorization for a subscription fails
+        // then we immediately unsubscribe but the client may continue to think it's
+        // subscribed.
         if (!taskSubscription) return;
 
         this._taskSubscriptionById.delete(taskSubscriptionId);
@@ -627,9 +626,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         const collectionSubscription =
             this._collectionSubscriptionById.get(collectionSubscriptionId);
 
-        // Noop if we've already unsubscribed. If authorization for a subscription
-        // fails then we immediately unsubscribe but the client may continue to think
-        // it's subscribed.
+        // Noop if we've already unsubscribed. If authorization for a subscription fails
+        // then we immediately unsubscribe but the client may continue to think it's
+        // subscribed.
         if (!collectionSubscription) return;
 
         this._collectionSubscriptionById.delete(collectionSubscriptionId);
@@ -698,9 +697,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             const querySubscription = this._querySubscriptionById.get(input.querySubscriptionId);
             if (!querySubscription) throw new NotFoundError("Query subscription not found");
 
-            // It's safe to escalate because in order to create a subscription we authorize
-            // the query and we continually reauthorize the subscription through the
-            // connection's `authorize()` method which is called every three minutes.
+            // It's safe to escalate because in order to create a subscription we authorize the
+            // query and we continually reauthorize the subscription through the connection's
+            // `authorize()` method which is called every three minutes.
             return this._dangerouslyEscalateToSystemContext(
                 context,
                 this.spaceId,
@@ -907,8 +906,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                             updateEvent,
                         };
                     } catch (error) {
-                        // If we failed to send our subscription ids to the client, then
-                        // unsubscribe from all our queries so we don't have a memory leak.
+                        // If we failed to send our subscription ids to the client, then unsubscribe from
+                        // all our queries so we don't have a memory leak.
                         await runAllPromises([
                             runAllPromises(
                                 querySubscriptionResults.map(async queryResult => {
@@ -999,8 +998,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             referenceCount: number;
             task: TaskIndexDoc;
             authorizationStateVersion: HybridLogicalTime;
-            // We keep track of the previous task object our subscription saw while testing
-            // so we can check if we've missed any updates. We run this validation in
+            // We keep track of the previous task object our subscription saw while testing so
+            // we can check if we've missed any updates. We run this validation in
             // `development` and `test` since maintaining task update state correctly is a
             // little tricky to get right but critical to the operation of this class.
             previousTaskForTest: TaskIndexDoc | null;
@@ -1008,14 +1007,13 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     >();
 
     /**
-     * All collections loaded by a collection subscription in our connection. If a
-     * task is directly loaded by a collection subscription then it is considered
+     * All collections loaded by a collection subscription in our connection. If a task
+     * is directly loaded by a collection subscription then it is considered
      * authorized.
      *
-     * Also has a reference count for the number of collection subscriptions
-     * reference this task. The reference count is always a non-zero positive
-     * integer. If a task is in this map that implies it has a non-zero positive
-     * reference count.
+     * Also has a reference count for the number of collection subscriptions reference
+     * this task. The reference count is always a non-zero positive integer. If a task
+     * is in this map that implies it has a non-zero positive reference count.
      */
     private readonly _directlySubscribedCollectionStateById = new Map<
         TaskCollectionId,
@@ -1024,10 +1022,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             collection: TaskCollectionIndexDoc;
             authorizationStateVersion: HybridLogicalTime;
             // We keep track of the previous collection object our subscription saw while
-            // testing so we can check if we've missed any updates. We run this validation
-            // in `development` and `test` since maintaining collection update state
-            // correctly is a little tricky to get right but critical to the operation of
-            // this class.
+            // testing so we can check if we've missed any updates. We run this validation in
+            // `development` and `test` since maintaining collection update state correctly is
+            // a little tricky to get right but critical to the operation of this class.
             previousCollectionForTest: TaskCollectionIndexDoc | null;
         }
     >();
@@ -1039,8 +1036,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             task: TaskIndexDoc;
             authorizationStateVersion: HybridLogicalTime;
             authorizationStatePromise: Promise<TaskAuthorizationState>;
-            // We keep track of the previous task object our subscription saw while testing
-            // so we can check if we've missed any updates. We run this validation in
+            // We keep track of the previous task object our subscription saw while testing so
+            // we can check if we've missed any updates. We run this validation in
             // `development` and `test` since maintaining task update state correctly is a
             // little tricky to get right but critical to the operation of this class.
             previousTaskForTest: TaskIndexDoc | null;
@@ -1058,10 +1055,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                 | {type: "Unauthorized"; errorCode: ErrorCode; wasPreviouslyAuthorized: boolean}
             >;
             // We keep track of the previous collection object our subscription saw while
-            // testing so we can check if we've missed any updates. We run this validation
-            // in `development` and `test` since maintaining collection update state
-            // correctly is a little tricky to get right but critical to the operation of
-            // this class.
+            // testing so we can check if we've missed any updates. We run this validation in
+            // `development` and `test` since maintaining collection update state correctly is
+            // a little tricky to get right but critical to the operation of this class.
             previousCollectionForTest: TaskCollectionIndexDoc | null;
         }
     >();
@@ -1101,9 +1097,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     previousTaskForTest: null,
                 });
             }
-            // Query subscription and task subscription tasks are always authorized because
-            // we authorized the subscription. If the task is referenced but was not
-            // directly subscribed then mark the task as authorized.
+            // Query subscription and task subscription tasks are always authorized because we
+            // authorized the subscription. If the task is referenced but was not directly
+            // subscribed then mark the task as authorized.
             //
             // If the task was previously unauthorized then we need to backfill it.
             else {
@@ -1112,15 +1108,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     referencedTaskState.authorizationStateVersion,
                 );
 
-                // While we know the task is definitely authorized at this point, we may not
-                // know the task's previous authorization state. Only backfill the task if it
-                // was previously unauthorized.
+                // While we know the task is definitely authorized at this point, we may not know
+                // the task's previous authorization state. Only backfill the task if it was
+                // previously unauthorized.
                 const promise: Promise<TaskAuthorizationState> =
                     referencedTaskState.authorizationStatePromise.then(authorizationState => {
                         // If the task continues to be authorized, we don't send the new
                         // `authorizationStateVersion` to the client. This should be fine since future
-                        // authorization state versions will be after `authorizationStateVersion`
-                        // because our clock was ticked past `authorizationStateVersion`.
+                        // authorization state versions will be after `authorizationStateVersion` because
+                        // our clock was ticked past `authorizationStateVersion`.
                         if (authorizationState.type === "Authorized") return authorizationState;
 
                         eventBuilder.addAuthorizedTaskBackfill(
@@ -1164,8 +1160,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                 );
             }
         } else {
-            // If we have not seen this update before then our referenced task object should
-            // be `oldTask`.
+            // If we have not seen this update before then our referenced task object should be
+            // `oldTask`.
             if (process.env.NODE_ENV !== "production") {
                 assert(
                     directlySubscribedTaskState.task === oldTask,
@@ -1185,38 +1181,35 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         const directlySubscribedTaskState = this._directlySubscribedTaskStateById.get(oldTask.id);
         assert(directlySubscribedTaskState !== undefined);
 
-        // If we are removing a referenced task we should have seen it before and it
-        // should be our old task object.
+        // If we are removing a referenced task we should have seen it before and it should
+        // be our old task object.
         if (process.env.NODE_ENV !== "production") {
-            // This is different from how `onReferencedTaskRemove` works. It only checks
-            // that `state.task === oldTask`, not that
-            // `state.previousTaskForTest === oldTask`. The difference is that if a
-            // referenced task was both updated and removed in the same transaction then
-            // we'll ALWAYS get a `onReferencedTaskUpdate` event before
-            // `onReferencedTaskRemove` and `onReferencedTaskRemove`'s `oldTask` will be
-            // the `newTask` passed to `onReferencedTaskUpdate`. So continuity is
-            // preserved.
+            // This is different from how `onReferencedTaskRemove` works. It only checks that
+            // `state.task === oldTask`, not that `state.previousTaskForTest === oldTask`. The
+            // difference is that if a referenced task was both updated and removed in the same
+            // transaction then we'll ALWAYS get a `onReferencedTaskUpdate` event before
+            // `onReferencedTaskRemove` and `onReferencedTaskRemove`'s `oldTask` will be the
+            // `newTask` passed to `onReferencedTaskUpdate`. So continuity is preserved.
             //
-            // However, if a task is updated and that means the task is removed from a
-            // query it was in, we'll only get a `onLoadedTaskRemove` event. Unless we're
-            // subscribed to two queries. In one the task is updated and the other the task
-            // is removed. In this scenario sometimes we get an `onLoadedTaskUpdate` event
-            // first, sometimes we get an `onLoadedTaskRemove` event first. In both cases
-            // `onLoadedTaskRemove` receives an `oldTask` object with data BEFORE the task
-            // was updated. This causes an issue of we got an `onLoadedTaskUpdate` event
-            // first.
+            // However, if a task is updated and that means the task is removed from a query it
+            // was in, we'll only get a `onLoadedTaskRemove` event. Unless we're subscribed to
+            // two queries. In one the task is updated and the other the task is removed. In
+            // this scenario sometimes we get an `onLoadedTaskUpdate` event first, sometimes we
+            // get an `onLoadedTaskRemove` event first. In both cases `onLoadedTaskRemove`
+            // receives an `oldTask` object with data BEFORE the task was updated. This causes
+            // an issue of we got an `onLoadedTaskUpdate` event first.
             //
-            // This difference in behavior is not ideal. Ideally we'd have the same
-            // semantics for `onReferencedTaskUpdate`/`onReferencedTaskRemove` and
+            // This difference in behavior is not ideal. Ideally we'd have the same semantics
+            // for `onReferencedTaskUpdate`/`onReferencedTaskRemove` and
             // `onLoadedTaskUpdate`/`onLoadedTaskRemove`. The
             // `onLoadedTaskUpdate`/`onLoadedTaskRemove` behavior of only calling
-            // `onLoadedTaskRemove` if a task is both updated + removed in the same
-            // transaction feels more correct since for permissions purposes, the connected
-            // user should not be able to see the new task or the actions used to produce
-            // the new task. However, it does mean the connection can observe an `oldTask`
-            // that's a "leap backwards" in time compared to a previous
-            // `onLoadedTaskUpdate` event's `newTask`. This inconsistency doesn't cause
-            // issues so we're going to leave as-is for now.
+            // `onLoadedTaskRemove` if a task is both updated + removed in the same transaction
+            // feels more correct since for permissions purposes, the connected user should not
+            // be able to see the new task or the actions used to produce the new task.
+            // However, it does mean the connection can observe an `oldTask` that's a "leap
+            // backwards" in time compared to a previous `onLoadedTaskUpdate` event's
+            // `newTask`. This inconsistency doesn't cause issues so we're going to leave as-is
+            // for now.
             assert(
                 directlySubscribedTaskState.task === oldTask ||
                     directlySubscribedTaskState.previousTaskForTest === oldTask,
@@ -1229,9 +1222,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         } else {
             this._directlySubscribedTaskStateById.delete(oldTask.id);
 
-            // If a loaded task is removed from our connection that means the client may
-            // have lost authorization access as well. When we reauthorize referenced tasks
-            // we'll check this. Access is maintained until reauthorization.
+            // If a loaded task is removed from our connection that means the client may have
+            // lost authorization access as well. When we reauthorize referenced tasks we'll
+            // check this. Access is maintained until reauthorization.
         }
     }
 
@@ -1277,9 +1270,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     previousCollectionForTest: null,
                 });
             }
-            // Collections from subscriptions are always authorized because we authorized
-            // the subscription. If the collection is referenced but was not directly
-            // subscribed then mark the collection as authorized.
+            // Collections from subscriptions are always authorized because we authorized the
+            // subscription. If the collection is referenced but was not directly subscribed
+            // then mark the collection as authorized.
             //
             // If the collection was previously unauthorized then we need to backfill it.
             else {
@@ -1288,15 +1281,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     referencedCollectionState.authorizationStateVersion,
                 );
 
-                // While we know the collection is definitely authorized at this point, we may
-                // not know the collection's previous authorization state. Only backfill the
-                // collection if it was previously unauthorized.
+                // While we know the collection is definitely authorized at this point, we may not
+                // know the collection's previous authorization state. Only backfill the collection
+                // if it was previously unauthorized.
                 const promise = referencedCollectionState.authorizationStatePromise.then(
                     authorizationState => {
                         // If the collection continues to be authorized, we don't send the new
                         // `authorizationStateVersion` to the client. This should be fine since future
-                        // authorization state versions will be after `authorizationStateVersion`
-                        // because our clock was ticked past `authorizationStateVersion`.
+                        // authorization state versions will be after `authorizationStateVersion` because
+                        // our clock was ticked past `authorizationStateVersion`.
                         if (authorizationState.type === "Authorized") return authorizationState;
 
                         eventBuilder.addAuthorizedCollectionBackfill(
@@ -1367,8 +1360,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         );
         assert(directlySubscribedCollectionState !== undefined);
 
-        // If we are removing a referenced collection we should have seen it before and
-        // it should be our old task object.
+        // If we are removing a referenced collection we should have seen it before and it
+        // should be our old task object.
         if (process.env.NODE_ENV !== "production") {
             assert(
                 directlySubscribedCollectionState.collection === oldCollection,
@@ -1381,8 +1374,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         } else {
             this._directlySubscribedCollectionStateById.delete(oldCollection.id);
 
-            // If a loaded collection is removed from our connection that means the client
-            // may have lost authorization access as well. When we reauthorize referenced
+            // If a loaded collection is removed from our connection that means the client may
+            // have lost authorization access as well. When we reauthorize referenced
             // collections we'll check this. Access is maintained until reauthorization.
         }
     }
@@ -1390,8 +1383,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     private readonly _subscriptionCallbacks: TaskRealtimeQuerySubscriptionCallbacks &
         TaskRealtimeTaskSubscriptionCallbacks &
         TaskRealtimeCollectionSubscriptionCallbacks = {
-        // If there was an error with our subscription, close the connection. The
-        // client can reconnect if necessary.
+        // If there was an error with our subscription, close the connection. The client
+        // can reconnect if necessary.
         onFatalError: (context, error) => {
             this._closeWithError(context, error);
         },
@@ -1401,9 +1394,32 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         onTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
             this._onDirectlySubscribedTaskUpdate(eventBuilder, taskId, oldTask, newTask);
 
-            // Task subscriptions are authorized when executed and periodically
-            // reauthorized so its safe to send the actions for this task to the client.
+            // Task subscriptions are authorized when executed and periodically reauthorized so
+            // its safe to send the actions for this task to the client.
             eventBuilder.addActions(this, actions);
+
+            // If the access policy of a subscribed task was updated then immediately re-run
+            // authorization. This authorization run will not effect the current event we're
+            // building but the authorization process will send an event backfilling data the
+            // user now has access to.
+            //
+            // We don't call `authorize()` directly since we want to reset our authorization
+            // timer as well. The next authorization should be in 3 minutes (or whatever the
+            // authorization time interval is currently configured as).
+            if (
+                actions.some(
+                    action =>
+                        action.type === "UpdateTask" &&
+                        action.taskAction.type === "UpdateAccessPolicy",
+                ) &&
+                !this._resetAuthorizationTimerForEventBuilders.has(eventBuilder)
+            ) {
+                // Only call `_resetAuthorizationTimer()` once per `eventBuilder` object. Since the
+                // same `UpdateAccessPolicy` action may be processed multiple times by our
+                // collection.
+                this._resetAuthorizationTimerForEventBuilders.add(eventBuilder);
+                this._resetAuthorizationTimer(context);
+            }
         },
         onTaskUnsubscribe: (eventBuilder, oldTask) => {
             this._onDirectlySubscribedTaskRemove(eventBuilder, oldTask);
@@ -1427,9 +1443,31 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             );
 
             // Collection subscriptions are authorized when executed and periodically
-            // reauthorized so its safe to send the actions for this collection to the
-            // client.
+            // reauthorized so its safe to send the actions for this collection to the client.
             eventBuilder.addActions(this, actions);
+
+            // If the access policy of a subscribed collection was updated then immediately
+            // re-run authorization. This authorization run will not effect the current event
+            // we're building but the authorization process will send an event backfilling data
+            // the user now has access to.
+            //
+            // We don't call `authorize()` directly since we want to reset our authorization
+            // timer as well. The next authorization should be in 3 minutes (or whatever the
+            // authorization time interval is currently configured as).
+            if (
+                actions.some(
+                    action =>
+                        action.type === "UpdateCollection" &&
+                        action.collectionAction.type === "UpdateAccessPolicy",
+                ) &&
+                !this._resetAuthorizationTimerForEventBuilders.has(eventBuilder)
+            ) {
+                // Only call `_resetAuthorizationTimer()` once per `eventBuilder` object. Since the
+                // same `UpdateAccessPolicy` action may be processed multiple times by our
+                // collection.
+                this._resetAuthorizationTimerForEventBuilders.add(eventBuilder);
+                this._resetAuthorizationTimer(context);
+            }
         },
         onCollectionUnsubscribe: (eventBuilder, oldCollection) => {
             this._onDirectlySubscribedCollectionRemove(eventBuilder, oldCollection);
@@ -1440,17 +1478,22 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         onLoadedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
             this._onDirectlySubscribedTaskUpdate(eventBuilder, taskId, oldTask, newTask);
 
-            // Since the query is authorized, all loaded tasks are also authorized.
-            // Clients should see all actions on loaded tasks.
+            // Since the query is authorized, all loaded tasks are also authorized. Clients
+            // should see all actions on loaded tasks.
             eventBuilder.addActions(this, actions);
+
+            // We don't call `_resetAuthorizationTimer()` on `UpdateAccessPolicy` actions here
+            // because as long as we're authorized to access the query then we're also
+            // authorized to access all loaded tasks in the query. An `UpdateAccessPolicy`
+            // action on a task doesn't change the query authorization state.
         },
         onLoadedTaskRemove: (eventBuilder, oldTask, actions) => {
             this._onDirectlySubscribedTaskRemove(eventBuilder, oldTask);
 
-            // Since the query is authorized, all loaded tasks are also authorized.
-            // Clients should see all actions that remove a task from a query. That way the
-            // client can apply the actions locally and remove the task from its own local
-            // query representation.
+            // Since the query is authorized, all loaded tasks are also authorized. Clients
+            // should see all actions that remove a task from a query. That way the client can
+            // apply the actions locally and remove the task from its own local query
+            // representation.
             eventBuilder.addActions(this, actions);
         },
         onReferencedTaskAdd: (context, eventBuilder, newTask) => {
@@ -1541,8 +1584,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     );
                 }
             } else {
-                // If we have not seen this update before then our referenced task object should
-                // be `oldTask`.
+                // If we have not seen this update before then our referenced task object should be
+                // `oldTask`.
                 if (process.env.NODE_ENV !== "production") {
                     assert(
                         referencedTaskState.task === oldTask,
@@ -1554,8 +1597,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                 referencedTaskState.task = newTask;
             }
 
-            // Only add update actions for this referenced task if the referenced task
-            // is authorized.
+            // Only add update actions for this referenced task if the referenced task is
+            // authorized.
             eventBuilder.waitUntil(
                 context,
                 referencedTaskState.authorizationStatePromise.then(authorizationState => {
@@ -1563,13 +1606,36 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     eventBuilder.addActions(this, actions);
                 }),
             );
+
+            // If the access policy of a referenced task was updated then immediately re-run
+            // authorization. This authorization run will not effect the current event we're
+            // building but the authorization process will send an event backfilling data the
+            // user now has access to.
+            //
+            // We don't call `authorize()` directly since we want to reset our authorization
+            // timer as well. The next authorization should be in 3 minutes (or whatever the
+            // authorization time interval is currently configured as).
+            if (
+                actions.some(
+                    action =>
+                        action.type === "UpdateTask" &&
+                        action.taskAction.type === "UpdateAccessPolicy",
+                ) &&
+                !this._resetAuthorizationTimerForEventBuilders.has(eventBuilder)
+            ) {
+                // Only call `_resetAuthorizationTimer()` once per `eventBuilder` object. Since the
+                // same `UpdateAccessPolicy` action may be processed multiple times by our
+                // collection.
+                this._resetAuthorizationTimerForEventBuilders.add(eventBuilder);
+                this._resetAuthorizationTimer(context);
+            }
         },
         onReferencedTaskRemove: (eventBuilder, oldTask) => {
             const referencedTaskState = this._referencedTaskStateById.get(oldTask.id);
             assert(referencedTaskState !== undefined);
 
-            // If we are removing a referenced task we should have seen it before and it
-            // should be our old task object.
+            // If we are removing a referenced task we should have seen it before and it should
+            // be our old task object.
             if (process.env.NODE_ENV !== "production") {
                 assert(
                     referencedTaskState.task === oldTask,
@@ -1715,20 +1781,25 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             );
 
             // If the access policy of a referenced collection was updated then immediately
-            // re-run authorization. This authorization run will not effect the current
-            // event we're building but the authorization process will send an event
-            // backfilling data the user now has access to.
+            // re-run authorization. This authorization run will not effect the current event
+            // we're building but the authorization process will send an event backfilling data
+            // the user now has access to.
             //
-            // We don't call `authorize()` directly since we want to reset our
-            // authorization timer as well. The next authorization should be in 3 minutes
-            // (or whatever the authorization time interval is currently configured as).
+            // We don't call `authorize()` directly since we want to reset our authorization
+            // timer as well. The next authorization should be in 3 minutes (or whatever the
+            // authorization time interval is currently configured as).
             if (
                 actions.some(
                     action =>
                         action.type === "UpdateCollection" &&
                         action.collectionAction.type === "UpdateAccessPolicy",
-                )
+                ) &&
+                !this._resetAuthorizationTimerForEventBuilders.has(eventBuilder)
             ) {
+                // Only call `_resetAuthorizationTimer()` once per `eventBuilder` object. Since the
+                // same `UpdateAccessPolicy` action may be processed multiple times by our
+                // collection.
+                this._resetAuthorizationTimerForEventBuilders.add(eventBuilder);
                 this._resetAuthorizationTimer(context);
             }
         },
@@ -1738,8 +1809,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             );
             assert(referencedCollectionState !== undefined);
 
-            // If we are removing a referenced collection we should have seen it before and
-            // it should be our old task object.
+            // If we are removing a referenced collection we should have seen it before and it
+            // should be our old task object.
             if (process.env.NODE_ENV !== "production") {
                 assert(
                     referencedCollectionState.collection === oldCollection,
@@ -1760,9 +1831,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     ) {
         const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
-        // Create a snapshot of `referencedTaskStateById` while we're reauthorizing.
-        // Tasks may become unreferenced/referenced while we're authorizing and we
-        // don't want that to affect us.
+        // Create a snapshot of `referencedTaskStateById` while we're reauthorizing. Tasks
+        // may become unreferenced/referenced while we're authorizing and we don't want
+        // that to affect us.
         const reauthorizingReferencedTaskById = Array.from(this._referencedTaskStateById.values());
         const reauthorizingReferencedCollectionById = Array.from(
             this._referencedCollectionStateById.values(),
@@ -1771,12 +1842,12 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         await runAllPromises(
             concatIterables(
                 mapIterable(reauthorizingReferencedTaskById, async referencedTask => {
-                    // It is important we capture a synchronous reference to `task` here at
-                    // the start since `task` may update concurrently.
+                    // It is important we capture a synchronous reference to `task` here at the start
+                    // since `task` may update concurrently.
                     const {task} = referencedTask;
 
-                    // If the task is directly referenced then it's considered authorized. This
-                    // should have already been handled when we added/removed the direct reference.
+                    // If the task is directly referenced then it's considered authorized. This should
+                    // have already been handled when we added/removed the direct reference.
                     if (this._directlySubscribedTaskStateById.has(task.id)) return;
 
                     const newAuthorizationStatePromise: Promise<TaskAuthorizationState> =
@@ -1824,13 +1895,13 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                             );
 
                             // If our task is transitioning from unauthorized to authorized then we need to
-                            // backfill all references of the task. While we should have backfilled these
-                            // tasks and collections before, the client doesn't hold on to them since it
-                            // doesn't see a reference on the unauthorized task.
+                            // backfill all references of the task. While we should have backfilled these tasks
+                            // and collections before, the client doesn't hold on to them since it doesn't see
+                            // a reference on the unauthorized task.
                             //
                             // It is a mismatch between client/server that while the server thinks the
-                            // references of an unauthorized task are retained, the client does not
-                            // actually retain the references of unauthorized tasks.
+                            // references of an unauthorized task are retained, the client does not actually
+                            // retain the references of unauthorized tasks.
                             const addReferencedTaskBackfills = (task: TaskIndexDoc) => {
                                 if (task.parent.taskId.value) {
                                     const referencedTaskState = this._referencedTaskStateById.get(
@@ -1905,13 +1976,12 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     }
                 }),
                 mapIterable(reauthorizingReferencedCollectionById, async referencedCollection => {
-                    // It is important we capture a synchronous reference to `collection` here at
-                    // the start since `collection` may update concurrently.
+                    // It is important we capture a synchronous reference to `collection` here at the
+                    // start since `collection` may update concurrently.
                     const {collection} = referencedCollection;
 
-                    // If the collection is directly referenced then it's considered authorized.
-                    // This should have already been handled when we added/removed the direct
-                    // reference.
+                    // If the collection is directly referenced then it's considered authorized. This
+                    // should have already been handled when we added/removed the direct reference.
                     if (this._directlySubscribedCollectionStateById.has(collection.id)) return;
 
                     const oldAuthorizationStatePromise =
@@ -1970,11 +2040,11 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                                 authorizationStateVersion,
                             );
 
-                            // If this collection is transitioning from unauthorized to authorized then
-                            // send an action to add the collection to all tasks seen by the connection
-                            // that contain the collection. Because previously when these tasks were sent
-                            // to the client `prepareTaskForClient()` removed the collection since the
-                            // collection was unauthorized.
+                            // If this collection is transitioning from unauthorized to authorized then send an
+                            // action to add the collection to all tasks seen by the connection that contain
+                            // the collection. Because previously when these tasks were sent to the client
+                            // `prepareTaskForClient()` removed the collection since the collection was
+                            // unauthorized.
                             for (const state of concatIterables(
                                 this._directlySubscribedTaskStateById.values(),
                                 this._referencedTaskStateById.values(),
@@ -2015,8 +2085,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
 
         // If we just removed the collection reference we won't have the collection's
         // authorization decision available in our connection object. However,
-        // `TaskRealtimeStore` won't have evicted the task collection yet so load the
-        // task collection from our store and run authorization.
+        // `TaskRealtimeStore` won't have evicted the task collection yet so load the task
+        // collection from our store and run authorization.
         if (!referencedCollectionState) {
             const collectionPromise = this._server.getCollection(
                 context,
@@ -2026,12 +2096,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
 
             const [, result] = await runAllPromises([
                 collectionPromise,
-                impersonateAccountAsSystemContext(context, this.accountId, async accountContext =>
-                    authorizeTaskCollectionIndexDocAccessIfPossible(
-                        accountContext,
-                        await collectionPromise,
-                        "View",
-                    ),
+                impersonateAccountAsSystemContext(
+                    context,
+                    this.accountId,
+                    async accountContext =>
+                        await authorizeTaskCollectionIndexDocAccessIfPossible(
+                            accountContext,
+                            await collectionPromise,
+                            "View",
+                        ),
                 ),
             ]);
 

@@ -8,10 +8,12 @@ import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**
- * Get all web push subscriptions registered for the provided `AccountId` and `SpaceId`.
+ * Get all web push subscriptions registered for the provided `AccountId` and
+ * `SpaceId`.
  *
- * System actors can see the web push subscriptions for any account since we need to send
- * push notifications to the account's web push subscriptions as the system actor.
+ * System actors can see the web push subscriptions for any account since we need
+ * to send push notifications to the account's web push subscriptions as the system
+ * actor.
  */
 export async function getAccountWebPushSubscriptionsForSpace(
     context: ServerActionContext,

@@ -41,7 +41,7 @@ export async function removeSpaceAccount(
             throw exhaustive(context.actor);
     }
 
-    return removeSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
+    return await removeSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
 }
 
 export const removeSpaceAccountBeforeExecuteTestCheckpoint =
@@ -71,8 +71,8 @@ function removeSpaceAccountWithoutAuthorization(
 
         if (!account) throw createSpaceAccountNotFoundError();
 
-        // We don't check accountSpaceIds here because we don't add to spaceIds until the user
-        // accepts the invite.
+        // We don't check accountSpaceIds here because we don't add to spaceIds until the
+        // user accepts the invite.
         if (!spaceAccountItem || spaceAccountItem.state.type === "Removed") {
             throw new FailedPreconditionError("Account is not a member of the space");
         }
@@ -121,9 +121,9 @@ function removeSpaceAccountWithoutAuthorization(
         await removeSpaceAccountBeforeExecuteTestCheckpoint.waitForTest(`${spaceId}:${accountId}`);
 
         await DynamoTableSchema.executeTransaction(context, [
-            // Since this transaction is security sensitive, make sure the account and
-            // space didn't update when we commit. This also makes sure both the space and
-            // account exist.
+            // Since this transaction is security sensitive, make sure the account and space
+            // didn't update when we commit. This also makes sure both the space and account
+            // exist.
             SpacesTable.transactionUpdateLockVersionConditionCheck(
                 spaceItem,
                 spaceItem.updateLockVersion,

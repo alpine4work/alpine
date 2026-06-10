@@ -16,6 +16,7 @@ import {
     taskQueryFilterDateOperationLessThanOperatorLabel,
 } from "~/client/web/tasks/internal/task_query_filter_date_operation_editor.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/web/tasks/internal/task_query_filter_operator_editor.js";
+import {TaskQueryLayoutFilterOperationEditor} from "~/client/web/tasks/internal/task_query_layout_filter_operation_editor.js";
 import {TaskQueryPriorityFilterOperationEditor} from "~/client/web/tasks/internal/task_query_priority_filter_operation_editor.js";
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/web/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQueryTitleFilterOperationEditor} from "~/client/web/tasks/internal/task_query_title_filter_operation_editor.js";
@@ -83,6 +84,20 @@ export function TaskQueryFilterEditor({
                     name="Priority"
                     operation={
                         <TaskQueryPriorityFilterOperationEditor
+                            filter={filter}
+                            onFilterChange={onFilterChange}
+                        />
+                    }
+                    onFilterRemove={onFilterRemove}
+                />
+            );
+        }
+        case "Layout": {
+            return (
+                <TaskQueryFilterEditorBase
+                    name="This"
+                    operation={
+                        <TaskQueryLayoutFilterOperationEditor
                             filter={filter}
                             onFilterChange={onFilterChange}
                         />
@@ -362,8 +377,8 @@ function TaskQueryFilterEditorBase({
                 flexShrink="0"
                 paddingLeft={platform === "mobile" ? "1.5" : "1"}
                 style={{
-                    // Subtract 1px from our right padding since that's the border width. That
-                    // will give us good margin on all sides of the button.
+                    // Subtract 1px from our right padding since that's the border width. That will
+                    // give us good margin on all sides of the button.
                     paddingRight: `calc(${spacing[platform === "mobile" ? "1.5" : "0.5"]} - 1px)`,
                 }}
             >

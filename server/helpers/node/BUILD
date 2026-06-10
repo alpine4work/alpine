@@ -6,7 +6,7 @@ ts_project(
         "//admin:__subpackages__",
         "//app:__subpackages__",
         "//server:__subpackages__",
-        "//shared/api:__pkg__",  # For a build script
+        "//shared/api/specification:__pkg__",  # For a build script
     ],
     deps = [
         "//:node_modules/@aws-sdk/credential-provider-node",

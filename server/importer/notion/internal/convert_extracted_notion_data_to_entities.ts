@@ -1,32 +1,43 @@
 import {strFromU8} from "fflate";
-
-import {fromApiContent} from "~/server/api/content/from_api_content.js";
-import {visitAndProduceApiContent} from "~/server/api/content/visit_and_produce_api_content.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
+import {attachFileToDocumentAsSystem} from "~/server/files/data/files_actions.js";
+import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
+import {ImporterServiceContextModuleBase} from "~/server/importer/importer_service_context_module_base.js";
+import {buildSiteFileSpanData} from "~/server/importer/notion/internal/build_site_file_span_data.js";
 import {createNotionImportCsvDatabaseDocument} from "~/server/importer/notion/internal/create_notion_import_csv_database_document.js";
 import {createNotionImportTeamspaceRootDocument} from "~/server/importer/notion/internal/create_notion_import_teamspace_root_document.js";
-import {findNotionImportUnzippedFileKey} from "~/server/importer/notion/internal/find_notion_import_unzipped_file_key.js";
-import {generateDeterministicNotionDocumentIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_document_id.js";
+import {generateDeterministicNotionIdSync} from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
-import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
+import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
+import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
+import {
+    decodeNotionImportRelativePathUrl,
+    resolveNotionImportFileLinkPath,
+} from "~/server/importer/notion/internal/resolve_notion_import_file_link_path.js";
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
-import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/unzip_notion_import_and_map_references.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentInlineElement,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+    ApiContentQuoteBlockElement,
+    ApiContentTableBlockElementCellBlockElement,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DocumentId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {DocumentId, FileId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**
@@ -34,276 +45,446 @@ import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
  * Notion data to Alpine entities. For now, this is just documents.
  *
  * This function will:
+ *
  * - Loop through each teamspace
  * - Loop through each document in the teamspace
  * - Create an Alpine document for the document using a markdown parser
- *   - Use the correct accessPolicy based on the teamspace import option
+ *     - Use the correct accessPolicy based on the teamspace import option
  * - Update all references within this document to a link to the alpine document
- *   - use the format https://alpine.inc/s/{spaceId}/documents/{documentId}
- * - Notion exported documents will have their children under the title, above the first divider (---)
- *   - Check if all children and only the children exist between the # title and the first divider (---)
- *   - If this is the case, we need to remove the children and the divider from the document content.
+ *     - use the format https://alpine.inc/doc/{documentId}
+ * - Notion exported documents will have their children under the title, above the
+ *   first divider (---)
+ *     - Check if all children and only the children exist between the # title and
+ *       the first divider (---)
+ *     - If this is the case, we need to remove the children and the divider from
+ *       the document content.
  * - Add a "Parent document: <parent mention>" under the title
- * - At the end of the document, add a "### Children documents:\n- <child link document>\n- <child link document>\n- ..."
+ * - At the end of the document, add a "### Children documents:\n-
+ *   <child link document>\n- <child link document>\n- ..."
  * - Update all references of the markdown files to the new Alpine fileIds.
  * - Update the status of the import item as we go
- * - TODO: Upload all files of filesToUpload to the space
- *   - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9v5j2e2jrpm2xz419k1q11v02w
- * - TODO: Batch document creation
- *   - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
  * - TODO: Run teamspace uploaded in parrallel
- *   - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/qytsx10ph8ba5z05gfdafya9r4
- *
+ *     - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/qytsx10ph8ba5z05gfdafya9r4
  */
 export async function convertExtractedNotionDataToEntities(
-    context: ServerSystemActionContext,
+    context: ImporterServiceSystemActionContext,
     notionImportId: NotionImportId,
     importItem: NotionImportItem,
     mappedReferencesResult: NotionImportMappedReferencesResult,
+    progressState: NotionImporterProgressState,
 ): Promise<void> {
-    const {spaceId, startedByAccountId, workspaceName} = importItem;
-    const {
-        notionWorkspaceId,
-        teamspaces,
-        unzippedFiles,
-        inlineDatabaseChildren,
-        rootLevelCsvDatabases,
-        pathToDocumentId,
-        documentIdToPath,
-    } = mappedReferencesResult;
+    await context.tracer.withSpan(
+        "Convert notion import to entities",
+        async (_tracerContext, span) => {
+            const {spaceId, startedByAccountId, workspaceName} = importItem;
+            const {
+                notionWorkspaceId,
+                teamspaces,
+                filesToUpload,
+                diskPathToUnzippedFiles,
+                inlineDatabaseChildren,
+                rootLevelCsvDatabases,
+                csvDatabasesRequiringDocuments,
+                pathToDocumentId,
+                documentIdToPath,
+            } = mappedReferencesResult;
 
-    // Generate teamspace root document IDs upfront so we can set parent links.
-    // Also add them to documentIdToPath so child documents can resolve their parent title.
-    // Use deterministic IDs based on space ID + workspace ID + teamspace ID for consistency.
-    const teamspaceRootDocumentIds = new Map<string, DocumentId>();
-    for (const teamspace of teamspaces) {
-        const rootDocumentId = generateDeterministicNotionDocumentIdSync(
-            spaceId,
-            notionWorkspaceId,
-            `teamspace-root:${teamspace.id}`,
-        );
-        teamspaceRootDocumentIds.set(teamspace.id, rootDocumentId);
-        // Use a synthetic path that follows the Notion file name pattern for title extraction.
-        // Use teamspace.id for uniqueness since teamspace names aren't guaranteed unique.
-        const syntheticPath = `${teamspace.name} ${teamspace.id}.md`;
-        documentIdToPath.set(rootDocumentId, syntheticPath);
-    }
+            /**
+             * Helper to read a file from the unzipped import.
+             */
+            async function readUnzippedFile(relativeFilePath: string): Promise<Uint8Array | null> {
+                return await context.importerService.readUnzippedFile({
+                    diskPathToUnzippedFiles,
+                    relativeFilePath,
+                });
+            }
 
-    // Create synthetic documents for root-level CSV-only databases.
-    // These need document entries so their children can have proper parent links.
-    // Use deterministic IDs based on space ID + workspace ID + CSV file's notion ID.
-    const csvDatabaseDocuments = new Map<
-        string,
-        {id: DocumentId; teamspaceId: string; childPaths: Array<string>}
-    >();
-    for (const [csvPath, {childPaths, teamspaceId}] of rootLevelCsvDatabases) {
-        const csvFileName = csvPath.split("/").pop() ?? "";
-        const parsed = parseNotionImportFileName(csvFileName);
-        const notionId = parsed?.notionId ?? csvPath; // Fallback to path if parsing fails
-        const documentId = generateDeterministicNotionDocumentIdSync(
-            spaceId,
-            notionWorkspaceId,
-            `csv-database:${notionId}`,
-        );
-        csvDatabaseDocuments.set(csvPath, {id: documentId, teamspaceId, childPaths});
-        pathToDocumentId.set(csvPath, documentId);
-        documentIdToPath.set(documentId, csvPath);
-    }
+            // Generate teamspace root document IDs upfront so we can set parent links. Also
+            // add them to documentIdToPath so child documents can resolve their parent title.
+            // Use deterministic IDs based on space ID + workspace ID + teamspace ID for
+            // consistency.
+            const teamspaceRootDocumentIds = new Map<string, DocumentId>();
+            for (const teamspace of teamspaces) {
+                const rootDocumentId = generateDeterministicNotionIdSync<DocumentId>(
+                    spaceId,
+                    notionWorkspaceId,
+                    `teamspace-root:${teamspace.id}`,
+                );
+                teamspaceRootDocumentIds.set(teamspace.id, rootDocumentId);
+                // Use a synthetic path that follows the Notion file name pattern for title
+                // extraction. Use teamspace.id for uniqueness since teamspace names aren't
+                // guaranteed unique.
+                const syntheticPath = `${teamspace.name} ${teamspace.id}.md`;
+                documentIdToPath.set(rootDocumentId, syntheticPath);
+            }
 
-    // TODO: Handle multiple pages at once
-    //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
+            // Create synthetic documents for CSV-only databases that need their own document.
+            // This covers both root-level databases and databases under pages. Use
+            // deterministic IDs based on space ID + workspace ID + CSV file's notion ID.
+            const csvDatabaseDocuments = new Map<
+                string,
+                {
+                    id: DocumentId;
+                    teamspaceId: string;
+                    childPaths: Array<string>;
+                    parentPath: string | null;
+                }
+            >();
 
-    // Process each teamspace
-    for (const teamspace of teamspaces) {
-        const isPublic = teamspace.importOption.type === "Public";
-        const teamspaceRootDocumentId = teamspaceRootDocumentIds.get(teamspace.id)!;
+            for (const [csvPath, {childPaths, teamspaceId}] of rootLevelCsvDatabases) {
+                const csvFileName = csvPath.split("/").pop() ?? "";
+                const parsed = parseNotionImportFileName(csvFileName);
+                const notionId = parsed?.notionId ?? csvPath; // Fallback to path if parsing fails
+                const documentId = generateDeterministicNotionIdSync<DocumentId>(
+                    spaceId,
+                    notionWorkspaceId,
+                    `csv-database:${notionId}`,
+                );
+                csvDatabaseDocuments.set(csvPath, {
+                    id: documentId,
+                    teamspaceId,
+                    childPaths,
+                    parentPath: null,
+                });
+                pathToDocumentId.set(csvPath, documentId);
+                documentIdToPath.set(documentId, csvPath);
+            }
 
-        // Update parent references for children of root-level CSV databases in this teamspace.
-        for (const [csvPath, {id: csvDocumentId, childPaths}] of csvDatabaseDocuments) {
-            for (const childPath of childPaths) {
-                const childDocument = teamspace.documents[childPath];
-                if (childDocument) {
-                    childDocument.parent = {documentId: csvDocumentId, relativeFilePath: csvPath};
+            for (const [
+                csvPath,
+                {childPaths, teamspaceId, parentPath},
+            ] of csvDatabasesRequiringDocuments) {
+                const csvFileName = csvPath.split("/").pop() ?? "";
+                const parsed = parseNotionImportFileName(csvFileName);
+                const notionId = parsed?.notionId ?? csvPath;
+                const documentId = generateDeterministicNotionIdSync<DocumentId>(
+                    spaceId,
+                    notionWorkspaceId,
+                    `csv-database:${notionId}`,
+                );
+                csvDatabaseDocuments.set(csvPath, {
+                    id: documentId,
+                    teamspaceId,
+                    childPaths,
+                    parentPath,
+                });
+                pathToDocumentId.set(csvPath, documentId);
+                documentIdToPath.set(documentId, csvPath);
+
+                // Add this database to the parent page's children set so it appears in the
+                // parent's "Child documents" section.
+                for (const teamspace of teamspaces) {
+                    const parentDoc = teamspace.documents[parentPath];
+                    if (parentDoc) {
+                        parentDoc.children.add(documentId);
+                        break;
+                    }
                 }
             }
-        }
 
-        // Update parent for first-layer documents (those with no parent).
-        // They should have the teamspace root document as their parent.
-        // Note: relativeFilePath is empty because the teamspace root is a synthetic document.
-        for (const [, documentInfo] of Object.entries(teamspace.documents)) {
-            if (documentInfo.parent === null) {
-                documentInfo.parent = {documentId: teamspaceRootDocumentId, relativeFilePath: ""};
+            let totalDocumentCount = 0;
+            for (const ts of teamspaces) {
+                totalDocumentCount += Object.keys(ts.documents).length;
             }
-        }
+            span.addData({common: {count: totalDocumentCount}});
 
-        // Process each document in the teamspace
-        for (const [filePath, documentInfo] of Object.entries(teamspace.documents)) {
-            // Find the file content in the unzipped files
-            const fileKey = findNotionImportUnzippedFileKey(unzippedFiles, filePath);
-            if (!fileKey) continue;
+            // Process each teamspace
+            for (const teamspace of teamspaces) {
+                const isPublic = teamspace.importOption.type === "Public";
+                const teamspaceRootDocumentId = teamspaceRootDocumentIds.get(teamspace.id)!;
 
-            const fileContent = unzippedFiles[fileKey];
-            if (!fileContent) continue;
+                // Update parent references for children of root-level CSV databases in this
+                // teamspace.
+                for (const [csvPath, {id: csvDocumentId, childPaths}] of csvDatabaseDocuments) {
+                    for (const childPath of childPaths) {
+                        const childDocument = teamspace.documents[childPath];
+                        if (childDocument) {
+                            childDocument.parent = {
+                                documentId: csvDocumentId,
+                                relativeFilePath: csvPath,
+                            };
+                        }
+                    }
+                }
 
-            const rawContent = strFromU8(fileContent);
+                // Update parent for first-layer documents (those with no parent). They should have
+                // the teamspace root document as their parent. Note: relativeFilePath is empty
+                // because the teamspace root is a synthetic document.
+                for (const [, documentInfo] of Object.entries(teamspace.documents)) {
+                    if (documentInfo.parent === null) {
+                        documentInfo.parent = {
+                            documentId: teamspaceRootDocumentId,
+                            relativeFilePath: "",
+                        };
+                    }
+                }
 
-            // ============================================================
-            // Preprocess markdown for database properties
-            // ============================================================
-            // Notion exports database row pages with property lines separated
-            // by single newlines (e.g., "Status: Done\nPriority: High").
-            // In markdown, single newlines don't create paragraph breaks - they
-            // become spaces. We convert single newlines between property-like
-            // lines to double newlines so the markdown parser creates separate
-            // paragraphs, which we can then detect and format in API content.
-            const preprocessedContent = preprocessNotionDatabaseProperties(rawContent);
+                async function createDocumentFromNotionDocument(
+                    filePath: string,
+                    documentInfo: (typeof teamspace.documents)[string],
+                ) {
+                    // Read the file content using the context module
+                    const fileContent = assertExists(await readUnzippedFile(filePath));
+                    const rawContent = strFromU8(fileContent);
+                    // ============================================================ \
+                    // Preprocess markdown for database properties \
+                    // ============================================================ \
+                    // Notion exports database row pages with property lines separated by single
+                    // newlines (e.g., "Status: Done\nPriority: High"). In markdown, single newlines
+                    // don't create paragraph breaks - they become spaces. We convert single newlines
+                    // between property-like lines to double newlines so the markdown parser creates
+                    // separate paragraphs, which we can then detect and format in API content.
+                    const currentDir = filePath.includes("/")
+                        ? filePath.slice(0, filePath.lastIndexOf("/"))
+                        : "";
+                    const preprocessedContent = preprocessNotionDatabaseProperties(
+                        rawContent,
+                        currentDir,
+                        filesToUpload,
+                    );
 
-            // ============================================================
-            // Parse markdown to API content
-            // ============================================================
-            const rawApiContent = parseApiContentFromMarkdown(preprocessedContent, {spaceId});
+                    // ============================================================ \
+                    // Parse markdown to API content \
+                    // ============================================================ \
+                    // Our markdown parser doesn't support inline images/videos/files directly. It only
+                    // recognizes files via URLs matching our alpine.inc format. Notion exports use
+                    // local relative paths (`![name](path.png)`) which the parser drops. Convert image
+                    // syntax to link syntax so the URLs are preserved as Text elements with Link
+                    // marks, allowing `convertParagraphToFileRowsIfNeeded` to resolve them as files.
+                    const markdownWithImagesAsLinks = preprocessedContent.replaceAll("![", "[");
+                    const rawApiContent = parseApiContentFromMarkdown(markdownWithImagesAsLinks);
 
-            // ============================================================
-            // Transform API content for Alpine's format
-            // ============================================================
-            const {title, content: finalApiContent} = reformatNotionApiContentIntoOurDesiredFormat(
-                rawApiContent,
-                {
-                    spaceId,
-                    pathToDocumentId,
-                    documentIdToPath,
-                    parentId: documentInfo.parent?.documentId ?? null,
-                    childIds: documentInfo.children,
-                    hasChildrenHeader: documentInfo.hasChildrenHeader,
-                    filePath,
-                    unzippedFiles,
-                    inlineDatabaseChildren,
-                },
-            );
+                    // ============================================================ \
+                    // Transform API content for Alpine's format \
+                    // ============================================================
+                    const {title, content: finalApiContent} =
+                        await reformatNotionApiContentIntoOurDesiredFormat(context, rawApiContent, {
+                            spaceId,
+                            pathToDocumentId,
+                            documentIdToPath,
+                            parentId: documentInfo.parent?.documentId ?? null,
+                            childIds: documentInfo.children,
+                            hasChildrenHeader: documentInfo.hasChildrenHeader,
+                            filePath,
+                            diskPathToUnzippedFiles,
+                            inlineDatabaseChildren,
+                            filesToUpload,
+                        });
 
-            // Convert API content to ProseMirror document
-            const bodyContent = fromApiContent(DocumentContentProsemirrorSchema, finalApiContent);
+                    // Convert API content to ProseMirror document
+                    const bodyContent = fromApiContent(
+                        DocumentContentProsemirrorSchema,
+                        finalApiContent,
+                    );
 
-            // Create access policy based on teamspace import option
-            const accessPolicy: AccessPolicy = {
-                accountGrantById: new Map([[startedByAccountId, {level: "Manage", generation: 0}]]),
-                defaultGrant: isPublic ? {level: "Edit"} : null,
-                urlGrant: null,
-            };
+                    // Create access policy based on teamspace import option
+                    const accessPolicy: AccessPolicy = {
+                        // TODO(ifitzsimmons, #notion-import-site-integration): This might be a site access
+                        // policy depending on the import options.
+                        type: "Local",
+                        accountGrantById: new Map([
+                            [startedByAccountId, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: isPublic ? {level: "Edit"} : null,
+                        urlGrant: null,
+                    };
 
-            // Build the document content with title
-            const titleNode = DocumentContentProsemirrorSchema.node("title", {}, [
-                DocumentContentProsemirrorSchema.text(title),
-            ]);
+                    // Build the document content with title
+                    const titleNode = DocumentContentProsemirrorSchema.node("title", {}, [
+                        DocumentContentProsemirrorSchema.text(title),
+                    ]);
 
-            // Get body nodes (skip the doc wrapper from fromApiContent)
-            const bodyNodes = bodyContent.content.content;
+                    // Get body nodes (skip the doc wrapper from fromApiContent)
+                    const bodyNodes = bodyContent.content.content;
 
-            const documentContent = assertDocumentContent(
-                DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
-                    titleNode,
-                    ...bodyNodes,
-                ]),
-            );
+                    const documentContent = assertDocumentContent(
+                        DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
+                            titleNode,
+                            ...bodyNodes,
+                        ]),
+                    );
 
-            // Create the document
-            await createDocument(context, {
-                id: documentInfo.id,
-                spaceId,
-                creatorId: startedByAccountId,
-                content: documentContent,
-                createFeedEntry: false,
-                from: {type: "Importer", source: {type: "Notion"}},
-            });
-
-            // Increment the imported count
-            // TODO: batch this:
-            //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
-            await NotionImporterTable.updateItem(
-                context,
-                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
-                item => {
-                    const existingItem = assertExists(item);
-
-                    if (existingItem.status.type !== "Processing") {
-                        throw new FailedPreconditionError(
-                            "Status is not in the correct state for importing",
+                    try {
+                        // Create the document
+                        await impersonateAccountAsSystemContext(
+                            context,
+                            startedByAccountId,
+                            context =>
+                                createDocument(context, {
+                                    id: documentInfo.id,
+                                    spaceId,
+                                    creatorId: startedByAccountId,
+                                    content: documentContent,
+                                    createFeedEntry: false,
+                                    skipAffinityPointAssignment: true,
+                                    from: {type: "Importer", source: {type: "Notion"}},
+                                }),
                         );
+                    } catch (error) {
+                        if (isDynamoConditionCheckError(error)) {
+                            // DynamoDB throws a condition check error if the document already exists. Noop if
+                            // the doc exists. Deterministic IDs mean re-importing the same Notion workspace
+                            // produces the same document IDs.
+                            return;
+                        }
+
+                        throw error;
                     }
 
-                    return {
-                        ...existingItem,
-                        importedCount: existingItem.importedCount + 1,
-                        updatedTime: new Date(),
-                    };
-                },
-            );
-        }
+                    // Attach files to the document so they can be accessed via the document. Files are
+                    // uploaded separately, but they need attachment records to be viewable when the
+                    // document is loaded. We extract file IDs from the final content because
+                    // additional files may have been added during content transformation (e.g., from
+                    // CSV tables).
+                    const fileIdsInContent = extractFileIdsFromApiContent(finalApiContent);
+                    await runAllPromises(
+                        [...fileIdsInContent].map(fileId =>
+                            attachFileToDocumentAsSystem(context, fileId, documentInfo.id),
+                        ),
+                    );
 
-        // Create documents for root-level CSV-only databases
-        for (const [csvPath, csvDatabaseInfo] of csvDatabaseDocuments) {
-            if (csvDatabaseInfo.teamspaceId !== teamspace.id) continue;
+                    // Increment document counter via state manager (periodically persisted)
+                    progressState.incrementDocumentCounter(teamspace.id);
+                }
 
-            // Create a document for this CSV database
-            await createNotionImportCsvDatabaseDocument(context, {
-                spaceId,
-                creatorId: startedByAccountId,
-                documentId: csvDatabaseInfo.id,
-                parentId: teamspaceRootDocumentId,
-                csvPath,
-                unzippedFiles,
-                isPublic,
-                inlineDatabaseChildren,
-            });
+                async function createDocumentFromNotionDatabase(
+                    csvPath: string,
+                    csvDatabaseInfo: {
+                        id: DocumentId;
+                        teamspaceId: string;
+                        childPaths: Array<string>;
+                        parentPath: string | null;
+                    },
+                ) {
+                    if (csvDatabaseInfo.teamspaceId !== teamspace.id) return;
 
-            // Increment the imported count
-            // TODO: batch this:
-            //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2t83weqmd65zqn9ap1t1hmhh5c
-            await NotionImporterTable.updateItem(
-                context,
-                {partitionType: "Import", sortRangeType: "Attributes", notionImportId},
-                item => {
-                    const existingItem = assertExists(item);
+                    // Create a document for this CSV database. Use the parent page's document ID when
+                    // the database is under a page, otherwise use the teamspace root.
+                    const csvParentId = csvDatabaseInfo.parentPath
+                        ? (pathToDocumentId.get(csvDatabaseInfo.parentPath) ??
+                          teamspaceRootDocumentId)
+                        : teamspaceRootDocumentId;
 
-                    if (existingItem.status.type !== "Processing") {
-                        throw new FailedPreconditionError(
-                            "Status is not in the correct state for importing",
-                        );
+                    try {
+                        await createNotionImportCsvDatabaseDocument(context, {
+                            spaceId,
+                            creatorId: startedByAccountId,
+                            documentId: csvDatabaseInfo.id,
+                            parentId: csvParentId,
+                            csvPath,
+                            diskPathToUnzippedFiles,
+                            isPublic,
+                            inlineDatabaseChildren,
+                            filesToUpload,
+                        });
+                    } catch (error) {
+                        if (isDynamoConditionCheckError(error)) {
+                            // DynamoDB throws a condition check error if the document already exists. Noop if
+                            // the doc exists. Deterministic IDs mean re-importing the same Notion workspace
+                            // produces the same document IDs.
+                            return;
+                        }
+
+                        throw error;
                     }
 
-                    return {
-                        ...existingItem,
-                        importedCount: existingItem.importedCount + 1,
-                        updatedTime: new Date(),
-                    };
-                },
-            );
-        }
+                    // Increment document counter via state manager (periodically persisted)
+                    progressState.incrementDocumentCounter(teamspace.id);
+                }
 
-        // Create a teamspace root document with list of first-layer children
-        await createNotionImportTeamspaceRootDocument(context, {
-            spaceId,
-            workspaceName: assertExists(workspaceName),
-            creatorId: startedByAccountId,
-            teamspaceName: teamspace.name,
-            isPublic,
-            teamspaceRootDocumentId,
-            teamspaceDocuments: teamspace.documents,
-            csvDatabaseDocumentIds: new Map(
-                [...csvDatabaseDocuments.entries()]
-                    .filter(([, info]) => info.teamspaceId === teamspace.id)
-                    .map(([csvPath, info]) => [csvPath, info.id]),
-            ),
-        });
-    }
+                // Create documents in batches of 100 rather than all at once.
+                //
+                // Large teamspaces can have a ton of documents. Previously we fired all of them
+                // concurrently via `runAllPromises`, which caused DynamoDB `GetItemBatcher`
+                // timeouts (`DeadlineExceededError: DynamoDB request timed out`). Each document
+                // creation does multiple DynamoDB reads (authorization, space access) and writes
+                // (transaction with 2 items + file attachments). With thousands of concurrent
+                // promises, the batched reads overwhelm DynamoDB's 2-second per-request timeout,
+                // causing the entire import to fail without ever creating a single document.
+                //
+                // Batching to 100 keeps DynamoDB pressure manageable while still parallelizing
+                // within each batch.
+                const documentEntries: Array<() => Promise<void>> = [
+                    ...Object.entries(teamspace.documents).map(
+                        ([filePath, documentInfo]) =>
+                            () =>
+                                createDocumentFromNotionDocument(filePath, documentInfo),
+                    ),
+                    ...[...csvDatabaseDocuments.entries()].map(
+                        ([csvPath, csvDatabaseInfo]) =>
+                            () =>
+                                createDocumentFromNotionDatabase(csvPath, csvDatabaseInfo),
+                    ),
+                ];
+
+                const batchSize = 100;
+                for (let i = 0; i < documentEntries.length; i += batchSize) {
+                    const batch = documentEntries.slice(i, i + batchSize);
+                    await runAllPromises(batch.map(fn => fn()));
+                }
+
+                // Create a teamspace root document with list of first-layer children
+                try {
+                    await createNotionImportTeamspaceRootDocument(context, {
+                        spaceId,
+                        workspaceName: assertExists(workspaceName),
+                        creatorId: startedByAccountId,
+                        teamspaceName: teamspace.name,
+                        isPublic,
+                        teamspaceRootDocumentId,
+                        teamspaceDocuments: teamspace.documents,
+                        csvDatabaseDocumentIds: new Map(
+                            [...csvDatabaseDocuments.entries()]
+                                .filter(
+                                    ([, info]) =>
+                                        info.teamspaceId === teamspace.id &&
+                                        info.parentPath === null,
+                                )
+                                .map(([csvPath, info]) => [csvPath, info.id]),
+                        ),
+                    });
+                } catch (error) {
+                    if (isDynamoConditionCheckError(error)) {
+                        // DynamoDB throws a condition check error if the document already exists. Noop if
+                        // the doc exists. Deterministic IDs mean re-importing the same Notion workspace
+                        // produces the same document IDs.
+
+                        // no op
+                    } else {
+                        throw error;
+                    }
+                }
+
+                // Increment document counter for teamspace root
+                progressState.incrementDocumentCounter(teamspace.id);
+
+                // Emit per-teamspace conversion span with final site metrics.
+                const counters = progressState.teamspaceCounters.get(teamspace.id);
+                const expectedStats = progressState.initialResult.teamspaces.get(teamspace.id);
+                if (counters && expectedStats) {
+                    context.tracer.withSpanSync(
+                        "Convert notion import site",
+                        (_tracerContext, span) => {
+                            span.addData({
+                                importer: {
+                                    site: {notionId: teamspace.id},
+                                    created: {documents: counters.documents},
+                                    uploaded: buildSiteFileSpanData(expectedStats.files),
+                                },
+                            });
+                        },
+                    );
+                }
+            }
+        },
+    );
 }
 
 // ============================================================================
 // MARKDOWN PREPROCESSING
-// ============================================================================
-// We do minimal preprocessing on raw markdown before parsing. The goal is to
-// handle Notion export quirks that are difficult to detect in parsed content.
+// ============================================================================ We
+// do minimal preprocessing on raw markdown before parsing. The goal is to handle
+// Notion export quirks that are difficult to detect in parsed content.
 // ============================================================================
 
 /**
@@ -311,8 +492,8 @@ export async function convertExtractedNotionDataToEntities(
  *
  * ## Why this is necessary
  *
- * Notion exports database row pages with property lines at the top, formatted
- * as `Property Name: value` on separate lines with single newlines:
+ * Notion exports database row pages with property lines at the top, formatted as
+ * `Property Name: value` on separate lines with single newlines:
  *
  * ```
  * Status: Done
@@ -322,9 +503,9 @@ export async function convertExtractedNotionDataToEntities(
  * Task description here.
  * ```
  *
- * In markdown, single newlines don't create paragraph breaks - they become
- * spaces when parsed. So the above becomes a single paragraph:
- * "Status: Done Priority: High Due Date: 2025-01-15"
+ * In markdown, single newlines don't create paragraph breaks - they become spaces
+ * when parsed. So the above becomes a single paragraph: "Status: Done Priority:
+ * High Due Date: 2025-01-15"
  *
  * By adding an extra newline between property lines, we get separate paragraphs
  * that we can detect and format as a bulleted list in API content.
@@ -335,17 +516,26 @@ export async function convertExtractedNotionDataToEntities(
  * Text node, making it impossible to reliably split them back apart (values can
  * contain spaces that look like property boundaries).
  *
- * @param markdown - Raw markdown content from Notion export
- * @returns Markdown with double newlines between property lines
+ * @param markdown - Raw markdown content from Notion export @returns Markdown with
+ * double newlines between property lines
  */
-function preprocessNotionDatabaseProperties(markdown: string): string {
+function preprocessNotionDatabaseProperties(
+    markdown: string,
+    currentDir: string,
+    filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
+): string {
     const lines = markdown.split("\n");
 
     // Pattern to match property lines: "Property Name: value"
-    // - One or more words (letters only) as the key
+    //
+    // - One or more words (any non-whitespace, non-colon chars) as the key
     // - Followed by colon
     // - Followed by the value
-    const propertyLinePattern = /^[A-Za-z]+(?:\s[A-Za-z]+)*:\s*.+$/;
+    const propertyLinePattern = /^[^\s:]+(?:\s[^\s:]+)*:\s*.+$/;
+
+    // Pattern to capture the property name and value from a property line. Used to
+    // check any property's value for file paths.
+    const propertyPartsPattern = /^([^\s:]+(?:\s[^\s:]+)*):\s*(.+)$/;
 
     // Find the title line (# Heading) - properties come after it
     let titleIndex = -1;
@@ -387,10 +577,32 @@ function preprocessNotionDatabaseProperties(markdown: string): string {
         return markdown;
     }
 
-    // Add extra newlines between property lines
+    // Add extra newlines between property lines and convert file paths
     const result: Array<string> = [];
     for (let i = 0; i < lines.length; i++) {
-        result.push(lines[i]!);
+        let line = lines[i]!;
+
+        // Check all property lines for file paths and convert them to markdown image
+        // syntax. Each file is placed on its own line so it becomes a separate paragraph,
+        // which can then be converted to a FileRow element.
+        if (i >= propertyStartIndex && i <= propertyEndIndex) {
+            const trimmed = line.trim();
+            const propertyMatch = propertyPartsPattern.exec(trimmed);
+            if (propertyMatch) {
+                const propertyName = propertyMatch[1]!;
+                const valueStr = propertyMatch[2]!;
+                const linkLines = convertFilePathsToMarkdownLinkLines(
+                    valueStr,
+                    currentDir,
+                    filesToUpload,
+                );
+                if (linkLines.length > 0) {
+                    line = `${propertyName}:\n\n${linkLines.join("\n\n")}`;
+                }
+            }
+        }
+
+        result.push(line);
 
         // Add extra newline after each property line (except the last one)
         if (i >= propertyStartIndex && i < propertyEndIndex) {
@@ -406,8 +618,46 @@ function preprocessNotionDatabaseProperties(markdown: string): string {
     return result.join("\n");
 }
 
-// ============================================================================
-// API CONTENT TRANSFORMATION
+/**
+ * Convert file paths in a property value to markdown link lines. Uses link syntax
+ * (not image syntax) because our markdown parser doesn't support inline
+ * images/videos/files directly, it only recognizes files via URLs matching our
+ * alpine.inc format.
+ *
+ * Input: `../IMG_7190%201.jpg, ../video.mp4` Output:
+ * [`[IMG_7190 1.jpg](../IMG_7190%201.jpg)`, `[video.mp4](../video.mp4)`]
+ *
+ * Each file path is converted to its own markdown link line, so they become
+ * separate paragraphs that can be converted to FileRow elements. Only paths that
+ * resolve to actual files in `filesToUpload` are converted. Returns an empty array
+ * if no parts resolve to files.
+ */
+function convertFilePathsToMarkdownLinkLines(
+    pathsStr: string,
+    currentDir: string,
+    filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
+): Array<string> {
+    // Split by comma (files can be comma-separated)
+    const parts = pathsStr.split(",").map(p => p.trim());
+
+    return parts
+        .map(part => {
+            // Only convert if this path resolves to an actual file
+            if (!resolveFileLinkPath(part, currentDir, filesToUpload)) {
+                return null;
+            }
+
+            // Extract filename from path
+            const fileName = decodeNotionImportRelativePathUrl(part.split("/").pop() ?? part);
+
+            // Convert to markdown link syntax: [filename](path)
+            return `[${fileName}](${part})`;
+        })
+        .filter((line): line is string => line !== null);
+}
+
+// ============================================================================ API
+// CONTENT TRANSFORMATION
 // ============================================================================
 
 /**
@@ -417,8 +667,8 @@ function preprocessNotionDatabaseProperties(markdown: string): string {
  * horizontal rule (Divider). This function removes all elements up to and
  * including the first Divider.
  *
- * @param elements - Block elements to process
- * @returns Elements with child links section removed
+ * @param elements - Block elements to process @returns Elements with child links
+ * section removed
  */
 function removeChildLinksSectionFromApiContent(
     elements: Array<ApiContentBlockElement>,
@@ -435,12 +685,12 @@ function removeChildLinksSectionFromApiContent(
 /**
  * Format database page properties as a bulleted list with dividers.
  *
- * After preprocessing, database property lines appear as consecutive
- * Paragraph elements, each containing a single "Key: Value" text.
- * We detect this pattern and convert to: Divider, UnorderedList, Divider.
+ * After preprocessing, database property lines appear as consecutive Paragraph
+ * elements, each containing a single "Key: Value" text. We detect this pattern and
+ * convert to: Divider, UnorderedList, Divider.
  *
- * @param elements - Block elements to process
- * @returns Elements with formatted properties
+ * @param elements - Block elements to process @returns Elements with formatted
+ * properties
  */
 function formatDatabasePropertiesInApiContent(
     elements: Array<ApiContentBlockElement>,
@@ -500,12 +750,12 @@ function formatDatabasePropertiesInApiContent(
     return formattedElements;
 }
 
-// ============================================================================
-// API CONTENT TRANSFORMATION
+// ============================================================================ API
+// CONTENT TRANSFORMATION
 // ============================================================================
 // These functions operate on parsed API content to transform it into Alpine's
-// desired format. They handle structural changes like extracting titles,
-// promoting headings, and converting links to mentions.
+// desired format. They handle structural changes like extracting titles, promoting
+// headings, and converting links to mentions.
 // ============================================================================
 
 /**
@@ -513,31 +763,32 @@ function formatDatabasePropertiesInApiContent(
  *
  * This function handles transformations that work well on parsed API content:
  *
- * 1. **Extract title** - Find the first H1 heading, use its text as the
- *    document title, and remove it from the content.
+ * 1. **Extract title** - Find the first H1 heading, use its text as the document
+ *    title, and remove it from the content.
  *
- * 2. **Promote headings** - Since we extracted H1 as the title, demote all
- *    other headings by one level (H2 → H1, H3 → H2, etc.) to maintain
- *    proper document hierarchy.
+ * 2. **Promote headings** - Since we extracted H1 as the title, demote all other
+ *    headings by one level (H2 → H1, H3 → H2, etc.) to maintain proper document
+ *    hierarchy.
  *
  * 3. **Convert document links** - Replace links to `.md` files with Alpine
  *    document mentions that reference the imported documents.
  *
- * 4. **Convert database links** - Replace links to `.csv` files with actual
- *    table blocks containing the parsed CSV data.
+ * 4. **Convert database links** - Replace links to `.csv` files with actual table
+ *    blocks containing the parsed CSV data.
  *
- * 5. **Add navigation** - Add "Parent document" mention at the top and
- *    "Child documents" section at the bottom for document hierarchy.
+ * 5. **Add navigation** - Add "Parent document" mention at the top and "Child
+ *    documents" section at the bottom for document hierarchy.
  *
- * @see README.md "Header Level Promotion" section for heading level changes.
- * @see README.md "Empty Parent Documents" section for child-mentions-only handling.
+ * @see README.md "Header Level Promotion" section for heading level changes. @see
+ * README.md "Empty Parent Documents" section for child-mentions-only handling.
  * @see README.md "Inline vs Full-Page Databases" section for CSV link conversion.
  *
- * @param apiContent - Parsed API content from markdown
- * @param options - Configuration including document mappings and files
- * @returns Object with extracted title and transformed content
+ * @param apiContent - Parsed API content from markdown @param options -
+ * Configuration including document mappings and files @returns Object with
+ * extracted title and transformed content
  */
-function reformatNotionApiContentIntoOurDesiredFormat(
+async function reformatNotionApiContentIntoOurDesiredFormat(
+    context: {importerService: ImporterServiceContextModuleBase},
     apiContent: ApiContent,
     options: {
         spaceId: SpaceId;
@@ -547,10 +798,11 @@ function reformatNotionApiContentIntoOurDesiredFormat(
         childIds: Set<DocumentId>;
         hasChildrenHeader: boolean;
         filePath: string;
-        unzippedFiles: Record<string, Uint8Array>;
+        diskPathToUnzippedFiles: string;
         inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
+        filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
     },
-): {title: string; content: ApiContent} {
+): Promise<{title: string; content: ApiContent}> {
     const {
         pathToDocumentId,
         documentIdToPath,
@@ -558,19 +810,23 @@ function reformatNotionApiContentIntoOurDesiredFormat(
         childIds,
         hasChildrenHeader,
         filePath,
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         inlineDatabaseChildren,
+        filesToUpload,
     } = options;
 
-    let elements = [...apiContent.elements];
+    let elements: Array<ApiContentBlockElement> = [...apiContent.elements];
 
     // ----------------------------------------------------------------
     // Extract title from first H1 heading
-    // ----------------------------------------------------------------
-    // Notion exports the page title as a `# Title` heading. We extract
-    // this to use as the document's title field and remove it from the
-    // body content.
-    // ----------------------------------------------------------------
+    // ---
+    //
+    // ---
+    //
+    // Notion exports the page title as a `# Title` heading. We extract this to use as
+    // the document's title field and remove it from the body content.
+    //
+    // ---
     let title = "Untitled";
     const firstHeading1Index = elements.findIndex(
         element => element.type === "Heading" && element.level === 1,
@@ -592,31 +848,42 @@ function reformatNotionApiContentIntoOurDesiredFormat(
 
     // ----------------------------------------------------------------
     // Remove child links section if present
-    // ----------------------------------------------------------------
-    // Notion exports child page links after the title, followed by a
-    // horizontal rule (---). We remove this section since we add our
-    // own "Child documents" section at the end.
-    // ----------------------------------------------------------------
+    // ---
+    //
+    // ---
+    //
+    // Notion exports child page links after the title, followed by a horizontal rule
+    // (---). We remove this section since we add our own "Child documents" section at
+    // the end.
+    //
+    // ---
     if (hasChildrenHeader) {
         elements = removeChildLinksSectionFromApiContent(elements);
     }
 
     // ----------------------------------------------------------------
     // Format database properties
-    // ----------------------------------------------------------------
-    // Notion exports database row pages with property lines at the top.
-    // These appear as a paragraph with "Key: Value" text separated by
-    // Break elements. We convert these to a bulleted list with dividers.
-    // ----------------------------------------------------------------
+    // ---
+    //
+    // ---
+    //
+    // Notion exports database row pages with property lines at the top. These appear
+    // as a paragraph with "Key: Value" text separated by Break elements. We convert
+    // these to a bulleted list with dividers.
+    //
+    // ---
     elements = formatDatabasePropertiesInApiContent(elements);
 
     // ----------------------------------------------------------------
     // Promote all headings by one level
-    // ----------------------------------------------------------------
-    // Since we extracted the H1 as the title, we need to promote all
-    // remaining headings: H2 → H1, H3 → H2, etc. This maintains proper
-    // document hierarchy.
-    // ----------------------------------------------------------------
+    // ---
+    //
+    // ---
+    //
+    // Since we extracted the H1 as the title, we need to promote all remaining
+    // headings: H2 → H1, H3 → H2, etc. This maintains proper document hierarchy.
+    //
+    // ---
     elements = elements.map(element => {
         if (element.type === "Heading" && element.level > 1) {
             return {...element, level: element.level - 1};
@@ -627,12 +894,16 @@ function reformatNotionApiContentIntoOurDesiredFormat(
     // Get the directory of the current document for resolving relative paths
     const currentDir = filePath.includes("/") ? filePath.slice(0, filePath.lastIndexOf("/")) : "";
 
-    // Transform .csv links to tables (must happen before link transformation)
-    elements = transformCsvLinksToTables(elements, {
+    // Transform .csv links to tables (must happen before link transformation). The
+    // result may contain File elements within table cells. These are handled correctly
+    // by fromApiContent at the end.
+    const csvTransformedElements = await transformCsvLinksToTables(context, elements, {
         currentDir,
-        unzippedFiles,
+        diskPathToUnzippedFiles,
         inlineDatabaseChildren,
+        filesToUpload,
     });
+    elements = csvTransformedElements;
 
     // Transform .md links to document mentions using visitor pattern
     const transformedContent = transformMdLinksToMentions(
@@ -641,12 +912,29 @@ function reformatNotionApiContentIntoOurDesiredFormat(
     );
     elements = [...transformedContent.elements];
 
-    // Check if the content is ONLY child document mentions (no real content).
-    // This happens when a Notion page has no content except links to child pages.
-    // In this case, we skip the inline children since Alpine adds a "## Child documents" section.
+    // Check if the content is ONLY child document mentions (no real content). This
+    // happens when a Notion page has no content except links to child pages. In this
+    // case, we skip the inline children since Alpine adds a "## Child documents"
+    // section.
     if (isApiContentOnlyChildMentions(elements, childIds)) {
         elements = [];
     }
+
+    // ----------------------------------------------------------------
+    // Transform file links to File/FileGallery elements
+    // ---
+    //
+    // ---
+    //
+    // Convert links to uploaded files (images, attachments) into File or FileGallery
+    // elements. Adjacent file references are combined into FileGallery rows (max 3
+    // files per row).
+    //
+    // ---
+    const extendedElements = transformFileLinksToFileElementsIfPossible(elements, {
+        currentDir,
+        filesToUpload,
+    });
 
     // Build the final content
     const finalElements: Array<ApiContentBlockElement> = [];
@@ -663,7 +951,7 @@ function reformatNotionApiContentIntoOurDesiredFormat(
     }
 
     // Add the processed content
-    finalElements.push(...elements);
+    finalElements.push(...extendedElements);
 
     // Add children section if there are children
     if (childIds.size > 0) {
@@ -713,9 +1001,9 @@ function extractTextFromInlineElements(elements: ReadonlyArray<ApiContentInlineE
 /**
  * Check if API content contains ONLY child document mentions (no real content).
  *
- * This detects Notion pages that have no content except links to child pages.
- * When true, we skip adding the inline children content since Alpine will add
- * a structured "Child documents" section at the end anyway.
+ * This detects Notion pages that have no content except links to child pages. When
+ * true, we skip adding the inline children content since Alpine will add a
+ * structured "Child documents" section at the end anyway.
  */
 function isApiContentOnlyChildMentions(
     elements: Array<ApiContentBlockElement>,
@@ -770,21 +1058,361 @@ function isApiContentOnlyChildMentions(
     return true;
 }
 
+// Maximum number of files per FileGallery row
+const maxFilesPerRow = 3;
+
 /**
- * Transform CSV links to table blocks.
- *
- * Paragraphs containing a link to a .csv file are replaced with a Table
- * block containing the parsed CSV data.
+ * Check if a link URL points to a file that should be uploaded. Returns the file
+ * path relative to the export root, or null if not a file link.
  */
-function transformCsvLinksToTables(
+function resolveFileLinkPath(
+    url: string,
+    currentDir: string,
+    filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
+): string | null {
+    return resolveNotionImportFileLinkPath(url, currentDir, {
+        has: (path: string) => path in filesToUpload,
+    });
+}
+
+/**
+ * Extract file paths from a paragraph element. Returns an array of file paths if
+ * the paragraph contains only file links, or null if it contains other content.
+ */
+function convertParagraphToFileRowsIfNeeded(
+    element: ApiContentBlockElement,
+    currentDir: string,
+    filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
+): Array<{path: string; fileId: FileId}> | null {
+    if (element.type !== "Paragraph") {
+        return null;
+    }
+
+    const files: Array<{path: string; fileId: FileId}> = [];
+
+    for (const inline of element.elements) {
+        // Paragraphs that contain other content types cannot contain fileRows
+        if (inline.type !== "Text" && inline.type !== "Break") return null;
+
+        // Breaks are OK between files, ditto for whitespace-only text
+        if (inline.type === "Break" || inline.text.trim() === "") continue;
+
+        // Paragraphs with plain text do not support fileRows (e.g. "Attachment:
+        // [alt](path)" will not get parsed into a fileRow). Return early
+        if (!inline.marks || inline.marks.length === 0) return null;
+
+        const linkMark = inline.marks.find(mark => mark.type === "Link");
+        // if text element doesn't contain link, treat this the same as a the plain text
+        // condition above. Return early
+        if (!linkMark) return null;
+
+        const filePath = resolveFileLinkPath(linkMark.url, currentDir, filesToUpload);
+        // If the link is not to a media file, this paragraph does not support fileRows
+        if (!filePath) return null;
+
+        const fileEntry = filesToUpload[filePath];
+        // If the link is to a file that is not included in this notion import, return
+        // early.
+        if (!fileEntry) return null;
+
+        files.push({path: filePath, fileId: fileEntry.id});
+    }
+
+    return files.length > 0 ? files : null;
+}
+
+/**
+ * Extract file-link paragraphs from inside a container block element (lists,
+ * blockquotes) and hoist them out as top-level file elements.
+ *
+ * Our content schema doesn't support file nodes inside list items or blockquotes,
+ * so the only option is to pull them out to the top level. When all paragraphs in
+ * a container are file-only the container is dropped entirely (remainingElement is
+ * null) and only the file elements are emitted.
+ *
+ * Notion does NOT support files in lists today, but does support them in
+ * blockquotes. We handle this here in case they ever do suppport it.
+ *
+ * Tables are handled separately by {@link transformTableFileLinksToFileRowTables}
+ * because our schema DOES support files in table cells via `File` elements.
+ */
+function extractFilesFromContainerElement(
+    element: ApiContentBlockElement & {
+        type: "UnorderedList" | "OrderedList" | "CheckList" | "Quote";
+    },
+    currentDir: string,
+    filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
+): {
+    files: Array<{path: string; fileId: FileId}>;
+    remainingElement: ApiContentBlockElement | null;
+} {
+    const allFiles: Array<{path: string; fileId: FileId}> = [];
+
+    // Splits a list of paragraphs into file-only paragraphs (whose file references are
+    // collected into `allFiles`) and everything else (returned as the kept array).
+    const partitionParagraphs = <T extends ApiContentBlockElement>(
+        paragraphs: ReadonlyArray<T>,
+    ): Array<T> => {
+        const kept: Array<T> = [];
+
+        for (const paragraph of paragraphs) {
+            const files = convertParagraphToFileRowsIfNeeded(paragraph, currentDir, filesToUpload);
+            if (files) {
+                allFiles.push(...files);
+            } else {
+                kept.push(paragraph);
+            }
+        }
+
+        return kept;
+    };
+
+    switch (element.type) {
+        case "UnorderedList":
+        case "OrderedList": {
+            const remainingItems = element.items
+                .map(item => ({...item, elements: partitionParagraphs(item.elements)}))
+                .filter(item => item.elements.length > 0);
+
+            if (allFiles.length === 0) {
+                return {files: [], remainingElement: element};
+            }
+
+            return {
+                files: allFiles,
+                remainingElement:
+                    remainingItems.length > 0 ? {...element, items: remainingItems} : null,
+            };
+        }
+        case "CheckList": {
+            const remainingItems = element.items
+                .map(item => ({...item, elements: partitionParagraphs(item.elements)}))
+                .filter(item => item.elements.length > 0);
+
+            if (allFiles.length === 0) {
+                return {files: [], remainingElement: element};
+            }
+
+            return {
+                files: allFiles,
+                remainingElement:
+                    remainingItems.length > 0 ? {...element, items: remainingItems} : null,
+            };
+        }
+        case "Quote": {
+            const remainingElements = partitionParagraphs(element.elements);
+
+            if (allFiles.length === 0) {
+                return {files: [], remainingElement: element};
+            }
+
+            return {
+                files: allFiles,
+                remainingElement:
+                    remainingElements.length > 0 ? {...element, elements: remainingElements} : null,
+            };
+        }
+        default:
+            throw exhaustive(element);
+    }
+}
+
+/**
+ * Convert file-link paragraphs inside table cells to File elements in-place.
+ *
+ * Unlike lists and blockquotes, our content schema supports files inside table
+ * cells via File elements. So instead of hoisting files out, we replace file-only
+ * paragraphs with File elements within the cell.
+ *
+ * NOTE: Notion doesn't currently export files inside markdown tables, but they
+ * might someday. Since table cells can contain paragraphs with file links, we
+ * handle it now so it works automatically if Notion adds this.
+ */
+function transformTableFileLinksToFileRowTables(
+    element: ApiContentBlockElement & {type: "Table"},
+    currentDir: string,
+    filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
+): ApiContentBlockElement {
+    let changed = false;
+
+    const rows = element.rows.map(row => ({
+        ...row,
+        cells: row.cells.map(cell => {
+            const newElements: Array<ApiContentTableBlockElementCellBlockElement> = [];
+
+            for (const cellElement of cell.elements) {
+                const files = convertParagraphToFileRowsIfNeeded(
+                    cellElement,
+                    currentDir,
+                    filesToUpload,
+                );
+                if (files) {
+                    changed = true;
+                    for (const file of files) {
+                        newElements.push({type: "File", id: file.fileId});
+                    }
+                } else {
+                    newElements.push(cellElement);
+                }
+            }
+
+            return {...cell, elements: newElements};
+        }),
+    }));
+
+    if (!changed) {
+        return element;
+    }
+
+    return {...element, rows};
+}
+
+/**
+ * Transform file links to File and FileGallery elements.
+ *
+ * Paragraphs containing links to uploaded files (images, PDFs, etc.) are replaced
+ * with File or FileGallery elements. Adjacent file references are combined into
+ * FileGallery rows (max 3 files per row), or single File elements.
+ *
+ * @param elements - Block elements to process @param options - Configuration
+ * including file mappings @returns Elements with file blocks
+ */
+function transformFileLinksToFileElementsIfPossible(
     elements: Array<ApiContentBlockElement>,
     options: {
         currentDir: string;
-        unzippedFiles: Record<string, Uint8Array>;
-        inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
+        filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
     },
 ): Array<ApiContentBlockElement> {
-    const {currentDir, unzippedFiles, inlineDatabaseChildren} = options;
+    const {currentDir, filesToUpload} = options;
+    const result: Array<ApiContentBlockElement> = [];
+
+    // Collect pending files to combine into rows
+    let pendingFiles: Array<{fileId: FileId}> = [];
+
+    // Flush pending files as FileGallery rows (max 3 files per row) or single File
+    // elements
+    const flushPendingFiles = (): void => {
+        while (pendingFiles.length > 0) {
+            const batch = pendingFiles.slice(0, maxFilesPerRow);
+            pendingFiles = pendingFiles.slice(maxFilesPerRow);
+            if (batch.length === 1) {
+                result.push({
+                    type: "File",
+                    id: assertExists(batch[0]).fileId,
+                });
+            } else {
+                result.push({
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: batch.map(file => ({
+                                element: {
+                                    type: "File" as const,
+                                    id: file.fileId,
+                                },
+                            })),
+                        },
+                    ],
+                });
+            }
+        }
+    };
+
+    for (const element of elements) {
+        switch (element.type) {
+            case "Paragraph": {
+                const files = convertParagraphToFileRowsIfNeeded(
+                    element,
+                    currentDir,
+                    filesToUpload,
+                );
+
+                if (files) {
+                    for (const file of files) {
+                        pendingFiles.push({fileId: file.fileId});
+                    }
+                } else {
+                    flushPendingFiles();
+                    result.push(element);
+                }
+
+                break;
+            }
+
+            case "UnorderedList":
+            case "OrderedList":
+            case "CheckList":
+            case "Quote": {
+                const extracted = extractFilesFromContainerElement(
+                    element,
+                    currentDir,
+                    filesToUpload,
+                );
+                if (extracted.files.length > 0) {
+                    flushPendingFiles();
+                    if (extracted.remainingElement) {
+                        result.push(extracted.remainingElement);
+                    }
+                    for (const file of extracted.files) {
+                        pendingFiles.push({fileId: file.fileId});
+                    }
+                } else {
+                    flushPendingFiles();
+                    result.push(element);
+                }
+                break;
+            }
+
+            case "Table": {
+                flushPendingFiles();
+                result.push(
+                    transformTableFileLinksToFileRowTables(element, currentDir, filesToUpload),
+                );
+                break;
+            }
+
+            // These elements won't hold file text links so we can flush pending files and add
+            // the element
+            case "Heading":
+            case "Divider":
+            case "Code":
+            case "File":
+            case "Preview":
+            case "FileGallery":
+            case "FileFloat": {
+                flushPendingFiles();
+                result.push(element);
+                break;
+            }
+            default:
+                throw exhaustive(element);
+        }
+    }
+
+    // Flush any remaining pending files
+    flushPendingFiles();
+
+    return result;
+}
+
+/**
+ * Transform CSV links to table blocks.
+ *
+ * Paragraphs containing a link to a .csv file are replaced with a Table block
+ * containing the parsed CSV data.
+ */
+async function transformCsvLinksToTables(
+    context: {importerService: ImporterServiceContextModuleBase},
+    elements: Array<ApiContentBlockElement>,
+    options: {
+        currentDir: string;
+        diskPathToUnzippedFiles: string;
+        inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
+        filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
+    },
+): Promise<Array<ApiContentBlockElement>> {
+    const {currentDir, diskPathToUnzippedFiles, inlineDatabaseChildren, filesToUpload} = options;
     const result: Array<ApiContentBlockElement> = [];
 
     for (const element of elements) {
@@ -798,30 +1426,51 @@ function transformCsvLinksToTables(
                     if (linkMark && "url" in linkMark) {
                         const url = linkMark.url;
                         if (url.endsWith(".csv")) {
-                            const decodedPath = decodeURIComponent(url);
-                            const normalizedPath = decodedPath.startsWith("./")
-                                ? decodedPath.slice(2)
-                                : decodedPath;
+                            const decodedUrl = decodeNotionImportRelativePathUrl(url);
+                            const normalizedPath = decodedUrl.startsWith("./")
+                                ? decodedUrl.slice(2)
+                                : decodedUrl;
                             const resolvedPath =
                                 resolveNotionImportRelativePath(currentDir, normalizedPath) ??
                                 normalizedPath;
 
-                            const csvKey = findNotionImportUnzippedFileKey(
-                                unzippedFiles,
-                                resolvedPath,
+                            // Notion sometimes omits inline database CSVs from an export while still writing
+                            // the markdown link (e.g. `[Tasks](Tasks%20abc123.csv)`). The filenames follow the
+                            // standard `Title notionId.csv` pattern, so missing CSVs are indistinguishable
+                            // from real ones until we try to read them.
+                            //
+                            // The reference mapping phase filters links against files on disk, but this
+                            // function re-discovers CSV links from parsed API content independently. When the
+                            // file is missing we skip the table conversion and leave the link as a regular
+                            // paragraph. See `server/importer/notion/README.md` ("Missing Inline Database
+                            // CSVs") for the full investigation.
+                            const csvData = await context.importerService.readUnzippedFile({
+                                diskPathToUnzippedFiles,
+                                relativeFilePath: resolvedPath,
+                            });
+
+                            if (!csvData) {
+                                break;
+                            }
+
+                            const csvContent = strFromU8(csvData);
+                            const childTitleToDocumentId =
+                                inlineDatabaseChildren.get(resolvedPath) ?? new Map();
+
+                            // Get the directory of the CSV file for resolving relative paths
+                            const csvDir = resolvedPath.includes("/")
+                                ? resolvedPath.slice(0, resolvedPath.lastIndexOf("/"))
+                                : "";
+
+                            const tableContent = notionImportCsvToApiContent(
+                                csvContent,
+                                childTitleToDocumentId,
+                                {filesToUpload, csvDir},
                             );
-                            if (csvKey && unzippedFiles[csvKey]) {
-                                const csvContent = strFromU8(unzippedFiles[csvKey]);
-                                const childTitleToDocumentId =
-                                    inlineDatabaseChildren.get(resolvedPath) ?? new Map();
-                                const tableContent = notionImportCsvToApiContent(
-                                    csvContent,
-                                    childTitleToDocumentId,
-                                );
-                                if (tableContent) {
-                                    csvTable = tableContent;
-                                    break;
-                                }
+
+                            if (tableContent) {
+                                csvTable = tableContent;
+                                break;
                             }
                         }
                     }
@@ -829,6 +1478,7 @@ function transformCsvLinksToTables(
             }
 
             if (csvTable) {
+                // Add the table to the result
                 result.push(csvTable);
             } else {
                 result.push(element);
@@ -837,10 +1487,11 @@ function transformCsvLinksToTables(
             // Recursively handle quotes (spread to convert readonly to mutable)
             result.push({
                 ...element,
-                elements: transformCsvLinksToTables([...element.elements], options) as Array<{
-                    type: "Paragraph";
-                    elements: ReadonlyArray<ApiContentInlineElement>;
-                }>,
+                elements: (await transformCsvLinksToTables(
+                    context,
+                    [...element.elements],
+                    options,
+                )) as ApiContentQuoteBlockElement["elements"],
             });
         } else {
             result.push(element);
@@ -853,9 +1504,9 @@ function transformCsvLinksToTables(
 /**
  * Transform .md links to document mentions using the visitor pattern.
  *
- * This uses `visitAndProduceApiContent` to traverse the entire content tree
- * and replace Text elements with Link marks pointing to .md files with
- * Mention elements.
+ * This uses `visitAndProduceApiContent` to traverse the entire content tree and
+ * replace Text elements with Link marks pointing to .md files with Mention
+ * elements.
  */
 function transformMdLinksToMentions(
     content: ApiContent,
@@ -877,10 +1528,8 @@ function transformMdLinksToMentions(
             if (!url.endsWith(".md")) return;
 
             // Convert .md link to document mention
-            const decodedPath = decodeURIComponent(url);
-            const normalizedPath = decodedPath.startsWith("./")
-                ? decodedPath.slice(2)
-                : decodedPath;
+            const decodedUrl = decodeNotionImportRelativePathUrl(url);
+            const normalizedPath = decodedUrl.startsWith("./") ? decodedUrl.slice(2) : decodedUrl;
 
             let documentId = pathToDocumentId.get(normalizedPath);
 
@@ -891,10 +1540,9 @@ function transformMdLinksToMentions(
                 }
             }
 
-            // Search by filename if not found by full path.
-            // This handles cases where the link path includes a parent
-            // folder that may not match the actual file structure (e.g.,
-            // nested vs flat exports).
+            // Search by filename if not found by full path. This handles cases where the link
+            // path includes a parent folder that may not match the actual file structure
+            // (e.g., nested vs flat exports).
             if (!documentId) {
                 const linkFilename = normalizedPath.includes("/")
                     ? normalizedPath.slice(normalizedPath.lastIndexOf("/") + 1)
@@ -912,7 +1560,7 @@ function transformMdLinksToMentions(
 
             if (documentId) {
                 // Replace the element in the parent array using context
-                (context.elements as Array<ApiContentInlineElement>)[context.index] = {
+                context.elements[context.index] = {
                     type: "Mention",
                     target: {type: "Document", id: documentId},
                 };

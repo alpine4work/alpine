@@ -15,6 +15,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const postViewFlex = 6;
 export const postListViewAsideFlex = 4;
+export const postListViewMarginAfterPostWithOpenComments = "2.5";
 
 export const channelViewAsideSectionGap = "7";
 
@@ -32,8 +33,8 @@ export const postFauxInputCreateButtonInnerButtonHeight = "7";
 export const postContentViewOuterMarginY = "6";
 
 // We also use this value as the padding X and Y padding for our post content
-// editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing
-// values in addition to Y axis spacing values.
+// editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing values
+// in addition to Y axis spacing values.
 export const postContentViewInnerMarginY = "4";
 
 export const postContentViewHeaderMobileAvatarSize = "7";
@@ -60,9 +61,9 @@ const fontSize75LineHeightRem = parseRemLength(fontSizes["75"].lineHeight);
 const postContentViewFooterHeightRem = parseRemLength(postContentViewFooterHeight);
 const postContentViewOuterMarginYRem = parseRemLength(postContentViewOuterMarginY);
 
-// Visually, we want `postContentViewOuterMarginY` of space from the bottom of
-// the button text. So adjust our outer padding bottom to exclude footer
-// height we already have.
+// Visually, we want `postContentViewOuterMarginY` of space from the bottom of the
+// button text. So adjust our outer padding bottom to exclude footer height we
+// already have.
 const postContentViewOuterMarginBottomRem =
     postContentViewOuterMarginYRem - (postContentViewFooterHeightRem - fontSize75LineHeightRem) / 2;
 
@@ -107,6 +108,8 @@ export const postViewMinHeightPx = createObjectFromKeys(
 );
 
 export const postListViewAsideMaxWidth = "96";
+export const postListViewAsidePaddingLeft = "8";
+export const postListViewAsidePaddingRight = "5";
 
 export const channelViewMetadataSectionTitleFontSize = "75";
 export const channelViewMetadataSectionTitleColor = "grey-50";
@@ -125,12 +128,12 @@ export const channelViewAsidePostFileMaxCount =
 
 export const channelViewAsideFileGap = "2";
 
-export const channelViewAsideFileHeight: RemLength = `${
+export const channelViewAsideFileHeightRem =
     (parseRemLength(postListViewAsideMaxWidth) -
-        parseRemLength(channelViewAsideFileGap) * (channelViewAsidePostFileColumnCount - 1) -
-        parseRemLength(screenPaddingX.desktop) * 2) /
-    channelViewAsidePostFileColumnCount
-}rem`;
+        parseRemLength(postListViewAsidePaddingLeft) -
+        parseRemLength(postListViewAsidePaddingRight) -
+        parseRemLength(channelViewAsideFileGap) * (channelViewAsidePostFileColumnCount - 1)) /
+    channelViewAsidePostFileColumnCount;
 
 export const channelFilesViewFileMaxSize = "64";
 export const channelFilesViewFileMinSize = "20";

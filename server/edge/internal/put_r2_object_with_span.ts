@@ -8,8 +8,9 @@ export interface PutR2ObjectBucketInterface {
     ): Promise<unknown>;
 }
 
-// TODO(ifitzsimmons, 2025-08-15): Update our R2 clients such that they always call the APIs
-// with a span: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/xrh8rtamm3svckc1p5j4gta9rr
+// TODO(ifitzsimmons, 2025-08-15): Update our R2 clients such that they always call
+// the APIs with a span:
+// https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/xrh8rtamm3svckc1p5j4gta9rr
 export async function putR2ObjectWithSpan(
     span: TracerSpan,
     {

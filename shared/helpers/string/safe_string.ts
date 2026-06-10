@@ -5,16 +5,16 @@ import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 const safeStringTag = Symbol("safe");
 
 /**
- * A string that does not allow arbitrary user input. This helper can be used
- * to prevent injection attacks like SQL injection or XSS.
+ * A string that does not allow arbitrary user input. This helper can be used to
+ * prevent injection attacks like SQL injection or XSS.
  *
  * Most of safe string contents is hard coded by the developer. We allow some
  * dynamic data in a safe string, like `Id`s, that are harmless and when used
  * properly are not code injection vectors.
  *
- * We have both type system and runtime protections against user input finding
- * its way into a safe string. Even if an attacker is able to inject an
- * arbitrary JSON value into a safe string, we are still able to reject it.
+ * We have both type system and runtime protections against user input finding its
+ * way into a safe string. Even if an attacker is able to inject an arbitrary JSON
+ * value into a safe string, we are still able to reject it.
  *
  * If you're using `dangerouslySetInnerHTML` in React then consider using a safe
  * string.
@@ -51,14 +51,14 @@ export function safe(
 /**
  * Safely embeds a number in a `SafeString`.
  *
- * Stringifies the number to a JavaScript code literal. So `NaN` will be `NaN`
- * and `Infinity` will be `Infinity`. Regular integers and floats are JSON
- * compatible but `NaN` and `Infinity` are not so you'll need some validation
- * on your end when using with JSON.
+ * Stringifies the number to a JavaScript code literal. So `NaN` will be `NaN` and
+ * `Infinity` will be `Infinity`. Regular integers and floats are JSON compatible
+ * but `NaN` and `Infinity` are not so you'll need some validation on your end when
+ * using with JSON.
  *
- * Be careful how you use this utility as you're potentially allowing user
- * input in a `SafeString`! Make sure you use this somewhere that supports a
- * string in a JavaScript number literal format.
+ * Be careful how you use this utility as you're potentially allowing user input in
+ * a `SafeString`! Make sure you use this somewhere that supports a string in a
+ * JavaScript number literal format.
  */
 export function safeNumber(number: number): SafeString {
     assert(typeof number === "number");
@@ -66,12 +66,12 @@ export function safeNumber(number: number): SafeString {
 }
 
 /**
- * Safely embed an alphanumeric string (only ascii letters and numbers) in
- * a `SafeString`.
+ * Safely embed an alphanumeric string (only ascii letters and numbers) in a
+ * `SafeString`.
  *
- * Be careful how you use this utility as you're potentially allowing user
- * input in a `SafeString`! Make sure you use this somewhere that supports an
- * alphanumeric string and the string can't do anything bad.
+ * Be careful how you use this utility as you're potentially allowing user input in
+ * a `SafeString`! Make sure you use this somewhere that supports an alphanumeric
+ * string and the string can't do anything bad.
  */
 export function safeAlphanumericString(string: string): SafeString {
     assert(/^[a-z0-9]+$/.test(string));
@@ -79,12 +79,12 @@ export function safeAlphanumericString(string: string): SafeString {
 }
 
 /**
- * Safely embed an identifier string (only ascii letters, numbers, and `_`) in
- * a `SafeString`.
+ * Safely embed an identifier string (only ascii letters, numbers, and `_`) in a
+ * `SafeString`.
  *
- * Be careful how you use this utility as you're potentially allowing user
- * input in a `SafeString`! Make sure you use this somewhere that supports an
- * identifier string and the string can't do anything bad.
+ * Be careful how you use this utility as you're potentially allowing user input in
+ * a `SafeString`! Make sure you use this somewhere that supports an identifier
+ * string and the string can't do anything bad.
  */
 export function safeIdentifierString(string: string): SafeString {
     assert(isIdentifier(string));
@@ -93,8 +93,8 @@ export function safeIdentifierString(string: string): SafeString {
 
 /**
  * Joins many `SafeString`s together. Behaves the same as `String.join()`. All
- * inputs must be safe strings so we can be sure the returned type is also a
- * safe string.
+ * inputs must be safe strings so we can be sure the returned type is also a safe
+ * string.
  */
 export function safeJoin(
     safeStrings: ReadonlyArray<SafeString>,
@@ -126,8 +126,8 @@ export function isSafeString(string: unknown): string is SafeString {
 }
 
 /**
- * Converts any string into a SafeString. Use sparingly and wisely.
- * We use SafeString in places we want to prevent attacks like SQL injection or XSS.
+ * Converts any string into a SafeString. Use sparingly and wisely. We use
+ * SafeString in places we want to prevent attacks like SQL injection or XSS.
  *
  * If you use this it's on you to guarantee your string isn't supplied by a user.
  */
@@ -136,11 +136,11 @@ export function dangerouslyCreateSafeString(string: string): SafeString {
 }
 
 /**
- * Safely embed an object key. Tests for alphanumeric plus '#', '_', and '-'.
+ * Safely embed an object key. Tests for alphanumeric plus '#', '\_', and '-'.
  *
- * Be careful how you use this utility as you're potentially allowing user
- * input in a `SafeString`! Make sure you use this somewhere that supports an
- * alphanumeric string and the string can't do anything bad.
+ * Be careful how you use this utility as you're potentially allowing user input in
+ * a `SafeString`! Make sure you use this somewhere that supports an alphanumeric
+ * string and the string can't do anything bad.
  */
 function safeObjectEntryString(string: string): SafeString {
     assert(/^[a-zA-Z0-9#_-]+$/.test(string));

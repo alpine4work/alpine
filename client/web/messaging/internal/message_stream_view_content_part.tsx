@@ -64,8 +64,8 @@ export function MessageStreamViewContentPart({
             startTime: originalJumpAnimation.startTime,
         };
 
-        // If after offsetting, the jump animation doesn't make sense then we don't
-        // have a jump animation for this part.
+        // If after offsetting, the jump animation doesn't make sense then we don't have a
+        // jump animation for this part.
         if (jumpAnimation.from !== null && jumpAnimation.from > doc.content.size) return null;
         if (jumpAnimation.to !== null && jumpAnimation.to < 0) return null;
 

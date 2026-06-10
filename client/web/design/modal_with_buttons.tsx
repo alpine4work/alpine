@@ -10,6 +10,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export type ModalWithButtonsRef = {
+    pressPrimaryButton(): void;
     focusPrimaryButton(): void;
     focusCancelButton(): void;
 };
@@ -26,6 +27,7 @@ function ModalWithButtons(
         "aria-labelledby": ariaLabelledBy,
         children,
         primaryButtonLabel,
+        primaryButtonVariant = "accent",
         isPrimaryButtonDisabled,
         primaryButtonPressErrorTitle,
         onPrimaryButtonPress,
@@ -42,6 +44,7 @@ function ModalWithButtons(
         withoutCloseButton,
         withoutCloseInteractions,
         withoutCloseAfterPrimaryButtonPress,
+        withoutRestoreFocus,
         buttonsPaddingX = "5",
         buttonsPaddingBottom = "4",
         additionalButtons,
@@ -51,6 +54,7 @@ function ModalWithButtons(
             | ReactNode
             | ((props: {isPending: boolean; pressPrimaryButton: () => void}) => ReactNode);
         primaryButtonLabel: string;
+        primaryButtonVariant?: "accent" | "quiet";
         isPrimaryButtonDisabled?: boolean;
         primaryButtonPressErrorTitle?: string;
         onPrimaryButtonPress?: () => MaybePromise<void>;
@@ -67,6 +71,7 @@ function ModalWithButtons(
         withoutCloseButton?: boolean;
         withoutCloseInteractions?: boolean;
         withoutCloseAfterPrimaryButtonPress?: boolean;
+        withoutRestoreFocus?: boolean;
         buttonsPaddingX?: Spacing;
         buttonsPaddingBottom?: Spacing;
         additionalButtons?: ReactNode;
@@ -74,13 +79,17 @@ function ModalWithButtons(
     ref: Ref<ModalWithButtonsRef>,
 ) {
     const reporter = useReporter();
-    const primaryButtonRef = useRef<HTMLButtonElement>(null);
+    const primaryButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
     const cancelButtonRef = useRef<HTMLButtonElement>(null);
     const [isPrimaryButtonPending, setIsPrimaryButtonPending] = useState(false);
 
     useImperativeHandle(
         ref,
         () => ({
+            pressPrimaryButton: () => {
+                const primaryButtonElement = assertExists(primaryButtonRef.current);
+                primaryButtonElement.press();
+            },
             focusPrimaryButton: () => {
                 const primaryButtonElement = assertExists(primaryButtonRef.current);
                 primaryButtonElement.focus();
@@ -105,6 +114,7 @@ function ModalWithButtons(
             withoutCloseAnimation={withoutCloseAnimation}
             withoutCloseButton={withoutCloseButton}
             withoutCloseInteractions={withoutCloseInteractions}
+            withoutRestoreFocus={withoutRestoreFocus}
         >
             {({onCloseWithAnimation, onCloseWithoutAnimation}) => {
                 const pressPrimaryButton = () => {
@@ -131,11 +141,11 @@ function ModalWithButtons(
                                 setIsPrimaryButtonPending(false);
 
                                 if (!withoutCloseAfterPrimaryButtonPress) {
-                                    // Our animation principle is to respond to user input immediately
-                                    // without animation.
+                                    // Our animation principle is to respond to user input immediately without
+                                    // animation.
                                     //
-                                    // If the button had to go into a loading state we consider the click long
-                                    // enough ago that it is no longer a direct action.
+                                    // If the button had to go into a loading state we consider the click long enough
+                                    // ago that it is no longer a direct action.
                                     if (
                                         new Date().getTime() - promiseStartTime.getTime() >
                                         delayLoadingIndicatorLimitMs
@@ -187,11 +197,11 @@ function ModalWithButtons(
                                             const promiseStartTime = new Date();
 
                                             return promise.then(() => {
-                                                // Our animation principle is to respond to user input immediately
-                                                // without animation.
+                                                // Our animation principle is to respond to user input immediately without
+                                                // animation.
                                                 //
-                                                // If the button had to go into a loading state we consider the click long
-                                                // enough ago that it is no longer a direct action.
+                                                // If the button had to go into a loading state we consider the click long enough
+                                                // ago that it is no longer a direct action.
                                                 if (
                                                     new Date().getTime() -
                                                         promiseStartTime.getTime() >
@@ -210,7 +220,11 @@ function ModalWithButtons(
                             )}
                             <Button
                                 ref={primaryButtonRef}
-                                variant="accent"
+                                variant={
+                                    primaryButtonVariant === "quiet"
+                                        ? "quieter"
+                                        : primaryButtonVariant
+                                }
                                 isDisabled={isPrimaryButtonDisabled}
                                 isPending={isPrimaryButtonPending}
                                 pressErrorTitle={primaryButtonPressErrorTitle}

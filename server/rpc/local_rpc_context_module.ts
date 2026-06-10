@@ -7,15 +7,13 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
 /**
- * Executes RPCs locally in the current process. We lookup the RPC
- * implementation based on the definition name and execute it without a network
- * request.
+ * Executes RPCs locally in the current process. We lookup the RPC implementation
+ * based on the definition name and execute it without a network request.
  *
  * We do validate the input using the RPC's input schema but we don't do a
- * serialization and deserialization pass for the entire input and output.
- * We validate the input in case validations encoded in the schema are
- * important to the logic of the RPC. For example, validating a string is only
- * a single line.
+ * serialization and deserialization pass for the entire input and output. We
+ * validate the input in case validations encoded in the schema are important to
+ * the logic of the RPC. For example, validating a string is only a single line.
  */
 export class LocalRpcContextModule extends RpcContextModuleBase<
     ServerUnknownActionContextModules & RpcServerActionExtraContextModules

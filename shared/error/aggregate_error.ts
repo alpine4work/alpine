@@ -13,8 +13,8 @@ export function getAggregateErrorPriority(error: unknown): number {
 
     let priority = 2;
 
-    // Errors with a display message are higher priority than errors without a
-    // display message.
+    // Errors with a display message are higher priority than errors without a display
+    // message.
     if (isErrorBase && error.displayMessage !== undefined) {
         priority = 3;
     }
@@ -35,13 +35,13 @@ export function getAggregateErrorPriority(error: unknown): number {
 }
 
 /**
- * Create an `AggregateError` instance from multiple errors. We pick the error
- * with the highest priority (according to `getAggregateErrorPriority()`) to be
- * the message of the aggregate error.
+ * Create an `AggregateError` instance from multiple errors. We pick the error with
+ * the highest priority (according to `getAggregateErrorPriority()`) to be the
+ * message of the aggregate error.
  *
- * If there's only one error then we return that error. If there are zero errors
- * we return an `InternalError`. If `AggregateError`s are provided then we
- * flatten them in the resulting `AggregateError`s result list.
+ * If there's only one error then we return that error. If there are zero errors we
+ * return an `InternalError`. If `AggregateError`s are provided then we flatten
+ * them in the resulting `AggregateError`s result list.
  */
 export function createAggregateError(errors: Iterable<unknown>): unknown {
     const errorSet = new Set<unknown>();
@@ -104,10 +104,9 @@ export function createAggregateError(errors: Iterable<unknown>): unknown {
             } (and ${otherErrorCount} other ${otherErrorCount === 1 ? "error" : "errors"})`,
         );
 
-        // We look for the `code` property on `AggregateError`s in `getErrorCode()` to
-        // get the code of the highest priority error. This also means that if an
-        // aggregate error has no system errors then `isSystemError()` should return
-        // false.
+        // We look for the `code` property on `AggregateError`s in `getErrorCode()` to get
+        // the code of the highest priority error. This also means that if an aggregate
+        // error has no system errors then `isSystemError()` should return false.
         (error as any).code = getErrorCode(highestPriorityError);
 
         return error;

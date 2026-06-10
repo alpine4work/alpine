@@ -4,12 +4,12 @@ import {getWebPushSubscriptionItemIfExistsWithoutAuthorization} from "~/server/n
 import {AccountId, BrowserId} from "~/shared/id/types/id_types.js";
 
 /**
- * Sets a web push subscription attribute to null. Retains opted-out spaces when removing the
- * subscription item in case the user re-subscribes to web push notifications later in the same
- * browser.
+ * Sets a web push subscription attribute to null. Retains opted-out spaces when
+ * removing the subscription item in case the user re-subscribes to web push
+ * notifications later in the same browser.
  *
- * Performs no authorization, you should use `deregisterWebPushSubscription()` or ensure you check
- * authorization before calling this function.
+ * Performs no authorization, you should use `deregisterWebPushSubscription()` or
+ * ensure you check authorization before calling this function.
  */
 export async function deregisterWebPushSubscriptionWithoutAuthorization(
     context: ServerActionContext,
@@ -18,10 +18,10 @@ export async function deregisterWebPushSubscriptionWithoutAuthorization(
     const existingSubscriptionItem = await getWebPushSubscriptionItemIfExistsWithoutAuthorization(
         context,
         {accountId, browserId},
-        // NOTE (rmtobin): we use strong consistency here to ensure the subscription item truly
-        // doesn't exist for the if below so we don't accidentally skip removing a subscription
-        // due to eventual consistency lag, which could result in a user receiving notifications
-        // for a signed out account.
+        // NOTE (rmtobin): we use strong consistency here to ensure the subscription item
+        // truly doesn't exist for the if below so we don't accidentally skip removing a
+        // subscription due to eventual consistency lag, which could result in a user
+        // receiving notifications for a signed out account.
         {consistency: "Strong"},
     );
 
