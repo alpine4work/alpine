@@ -55,9 +55,6 @@ CLAUDE.local.md
 # Local Cloudflare generated files (like D1 bindings)
 .wrangler
 
-# NOCOMMIT: alex's mobile stuff
-/client/native
-
 # Rust
 target
 
