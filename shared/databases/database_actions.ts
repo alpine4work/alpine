@@ -1,11 +1,12 @@
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {
+    type DatabaseFieldConfig,
     DatabaseFieldConfigSchema,
     DatabaseFieldConfigSqlSchema,
+    type DatabaseFieldType,
     DatabaseFieldTypeSchema,
     getDatabaseFieldProvider,
 } from "~/shared/databases/fields/database_field_providers.js";
-import type {DatabaseFieldType} from "~/shared/databases/fields/database_field_providers.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/database_sql_helpers.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
@@ -199,8 +200,46 @@ function createField(
         type: DatabaseFieldType;
     },
 ): void {
+    const provider = getDatabaseFieldProvider(type);
+    const fieldConfig = provider.getDefaultConfig();
+    const columnName = createFieldMetadata(db, {
+        fieldId,
+        tableId,
+        viewId,
+        name,
+        config: fieldConfig,
+    });
+    if (provider.storage === "virtual") return;
+
     const tableName = readTableName(db, tableId);
 
+    const {sqliteType, defaultValue, nullable, generateCheckConstraint} = provider;
+    const notNullClause = nullable ? sql.raw("") : sql.raw("NOT NULL");
+
+    sql`
+        ALTER TABLE ${sql.tableRef(tableId, tableName)}
+        ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
+            fieldId,
+        )} ${notNullClause} DEFAULT ${sql.raw(defaultValue)} ${generateCheckConstraint(columnName)}
+    `.exec(db);
+}
+
+function createFieldMetadata(
+    db: Database,
+    {
+        fieldId,
+        tableId,
+        viewId,
+        name,
+        config,
+    }: {
+        fieldId: DatabaseFieldId;
+        tableId: DatabaseTableId;
+        viewId: DatabaseViewId;
+        name: string;
+        config: DatabaseFieldConfig;
+    },
+): string {
     const existingColumnNames = new Set(
         sql`
             SELECT
@@ -224,8 +263,7 @@ function createField(
             view_id = ${viewId}
     `.selectValue(db, Schema.string.nullable());
 
-    const provider = getDatabaseFieldProvider(type);
-    const fieldConfig = DatabaseFieldConfigSqlSchema.serialize(provider.getDefaultConfig());
+    const fieldConfig = DatabaseFieldConfigSqlSchema.serialize(config);
 
     sql`
         INSERT INTO
@@ -252,15 +290,24 @@ function createField(
             )
     `.exec(db);
 
-    const {sqliteType, defaultValue, nullable, generateCheckConstraint} = provider;
-    const notNullClause = nullable ? sql.raw("") : sql.raw("NOT NULL");
+    return columnName;
+}
 
-    sql`
-        ALTER TABLE ${sql.tableRef(tableId, tableName)}
-        ADD COLUMN ${sql.identifier(columnName)} ${sql.raw(sqliteType)}_alpine_${sql.raw(
-            fieldId,
-        )} ${notNullClause} DEFAULT ${sql.raw(defaultValue)} ${generateCheckConstraint(columnName)}
-    `.exec(db);
+function assertRelationFieldConfigUpdate(
+    existingConfig: DatabaseFieldConfig,
+    nextConfig: DatabaseFieldConfig,
+): void {
+    if (existingConfig.type !== "relation") return;
+    assert(nextConfig.type === "relation", "relation field config type must stay relation");
+    assert(
+        nextConfig.joinTableId === existingConfig.joinTableId,
+        "cannot update relation field joinTableId",
+    );
+    assert(nextConfig.side === existingConfig.side, "cannot update relation field side");
+    assert(
+        nextConfig.linkedTableId === existingConfig.linkedTableId,
+        "cannot update relation field linkedTableId",
+    );
 }
 
 export const databaseActions = {
@@ -566,6 +613,10 @@ export const databaseActions = {
                 config: DatabaseFieldConfigSqlSchema,
             });
 
+            // SQLite version prerequisite for relation projection: WORKSPACE pins
+            // sqlite-src-3510200 (SQLite 3.51.2), so `json_group_array(... ORDER BY ...)` is
+            // available when the relation subquery is added.
+            //
             // \_id is always at index 0; view fields start at 1.
             const selectColumns = [
                 sql.identifier("_id"),
@@ -582,7 +633,14 @@ export const databaseActions = {
             // through each field's sqlValueSchema (e.g. INTEGER → boolean for checkboxes).
             const columnSchemas: Array<Schema<any>> = [
                 Schema.id<DatabaseRowId>(),
-                ...viewFields.map(f => getDatabaseFieldProvider(f.config.type).sqlValueSchema),
+                ...viewFields.map(f => {
+                    const provider = getDatabaseFieldProvider(f.config.type);
+                    assert(
+                        provider.storage === "column",
+                        `virtual field ${f.id} is not implemented in getViewRowsPage`,
+                    );
+                    return provider.sqlValueSchema;
+                }),
             ];
 
             let whereClause: SqlQuery;
@@ -642,6 +700,10 @@ export const databaseActions = {
                 config: DatabaseFieldConfigSqlSchema,
             });
             const provider = getDatabaseFieldProvider(field.config.type);
+            assert(
+                provider.storage === "column",
+                `cannot update virtual field ${fieldId} with updateCellValue`,
+            );
             const tableName = readTableName(db, tableId);
             sql`
                 UPDATE ${sql.tableRef(tableId, tableName)}
@@ -686,6 +748,7 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "schema+data",
         run({db}, {fieldId, tableId, viewId, name, type}) {
+            assert(type !== "relation", "use createRelationField to create relation fields");
             createField(db, {fieldId, tableId, viewId, name, type});
             return {};
         },
@@ -712,6 +775,7 @@ export const databaseActions = {
                 existingConfig.type === config.type,
                 `cannot change field type from ${existingConfig.type} to ${config.type}`,
             );
+            assertRelationFieldConfigUpdate(existingConfig, config);
             const serialized = DatabaseFieldConfigSqlSchema.serialize(config);
             sql`
                 UPDATE _alpine_fields
@@ -791,14 +855,17 @@ export const databaseActions = {
         run({db}, {tableId, fieldId, name}) {
             const field = sql`
                 SELECT
-                    column_name
+                    column_name,
+                    config
                 FROM
                     ${sql.tableRef(tableId, "_alpine_fields")}
                 WHERE
                     id = ${fieldId}
             `.selectOne(db, {
                 columnName: Schema.string.originalPropertyKey("column_name"),
+                config: DatabaseFieldConfigSqlSchema,
             });
+            const provider = getDatabaseFieldProvider(field.config.type);
 
             const tableName = readTableName(db, tableId);
 
@@ -826,6 +893,8 @@ export const databaseActions = {
                 WHERE
                     id = ${fieldId}
             `.exec(db);
+
+            if (provider.storage === "virtual") return {};
 
             sql`
                 ALTER TABLE ${sql.tableRef(tableId, tableName)}

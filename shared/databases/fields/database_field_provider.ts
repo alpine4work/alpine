@@ -18,7 +18,7 @@ type SqliteTypeMap = {
 export type SqliteStorageType = keyof SqliteTypeMap;
 export type SqliteValue = SqliteTypeMap[SqliteStorageType];
 
-// -- Factory ------------------------------------------------------------------
+// -- Column provider factory ---------------------------------------------------
 
 /**
  * Define a field provider. All generic parameters are inferred:
@@ -74,5 +74,39 @@ export function defineDatabaseFieldProvider<
                 sqlValue as SqliteTypeMap[SqlType] | null,
             ) as SchemaSerializedValue,
     });
-    return {...options, sqlValueSchema};
+    return {...options, storage: "column" as const, sqlValueSchema};
+}
+
+// -- Virtual provider factory --------------------------------------------------
+
+/**
+ * Define a virtual field provider. Virtual fields have metadata and values, but no
+ * physical data-table column; their values are materialized by action-specific
+ * query code.
+ */
+export function defineVirtualDatabaseFieldProvider<
+    const Type extends string,
+    Value,
+    Config extends {type: Type},
+>(options: {
+    readonly type: Type;
+    readonly valueSchema: Schema<Value>;
+    readonly configSchema: Schema<Config>;
+    /**
+     * Default config used when a field of this type is created. Virtual providers may
+     * throw here if they require action-minted ids and must only be created through a
+     * dedicated action.
+     */
+    readonly getDefaultConfig: () => Config;
+    /**
+     * Parse a string into a cell value. Not all virtual fields expose text entry, but
+     * the provider keeps the same display/editing surface as column fields.
+     */
+    readonly parseString: (input: string, config: Config) => Result<Value, void>;
+    /**
+     * Format a cell value as a string for display, given the field's config.
+     */
+    readonly formatString: (value: Value, config: Config) => string;
+}) {
+    return {...options, storage: "virtual" as const};
 }

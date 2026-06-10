@@ -2,6 +2,7 @@ import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_
 import type {SqliteStorageType} from "~/shared/databases/fields/database_field_provider.js";
 import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
 import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
+import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import type {SqlQuery} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import type {Result} from "~/shared/helpers/control/result.js";
@@ -13,6 +14,7 @@ const allProviders = [
     databasePlainTextFieldProvider,
     databaseCheckboxFieldProvider,
     databaseNumberFieldProvider,
+    databaseRelationFieldProvider,
 ] as const;
 
 /**
@@ -49,10 +51,17 @@ export type DatabaseFieldType = (typeof allProviders)[number]["type"];
  * For statically typed per-field-type usage, use the generic
  * `DatabaseFieldProvider<Type>` instead.
  */
-export type DatabaseFieldProviderBase = {
+type DatabaseFieldProviderBaseCommon = {
     readonly type: DatabaseFieldType;
     readonly valueSchema: Schema<unknown>;
     readonly configSchema: Schema<unknown>;
+    readonly getDefaultConfig: () => any;
+    readonly parseString: (input: string, config: any) => Result<unknown, void>;
+    readonly formatString: (value: unknown, config: any) => string;
+};
+
+export type DatabaseColumnFieldProviderBase = DatabaseFieldProviderBaseCommon & {
+    readonly storage: "column";
     readonly sqliteType: SqliteStorageType;
     readonly nullable: boolean;
     readonly defaultValue: string;
@@ -60,10 +69,15 @@ export type DatabaseFieldProviderBase = {
     readonly toSqlValue: (value: unknown) => unknown;
     readonly fromSqlValue: (sqlValue: unknown) => unknown;
     readonly sqlValueSchema: Schema<any>;
-    readonly getDefaultConfig: () => any;
-    readonly parseString: (input: string, config: any) => Result<unknown, void>;
-    readonly formatString: (value: unknown, config: any) => string;
 };
+
+export type DatabaseVirtualFieldProviderBase = DatabaseFieldProviderBaseCommon & {
+    readonly storage: "virtual";
+};
+
+export type DatabaseFieldProviderBase =
+    | DatabaseColumnFieldProviderBase
+    | DatabaseVirtualFieldProviderBase;
 
 export type DatabaseFieldProvider<Type extends DatabaseFieldType = DatabaseFieldType> = Extract<
     (typeof allProviders)[number],
@@ -90,6 +104,7 @@ export const DatabaseFieldConfigSchema = Schema.union({
     plainText: databasePlainTextFieldProvider.configSchema,
     checkbox: databaseCheckboxFieldProvider.configSchema,
     number: databaseNumberFieldProvider.configSchema,
+    relation: databaseRelationFieldProvider.configSchema,
 });
 
 export type DatabaseFieldConfig<Type extends DatabaseFieldType = DatabaseFieldType> = Extract<

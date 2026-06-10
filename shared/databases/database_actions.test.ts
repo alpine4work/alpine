@@ -453,6 +453,58 @@ function addFieldAndGetId(
     return {fieldId};
 }
 
+/**
+ * Helper: inserts relation metadata without implementing createRelationField.
+ */
+function addRelationFieldMetadata(
+    db: Database,
+    tableId: DatabaseTableId,
+    viewId: DatabaseViewId,
+    name = "Links",
+) {
+    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    const joinTableId = generateChronologicalId<DatabaseTableId>();
+    const config = {
+        type: "relation" as const,
+        joinTableId,
+        side: "source" as const,
+        cardinality: "many" as const,
+        linkedTableId: tableId,
+    };
+    const maxPosition = sql`
+        SELECT
+            MAX(position)
+        FROM
+            ${sql.tableRef(tableId, "_alpine_view_fields")}
+        WHERE
+            view_id = ${viewId}
+    `.selectValue(db, Schema.string.nullable());
+    sql`
+        INSERT INTO
+            ${sql.tableRef(tableId, "_alpine_fields")} (id, table_id, name, column_name, config)
+        VALUES
+            (
+                ${fieldId},
+                ${tableId},
+                ${name},
+                ${"links"},
+                ${DatabaseFieldConfigSqlSchema.serialize(config)}
+            )
+    `.exec(db);
+    sql`
+        INSERT INTO
+            ${sql.tableRef(tableId, "_alpine_view_fields")} (view_id, field_id, position, width)
+        VALUES
+            (
+                ${viewId},
+                ${fieldId},
+                generate_order_key (${maxPosition}, NULL),
+                ${databaseViewDefaultColumnWidth}
+            )
+    `.exec(db);
+    return {fieldId, config};
+}
+
 describe("rawSql", () => {
     test("SELECT passes rows through", async () => {
         const db = await createDb();
@@ -842,6 +894,85 @@ describe("updateCellValue", () => {
         expect(rows[0]![fieldIndexes.get(nameFieldId)!]).toBe("updated");
         db.close();
     });
+
+    test("rejects virtual fields", async () => {
+        const db = await createDb();
+        const {tableId, viewId, tableName} = run(db, "createTable", {name: "T"});
+        const {fieldId} = addRelationFieldMetadata(db, tableId, viewId);
+        const rowId = generateChronologicalId<DatabaseRowId>();
+        sql`
+            INSERT INTO
+                ${sql.tableRef(tableId, tableName)} (_id)
+            VALUES
+                (${rowId})
+        `.exec(db);
+
+        expect(() => {
+            run(db, "updateCellValue", {
+                tableId,
+                fieldId,
+                rowId,
+                value: [],
+            });
+        }).toThrow("cannot update virtual field");
+        db.close();
+    });
+});
+
+describe("createField", () => {
+    test("rejects relation fields", async () => {
+        const db = await createDb();
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const fieldId = generateChronologicalId<DatabaseFieldId>();
+
+        expect(() => {
+            run(db, "createField", {
+                fieldId,
+                tableId,
+                viewId,
+                name: "Links",
+                type: "relation",
+            });
+        }).toThrow("use createRelationField");
+        db.close();
+    });
+});
+
+describe("updateFieldConfig", () => {
+    test("rejects relation linkedTableId changes", async () => {
+        const db = await createDb();
+        const fieldId = generateChronologicalId<DatabaseFieldId>();
+        const config = {
+            type: "relation" as const,
+            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            side: "source" as const,
+            cardinality: "many" as const,
+            linkedTableId: generateChronologicalId<DatabaseTableId>(),
+        };
+        sql`
+            CREATE TEMP TABLE _alpine_fields (id TEXT PRIMARY KEY, config TEXT NOT NULL) STRICT
+        `.exec(db);
+        sql`
+            INSERT INTO
+                _alpine_fields (id, config)
+            VALUES
+                (
+                    ${fieldId},
+                    ${DatabaseFieldConfigSqlSchema.serialize(config)}
+                )
+        `.exec(db);
+
+        expect(() => {
+            run(db, "updateFieldConfig", {
+                fieldId,
+                config: {
+                    ...config,
+                    linkedTableId: generateChronologicalId<DatabaseTableId>(),
+                },
+            });
+        }).toThrow("cannot update relation field linkedTableId");
+        db.close();
+    });
 });
 
 describe("createRow", () => {
@@ -960,6 +1091,29 @@ describe("renameField", () => {
                 id = ${fieldId}
         `.selectOne(db, {columnName: Schema.string.originalPropertyKey("column_name")});
         expect(meta.columnName).toBe("status");
+        db.close();
+    });
+
+    test("renames virtual field metadata without altering the data table", async () => {
+        const db = await createDb();
+        const {tableId, viewId} = run(db, "createTable", {name: "T"});
+        const {fieldId} = addRelationFieldMetadata(db, tableId, viewId);
+
+        run(db, "renameField", {tableId, fieldId, name: "Partners"});
+
+        const meta = sql`
+            SELECT
+                name,
+                column_name
+            FROM
+                ${sql.tableRef(tableId, "_alpine_fields")}
+            WHERE
+                id = ${fieldId}
+        `.selectOne(db, {
+            name: Schema.string,
+            columnName: Schema.string.originalPropertyKey("column_name"),
+        });
+        expect(meta).toMatchObject({name: "Partners", columnName: "partners"});
         db.close();
     });
 });
