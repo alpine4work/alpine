@@ -174,7 +174,7 @@ Second comment.
                         title: "Launch",
                     },
                     previousLink: null,
-                    nextLink: {afterMessageIndex: 1},
+                    nextLink: {type: "Message", afterMessageIndex: 1},
                 },
                 isEndOfMessages: false,
                 blocks: [
@@ -195,6 +195,144 @@ Second comment.
             createParseError:
                 "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. Try again " +
                 "without the \u201cNext page »\u201d link.",
+        },
+        {
+            name: "post page with custom pagination links",
+            pageLink: postId,
+            markdown: `\
+Post and comments in [Announcements](/channel/announcements). [« Previous page](/post/launch?before=post) | [Next page »](/post/launch?after=post)
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+`,
+            page: {
+                type: "Post",
+                preamble: {
+                    channel: {
+                        type: "Channel",
+                        id: announcementsChannelId,
+                        title: "Announcements",
+                    },
+                },
+                pagination: {
+                    pageLink: {
+                        type: "Post",
+                        id: paginationPostId,
+                        title: "Launch",
+                    },
+                    previousLink: {type: "Custom", beforeTagName: "post"},
+                    nextLink: {type: "Custom", afterTagName: "post"},
+                },
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([paragraph([text("Post body.")])]),
+                    },
+                ],
+            },
+            createParseError:
+                "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. Try again " +
+                "without the \u201cNext page »\u201d link.",
+        },
+        {
+            name: "post page with custom next page pagination link",
+            pageLink: postId,
+            markdown: `\
+Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=post)
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+`,
+            page: {
+                type: "Post",
+                preamble: {
+                    channel: {
+                        type: "Channel",
+                        id: announcementsChannelId,
+                        title: "Announcements",
+                    },
+                },
+                pagination: {
+                    pageLink: {
+                        type: "Post",
+                        id: paginationPostId,
+                        title: "Launch",
+                    },
+                    previousLink: null,
+                    nextLink: {type: "Custom", afterTagName: "post"},
+                },
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([paragraph([text("Post body.")])]),
+                    },
+                ],
+            },
+            createParseError:
+                "Can\u2019t add \u201cNext page »\u201d link when creating comments markdown. Try again " +
+                "without the \u201cNext page »\u201d link.",
+        },
+        {
+            name: "post page with custom previous page pagination link",
+            pageLink: postId,
+            markdown: `\
+Post and comments in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=post)
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+`,
+            page: {
+                type: "Post",
+                preamble: {
+                    channel: {
+                        type: "Channel",
+                        id: announcementsChannelId,
+                        title: "Announcements",
+                    },
+                },
+                pagination: {
+                    pageLink: {
+                        type: "Post",
+                        id: paginationPostId,
+                        title: "Launch",
+                    },
+                    previousLink: {type: "Custom", beforeTagName: "post"},
+                    nextLink: null,
+                },
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([paragraph([text("Post body.")])]),
+                    },
+                ],
+            },
+            createParseError:
+                "Can\u2019t add \u201cPrevious page »\u201d link when creating comments markdown. Try again " +
+                "without the \u201cPrevious page »\u201d link.",
         },
         {
             name: "post without channel",
