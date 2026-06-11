@@ -1,7 +1,10 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`id: "001" | diff doc(paragraph("hello world")) with doc(paragraph("goodbye world")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -14,7 +17,10 @@ doc(paragraph("goodbye world"))"
 `;
 
 exports[`id: "002" | diff doc(paragraph("hello world")) with doc(paragraph("hello moon")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -27,7 +33,10 @@ doc(paragraph("hello moon"))"
 `;
 
 exports[`id: "003" | diff doc(paragraph("hello world")) with doc(paragraph("hello"), paragraph("world")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph("hello world"))
 
 step({"stepType": "replace", "from": 6, "to": 12})
 
@@ -44,7 +53,10 @@ doc(paragraph("hello"), paragraph("world"))"
 `;
 
 exports[`id: "004" | diff doc(paragraph("hello"), paragraph("world")) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(paragraph("hello"), paragraph("world"))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("hello"), paragraph("world"))
 
 step({
     "stepType": "replace",
@@ -61,7 +73,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "005" | diff doc(paragraph("hello world")) with doc(heading("hello world")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 2
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replaceAround",
@@ -77,7 +92,10 @@ doc(heading("hello world"))"
 `;
 
 exports[`id: "006" | diff doc(paragraph("hello world")) with doc(paragraph("hello"), heading("world")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(paragraph("hello world"))
 
 step({"stepType": "replace", "from": 6, "to": 12})
 
@@ -102,7 +120,10 @@ doc(paragraph("hello"), heading("world"))"
 `;
 
 exports[`id: "007" | diff doc(paragraph("hello good world")) with doc(paragraph("hello"), heading("good world")) returns the expected steps 1`] = `
-"doc(paragraph("hello good world"))
+"deletedSize: 11
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("hello good world"))
 
 step({"stepType": "replace", "from": 6, "to": 17})
 
@@ -127,7 +148,10 @@ doc(paragraph("hello"), heading("good world"))"
 `;
 
 exports[`id: "008" | diff doc(paragraph("hello a b c d e f world")) with doc(paragraph("hello"), heading("a b c d e f world")) returns the expected steps 1`] = `
-"doc(paragraph("hello a b c d e f world"))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("hello a b c d e f world"))
 
 step({"stepType": "replace", "from": 6, "to": 24})
 
@@ -152,7 +176,10 @@ doc(paragraph("hello"), heading("a b c d e f world"))"
 `;
 
 exports[`id: "009" | diff doc(paragraph("hello world")) with doc(heading("hello"), paragraph("world")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 8
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replaceAround",
@@ -181,7 +208,10 @@ doc(heading("hello"), paragraph("world"))"
 `;
 
 exports[`id: "010" | diff doc(paragraph("hello world")) with doc(paragraph("hello"), heading("world")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(paragraph("hello world"))
 
 step({"stepType": "replace", "from": 6, "to": 12})
 
@@ -206,7 +236,10 @@ doc(paragraph("hello"), heading("world"))"
 `;
 
 exports[`id: "011" | diff doc(paragraph("hello world")) with doc(heading("hello"), paragraph("world")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 8
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replaceAround",
@@ -235,7 +268,10 @@ doc(heading("hello"), paragraph("world"))"
 `;
 
 exports[`id: "012" | diff doc(heading("hello world")) with doc(heading("hello"), heading("world")) returns the expected steps 1`] = `
-"doc(heading("hello world"))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(heading("hello world"))
 
 step({"stepType": "replace", "from": 6, "to": 12})
 
@@ -260,7 +296,10 @@ doc(heading("hello"), heading("world"))"
 `;
 
 exports[`id: "013" | diff doc(heading("hello world")) with doc(heading("hello"), heading("world")) returns the expected steps 1`] = `
-"doc(heading("hello world"))
+"deletedSize: 8
+theoreticallyOptimalDeletedSize: 2
+
+doc(heading("hello world"))
 
 step({
     "stepType": "replaceAround",
@@ -297,7 +336,10 @@ doc(heading("hello"), heading("world"))"
 `;
 
 exports[`id: "014" | diff doc(paragraph("foo hello world bar")) with doc(paragraph("foo"), paragraph("hello world"), paragraph("bar")) returns the expected steps 1`] = `
-"doc(paragraph("foo hello world bar"))
+"deletedSize: 16
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("foo hello world bar"))
 
 step({"stepType": "replace", "from": 4, "to": 20})
 
@@ -319,7 +361,10 @@ doc(paragraph("foo"), paragraph("hello world"), paragraph("bar"))"
 `;
 
 exports[`id: "015" | diff doc(paragraph("foo"), paragraph("hello world"), paragraph("bar")) with doc(paragraph("foo hello world bar")) returns the expected steps 1`] = `
-"doc(paragraph("foo"), paragraph("hello world"), paragraph("bar"))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 4
+
+doc(paragraph("foo"), paragraph("hello world"), paragraph("bar"))
 
 step({
     "stepType": "replace",
@@ -336,7 +381,10 @@ doc(paragraph("foo hello world bar"))"
 `;
 
 exports[`id: "016" | diff doc(quoteBlock(paragraph("hello world"))) with doc(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world"))) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world")))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 1
+
+doc(quoteBlock(paragraph("hello world")))
 
 step({"stepType": "replace", "from": 7, "to": 13})
 
@@ -360,7 +408,10 @@ doc(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world")))"
 `;
 
 exports[`id: "017" | diff doc(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world"))) with doc(quoteBlock(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world")))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 4
+
+doc(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world")))
 
 step({
     "stepType": "replace",
@@ -377,7 +428,10 @@ doc(quoteBlock(paragraph("hello world")))"
 `;
 
 exports[`id: "018" | diff doc(paragraph("hello world")) with doc(quoteBlock(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -399,7 +453,10 @@ doc(quoteBlock(paragraph("hello world")))"
 `;
 
 exports[`id: "019" | diff doc(paragraph("hello foo world")) with doc(quoteBlock(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello foo world"))
+"deletedSize: 17
+theoreticallyOptimalDeletedSize: 4
+
+doc(paragraph("hello foo world"))
 
 step({
     "stepType": "replace",
@@ -421,7 +478,10 @@ doc(quoteBlock(paragraph("hello world")))"
 `;
 
 exports[`id: "020" | diff doc(paragraph("hello world")) with doc(quoteBlock(paragraph("hello foo world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -443,7 +503,10 @@ doc(quoteBlock(paragraph("hello foo world")))"
 `;
 
 exports[`id: "021" | diff doc(paragraph("foo hello world")) with doc(quoteBlock(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(paragraph("foo hello world"))
+"deletedSize: 17
+theoreticallyOptimalDeletedSize: 4
+
+doc(paragraph("foo hello world"))
 
 step({
     "stepType": "replace",
@@ -465,7 +528,10 @@ doc(quoteBlock(paragraph("hello world")))"
 `;
 
 exports[`id: "022" | diff doc(paragraph("hello world")) with doc(quoteBlock(paragraph("foo hello world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -487,7 +553,10 @@ doc(quoteBlock(paragraph("foo hello world")))"
 `;
 
 exports[`id: "023" | diff doc(paragraph("hello world foo")) with doc(quoteBlock(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world foo"))
+"deletedSize: 17
+theoreticallyOptimalDeletedSize: 4
+
+doc(paragraph("hello world foo"))
 
 step({
     "stepType": "replace",
@@ -509,7 +578,10 @@ doc(quoteBlock(paragraph("hello world")))"
 `;
 
 exports[`id: "024" | diff doc(paragraph("hello world")) with doc(quoteBlock(paragraph("hello world foo"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -531,7 +603,10 @@ doc(quoteBlock(paragraph("hello world foo")))"
 `;
 
 exports[`id: "025" | diff doc(paragraph("hello world")) with doc(quoteBlock(unorderedListItem(paragraph("hello world")))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -562,7 +637,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello world"))))"
 `;
 
 exports[`id: "026" | diff doc(paragraph("hello world")) with doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -591,7 +669,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world")))"
 `;
 
 exports[`id: "027" | diff doc(paragraph("hello world")) with doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world")))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -620,7 +701,10 @@ doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world"))))"
 `;
 
 exports[`id: "028" | diff doc(paragraph("hello world")) with doc(quoteBlock(unorderedListItem(paragraph("hello"), paragraph("world")))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -649,7 +733,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello"), paragraph("world"))))"
 `;
 
 exports[`id: "029" | diff doc(paragraph("hello world")) with doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 11
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -681,7 +768,10 @@ doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar"))"
 `;
 
 exports[`id: "030" | diff doc(paragraph("hello world")) with doc(paragraph("foo"), quoteBlock(paragraph("bar hello world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 11
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -712,7 +802,10 @@ doc(paragraph("foo"), quoteBlock(paragraph("bar hello world")))"
 `;
 
 exports[`id: "031" | diff doc(paragraph("hello world")) with doc(quoteBlock(paragraph("hello world foo")), paragraph("bar")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 11
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -743,7 +836,10 @@ doc(quoteBlock(paragraph("hello world foo")), paragraph("bar"))"
 `;
 
 exports[`id: "032" | diff doc(paragraph("hello world")) with doc(quoteBlock(paragraph("foo hello world bar"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({
     "stepType": "replace",
@@ -768,7 +864,10 @@ doc(quoteBlock(paragraph("foo hello world bar")))"
 `;
 
 exports[`id: "033" | diff doc(paragraph("foo hello world bar")) with doc(quoteBlock(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(paragraph("foo hello world bar"))
+"deletedSize: 21
+theoreticallyOptimalDeletedSize: 8
+
+doc(paragraph("foo hello world bar"))
 
 step({
     "stepType": "replace",
@@ -790,7 +889,10 @@ doc(quoteBlock(paragraph("hello world")))"
 `;
 
 exports[`id: "034" | diff doc(paragraph("foo hello world bar")) with doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar")) returns the expected steps 1`] = `
-"doc(paragraph("foo hello world bar"))
+"deletedSize: 16
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("foo hello world bar"))
 
 step({"stepType": "replace", "from": 4, "to": 20})
 
@@ -817,7 +919,10 @@ doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar"))"
 `;
 
 exports[`id: "035" | diff doc(quoteBlock(paragraph("hello world"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world")))
+"deletedSize: 15
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(paragraph("hello world")))
 
 step({
     "stepType": "replace",
@@ -832,7 +937,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "036" | diff doc(quoteBlock(paragraph("hello foo world"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello foo world")))
+"deletedSize: 19
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(paragraph("hello foo world")))
 
 step({
     "stepType": "replace",
@@ -847,7 +955,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "037" | diff doc(quoteBlock(paragraph("hello world"))) with doc(paragraph("hello foo world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world")))
+"deletedSize: 15
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(paragraph("hello world")))
 
 step({
     "stepType": "replace",
@@ -862,7 +973,10 @@ doc(paragraph("hello foo world"))"
 `;
 
 exports[`id: "038" | diff doc(quoteBlock(paragraph("foo hello world"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("foo hello world")))
+"deletedSize: 19
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(paragraph("foo hello world")))
 
 step({
     "stepType": "replace",
@@ -877,7 +991,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "039" | diff doc(quoteBlock(paragraph("hello world"))) with doc(paragraph("foo hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world")))
+"deletedSize: 15
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(paragraph("hello world")))
 
 step({
     "stepType": "replace",
@@ -892,7 +1009,10 @@ doc(paragraph("foo hello world"))"
 `;
 
 exports[`id: "040" | diff doc(quoteBlock(paragraph("hello world foo"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world foo")))
+"deletedSize: 19
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(paragraph("hello world foo")))
 
 step({
     "stepType": "replace",
@@ -907,7 +1027,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "041" | diff doc(quoteBlock(paragraph("hello world"))) with doc(paragraph("hello world foo")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world")))
+"deletedSize: 15
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(paragraph("hello world")))
 
 step({
     "stepType": "replace",
@@ -922,7 +1045,10 @@ doc(paragraph("hello world foo"))"
 `;
 
 exports[`id: "042" | diff doc(quoteBlock(unorderedListItem(paragraph("hello world")))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
+"deletedSize: 17
+theoreticallyOptimalDeletedSize: 4
+
+doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
 
 step({
     "stepType": "replace",
@@ -937,7 +1063,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "043" | diff doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world")))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world")))
 
 step({
     "stepType": "replace",
@@ -952,7 +1081,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "044" | diff doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world")))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world"))))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world"))))
 
 step({
     "stepType": "replace",
@@ -967,7 +1099,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "045" | diff doc(quoteBlock(unorderedListItem(paragraph("hello"), paragraph("world")))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello"), paragraph("world"))))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(unorderedListItem(paragraph("hello"), paragraph("world"))))
 
 step({
     "stepType": "replace",
@@ -982,7 +1117,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "046" | diff doc(quoteBlock(unorderedListItem(paragraph("hello")), unorderedListItem(paragraph("world")))) with doc(quoteBlock(unorderedListItem(paragraph("hello world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello")), unorderedListItem(paragraph("world"))))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 4
+
+doc(quoteBlock(unorderedListItem(paragraph("hello")), unorderedListItem(paragraph("world"))))
 
 step({
     "stepType": "replace",
@@ -999,7 +1137,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello world"))))"
 `;
 
 exports[`id: "047" | diff doc(quoteBlock(unorderedListItem(paragraph("hello world")))) with doc(quoteBlock(unorderedListItem(paragraph("hello")), unorderedListItem(paragraph("world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 1
+
+doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
 
 step({"stepType": "replace", "from": 8, "to": 14})
 
@@ -1024,7 +1165,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello")), unorderedListItem(paragrap
 `;
 
 exports[`id: "048" | diff doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world")))) with doc(quoteBlock(unorderedListItem(paragraph("hello world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world"))))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 7
+
+doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world"))))
 
 step({"stepType": "replace", "from": 1, "to": 8})
 
@@ -1041,7 +1185,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello world"))))"
 `;
 
 exports[`id: "049" | diff doc(quoteBlock(unorderedListItem(paragraph("hello world")))) with doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
 
 step({
     "stepType": "replace",
@@ -1058,7 +1205,10 @@ doc(quoteBlock(paragraph("hello"), unorderedListItem(paragraph("world"))))"
 `;
 
 exports[`id: "050" | diff doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world"))) with doc(quoteBlock(unorderedListItem(paragraph("hello world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world")))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 3
+
+doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world")))
 
 step({
     "stepType": "replace",
@@ -1075,7 +1225,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello world"))))"
 `;
 
 exports[`id: "051" | diff doc(quoteBlock(unorderedListItem(paragraph("hello world")))) with doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world"))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
 
 step({"stepType": "replace", "from": 8, "to": 14})
 
@@ -1092,7 +1245,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello")), paragraph("world")))"
 `;
 
 exports[`id: "052" | diff doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(unorderedListItem(paragraph("world")))) with doc(quoteBlock(unorderedListItem(paragraph("hello world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(unorderedListItem(paragraph("world"))))
+"deletedSize: 11
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(unorderedListItem(paragraph("world"))))
 
 step({
     "stepType": "replace",
@@ -1109,7 +1265,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello world"))))"
 `;
 
 exports[`id: "053" | diff doc(quoteBlock(unorderedListItem(paragraph("hello world")))) with doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(unorderedListItem(paragraph("world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 1
+
+doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
 
 step({"stepType": "replace", "from": 8, "to": 14})
 
@@ -1141,7 +1300,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(unorderedListI
 `;
 
 exports[`id: "054" | diff doc(quoteBlock(paragraph("hello")), quoteBlock(unorderedListItem(paragraph("world")))) with doc(quoteBlock(unorderedListItem(paragraph("hello world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello")), quoteBlock(unorderedListItem(paragraph("world"))))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 9
+
+doc(quoteBlock(paragraph("hello")), quoteBlock(unorderedListItem(paragraph("world"))))
 
 step({"stepType": "replace", "from": 0, "to": 9})
 
@@ -1158,7 +1320,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello world"))))"
 `;
 
 exports[`id: "055" | diff doc(quoteBlock(unorderedListItem(paragraph("hello world")))) with doc(quoteBlock(paragraph("hello")), quoteBlock(unorderedListItem(paragraph("world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
 
 step({
     "stepType": "replace",
@@ -1182,7 +1347,10 @@ doc(quoteBlock(paragraph("hello")), quoteBlock(unorderedListItem(paragraph("worl
 `;
 
 exports[`id: "056" | diff doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(paragraph("world"))) with doc(quoteBlock(unorderedListItem(paragraph("hello world")))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(paragraph("world")))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 9
+
+doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(paragraph("world")))
 
 step({
     "stepType": "replace",
@@ -1199,7 +1367,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello world"))))"
 `;
 
 exports[`id: "057" | diff doc(quoteBlock(unorderedListItem(paragraph("hello world")))) with doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(paragraph("world"))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(unorderedListItem(paragraph("hello world"))))
 
 step({"stepType": "replace", "from": 8, "to": 14})
 
@@ -1223,7 +1394,10 @@ doc(quoteBlock(unorderedListItem(paragraph("hello"))), quoteBlock(paragraph("wor
 `;
 
 exports[`id: "058" | diff doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar")) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar"))
+"deletedSize: 23
+theoreticallyOptimalDeletedSize: 12
+
+doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar"))
 
 step({
     "stepType": "replace",
@@ -1240,7 +1414,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "059" | diff doc(quoteBlock(paragraph("foo hello world bar"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("foo hello world bar")))
+"deletedSize: 23
+theoreticallyOptimalDeletedSize: 10
+
+doc(quoteBlock(paragraph("foo hello world bar")))
 
 step({
     "stepType": "replace",
@@ -1255,7 +1432,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "060" | diff doc(paragraph("foo"), quoteBlock(paragraph("bar hello world"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(paragraph("foo"), quoteBlock(paragraph("bar hello world")))
+"deletedSize: 22
+theoreticallyOptimalDeletedSize: 11
+
+doc(paragraph("foo"), quoteBlock(paragraph("bar hello world")))
 
 step({
     "stepType": "replace",
@@ -1272,7 +1452,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "061" | diff doc(quoteBlock(paragraph("hello world foo"), paragraph("bar"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world foo"), paragraph("bar")))
+"deletedSize: 24
+theoreticallyOptimalDeletedSize: 11
+
+doc(quoteBlock(paragraph("hello world foo"), paragraph("bar")))
 
 step({
     "stepType": "replace",
@@ -1287,7 +1470,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "062" | diff doc(quoteBlock(paragraph("hello world"))) with doc(paragraph("foo hello world bar")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world")))
+"deletedSize: 15
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(paragraph("hello world")))
 
 step({
     "stepType": "replace",
@@ -1304,7 +1490,10 @@ doc(paragraph("foo hello world bar"))"
 `;
 
 exports[`id: "063" | diff doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar")) with doc(paragraph("foo hello world bar")) returns the expected steps 1`] = `
-"doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar"))
+"deletedSize: 20
+theoreticallyOptimalDeletedSize: 6
+
+doc(paragraph("foo"), quoteBlock(paragraph("hello world")), paragraph("bar"))
 
 step({
     "stepType": "replace",
@@ -1321,7 +1510,10 @@ doc(paragraph("foo hello world bar"))"
 `;
 
 exports[`id: "064" | diff doc(quoteBlock(paragraph("hello world"))) with doc(paragraph("hello"), quoteBlock(paragraph("world"))) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world")))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(paragraph("hello world")))
 
 step({
     "stepType": "replace",
@@ -1338,7 +1530,10 @@ doc(paragraph("hello"), quoteBlock(paragraph("world")))"
 `;
 
 exports[`id: "065" | diff doc(quoteBlock(paragraph("hello world"))) with doc(quoteBlock(paragraph("hello")), paragraph("world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello world")))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(paragraph("hello world")))
 
 step({"stepType": "replace", "from": 7, "to": 13})
 
@@ -1355,7 +1550,10 @@ doc(quoteBlock(paragraph("hello")), paragraph("world"))"
 `;
 
 exports[`id: "066" | diff doc(quoteBlock(paragraph("hello good world"))) with doc(quoteBlock(paragraph("hello good")), paragraph("world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello good world")))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(paragraph("hello good world")))
 
 step({"stepType": "replace", "from": 12, "to": 18})
 
@@ -1372,7 +1570,10 @@ doc(quoteBlock(paragraph("hello good")), paragraph("world"))"
 `;
 
 exports[`id: "067" | diff doc(quoteBlock(paragraph("hello a b c d e f world"))) with doc(quoteBlock(paragraph("hello a b c d e f")), paragraph("world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello a b c d e f world")))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(quoteBlock(paragraph("hello a b c d e f world")))
 
 step({"stepType": "replace", "from": 19, "to": 25})
 
@@ -1389,7 +1590,10 @@ doc(quoteBlock(paragraph("hello a b c d e f")), paragraph("world"))"
 `;
 
 exports[`id: "068" | diff doc(quoteBlock(paragraph("hello good world"))) with doc(quoteBlock(paragraph("hello")), paragraph("good world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello good world")))
+"deletedSize: 11
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(paragraph("hello good world")))
 
 step({"stepType": "replace", "from": 7, "to": 18})
 
@@ -1408,7 +1612,10 @@ doc(quoteBlock(paragraph("hello")), paragraph("good world"))"
 `;
 
 exports[`id: "069" | diff doc(quoteBlock(paragraph("hello a b c d e f world"))) with doc(quoteBlock(paragraph("hello")), paragraph("a b c d e f world")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello a b c d e f world")))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 2
+
+doc(quoteBlock(paragraph("hello a b c d e f world")))
 
 step({"stepType": "replace", "from": 7, "to": 25})
 
@@ -1429,7 +1636,10 @@ doc(quoteBlock(paragraph("hello")), paragraph("a b c d e f world"))"
 `;
 
 exports[`id: "070" | diff doc(paragraph("hello"), quoteBlock(paragraph("world"))) with doc(quoteBlock(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello"), quoteBlock(paragraph("world")))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 7
+
+doc(paragraph("hello"), quoteBlock(paragraph("world")))
 
 step({"stepType": "replace", "from": 0, "to": 7})
 
@@ -1446,7 +1656,10 @@ doc(quoteBlock(paragraph("hello world")))"
 `;
 
 exports[`id: "071" | diff doc(paragraph("hello good"), quoteBlock(paragraph("world"))) with doc(quoteBlock(paragraph("hello good world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello good"), quoteBlock(paragraph("world")))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 3
+
+doc(paragraph("hello good"), quoteBlock(paragraph("world")))
 
 step({"stepType": "replace", "from": 0, "to": 12})
 
@@ -1463,7 +1676,10 @@ doc(quoteBlock(paragraph("hello good world")))"
 `;
 
 exports[`id: "072" | diff doc(paragraph("hello a b c d e f"), quoteBlock(paragraph("world"))) with doc(quoteBlock(paragraph("hello a b c d e f world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello a b c d e f"), quoteBlock(paragraph("world")))
+"deletedSize: 19
+theoreticallyOptimalDeletedSize: 3
+
+doc(paragraph("hello a b c d e f"), quoteBlock(paragraph("world")))
 
 step({"stepType": "replace", "from": 0, "to": 19})
 
@@ -1480,7 +1696,10 @@ doc(quoteBlock(paragraph("hello a b c d e f world")))"
 `;
 
 exports[`id: "073" | diff doc(paragraph("hello"), quoteBlock(paragraph("good world"))) with doc(quoteBlock(paragraph("hello good world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello"), quoteBlock(paragraph("good world")))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 7
+
+doc(paragraph("hello"), quoteBlock(paragraph("good world")))
 
 step({"stepType": "replace", "from": 0, "to": 7})
 
@@ -1497,7 +1716,10 @@ doc(quoteBlock(paragraph("hello good world")))"
 `;
 
 exports[`id: "074" | diff doc(paragraph("hello"), quoteBlock(paragraph("a b c d e f world"))) with doc(quoteBlock(paragraph("hello a b c d e f world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello"), quoteBlock(paragraph("a b c d e f world")))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 7
+
+doc(paragraph("hello"), quoteBlock(paragraph("a b c d e f world")))
 
 step({"stepType": "replace", "from": 0, "to": 7})
 
@@ -1514,7 +1736,10 @@ doc(quoteBlock(paragraph("hello a b c d e f world")))"
 `;
 
 exports[`id: "075" | diff doc(quoteBlock(paragraph("hello")), paragraph("world")) with doc(quoteBlock(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("hello")), paragraph("world"))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 3
+
+doc(quoteBlock(paragraph("hello")), paragraph("world"))
 
 step({
     "stepType": "replace",
@@ -1531,7 +1756,10 @@ doc(quoteBlock(paragraph("hello world")))"
 `;
 
 exports[`id: "076" | diff doc(unorderedListItem(paragraph("hello world"))) with doc(orderedListItem(paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("hello world")))
+"deletedSize: 2
+theoreticallyOptimalDeletedSize: 2
+
+doc(unorderedListItem(paragraph("hello world")))
 
 step({
     "stepType": "replaceAround",
@@ -1547,7 +1775,10 @@ doc(orderedListItem(paragraph("hello world")))"
 `;
 
 exports[`id: "077" | diff doc(unorderedListItem(paragraph("hello world"))) with doc(unorderedListItem(indent: 1, paragraph("hello world"))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("hello world")))
+"deletedSize: 2
+theoreticallyOptimalDeletedSize: 2
+
+doc(unorderedListItem(paragraph("hello world")))
 
 step({
     "stepType": "replaceAround",
@@ -1563,7 +1794,10 @@ doc(unorderedListItem(indent: 1, paragraph("hello world")))"
 `;
 
 exports[`id: "078" | diff doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) with doc(paragraph("foo")) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 12
+
+doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
 
 step({
     "stepType": "replace",
@@ -1576,7 +1810,10 @@ doc(paragraph("foo"))"
 `;
 
 exports[`id: "079" | diff doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) with doc(paragraph("bar")) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 12
+
+doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
 
 step({
     "stepType": "replace",
@@ -1589,7 +1826,10 @@ doc(paragraph("bar"))"
 `;
 
 exports[`id: "080" | diff doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) with doc(paragraph("foo bar")) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 12
+
+doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
 
 step({
     "stepType": "replace",
@@ -1602,7 +1842,10 @@ doc(paragraph("foo bar"))"
 `;
 
 exports[`id: "081" | diff doc(paragraph("foo")) with doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) returns the expected steps 1`] = `
-"doc(paragraph("foo"))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph("foo"))
 
 step({
     "stepType": "replace",
@@ -1626,7 +1869,10 @@ doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))"
 `;
 
 exports[`id: "082" | diff doc(paragraph("bar")) with doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) returns the expected steps 1`] = `
-"doc(paragraph("bar"))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph("bar"))
 
 step({
     "stepType": "replace",
@@ -1650,7 +1896,10 @@ doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))"
 `;
 
 exports[`id: "083" | diff doc(paragraph("foo bar")) with doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) returns the expected steps 1`] = `
-"doc(paragraph("foo bar"))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 9
+
+doc(paragraph("foo bar"))
 
 step({
     "stepType": "replace",
@@ -1674,7 +1923,10 @@ doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))"
 `;
 
 exports[`id: "084" | diff doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) with doc(codeBlock(codeBlockLine("foo bar"))) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 2
+
+doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
 
 step({
     "stepType": "replace",
@@ -1691,7 +1943,10 @@ doc(codeBlock(codeBlockLine("foo bar")))"
 `;
 
 exports[`id: "085" | diff doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) with doc(codeBlock(codeBlockLine("foo bar"), codeBlockLine)) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 3
+
+doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
 
 step({
     "stepType": "replace",
@@ -1708,7 +1963,10 @@ doc(codeBlock(codeBlockLine("foo bar"), codeBlockLine))"
 `;
 
 exports[`id: "086" | diff doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) with doc(codeBlock(codeBlockLine, codeBlockLine("foo bar"))) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 3
+
+doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))
 
 step({"stepType": "replace", "from": 1, "to": 1, "slice": {"content": [{"type": "codeBlockLine"}]}})
 
@@ -1729,7 +1987,10 @@ doc(codeBlock(codeBlockLine, codeBlockLine("foo bar")))"
 `;
 
 exports[`id: "087" | diff doc(codeBlock(codeBlockLine("foo bar"))) with doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("foo bar")))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 1
+
+doc(codeBlock(codeBlockLine("foo bar")))
 
 step({"stepType": "replace", "from": 5, "to": 9})
 
@@ -1746,7 +2007,10 @@ doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))"
 `;
 
 exports[`id: "088" | diff doc(codeBlock(codeBlockLine("foo bar"), codeBlockLine)) with doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("foo bar"), codeBlockLine))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 4
+
+doc(codeBlock(codeBlockLine("foo bar"), codeBlockLine))
 
 step({"stepType": "replace", "from": 5, "to": 9})
 
@@ -1758,7 +2022,10 @@ doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))"
 `;
 
 exports[`id: "089" | diff doc(codeBlock(codeBlockLine, codeBlockLine("foo bar"))) with doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar"))) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine, codeBlockLine("foo bar")))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 4
+
+doc(codeBlock(codeBlockLine, codeBlockLine("foo bar")))
 
 step({"stepType": "replace", "from": 1, "to": 3})
 
@@ -1779,7 +2046,10 @@ doc(codeBlock(codeBlockLine("foo"), codeBlockLine("bar")))"
 `;
 
 exports[`id: "090" | diff doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) with doc(paragraph("foo")) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 18
+
+doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
 
 step({
     "stepType": "replace",
@@ -1792,7 +2062,10 @@ doc(paragraph("foo"))"
 `;
 
 exports[`id: "091" | diff doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) with doc(paragraph("bar")) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 18
+
+doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
 
 step({
     "stepType": "replace",
@@ -1805,7 +2078,10 @@ doc(paragraph("bar"))"
 `;
 
 exports[`id: "092" | diff doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) with doc(paragraph("foo bar")) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 18
+
+doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
 
 step({
     "stepType": "replace",
@@ -1818,7 +2094,10 @@ doc(paragraph("foo bar"))"
 `;
 
 exports[`id: "093" | diff doc(paragraph("foo")) with doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) returns the expected steps 1`] = `
-"doc(paragraph("foo"))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph("foo"))
 
 step({
     "stepType": "replace",
@@ -1868,7 +2147,10 @@ doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))"
 `;
 
 exports[`id: "094" | diff doc(paragraph("bar")) with doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) returns the expected steps 1`] = `
-"doc(paragraph("bar"))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph("bar"))
 
 step({
     "stepType": "replace",
@@ -1918,7 +2200,10 @@ doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))"
 `;
 
 exports[`id: "095" | diff doc(paragraph("foo bar")) with doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) returns the expected steps 1`] = `
-"doc(paragraph("foo bar"))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 9
+
+doc(paragraph("foo bar"))
 
 step({
     "stepType": "replace",
@@ -1968,7 +2253,10 @@ doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))"
 `;
 
 exports[`id: "096" | diff doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) with doc(table(tableRow(tableCell(paragraph("foo bar")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 3
+
+doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
 
 step({
     "stepType": "replace",
@@ -1985,7 +2273,10 @@ doc(table(tableRow(tableCell(paragraph("foo bar")), tableCell(paragraph))))"
 `;
 
 exports[`id: "097" | diff doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) with doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("foo bar"))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 3
+
+doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))
 
 step({
     "stepType": "replace",
@@ -2011,7 +2302,10 @@ doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("foo bar")))))"
 `;
 
 exports[`id: "098" | diff doc(table(tableRow(tableCell(paragraph("foo bar")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("foo bar")), tableCell(paragraph))))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph("foo bar")), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 7, "to": 11})
 
@@ -2028,7 +2322,10 @@ doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))"
 `;
 
 exports[`id: "099" | diff doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("foo bar"))))) with doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar"))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("foo bar")))))
+"deletedSize: 8
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("foo bar")))))
 
 step({"stepType": "replace", "from": 11, "to": 15})
 
@@ -2056,7 +2353,10 @@ doc(table(tableRow(tableCell(paragraph("foo")), tableCell(paragraph("bar")))))"
 `;
 
 exports[`id: "100" | diff doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit"))))) with doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit")))))
+"deletedSize: 54
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit")))))
 
 step({
     "stepType": "replace",
@@ -2077,7 +2377,10 @@ doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy 
 `;
 
 exports[`id: "101" | diff doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit"))))) with doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit"))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit")))))
+"deletedSize: 58
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit")))))
 
 step({
     "stepType": "replace",
@@ -2107,7 +2410,10 @@ doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("the quick brown fo
 `;
 
 exports[`id: "102" | diff doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit"))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph))))
+"deletedSize: 55
+theoreticallyOptimalDeletedSize: 5
+
+doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 47, "to": 102})
 
@@ -2128,7 +2434,10 @@ doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy 
 `;
 
 exports[`id: "103" | diff doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit"))))) with doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit"))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")))))
+"deletedSize: 59
+theoreticallyOptimalDeletedSize: 5
+
+doc(table(tableRow(tableCell(paragraph), tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")))))
 
 step({"stepType": "replace", "from": 51, "to": 106})
 
@@ -2166,7 +2475,10 @@ doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy 
 `;
 
 exports[`id: "104" | diff doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph)), tableRow(tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph)), tableRow(tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph))))
+"deletedSize: 64
+theoreticallyOptimalDeletedSize: 10
+
+doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph)), tableRow(tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2187,7 +2499,10 @@ doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy 
 `;
 
 exports[`id: "105" | diff doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog")), tableCell(paragraph)), tableRow(tableCell(paragraph("lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph))))
+"deletedSize: 55
+theoreticallyOptimalDeletedSize: 1
+
+doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy dog lorem ipsum dolor sit amet consectetur adipiscing elit")), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 47, "to": 102})
 
@@ -2227,7 +2542,10 @@ doc(table(tableRow(tableCell(paragraph("the quick brown fox jumps over the lazy 
 `;
 
 exports[`id: "106" | diff doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("foo hello world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2240,7 +2558,10 @@ doc(table(tableRow(tableCell(paragraph("foo hello world")), tableCell(paragraph)
 `;
 
 exports[`id: "107" | diff doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello foo world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2253,7 +2574,10 @@ doc(table(tableRow(tableCell(paragraph("hello foo world")), tableCell(paragraph)
 `;
 
 exports[`id: "108" | diff doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello world foo")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2266,7 +2590,10 @@ doc(table(tableRow(tableCell(paragraph("hello world foo")), tableCell(paragraph)
 `;
 
 exports[`id: "109" | diff doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello"), paragraph("world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 1
+
+doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 9, "to": 15})
 
@@ -2283,7 +2610,10 @@ doc(table(tableRow(tableCell(paragraph("hello"), paragraph("world")), tableCell(
 `;
 
 exports[`id: "110" | diff doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph)))) with doc(table(tableRow(tableCell(quoteBlock(paragraph("hello"), paragraph("world"))), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 1
+
+doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 10, "to": 16})
 
@@ -2300,7 +2630,10 @@ doc(table(tableRow(tableCell(quoteBlock(paragraph("hello"), paragraph("world")))
 `;
 
 exports[`id: "111" | diff doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph)))) with doc(table(tableRow(tableCell(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world"))), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph))))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 1
+
+doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 10, "to": 16})
 
@@ -2324,7 +2657,10 @@ doc(table(tableRow(tableCell(quoteBlock(paragraph("hello")), quoteBlock(paragrap
 `;
 
 exports[`id: "112" | diff doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 0
+
+doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2346,7 +2682,10 @@ doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(pa
 `;
 
 exports[`id: "113" | diff doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(quoteBlock(unorderedListItem(paragraph("hello world")))), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 0
+
+doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2377,7 +2716,10 @@ doc(table(tableRow(tableCell(quoteBlock(unorderedListItem(paragraph("hello world
 `;
 
 exports[`id: "114" | diff doc(table(tableRow(tableCell(paragraph("foo hello world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("foo hello world")), tableCell(paragraph))))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph("foo hello world")), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 4, "to": 8})
 
@@ -2385,7 +2727,10 @@ doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))"
 `;
 
 exports[`id: "115" | diff doc(table(tableRow(tableCell(paragraph("hello foo world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello foo world")), tableCell(paragraph))))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph("hello foo world")), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 10, "to": 14})
 
@@ -2393,7 +2738,10 @@ doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))"
 `;
 
 exports[`id: "116" | diff doc(table(tableRow(tableCell(paragraph("hello world foo")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello world foo")), tableCell(paragraph))))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph("hello world foo")), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 15, "to": 19})
 
@@ -2401,7 +2749,10 @@ doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))"
 `;
 
 exports[`id: "117" | diff doc(table(tableRow(tableCell(paragraph("hello"), paragraph("world")), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("hello"), paragraph("world")), tableCell(paragraph))))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 2
+
+doc(table(tableRow(tableCell(paragraph("hello"), paragraph("world")), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2418,7 +2769,10 @@ doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))"
 `;
 
 exports[`id: "118" | diff doc(table(tableRow(tableCell(quoteBlock(paragraph("hello"), paragraph("world"))), tableCell(paragraph)))) with doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(quoteBlock(paragraph("hello"), paragraph("world"))), tableCell(paragraph))))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 2
+
+doc(table(tableRow(tableCell(quoteBlock(paragraph("hello"), paragraph("world"))), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2435,7 +2789,10 @@ doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(pa
 `;
 
 exports[`id: "119" | diff doc(table(tableRow(tableCell(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world"))), tableCell(paragraph)))) with doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world"))), tableCell(paragraph))))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(quoteBlock(paragraph("hello")), quoteBlock(paragraph("world"))), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2452,7 +2809,10 @@ doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(pa
 `;
 
 exports[`id: "120" | diff doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph))))
+"deletedSize: 15
+theoreticallyOptimalDeletedSize: 2
+
+doc(table(tableRow(tableCell(quoteBlock(paragraph("hello world"))), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2467,7 +2827,10 @@ doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))"
 `;
 
 exports[`id: "121" | diff doc(table(tableRow(tableCell(quoteBlock(unorderedListItem(paragraph("hello world")))), tableCell(paragraph)))) with doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(quoteBlock(unorderedListItem(paragraph("hello world")))), tableCell(paragraph))))
+"deletedSize: 17
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(quoteBlock(unorderedListItem(paragraph("hello world")))), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -2482,7 +2845,10 @@ doc(table(tableRow(tableCell(paragraph("hello world")), tableCell(paragraph))))"
 `;
 
 exports[`id: "122" | diff doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph)) with doc(unorderedListItem(paragraph("a"), paragraph("c"))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 6
+
+doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph))
 
 step({"stepType": "replace", "from": 5, "to": 5, "slice": {"content": [{"type": "text", "text": "c"}]}})
 
@@ -2494,7 +2860,10 @@ doc(unorderedListItem(paragraph("a"), paragraph("c")))"
 `;
 
 exports[`id: "123" | diff doc(unorderedListItem(paragraph("a"), paragraph("c"))) with doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph)) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a"), paragraph("c")))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 0
+
+doc(unorderedListItem(paragraph("a"), paragraph("c")))
 
 step({"stepType": "replace", "from": 5, "to": 6})
 
@@ -2520,7 +2889,10 @@ doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListI
 `;
 
 exports[`id: "124" | diff doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph)) with doc(orderedListItem(paragraph("a"), paragraph("c"))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 8
+
+doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph))
 
 step({
     "stepType": "replaceAround",
@@ -2544,7 +2916,10 @@ doc(orderedListItem(paragraph("a"), paragraph("c")))"
 `;
 
 exports[`id: "125" | diff doc(orderedListItem(paragraph("a"), paragraph("c"))) with doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph)) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph("a"), paragraph("c")))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 2
+
+doc(orderedListItem(paragraph("a"), paragraph("c")))
 
 step({
     "stepType": "replaceAround",
@@ -2582,7 +2957,10 @@ doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListI
 `;
 
 exports[`id: "126" | diff doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph)) with doc(unorderedListItem(paragraph("a"), paragraph("c"))) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 7
+
+doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph))
 
 step({
     "stepType": "replaceAround",
@@ -2606,7 +2984,10 @@ doc(unorderedListItem(paragraph("a"), paragraph("c")))"
 `;
 
 exports[`id: "127" | diff doc(unorderedListItem(paragraph("a"), paragraph("c"))) with doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph)) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a"), paragraph("c")))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 1
+
+doc(unorderedListItem(paragraph("a"), paragraph("c")))
 
 step({
     "stepType": "replaceAround",
@@ -2644,7 +3025,10 @@ doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListIte
 `;
 
 exports[`id: "128" | diff doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListItem(paragraph)) with doc(unorderedListItem(paragraph("a"), paragraph("c"))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListItem(paragraph))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 7
+
+doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListItem(paragraph))
 
 step({"stepType": "replace", "from": 5, "to": 5, "slice": {"content": [{"type": "text", "text": "c"}]}})
 
@@ -2656,7 +3040,10 @@ doc(unorderedListItem(paragraph("a"), paragraph("c")))"
 `;
 
 exports[`id: "129" | diff doc(unorderedListItem(paragraph("a"), paragraph("c"))) with doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListItem(paragraph)) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a"), paragraph("c")))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 1
+
+doc(unorderedListItem(paragraph("a"), paragraph("c")))
 
 step({"stepType": "replace", "from": 5, "to": 6})
 
@@ -2682,7 +3069,10 @@ doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListIte
 `;
 
 exports[`id: "130" | diff doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph)) with doc(orderedListItem(paragraph("a"), paragraph("c"))) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 7
+
+doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph))
 
 step({"stepType": "replace", "from": 5, "to": 5, "slice": {"content": [{"type": "text", "text": "c"}]}})
 
@@ -2694,7 +3084,10 @@ doc(orderedListItem(paragraph("a"), paragraph("c")))"
 `;
 
 exports[`id: "131" | diff doc(orderedListItem(paragraph("a"), paragraph("c"))) with doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListItem(paragraph)) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph("a"), paragraph("c")))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 1
+
+doc(orderedListItem(paragraph("a"), paragraph("c")))
 
 step({"stepType": "replace", "from": 5, "to": 6})
 
@@ -2720,7 +3113,10 @@ doc(orderedListItem(paragraph("a"), paragraph), paragraph("c"), unorderedListIte
 `;
 
 exports[`id: "132" | diff doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListItem(paragraph)) with doc(orderedListItem(paragraph("a"), paragraph("c"))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListItem(paragraph))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 7
+
+doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListItem(paragraph))
 
 step({
     "stepType": "replaceAround",
@@ -2744,7 +3140,10 @@ doc(orderedListItem(paragraph("a"), paragraph("c")))"
 `;
 
 exports[`id: "133" | diff doc(orderedListItem(paragraph("a"), paragraph("c"))) with doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListItem(paragraph)) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph("a"), paragraph("c")))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 1
+
+doc(orderedListItem(paragraph("a"), paragraph("c")))
 
 step({
     "stepType": "replaceAround",
@@ -2782,7 +3181,10 @@ doc(unorderedListItem(paragraph("a"), paragraph), paragraph("c"), orderedListIte
 `;
 
 exports[`id: "134" | diff doc(unorderedListItem(paragraph("a")), paragraph("c"), unorderedListItem(paragraph)) with doc(unorderedListItem(paragraph("a"), paragraph("c"))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a")), paragraph("c"), unorderedListItem(paragraph))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 4
+
+doc(unorderedListItem(paragraph("a")), paragraph("c"), unorderedListItem(paragraph))
 
 step({
     "stepType": "replace",
@@ -2799,7 +3201,10 @@ doc(unorderedListItem(paragraph("a"), paragraph("c")))"
 `;
 
 exports[`id: "135" | diff doc(unorderedListItem(paragraph("a"), paragraph("c"))) with doc(unorderedListItem(paragraph("a")), paragraph("c"), unorderedListItem(paragraph)) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("a"), paragraph("c")))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 0
+
+doc(unorderedListItem(paragraph("a"), paragraph("c")))
 
 step({"stepType": "replace", "from": 4, "to": 7})
 
@@ -2825,7 +3230,10 @@ doc(unorderedListItem(paragraph("a")), paragraph("c"), unorderedListItem(paragra
 `;
 
 exports[`id: "136" | diff doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("b")), paragraph("c")), tableCell(paragraph)), tableRow(tableCell(unorderedListItem(paragraph)), tableCell(paragraph)))) with doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("c"))), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("b")), paragraph("c")), tableCell(paragraph)), tableRow(tableCell(unorderedListItem(paragraph)), tableCell(paragraph))))
+"deletedSize: 16
+theoreticallyOptimalDeletedSize: 15
+
+doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("b")), paragraph("c")), tableCell(paragraph)), tableRow(tableCell(unorderedListItem(paragraph)), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 8, "to": 9, "slice": {"content": [{"type": "text", "text": "c"}]}})
 
@@ -2841,7 +3249,10 @@ doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("c"))),
 `;
 
 exports[`id: "137" | diff doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("c"))), tableCell(paragraph)))) with doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("b")), paragraph("c")), tableCell(paragraph)), tableRow(tableCell(unorderedListItem(paragraph)), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("c"))), tableCell(paragraph))))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 0
+
+doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("c"))), tableCell(paragraph))))
 
 step({"stepType": "replace", "from": 8, "to": 9, "slice": {"content": [{"type": "text", "text": "b"}]}})
 
@@ -2886,7 +3297,10 @@ doc(table(tableRow(tableCell(unorderedListItem(paragraph("a"), paragraph("b")), 
 `;
 
 exports[`id: "138" | diff doc(divider, unorderedListItem(paragraph, paragraph(" "))) with doc(divider, paragraph) returns the expected steps 1`] = `
-"doc(divider, unorderedListItem(paragraph, paragraph(" ")))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 5
+
+doc(divider, unorderedListItem(paragraph, paragraph(" ")))
 
 step({"stepType": "replace", "from": 1, "to": 8, "slice": {"content": [{"type": "paragraph"}]}})
 
@@ -2894,7 +3308,10 @@ doc(divider, paragraph)"
 `;
 
 exports[`id: "139" | diff doc(paragraph(" "), quoteBlock(paragraph(" "), unorderedListItem(paragraph("  "), paragraph(" "), paragraph("!  ")), paragraph(" ")), paragraph(" ")) with doc(orderedListItem(paragraph(" "), paragraph("  "), paragraph(" ")), heading("  "), paragraph(" ")) returns the expected steps 1`] = `
-"doc(paragraph(" "), quoteBlock(paragraph(" "), unorderedListItem(paragraph("  "), paragraph(" "), paragraph("!  ")), paragraph(" ")), paragraph(" "))
+"deletedSize: 25
+theoreticallyOptimalDeletedSize: 13
+
+doc(paragraph(" "), quoteBlock(paragraph(" "), unorderedListItem(paragraph("  "), paragraph(" "), paragraph("!  ")), paragraph(" ")), paragraph(" "))
 
 step({
     "stepType": "replace",
@@ -2944,7 +3361,10 @@ doc(orderedListItem(paragraph(" "), paragraph("  "), paragraph(" ")), heading(" 
 `;
 
 exports[`id: "140" | diff doc(paragraph(" "), quoteBlock(paragraph(" "), orderedListItem(paragraph("*  "), paragraph(" ")), paragraph("& "), orderedListItem(paragraph(" "), paragraph("  "), paragraph(" "))), divider, orderedListItem(paragraph, paragraph(" "))) with doc(heading("*&  !"), paragraph(break)) returns the expected steps 1`] = `
-"doc(paragraph(" "), quoteBlock(paragraph(" "), orderedListItem(paragraph("*  "), paragraph(" ")), paragraph("& "), orderedListItem(paragraph(" "), paragraph("  "), paragraph(" "))), divider, orderedListItem(paragraph, paragraph(" ")))
+"deletedSize: 42
+theoreticallyOptimalDeletedSize: 36
+
+doc(paragraph(" "), quoteBlock(paragraph(" "), orderedListItem(paragraph("*  "), paragraph(" ")), paragraph("& "), orderedListItem(paragraph(" "), paragraph("  "), paragraph(" "))), divider, orderedListItem(paragraph, paragraph(" ")))
 
 step({
     "stepType": "replaceAround",
@@ -2978,7 +3398,10 @@ doc(heading("*&  !"), paragraph(break))"
 `;
 
 exports[`id: "141" | diff doc(paragraph, orderedListItem(paragraph(" "), paragraph("# "), paragraph(" "), paragraph(" "))) with doc(paragraph(" "), orderedListItem(paragraph(" "), paragraph("$")), unorderedListItem(paragraph("# "), paragraph(" ")), paragraph) returns the expected steps 1`] = `
-"doc(paragraph, orderedListItem(paragraph(" "), paragraph("# "), paragraph(" "), paragraph(" ")))
+"deletedSize: 15
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph, orderedListItem(paragraph(" "), paragraph("# "), paragraph(" "), paragraph(" ")))
 
 step({
     "stepType": "replace",
@@ -3015,7 +3438,10 @@ doc(paragraph(" "), orderedListItem(paragraph(" "), paragraph("$")), unorderedLi
 `;
 
 exports[`id: "142" | diff doc(paragraph(" "), paragraph(break, " "), paragraph(" ")) with doc(paragraph(" ")) returns the expected steps 1`] = `
-"doc(paragraph(" "), paragraph(break, " "), paragraph(" "))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 7
+
+doc(paragraph(" "), paragraph(break, " "), paragraph(" "))
 
 step({"stepType": "replace", "from": 3, "to": 10})
 
@@ -3023,7 +3449,10 @@ doc(paragraph(" "))"
 `;
 
 exports[`id: "143" | diff doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), tableCell(paragraph(" "))), tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph, unorderedListItem(paragraph, paragraph(" ")))))) with doc(unorderedListItem(paragraph(" "), paragraph(" "))) returns the expected steps 1`] = `
-"doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), tableCell(paragraph(" "))), tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph, unorderedListItem(paragraph, paragraph(" "))))))
+"deletedSize: 56
+theoreticallyOptimalDeletedSize: 54
+
+doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), tableCell(paragraph(" "))), tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph, unorderedListItem(paragraph, paragraph(" "))))))
 
 step({
     "stepType": "replace",
@@ -3047,7 +3476,10 @@ doc(unorderedListItem(paragraph(" "), paragraph(" ")))"
 `;
 
 exports[`id: "144" | diff doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), tableCell(paragraph(" "))), tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph, unorderedListItem(paragraph, paragraph(" ")))))) with doc(table(tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" "))), tableCell(paragraph)))) returns the expected steps 1`] = `
-"doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), tableCell(paragraph(" "))), tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph, unorderedListItem(paragraph, paragraph(" "))))))
+"deletedSize: 56
+theoreticallyOptimalDeletedSize: 38
+
+doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), tableCell(paragraph(" "))), tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph, unorderedListItem(paragraph, paragraph(" "))))))
 
 step({
     "stepType": "replace",
@@ -3099,7 +3531,10 @@ doc(table(tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" "))),
 `;
 
 exports[`id: "145" | diff doc(unorderedListItem(paragraph(" "), paragraph(" "))) with doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), tableCell(paragraph(" "))), tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph, unorderedListItem(paragraph, paragraph(" ")))))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph(" "), paragraph(" ")))
+"deletedSize: 8
+theoreticallyOptimalDeletedSize: 6
+
+doc(unorderedListItem(paragraph(" "), paragraph(" ")))
 
 step({
     "stepType": "replace",
@@ -3215,7 +3650,10 @@ doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorde
 `;
 
 exports[`id: "146" | diff doc(table(tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" "))), tableCell(paragraph)))) with doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), tableCell(paragraph(" "))), tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph, unorderedListItem(paragraph, paragraph(" ")))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" "))), tableCell(paragraph))))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 0
+
+doc(table(tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" "))), tableCell(paragraph))))
 
 step({
     "stepType": "replace",
@@ -3331,7 +3769,10 @@ doc(paragraph(break), table(tableRow(tableCell(paragraph(" ")), tableCell(unorde
 `;
 
 exports[`id: "147" | diff doc(orderedListItem(paragraph(" "), paragraph), quoteBlock(paragraph, paragraph(" "))) with doc(codeBlock(codeBlockLine(" "), codeBlockLine(" ")), orderedListItem(paragraph(break), paragraph(" ")), paragraph(" ")) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph(" "), paragraph), quoteBlock(paragraph, paragraph(" ")))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 5
+
+doc(orderedListItem(paragraph(" "), paragraph), quoteBlock(paragraph, paragraph(" ")))
 
 step({
     "stepType": "replace",
@@ -3380,7 +3821,10 @@ doc(codeBlock(codeBlockLine(" "), codeBlockLine(" ")), orderedListItem(paragraph
 `;
 
 exports[`id: "148" | diff doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(break)) with doc(unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph(" "), paragraph), paragraph(" ")) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(break))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 1
+
+doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(break))
 
 step({
     "stepType": "replace",
@@ -3405,7 +3849,10 @@ doc(unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragra
 `;
 
 exports[`id: "149" | diff doc(paragraph("#", break)) with doc(unorderedListItem(paragraph, paragraph("#  ")), paragraph(" ")) returns the expected steps 1`] = `
-"doc(paragraph("#", break))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph("#", break))
 
 step({
     "stepType": "replace",
@@ -3430,7 +3877,10 @@ doc(unorderedListItem(paragraph, paragraph("#  ")), paragraph(" "))"
 `;
 
 exports[`id: "150" | diff doc(paragraph(" "), heading(" ")) with doc(paragraph(" "), quoteBlock(paragraph, paragraph(" ")), paragraph(" ")) returns the expected steps 1`] = `
-"doc(paragraph(" "), heading(" "))
+"deletedSize: 2
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph(" "), heading(" "))
 
 step({
     "stepType": "replace",
@@ -3465,7 +3915,10 @@ doc(paragraph(" "), quoteBlock(paragraph, paragraph(" ")), paragraph(" "))"
 `;
 
 exports[`id: "151" | diff doc(paragraph(" "), paragraph("!")) with doc(heading(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph(" "), paragraph("!  "), paragraph(" "))), paragraph(" ")) returns the expected steps 1`] = `
-"doc(paragraph(" "), paragraph("!"))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(" "), paragraph("!"))
 
 step({
     "stepType": "replaceAround",
@@ -3519,7 +3972,10 @@ doc(heading(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph(" ")), or
 `;
 
 exports[`id: "152" | diff doc(codeBlock(codeBlockLine(" "), codeBlockLine(" "))) with doc(paragraph(break, " "), orderedListItem(paragraph, paragraph(" "))) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine(" "), codeBlockLine(" ")))
+"deletedSize: 8
+theoreticallyOptimalDeletedSize: 8
+
+doc(codeBlock(codeBlockLine(" "), codeBlockLine(" ")))
 
 step({
     "stepType": "replace",
@@ -3544,7 +4000,10 @@ doc(paragraph(break, " "), orderedListItem(paragraph, paragraph(" ")))"
 `;
 
 exports[`id: "153" | diff doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "))), codeBlock(codeBlockLine("x"))) with doc(unorderedListItem(paragraph("x"), paragraph("x"), paragraph("x"))) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "))), codeBlock(codeBlockLine("x")))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 10
+
+doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "))), codeBlock(codeBlockLine("x")))
 
 step({"stepType": "replace", "from": 2, "to": 3, "slice": {"content": [{"type": "text", "text": "x"}]}})
 
@@ -3582,7 +4041,10 @@ doc(unorderedListItem(paragraph("x"), paragraph("x"), paragraph("x")))"
 `;
 
 exports[`id: "154" | diff doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(break)) with doc(orderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph(" "), paragraph(" "), paragraph(break, " "), paragraph(" "))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(break))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 1
+
+doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(break))
 
 step({
     "stepType": "replaceAround",
@@ -3623,7 +4085,10 @@ doc(orderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph
 `;
 
 exports[`id: "155" | diff doc(paragraph(" "), paragraph("!")) with doc(paragraph(" "), paragraph(" "), paragraph, paragraph("!  ")) returns the expected steps 1`] = `
-"doc(paragraph(" "), paragraph("!"))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(" "), paragraph("!"))
 
 step({"stepType": "replace", "from": 4, "to": 5, "slice": {"content": [{"type": "text", "text": " "}]}})
 
@@ -3645,7 +4110,10 @@ doc(paragraph(" "), paragraph(" "), paragraph, paragraph("!  "))"
 `;
 
 exports[`id: "156" | diff doc(paragraph(" "), paragraph(" ")) with doc(paragraph(" "), paragraph("!"), unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" !")) returns the expected steps 1`] = `
-"doc(paragraph(" "), paragraph(" "))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(" "), paragraph(" "))
 
 step({"stepType": "replace", "from": 4, "to": 5, "slice": {"content": [{"type": "text", "text": "!"}]}})
 
@@ -3674,7 +4142,10 @@ doc(paragraph(" "), paragraph("!"), unorderedListItem(paragraph(" "), paragraph(
 `;
 
 exports[`id: "157" | diff doc(orderedListItem(paragraph, paragraph(" "), paragraph("A ")), divider) with doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph, paragraph(" "))), orderedListItem(paragraph("!"), paragraph(" ")), paragraph(" ")) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph, paragraph(" "), paragraph("A ")), divider)
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 3
+
+doc(orderedListItem(paragraph, paragraph(" "), paragraph("A ")), divider)
 
 step({
     "stepType": "replaceAround",
@@ -3735,7 +4206,10 @@ doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph, paragraph(" "))), or
 `;
 
 exports[`id: "158" | diff doc(paragraph(" "), paragraph("E")) with doc(paragraph(" "), paragraph(" "), divider, paragraph("E  "), paragraph(" ")) returns the expected steps 1`] = `
-"doc(paragraph(" "), paragraph("E"))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(" "), paragraph("E"))
 
 step({"stepType": "replace", "from": 4, "to": 5, "slice": {"content": [{"type": "text", "text": " "}]}})
 
@@ -3758,7 +4232,10 @@ doc(paragraph(" "), paragraph(" "), divider, paragraph("E  "), paragraph(" "))"
 `;
 
 exports[`id: "159" | diff doc(unorderedListItem(paragraph("A "), paragraph("! "), paragraph)) with doc(paragraph(" "), unorderedListItem(paragraph("!"), paragraph(" ")), unorderedListItem(paragraph(" "))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph("A "), paragraph("! "), paragraph))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 2
+
+doc(unorderedListItem(paragraph("A "), paragraph("! "), paragraph))
 
 step({
     "stepType": "replace",
@@ -3788,7 +4265,10 @@ doc(paragraph(" "), unorderedListItem(paragraph("!"), paragraph(" ")), unordered
 `;
 
 exports[`id: "160" | diff doc(paragraph("0 ")) with doc(orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")) returns the expected steps 1`] = `
-"doc(paragraph("0 "))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph("0 "))
 
 step({
     "stepType": "replace",
@@ -3816,7 +4296,10 @@ doc(orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" "))"
 `;
 
 exports[`id: "161" | diff doc(paragraph(" "), paragraph("< 0 "), paragraph) with doc(orderedListItem(paragraph(" "), paragraph(" ")), paragraph("<0 ", break), orderedListItem(paragraph(" "), paragraph(" "))) returns the expected steps 1`] = `
-"doc(paragraph(" "), paragraph("< 0 "), paragraph)
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph(" "), paragraph("< 0 "), paragraph)
 
 step({
     "stepType": "replace",
@@ -3868,7 +4351,10 @@ doc(orderedListItem(paragraph(" "), paragraph(" ")), paragraph("<0 ", break), or
 `;
 
 exports[`id: "162" | diff doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph("A ")) with doc(paragraph(break), unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph(" "), paragraph("!")), paragraph(" !")) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph("A "))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 1
+
+doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph("A "))
 
 step({
     "stepType": "replace",
@@ -3909,7 +4395,10 @@ doc(paragraph(break), unorderedListItem(paragraph(" "), paragraph(" ")), unorder
 `;
 
 exports[`id: "163" | diff doc(unorderedListItem(paragraph(" "), paragraph("0"))) with doc(paragraph(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph, paragraph(" "))), unorderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" "))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph(" "), paragraph("0")))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 1
+
+doc(unorderedListItem(paragraph(" "), paragraph("0")))
 
 step({
     "stepType": "replace",
@@ -3971,7 +4460,10 @@ doc(paragraph(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph(" ")), 
 `;
 
 exports[`id: "164" | diff doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph("2"), paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" "))) with doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph("2", break), unorderedListItem(paragraph, paragraph)) returns the expected steps 1`] = `
-"doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph("2"), paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" ")))
+"deletedSize: 16
+theoreticallyOptimalDeletedSize: 9
+
+doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph("2"), paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" ")))
 
 step({"stepType": "replace", "from": 0, "to": 14})
 
@@ -4009,7 +4501,10 @@ doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph("2", break), un
 `;
 
 exports[`id: "165" | diff doc(paragraph, quoteBlock(paragraph(" "), orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), paragraph) with doc(quoteBlock(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), orderedListItem(paragraph, paragraph)) returns the expected steps 1`] = `
-"doc(paragraph, quoteBlock(paragraph(" "), orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), paragraph)
+"deletedSize: 17
+theoreticallyOptimalDeletedSize: 6
+
+doc(paragraph, quoteBlock(paragraph(" "), orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), paragraph)
 
 step({
     "stepType": "replace",
@@ -4063,7 +4558,10 @@ doc(quoteBlock(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")
 `;
 
 exports[`id: "166" | diff doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(" ", break, " "), paragraph)) with doc(paragraph(" "), paragraph(" "), paragraph(break, " ")) returns the expected steps 1`] = `
-"doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(" ", break, " "), paragraph))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(" ", break, " "), paragraph))
 
 step({
     "stepType": "replace",
@@ -4081,7 +4579,10 @@ doc(paragraph(" "), paragraph(" "), paragraph(break, " "))"
 `;
 
 exports[`id: "167" | diff doc(paragraph(" "), quoteBlock(orderedListItem(paragraph, paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), paragraph(" ")) with doc(unorderedListItem(paragraph, paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" "))) returns the expected steps 1`] = `
-"doc(paragraph(" "), quoteBlock(orderedListItem(paragraph, paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), paragraph(" "))
+"deletedSize: 23
+theoreticallyOptimalDeletedSize: 13
+
+doc(paragraph(" "), quoteBlock(orderedListItem(paragraph, paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), paragraph(" "))
 
 step({
     "stepType": "replace",
@@ -4134,7 +4635,10 @@ doc(unorderedListItem(paragraph, paragraph(" ")), orderedListItem(paragraph(" ")
 `;
 
 exports[`id: "168" | diff doc(paragraph(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" "))) with doc(paragraph(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph("!")), unorderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" ")))) returns the expected steps 1`] = `
-"doc(paragraph(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")))
 
 step({"stepType": "replace", "from": 9, "to": 10, "slice": {"content": [{"type": "text", "text": "!"}]}})
 
@@ -4178,7 +4682,10 @@ doc(paragraph(" "), quoteBlock(orderedListItem(paragraph(" "), paragraph("!")), 
 `;
 
 exports[`id: "169" | diff doc(orderedListItem(paragraph(" "), paragraph(" ")), quoteBlock(paragraph(" "), paragraph(" "), paragraph(" "), unorderedListItem(paragraph(break, " "), paragraph(" ")), paragraph(" "))) with doc(paragraph(" ! ! !"), paragraph(break)) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph(" "), paragraph(" ")), quoteBlock(paragraph(" "), paragraph(" "), paragraph(" "), unorderedListItem(paragraph(break, " "), paragraph(" ")), paragraph(" ")))
+"deletedSize: 31
+theoreticallyOptimalDeletedSize: 23
+
+doc(orderedListItem(paragraph(" "), paragraph(" ")), quoteBlock(paragraph(" "), paragraph(" "), paragraph(" "), unorderedListItem(paragraph(break, " "), paragraph(" ")), paragraph(" ")))
 
 step({
     "stepType": "replace",
@@ -4196,7 +4703,10 @@ doc(paragraph(" ! ! !"), paragraph(break))"
 `;
 
 exports[`id: "170" | diff doc(paragraph(" "), paragraph("P "), orderedListItem(paragraph(" "), paragraph)) with doc(paragraph(" "), quoteBlock(paragraph(" "), paragraph("P "), paragraph(" ")), codeBlock(codeBlockLine(" "), codeBlockLine(" ")), paragraph(" "), orderedListItem(paragraph(" "), paragraph(" "))) returns the expected steps 1`] = `
-"doc(paragraph(" "), paragraph("P "), orderedListItem(paragraph(" "), paragraph))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(" "), paragraph("P "), orderedListItem(paragraph(" "), paragraph))
 
 step({
     "stepType": "replace",
@@ -4236,7 +4746,10 @@ doc(paragraph(" "), quoteBlock(paragraph(" "), paragraph("P "), paragraph(" ")),
 `;
 
 exports[`id: "171" | diff doc(paragraph(" "), quoteBlock(paragraph(" "), orderedListItem(paragraph(" "), paragraph(break, " "), paragraph(" "))), orderedListItem(paragraph(" "), paragraph(" "))) with doc(paragraph(" "), paragraph(break, " "), codeBlock(codeBlockLine(" "), codeBlockLine(" "))) returns the expected steps 1`] = `
-"doc(paragraph(" "), quoteBlock(paragraph(" "), orderedListItem(paragraph(" "), paragraph(break, " "), paragraph(" "))), orderedListItem(paragraph(" "), paragraph(" ")))
+"deletedSize: 25
+theoreticallyOptimalDeletedSize: 21
+
+doc(paragraph(" "), quoteBlock(paragraph(" "), orderedListItem(paragraph(" "), paragraph(break, " "), paragraph(" "))), orderedListItem(paragraph(" "), paragraph(" ")))
 
 step({
     "stepType": "replace",
@@ -4261,7 +4774,10 @@ doc(paragraph(" "), paragraph(break, " "), codeBlock(codeBlockLine(" "), codeBlo
 `;
 
 exports[`id: "172" | diff doc(paragraph(" "), orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")) with doc(paragraph(" "), quoteBlock(paragraph(" "), orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), paragraph(" "), divider) returns the expected steps 1`] = `
-"doc(paragraph(" "), orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" "))
+"deletedSize: 2
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(" "), orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" "))
 
 step({
     "stepType": "replaceAround",
@@ -4301,7 +4817,10 @@ doc(paragraph(" "), quoteBlock(paragraph(" "), orderedListItem(paragraph(" "), p
 `;
 
 exports[`id: "173" | diff doc(quoteBlock(unorderedListItem(paragraph(" "), paragraph(break, " ")), paragraph(break, " ")), paragraph(" ")) with doc(paragraph(" "), orderedListItem(paragraph, paragraph(break, " "), paragraph(break), paragraph(" ")), paragraph(" ")) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(paragraph(" "), paragraph(break, " ")), paragraph(break, " ")), paragraph(" "))
+"deletedSize: 15
+theoreticallyOptimalDeletedSize: 4
+
+doc(quoteBlock(unorderedListItem(paragraph(" "), paragraph(break, " ")), paragraph(break, " ")), paragraph(" "))
 
 step({"stepType": "replace", "from": 0, "to": 15})
 
@@ -4335,7 +4854,10 @@ doc(paragraph(" "), orderedListItem(paragraph, paragraph(break, " "), paragraph(
 `;
 
 exports[`id: "174" | diff doc(paragraph("6 "), paragraph(break), paragraph(" ")) with doc(orderedListItem(paragraph("6"), paragraph(break, " "), paragraph(" "))) returns the expected steps 1`] = `
-"doc(paragraph("6 "), paragraph(break), paragraph(" "))
+"deletedSize: 10
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph("6 "), paragraph(break), paragraph(" "))
 
 step({
     "stepType": "replace",
@@ -4363,7 +4885,10 @@ doc(orderedListItem(paragraph("6"), paragraph(break, " "), paragraph(" ")))"
 `;
 
 exports[`id: "175" | diff doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph("$"), paragraph("# ) "))) with doc(unorderedListItem(paragraph(" "), paragraph("#! "), paragraph(")  "), paragraph(" ")), codeBlock(codeBlockLine(" "))) returns the expected steps 1`] = `
-"doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph("$"), paragraph("# ) ")))
+"deletedSize: 17
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph(" "), unorderedListItem(paragraph(" "), paragraph("$"), paragraph("# ) ")))
 
 step({
     "stepType": "replace",
@@ -4394,7 +4919,10 @@ doc(unorderedListItem(paragraph(" "), paragraph("#! "), paragraph(")  "), paragr
 `;
 
 exports[`id: "176" | diff doc(codeBlock(codeBlockLine(" ")), paragraph(" "), paragraph, orderedListItem(paragraph(" G "), paragraph(" "))) with doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" "), paragraph(" "), divider, paragraph("G  "), unorderedListItem(paragraph(" "), paragraph(" "))) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine(" ")), paragraph(" "), paragraph, orderedListItem(paragraph(" G "), paragraph(" ")))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 7
+
+doc(codeBlock(codeBlockLine(" ")), paragraph(" "), paragraph, orderedListItem(paragraph(" G "), paragraph(" ")))
 
 step({
     "stepType": "replace",
@@ -4452,7 +4980,10 @@ doc(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" "), paragraph
 `;
 
 exports[`id: "177" | diff doc(paragraph(" "), orderedListItem(paragraph(" "), paragraph("| ")), paragraph(" "), paragraph("|  ")) with doc(orderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph(" "), paragraph("|!!"), paragraph(" "), paragraph), paragraph("|!!")) returns the expected steps 1`] = `
-"doc(paragraph(" "), orderedListItem(paragraph(" "), paragraph("| ")), paragraph(" "), paragraph("|  "))
+"deletedSize: 10
+theoreticallyOptimalDeletedSize: 4
+
+doc(paragraph(" "), orderedListItem(paragraph(" "), paragraph("| ")), paragraph(" "), paragraph("|  "))
 
 step({"stepType": "replace", "from": 0, "to": 3})
 
@@ -4499,7 +5030,10 @@ doc(orderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph("
 `;
 
 exports[`id: "178" | diff doc(codeBlock(codeBlockLine(" ")), paragraph("C"), paragraph(" ")) with doc(unorderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph("C  "), paragraph("!"))) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine(" ")), paragraph("C"), paragraph(" "))
+"deletedSize: 11
+theoreticallyOptimalDeletedSize: 6
+
+doc(codeBlock(codeBlockLine(" ")), paragraph("C"), paragraph(" "))
 
 step({
     "stepType": "replace",
@@ -4531,7 +5065,10 @@ doc(unorderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph
 `;
 
 exports[`id: "179" | diff doc(quoteBlock(paragraph(" "), orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), codeBlock(codeBlockLine(" "), codeBlockLine(" "))) with doc(orderedListItem(paragraph(" "), paragraph("!")), orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph(" "), orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), codeBlock(codeBlockLine(" "), codeBlockLine(" ")))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 10
+
+doc(quoteBlock(paragraph(" "), orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), codeBlock(codeBlockLine(" "), codeBlockLine(" ")))
 
 step({"stepType": "replace", "from": 4, "to": 11})
 
@@ -4576,7 +5113,10 @@ doc(orderedListItem(paragraph(" "), paragraph("!")), orderedListItem(paragraph("
 `;
 
 exports[`id: "180" | diff doc(paragraph, table(tableRow(tableCell(paragraph(" "), orderedListItem(paragraph(" "), paragraph(" "))), tableCell(paragraph(" "), paragraph(" ")), tableCell(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(" ")))), tableRow(tableCell(orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), tableCell(paragraph(" ")), tableCell(paragraph(" "), quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), paragraph(" ")), tableCell(paragraph(" "), paragraph(" ")))), paragraph(" ")) with doc(table(tableRow(tableCell(paragraph(" "), paragraph(" ")), tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" "))))) returns the expected steps 1`] = `
-"doc(paragraph, table(tableRow(tableCell(paragraph(" "), orderedListItem(paragraph(" "), paragraph(" "))), tableCell(paragraph(" "), paragraph(" ")), tableCell(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(" ")))), tableRow(tableCell(orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), tableCell(paragraph(" ")), tableCell(paragraph(" "), quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), paragraph(" ")), tableCell(paragraph(" "), paragraph(" ")))), paragraph(" "))
+"deletedSize: 94
+theoreticallyOptimalDeletedSize: 69
+
+doc(paragraph, table(tableRow(tableCell(paragraph(" "), orderedListItem(paragraph(" "), paragraph(" "))), tableCell(paragraph(" "), paragraph(" ")), tableCell(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(" ")))), tableRow(tableCell(orderedListItem(paragraph, paragraph(" ")), paragraph(" ")), tableCell(paragraph(" ")), tableCell(paragraph(" "), quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")), paragraph(" ")), tableCell(paragraph(" "), paragraph(" ")))), paragraph(" "))
 
 step({
     "stepType": "replace",
@@ -4644,7 +5184,10 @@ doc(table(tableRow(tableCell(paragraph(" "), paragraph(" ")), tableCell(unordere
 `;
 
 exports[`id: "181" | diff doc(table(tableRow(tableCell(paragraph(" "), quoteBlock(paragraph(" "), paragraph(" "))), tableCell(paragraph(" ")), tableCell(paragraph, paragraph(" "))))) with doc(table(tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(quoteBlock(unorderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), paragraph(" ")), tableCell(paragraph(" "), codeBlock(codeBlockLine(" ")))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph(" "), quoteBlock(paragraph(" "), paragraph(" "))), tableCell(paragraph(" ")), tableCell(paragraph, paragraph(" ")))))
+"deletedSize: 10
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph(" "), quoteBlock(paragraph(" "), paragraph(" "))), tableCell(paragraph(" ")), tableCell(paragraph, paragraph(" ")))))
 
 step({
     "stepType": "replace",
@@ -4719,7 +5262,10 @@ doc(table(tableRow(tableCell(unorderedListItem(paragraph(" "), paragraph(" ")), 
 `;
 
 exports[`id: "182" | diff doc(heading(" "), orderedListItem(paragraph(" "), paragraph("| ")), paragraph(" ")) with doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph(" "), paragraph("|!!"))), paragraph(" !"), orderedListItem(paragraph(" "), paragraph("!")), paragraph(" !")) returns the expected steps 1`] = `
-"doc(heading(" "), orderedListItem(paragraph(" "), paragraph("| ")), paragraph(" "))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 3
+
+doc(heading(" "), orderedListItem(paragraph(" "), paragraph("| ")), paragraph(" "))
 
 step({
     "stepType": "replace",
@@ -4781,7 +5327,10 @@ doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "), paragraph(" "))
 `;
 
 exports[`id: "183" | diff doc(unorderedListItem(paragraph(" "), paragraph(" "))) with doc(paragraph(" "), table(tableRow(tableCell(paragraph(" "), paragraph(" ")), tableCell(paragraph, paragraph(" ")), tableCell(paragraph(" "), paragraph(" "))), tableRow(tableCell(orderedListItem(paragraph(" "))), tableCell(orderedListItem(paragraph(" "), paragraph(" ")), paragraph(" ")), tableCell(paragraph))), quoteBlock(orderedListItem(paragraph(" "), paragraph(" ")), orderedListItem(paragraph(" "), paragraph(" ")))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph(" "), paragraph(" ")))
+"deletedSize: 8
+theoreticallyOptimalDeletedSize: 2
+
+doc(unorderedListItem(paragraph(" "), paragraph(" ")))
 
 step({
     "stepType": "replace",
@@ -4915,7 +5464,10 @@ doc(paragraph(" "), table(tableRow(tableCell(paragraph(" "), paragraph(" ")), ta
 `;
 
 exports[`id: "184" | diff doc(unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph(break), paragraph(" "))) with doc(paragraph(" "), quoteBlock(paragraph(break), unorderedListItem(paragraph, paragraph(" ")), unorderedListItem(paragraph(" "), paragraph))) returns the expected steps 1`] = `
-"doc(unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph(break), paragraph(" ")))
+"deletedSize: 13
+theoreticallyOptimalDeletedSize: 3
+
+doc(unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph(break), paragraph(" ")))
 
 step({
     "stepType": "replace",
@@ -4968,7 +5520,10 @@ doc(paragraph(" "), quoteBlock(paragraph(break), unorderedListItem(paragraph, pa
 `;
 
 exports[`id: "185" | diff doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "), paragraph), paragraph(" ")), paragraph(break)) with doc(unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragraph(" "), paragraph(break)), paragraph(" ")) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "), paragraph), paragraph(" ")), paragraph(break))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 5
+
+doc(quoteBlock(paragraph(" "), unorderedListItem(paragraph(" "), paragraph), paragraph(" ")), paragraph(break))
 
 step({"stepType": "replace", "from": 4, "to": 11})
 
@@ -5009,7 +5564,10 @@ doc(unorderedListItem(paragraph(" "), paragraph(" ")), unorderedListItem(paragra
 `;
 
 exports[`id: "186" | diff doc(paragraph("#"), paragraph("<!", break), paragraph(" "), table(tableRow(tableCell(orderedListItem(paragraph("a")), paragraph("b")), tableCell(paragraph("x")))), paragraph("tail"), paragraph("more"), paragraph("end")) with doc(orderedListItem(paragraph("#"), paragraph("<!", break), paragraph(" ")), paragraph("tail"), unorderedListItem(paragraph("more"), paragraph("end"))) returns the expected steps 1`] = `
-"doc(paragraph("#"), paragraph("<!", break), paragraph(" "), table(tableRow(tableCell(orderedListItem(paragraph("a")), paragraph("b")), tableCell(paragraph("x")))), paragraph("tail"), paragraph("more"), paragraph("end"))
+"deletedSize: 45
+theoreticallyOptimalDeletedSize: 19
+
+doc(paragraph("#"), paragraph("<!", break), paragraph(" "), table(tableRow(tableCell(orderedListItem(paragraph("a")), paragraph("b")), tableCell(paragraph("x")))), paragraph("tail"), paragraph("more"), paragraph("end"))
 
 step({
     "stepType": "replace",
@@ -5066,7 +5624,10 @@ doc(orderedListItem(paragraph("#"), paragraph("<!", break), paragraph(" ")), par
 `;
 
 exports[`id: "187" | diff doc(quoteBlock(paragraph("4"), orderedListItem(paragraph("y a"), paragraph("r")), orderedListItem(paragraph("f"), paragraph("g"))), paragraph("w")) with doc(orderedListItem(paragraph("f"), paragraph("c 7"), paragraph("5"), paragraph("o"))) returns the expected steps 1`] = `
-"doc(quoteBlock(paragraph("4"), orderedListItem(paragraph("y a"), paragraph("r")), orderedListItem(paragraph("f"), paragraph("g"))), paragraph("w"))
+"deletedSize: 24
+theoreticallyOptimalDeletedSize: 16
+
+doc(quoteBlock(paragraph("4"), orderedListItem(paragraph("y a"), paragraph("r")), orderedListItem(paragraph("f"), paragraph("g"))), paragraph("w"))
 
 step({"stepType": "replace", "from": 2, "to": 3, "slice": {"content": [{"type": "text", "text": "f"}]}})
 
@@ -5105,7 +5666,10 @@ doc(orderedListItem(paragraph("f"), paragraph("c 7"), paragraph("5"), paragraph(
 `;
 
 exports[`id: "188" | diff doc(orderedListItem(paragraph("d"), paragraph("a")), quoteBlock(paragraph("o"), paragraph("s"), paragraph("a"), orderedListItem(paragraph("m"), paragraph("e")), paragraph("z"))) with doc(heading("v"), quoteBlock(unorderedListItem(paragraph("x"), paragraph("g")), paragraph("1")), paragraph, unorderedListItem(paragraph("m f"), paragraph("0"))) returns the expected steps 1`] = `
-"doc(orderedListItem(paragraph("d"), paragraph("a")), quoteBlock(paragraph("o"), paragraph("s"), paragraph("a"), orderedListItem(paragraph("m"), paragraph("e")), paragraph("z")))
+"deletedSize: 26
+theoreticallyOptimalDeletedSize: 17
+
+doc(orderedListItem(paragraph("d"), paragraph("a")), quoteBlock(paragraph("o"), paragraph("s"), paragraph("a"), orderedListItem(paragraph("m"), paragraph("e")), paragraph("z")))
 
 step({
     "stepType": "replace",
@@ -5166,7 +5730,10 @@ doc(heading("v"), quoteBlock(unorderedListItem(paragraph("x"), paragraph("g")), 
 `;
 
 exports[`id: "189" | diff doc(paragraph, quoteBlock(paragraph("m"), paragraph("n"), unorderedListItem(paragraph("5"), paragraph("g")), paragraph("f"), unorderedListItem(paragraph("2"), paragraph("0"))), paragraph("o")) with doc(paragraph("7"), orderedListItem(paragraph("v"), paragraph("5 f 8"), paragraph("g"), paragraph("t")), paragraph("6")) returns the expected steps 1`] = `
-"doc(paragraph, quoteBlock(paragraph("m"), paragraph("n"), unorderedListItem(paragraph("5"), paragraph("g")), paragraph("f"), unorderedListItem(paragraph("2"), paragraph("0"))), paragraph("o"))
+"deletedSize: 30
+theoreticallyOptimalDeletedSize: 18
+
+doc(paragraph, quoteBlock(paragraph("m"), paragraph("n"), unorderedListItem(paragraph("5"), paragraph("g")), paragraph("f"), unorderedListItem(paragraph("2"), paragraph("0"))), paragraph("o"))
 
 step({"stepType": "replace", "from": 0, "to": 29})
 
@@ -5201,7 +5768,10 @@ doc(paragraph("7"), orderedListItem(paragraph("v"), paragraph("5 f 8"), paragrap
 `;
 
 exports[`id: "190" | diff doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph("1"), paragraph), tableCell(paragraph("a"))))) with doc(table(tableRow(tableCell(orderedListItem(paragraph, paragraph)), tableCell(paragraph)), tableRow(tableCell(paragraph("2")), tableCell(paragraph("b"))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph("1"), paragraph), tableCell(paragraph("a")))))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 4
+
+doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph("1"), paragraph), tableCell(paragraph("a")))))
 
 step({
     "stepType": "replace",
@@ -5255,7 +5825,10 @@ doc(table(tableRow(tableCell(orderedListItem(paragraph, paragraph)), tableCell(p
 `;
 
 exports[`id: "191" | diff doc(table(tableRow(tableCell(paragraph("t")), tableCell(paragraph)), tableRow(tableCell(paragraph("i"), unorderedListItem(paragraph, paragraph("n"))), tableCell(paragraph("4"))))) with doc(table(tableRow(tableCell(orderedListItem(paragraph("5"))), tableCell(paragraph)), tableRow(tableCell(paragraph("1")), tableCell(orderedListItem(paragraph("c"), paragraph("e")), orderedListItem(paragraph("1"), paragraph("t")))))) returns the expected steps 1`] = `
-"doc(table(tableRow(tableCell(paragraph("t")), tableCell(paragraph)), tableRow(tableCell(paragraph("i"), unorderedListItem(paragraph, paragraph("n"))), tableCell(paragraph("4")))))
+"deletedSize: 16
+theoreticallyOptimalDeletedSize: 8
+
+doc(table(tableRow(tableCell(paragraph("t")), tableCell(paragraph)), tableRow(tableCell(paragraph("i"), unorderedListItem(paragraph, paragraph("n"))), tableCell(paragraph("4")))))
 
 step({
     "stepType": "replace",
@@ -5317,7 +5890,10 @@ doc(table(tableRow(tableCell(orderedListItem(paragraph("5"))), tableCell(paragra
 `;
 
 exports[`id: "192" | diff doc(paragraph("g"), unorderedListItem(indent: 1, paragraph(mention), paragraph("h")), paragraph("i")) with doc(paragraph, unorderedListItem(indent: 1, paragraph(mention, "q"), paragraph("e"))) returns the expected steps 1`] = `
-"doc(paragraph("g"), unorderedListItem(indent: 1, paragraph(mention), paragraph("h")), paragraph("i"))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 6
+
+doc(paragraph("g"), unorderedListItem(indent: 1, paragraph(mention), paragraph("h")), paragraph("i"))
 
 step({"stepType": "replace", "from": 1, "to": 2})
 
@@ -5359,7 +5935,10 @@ doc(paragraph, unorderedListItem(indent: 1, paragraph(mention, "q"), paragraph("
 `;
 
 exports[`id: "193" | diff doc(paragraph("hello world")) with doc(paragraph("hello ", bold("world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({"stepType": "addMark", "mark": {"type": "bold"}, "from": 7, "to": 12})
 
@@ -5367,7 +5946,10 @@ doc(paragraph("hello ", bold("world")))"
 `;
 
 exports[`id: "194" | diff doc(paragraph("hello world")) with doc(paragraph(bold("hello"), " world")) returns the expected steps 1`] = `
-"doc(paragraph("hello world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello world"))
 
 step({"stepType": "addMark", "mark": {"type": "bold"}, "from": 1, "to": 6})
 
@@ -5375,7 +5957,10 @@ doc(paragraph(bold("hello"), " world"))"
 `;
 
 exports[`id: "195" | diff doc(paragraph("hello ", bold("world"))) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(paragraph("hello ", bold("world")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello ", bold("world")))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 7, "to": 12})
 
@@ -5383,7 +5968,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "196" | diff doc(paragraph(bold("hello"), " world")) with doc(paragraph("hello world")) returns the expected steps 1`] = `
-"doc(paragraph(bold("hello"), " world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold("hello"), " world"))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 1, "to": 6})
 
@@ -5391,7 +5979,10 @@ doc(paragraph("hello world"))"
 `;
 
 exports[`id: "197" | diff doc(paragraph("hello ", bold("world"))) with doc(paragraph("hello ", italic("world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello ", bold("world")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello ", bold("world")))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 7, "to": 12})
 
@@ -5403,7 +5994,10 @@ doc(paragraph("hello ", italic("world")))"
 `;
 
 exports[`id: "198" | diff doc(paragraph(bold("hello"), " world")) with doc(paragraph(italic("hello"), " world")) returns the expected steps 1`] = `
-"doc(paragraph(bold("hello"), " world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold("hello"), " world"))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 1, "to": 6})
 
@@ -5415,7 +6009,10 @@ doc(paragraph(italic("hello"), " world"))"
 `;
 
 exports[`id: "199" | diff doc(paragraph("hello ", bold(italic("world")))) with doc(paragraph("hello ", italic("world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello ", bold(italic("world"))))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello ", bold(italic("world"))))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 7, "to": 12})
 
@@ -5423,7 +6020,10 @@ doc(paragraph("hello ", italic("world")))"
 `;
 
 exports[`id: "200" | diff doc(paragraph(bold(italic("hello")), " world")) with doc(paragraph(italic("hello"), " world")) returns the expected steps 1`] = `
-"doc(paragraph(bold(italic("hello")), " world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold(italic("hello")), " world"))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 1, "to": 6})
 
@@ -5431,7 +6031,10 @@ doc(paragraph(italic("hello"), " world"))"
 `;
 
 exports[`id: "201" | diff doc(paragraph("hello ", bold("world"))) with doc(paragraph("hello ", bold(italic("world")))) returns the expected steps 1`] = `
-"doc(paragraph("hello ", bold("world")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello ", bold("world")))
 
 step({"stepType": "addMark", "mark": {"type": "italic"}, "from": 7, "to": 12})
 
@@ -5439,7 +6042,10 @@ doc(paragraph("hello ", bold(italic("world"))))"
 `;
 
 exports[`id: "202" | diff doc(paragraph(bold("hello"), " world")) with doc(paragraph(bold(italic("hello")), " world")) returns the expected steps 1`] = `
-"doc(paragraph(bold("hello"), " world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold("hello"), " world"))
 
 step({"stepType": "addMark", "mark": {"type": "italic"}, "from": 1, "to": 6})
 
@@ -5447,7 +6053,10 @@ doc(paragraph(bold(italic("hello")), " world"))"
 `;
 
 exports[`id: "203" | diff doc(paragraph(bold("hello"), " world")) with doc(paragraph("hello ", italic("world"))) returns the expected steps 1`] = `
-"doc(paragraph(bold("hello"), " world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold("hello"), " world"))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 1, "to": 6})
 
@@ -5459,7 +6068,10 @@ doc(paragraph("hello ", italic("world")))"
 `;
 
 exports[`id: "204" | diff doc(paragraph("hello ", bold("world"))) with doc(paragraph(italic("hello"), " world")) returns the expected steps 1`] = `
-"doc(paragraph("hello ", bold("world")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello ", bold("world")))
 
 step({"stepType": "addMark", "mark": {"type": "italic"}, "from": 1, "to": 6})
 
@@ -5471,7 +6083,10 @@ doc(paragraph(italic("hello"), " world"))"
 `;
 
 exports[`id: "205" | diff doc(paragraph("hello ", highlight("world"))) with doc(paragraph("hello ", highlight("world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello ", highlight("world")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello ", highlight("world")))
 
 step({
     "stepType": "removeMark",
@@ -5493,7 +6108,10 @@ doc(paragraph("hello ", highlight("world")))"
 `;
 
 exports[`id: "206" | diff doc(paragraph(highlight("hello"), " world")) with doc(paragraph(highlight("hello"), " world")) returns the expected steps 1`] = `
-"doc(paragraph(highlight("hello"), " world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(highlight("hello"), " world"))
 
 step({
     "stepType": "removeMark",
@@ -5515,7 +6133,10 @@ doc(paragraph(highlight("hello"), " world"))"
 `;
 
 exports[`id: "207" | diff doc(paragraph("hello good world")) with doc(paragraph("hello ", bold("good world"))) returns the expected steps 1`] = `
-"doc(paragraph("hello good world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello good world"))
 
 step({"stepType": "addMark", "mark": {"type": "bold"}, "from": 7, "to": 17})
 
@@ -5523,7 +6144,10 @@ doc(paragraph("hello ", bold("good world")))"
 `;
 
 exports[`id: "208" | diff doc(paragraph("hello good world")) with doc(paragraph(bold("hello good"), " world")) returns the expected steps 1`] = `
-"doc(paragraph("hello good world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello good world"))
 
 step({"stepType": "addMark", "mark": {"type": "bold"}, "from": 1, "to": 11})
 
@@ -5531,7 +6155,10 @@ doc(paragraph(bold("hello good"), " world"))"
 `;
 
 exports[`id: "209" | diff doc(paragraph("hello ", bold("good world"))) with doc(paragraph("hello good world")) returns the expected steps 1`] = `
-"doc(paragraph("hello ", bold("good world")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello ", bold("good world")))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 7, "to": 17})
 
@@ -5539,7 +6166,10 @@ doc(paragraph("hello good world"))"
 `;
 
 exports[`id: "210" | diff doc(paragraph(bold("hello good"), " world")) with doc(paragraph("hello good world")) returns the expected steps 1`] = `
-"doc(paragraph(bold("hello good"), " world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold("hello good"), " world"))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 1, "to": 11})
 
@@ -5547,7 +6177,10 @@ doc(paragraph("hello good world"))"
 `;
 
 exports[`id: "211" | diff doc(paragraph(bold("a b c "), italic("d e f"))) with doc(paragraph(bold("a b c d "), italic("e f"))) returns the expected steps 1`] = `
-"doc(paragraph(bold("a b c "), italic("d e f")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold("a b c "), italic("d e f")))
 
 step({"stepType": "removeMark", "mark": {"type": "italic"}, "from": 7, "to": 9})
 
@@ -5559,7 +6192,10 @@ doc(paragraph(bold("a b c d "), italic("e f")))"
 `;
 
 exports[`id: "212" | diff doc(paragraph(bold("a b c d "), italic("e f"))) with doc(paragraph(bold("a b c "), italic("d e f"))) returns the expected steps 1`] = `
-"doc(paragraph(bold("a b c d "), italic("e f")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold("a b c d "), italic("e f")))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 7, "to": 9})
 
@@ -5571,7 +6207,10 @@ doc(paragraph(bold("a b c "), italic("d e f")))"
 `;
 
 exports[`id: "213" | diff doc(paragraph(mention, " hello")) with doc(paragraph(comment(mention), " hello")) returns the expected steps 1`] = `
-"doc(paragraph(mention, " hello"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(mention, " hello"))
 
 step({
     "stepType": "addMark",
@@ -5584,7 +6223,10 @@ doc(paragraph(comment(mention), " hello"))"
 `;
 
 exports[`id: "214" | diff doc(paragraph(comment(mention), " hello")) with doc(paragraph(comment(mention), " hello")) returns the expected steps 1`] = `
-"doc(paragraph(comment(mention), " hello"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(comment(mention), " hello"))
 
 step({
     "stepType": "removeMark",
@@ -5606,7 +6248,10 @@ doc(paragraph(comment(mention), " hello"))"
 `;
 
 exports[`id: "215" | diff doc(fileRow(file)) with doc(fileRow(comment(file))) returns the expected steps 1`] = `
-"doc(fileRow(file))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(file))
 
 step({
     "stepType": "addNodeMark",
@@ -5618,7 +6263,10 @@ doc(fileRow(comment(file)))"
 `;
 
 exports[`id: "216" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(file))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "removeNodeMark",
@@ -5638,7 +6286,10 @@ doc(fileRow(comment(file)))"
 `;
 
 exports[`id: "217" | diff doc(paragraph("w", mention, "x e")) with doc(paragraph("c", bold(mention), "z 9")) returns the expected steps 1`] = `
-"doc(paragraph("w", mention, "x e"))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 3
+
+doc(paragraph("w", mention, "x e"))
 
 step({"stepType": "replace", "from": 1, "to": 2, "slice": {"content": [{"type": "text", "text": "c"}]}})
 
@@ -5658,7 +6309,10 @@ doc(paragraph("c", bold(mention), "z 9"))"
 `;
 
 exports[`id: "218" | diff doc(paragraph(italic(mention), "2")) with doc(paragraph("k", mention, "g")) returns the expected steps 1`] = `
-"doc(paragraph(italic(mention), "2"))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph(italic(mention), "2"))
 
 step({"stepType": "replace", "from": 1, "to": 1, "slice": {"content": [{"type": "text", "text": "k"}]}})
 
@@ -5674,7 +6328,10 @@ doc(paragraph("k", mention, "g"))"
 `;
 
 exports[`id: "219" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(comment(file)))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "removeNodeMark",
@@ -5702,7 +6359,10 @@ doc(fileRow(comment(comment(file))))"
 `;
 
 exports[`id: "220" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(comment(file)))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "addNodeMark",
@@ -5714,7 +6374,10 @@ doc(fileRow(comment(comment(file))))"
 `;
 
 exports[`id: "221" | diff doc(paragraph("a b ", mention, " c d")) with doc(paragraph("a ", bold("b "), bold(mention), bold(" c"), " d")) returns the expected steps 1`] = `
-"doc(paragraph("a b ", mention, " c d"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("a b ", mention, " c d"))
 
 step({"stepType": "addMark", "mark": {"type": "bold"}, "from": 3, "to": 8})
 
@@ -5722,7 +6385,10 @@ doc(paragraph("a ", bold("b "), bold(mention), bold(" c"), " d"))"
 `;
 
 exports[`id: "222" | diff doc(paragraph("a ", bold("b "), bold(mention), bold(" c"), " d")) with doc(paragraph("a b ", mention, " c d")) returns the expected steps 1`] = `
-"doc(paragraph("a ", bold("b "), bold(mention), bold(" c"), " d"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("a ", bold("b "), bold(mention), bold(" c"), " d"))
 
 step({"stepType": "removeMark", "mark": {"type": "bold"}, "from": 3, "to": 8})
 
@@ -5730,7 +6396,10 @@ doc(paragraph("a b ", mention, " c d"))"
 `;
 
 exports[`id: "223" | diff doc(paragraph("hello ", bold("world"))) with doc(paragraph("hello ", bold(italic("world")))) returns the expected steps 1`] = `
-"doc(paragraph("hello ", bold("world")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph("hello ", bold("world")))
 
 step({"stepType": "addMark", "mark": {"type": "italic"}, "from": 7, "to": 12})
 
@@ -5738,7 +6407,10 @@ doc(paragraph("hello ", bold(italic("world"))))"
 `;
 
 exports[`id: "224" | diff doc(paragraph(bold("hello"), " world")) with doc(paragraph(bold(italic("hello")), " world")) returns the expected steps 1`] = `
-"doc(paragraph(bold("hello"), " world"))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(bold("hello"), " world"))
 
 step({"stepType": "addMark", "mark": {"type": "italic"}, "from": 1, "to": 6})
 
@@ -5746,7 +6418,10 @@ doc(paragraph(bold(italic("hello")), " world"))"
 `;
 
 exports[`id: "225" | diff doc(paragraph(comment("foo bar"))) with doc(paragraph(comment(comment("foo bar")))) returns the expected steps 1`] = `
-"doc(paragraph(comment("foo bar")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(comment("foo bar")))
 
 step({
     "stepType": "removeMark",
@@ -5777,7 +6452,10 @@ doc(paragraph(comment(comment("foo bar"))))"
 `;
 
 exports[`id: "226" | diff doc(paragraph(comment("foo bar"))) with doc(paragraph(comment(comment("foo bar")))) returns the expected steps 1`] = `
-"doc(paragraph(comment("foo bar")))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(paragraph(comment("foo bar")))
 
 step({
     "stepType": "addMark",
@@ -5790,7 +6468,10 @@ doc(paragraph(comment(comment("foo bar"))))"
 `;
 
 exports[`id: "227" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(comment(comment(file))))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "removeNodeMark",
@@ -5826,7 +6507,10 @@ doc(fileRow(comment(comment(comment(file)))))"
 `;
 
 exports[`id: "228" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(comment(comment(file))))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "removeNodeMark",
@@ -5862,7 +6546,10 @@ doc(fileRow(comment(comment(comment(file)))))"
 `;
 
 exports[`id: "229" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(comment(comment(file))))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "addNodeMark",
@@ -5882,7 +6569,10 @@ doc(fileRow(comment(comment(comment(file)))))"
 `;
 
 exports[`id: "230" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(comment(comment(file))))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "removeNodeMark",
@@ -5918,7 +6608,10 @@ doc(fileRow(comment(comment(comment(file)))))"
 `;
 
 exports[`id: "231" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(comment(comment(file))))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "removeNodeMark",
@@ -5954,7 +6647,10 @@ doc(fileRow(comment(comment(comment(file)))))"
 `;
 
 exports[`id: "232" | diff doc(fileRow(comment(file))) with doc(fileRow(comment(comment(comment(file))))) returns the expected steps 1`] = `
-"doc(fileRow(comment(file)))
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(fileRow(comment(file)))
 
 step({
     "stepType": "addNodeMark",
@@ -5974,7 +6670,10 @@ doc(fileRow(comment(comment(comment(file)))))"
 `;
 
 exports[`id: "233" | diff doc(quoteBlock(orderedListItem(indent: 1, paragraph(break), paragraph("k")), paragraph, orderedListItem(indent: 1, paragraph("4"), paragraph("8")))) with doc(unorderedListItem(indent: 1, paragraph("8"), paragraph("w")), orderedListItem(indent: 1, paragraph("9"), paragraph("o"))) returns the expected steps 1`] = `
-"doc(quoteBlock(orderedListItem(indent: 1, paragraph(break), paragraph("k")), paragraph, orderedListItem(indent: 1, paragraph("4"), paragraph("8"))))
+"deletedSize: 18
+theoreticallyOptimalDeletedSize: 10
+
+doc(quoteBlock(orderedListItem(indent: 1, paragraph(break), paragraph("k")), paragraph, orderedListItem(indent: 1, paragraph("4"), paragraph("8"))))
 
 step({
     "stepType": "replace",
@@ -6027,7 +6726,10 @@ doc(unorderedListItem(indent: 1, paragraph("8"), paragraph("w")), orderedListIte
 `;
 
 exports[`id: "234" | diff doc(paragraph("4"), paragraph(break)) with doc(paragraph("u", break, break), paragraph(mention, "r")) returns the expected steps 1`] = `
-"doc(paragraph("4"), paragraph(break))
+"deletedSize: 2
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph("4"), paragraph(break))
 
 step({
     "stepType": "replace",
@@ -6063,7 +6765,10 @@ doc(paragraph("u", break, break), paragraph(mention, "r"))"
 `;
 
 exports[`id: "235" | diff doc(paragraph(italic(mention), "r"), paragraph("o")) with doc(orderedListItem(indent: 1, paragraph), paragraph("a")) returns the expected steps 1`] = `
-"doc(paragraph(italic(mention), "r"), paragraph("o"))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 3
+
+doc(paragraph(italic(mention), "r"), paragraph("o"))
 
 step({
     "stepType": "replace",
@@ -6088,7 +6793,10 @@ doc(orderedListItem(indent: 1, paragraph), paragraph("a"))"
 `;
 
 exports[`id: "236" | diff doc(paragraph("1")) with doc(paragraph, checkListItem(indent: 1, paragraph("w"))) returns the expected steps 1`] = `
-"doc(paragraph("1"))
+"deletedSize: 1
+theoreticallyOptimalDeletedSize: 1
+
+doc(paragraph("1"))
 
 step({"stepType": "replace", "from": 1, "to": 2})
 
@@ -6113,7 +6821,10 @@ doc(paragraph, checkListItem(indent: 1, paragraph("w")))"
 `;
 
 exports[`id: "237" | diff doc(paragraph("2 m")) with doc(paragraph, orderedListItem(indent: 1, paragraph("y"))) returns the expected steps 1`] = `
-"doc(paragraph("2 m"))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 3
+
+doc(paragraph("2 m"))
 
 step({"stepType": "replace", "from": 1, "to": 4})
 
@@ -6138,7 +6849,10 @@ doc(paragraph, orderedListItem(indent: 1, paragraph("y")))"
 `;
 
 exports[`id: "238" | diff doc(paragraph("1 d")) with doc(paragraph, quoteBlock(paragraph("f"))) returns the expected steps 1`] = `
-"doc(paragraph("1 d"))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 3
+
+doc(paragraph("1 d"))
 
 step({"stepType": "replace", "from": 1, "to": 4})
 
@@ -6162,7 +6876,10 @@ doc(paragraph, quoteBlock(paragraph("f")))"
 `;
 
 exports[`id: "239" | diff doc(unorderedListItem(indent: 1, paragraph(break), paragraph("z")), paragraph("3")) with doc(quoteBlock(checkListItem(indent: 1, paragraph("h"))), heading("h")) returns the expected steps 1`] = `
-"doc(unorderedListItem(indent: 1, paragraph(break), paragraph("z")), paragraph("3"))
+"deletedSize: 11
+theoreticallyOptimalDeletedSize: 9
+
+doc(unorderedListItem(indent: 1, paragraph(break), paragraph("z")), paragraph("3"))
 
 step({
     "stepType": "replaceAround",
@@ -6211,7 +6928,10 @@ doc(quoteBlock(checkListItem(indent: 1, paragraph("h"))), heading("h"))"
 `;
 
 exports[`id: "240" | diff doc(unorderedListItem(indent: 1, paragraph("y"), paragraph("8"), paragraph("n 6 m o p", break, "u w i"))) with doc(unorderedListItem(indent: 1, paragraph("4"), paragraph("r"), paragraph("4 5 n d s", break), paragraph("y 5 p i e 3")), paragraph("l")) returns the expected steps 1`] = `
-"doc(unorderedListItem(indent: 1, paragraph("y"), paragraph("8"), paragraph("n 6 m o p", break, "u w i")))
+"deletedSize: 12
+theoreticallyOptimalDeletedSize: 9
+
+doc(unorderedListItem(indent: 1, paragraph("y"), paragraph("8"), paragraph("n 6 m o p", break, "u w i")))
 
 step({"stepType": "replace", "from": 2, "to": 3, "slice": {"content": [{"type": "text", "text": "4"}]}})
 
@@ -6267,7 +6987,10 @@ doc(unorderedListItem(indent: 1, paragraph("4"), paragraph("r"), paragraph("4 5 
 `;
 
 exports[`id: "241" | diff doc(divider, paragraph("h"), orderedListItem(indent: 1, paragraph("7"))) with doc(paragraph("0"), paragraph("y")) returns the expected steps 1`] = `
-"doc(divider, paragraph("h"), orderedListItem(indent: 1, paragraph("7")))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 5
+
+doc(divider, paragraph("h"), orderedListItem(indent: 1, paragraph("7")))
 
 step({"stepType": "replace", "from": 0, "to": 1})
 
@@ -6288,7 +7011,10 @@ doc(paragraph("0"), paragraph("y"))"
 `;
 
 exports[`id: "242" | diff doc(paragraph("k"), orderedListItem(indent: 1, paragraph("6"), paragraph("7")), paragraph("g")) with doc(orderedListItem(indent: 1, paragraph("a")), orderedListItem(indent: 1, paragraph("o 6"), paragraph("r"))) returns the expected steps 1`] = `
-"doc(paragraph("k"), orderedListItem(indent: 1, paragraph("6"), paragraph("7")), paragraph("g"))
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph("k"), orderedListItem(indent: 1, paragraph("6"), paragraph("7")), paragraph("g"))
 
 step({
     "stepType": "replace",
@@ -6321,7 +7047,10 @@ doc(orderedListItem(indent: 1, paragraph("a")), orderedListItem(indent: 1, parag
 `;
 
 exports[`id: "243" | diff doc(quoteBlock(unorderedListItem(indent: 1, paragraph("1"), paragraph("j")), paragraph("0")), paragraph("t"), unorderedListItem(indent: 1, paragraph("v")), heading("6"), unorderedListItem(indent: 1, paragraph("h"), paragraph("d"))) with doc(paragraph("b"), checkListItem(indent: 1, paragraph("1"))) returns the expected steps 1`] = `
-"doc(quoteBlock(unorderedListItem(indent: 1, paragraph("1"), paragraph("j")), paragraph("0")), paragraph("t"), unorderedListItem(indent: 1, paragraph("v")), heading("6"), unorderedListItem(indent: 1, paragraph("h"), paragraph("d")))
+"deletedSize: 28
+theoreticallyOptimalDeletedSize: 28
+
+doc(quoteBlock(unorderedListItem(indent: 1, paragraph("1"), paragraph("j")), paragraph("0")), paragraph("t"), unorderedListItem(indent: 1, paragraph("v")), heading("6"), unorderedListItem(indent: 1, paragraph("h"), paragraph("d")))
 
 step({"stepType": "replace", "from": 0, "to": 13})
 
@@ -6353,7 +7082,10 @@ doc(paragraph("b"), checkListItem(indent: 1, paragraph("1")))"
 `;
 
 exports[`id: "244" | diff doc(codeBlock(codeBlockLine("8"))) with doc(fileRow(file), heading) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("8")))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(codeBlock(codeBlockLine("8")))
 
 step({
     "stepType": "replace",
@@ -6374,7 +7106,10 @@ doc(fileRow(file), heading)"
 `;
 
 exports[`id: "245" | diff doc(fileFloat(file), paragraph("m")) with doc(paragraph("5")) returns the expected steps 1`] = `
-"doc(fileFloat(file), paragraph("m"))
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 4
+
+doc(fileFloat(file), paragraph("m"))
 
 step({"stepType": "replace", "from": 0, "to": 3})
 
@@ -6386,7 +7121,10 @@ doc(paragraph("5"))"
 `;
 
 exports[`id: "246" | diff doc(paragraph("m")) with doc(codeBlock(codeBlockLine("f"))) returns the expected steps 1`] = `
-"doc(paragraph("m"))
+"deletedSize: 3
+theoreticallyOptimalDeletedSize: 3
+
+doc(paragraph("m"))
 
 step({
     "stepType": "replace",
@@ -6407,7 +7145,10 @@ doc(codeBlock(codeBlockLine("f")))"
 `;
 
 exports[`id: "247" | diff doc(paragraph, paragraph) with doc(unorderedListItem(indent: 1, paragraph("7"))) returns the expected steps 1`] = `
-"doc(paragraph, paragraph)
+"deletedSize: 4
+theoreticallyOptimalDeletedSize: 2
+
+doc(paragraph, paragraph)
 
 step({
     "stepType": "replace",
@@ -6428,7 +7169,10 @@ doc(unorderedListItem(indent: 1, paragraph("7")))"
 `;
 
 exports[`id: "248" | diff doc(codeBlock(codeBlockLine("j"))) with doc(paragraph("r")) returns the expected steps 1`] = `
-"doc(codeBlock(codeBlockLine("j")))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(codeBlock(codeBlockLine("j")))
 
 step({
     "stepType": "replace",
@@ -6441,7 +7185,10 @@ doc(paragraph("r"))"
 `;
 
 exports[`id: "249" | diff doc(orderedListItem(indent: 1, paragraph("u")), quoteBlock(paragraph("a"), paragraph("t"))) with doc(paragraph("g"), orderedListItem(indent: 1, paragraph("8"), paragraph("e"))) returns the expected steps 1`] = `
-"doc(orderedListItem(indent: 1, paragraph("u")), quoteBlock(paragraph("a"), paragraph("t")))
+"deletedSize: 9
+theoreticallyOptimalDeletedSize: 7
+
+doc(orderedListItem(indent: 1, paragraph("u")), quoteBlock(paragraph("a"), paragraph("t")))
 
 step({
     "stepType": "replace",
@@ -6474,7 +7221,10 @@ doc(paragraph("g"), orderedListItem(indent: 1, paragraph("8"), paragraph("e")))"
 `;
 
 exports[`id: "250" | diff doc(unorderedListItem(indent: 1, paragraph("z"))) with doc(paragraph("x"), codeBlock(codeBlockLine)) returns the expected steps 1`] = `
-"doc(unorderedListItem(indent: 1, paragraph("z")))
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 3
+
+doc(unorderedListItem(indent: 1, paragraph("z")))
 
 step({
     "stepType": "replace",
@@ -6496,7 +7246,10 @@ doc(paragraph("x"), codeBlock(codeBlockLine))"
 `;
 
 exports[`id: "251" | diff doc(paragraph, paragraph("k"), paragraph) with doc(unorderedListItem(indent: 1, paragraph("q"))) returns the expected steps 1`] = `
-"doc(paragraph, paragraph("k"), paragraph)
+"deletedSize: 7
+theoreticallyOptimalDeletedSize: 5
+
+doc(paragraph, paragraph("k"), paragraph)
 
 step({
     "stepType": "replace",
@@ -6517,7 +7270,10 @@ doc(unorderedListItem(indent: 1, paragraph("q")))"
 `;
 
 exports[`id: "252" | diff doc(paragraph("e"), paragraph("5")) with doc(quoteBlock(paragraph(break, "q"))) returns the expected steps 1`] = `
-"doc(paragraph("e"), paragraph("5"))
+"deletedSize: 6
+theoreticallyOptimalDeletedSize: 4
+
+doc(paragraph("e"), paragraph("5"))
 
 step({
     "stepType": "replace",
