@@ -10,8 +10,11 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
 import {
     AgentWebMessagingPage,
+    AgentWebMessagingPageBlock,
     AgentWebMessagingPageMetadata,
+    AgentWebMessagingPagePagination,
     AgentWebMessagingPagePaginationPageLink,
+    AgentWebMessagingPageTimeBlock,
     AgentWebMessagingPageWithMetadata,
     agentWebMessagingPageCommentNouns,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
@@ -36,26 +39,62 @@ import {
     ApiAccountReferenceResponse,
     ApiChannelReferenceResponse,
     ApiContentResponse,
+    ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
-export type AgentWebPostPage = AgentWebMessagingPage<
-    AgentWebPostPagePreamble,
+export type AgentWebPostPage = {
+    readonly type: "Post";
+    readonly pagination: AgentWebMessagingPagePagination<AgentWebPostPageCustomBlock> | null;
+    readonly isEndOfMessages: boolean;
+} & (
+    | {
+          readonly subType: "HeadPage";
+          readonly preamble: AgentWebPostPageHeadPagePreamble;
+          readonly blocks: readonly [
+              AgentWebMessagingPageTimeBlock,
+              AgentWebPostPageCustomBlock,
+              ...ReadonlyArray<AgentWebMessagingPageBlock<never>>,
+          ];
+      }
+    | {
+          readonly subType: "TailPage";
+          readonly preamble: AgentWebPostPageTailPagePreamble;
+          readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock<never>>;
+      }
+);
+
+export type AgentWebPostPageBase = AgentWebMessagingPage<
+    AgentWebPostPagePreambleBase,
     AgentWebPostPageCustomBlock
 > & {
     readonly type: "Post";
+    readonly subType: "HeadPage" | "TailPage";
 };
 
-export type AgentWebPostPagePreamble = {
+export type AgentWebPostPagePreambleBase =
+    | AgentWebPostPageHeadPagePreamble
+    | AgentWebPostPageTailPagePreamble;
+
+assertAssignableTypes<AgentWebPostPage, AgentWebPostPageBase>();
+
+export type AgentWebPostPageHeadPagePreamble = {
+    readonly type: "HeadPage";
     readonly channel: ApiChannelReferenceResponse | null;
+};
+
+export type AgentWebPostPageTailPagePreamble = {
+    readonly type: "TailPage";
+    readonly post: ApiPostReferenceResponse;
 };
 
 export type AgentWebPostPageCustomBlock = {
@@ -77,14 +116,46 @@ export type AgentWebPostPageMetadata = AgentWebMessagingPageMetadata & {
 };
 
 function buildAgentWebPostPage(
-    page: AgentWebMessagingPageWithMetadata<AgentWebPostPagePreamble, AgentWebPostPageCustomBlock>,
+    page: AgentWebMessagingPageWithMetadata<
+        AgentWebPostPagePreambleBase,
+        AgentWebPostPageCustomBlock
+    >,
     id: PostId,
 ): AgentWebPostPageWithMetadata {
-    return {
-        ...page,
-        type: "Post",
-        metadata: buildAgentWebPostPageMetadata(page.metadata, id),
-    };
+    switch (page.preamble.type) {
+        case "HeadPage": {
+            assert(page.blocks[0]?.type === "Time");
+            assert(page.blocks[1]?.type === "Custom");
+            assert(page.blocks.slice(2).every(block => block.type !== "Custom"));
+
+            return {
+                ...page,
+                type: "Post",
+                subType: "HeadPage",
+                preamble: page.preamble,
+                blocks: page.blocks as readonly [
+                    AgentWebMessagingPageTimeBlock,
+                    AgentWebPostPageCustomBlock,
+                    ...ReadonlyArray<AgentWebMessagingPageBlock<never>>,
+                ],
+                metadata: buildAgentWebPostPageMetadata(page.metadata, id),
+            };
+        }
+        case "TailPage": {
+            assert(page.blocks.every(block => block.type !== "Custom"));
+
+            return {
+                ...page,
+                type: "Post",
+                subType: "TailPage",
+                preamble: page.preamble,
+                blocks: page.blocks as ReadonlyArray<AgentWebMessagingPageBlock<never>>,
+                metadata: buildAgentWebPostPageMetadata(page.metadata, id),
+            };
+        }
+        default:
+            throw exhaustive(page.preamble);
+    }
 }
 
 function buildAgentWebPostPageMetadata(
@@ -130,7 +201,7 @@ export async function readAgentWebPostPage(
 
     type RoomMetadata = {
         pageLink: AgentWebMessagingPagePaginationPageLink;
-        preamble: AgentWebPostPagePreamble;
+        preamble: AgentWebPostPagePreambleBase;
         startCustomBlock: {
             time: Date;
             block: AgentWebPostPageCustomBlock;
@@ -154,6 +225,7 @@ export async function readAgentWebPostPage(
                 title: post.reference.title,
             },
             preamble: {
+                type: "HeadPage",
                 channel: post.channel
                     ? {
                           type: "Channel",
@@ -181,25 +253,16 @@ export async function readAgentWebPostPage(
 
     const roomMetadataWithoutStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
         const {
-            data: {post},
-        } = await context.api.get(context.span, "/posts/{id}/preview", {
+            data: {reference: postReference},
+        } = await context.api.get(context.span, "/posts/{id}/reference", {
             params: {path: {id}},
         });
 
         return {
-            pageLink: {
-                type: "Post",
-                id,
-                title: post.reference.title,
-            },
+            pageLink: postReference,
             preamble: {
-                channel: post.channel
-                    ? {
-                          type: "Channel",
-                          id: post.channel.id,
-                          title: post.channel.name,
-                      }
-                    : null,
+                type: "TailPage",
+                post: postReference,
             },
             startCustomBlock: null,
         };
@@ -235,8 +298,6 @@ export async function readAgentWebPostPage(
                     // is a bug. Ideally we wouldn't allow `?before=100` at all but for consistent
                     // cursor based pagination across our API we treat `?before=100` as a "last 30
                     // messages <100" constraint and not messages between 70 and 100 constraint.
-                    //
-                    // NOCOMMIT: Test this edge case
                     if (
                         parsedSearchParams.startCursor !== null &&
                         parsedSearchParams.startCursor -
@@ -352,7 +413,18 @@ export async function readAgentWebPostMessagePage(
 export function normalizeAgentWebPostPage<Page extends AgentWebPostPage>(page: Page): Page {
     return normalizeAgentWebMessagingPage(page, {
         normalizePreamble: (normalizer, preamble) => {
-            if (preamble.channel) normalizer.normalizeReference(preamble.channel);
+            switch (preamble.type) {
+                case "HeadPage": {
+                    if (preamble.channel) normalizer.normalizeReference(preamble.channel);
+                    break;
+                }
+                case "TailPage": {
+                    normalizer.normalizeReference(preamble.post);
+                    break;
+                }
+                default:
+                    throw exhaustive(preamble);
+            }
         },
         normalizeCustomBlock: (normalizer, customBlock) => {
             normalizer.normalizeReference(customBlock.author);
@@ -385,26 +457,66 @@ export async function printAgentWebPostPage(
     id: PostId,
     page: AgentWebPostPage,
 ): Promise<Root> {
-    return await printAgentWebMessagingPage(storage, id, page, {
+    return await printAgentWebMessagingPage<
+        PostId,
+        AgentWebPostPagePreambleBase,
+        AgentWebPostPageCustomBlock
+    >(storage, id, page, {
         messageNouns: agentWebMessagingPageCommentNouns,
         printPreamble: async (storage, preamble) => {
-            return await printApiContentToAgentWebMarkdownTree(storage, {
-                elements: [
-                    {
-                        type: "Paragraph",
+            switch (preamble.type) {
+                case "HeadPage": {
+                    return await printApiContentToAgentWebMarkdownTree(storage, {
                         elements: [
-                            {type: "Text", text: "Post and comments"},
-                            ...(preamble.channel
-                                ? [
-                                      {type: "Text" as const, text: " in "},
-                                      {type: "Mention" as const, reference: preamble.channel},
-                                  ]
-                                : []),
-                            {type: "Text", text: "."},
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "Post"},
+                                    ...(preamble.channel
+                                        ? [
+                                              {type: "Text" as const, text: " in "},
+                                              {
+                                                  type: "Mention" as const,
+                                                  reference: preamble.channel,
+                                              },
+                                          ]
+                                        : [
+                                              {
+                                                  type: "Text" as const,
+                                                  text: "that\u2019s not in any channel",
+                                              },
+                                          ]),
+                                    {type: "Text", text: "."},
+                                ],
+                            },
                         ],
-                    },
-                ],
-            });
+                    });
+                }
+                case "TailPage": {
+                    const preambleTree = await printApiContentToAgentWebMarkdownTree(storage, {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "Comments on "},
+                                    {type: "Mention" as const, reference: preamble.post},
+                                    {type: "Text", text: "."},
+                                ],
+                            },
+                        ],
+                    });
+
+                    assert(preambleTree.children.length === 1);
+                    assert(preambleTree.children[0]!.type === "paragraph");
+                    assert(preambleTree.children[0].children.length === 3);
+                    assert(preambleTree.children[0].children[1]!.type === "link");
+                    preambleTree.children[0].children[1].children = [{type: "text", value: "post"}];
+
+                    return preambleTree;
+                }
+                default:
+                    throw exhaustive(preamble);
+            }
         },
         printCustomBlock: async (storage, block) => {
             const [authorPathname, contentTree] = await runAllPromises([
@@ -450,7 +562,7 @@ export async function parseAgentWebPostPage(
 ): Promise<AgentWebPostPage> {
     const page = await parseAgentWebMessagingPage(storage, id, root, {
         messageNouns: agentWebMessagingPageCommentNouns,
-        parsePreamble: async (storage, preamble): Promise<AgentWebPostPagePreamble> => {
+        parsePreamble: async (storage, preamble): Promise<AgentWebPostPagePreambleBase> => {
             const createError = () => {
                 return new InvalidArgumentError("Invalid post preamble", {
                     displayMessage: errorDisplayMessage`Post markdown must start with \`Post and comments in [My Channel](/channel/my-channel).\`. Try again with a proper start to post markdown on line 1.`,
