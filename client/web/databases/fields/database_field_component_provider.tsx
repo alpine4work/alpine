@@ -17,6 +17,7 @@ import type {DatabaseFieldId, DatabaseRowId, DatabaseTableId} from "~/shared/id/
  */
 export type DatabaseGridViewCellContentProps<Type extends DatabaseFieldType> = {
     ref?: Ref<HTMLElement>;
+    fieldName: string;
     config: DatabaseFieldConfig<Type>;
     value: DatabaseCellValue<Type>;
     commitValue: (value: DatabaseCellValue<Type>) => void;

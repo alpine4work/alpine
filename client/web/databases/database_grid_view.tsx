@@ -46,6 +46,7 @@ import {
     VirtualizedScrollViewItem,
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
+import type {LoaderDatabaseActionResult} from "~/shared/databases/database_protocol_schemas.js";
 import type {
     DatabaseCellValue,
     DatabaseFieldConfig,
@@ -143,11 +144,13 @@ export function DatabaseGridView({
     viewId,
     fields,
     query,
+    tablesInitialData,
 }: {
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
     fields: ReadonlyArray<DatabaseGridViewField>;
     query: DatabaseQuery;
+    tablesInitialData: LoaderDatabaseActionResult<"listTables">;
 }) {
     const tree = useStore(query.treeStore);
     const [selection, dispatch] = useReducer(selectionReducer, null);
@@ -297,6 +300,7 @@ export function DatabaseGridView({
                                                 gridFields.updateFieldVisibility
                                             }
                                             onUpdateFieldConfig={gridFields.updateFieldConfig}
+                                            tablesInitialData={tablesInitialData}
                                         />
                                     </Box>
                                     <Box
@@ -399,6 +403,7 @@ export function DatabaseGridView({
             gridFields.renameField,
             gridFields.updateFieldVisibility,
             gridFields.updateFieldConfig,
+            tablesInitialData,
             tree,
             rowCount,
             needsMore,
@@ -546,6 +551,7 @@ function DatabaseGridViewHeaderRow({
     onRenameField,
     onUpdateFieldVisibility,
     onUpdateFieldConfig,
+    tablesInitialData,
 }: {
     tableId: DatabaseTableId;
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
@@ -567,6 +573,7 @@ function DatabaseGridViewHeaderRow({
         isHidden: boolean,
     ) => void;
     onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
+    tablesInitialData: LoaderDatabaseActionResult<"listTables">;
 }) {
     return (
         <Box display="flex" height={gridRowHeight}>
@@ -579,6 +586,7 @@ function DatabaseGridViewHeaderRow({
                     isResizingThisField={resizingState?.fieldId === field.id}
                     onRenameField={onRenameField}
                     onUpdateFieldConfig={onUpdateFieldConfig}
+                    tablesInitialData={tablesInitialData}
                 />
             ))}
             <Box
@@ -615,6 +623,7 @@ function DatabaseGridViewHeaderCell({
     isResizingThisField,
     onRenameField,
     onUpdateFieldConfig,
+    tablesInitialData,
 }: {
     tableId: DatabaseTableId;
     field: DatabaseGridViewFieldWithEditing;
@@ -629,6 +638,7 @@ function DatabaseGridViewHeaderCell({
     isResizingThisField: boolean;
     onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
     onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
+    tablesInitialData: LoaderDatabaseActionResult<"listTables">;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const editing = field.editing;
@@ -656,6 +666,7 @@ function DatabaseGridViewHeaderCell({
                             tableId={tableId}
                             editing={editing}
                             onSelect={type => editing.commitWithType(type)}
+                            tablesInitialData={tablesInitialData}
                         />
                     }
                 >
@@ -858,11 +869,13 @@ function DatabaseGridViewFieldTypePicker({
     tableId,
     editing,
     onSelect,
+    tablesInitialData,
 }: {
     ref?: React.Ref<HTMLElement>;
     tableId: DatabaseTableId;
     editing: DatabaseGridViewFieldEditing;
     onSelect: (type: DatabaseFieldType) => void;
+    tablesInitialData: LoaderDatabaseActionResult<"listTables">;
 }) {
     return (
         <Box
@@ -890,7 +903,11 @@ function DatabaseGridViewFieldTypePicker({
                 />
             ))}
             {editing.fieldType === "relation" ? (
-                <DatabaseGridViewRelationFieldCreationOptions tableId={tableId} editing={editing} />
+                <DatabaseGridViewRelationFieldCreationOptions
+                    tableId={tableId}
+                    editing={editing}
+                    tablesInitialData={tablesInitialData}
+                />
             ) : null}
         </Box>
     );
@@ -936,11 +953,17 @@ function DatabaseGridViewFieldTypePickerOption({
 function DatabaseGridViewRelationFieldCreationOptions({
     tableId,
     editing,
+    tablesInitialData,
 }: {
     tableId: DatabaseTableId;
     editing: DatabaseGridViewFieldEditing;
+    tablesInitialData: LoaderDatabaseActionResult<"listTables">;
 }) {
-    const tablesResult = useReactiveDatabaseAction({name: "listTables", input: {}});
+    const tablesResult = useReactiveDatabaseAction({
+        name: "listTables",
+        input: {},
+        initialData: tablesInitialData,
+    });
     const tables = tablesResult?.ok
         ? tablesResult.value.tables
         : [{id: tableId, name: "This table"}];
@@ -952,6 +975,7 @@ function DatabaseGridViewRelationFieldCreationOptions({
                     <Box
                         key={cardinality}
                         role="button"
+                        aria-label={`Use ${cardinality} linked records`}
                         tabIndex={0}
                         flexGrow="1"
                         textAlign="center"
@@ -977,6 +1001,7 @@ function DatabaseGridViewRelationFieldCreationOptions({
                     <Box
                         key={table.id}
                         role="button"
+                        aria-label={`Link to table ${table.name}`}
                         tabIndex={0}
                         display="flex"
                         alignItems="center"
@@ -1225,6 +1250,7 @@ function DatabaseGridViewCell({
             >
                 <provider.GridViewCellContent
                     ref={cellRef}
+                    fieldName={field.name}
                     config={field.config}
                     value={optimisticValue as DatabaseCellValue}
                     commitValue={commitValue}

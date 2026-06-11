@@ -17,6 +17,7 @@ import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 
 function DatabaseRelationGridViewCellContent({
     ref,
+    fieldName,
     value,
     onCellClick,
 }: DatabaseGridViewCellContentProps<"relation">) {
@@ -24,6 +25,8 @@ function DatabaseRelationGridViewCellContent({
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}
+            role="button"
+            aria-label={`${fieldName} cell`}
             tabIndex={0}
             height="full"
             display="flex"
@@ -160,6 +163,7 @@ function DatabaseRelationEditableChip({
             </Box>
             <Box
                 role="button"
+                aria-label={`Remove ${name ?? "Untitled"}`}
                 tabIndex={0}
                 display="flex"
                 alignItems="center"
@@ -181,6 +185,7 @@ function DatabaseRelationRowOption({name, onPress}: {name: string | null; onPres
     return (
         <Box
             role="button"
+            aria-label={`Link ${name ?? "Untitled"}`}
             tabIndex={0}
             display="flex"
             alignItems="center"

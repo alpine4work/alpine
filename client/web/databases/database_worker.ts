@@ -1,3 +1,5 @@
+import "~/client/web/databases/sqlite3_wasm_init_worker.js";
+
 import {DatabaseActiveTabWorker} from "~/client/web/databases/database_active_tab_manager.js";
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 

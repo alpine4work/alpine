@@ -19,6 +19,7 @@ import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     schema: LoaderDatabaseActionResultSchemas.getViewSchema,
+    tables: LoaderDatabaseActionResultSchemas.listTables,
     firstPage: Schema.object({
         endCursor: Schema.id<DatabaseRowId>().nullable(),
         pageResult: LoaderDatabaseActionResultSchemas.getViewRowsPage,
@@ -61,12 +62,23 @@ export async function loader({request, params, context: unauthenticatedContext}:
         },
     });
 
+    const tablesResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
+        name: "listTables",
+        input: {},
+    });
+
     return jsonWithSchema(LoaderSchema, {
         schema: {
             name: "getViewSchema",
             input: {tableOrViewId},
             output: schemaResult.result,
             readPages: schemaResult.readPages,
+        },
+        tables: {
+            name: "listTables",
+            input: {},
+            output: tablesResult.result,
+            readPages: tablesResult.readPages,
         },
         firstPage: {
             endCursor: cursorResult.result.endCursor,
@@ -125,6 +137,7 @@ export default function DatabaseViewRoute() {
             viewId={schemaResult.value.viewId}
             fields={schemaResult.value.fields}
             query={query}
+            tablesInitialData={loaderData.tables}
         />
     );
 }

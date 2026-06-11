@@ -32,6 +32,11 @@ export default defineConfig(({mode}) => {
             // resolve production stack traces.
             sourcemap: "hidden",
         },
+        worker: {
+            // Database workers are module workers and import SQLite's ESM/WASM bundle, which
+            // can code-split during build.
+            format: "es",
+        },
         // Vite will rewrite asset URLs to be prefixed with this value on build. In
         // development, Vite ignores the origin portion of the URL[1] and we override it
         // with an inline config in `app_service_wrapper.ts`. Must have a trailing slash as

@@ -14,6 +14,7 @@ import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_nu
 
 function DatabaseNumberGridViewCellContent({
     ref,
+    fieldName,
     config,
     value,
     onCellClick,
@@ -21,6 +22,8 @@ function DatabaseNumberGridViewCellContent({
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}
+            role="button"
+            aria-label={`${fieldName} cell`}
             tabIndex={0}
             height="full"
             display="flex"
