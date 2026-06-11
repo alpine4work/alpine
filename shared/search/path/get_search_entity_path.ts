@@ -91,15 +91,29 @@ export function getSearchDynamicEntityPathFromEntityIdObject(
     // call sites.
     _routeLayout: RouteLayout,
 ): string {
+    if (entityId.type === "Account") {
+        // NOTE(calebmer): Eventually I'd like to have a profile page for accounts. Since
+        // we don't currently have that, route to a 1:1 chat with the account.
+        //
+        // Though even if we had a profile page for accounts, routing to the 1:1 chat in
+        // search may be more useful.
+        return `/chat/with/${entityId.accountId}/${spaceId}?focus`;
+    }
+
+    return getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount(entityId, _routeLayout);
+}
+
+export function getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount(
+    entityId:
+        | Exclude<SearchDynamicEntityIdObject, {type: "Site"} | {type: "Account"}>
+        | {
+              type: "Site";
+              siteId: SiteId;
+              firstEntityId: SiteItemSearchEntityId | null;
+          },
+    _routeLayout: RouteLayout,
+): string {
     switch (entityId.type) {
-        case "Account": {
-            // NOTE(calebmer): Eventually I'd like to have a profile page for accounts. Since
-            // we don't currently have that, route to a 1:1 chat with the account.
-            //
-            // Though even if we had a profile page for accounts, routing to the 1:1 chat in
-            // search may be more useful.
-            return `/chat/with/${entityId.accountId}/${spaceId}?focus`;
-        }
         case "Document": {
             return `/doc/${entityId.documentId}`;
         }
@@ -136,7 +150,10 @@ export function getSearchDynamicEntityPathFromEntityIdObject(
             }
 
             const idObject = parseSiteItemSearchEntityId(entityId.firstEntityId);
-            return getSearchDynamicEntityPathFromEntityIdObject(spaceId, idObject, _routeLayout);
+            return getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount(
+                idObject,
+                _routeLayout,
+            );
         }
         default:
             throw exhaustive(entityId);

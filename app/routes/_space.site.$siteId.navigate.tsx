@@ -19,7 +19,6 @@ import {
 } from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {SiteSideBarContent} from "~/client/web/sites/site_side_bar_content.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
@@ -37,16 +36,6 @@ export function meta() {
     return [{title: `Site${metaTitlePostfix}`}];
 }
 
-// TODO(#sites): I'm still not sure I love the idea of a new route vs. a flyover
-// menu. So right now the flow is
-//
-// 1. User opens an entity in peek/mobile that belongs to a site.
-// 2. User clicks the site breadcrumb chip.
-// 3. User is navigated to the site navigate route.
-//
-// What happens when the user clicks expand? We open the navigate route in wide
-// screen? Anyway, I'm not convinced this is the right approach but I think we can
-// try it for now and see how it feels.
 /**
  * IMPORTANT: this route is only meant to be used for peek and mobile browsing. All
  * wide, desktop browsing should go directly through a given site's entity or the
@@ -108,7 +97,6 @@ export default function SiteNavigateRoute() {
     const context = useAppContext();
     const tree = useSiteTree();
     const {handleEventForSite} = useSiteContext();
-    const {space} = useSpaceContext();
     const platform = usePlatform();
     const favoriteSiteMenuAction = useFavoriteSiteMenuAction();
 
@@ -127,26 +115,22 @@ export default function SiteNavigateRoute() {
                     icon: <LinkIcon size={16} />,
                     pressErrorTitle: "Couldn\u2019t copy link",
                     onPress: async () => {
-                        const url = new URL(
-                            `/s/${space.id}/sites/${site.id}`,
-                            window.location.href,
-                        );
+                        const url = new URL(`/site/${site.id}`, window.location.href);
                         await writeTextToClipboard(url.toString());
                     },
                 },
             ],
         ],
-        [favoriteSiteMenuAction, space.id, site.id],
+        [favoriteSiteMenuAction, site.id],
     );
 
-    // TODO(#sites): eshould reroute to site if a user tries to expand this peek view.
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title: site.name,
         withoutDisappearingTitle: true,
         // If the user lands here without browser history (e.g. opening a deep link), fall
         // back to the bare site URL — its `firstEntityId` redirect then sends them into
         // the actual entity tree.
-        defaultPreviousRoute: `/s/${space.id}/sites/${site.id}`,
+        defaultPreviousRoute: `/site/${site.id}`,
         menuActions,
         shareButton: {
             entityNoun: "site",
@@ -160,7 +144,7 @@ export default function SiteNavigateRoute() {
                 });
             },
             onCopyLink: async () => {
-                const url = new URL(`/s/${space.id}/sites/${site.id}`, window.location.href);
+                const url = new URL(`/site/${site.id}`, window.location.href);
                 await writeTextToClipboard(url.toString());
             },
         },
@@ -174,6 +158,7 @@ export default function SiteNavigateRoute() {
                 scrollViewRef,
                 useScrollbar({insetTop: scrollbarInsetTop}),
             )}
+            data-testid="SiteNavigateView"
             flexGrow="1"
             width="full"
             height="full"

@@ -62,6 +62,7 @@ ts_project(
         "//shared/remix",
         "//shared/rpc",
         "//shared/search",
+        "//shared/search/path",
         "//shared/spaces",
         "//shared/store",
         "//shared/tasks",

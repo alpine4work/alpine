@@ -47,7 +47,6 @@ import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
-import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {AddExistingEntityToSiteModal} from "~/client/web/sites/add_existing_entity_to_site_modal.js";
 import {
@@ -92,6 +91,7 @@ import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {updateSiteName} from "~/shared/rpc/sites_rpc_definitions.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
+import {getSearchDynamicEntityPath} from "~/shared/search/path/get_search_entity_path.js";
 import {
     SiteContainerId,
     SiteSideBarContainerId,

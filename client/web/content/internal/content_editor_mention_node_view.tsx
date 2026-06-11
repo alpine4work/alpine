@@ -17,7 +17,6 @@ import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/i
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
-import {getDynamicSearchEntityPathForFileEntity} from "~/client/web/search/core/get_search_entity_path.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -30,6 +29,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {getFileEntityIfPossible} from "~/shared/rpc/files_rpc_definitions.js";
+import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 

@@ -38,6 +38,7 @@ ts_project(
         "//shared/id",
         "//shared/rpc",
         "//shared/search",
+        "//shared/search/path",
         "//shared/sites",
         "//shared/spaces",
         "//shared/store",

@@ -1,5 +1,9 @@
 import {Path} from "@remix-run/router";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {assertId} from "~/shared/id/id.js";
+import {SiteId} from "~/shared/id/types/id_types.js";
+import {getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount} from "~/shared/search/path/get_search_entity_path.js";
+import {parseSiteItemSearchEntityIdIfPossible} from "~/shared/search/site_item_search_entity_id.js";
 
 const spacePathRegExp = /^\/(?!peek(?:\/|$))(.*)$/;
 const peekPathRegExp = /^\/peek(\/.*)?$/;
@@ -45,14 +49,70 @@ export function convertSpacePathToPeekPath(path: Path): Path | null {
  */
 export function convertPeekPathToSpacePath(
     path: Path,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     {routeLayout}: {routeLayout: RouteLayout},
 ): Path | null {
     const match = path.pathname.match(peekPathRegExp);
     if (!match) return null;
 
+    const pathnamePart = match[1] ?? "/";
+
+    const sitePath = convertPeekSiteNavigatePathToSitePathIfNecessary(
+        pathnamePart,
+        new URLSearchParams(path.search ?? ""),
+        {
+            routeLayout,
+        },
+    );
+
+    if (sitePath) return {...path, pathname: sitePath};
+
     return {
         ...path,
-        pathname: match[1] ?? "/",
+        pathname: pathnamePart,
     };
+}
+
+/**
+ * In mobile and peek views, we render a site breadcrumb chip when rendering an
+ * entity that belongs to a site. Clicking that chip will route the user to the
+ * Site navigation bar, which is really only meant to be rendered in peek and
+ * mobile views. If a user is expanding that navigation bar, we should open
+ * whatever entity is currently focused in a wide route.
+ *
+ * So we should convert a path like this:
+ *
+ * ```
+ * /site/ejpeq33tbm4ax14xmbps2ke650/navigate?focus=Document%3Abqfnt1js3aed9wdr70d9jjcxhr
+ * ```
+ *
+ * to a path like this:
+ *
+ * ```
+ * /doc/3Abqfnt1js3aed9wdr70d9jjcxhr
+ * ```
+ */
+function convertPeekSiteNavigatePathToSitePathIfNecessary(
+    pathname: string,
+    searchParams: URLSearchParams,
+    {routeLayout}: {routeLayout: RouteLayout},
+) {
+    if (routeLayout !== "wide") return null;
+
+    const siteNavigatePattern = /^\/site\/([^/]+)\/navigate$/;
+    const match = pathname.match(siteNavigatePattern);
+    if (!match) return null;
+    const siteId = assertId<SiteId>(match[1]!);
+
+    const sitePath = `/sites/${siteId}`;
+
+    const focusParam = searchParams.get("focus");
+    if (!focusParam) return sitePath;
+
+    const focusEntityIdObject = parseSiteItemSearchEntityIdIfPossible(focusParam);
+    if (!focusEntityIdObject) return sitePath;
+
+    return getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount(
+        focusEntityIdObject,
+        routeLayout,
+    );
 }

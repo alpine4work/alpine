@@ -15,7 +15,6 @@ import {MenuButton} from "~/client/web/design/menu_button.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
-import {getSearchDynamicEntityPathFromEntityIdObject} from "~/client/web/search/core/get_search_entity_path.js";
 import {AddExistingEntityToSiteModal} from "~/client/web/sites/add_existing_entity_to_site_modal.js";
 import {
     useCanManageSite,
@@ -27,7 +26,6 @@ import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site
 import {SiteChrome} from "~/client/web/sites/site_chrome.js";
 import {useSiteMenuActions} from "~/client/web/sites/site_menu_actions.js";
 import {useAddEntityToSiteMenuActions} from "~/client/web/sites/use_add_entity_to_site_menu_actions.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
@@ -42,6 +40,7 @@ import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {getSearchDynamicEntityPathFromEntityIdObject} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SitePreviewModel, SitePreviewModelData} from "~/shared/sites/site_model.js";
@@ -268,7 +267,6 @@ function EmptySiteContent({
     canManage: boolean;
     rootAddEntityMenuActions: MenuActions;
 }) {
-    const {space} = useSpaceContext();
     const context = useAppContext();
     const siteContext = useSiteContext();
     const siteMenuActions = useSiteMenuActions({});
@@ -287,7 +285,7 @@ function EmptySiteContent({
                 });
             },
             onCopyLink: async () => {
-                const url = new URL(`/s/${space.id}/sites/${site.id}`, window.location.href);
+                const url = new URL(`/site/${site.id}`, window.location.href);
                 await writeTextToClipboard(url.toString());
             },
         },

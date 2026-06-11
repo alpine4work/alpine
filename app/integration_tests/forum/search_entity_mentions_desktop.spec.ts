@@ -1,7 +1,6 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
-import {getSearchDynamicEntityPathFromEntityIdObject} from "~/client/web/search/core/get_search_entity_path.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
@@ -22,6 +21,7 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {SiteId} from "~/shared/id/types/id_types.js";
+import {getSearchDynamicEntityPathFromEntityIdObject} from "~/shared/search/path/get_search_entity_path.js";
 import {
     SearchDynamicEntityIdObject,
     SearchMentionEntityType,

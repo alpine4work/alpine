@@ -250,6 +250,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/rpc:rpc",
     "//shared/schema:schema",
     "//shared/search:search",
+    "//shared/search/path:path",
     "//shared/sites:sites",
     "//shared/spaces:spaces",
     "//shared/spaces/test_helpers:test_helpers",

@@ -120,3 +120,11 @@ export function parseSiteItemSearchEntityId(
             );
     }
 }
+
+export function parseSiteItemSearchEntityIdIfPossible(
+    id: string,
+): SiteItemSearchEntityIdObject | null {
+    if (!isSiteItemSearchEntityId(id)) return null;
+
+    return parseSiteItemSearchEntityId(id);
+}

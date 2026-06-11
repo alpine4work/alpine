@@ -13,10 +13,6 @@ import {taskCollectionBrandIconSvg} from "~/client/web/icons/brand/task_collecti
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {lockIconSvg} from "~/client/web/icons/lock_icon_svg.js";
 import {trashIconSvg} from "~/client/web/icons/trash_icon_svg.js";
-import {
-    getSearchDynamicEntityPath,
-    getSearchDynamicEntityPathFromEntityIdObject,
-} from "~/client/web/search/core/get_search_entity_path.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
@@ -42,6 +38,10 @@ import {
     missingSearchEntityTitle,
     privateSearchEntityTitle,
 } from "~/shared/search/missing_and_private_search_entity_titles.js";
+import {
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

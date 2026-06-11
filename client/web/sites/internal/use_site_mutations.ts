@@ -6,10 +6,6 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {
-    getSearchDynamicEntityPath,
-    getSearchDynamicEntityPathFromEntityIdObject,
-} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSiteActivation, useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -38,6 +34,10 @@ import {
     updateSiteName,
 } from "~/shared/rpc/sites_rpc_definitions.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {
+    getSearchDynamicEntityPath,
+    getSearchDynamicEntityPathFromEntityIdObject,
+} from "~/shared/search/path/get_search_entity_path.js";
 import {SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {
     SiteItemSearchEntityId,
