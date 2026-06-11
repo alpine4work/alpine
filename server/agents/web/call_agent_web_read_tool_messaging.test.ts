@@ -406,27 +406,27 @@ test("throws on invalid pagination search parameters", async () => {
     const cases = [
         {
             query: "before=abc",
-            error: "Expected `before` search param to be a positive integer",
+            error: "Expected `before` search param to be an integer",
         },
         {
             query: "before",
-            error: "Expected `before` search param to be a positive integer",
+            error: "Expected `before` search param to be an integer",
         },
         {
-            query: "after=-1",
-            error: "Expected `after` search param to be a positive integer",
+            query: "after=-01",
+            error: "Expected `after` search param to be an integer",
         },
         {
             query: "after=01",
-            error: "Expected `after` search param to be a positive integer",
+            error: "Expected `after` search param to be an integer",
         },
         {
             query: "message=abc",
-            error: "Expected `message` search param to be a positive integer or range",
+            error: "Expected `message` search param to be an integer or range",
         },
         {
             query: "message=7-4",
-            error: "Expected `message` search param to be a positive integer or range",
+            error: "Expected `message` search param to be an integer or range",
         },
         {
             query: "start=0",
@@ -4423,6 +4423,368 @@ End of messages.`,
             expect(
                 await callAgentWebReadTool(context, {
                     path,
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
+
+    test.each([
+        {
+            limit: "500b",
+            response: `\
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=2)
+
+<time>May 14th at 11:10am EDT</time>\n
+<message id="2" from="[Alice](/human/alice)">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>
+
+End of messages.`,
+        },
+        {
+            limit: "1kb",
+            response: `\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>
+
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 4
+
+</message>
+
+End of messages.`,
+        },
+    ])(
+        "reads end of small message list when requested message is past total count (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 5,
+                limit: 30,
+                cursor: 85,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                from: "End",
+                totalMessageCount: 5,
+                limit: 30,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
+
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?message=100",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
+
+    test.each([
+        {
+            limit: "500b",
+            response: `\
+# Incident Response
+
+[Previous page »](/chat/incident-response?before=2)
+
+<time>May 14th at 11:10am EDT</time>\n
+<message id="2" from="[Alice](/human/alice)">\n\nTest message 2\n\n</message>\n
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>
+
+End of messages.`,
+        },
+        {
+            limit: "1kb",
+            response: `\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>
+
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 4
+
+</message>
+
+End of messages.`,
+        },
+    ])(
+        "reads end of small message list when before cursor is past total count (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                from: "End",
+                totalMessageCount: 5,
+                limit: 30,
+                cursor: 100,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
+
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?before=100",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
+
+    test.each([
+        {
+            limit: "500b",
+            response: `\
+# Incident Response
+
+[Next page »](/chat/incident-response?after=3)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>`,
+        },
+        {
+            limit: "1kb",
+            response: `\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>
+
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 4
+
+</message>
+
+End of messages.`,
+        },
+    ])(
+        "reads start of small message list when requested message is before total count (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 5,
+                limit: 30,
+                cursor: -115,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 5,
+                limit: 30,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
+
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?message=-100",
+                    limit,
+                }),
+            ).toEqual(response);
+        },
+    );
+
+    test.each([
+        {
+            limit: "500b",
+            response: `\
+# Incident Response
+
+[Next page »](/chat/incident-response?after=3)
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>`,
+        },
+        {
+            limit: "1kb",
+            response: `\
+# Incident Response
+
+<time>May 14th at 11:00am EDT</time>
+
+<message id="0" from="[Alice](/human/alice)">
+
+Test message 0
+
+</message>
+
+<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 1
+
+</message>
+
+<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 2
+
+</message>
+
+<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
+
+Test message 3
+
+</message>
+
+<message id="4" from="[Alice](/human/alice)" time="5 minutes later">
+
+Test message 4
+
+</message>
+
+End of messages.`,
+        },
+    ])(
+        "reads start of small message list when after cursor is before total count (limit: $limit)",
+        async ({limit, response}) => {
+            mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
+
+            mockApiGetChatMessages(api, {
+                spaceId,
+                chatId,
+                totalMessageCount: 5,
+                limit: 30,
+                cursor: -100,
+                createMessage: index => createApiMessageMock({index, author}),
+            });
+
+            expect(
+                await callAgentWebReadTool(context, {
+                    path: "/chat/incident-response?after=-100",
                     limit,
                 }),
             ).toEqual(response);

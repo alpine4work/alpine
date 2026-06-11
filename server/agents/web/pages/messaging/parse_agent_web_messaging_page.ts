@@ -891,12 +891,12 @@ async function actuallyParseAgentWebMessagingPage<
         }
     }
 
-    const pagination = await takeAgentWebMessagingPagePaginationFromPreamble(
+    const pagination = await takeAgentWebMessagingPagePaginationFromPreamble(storage, {
         messageNouns,
-        storage,
         pageLink,
         preamble,
-    );
+        customBlockTagNames,
+    });
 
     const actualPreamble = await parsePreamble(storage, {
         type: "root",
@@ -1039,12 +1039,23 @@ function createUnexpectedMarkdownError(
     });
 }
 
-async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
-    messageNouns: AgentWebMessagingPageNouns,
+async function takeAgentWebMessagingPagePaginationFromPreamble<
+    PageLink,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     storage: AgentWebSessionStorage,
-    pageLink: PageLink | null,
-    preamble: Array<RootContent>,
-): Promise<AgentWebMessagingPagePagination | null> {
+    {
+        messageNouns,
+        pageLink,
+        preamble,
+        customBlockTagNames,
+    }: {
+        messageNouns: AgentWebMessagingPageNouns;
+        pageLink: PageLink | null;
+        preamble: Array<RootContent>;
+        customBlockTagNames: ReadonlySet<string>;
+    },
+): Promise<AgentWebMessagingPagePagination<CustomBlock> | null> {
     const lastNode = preamble[preamble.length - 1];
     if (lastNode?.type !== "paragraph") return null;
 
@@ -1077,22 +1088,22 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
     }
 
     if (text === agentWebMessagingPreviousPageLinkTextWithEndArrow) {
-        previousPaginationLink = await parseAgentWebMessagingPagePaginationLink({
+        previousPaginationLink = await parseAgentWebMessagingPagePaginationLink(storage, {
             messageNouns,
-            storage,
             link: lastChild,
             searchParamName: "before",
+            customBlockTagNames,
         });
 
         removeStartIndex = lastChildIndex;
     } else {
         assert(text === agentWebMessagingNextPageLinkText);
 
-        nextPaginationLink = await parseAgentWebMessagingPagePaginationLink({
+        nextPaginationLink = await parseAgentWebMessagingPagePaginationLink(storage, {
             messageNouns,
-            storage,
             link: lastChild,
             searchParamName: "after",
+            customBlockTagNames,
         });
 
         removeStartIndex = lastChildIndex;
@@ -1107,11 +1118,11 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
             printMarkdownPhrasingContentText(previousLinkChild.children) ===
                 agentWebMessagingPreviousPageLinkTextWithStartArrow
         ) {
-            previousPaginationLink = await parseAgentWebMessagingPagePaginationLink({
+            previousPaginationLink = await parseAgentWebMessagingPagePaginationLink(storage, {
                 messageNouns,
-                storage,
                 link: previousLinkChild,
                 searchParamName: "before",
+                customBlockTagNames,
             });
             removeStartIndex = lastChildIndex - 2;
         }
@@ -1145,9 +1156,14 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
     if (previousPaginationLink) {
         return {
             pageLink: previousPaginationLink.pageLink,
-            previousLink: {beforeMessageIndex: previousPaginationLink.messageIndex},
+            previousLink:
+                previousPaginationLink.type === "Message"
+                    ? {type: "Message", beforeMessageIndex: previousPaginationLink.messageIndex}
+                    : {type: "Custom", beforeTagName: previousPaginationLink.tagName as any},
             nextLink: nextPaginationLink
-                ? {afterMessageIndex: nextPaginationLink.messageIndex}
+                ? nextPaginationLink.type === "Message"
+                    ? {type: "Message", afterMessageIndex: nextPaginationLink.messageIndex}
+                    : {type: "Custom", afterTagName: nextPaginationLink.tagName as any}
                 : null,
         };
     }
@@ -1157,38 +1173,43 @@ async function takeAgentWebMessagingPagePaginationFromPreamble<PageLink>(
     return {
         pageLink: nextPaginationLink.pageLink,
         previousLink: null,
-        nextLink: {afterMessageIndex: nextPaginationLink.messageIndex},
+        nextLink:
+            nextPaginationLink.type === "Message"
+                ? {type: "Message", afterMessageIndex: nextPaginationLink.messageIndex}
+                : {type: "Custom", afterTagName: nextPaginationLink.tagName as any},
     };
 }
 
-type AgentWebMessagingPageParsedPaginationLink = {
-    readonly pathname: string;
-    readonly pageLink: AgentWebMessagingPagePaginationPageLink;
-    readonly messageIndex: number;
-};
+type AgentWebMessagingPageParsedPaginationLink =
+    | {
+          readonly type: "Message";
+          readonly pathname: string;
+          readonly pageLink: AgentWebMessagingPagePaginationPageLink;
+          readonly messageIndex: number;
+      }
+    | {
+          readonly type: "Custom";
+          readonly pathname: string;
+          readonly pageLink: AgentWebMessagingPagePaginationPageLink;
+          readonly tagName: string;
+      };
 
-async function parseAgentWebMessagingPagePaginationLink({
-    messageNouns,
-    storage,
-    link,
-    searchParamName,
-}: {
-    messageNouns: AgentWebMessagingPageNouns;
-    storage: AgentWebSessionStorage;
-    link: Link;
-    searchParamName: "before" | "after";
-}): Promise<AgentWebMessagingPageParsedPaginationLink> {
+async function parseAgentWebMessagingPagePaginationLink(
+    storage: AgentWebSessionStorage,
+    {
+        messageNouns,
+        link,
+        searchParamName,
+        customBlockTagNames,
+    }: {
+        messageNouns: AgentWebMessagingPageNouns;
+        link: Link;
+        searchParamName: "before" | "after";
+        customBlockTagNames: ReadonlySet<string>;
+    },
+): Promise<AgentWebMessagingPageParsedPaginationLink> {
     const {pathname, searchParams} = normalizeAgentWebPath(link.url);
     const searchParam = searchParams.get(searchParamName);
-
-    if (searchParam === null || !/^(0|[1-9][0-9]*)$/.test(searchParam)) {
-        throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
-            messageNouns,
-            link,
-            searchParamName,
-        });
-    }
-
     const pageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
 
     if (!pageLinkResult) {
@@ -1217,7 +1238,20 @@ async function parseAgentWebMessagingPagePaginationLink({
         }
     }
 
+    if (searchParam !== null && customBlockTagNames.has(searchParam)) {
+        return {type: "Custom", pathname, pageLink, tagName: searchParam};
+    }
+
+    if (searchParam === null || !/^(0|[1-9][0-9]*)$/.test(searchParam)) {
+        throw createInvalidAgentWebMessagingPagePaginationLinkUrlError({
+            messageNouns,
+            link,
+            searchParamName,
+        });
+    }
+
     return {
+        type: "Message",
         pathname,
         pageLink,
         messageIndex: parseInt(searchParam, 10),

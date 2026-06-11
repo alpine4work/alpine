@@ -130,7 +130,7 @@ export async function printAgentWebMessagingPage<
                     if (pagination.previousLink) {
                         paginationLinks.push({
                             type: "link",
-                            url: `${pathname}?before=${pagination.previousLink.beforeMessageIndex}`,
+                            url: `${pathname}?before=${pagination.previousLink.type === "Message" ? pagination.previousLink.beforeMessageIndex : pagination.previousLink.beforeTagName}`,
                             children: [
                                 {
                                     type: "text",
@@ -149,7 +149,7 @@ export async function printAgentWebMessagingPage<
                     if (pagination.nextLink) {
                         paginationLinks.push({
                             type: "link",
-                            url: `${pathname}?after=${pagination.nextLink.afterMessageIndex}`,
+                            url: `${pathname}?after=${pagination.nextLink.type === "Message" ? pagination.nextLink.afterMessageIndex : pagination.nextLink.afterTagName}`,
                             children: [
                                 {
                                     type: "text",

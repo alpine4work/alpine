@@ -9,7 +9,7 @@ export type AgentWebMessagingPage<
     CustomBlock extends AgentWebMessagingPageCustomBlockBase,
 > = {
     readonly preamble: Preamble;
-    readonly pagination: AgentWebMessagingPagePagination | null;
+    readonly pagination: AgentWebMessagingPagePagination<CustomBlock> | null;
     readonly isEndOfMessages: boolean;
     readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock<CustomBlock>>;
 };
@@ -20,16 +20,28 @@ export type AgentWebMessagingPagePreambleType<Page extends AgentWebMessagingPage
 export type AgentWebMessagingPageCustomBlockType<Page extends AgentWebMessagingPage<any, any>> =
     Page extends AgentWebMessagingPage<any, infer CustomBlock> ? CustomBlock : never;
 
-export type AgentWebMessagingPagePagination = {
+export type AgentWebMessagingPagePagination<
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+> = {
     readonly pageLink: AgentWebMessagingPagePaginationPageLink;
 } & (
     | {
-          readonly previousLink: {readonly beforeMessageIndex: number};
-          readonly nextLink: {readonly afterMessageIndex: number} | null;
+          readonly previousLink:
+              | {readonly type: "Message"; readonly beforeMessageIndex: number}
+              | {readonly type: "Custom"; readonly beforeTagName: CustomBlock["tagName"]};
+          readonly nextLink:
+              | {readonly type: "Message"; readonly afterMessageIndex: number}
+              | {readonly type: "Custom"; readonly afterTagName: CustomBlock["tagName"]}
+              | null;
       }
     | {
-          readonly previousLink: {readonly beforeMessageIndex: number} | null;
-          readonly nextLink: {readonly afterMessageIndex: number};
+          readonly previousLink:
+              | {readonly type: "Message"; readonly beforeMessageIndex: number}
+              | {readonly type: "Custom"; readonly beforeTagName: CustomBlock["tagName"]}
+              | null;
+          readonly nextLink:
+              | {readonly type: "Message"; readonly afterMessageIndex: number}
+              | {readonly type: "Custom"; readonly afterTagName: CustomBlock["tagName"]};
       }
 );
 

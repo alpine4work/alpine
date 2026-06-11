@@ -83,22 +83,34 @@ const AgentWebMessagingPagePaginationPageLinkArbitrary =
         }),
     });
 
-const AgentWebMessagingPagePaginationArbitrary: Arbitrary<AgentWebMessagingPagePagination> =
+const AgentWebMessagingPagePaginationArbitrary: Arbitrary<AgentWebMessagingPagePagination<never>> =
     fc.oneof(
         fc.record({
             pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
-            previousLink: fc.record({beforeMessageIndex: fc.integer({min: 0})}),
+            previousLink: fc.record({
+                type: fc.constant("Message"),
+                beforeMessageIndex: fc.integer({min: 0}),
+            }),
             nextLink: fc.constant(null),
         }),
         fc.record({
             pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
             previousLink: fc.constant(null),
-            nextLink: fc.record({afterMessageIndex: fc.integer({min: 0})}),
+            nextLink: fc.record({
+                type: fc.constant("Message"),
+                afterMessageIndex: fc.integer({min: 0}),
+            }),
         }),
         fc.record({
             pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
-            previousLink: fc.record({beforeMessageIndex: fc.integer({min: 0})}),
-            nextLink: fc.record({afterMessageIndex: fc.integer({min: 0})}),
+            previousLink: fc.record({
+                type: fc.constant("Message"),
+                beforeMessageIndex: fc.integer({min: 0}),
+            }),
+            nextLink: fc.record({
+                type: fc.constant("Message"),
+                afterMessageIndex: fc.integer({min: 0}),
+            }),
         }),
     );
 

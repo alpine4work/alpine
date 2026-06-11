@@ -663,9 +663,8 @@ test("uses scroll truncation for a post larger than the limit and hides comments
             }),
     });
 
-    // NOCOMMIT: Where is the pagination link?
     expect(await callAgentWebReadTool(context, {path: "/post/launch", limit: "430b"})).toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=post)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -677,7 +676,7 @@ Long post paragraph 2 detail detail detail detail detail detail detail detail.
 
 Long post paragraph 3 detail detail detail detail detail detail detail detail.
 
-(Page truncated, 595b remaining. Showing lines 1-12 of 37. Call the \`scroll\` tool with an \`offset\` of 12 to continue.)`);
+(Page truncated, 407b remaining. Showing lines 1-12 of 23. Call the \`scroll\` tool with an \`offset\` of 12 to continue.)`);
 
     expect(
         await callAgentWebScrollTool(context, {
@@ -698,10 +697,10 @@ Long post paragraph 8 detail detail detail detail detail detail detail detail.
 
 </post>
 
-(Page truncated, 186b remaining. Showing lines 13-24 of 37. Use \`offset\` of 24 to continue.)`);
+(End of file. Showing lines 13-23 of 23.)`);
 });
 
-test("before way after message range still able to load the post if there aren't many messages", async () => {
+test("before way after message range still able to load the post if there aren\u2019t many messages", async () => {
     mockGetPostPreview();
     mockGetPost();
     mockApiGetPostMessages(api, {

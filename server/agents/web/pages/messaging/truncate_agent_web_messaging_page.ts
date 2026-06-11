@@ -166,8 +166,9 @@ export async function truncateAgentWebMessagingPage<
             if (
                 truncateMessageBlockOrCustomBlockEndOffset ===
                 lastMessageBlockOrCustomBlockEndOffset
-            )
+            ) {
                 return null;
+            }
 
             let truncateMessageCount = 0;
             const truncatedBlocks: Array<AgentWebMessagingPageBlock<CustomBlock>> = [];
@@ -193,12 +194,44 @@ export async function truncateAgentWebMessagingPage<
 
             truncatedBlocks.reverse();
 
+            // Our truncation always skips over time blocks. So remove any time blocks at the
+            // end of the `truncatedBlocks` array.
+            while (
+                truncatedBlocks.length > 0 &&
+                truncatedBlocks[truncatedBlocks.length - 1]!.type === "Time"
+            ) {
+                truncatedBlocks.pop();
+            }
+
             const truncatedMessages = messages.slice(0, messages.length - truncateMessageCount);
 
-            // There should always be at least one message block left after we truncate.
-            //
-            // NOCOMMIT: Might not be the case anymore!
-            assert(truncatedMessages.length > 0);
+            // There should always be at least one block left after we truncate.
+            assert(truncatedBlocks.length > 0);
+
+            const lastTruncatedBlock = truncatedBlocks[truncatedBlocks.length - 1]!;
+
+            let afterSearchParam: string;
+
+            switch (lastTruncatedBlock.type) {
+                case "Message": {
+                    assert(truncatedMessages.length > 0);
+                    afterSearchParam = String(
+                        truncatedMessages[truncatedMessages.length - 1]!.index,
+                    );
+                    break;
+                }
+                case "Custom": {
+                    afterSearchParam = lastTruncatedBlock.tagName;
+                    break;
+                }
+                default: {
+                    // The last truncated block shouldn't be `<time>` since we only truncate at message
+                    // or custom block boundaries.
+                    assert(lastTruncatedBlock.type !== "Time");
+
+                    throw exhaustive(lastTruncatedBlock);
+                }
+            }
 
             // We're intentionally dropping everything after `lastMessageBlockEndOffset`. Which
             // will include the `isEndOfMessages` paragraph. If we're truncating in the `Start`
@@ -208,8 +241,6 @@ export async function truncateAgentWebMessagingPage<
             // Update the "Next page" link to reflect the new last message index after
             // truncation.
             if (page.pagination?.nextLink) {
-                const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
-
                 const paragraph = getAgentWebMessagingPagePreamblePaginationParagraph(responseTree);
                 const link = paragraph.children[paragraph.children.length - 1];
                 assert(link?.type === "link");
@@ -221,17 +252,15 @@ export async function truncateAgentWebMessagingPage<
                     truncatedResponse.slice(0, linkStartOffset) +
                     response
                         .slice(linkStartOffset, linkEndOffset)
-                        .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterMessageIndex}`) +
+                        .replace(/\?after=(0|[1-9][0-9]*)/, `?after=${afterSearchParam}`) +
                     truncatedResponse.slice(linkEndOffset);
             } else {
                 assert(roomReferencePathname !== null);
 
-                const afterMessageIndex = truncatedMessages[truncatedMessages.length - 1]!.index;
-
                 truncatedResponse = insertAgentWebMessagingPagePreamblePaginationLink(
                     responseTree,
                     truncatedResponse,
-                    `[${agentWebMessagingNextPageLinkText}](${roomReferencePathname}?after=${afterMessageIndex})`,
+                    `[${agentWebMessagingNextPageLinkText}](${roomReferencePathname}?after=${afterSearchParam})`,
                 ).truncatedResponse;
             }
 
@@ -897,8 +926,9 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     if (
         truncateMessageBlockOrCustomBlockEndOffset === null ||
         truncateMessageBlockOrCustomBlockStartOffset === null
-    )
+    ) {
         return null;
+    }
 
     // Always set when `truncateMessageEndOffset`/`truncateMessageBlockStartOffset` is
     // set.
@@ -957,6 +987,15 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     }
 
     truncatedBlocks.reverse();
+
+    // Our truncation always skips over time blocks. So remove any time blocks at the
+    // end of the `truncatedBlocks` array.
+    while (
+        truncatedBlocks.length > 0 &&
+        truncatedBlocks[truncatedBlocks.length - 1]!.type === "Time"
+    ) {
+        truncatedBlocks.pop();
+    }
 
     const truncatedMessages = messages.slice(
         truncateMessageCountFromStart,

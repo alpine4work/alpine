@@ -237,12 +237,7 @@ function readAgentWebPageLink(
             );
         }
         case "PostMessage": {
-            return readAgentWebPostMessagePage(
-                context,
-                pageLink.id,
-                pageLink.index,
-                options,
-            );
+            return readAgentWebPostMessagePage(context, pageLink.id, pageLink.index, options);
         }
         case "TaskMessageList": {
             return readAgentWebTaskMessageListPage(context, pageLink.task.id, options);
