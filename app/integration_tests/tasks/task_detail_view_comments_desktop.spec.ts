@@ -4,7 +4,7 @@ import {join as joinPath} from "path";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {getTaskCommentsFromStart} from "~/server/tasks/data/get_task_comments_from_start.js";
+import {getTaskCommentsFromStart} from "~/server/tasks/data/task_messaging.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

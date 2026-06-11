@@ -20,20 +20,22 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
-import {completeTaskCommentStream} from "~/server/tasks/data/complete_task_comment_stream.js";
-import {createTaskComment} from "~/server/tasks/data/create_task_comment.js";
-import {deleteTaskComment} from "~/server/tasks/data/delete_task_comment.js";
-import {deleteTaskCommentReaction} from "~/server/tasks/data/delete_task_comment_reaction.js";
-import {getTaskComment} from "~/server/tasks/data/get_task_comment.js";
 import {TaskEssentialAttributesItem} from "~/server/tasks/data/internal/task_table.js";
-import {putTaskCommentStreamPart} from "~/server/tasks/data/put_task_comment_stream_part.js";
-import {setTaskCommentReaction} from "~/server/tasks/data/set_task_comment_reaction.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    completeTaskCommentStream,
+    createTaskComment,
+    deleteTaskComment,
+    deleteTaskCommentReaction,
+    getTaskComment,
+    putTaskCommentStreamPart,
+    setTaskCommentReaction,
+    updateTaskCommentContent,
+} from "~/server/tasks/data/task_messaging.js";
 import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {updateTaskCommentContent} from "~/server/tasks/data/update_task_comment_content.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {fromApiContentBlockElements} from "~/shared/api/content/from_api_content.js";
