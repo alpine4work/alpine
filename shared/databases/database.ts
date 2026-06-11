@@ -133,6 +133,15 @@ export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
 }
 
 export type DatabaseReactive<Value> = Store<Value> & {
+    /**
+     * Seed the reactive function with a result produced by an equivalent tracked
+     * database execution.
+     *
+     * This exists for adapters that must do asynchronous cache filling outside the
+     * synchronous `fn`, such as `DatabaseClient` fetching missing pages from the
+     * server. Most callers should let `getSnapshot()` run `fn` instead.
+     */
+    setTrackedSnapshot(result: Result<Value>, readPages: ReadonlyDatabasePageSet | null): void;
     destroy(): void;
 };
 
@@ -895,6 +904,13 @@ class DatabaseReactiveFunction<Value> extends Store<Value> {
         } else {
             this.weakImmediateListeners.set(listener, listenerCount);
         }
+    }
+
+    setTrackedSnapshot(result: Result<Value>, readPages: ReadonlyDatabasePageSet | null): void {
+        this.assertNotDestroyed();
+        this.valueResult = result;
+        this.readPages = result.ok ? readPages : null;
+        this.dirty = false;
     }
 
     destroy(): void {

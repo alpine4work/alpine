@@ -670,6 +670,41 @@ describe("registerReactiveAction", () => {
         expect((result.value as {rows: unknown}).rows).toMatchObject([{id: 1, val: "hello"}]);
     });
 
+    test("cache-hit registration and invalidation use one tracked execution each", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+
+        client.executeLocallyForTests("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)");
+        client.commitOptimisticPagesForTests();
+        await execute(client, testConn, "INSERT INTO t (val) VALUES ('v1')");
+
+        const executeActionWithTracking = client.executeActionWithTracking.bind(client);
+        let trackedExecutionCount = 0;
+        client.executeActionWithTracking = ((...args) => {
+            trackedExecutionCount++;
+            return executeActionWithTracking(...args);
+        }) as DatabaseClient["executeActionWithTracking"];
+
+        const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
+        const result = await client.registerReactiveAction(
+            "q1",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t ORDER BY id"}},
+            testConn,
+            output => {
+                notifications.push(output as {rows: ReadonlyArray<Record<string, unknown>>});
+            },
+            () => {},
+        );
+
+        expect(result.ok).toBe(true);
+        expect(trackedExecutionCount).toBe(1);
+
+        await execute(client, testConn, "INSERT INTO t (val) VALUES ('v2')");
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications.length).toBe(1);
+        expect(trackedExecutionCount).toBe(2);
+    });
+
     test("optimistic mutation invalidates overlapping reactive action", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 
