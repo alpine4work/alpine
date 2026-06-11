@@ -4435,12 +4435,7 @@ End of messages.`,
             response: `\
 # Incident Response
 
-[Previous page »](/chat/incident-response?before=2)
-
-<time>May 14th at 11:10am EDT</time>\n
-<message id="2" from="[Alice](/human/alice)">\n\nTest message 2\n\n</message>\n
-<message id="3" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest message 3\n\n</message>\n
-<message id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest message 4\n\n</message>
+[Previous page »](/chat/incident-response?before=5)
 
 End of messages.`,
         },
@@ -4449,37 +4444,7 @@ End of messages.`,
             response: `\
 # Incident Response
 
-<time>May 14th at 11:00am EDT</time>
-
-<message id="0" from="[Alice](/human/alice)">
-
-Test message 0
-
-</message>
-
-<message id="1" from="[Bob](/human/bob)" time="5 minutes later">
-
-Test message 1
-
-</message>
-
-<message id="2" from="[Alice](/human/alice)" time="5 minutes later">
-
-Test message 2
-
-</message>
-
-<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
-
-Test message 3
-
-</message>
-
-<message id="4" from="[Alice](/human/alice)" time="5 minutes later">
-
-Test message 4
-
-</message>
+[Previous page »](/chat/incident-response?before=5)
 
 End of messages.`,
         },
@@ -4494,14 +4459,6 @@ End of messages.`,
                 totalMessageCount: 5,
                 limit: 30,
                 cursor: 85,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                from: "End",
-                totalMessageCount: 5,
-                limit: 30,
                 createMessage: index => createApiMessageMock({index, author}),
             });
 
@@ -4598,7 +4555,7 @@ End of messages.`,
             response: `\
 # Incident Response
 
-[Next page »](/chat/incident-response?after=3)
+[Next page »](/chat/incident-response?after=2)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -4617,12 +4574,6 @@ Test message 1
 <message id="2" from="[Alice](/human/alice)" time="5 minutes later">
 
 Test message 2
-
-</message>
-
-<message id="3" from="[Bob](/human/bob)" time="5 minutes later">
-
-Test message 3
 
 </message>`,
         },
@@ -4676,13 +4627,6 @@ End of messages.`,
                 totalMessageCount: 5,
                 limit: 30,
                 cursor: -115,
-                createMessage: index => createApiMessageMock({index, author}),
-            });
-            mockApiGetChatMessages(api, {
-                spaceId,
-                chatId,
-                totalMessageCount: 5,
-                limit: 30,
                 createMessage: index => createApiMessageMock({index, author}),
             });
 

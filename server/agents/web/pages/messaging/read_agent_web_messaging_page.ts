@@ -403,20 +403,38 @@ export async function readAgentWebMessagingPageAroundMessage<
     assert(around.endMessageIndex > around.startMessageIndex);
 
     assert(Number.isInteger(around.startMessageIndex));
-    assert(around.startMessageIndex >= 0);
-
     assert(Number.isInteger(around.endMessageIndex));
-    assert(around.endMessageIndex >= 0);
 
     const {
-        data: {messages: initialMessages, nextCursor: initialNextCursor},
+        data: {messages: initialMessages, totalMessageCount, nextCursor: initialNextCursor},
     } = await getApiMessagesFromStart(context.span, context.api, room, {
         limit: agentWebMessagingPageApiMessagesBatchCount,
         cursor: getReadAgentWebMessagingPageAroundMessageStartCursor(around),
     });
 
-    // We expect at least one message in `around` to exist.
-    assert(initialMessages.length > 0);
+    if (initialMessages.length === 0) {
+        const {pageLink, preamble} = await getRoomMetadata({
+            isStartOfMessages: false,
+            isEndOfMessages: true,
+        });
+
+        const metadata: AgentWebMessagingPageMetadata = {messages: []};
+
+        return {
+            response: await printPage({
+                preamble,
+                pagination: {
+                    pageLink,
+                    nextLink: null,
+                    previousLink: {type: "Message", beforeMessageIndex: totalMessageCount},
+                },
+                isEndOfMessages: true,
+                blocks: [],
+                metadata,
+            }),
+            metadata,
+        };
+    }
 
     let beforeCursor = initialMessages[0]!.index !== 0 ? initialMessages[0]!.index : null;
     let afterCursor = initialNextCursor;
