@@ -7,6 +7,7 @@ import {
     DatabaseFieldTypeSchema,
     getDatabaseFieldProvider,
 } from "~/shared/databases/fields/database_field_providers.js";
+import type {DatabaseRelationValue} from "~/shared/databases/fields/database_relation_field.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/database_sql_helpers.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
@@ -123,6 +124,19 @@ function readTableDisplayName(db: Database, tableId: DatabaseTableId): string {
         FROM
             ${sql.tableRef(tableId, "_alpine_table")}
     `.selectValue(db, Schema.string);
+}
+
+function listUserTableIds(db: Database): ReadonlyArray<DatabaseTableId> {
+    return sql`
+        SELECT
+            id
+        FROM
+            _alpine_tables
+        WHERE
+            kind = 'table'
+        ORDER BY
+            id
+    `.selectValues(db, Schema.id<DatabaseTableId>());
 }
 
 /**
@@ -564,6 +578,12 @@ function formatNameFieldValue(config: DatabaseFieldConfig, rawValue: unknown): s
     const provider = getDatabaseFieldProvider(config.type);
     assert(provider.storage === "column", "record-name field must be column-backed");
     const value = provider.sqlValueSchema.deserialize(rawValue as SchemaSerializedValue);
+    return formatNameFieldValueFromValue(config, value);
+}
+
+function formatNameFieldValueFromValue(config: DatabaseFieldConfig, value: unknown): string | null {
+    const provider = getDatabaseFieldProvider(config.type);
+    assert(provider.storage === "column", "record-name field must be column-backed");
     const formatted = provider.formatString(value, config);
     return formatted === "" ? null : formatted;
 }
@@ -573,14 +593,21 @@ type DatabaseRelationProjection = {
     nameFieldConfig: DatabaseFieldConfig;
 };
 
+const DatabaseRelationProjectionValueSchema = Schema.array(
+    Schema.object({
+        id: Schema.id<DatabaseRowId>(),
+        name: Schema.unknown(),
+    }),
+);
+
 function parseRelationProjectionValue(
     rawJson: unknown,
     nameFieldConfig: DatabaseFieldConfig,
-): ReadonlyArray<{id: DatabaseRowId; name: string | null}> {
+): DatabaseRelationValue {
     assert(typeof rawJson === "string", "relation projection must be JSON text");
-    const links = JSON.parse(rawJson) as Array<{id: unknown; name: unknown}>;
+    const links = DatabaseRelationProjectionValueSchema.deserialize(JSON.parse(rawJson));
     return links.map(link => ({
-        id: Schema.id<DatabaseRowId>().deserialize(link.id as SchemaSerializedValue),
+        id: link.id,
         name: formatNameFieldValue(nameFieldConfig, link.name),
     }));
 }
@@ -820,17 +847,7 @@ export const databaseActions = {
         }),
         writeLevel: "none",
         run({db}) {
-            const tableIds = sql`
-                SELECT
-                    id
-                FROM
-                    _alpine_tables
-                WHERE
-                    kind = 'table'
-                ORDER BY
-                    id
-            `.selectValues(db, Schema.id<DatabaseTableId>());
-            return {tableIds};
+            return {tableIds: listUserTableIds(db)};
         },
     }),
 
@@ -846,16 +863,7 @@ export const databaseActions = {
         }),
         writeLevel: "none",
         run({db}) {
-            const tableIds = sql`
-                SELECT
-                    id
-                FROM
-                    _alpine_tables
-                WHERE
-                    kind = 'table'
-                ORDER BY
-                    id
-            `.selectValues(db, Schema.id<DatabaseTableId>());
+            const tableIds = listUserTableIds(db);
             return {
                 tables: tableIds.map(tableId => ({
                     id: tableId,
@@ -1305,29 +1313,24 @@ export const databaseActions = {
                 sql`
                     DELETE FROM ${sql.tableRef(relation.joinTableId, "_alpine_links")}
                     WHERE
-                        ${sql.identifier(relation.mineColumnName)} = ${rowId}
-                        AND ${sql.identifier(relation.theirsColumnName)} != ${linkedRowId}
+                        ${qualifiedIdentifier("_alpine_links", relation.mineColumnName)} = ${rowId}
+                        AND ${qualifiedIdentifier(
+                        "_alpine_links",
+                        relation.theirsColumnName,
+                    )} != ${linkedRowId}
                 `.exec(db);
             }
 
             sql`
-                INSERT INTO
+                INSERT OR IGNORE INTO
                     ${sql.tableRef(
                     relation.joinTableId,
                     "_alpine_links",
                 )} (source_row_id, target_row_id)
-                SELECT
-                    ${relation.sourceRowId},
-                    ${relation.targetRowId}
-                WHERE
-                    NOT EXISTS (
-                        SELECT
-                            1
-                        FROM
-                            ${sql.tableRef(relation.joinTableId, "_alpine_links")}
-                        WHERE
-                            ${sql.identifier(relation.mineColumnName)} = ${rowId}
-                            AND ${sql.identifier(relation.theirsColumnName)} = ${linkedRowId}
+                VALUES
+                    (
+                        ${relation.sourceRowId},
+                        ${relation.targetRowId}
                     )
             `.exec(db);
 
@@ -1350,8 +1353,11 @@ export const databaseActions = {
             sql`
                 DELETE FROM ${sql.tableRef(relation.joinTableId, "_alpine_links")}
                 WHERE
-                    ${sql.identifier(relation.mineColumnName)} = ${rowId}
-                    AND ${sql.identifier(relation.theirsColumnName)} = ${linkedRowId}
+                    ${qualifiedIdentifier("_alpine_links", relation.mineColumnName)} = ${rowId}
+                    AND ${qualifiedIdentifier(
+                    "_alpine_links",
+                    relation.theirsColumnName,
+                )} = ${linkedRowId}
             `.exec(db);
 
             return {};
@@ -1377,6 +1383,11 @@ export const databaseActions = {
             const relation = resolveRelationField(db, {tableId, fieldId});
             assertRelationEndpointExists(db, {tableId, rowId, message: "row not found"});
             const linkedNameField = readNameFieldReference(db, relation.linkedTableId);
+            const linkedNameProvider = getDatabaseFieldProvider(linkedNameField.config.type);
+            assert(
+                linkedNameProvider.storage === "column",
+                "record-name field must be column-backed",
+            );
             const rows = sql`
                 SELECT
                     linked_row._id,
@@ -1402,12 +1413,15 @@ export const databaseActions = {
                 ORDER BY
                     linked_row._created_at DESC,
                     linked_row._id DESC
-            `.selectAllUnknown(db);
+            `.selectAll(db, {
+                id: Schema.id<DatabaseRowId>().originalPropertyKey("_id"),
+                nameValue: linkedNameProvider.sqlValueSchema.originalPropertyKey("name_value"),
+            });
 
             return {
                 rows: rows.map(row => ({
-                    id: Schema.id<DatabaseRowId>().deserialize(row._id as SchemaSerializedValue),
-                    name: formatNameFieldValue(linkedNameField.config, row.name_value),
+                    id: row.id,
+                    name: formatNameFieldValueFromValue(linkedNameField.config, row.nameValue),
                 })),
             };
         },

@@ -162,7 +162,7 @@ describe("sqlite migrations", () => {
         db.close();
     });
 
-    test("join table migration creates metadata, links, and non-unique link indexes", async () => {
+    test("join table migration creates metadata, links, and unique link pairs", async () => {
         const db = await createDb();
         const joinTableId = generateChronologicalId<DatabaseTableId>();
         const sourceTableId = generateChronologicalId<DatabaseTableId>();
@@ -199,12 +199,19 @@ describe("sqlite migrations", () => {
                 (
                     ${sourceRowId},
                     ${targetRowId}
-                ),
-                (
-                    ${sourceRowId},
-                    ${targetRowId}
                 )
         `.exec(db);
+        expect(() =>
+            sql`
+                INSERT INTO
+                    ${sql.tableRef(joinTableId, "_alpine_links")} (source_row_id, target_row_id)
+                VALUES
+                    (
+                        ${sourceRowId},
+                        ${targetRowId}
+                    )
+            `.exec(db),
+        ).toThrow("UNIQUE constraint failed: _alpine_links.source_row_id");
 
         const linkCount = sql`
             SELECT
@@ -218,12 +225,15 @@ describe("sqlite migrations", () => {
 
         expect({
             linkCount,
-            indexNames: indexes.map(index => index.name).sort(),
-            uniqueFlags: indexes.map(index => index.unique),
+            nonUniqueIndexNames: indexes
+                .filter(index => index.unique === 0)
+                .map(index => index.name)
+                .sort(),
+            hasUniqueLinkPairIndex: indexes.some(index => index.unique === 1),
         }).toMatchObject({
-            linkCount: 2,
-            indexNames: ["_alpine_links_source", "_alpine_links_target"],
-            uniqueFlags: [0, 0],
+            linkCount: 1,
+            nonUniqueIndexNames: ["_alpine_links_source", "_alpine_links_target"],
+            hasUniqueLinkPairIndex: true,
         });
         db.close();
     });

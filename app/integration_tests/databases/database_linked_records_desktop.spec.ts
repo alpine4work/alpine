@@ -21,18 +21,18 @@ test("can create and update linked records", async ({page, context: browserConte
     await expect(companyPage.getByRole("button", {name: "People", exact: true})).toBeVisible();
 
     await page.bringToFront();
-    const companyCell = page.getByRole("button", {name: "Company cell"});
+    const companyCell = databaseGridViewCell(page, "Company");
     const acmeOption = await openRelationOption(page, companyCell, "Link Acme");
     await acmeOption.dispatchEvent("click");
     await page.keyboard.press("Escape");
 
     await expect(companyCell).toContainText("Acme");
-    const peopleCell = companyPage.getByRole("button", {name: "People cell"});
+    const peopleCell = databaseGridViewCell(companyPage, "People");
     await expect(peopleCell).toContainText("Alice");
 
     await renameFirstNameCell(companyPage, "OpenAI");
 
-    await expect(companyPage.getByRole("button", {name: "Name cell"})).toContainText("OpenAI");
+    await expect(databaseGridViewCell(companyPage, "Name")).toContainText("OpenAI");
     await expect(companyCell).toContainText("OpenAI");
     await expect(companyCell).not.toContainText("Acme");
 });
@@ -52,7 +52,7 @@ async function createDatabaseWithRow(
     await newRowButton.click();
     await page.reload();
 
-    await page.getByRole("button", {name: "Name cell"}).click();
+    await databaseGridViewCell(page, "Name").click();
     await fillOpenCellEditor(page, rowName);
     await expect(page.getByText(rowName, {exact: true})).toBeVisible();
 
@@ -75,8 +75,12 @@ async function createRelationField(page: Page, fieldName: string, linkedTableNam
 }
 
 async function renameFirstNameCell(page: Page, value: string) {
-    await page.getByRole("button", {name: "Name cell"}).click();
+    await databaseGridViewCell(page, "Name").click();
     await fillOpenCellEditor(page, value);
+}
+
+function databaseGridViewCell(page: Page, fieldName: string): Locator {
+    return page.locator(`[data-testid="DatabaseGridViewCell"][data-field-name="${fieldName}"]`);
 }
 
 async function openRelationOption(page: Page, cell: Locator, optionName: string): Promise<Locator> {

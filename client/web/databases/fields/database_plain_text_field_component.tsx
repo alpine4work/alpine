@@ -15,16 +15,13 @@ import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database
 
 function DatabasePlainTextGridViewCellContent({
     ref,
-    fieldName,
     value,
     onCellClick,
 }: DatabaseGridViewCellContentProps<"plainText">) {
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}
-            role="button"
-            aria-label={`${fieldName} cell`}
-            tabIndex={0}
+            tabIndex={-1}
             height="full"
             display="flex"
             alignItems="center"

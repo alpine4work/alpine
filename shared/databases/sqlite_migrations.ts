@@ -169,6 +169,7 @@ export const joinTableSqliteMigrations: ReadonlyArray<TableSqliteMigration> = [
                 source_row_id TEXT NOT NULL,
                 target_row_id TEXT NOT NULL,
                 _created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+                UNIQUE (source_row_id, target_row_id),
                 CHECK (is_id (source_row_id)),
                 CHECK (is_id (target_row_id)),
                 CHECK (DATETIME(_created_at) IS NOT NULL)

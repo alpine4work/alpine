@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- provider pattern */
 
 import {LinkSimple, Plus, X} from "phosphor-react";
-import {startTransition} from "react";
+import {startTransition, useEffect} from "react";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {
@@ -11,13 +11,13 @@ import {
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
+import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
 
 function DatabaseRelationGridViewCellContent({
     ref,
-    fieldName,
     value,
     onCellClick,
 }: DatabaseGridViewCellContentProps<"relation">) {
@@ -25,9 +25,7 @@ function DatabaseRelationGridViewCellContent({
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}
-            role="button"
-            aria-label={`${fieldName} cell`}
-            tabIndex={0}
+            tabIndex={-1}
             height="full"
             display="flex"
             alignItems="center"
@@ -57,11 +55,21 @@ function DatabaseRelationGridViewCellEditorOverlay({
     onClose,
 }: DatabaseGridViewCellEditorOverlayProps<"relation">) {
     const conn = useDatabaseConnection();
+    const reporter = useReporter();
     const linkableRowsResult = useReactiveDatabaseAction({
         name: "listLinkableRows",
         input: {tableId, fieldId, rowId},
     });
     const links = Array.isArray(initialValue) ? initialValue : [];
+
+    useEffect(() => {
+        if (linkableRowsResult != null && !linkableRowsResult.ok) {
+            reporter.logErrorWithoutDisplaying(
+                "Could not load linked record options",
+                linkableRowsResult.error,
+            );
+        }
+    }, [linkableRowsResult, reporter]);
 
     const addLink = useEvent((linkedRowId: DatabaseRowId) => {
         startTransition(async () => {
@@ -113,7 +121,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                     ))
                 ) : (
                     <Box padding="1.5" fontSize="75" color="grey-50">
-                        {linkableRowsResult.error}
+                        Could not load records
                     </Box>
                 )}
             </Box>

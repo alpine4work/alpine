@@ -15,7 +15,6 @@ export const databaseCheckboxFieldComponentProvider = defineDatabaseFieldCompone
         Icon: CheckSquare,
         GridViewCellContent: function DatabaseCheckboxGridViewCellContent({
             ref,
-            fieldName,
             value,
             commitValue,
         }: DatabaseGridViewCellContentProps<"checkbox">) {
@@ -28,9 +27,7 @@ export const databaseCheckboxFieldComponentProvider = defineDatabaseFieldCompone
             return (
                 <Box
                     ref={ref as React.Ref<HTMLDivElement>}
-                    role="button"
-                    aria-label={`${fieldName} cell`}
-                    tabIndex={0}
+                    tabIndex={-1}
                     display="flex"
                     alignItems="center"
                     justifyContent="center"
