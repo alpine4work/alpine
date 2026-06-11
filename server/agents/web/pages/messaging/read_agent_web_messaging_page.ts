@@ -654,7 +654,7 @@ function buildAgentWebMessagingPageFromApiMessages<
     // Flush any remaining block
     flushCurrentBlock();
 
-    let pagination: AgentWebMessagingPagePagination | null = null;
+    let pagination: AgentWebMessagingPagePagination<CustomBlock> | null = null;
 
     if (messages.length > 0) {
         switch (direction) {
@@ -663,7 +663,10 @@ function buildAgentWebMessagingPageFromApiMessages<
                     pagination = {
                         pageLink: roomMetadata.pageLink,
                         previousLink: null,
-                        nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
+                        nextLink: {
+                            type: "Message",
+                            afterMessageIndex: messages[messages.length - 1]!.index,
+                        },
                     };
                 }
                 break;
@@ -672,7 +675,10 @@ function buildAgentWebMessagingPageFromApiMessages<
                 if (!isStartOfMessages) {
                     pagination = {
                         pageLink: roomMetadata.pageLink,
-                        previousLink: {beforeMessageIndex: messages[0]!.index},
+                        previousLink: {
+                            type: "Message",
+                            beforeMessageIndex: messages[0]!.index,
+                        },
                         nextLink: null,
                     };
                 }
@@ -682,19 +688,31 @@ function buildAgentWebMessagingPageFromApiMessages<
                 if (!isEndOfMessages && !isStartOfMessages) {
                     pagination = {
                         pageLink: roomMetadata.pageLink,
-                        previousLink: {beforeMessageIndex: messages[0]!.index},
-                        nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
+                        previousLink: {
+                            type: "Message",
+                            beforeMessageIndex: messages[0]!.index,
+                        },
+                        nextLink: {
+                            type: "Message",
+                            afterMessageIndex: messages[messages.length - 1]!.index,
+                        },
                     };
                 } else if (!isEndOfMessages) {
                     pagination = {
                         pageLink: roomMetadata.pageLink,
                         previousLink: null,
-                        nextLink: {afterMessageIndex: messages[messages.length - 1]!.index},
+                        nextLink: {
+                            type: "Message",
+                            afterMessageIndex: messages[messages.length - 1]!.index,
+                        },
                     };
                 } else if (!isStartOfMessages) {
                     pagination = {
                         pageLink: roomMetadata.pageLink,
-                        previousLink: {beforeMessageIndex: messages[0]!.index},
+                        previousLink: {
+                            type: "Message",
+                            beforeMessageIndex: messages[0]!.index,
+                        },
                         nextLink: null,
                     };
                 }
