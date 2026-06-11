@@ -39,9 +39,15 @@ import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_fu
 import {installTracing} from "~/shared/databases/sqlite_tracing.js";
 import {TableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
+import {InternalError} from "~/shared/error/error.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {storeUpdatesBatch} from "~/shared/store/batch_store_updates.js";
+import {Store} from "~/shared/store/store.js";
 
 const vfsNamePrefix = "alpine-database";
 let vfsCounter = 0;
@@ -126,6 +132,10 @@ export interface DatabaseExecuteActionResult<N extends DatabaseActionName> {
     readonly writtenPages: ReadonlyDatabasePageSet;
 }
 
+export type DatabaseReactive<Value> = Store<Value> & {
+    destroy(): void;
+};
+
 /**
  * SQLite database that buffers writes in memory.
  *
@@ -161,6 +171,7 @@ export class Database {
     private writeLevel: InternalSqliteWriteLevel | null = null;
     private currentReadSet: Map<DatabaseTableId, Set<number>> | null = null;
     private currentWriteSet: Map<DatabaseTableId, Set<number>> | null = null;
+    private readonly reactiveFunctions = new Set<DatabaseReactiveFunction<any>>();
     /**
      * Server-only action capabilities, or `null` on the client. Lets server-only
      * schema actions (e.g. createTable) attach their own per-table file mid-execute;
@@ -302,6 +313,36 @@ export class Database {
     }
 
     /**
+     * Create a lazy reactive function backed by database page dependencies.
+     *
+     * The function runs under read-only database permissions the first time
+     * `getSnapshot()` or `addListener()` needs to establish dependencies. Later page
+     * writes only mark the function dirty and notify listeners; the function is not
+     * re-run until the next `getSnapshot()`.
+     */
+    createReactive<Value>(fn: () => Value): DatabaseReactive<Value> {
+        const reactive = new DatabaseReactiveFunction(
+            fn,
+            this.runReactiveFunction,
+            this.recordReactiveReadPages,
+            value => {
+                this.reactiveFunctions.delete(value);
+            },
+        );
+        this.reactiveFunctions.add(reactive);
+        return reactive;
+    }
+
+    /**
+     * Notify database reactive functions that pages changed outside this `Database`'s
+     * VFS write path, for example when a client applies realtime page diffs directly
+     * to its storage cache.
+     */
+    invalidatePages(writtenPages: ReadonlyDatabasePageSet): void {
+        this.invalidateReactiveFunctions(writtenPages);
+    }
+
+    /**
      * Refresh query-planner statistics after a schema change. Only the canonical
      * (server) database does this — a client running `PRAGMA optimize` would just
      * produce `sqlite_stat` writes that diverge from the server and create rebase
@@ -365,9 +406,17 @@ export class Database {
      * read-only storage. No SQLite cache invalidation is needed because the pager
      * cache already holds the same after-image the caller just persisted.
      */
-    markCommitted(): void {
+    markCommitted(options?: {skipReactiveInvalidationForTests?: boolean}): void {
+        const buffered = this.getBufferedWrites();
         for (const state of this.tables.values()) {
             state.reset();
+        }
+        if (options?.skipReactiveInvalidationForTests === true) {
+            assert(import.meta.jest, "skipReactiveInvalidationForTests is test-only");
+            return;
+        }
+        if (buffered !== null) {
+            this.invalidateReactiveFunctions(pageIndexesForBufferedPages(buffered.pages));
         }
     }
 
@@ -499,14 +548,24 @@ export class Database {
         readPages: Map<DatabaseTableId, Set<number>>;
         writtenPages: Map<DatabaseTableId, Set<number>>;
     } {
-        assert(this.writeLevel === null, "nested execute calls are not supported");
+        assertNestedWriteLevelIsAllowed(this.writeLevel, writeLevel);
         const readPages = new Map<DatabaseTableId, Set<number>>();
         const writtenPages = new Map<DatabaseTableId, Set<number>>();
+        const parentReadSet = this.currentReadSet;
+        const parentWriteSet = this.currentWriteSet;
+        const previousWriteLevel = this.writeLevel;
+        const isTopLevel = previousWriteLevel === null;
         this.writeLevel = writeLevel;
         this.currentReadSet = readPages;
         this.currentWriteSet = writtenPages;
         try {
             const result = fn(this.db);
+            if (parentReadSet !== null) {
+                mergeTablePageSets(parentReadSet, readPages);
+            }
+            if (parentWriteSet !== null) {
+                mergeTablePageSets(parentWriteSet, writtenPages);
+            }
             return {result, readPages, writtenPages};
         } catch (error) {
             const stashed = this.vfs.takeError();
@@ -536,11 +595,36 @@ export class Database {
             }
             throw error;
         } finally {
-            this.writeLevel = null;
-            this.currentReadSet = null;
-            this.currentWriteSet = null;
-            this.vfs.takeError();
-            this.tempFiles.clear();
+            this.writeLevel = previousWriteLevel;
+            this.currentReadSet = parentReadSet;
+            this.currentWriteSet = parentWriteSet;
+            if (isTopLevel) {
+                this.vfs.takeError();
+                this.tempFiles.clear();
+            }
+        }
+    }
+
+    private readonly runReactiveFunction = <Value>(
+        fn: () => Value,
+    ): {result: Result<Value>; readPages: ReadonlyDatabasePageSet} => {
+        const {result, readPages, writtenPages} = this.runTracked("none", () => captureResult(fn));
+        assert(writtenPages.size === 0, "reactive database functions must be read-only");
+        return {result, readPages};
+    };
+
+    private readonly recordReactiveReadPages = (
+        readPages: ReadonlyDatabasePageSet | null,
+    ): void => {
+        if (readPages !== null && this.currentReadSet !== null) {
+            mergeTablePageSets(this.currentReadSet, readPages);
+        }
+    };
+
+    private invalidateReactiveFunctions(writtenPages: ReadonlyDatabasePageSet): void {
+        if (writtenPages.size === 0) return;
+        for (const reactive of this.reactiveFunctions) {
+            reactive.invalidateForPages(writtenPages);
         }
     }
 
@@ -672,6 +756,200 @@ function addToTablePageSet(
     pageIndex: number,
 ): void {
     getOrSetDefaultMapValue(target, tableId, () => new Set<number>()).add(pageIndex);
+}
+
+function mergeTablePageSets(
+    target: Map<DatabaseTableId, Set<number>>,
+    source: ReadonlyDatabasePageSet,
+): void {
+    for (const [tableId, pages] of source) {
+        const targetPages = getOrSetDefaultMapValue(target, tableId, () => new Set<number>());
+        for (const page of pages) {
+            targetPages.add(page);
+        }
+    }
+}
+
+function pageSetsOverlap(
+    readPages: ReadonlyDatabasePageSet,
+    writtenPages: ReadonlyDatabasePageSet,
+): boolean {
+    for (const [tableId, readSet] of readPages) {
+        const writes = writtenPages.get(tableId);
+        if (writes === undefined) continue;
+        for (const page of readSet) {
+            if (writes.has(page)) return true;
+        }
+    }
+    return false;
+}
+
+function pageIndexesForBufferedPages(
+    pages: ReadonlyMap<DatabaseTableId, ReadonlyMap<number, Uint8Array>>,
+): ReadonlyDatabasePageSet {
+    const result = new Map<DatabaseTableId, Set<number>>();
+    for (const [tableId, tablePages] of pages) {
+        result.set(tableId, new Set(tablePages.keys()));
+    }
+    return result;
+}
+
+function assertNestedWriteLevelIsAllowed(
+    outerWriteLevel: InternalSqliteWriteLevel | null,
+    innerWriteLevel: SqliteWriteLevel,
+): void {
+    if (outerWriteLevel === null) return;
+    assert(
+        writeLevelRank(innerWriteLevel) <= writeLevelRank(outerWriteLevel),
+        "nested execute cannot use broader write permissions than its parent",
+    );
+}
+
+function writeLevelRank(writeLevel: InternalSqliteWriteLevel): number {
+    switch (writeLevel) {
+        case "none":
+            return 0;
+        case "data":
+            return 1;
+        case "schema+data":
+            return 2;
+        case "attach":
+            return 3;
+    }
+}
+
+class DatabaseReactiveFunction<Value> extends Store<Value> {
+    private valueResult: Result<Value> | null = null;
+    private readPages: ReadonlyDatabasePageSet | null = null;
+    private dirty = false;
+    private computing = false;
+    private destroyed = false;
+    private readonly listeners = new Map<() => void, number>();
+    private readonly weakImmediateListeners = new Map<() => void, number>();
+
+    constructor(
+        private readonly fn: () => Value,
+        private readonly run: (fn: () => Value) => {
+            result: Result<Value>;
+            readPages: ReadonlyDatabasePageSet;
+        },
+        private readonly recordReadPages: (readPages: ReadonlyDatabasePageSet | null) => void,
+        private readonly unregister: (value: DatabaseReactiveFunction<Value>) => void,
+    ) {
+        super();
+    }
+
+    override isFinal(): boolean {
+        return this.destroyed;
+    }
+
+    readonly getSnapshot = (): Value => {
+        this.assertNotDestroyed();
+
+        if (this.valueResult === null || this.dirty) {
+            this.recompute();
+        } else {
+            this.recordReadPages(this.readPages);
+        }
+
+        return unwrapResult(this.valueResult!);
+    };
+
+    addListener(listener: () => void): void {
+        this.assertNotDestroyed();
+        const listenerCount = (this.listeners.get(listener) ?? 0) + 1;
+        this.listeners.set(listener, listenerCount);
+
+        if (this.valueResult === null) {
+            this.recompute();
+        }
+    }
+
+    removeListener(listener: () => void): void {
+        this.assertNotDestroyed();
+        const listenerCount = (this.listeners.get(listener) ?? 0) - 1;
+        if (listenerCount < 0) {
+            throw new InternalError("Can\u2019t remove listener that wasn\u2019t added to store");
+        } else if (listenerCount === 0) {
+            this.listeners.delete(listener);
+        } else {
+            this.listeners.set(listener, listenerCount);
+        }
+    }
+
+    _addWeakImmediateListener(listener: () => void): void {
+        this.assertNotDestroyed();
+        const listenerCount = (this.weakImmediateListeners.get(listener) ?? 0) + 1;
+        this.weakImmediateListeners.set(listener, listenerCount);
+    }
+
+    _removeWeakImmediateListener(listener: () => void): void {
+        this.assertNotDestroyed();
+        const listenerCount = (this.weakImmediateListeners.get(listener) ?? 0) - 1;
+        if (listenerCount < 0) {
+            throw new InternalError(
+                "Can\u2019t remove weak immediate listener that wasn\u2019t added to store",
+            );
+        } else if (listenerCount === 0) {
+            this.weakImmediateListeners.delete(listener);
+        } else {
+            this.weakImmediateListeners.set(listener, listenerCount);
+        }
+    }
+
+    destroy(): void {
+        if (this.destroyed) return;
+        this.destroyed = true;
+        this.listeners.clear();
+        this.weakImmediateListeners.clear();
+        this.unregister(this);
+    }
+
+    invalidateForPages(writtenPages: ReadonlyDatabasePageSet): void {
+        if (this.destroyed || this.valueResult === null) return;
+        if (this.readPages !== null && !pageSetsOverlap(this.readPages, writtenPages)) return;
+        this.dirty = true;
+        this.callListeners();
+    }
+
+    private recompute(): void {
+        assert(!this.computing, "reactive database function cannot read itself");
+        this.computing = true;
+        try {
+            const {result, readPages} = this.run(this.fn);
+            this.valueResult = result;
+            this.readPages = result.ok ? readPages : null;
+            this.dirty = false;
+        } finally {
+            this.computing = false;
+        }
+    }
+
+    private callListeners(): void {
+        for (const listener of this.weakImmediateListeners.keys()) {
+            try {
+                listener();
+            } catch (error) {
+                scheduleUncaughtError(error);
+            }
+        }
+
+        for (const listener of this.listeners.keys()) {
+            if (storeUpdatesBatch !== null) {
+                storeUpdatesBatch.listeners.add(listener);
+            } else {
+                try {
+                    listener();
+                } catch (error) {
+                    scheduleUncaughtError(error);
+                }
+            }
+        }
+    }
+
+    private assertNotDestroyed(): void {
+        assert(!this.destroyed, "reactive database function has been destroyed");
+    }
 }
 
 // SQLite reports a reference to an unattached per-db file in one of two shapes,

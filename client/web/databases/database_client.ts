@@ -1,7 +1,11 @@
 import type {OpfsDirectoryHandle} from "~/client/web/databases/opfs.js";
 import {OpfsDatabaseStorage} from "~/client/web/databases/opfs_database_storage.js";
 import type {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
-import {Database, type DatabaseExecuteActionResult} from "~/shared/databases/database.js";
+import {
+    Database,
+    type DatabaseExecuteActionResult,
+    type DatabaseReactive,
+} from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
     type DatabaseActionObject,
@@ -324,12 +328,7 @@ export class DatabaseClient {
     private readonly reactiveActions = new Map<
         string,
         {
-            readonly actionObject: DatabaseActionObject;
-            readPages: ReadonlyDatabasePageSet | null;
-            readonly conn: DatabaseClientConnection;
-            readonly notify: (output: DatabaseActionOutput<DatabaseActionName>) => void;
-            readonly reportError: (error: unknown) => void;
-            reExecuting: boolean;
+            readonly reactive: DatabaseReactive<DatabaseActionOutput<DatabaseActionName>>;
         }
     >();
     private pagesToInvalidate = new Map<DatabaseTableId, Set<number>>();
@@ -354,26 +353,50 @@ export class DatabaseClient {
             databaseActions[actionObject.name].writeLevel === "none",
             "reactive actions must have writeLevel \u2018none\u2019",
         );
+        this.unregisterReactiveAction(id);
+
+        const reactive = this.database.createReactive(
+            () => this.executeReadOnly(actionObject).output,
+        );
+        let reExecuting = false;
+        const listener = () => {
+            if (reExecuting) return;
+            reExecuting = true;
+            void (async () => {
+                try {
+                    notify(reactive.getSnapshot() as DatabaseActionOutput<N>);
+                } catch {
+                    try {
+                        const {readPages} = await this.executeActionWithTracking(
+                            conn,
+                            actionObject,
+                        );
+                        this.database.invalidatePages(readPages);
+                        notify(reactive.getSnapshot() as DatabaseActionOutput<N>);
+                    } catch (error) {
+                        reportError(error);
+                    }
+                } finally {
+                    reExecuting = false;
+                }
+            })();
+        };
+
         try {
-            const {output, readPages} = await this.executeActionWithTracking(conn, actionObject);
-            this.reactiveActions.set(id, {
-                actionObject,
-                readPages,
-                conn,
-                notify: notify as (output: DatabaseActionOutput<DatabaseActionName>) => void,
-                reportError,
-                reExecuting: false,
-            });
-            return {ok: true, value: output};
+            // Use the existing async fallback path to fetch missing pages and attach cached
+            // per-table files before the synchronous reactive function runs.
+            await this.executeActionWithTracking(conn, actionObject);
+        } catch {
+            // The reactive store still registers failed computations with an unknown
+            // dependency set, so any later page write retries the action.
+        }
+
+        reactive.addListener(listener);
+        this.reactiveActions.set(id, {reactive});
+
+        try {
+            return {ok: true, value: reactive.getSnapshot() as DatabaseActionOutput<N>};
         } catch (error) {
-            this.reactiveActions.set(id, {
-                actionObject,
-                readPages: null,
-                conn,
-                notify: notify as (output: DatabaseActionOutput<DatabaseActionName>) => void,
-                reportError,
-                reExecuting: false,
-            });
             return {ok: false, error};
         }
     }
@@ -382,6 +405,9 @@ export class DatabaseClient {
      * Unregister a reactive action. Stops future invalidation notifications.
      */
     unregisterReactiveAction(id: string): void {
+        const reactiveAction = this.reactiveActions.get(id);
+        if (reactiveAction === undefined) return;
+        reactiveAction.reactive.destroy();
         this.reactiveActions.delete(id);
     }
 
@@ -392,31 +418,8 @@ export class DatabaseClient {
             this.invalidationScheduled = false;
             const pages = this.pagesToInvalidate;
             this.pagesToInvalidate = new Map();
-            void this.checkInvalidation(pages);
+            this.database.invalidatePages(pages);
         });
-    }
-
-    private async checkInvalidation(writtenPages: ReadonlyDatabasePageSet): Promise<void> {
-        for (const [, reg] of this.reactiveActions) {
-            if (reg.reExecuting) continue;
-
-            const overlaps = reg.readPages === null || pageSetsOverlap(reg.readPages, writtenPages);
-            if (!overlaps) continue;
-
-            reg.reExecuting = true;
-            try {
-                const {output, readPages} = await this.executeActionWithTracking(
-                    reg.conn,
-                    reg.actionObject,
-                );
-                reg.readPages = readPages;
-                reg.notify(output);
-            } catch (error) {
-                reg.reportError(error);
-            } finally {
-                reg.reExecuting = false;
-            }
-        }
     }
 
     // -- Page writes ---------------------------------------------------------
@@ -716,7 +719,7 @@ export class DatabaseClient {
                 store.sync();
             }
         }
-        this.database.markCommitted();
+        this.database.markCommitted({skipReactiveInvalidationForTests: true});
     }
 
     /** Exposed for tests only. Do not use in production code. */
@@ -724,22 +727,4 @@ export class DatabaseClient {
         assert(import.meta.jest);
         return this.database.unsafeGetDbForTests();
     }
-}
-
-/**
- * Whether any page in `readPages` (per table) was also written in `writtenPages`.
- * Used to decide if a reactive action's result is stale.
- */
-function pageSetsOverlap(
-    readPages: ReadonlyDatabasePageSet,
-    writtenPages: ReadonlyDatabasePageSet,
-): boolean {
-    for (const [tableId, readSet] of readPages) {
-        const writes = writtenPages.get(tableId);
-        if (writes === undefined) continue;
-        for (const page of readSet) {
-            if (writes.has(page)) return true;
-        }
-    }
-    return false;
 }

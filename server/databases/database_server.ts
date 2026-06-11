@@ -1,6 +1,6 @@
 import type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {DatabaseServerStorage} from "~/server/databases/database_server_storage.js";
-import {Database} from "~/shared/databases/database.js";
+import {Database, type DatabaseReactive} from "~/shared/databases/database.js";
 import type {
     DatabaseActionName,
     DatabaseActionObject,
@@ -87,6 +87,10 @@ export class DatabaseServer {
         changedPages: DatabaseServerChangedPages;
     } {
         return this._runAndPersist(() => this.database.executeAction(actionObject));
+    }
+
+    createReactive<Value>(fn: () => Value): DatabaseReactive<Value> {
+        return this.database.createReactive(fn);
     }
 
     close(): void {

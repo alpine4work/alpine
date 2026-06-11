@@ -217,6 +217,202 @@ describe("Database — execute", () => {
     });
 });
 
+describe("Database — createReactive", () => {
+    test("does not run the function until snapshot is read", async () => {
+        const {database} = await createDatabaseWithSchema(sql`
+            CREATE TABLE items (id INTEGER PRIMARY KEY)
+        `);
+        let runCount = 0;
+
+        const reactive = database.createReactive(() => {
+            runCount++;
+            return database.executeSql(
+                sql`
+                    SELECT
+                        COUNT(*) AS count
+                    FROM
+                        items
+                `,
+                {
+                    allowWrites: "none",
+                },
+            ).rows[0]!.count;
+        });
+
+        expect(runCount).toBe(0);
+        expect(reactive.getSnapshot()).toBe(0);
+        expect(runCount).toBe(1);
+        reactive.destroy();
+    });
+
+    test("notifies listeners eagerly but recomputes lazily", async () => {
+        const {database} = await createDatabaseWithSchema(
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`,
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (1, 'before')
+            `,
+        );
+        let runCount = 0;
+        let listenerCount = 0;
+
+        const reactive = database.createReactive(() => {
+            runCount++;
+            return database.executeSql(
+                sql`
+                    SELECT
+                        name
+                    FROM
+                        items
+                    WHERE
+                        id = 1
+                `,
+                {
+                    allowWrites: "none",
+                },
+            ).rows[0]!.name;
+        });
+        reactive.addListener(() => {
+            listenerCount++;
+        });
+        const invalidatedPages = database.executeSql(
+            sql`
+                SELECT
+                    name
+                FROM
+                    items
+                WHERE
+                    id = 1
+            `,
+            {
+                allowWrites: "none",
+            },
+        ).readPages;
+
+        expect(runCount).toBe(1);
+        database.executeSql(
+            sql`
+                UPDATE items
+                SET
+                    name = 'after'
+                WHERE
+                    id = 1
+            `,
+            {
+                allowWrites: "data",
+            },
+        );
+        database.invalidatePages(invalidatedPages);
+
+        expect(listenerCount).toBe(1);
+        expect(runCount).toBe(1);
+        expect(reactive.getSnapshot()).toBe("after");
+        expect(runCount).toBe(2);
+        reactive.destroy();
+    });
+
+    test("supports actions inside reactive functions", async () => {
+        const {database} = await createDatabaseWithSchema(
+            sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`,
+            sql`
+                INSERT INTO
+                    items
+                VALUES
+                    (1)
+            `,
+        );
+
+        const reactive = database.createReactive(
+            () =>
+                database.executeAction({
+                    name: "readonlyRawSql",
+                    input: {sql: "SELECT COUNT(*) AS count FROM items"},
+                }).result.rows[0] as {count: number},
+        );
+
+        expect(reactive.getSnapshot()).toEqual({count: 1});
+        reactive.destroy();
+    });
+
+    test("supports reactive functions inside write executions", async () => {
+        const {database, storage} = await createDatabaseWithSchema(
+            sql`CREATE TABLE source (id INTEGER PRIMARY KEY)`,
+            sql`CREATE TABLE destination (value INTEGER NOT NULL)`,
+            sql`
+                INSERT INTO
+                    source
+                VALUES
+                    (1)
+            `,
+        );
+        const reactive = database.createReactive(
+            () =>
+                database.executeSql(
+                    sql`
+                        SELECT
+                            COUNT(*) AS count
+                        FROM
+                            source
+                    `,
+                    {
+                        allowWrites: "none",
+                    },
+                ).rows[0]!.count as number,
+        );
+
+        database.execute(
+            db => {
+                const count = reactive.getSnapshot();
+                sql`
+                    INSERT INTO
+                        destination
+                    VALUES
+                        (${count})
+                `.exec(db);
+            },
+            {allowWrites: "data"},
+        );
+        commit(database, storage);
+
+        expect(
+            database.executeSql(
+                sql`
+                    SELECT
+                        value
+                    FROM
+                        destination
+                `,
+                {allowWrites: "none"},
+            ).rows,
+        ).toEqual([{value: 1}]);
+        reactive.destroy();
+    });
+
+    test("rejects writes from reactive functions", async () => {
+        const {database} = await createDatabaseWithSchema(sql`
+            CREATE TABLE items (id INTEGER PRIMARY KEY)
+        `);
+        const reactive = database.createReactive(() => {
+            database.executeSql(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
+                {allowWrites: "data"},
+            );
+        });
+
+        expect(() => reactive.getSnapshot()).toThrow(
+            "nested execute cannot use broader write permissions than its parent",
+        );
+        reactive.destroy();
+    });
+});
+
 describe("Database — authorizer", () => {
     test("rejects DDL when allowWrites=data", async () => {
         const {database} = await createDatabase();
@@ -630,7 +826,7 @@ describe("Database — error handling", () => {
         expect(after.rows).toEqual([{id: 1}, {id: 2}]);
     });
 
-    test("nested execute calls assert", async () => {
+    test("nested read-only execute calls are tracked", async () => {
         const {database} = await createDatabaseWithSchema(sql`
             CREATE TABLE items (id INTEGER PRIMARY KEY)
         `);
@@ -639,12 +835,42 @@ describe("Database — error handling", () => {
         // Trigger a re-entrant execute by registering a SQLite function that calls
         // execute() again.
         innerDb.createFunction("reenter", () => {
-            database.executeSql(
+            const result = database.executeSql(
                 sql`
                     SELECT
                         1
                 `,
                 {allowWrites: "none"},
+            );
+            return (result.rows[0] as Record<string, unknown>)["1"];
+        });
+
+        expect(
+            database.executeSql(
+                sql`
+                    SELECT
+                        reenter () AS value
+                `,
+                {allowWrites: "none"},
+            ).rows,
+        ).toEqual([{value: 1}]);
+    });
+
+    test("nested execute cannot broaden write permissions", async () => {
+        const {database} = await createDatabaseWithSchema(sql`
+            CREATE TABLE items (id INTEGER PRIMARY KEY)
+        `);
+        const innerDb = database.unsafeGetDbForTests();
+
+        innerDb.createFunction("reenter", () => {
+            database.executeSql(
+                sql`
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
+                `,
+                {allowWrites: "data"},
             );
             return 0;
         });
@@ -657,14 +883,10 @@ describe("Database — error handling", () => {
                 `,
                 {allowWrites: "none"},
             ),
-        ).toThrow("nested execute calls are not supported");
+        ).toThrow("nested execute cannot use broader write permissions than its parent");
     });
 
-    test("re-entrancy guard resets after a thrown execute", async () => {
-        // After the nested-call assertion fires, the
-        // writeLevel/currentReadSet/currentWriteSet fields must be cleared by the
-        // `finally` block — otherwise every subsequent execute will see a non-null
-        // writeLevel and falsely trip the same assertion.
+    test("nested write-permission guard resets after a thrown execute", async () => {
         const {database, storage} = await createDatabaseWithSchema(sql`
             CREATE TABLE items (id INTEGER PRIMARY KEY)
         `);
@@ -672,10 +894,12 @@ describe("Database — error handling", () => {
         innerDb.createFunction("reenter", () => {
             database.executeSql(
                 sql`
-                    SELECT
-                        1
+                    INSERT INTO
+                        items
+                    VALUES
+                        (1)
                 `,
-                {allowWrites: "none"},
+                {allowWrites: "data"},
             );
             return 0;
         });
@@ -688,7 +912,7 @@ describe("Database — error handling", () => {
                 `,
                 {allowWrites: "none"},
             ),
-        ).toThrow();
+        ).toThrow("nested execute cannot use broader write permissions than its parent");
 
         // Subsequent normal executes work — read and write.
         const read = database.executeSql(
