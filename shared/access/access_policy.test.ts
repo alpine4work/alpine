@@ -1829,6 +1829,180 @@ describe("validateAccessPolicyUpdate tie consistency", () => {
     });
 });
 
+describe("validateAccessPolicyUpdate with accounts removed from the space", () => {
+    // Setup: alice (gen 0), bob (gen 1), charlie (gen 2). Bob is removed from the
+    // space in most tests below, which simulates moving an entity into a site whose
+    // access policy doesn't include managers that left the space.
+    const alice = generateId<AccountId>();
+    const bob = generateId<AccountId>();
+    const charlie = generateId<AccountId>();
+
+    const oldPolicy: LocalAccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([
+            [alice, {level: "Manage", generation: 0}],
+            [bob, {level: "Manage", generation: 1}],
+            [charlie, {level: "Manage", generation: 2}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+
+    function isBobRemovedFromSpace(accountId: AccountId) {
+        return accountId === bob;
+    }
+
+    test("actor can drop a removed senior manager and take over their generation", () => {
+        // Charlie (gen 2) drops bob (gen 1) and takes over his generation. This would
+        // normally be an illegal escalation past bob, but bob was removed from the space.
+        const newPolicy = produce(oldPolicy, policy => {
+            policy.accountGrantById.delete(bob);
+            policy.accountGrantById.set(charlie, {level: "Manage", generation: 1});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({ok: true});
+    });
+
+    test("actor can\u2019t drop a senior manager who is still a member of the space", () => {
+        const newPolicy = produce(oldPolicy, policy => {
+            policy.accountGrantById.delete(bob);
+            policy.accountGrantById.set(charlie, {level: "Manage", generation: 1});
+        });
+
+        // Same change as the previous test, but the callback reports everyone as a space
+        // member, so dropping bob is an illegal revocation.
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy, {
+                isAccountRemovedFromSpace: () => false,
+            }),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+
+        // Not providing the callback at all behaves the same way.
+        expect(validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy)).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+    });
+
+    test("actor can demote a removed senior manager to a non-manage level", () => {
+        const newPolicy = produce(oldPolicy, policy => {
+            policy.accountGrantById.set(bob, {level: "Edit"});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({ok: true});
+    });
+
+    test("removed account with a senior manage grant in the new policy doesn\u2019t block the update", () => {
+        // Simulates moving an entity into a site whose policy includes a removed manager
+        // at a generation that ties with the actor's.
+        const oldPolicyWithoutBob: LocalAccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([[charlie, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        const newPolicy = produce(oldPolicyWithoutBob, policy => {
+            policy.accountGrantById.set(bob, {level: "Manage", generation: 0});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicyWithoutBob, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({ok: true});
+
+        // Without space membership awareness this is an illegal promotion of bob to a
+        // generation equal to the actor's.
+        expect(validateAccessPolicyUpdate(charlie, oldPolicyWithoutBob, newPolicy)).toEqual({
+            ok: false,
+            reason: "Can\u2019t set new account grant manage generation to be less than or equal to our actor\u2019s manage generation",
+        });
+    });
+
+    test("update fails when every manager in the new policy was removed from the space", () => {
+        const oldPolicySoloCharlie: LocalAccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([[charlie, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        // Charlie demotes himself and hands manage access to bob, who was removed from the
+        // space. The policy would be left without any active manager.
+        const newPolicy = produce(oldPolicySoloCharlie, policy => {
+            policy.accountGrantById.set(charlie, {level: "Edit"});
+            policy.accountGrantById.set(bob, {level: "Manage", generation: 1});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicySoloCharlie, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t update access policy so that no one has manage access",
+        });
+    });
+
+    test("removed managers are ignored when comparing manage generation groups", () => {
+        // Bob is tied with alice at gen 0 in the old policy. Once bob is removed from the
+        // space, dropping him shouldn't read as "breaking the tie".
+        const dave = generateId<AccountId>();
+        const oldPolicyWithTie: LocalAccessPolicy = {
+            type: "Local",
+            accountGrantById: new Map([
+                [alice, {level: "Manage", generation: 0}],
+                [bob, {level: "Manage", generation: 0}],
+                [dave, {level: "Manage", generation: 1}],
+                [charlie, {level: "Manage", generation: 2}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        const newPolicy = produce(oldPolicyWithTie, policy => {
+            policy.accountGrantById.delete(bob);
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicyWithTie, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({ok: true});
+    });
+
+    test("actor can\u2019t use a removed manager to escalate past an active senior manager", () => {
+        // Bob (gen 1) was removed from the space but alice (gen 0) is still active.
+        // Charlie can take over bob's generation but can't touch alice.
+        const newPolicy = produce(oldPolicy, policy => {
+            policy.accountGrantById.delete(alice);
+            policy.accountGrantById.delete(bob);
+            policy.accountGrantById.set(charlie, {level: "Manage", generation: 0});
+        });
+
+        expect(
+            validateAccessPolicyUpdate(charlie, oldPolicy, newPolicy, {
+                isAccountRemovedFromSpace: isBobRemovedFromSpace,
+            }),
+        ).toEqual({
+            ok: false,
+            reason: "Can\u2019t revoke manage access from an account with a manage generation less than our actor",
+        });
+    });
+});
+
 describe("isSiteRelatedPolicyUpdate", () => {
     const siteA = generateId<SiteId>();
     const siteB = generateId<SiteId>();

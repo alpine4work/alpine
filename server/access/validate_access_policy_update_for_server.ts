@@ -3,6 +3,7 @@ import {RynamoTransactionEntry} from "~/server/context/rynamo_transaction_entry.
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerMinimalAccountActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {
     AccessPolicy,
@@ -21,9 +22,11 @@ import {
 } from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {assertSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
@@ -172,10 +175,96 @@ async function validateResolvedAccessPolicyUpdateForServer(
     } else {
         assert(context.actor.type !== "Bot");
 
+        let isAccountRemovedFromSpace: ((accountId: AccountId) => boolean) | undefined;
+
+        // When attempting to move an entity into a site, we need to make sure that removed
+        // accounts don't impact the ability to actually move the entity in a site. Think
+        // about the case where we have the following access policy manage generations
+        //
+        // ```
+        // old: [alice-1, bob-2 (removed), charlie-2] -> [{alice}, {bob, charlie}]
+        // new: [alice-1, charlie-3] -> [{alice}, {charlie}]
+        // ```
+        //
+        // and Charlie is trying to move the entity into the site. Without any awareness of
+        // space membership, we'd disallow Charlie from taking this action because it would
+        // promote his permissions past Bob's.
+        //
+        // Since Bob is no longer a member of the space, we should allow Charlie to move
+        // this entity such that Bob is no longer a manager.
+        //
+        // The reason this doesn't apply to site removal is because we simply copy the site
+        // access policy into the new access policy on removal – there's no point in making
+        // the round trips to the database to check space membership.
+        //
+        // One other important thing to note here is that this will partially warm the
+        // cache below, since we eventually call `getSpaceAccountItemIfExists()` for each
+        // new account Id grant to make sure that it's not a bot.
+        if (
+            isSiteRelatedAccessPolicyUpdate(oldAccessPolicy, newAccessPolicy) &&
+            newAccessPolicy.type === "Site"
+        ) {
+            const allManagers = new Set<AccountId>();
+            const allNonManagers = new Set<AccountId>();
+
+            for (const [accountId, grant] of oldAccessPolicy.accountGrantById.entries()) {
+                if (grant.level === "Manage") {
+                    allManagers.add(accountId);
+                } else {
+                    allNonManagers.add(accountId);
+                }
+            }
+            for (const [accountId, grant] of newAccessPolicy.accountGrantById.entries()) {
+                if (grant.level === "Manage") {
+                    allManagers.add(accountId);
+                } else {
+                    allNonManagers.add(accountId);
+                }
+            }
+
+            const accountIdToIsMemberOfSpace = new Map<AccountId, boolean>(
+                concatIterables(
+                    // Non-managers space membership don't really matter, so we just set them to true.
+                    mapIterable(allNonManagers, accountId => [accountId, true]),
+                    await runAllPromises(
+                        mapIterable(
+                            allManagers,
+                            async (accountId): Promise<[AccountId, boolean]> => [
+                                accountId,
+                                await isAccountMemberOfSpaceWithoutAuthorization(
+                                    context,
+                                    spaceId,
+                                    accountId,
+                                    "Member",
+                                    // NOTE(ifitzsimmons, 2026-06-05): We will consider invite-pending accounts as
+                                    // having space membership. I think this makes sense, because users can start
+                                    // sharing content with an invite-pending account before they've accepted the
+                                    // invite, so someone in a lower manage generation shouldn't be able to remove the
+                                    // invitee.
+                                    //
+                                    // This might get sort of weird if someone was in a space, left, and was re-invited
+                                    // with no intention of joining the space again. In this edge case, I think it's
+                                    // reasonable to expect someone with a higher manage generation to remove the
+                                    // invitee from the access policy.
+                                    {allowInvitePending: true},
+                                ),
+                            ],
+                        ),
+                    ),
+                ),
+            );
+
+            isAccountRemovedFromSpace = (accountId: AccountId) => {
+                const isMemberOfSpace = assertExists(accountIdToIsMemberOfSpace.get(accountId));
+                return !isMemberOfSpace;
+            };
+        }
+
         const result = validateAccessPolicyUpdate(
             context.actor.getAccountId(),
             oldAccessPolicy,
             newAccessPolicy,
+            {isAccountRemovedFromSpace},
         );
         if (!result.ok) {
             throw new FailedPreconditionError(result.reason);
