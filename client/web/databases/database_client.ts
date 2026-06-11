@@ -4,7 +4,7 @@ import type {OpfsPageStore} from "~/client/web/databases/opfs_page_store.js";
 import {
     Database,
     type DatabaseExecuteActionResult,
-    type DatabaseReactive,
+    type DatabaseTrackedExecution,
 } from "~/shared/databases/database.js";
 import {
     type DatabaseActionName,
@@ -328,21 +328,22 @@ export class DatabaseClient {
     private readonly reactiveActions = new Map<
         string,
         {
-            readonly reactive: DatabaseReactive<DatabaseActionOutput<DatabaseActionName>>;
+            readonly execution: DatabaseTrackedExecution<DatabaseActionOutput<DatabaseActionName>>;
+            readonly notify: () => void;
         }
     >();
     private pagesToInvalidate = new Map<DatabaseTableId, Set<number>>();
     private invalidationScheduled = false;
 
     /**
-     * Register a reactive action. {@link Database.createReactive} owns the
-     * read-page set and invalidation overlap checks. The client still evaluates via
-     * {@link executeActionWithTracking} because that path can asynchronously
-     * fetch/attach missing OPFS pages.
+     * Register a reactive action. The shared {@link Database.createTrackedExecution}
+     * object owns the cached result and read-page set. The client owns notifications
+     * because only the client needs Store/RPC-style "tell me when to send a new value"
+     * behavior.
      *
-     * The result of each tracked execution is seeded into the reactive store with
-     * `setTrackedSnapshot()`. That preserves the old execution count: one execution
-     * to register, one execution for each overlapping invalidation, and none for
+     * The result of each tracked execution is seeded into the shared object with
+     * `setTrackedSnapshot()`. That preserves the old execution count: one execution to
+     * register, one execution for each overlapping invalidation, and none for
      * non-overlapping invalidations.
      *
      * The action's `writeLevel` must be `"none"`.
@@ -356,16 +357,16 @@ export class DatabaseClient {
     ): Promise<Result<DatabaseActionOutput<N>>> {
         assert(
             databaseActions[actionObject.name].writeLevel === "none",
-            "reactive actions must have writeLevel \u2018none\u2019",
+            "reactive actions must have writeLevel none",
         );
         this.unregisterReactiveAction(id);
 
-        const reactive = this.database.createReactive(
+        const execution = this.database.createTrackedExecution(
             () => this.executeReadOnly(actionObject).output,
         );
         let reExecuting = false;
 
-        const executeAndUpdateReactive = async(options: {
+        const executeAndUpdateReactive = async (options: {
             seedUnknownDependenciesOnFailure: boolean;
         }): Promise<DatabaseActionOutput<N>> => {
             try {
@@ -373,29 +374,27 @@ export class DatabaseClient {
                     conn,
                     actionObject,
                 );
-                reactive.setTrackedSnapshot(
-                    {ok: true, value: output as DatabaseActionOutput<DatabaseActionName>},
-                    readPages,
-                );
+                execution.setTrackedSnapshot({ok: true, value: output}, readPages);
                 return output;
             } catch (error) {
                 if (options.seedUnknownDependenciesOnFailure) {
-                    // Initial failures behave like the previous implementation: we retain an
-                    // unknown dependency set so any future page write can retry the action.
-                    reactive.setTrackedSnapshot({ok: false, error}, null);
+                    // Initial failures behave like the previous implementation: we retain an unknown
+                    // dependency set so any future page write can retry the action.
+                    execution.setTrackedSnapshot({ok: false, error}, null);
                 }
                 throw error;
             }
         };
 
-        const listener = () => {
+        const notifyIfChanged = () => {
             if (reExecuting) return;
             reExecuting = true;
             void (async () => {
                 try {
-                    // Store listeners mean "some dependency may have changed". The shared
-                    // reactive store already filtered non-overlapping page writes, so doing the
-                    // tracked client execution here matches the old `checkInvalidation()` behavior.
+                    // We only call this after `execution.invalidateForPages()` returned true, meaning
+                    // the previous read set overlapped written pages (or the previous execution failed
+                    // and has an unknown dependency set). This matches the old `checkInvalidation()`
+                    // behavior without putting listener semantics in `Database`.
                     notify(
                         await executeAndUpdateReactive({
                             seedUnknownDependenciesOnFailure: false,
@@ -413,12 +412,10 @@ export class DatabaseClient {
             const output = await executeAndUpdateReactive({
                 seedUnknownDependenciesOnFailure: true,
             });
-            reactive.addListener(listener);
-            this.reactiveActions.set(id, {reactive});
+            this.reactiveActions.set(id, {execution, notify: notifyIfChanged});
             return {ok: true, value: output};
         } catch (error) {
-            reactive.addListener(listener);
-            this.reactiveActions.set(id, {reactive});
+            this.reactiveActions.set(id, {execution, notify: notifyIfChanged});
             return {ok: false, error};
         }
     }
@@ -429,7 +426,7 @@ export class DatabaseClient {
     unregisterReactiveAction(id: string): void {
         const reactiveAction = this.reactiveActions.get(id);
         if (reactiveAction === undefined) return;
-        reactiveAction.reactive.destroy();
+        reactiveAction.execution.destroy();
         this.reactiveActions.delete(id);
     }
 
@@ -440,7 +437,11 @@ export class DatabaseClient {
             this.invalidationScheduled = false;
             const pages = this.pagesToInvalidate;
             this.pagesToInvalidate = new Map();
-            this.database.invalidatePages(pages);
+            for (const reactiveAction of this.reactiveActions.values()) {
+                if (reactiveAction.execution.invalidateForPages(pages)) {
+                    reactiveAction.notify();
+                }
+            }
         });
     }
 

@@ -217,14 +217,14 @@ describe("Database — execute", () => {
     });
 });
 
-describe("Database — createReactive", () => {
+describe("Database — createTrackedExecution", () => {
     test("does not run the function until snapshot is read", async () => {
         const {database} = await createDatabaseWithSchema(sql`
             CREATE TABLE items (id INTEGER PRIMARY KEY)
         `);
         let runCount = 0;
 
-        const reactive = database.createReactive(() => {
+        const execution = database.createTrackedExecution(() => {
             runCount++;
             return database.executeSql(
                 sql`
@@ -240,12 +240,12 @@ describe("Database — createReactive", () => {
         });
 
         expect(runCount).toBe(0);
-        expect(reactive.getSnapshot()).toBe(0);
+        expect(execution.getSnapshot()).toBe(0);
         expect(runCount).toBe(1);
-        reactive.destroy();
+        execution.destroy();
     });
 
-    test("notifies listeners eagerly but recomputes lazily", async () => {
+    test("invalidates eagerly but recomputes lazily", async () => {
         const {database} = await createDatabaseWithSchema(
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`,
             sql`
@@ -256,9 +256,8 @@ describe("Database — createReactive", () => {
             `,
         );
         let runCount = 0;
-        let listenerCount = 0;
 
-        const reactive = database.createReactive(() => {
+        const execution = database.createTrackedExecution(() => {
             runCount++;
             return database.executeSql(
                 sql`
@@ -274,9 +273,10 @@ describe("Database — createReactive", () => {
                 },
             ).rows[0]!.name;
         });
-        reactive.addListener(() => {
-            listenerCount++;
-        });
+
+        expect(execution.getSnapshot()).toBe("before");
+        expect(runCount).toBe(1);
+
         const invalidatedPages = database.executeSql(
             sql`
                 SELECT
@@ -291,7 +291,6 @@ describe("Database — createReactive", () => {
             },
         ).readPages;
 
-        expect(runCount).toBe(1);
         database.executeSql(
             sql`
                 UPDATE items
@@ -304,16 +303,15 @@ describe("Database — createReactive", () => {
                 allowWrites: "data",
             },
         );
-        database.invalidatePages(invalidatedPages);
+        expect(execution.invalidateForPages(invalidatedPages)).toBe(true);
 
-        expect(listenerCount).toBe(1);
         expect(runCount).toBe(1);
-        expect(reactive.getSnapshot()).toBe("after");
+        expect(execution.getSnapshot()).toBe("after");
         expect(runCount).toBe(2);
-        reactive.destroy();
+        execution.destroy();
     });
 
-    test("supports actions inside reactive functions", async () => {
+    test("supports actions inside tracked executions", async () => {
         const {database} = await createDatabaseWithSchema(
             sql`CREATE TABLE items (id INTEGER PRIMARY KEY)`,
             sql`
@@ -324,7 +322,7 @@ describe("Database — createReactive", () => {
             `,
         );
 
-        const reactive = database.createReactive(
+        const execution = database.createTrackedExecution(
             () =>
                 database.executeAction({
                     name: "readonlyRawSql",
@@ -332,11 +330,11 @@ describe("Database — createReactive", () => {
                 }).result.rows[0] as {count: number},
         );
 
-        expect(reactive.getSnapshot()).toEqual({count: 1});
-        reactive.destroy();
+        expect(execution.getSnapshot()).toEqual({count: 1});
+        execution.destroy();
     });
 
-    test("supports reactive functions inside write executions", async () => {
+    test("supports tracked executions inside write executions", async () => {
         const {database, storage} = await createDatabaseWithSchema(
             sql`CREATE TABLE source (id INTEGER PRIMARY KEY)`,
             sql`CREATE TABLE destination (value INTEGER NOT NULL)`,
@@ -347,7 +345,7 @@ describe("Database — createReactive", () => {
                     (1)
             `,
         );
-        const reactive = database.createReactive(
+        const execution = database.createTrackedExecution(
             () =>
                 database.executeSql(
                     sql`
@@ -364,7 +362,7 @@ describe("Database — createReactive", () => {
 
         database.execute(
             db => {
-                const count = reactive.getSnapshot();
+                const count = execution.getSnapshot();
                 sql`
                     INSERT INTO
                         destination
@@ -387,14 +385,14 @@ describe("Database — createReactive", () => {
                 {allowWrites: "none"},
             ).rows,
         ).toEqual([{value: 1}]);
-        reactive.destroy();
+        execution.destroy();
     });
 
-    test("rejects writes from reactive functions", async () => {
+    test("rejects writes from tracked executions", async () => {
         const {database} = await createDatabaseWithSchema(sql`
             CREATE TABLE items (id INTEGER PRIMARY KEY)
         `);
-        const reactive = database.createReactive(() => {
+        const execution = database.createTrackedExecution(() => {
             database.executeSql(
                 sql`
                     INSERT INTO
@@ -406,10 +404,10 @@ describe("Database — createReactive", () => {
             );
         });
 
-        expect(() => reactive.getSnapshot()).toThrow(
+        expect(() => execution.getSnapshot()).toThrow(
             "nested execute cannot use broader write permissions than its parent",
         );
-        reactive.destroy();
+        execution.destroy();
     });
 });
 
