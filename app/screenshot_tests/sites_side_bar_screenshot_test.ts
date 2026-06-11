@@ -11,6 +11,7 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {
     OrderKey,
     assertOrderKey,
@@ -349,6 +350,15 @@ last open design question is how column resizing should feel.
     await runner.getByText("latest tables build", {exact: false}).first().waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("ao", "chrome-around-chat-room");
+
+    await runViewerAccessScenario(site, accounts, runner, async () => {
+        await runner.goto(accounts.hollyEvergreen, `/chat/${tablesGAChatRoom.id}`);
+        await runner.getByText("Tables GA launch room").first().waitFor();
+        await runner.getByText("latest tables build", {exact: false}).first().waitFor();
+        await runner.mouse.move(0, 0);
+
+        await runner.screenshot("ap", "view-access-sidebar");
+    });
 }
 
 // Chat room with a back-and-forth conversation so the chat-room chrome screenshot
@@ -951,8 +961,8 @@ async function runActivationAndScrollScenario(
  *    so we first share the site (no confirmation), then toggle it back to private,
  *    which asks for confirmation. Capture that modal.
  * 5. **`site-menu-{not-,}favorited`** — add the first entity through the UI. Now
- *    the site is _full_, so the sidebar renders with its own 3-dot `Site menu`.
- *    Capture the favorite/unfavorite states there too.
+ *    the site is _full_, so the sidebar renders its own navigation bar `More`
+ *    menu. Capture the favorite/unfavorite states there too.
  *
  * Worth driving through the UI because the create button → overlay → Site item
  * path is the canonical entry point and exercises the `?focus=name` →
@@ -1041,7 +1051,7 @@ async function runSiteLifecycleScenario(session: TestSpaceSession, runner: Scree
     await ProcessContextModule.waitForTestTasks();
     await runner.screenshot("a27", "navigation-bar-menu-favorited");
 
-    // Unfavorite — still inside the open menu — so the full-site `Site menu` steps
+    // Unfavorite — still inside the open menu — so the full-site sidebar menu steps
     // below start from a clean not-favorited state (favorite state is shared across
     // both menu surfaces). Then close the menu so it doesn't intercept later clicks.
     await runner.getByText("Favorite").first().click();
@@ -1080,11 +1090,11 @@ async function runSiteLifecycleScenario(session: TestSpaceSession, runner: Scree
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    // Back on the now-full site page the sidebar renders with its own 3-dot
-    // `Site menu`, which takes over favoriting from the nav bar menu.
+    // Back on the now-full site page the sidebar renders its own navigation bar whose
+    // `More` menu takes over favoriting from the nav bar menu.
     await runner.goto(session, `/site/${siteId}`);
-    await runner.getByLabel("Site menu").first().waitFor();
-    await runner.getByLabel("Site menu").first().click();
+    await runner.getByLabel("More").first().waitFor();
+    await runner.getByLabel("More").first().click();
     await runner.getByText("Favorite").first().waitFor();
     await runner.getByText("Copy link").first().waitFor();
     await runner.screenshot("a29", "site-menu-not-favorited");
@@ -1508,4 +1518,45 @@ async function runShareSwitchTogglingOnScenario(
     await runner.getByText("Share the entire site?").first().waitFor();
 
     await runner.screenshot("ai", "share-switch-toggling-on");
+}
+
+/**
+ * Sidebar as seen by an actor with only `View` access on the site. Cass manages a
+ * company handbook site shared with the whole space at the `View` level
+ * (`defaultGrant`), and Holly views it. A viewer still gets the sidebar column
+ * with the site-name navigation bar, but none of the manage affordances — no ghost
+ * "+ Add" row, no "Edit name" gesture, no drag activation, and no root context
+ * menu. `SiteSideBarContent` renders non-managers through a separate early-return
+ * path (it skips the `DndContext`), so this pins that path's rendering: once on
+ * the site URL (which lands on the first entity) and once on a document nested in
+ * a section.
+ */
+async function runViewerAccessScenario(
+    site: TestSite,
+    accounts: DemoSpaceAccounts,
+    runner: ScreenshotTestRunner,
+    run: () => Promise<void>,
+) {
+    const oldAccess = await site.access.get();
+    await site.access.set(accounts.cassCade, {
+        type: "Local",
+        accountGrantById: new Map([
+            [accounts.cassCade.account.id, {level: "Manage", generation: 0}],
+        ]),
+        defaultGrant: {level: "View"},
+        urlGrant: null,
+    });
+
+    // This is the first time the suite signs in as Holly, so her inbox still holds
+    // every notification the earlier scenarios generated — clear it so the nav-rail
+    // badge doesn't flake these screenshots (same reasoning as the cassCade clear in
+    // `run`).
+    await runner.drainBackgroundWork();
+    await clearAccountInbox(accounts.hollyEvergreen);
+    await runner.drainBackgroundWork();
+
+    await run();
+
+    assert(oldAccess.type === "Local");
+    await site.access.set(accounts.cassCade, oldAccess);
 }

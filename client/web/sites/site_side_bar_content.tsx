@@ -19,7 +19,6 @@ import {
     ArrowLineUp,
     CaretDown,
     CaretRight,
-    DotsThreeVertical,
     File,
     FolderPlus,
     Link as LinkIcon,
@@ -35,12 +34,14 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {ContextMenuActions} from "~/client/web/design/context_menu.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
-import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
+import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
+import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
+import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -251,22 +252,7 @@ export function SiteSideBarContent({
     );
 
     const sideBarBox = (
-        <Box
-            display="flex"
-            flexDirection="column"
-            gap="0.5"
-            flexShrink="0"
-            // When full-width (the navigate route) an outer navbar + scroll container owns
-            // scrolling, so this is plain flow content. Otherwise it's the scrollable sidebar
-            // column beside the entity content.
-            overflow={isFullWidth ? undefined : "auto"}
-            height={isFullWidth ? undefined : "full"}
-            width={isFullWidth ? "full" : "1/4"}
-            borderRight={isFullWidth ? undefined : "grey-10"}
-        >
-            {item.id === site?.rootContainerId && !withoutNameHeader && (
-                <SiteSideBarNavigationBar site={site} withoutContextMenu={withoutContextMenu} />
-            )}
+        <>
             {canManage && (
                 <MenuButton
                     placement="bottom-start"
@@ -278,7 +264,7 @@ export function SiteSideBarContent({
                         alignItems="center"
                         gap="1"
                         paddingX="2"
-                        paddingY="1"
+                        paddingBottom="1"
                         fontSize="100"
                         color="grey-40"
                         borderRadius="1"
@@ -306,12 +292,10 @@ export function SiteSideBarContent({
                     <Box flexGrow="1" />
                 </ContextMenuActions>
             )}
-        </Box>
+        </>
     );
 
-    if (!canManage) return sideBarBox;
-
-    const content = (
+    const innerContent = (
         <>
             {sideBarBox}
             {searchModalState && (
@@ -323,6 +307,39 @@ export function SiteSideBarContent({
             )}
         </>
     );
+
+    // With the name header, `SiteSideBarNavigationBar` owns the scrollable column so
+    // its sticky navigation bar stays pinned at the top while the tree scrolls beneath
+    // it — the tree can never scroll past the bar. Without the header this is a plain
+    // column: when full-width (the navigate route) an outer navbar + scroll container
+    // owns scrolling, otherwise it's the scrollable sidebar column beside the entity
+    // content.
+    const content =
+        item.id === site?.rootContainerId && !withoutNameHeader ? (
+            <SiteSideBarNavigationBar site={site} withoutContextMenu={withoutContextMenu}>
+                {innerContent}
+            </SiteSideBarNavigationBar>
+        ) : (
+            <Box
+                position="relative"
+                display="flex"
+                flexDirection="column"
+                gap="0.5"
+                flexShrink="0"
+                overflow={isFullWidth ? undefined : "auto"}
+                height={isFullWidth ? undefined : "full"}
+                width={isFullWidth ? "full" : "1/4"}
+                borderRight={isFullWidth ? undefined : "grey-10"}
+            >
+                {innerContent}
+            </Box>
+        );
+
+    // Without manage access there's nothing to drag, so skip the DndContext (the
+    // per-row `useSortable` calls are already `disabled`). The wrapper Box and the
+    // name-header navigation bar still render — viewers need to see which site they're
+    // in, they just don't get the manage affordances.
+    if (!canManage) return content;
 
     return (
         <DndContext sensors={sensors} {...dndContextProps}>
@@ -1232,9 +1249,11 @@ function getSortableStyle({
 function SiteSideBarNavigationBar({
     site,
     withoutContextMenu,
+    children,
 }: {
     site: SitePreviewModelData;
     withoutContextMenu: boolean;
+    children: ReactNode;
 }) {
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
@@ -1280,89 +1299,109 @@ function SiteSideBarNavigationBar({
                 : undefined,
     });
 
+    const {navigationBar, scrollViewRef, effectiveNavigationBarHeight, scrollbarInsetTop} =
+        useNavigationBar({
+            withoutDisappearingTitle: true,
+            menuActions: withoutContextMenu ? undefined : overflowMenuActions,
+            desktopTitleFontSize: "400",
+            desktopTitleFontWeight: "bold",
+            desktopTitleLeftSlop: "1",
+            titleJustifyContent: "flex-start",
+
+            title: (
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    gap={platform === "mobile" ? "1.5" : "2"}
+                    minWidth="0"
+                    height="9"
+                >
+                    {!accessPolicy.defaultGrant && !accessPolicy.urlGrant && (
+                        // TODO(#sites-redesign): I do think there's value in making it clear that a Site
+                        // is private/public, but I don't think the channel approach is the best way to do
+                        // it. \
+                        // We add a lock icon to private sites because we want the access to be super
+                        // obvious to the user while they quickly create content in the site chrome, which
+                        // can feel a little detached from the site's permissions switch.
+                        <LockBoldFillIcon
+                            className={sprinkles({flexShrink: "0"})}
+                            size={spacing[platform === "mobile" ? "3" : "4"]}
+                        />
+                    )}
+                    {isEditingNameInline ? (
+                        <SiteNameEditor
+                            initialName={site.name}
+                            onCancel={() => setIsEditingNameInline(false)}
+                            onSave={async name => {
+                                const {events} = await updateSiteName(context, {
+                                    siteId: site.id,
+                                    name,
+                                });
+
+                                setIsEditingNameInline(false);
+
+                                // Immediately apply a realtime event transaction to update our site in case our
+                                // realtime WebSocket connection is slow.
+                                siteContext.handleEventForSite([events]);
+                            }}
+                        />
+                    ) : (
+                        <Box
+                            onPointerDown={event => {
+                                const currentTime = Date.now();
+                                const lastPointerDownTime = lastPointerDownTimeRef.current;
+                                lastPointerDownTimeRef.current = currentTime;
+
+                                if (lastPointerDownTime === null) return;
+
+                                if (currentTime - lastPointerDownTime > doubleClickDelayMs) return;
+
+                                if (
+                                    hasAccessLevel(accessLevel, "Manage") &&
+                                    platform !== "mobile"
+                                ) {
+                                    // Disable selection from double click.
+                                    //
+                                    // We implement double click with `onPointerDown` instead of `onDoubleClick`
+                                    // because `onDoubleClick` fires one pointer up but the browser performs text
+                                    // selection on double click pointer down. So there's a small visual glitch where
+                                    // you can see the browser selection after double click before pointer up when you
+                                    // use `onDoubleClick`,
+                                    event.preventDefault();
+
+                                    setIsEditingNameInline(true);
+                                }
+                            }}
+                        >
+                            {site.name}
+                        </Box>
+                    )}
+                </Box>
+            ),
+        });
     return (
         <Box
-            display="flex"
-            borderBottom="grey-10"
-            paddingTop="4"
-            paddingBottom="4"
-            alignItems="center"
-            paddingRight="2"
-        >
-            <Box
-                display="flex"
-                alignItems="center"
-                gap={platform === "mobile" ? "1.5" : "2"}
-                fontSize="300"
-                fontStyle="bold"
-                flexGrow="1"
-            >
-                {!accessPolicy.defaultGrant && !accessPolicy.urlGrant && (
-                    // TODO(#sites-redesign): I do think there's value in making it clear that a Site
-                    // is private/public, but I don't think the channel approach is the best way to do
-                    // it. \
-                    // We add a lock icon to private sites because we want the access to be super
-                    // obvious to the user while they quickly create content in the site chrome, which
-                    // can feel a little detached from the site's permissions switch.
-                    <LockBoldFillIcon
-                        className={sprinkles({flexShrink: "0"})}
-                        size={spacing[platform === "mobile" ? "3" : "4"]}
-                    />
-                )}
-                {isEditingNameInline ? (
-                    <SiteNameEditor
-                        initialName={site.name}
-                        shouldInitiallyFocusSiteName={shouldFocusNameInput}
-                        onCancel={() => setIsEditingNameInline(false)}
-                        onSave={async name => {
-                            const {events} = await updateSiteName(context, {
-                                siteId: site.id,
-                                name,
-                            });
-
-                            setIsEditingNameInline(false);
-
-                            // Immediately apply a realtime event transaction to update our site in case our
-                            // realtime WebSocket connection is slow.
-                            siteContext.handleEventForSite([events]);
-                        }}
-                    />
-                ) : (
-                    <Box
-                        onPointerDown={event => {
-                            const currentTime = Date.now();
-                            const lastPointerDownTime = lastPointerDownTimeRef.current;
-                            lastPointerDownTimeRef.current = currentTime;
-
-                            if (lastPointerDownTime === null) return;
-
-                            if (currentTime - lastPointerDownTime > doubleClickDelayMs) return;
-
-                            if (hasAccessLevel(accessLevel, "Manage") && platform !== "mobile") {
-                                // Disable selection from double click.
-                                //
-                                // We implement double click with `onPointerDown` instead of `onDoubleClick`
-                                // because `onDoubleClick` fires one pointer up but the browser performs text
-                                // selection on double click pointer down. So there's a small visual glitch where
-                                // you can see the browser selection after double click before pointer up when you
-                                // use `onDoubleClick`,
-                                event.preventDefault();
-
-                                setIsEditingNameInline(true);
-                            }
-                        }}
-                    >
-                        {site.name}
-                    </Box>
-                )}
-            </Box>
-            {!withoutContextMenu && (
-                <MenuButton placement="bottom-end" actions={overflowMenuActions}>
-                    <IconButton size="sm" description="Site menu" withoutTooltip={true}>
-                        <DotsThreeVertical />
-                    </IconButton>
-                </MenuButton>
+            ref={useMergedRefs<HTMLDivElement>(
+                scrollViewRef,
+                useScrollbar({insetTop: scrollbarInsetTop}),
             )}
+            flexShrink="0"
+            overflow="auto"
+            height="full"
+            width="1/4"
+            borderRight="grey-10"
+            position="relative"
+        >
+            {/* The navigation bar must render inside a `position: relative` wrapper
+            containing all of the scroll view's content (see `NavigationBarResult`) — that's
+            what lets the bar stick to the top of the column while the tree scrolls beneath
+            it. The spacer reserves the bar's height in the flow since the bar itself is
+            absolutely positioned. */}
+            <Box display="flex" flexDirection="column" gap="0.5" minHeight="full">
+                {navigationBar}
+                <Box flexShrink="0" style={{height: effectiveNavigationBarHeight}} />
+                <Box paddingTop="1">{children}</Box>
+            </Box>
         </Box>
     );
 }
