@@ -381,6 +381,80 @@ Post and comments in [Announcements](/channel/announcements).
 End of comments.`);
 });
 
+test("paginates after the post with a custom cursor", async () => {
+    mockGetPostPreview();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        totalMessageCount: 2,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: index === 0 ? bobAccount : aliceAccount,
+                content: index === 0 ? "First comment." : "Second comment.",
+            }),
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/post/launch?after=post", limit: "750b"}))
+        .toEqual(`\
+Post and comments in [Announcements](/channel/announcements).
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Bob](/human/bob)">\n\nFirst comment.\n\n</comment>\n
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">\n\nSecond comment.\n\n</comment>
+
+End of comments.`);
+});
+
+test("paginates after the post with a custom cursor when there are many messages", async () => {
+    mockGetPostPreview();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        totalMessageCount: 100,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: index % 2 === 0 ? bobAccount : aliceAccount,
+                content: `Test comment ${index}.`,
+            }),
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/post/launch?after=post", limit: "750b"}))
+        .toEqual(`\
+Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=5)
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Bob](/human/bob)">\n\nTest comment 0.\n\n</comment>\n
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest comment 1.\n\n</comment>\n
+<comment id="2" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest comment 2.\n\n</comment>\n
+<comment id="3" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest comment 3.\n\n</comment>\n
+<comment id="4" from="[Bob](/human/bob)" time="5 minutes later">\n\nTest comment 4.\n\n</comment>\n
+<comment id="5" from="[Alice](/human/alice)" time="5 minutes later">\n\nTest comment 5.\n\n</comment>`);
+});
+
+test("paginates before the post with a custom cursor", async () => {
+    mockGetPostPreview();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        from: "End",
+        cursor: 0,
+        totalMessageCount: 2,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({index, author, content: `Test comment ${index}`}),
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/post/launch?before=post", limit: "10kb"}))
+        .toEqual(`\
+Post and comments in [Announcements](/channel/announcements).`);
+});
+
 test("paginates backward near the post and truncates the post", async () => {
     mockGetPost({content: contentFromText("Long post. ".repeat(300))});
     mockApiGetPostMessages(api, {

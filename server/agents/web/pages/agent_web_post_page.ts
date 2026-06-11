@@ -98,7 +98,7 @@ export async function readAgentWebPostPage(
     context: AgentWebContext,
     id: PostId,
     {
-        searchParams,
+        searchParams: originalSearchParams,
         limitLength,
         printPage,
     }: {
@@ -107,6 +107,21 @@ export async function readAgentWebPostPage(
         printPage: (page: AgentWebPostPageWithMetadata) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebPostPageMetadata}> {
+    let excludesPost = false;
+
+    const searchParams = new URLSearchParams(originalSearchParams);
+
+    if (searchParams.get("after") === "post") {
+        excludesPost = true;
+        searchParams.delete("after");
+        searchParams.set("start", "");
+    }
+
+    if (searchParams.get("before") === "post") {
+        excludesPost = true;
+        searchParams.set("before", "0");
+    }
+
     const parsedSearchParams = parseAgentWebMessagingPageSearchParams({
         messageNouns: agentWebMessagingPageCommentNouns,
         defaultDirection: "Start",
@@ -123,6 +138,9 @@ export async function readAgentWebPostPage(
     };
 
     const roomMetadataWithStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
+        // If `excludesPost` is set then never return a post start block.
+        if (excludesPost) return await roomMetadataWithoutStartCustomBlock.get();
+
         const {
             data: {post},
         } = await context.api.get(context.span, "/posts/{id}", {params: {path: {id}}});
