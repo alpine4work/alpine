@@ -118,22 +118,38 @@ export const agentWebMessagingPageCommentNouns: AgentWebMessagingPageNouns = {
     startOfSentencePluralNoun: "Comments",
 };
 
-export function parseAgentWebMessagingPageMessageIndexRange(
-    string: string,
-): AgentWebMessagingPageMessageRange | null {
-    const integerPattern = "(0|[1-9][0-9]*)";
-    const singleMessageIndexMatch = new RegExp(`^${integerPattern}$`).exec(string);
+export function parseAgentWebMessagingPageMessageIndex(string: string): number | null {
+    const singleMessageIndexMatch = /^(0|-?[1-9][0-9]*)$/.exec(string);
 
     if (singleMessageIndexMatch) {
         const messageIndex = parseInt(singleMessageIndexMatch[1]!, 10);
+        if (isNaN(messageIndex) || !Number.isInteger(messageIndex)) return null;
+        return messageIndex;
+    }
+
+    return null;
+}
+
+export function parseAgentWebMessagingPageMessageIndexRange(
+    string: string,
+): AgentWebMessagingPageMessageRange | null {
+    const singleMessageIndexMatch = /^(0|-?[1-9][0-9]*)$/.exec(string);
+
+    if (singleMessageIndexMatch) {
+        const messageIndex = parseInt(singleMessageIndexMatch[1]!, 10);
+        if (isNaN(messageIndex) || !Number.isInteger(messageIndex)) return null;
         return {startMessageIndex: messageIndex, endMessageIndex: messageIndex + 1};
     }
 
-    const messageIndexRangeMatch = new RegExp(`^${integerPattern}-${integerPattern}$`).exec(string);
+    const messageIndexRangeMatch = /^(0|-?[1-9][0-9]*)-(0|-?[1-9][0-9]*)$/.exec(string);
 
     if (messageIndexRangeMatch) {
         const startMessageIndex = parseInt(messageIndexRangeMatch[1]!, 10);
         const endMessageIndexInclusive = parseInt(messageIndexRangeMatch[2]!, 10);
+
+        if (isNaN(startMessageIndex) || !Number.isInteger(startMessageIndex)) return null;
+        if (isNaN(endMessageIndexInclusive) || !Number.isInteger(endMessageIndexInclusive))
+            return null;
 
         if (endMessageIndexInclusive >= startMessageIndex) {
             return {

@@ -11,6 +11,7 @@ import {
     AgentWebMessagingPagePagination,
     AgentWebMessagingPagePaginationPageLink,
     AgentWebMessagingPageWithMetadata,
+    parseAgentWebMessagingPageMessageIndex,
     parseAgentWebMessagingPageMessageIndexRange,
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {
@@ -144,38 +145,22 @@ export function parseAgentWebMessagingPageSearchParams({
     let around: AgentWebMessagingPageMessageRange | null = null;
 
     if (beforeMessageIndexSearchParam !== null) {
-        beforeMessageIndex = parseInt(beforeMessageIndexSearchParam, 10);
+        beforeMessageIndex = parseAgentWebMessagingPageMessageIndex(beforeMessageIndexSearchParam);
 
-        if (
-            !/^(0|[1-9][0-9]*)$/.test(beforeMessageIndexSearchParam) ||
-            isNaN(beforeMessageIndex) ||
-            !Number.isInteger(beforeMessageIndex) ||
-            beforeMessageIndex < 0
-        ) {
-            throw new InvalidArgumentError(
-                "Expected `before` search param to be a positive integer",
-                {
-                    displayMessage: errorDisplayMessage`Expected \`?before\` URL search param to be a positive integer, but got \`${beforeMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?before\`. We recommend using a value for \`?before\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
-                },
-            );
+        if (beforeMessageIndex === null) {
+            throw new InvalidArgumentError("Expected `before` search param to be an integer", {
+                displayMessage: errorDisplayMessage`Expected \`?before\` URL search param to be an integer, but got \`${beforeMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?before\`. We recommend using a value for \`?before\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+            });
         }
     }
 
     if (afterMessageIndexSearchParam !== null) {
-        afterMessageIndex = parseInt(afterMessageIndexSearchParam, 10);
+        afterMessageIndex = parseAgentWebMessagingPageMessageIndex(afterMessageIndexSearchParam);
 
-        if (
-            !/^(0|[1-9][0-9]*)$/.test(afterMessageIndexSearchParam) ||
-            isNaN(afterMessageIndex) ||
-            !Number.isInteger(afterMessageIndex) ||
-            afterMessageIndex < 0
-        ) {
-            throw new InvalidArgumentError(
-                "Expected `after` search param to be a positive integer",
-                {
-                    displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be a positive integer, but got \`${afterMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?after\`. We recommend using a value for \`?after\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
-                },
-            );
+        if (afterMessageIndex === null) {
+            throw new InvalidArgumentError("Expected `after` search param to be an integer", {
+                displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be an integer, but got \`${afterMessageIndexSearchParam}\`. Try again with an integer or try omitting \`?after\`. We recommend using a value for \`?after\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+            });
         }
     }
 
@@ -184,9 +169,9 @@ export function parseAgentWebMessagingPageSearchParams({
 
         if (around === null) {
             throw new InvalidArgumentError(
-                `Expected \`${messageNouns.noun}\` search param to be a positive integer or range`,
+                `Expected \`${messageNouns.noun}\` search param to be an integer or range`,
                 {
-                    displayMessage: errorDisplayMessage`Expected \`?${messageNouns.noun}\` URL search param to be a positive integer or integer range, but got \`${aroundMessageRangeSearchParam}\`. Try again with an integer, an integer range, or try omitting \`?${messageNouns.noun}\`. We recommend using a value for \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
+                    displayMessage: errorDisplayMessage`Expected \`?${messageNouns.noun}\` URL search param to be an integer or integer range, but got \`${aroundMessageRangeSearchParam}\`. Try again with an integer, an integer range, or try omitting \`?${messageNouns.noun}\`. We recommend using a value for \`?${messageNouns.noun}\` from a \`<${messageNouns.noun}>\`\u2019s \`id\` attribute.`,
                 },
             );
         }
