@@ -380,10 +380,6 @@ function readJoinTableMeta(db: Database, joinTableId: DatabaseTableId): Database
     });
 }
 
-function qualifiedIdentifier(tableAlias: string, columnName: string): SqlQuery {
-    return sql.raw(`${sql.identifier(tableAlias).query}.${sql.identifier(columnName).query}`);
-}
-
 function readRelationFieldConfig(
     db: Database,
     {
@@ -640,7 +636,7 @@ function createRelationProjection(
                             'id',
                             linked_row._id,
                             'name',
-                            ${qualifiedIdentifier("linked_row", linkedNameField.columnName)}
+                            ${sql.identifier("linked_row", linkedNameField.columnName)}
                         )
                         ORDER BY
                             link_row._created_at,
@@ -653,12 +649,9 @@ function createRelationProjection(
                 JOIN ${sql.tableRef(
             relation.linkedTableId,
             linkedNameField.tableName,
-        )} linked_row ON linked_row._id = ${qualifiedIdentifier(
-            "link_row",
-            relation.theirsColumnName,
-        )}
+        )} linked_row ON linked_row._id = ${sql.identifier("link_row", relation.theirsColumnName)}
             WHERE
-                ${qualifiedIdentifier("link_row", relation.mineColumnName)} = ${qualifiedIdentifier(
+                ${sql.identifier("link_row", relation.mineColumnName)} = ${sql.identifier(
             rowAlias,
             "_id",
         )}
@@ -1013,7 +1006,7 @@ export const databaseActions = {
             // \_id is always at index 0; view fields start at 1.
             const relationProjections: Array<DatabaseRelationProjection> = [];
             const selectColumns = [
-                qualifiedIdentifier("data_row", "_id"),
+                sql.identifier("data_row", "_id"),
                 ...viewFields.map((f, i) => {
                     const fieldIndex = i + 1;
                     if (f.config.type === "relation") {
@@ -1026,7 +1019,7 @@ export const databaseActions = {
                         relationProjections.push(projection);
                         return projectionSql;
                     }
-                    return qualifiedIdentifier("data_row", f.columnName);
+                    return sql.identifier("data_row", f.columnName);
                 }),
             ];
             const selectList = sql.raw(selectColumns.map(c => c.query).join(", "));
@@ -1055,18 +1048,18 @@ export const databaseActions = {
             if (afterCursor != null && endCursor != null) {
                 whereClause = sql`
                     WHERE
-                        ${qualifiedIdentifier("data_row", "_id")} > ${afterCursor}
-                        AND ${qualifiedIdentifier("data_row", "_id")} <= ${endCursor}
+                        ${sql.identifier("data_row", "_id")} > ${afterCursor}
+                        AND ${sql.identifier("data_row", "_id")} <= ${endCursor}
                 `;
             } else if (afterCursor != null) {
                 whereClause = sql`
                     WHERE
-                        ${qualifiedIdentifier("data_row", "_id")} > ${afterCursor}
+                        ${sql.identifier("data_row", "_id")} > ${afterCursor}
                 `;
             } else if (endCursor != null) {
                 whereClause = sql`
                     WHERE
-                        ${qualifiedIdentifier("data_row", "_id")} <= ${endCursor}
+                        ${sql.identifier("data_row", "_id")} <= ${endCursor}
                 `;
             } else {
                 whereClause = sql``;
@@ -1080,7 +1073,7 @@ export const databaseActions = {
                     "data_row",
                 )} ${whereClause}
                 ORDER BY
-                    ${qualifiedIdentifier("data_row", "_id")}
+                    ${sql.identifier("data_row", "_id")}
             `.selectAllArrays(db, columnSchemas);
 
             for (const row of rows) {
@@ -1313,8 +1306,8 @@ export const databaseActions = {
                 sql`
                     DELETE FROM ${sql.tableRef(relation.joinTableId, "_alpine_links")}
                     WHERE
-                        ${qualifiedIdentifier("_alpine_links", relation.mineColumnName)} = ${rowId}
-                        AND ${qualifiedIdentifier(
+                        ${sql.identifier("_alpine_links", relation.mineColumnName)} = ${rowId}
+                        AND ${sql.identifier(
                         "_alpine_links",
                         relation.theirsColumnName,
                     )} != ${linkedRowId}
@@ -1353,8 +1346,8 @@ export const databaseActions = {
             sql`
                 DELETE FROM ${sql.tableRef(relation.joinTableId, "_alpine_links")}
                 WHERE
-                    ${qualifiedIdentifier("_alpine_links", relation.mineColumnName)} = ${rowId}
-                    AND ${qualifiedIdentifier(
+                    ${sql.identifier("_alpine_links", relation.mineColumnName)} = ${rowId}
+                    AND ${sql.identifier(
                     "_alpine_links",
                     relation.theirsColumnName,
                 )} = ${linkedRowId}
@@ -1391,7 +1384,7 @@ export const databaseActions = {
             const rows = sql`
                 SELECT
                     linked_row._id,
-                    ${qualifiedIdentifier("linked_row", linkedNameField.columnName)} AS name_value
+                    ${sql.identifier("linked_row", linkedNameField.columnName)} AS name_value
                 FROM
                     ${sql.tableRef(
                     relation.linkedTableId,
@@ -1404,8 +1397,8 @@ export const databaseActions = {
                         FROM
                             ${sql.tableRef(relation.joinTableId, "_alpine_links")} link_row
                         WHERE
-                            ${qualifiedIdentifier("link_row", relation.mineColumnName)} = ${rowId}
-                            AND ${qualifiedIdentifier(
+                            ${sql.identifier("link_row", relation.mineColumnName)} = ${rowId}
+                            AND ${sql.identifier(
                     "link_row",
                     relation.theirsColumnName,
                 )} = linked_row._id

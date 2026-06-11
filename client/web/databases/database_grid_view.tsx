@@ -23,10 +23,7 @@ import {
     databaseFieldComponentProviders,
     getDatabaseFieldComponentProvider,
 } from "~/client/web/databases/fields/database_field_component_providers.js";
-import {
-    DatabaseRelationFieldCreationOptions,
-    DatabaseRelationFieldCreationOptionsInitialDataProvider,
-} from "~/client/web/databases/fields/database_relation_field_creation_options.js";
+import {DatabaseRelationFieldCreationOptions} from "~/client/web/databases/fields/database_relation_field_creation_options.js";
 import {
     type DatabaseGridViewField,
     type DatabaseGridViewFieldEditing,
@@ -49,7 +46,6 @@ import {
     VirtualizedScrollViewItem,
     type VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import type {LoaderDatabaseActionResult} from "~/shared/databases/database_protocol_schemas.js";
 import type {
     DatabaseCellValue,
     DatabaseFieldConfig,
@@ -147,13 +143,11 @@ export function DatabaseGridView({
     viewId,
     fields,
     query,
-    tablesInitialData,
 }: {
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
     fields: ReadonlyArray<DatabaseGridViewField>;
     query: DatabaseQuery;
-    tablesInitialData: LoaderDatabaseActionResult<"listTables"> | null;
 }) {
     const tree = useStore(query.treeStore);
     const [selection, dispatch] = useReducer(selectionReducer, null);
@@ -292,7 +286,6 @@ export function DatabaseGridView({
                                         }}
                                     >
                                         <DatabaseGridViewHeaderRow
-                                            tableId={tableId}
                                             fields={gridFields.fields}
                                             hiddenFields={gridFields.hiddenFields}
                                             onStartAddingField={gridFields.startAddingField}
@@ -416,41 +409,39 @@ export function DatabaseGridView({
     );
 
     return (
-        <DatabaseRelationFieldCreationOptionsInitialDataProvider initialData={tablesInitialData}>
-            <GlobalKeyDownEvent onGlobalKeyDown={handleGlobalKeyDown}>
-                <Box
-                    flexGrow="1"
-                    overflowY="hidden"
-                    onFocus={() => dispatch({type: "focus"})}
-                    onBlur={e => {
-                        // Only deactivate if focus moved outside the grid entirely (not between children).
-                        if (!e.currentTarget.contains(e.relatedTarget)) {
-                            dispatch({type: "focusout"});
-                        }
-                    }}
-                >
-                    <VirtualizedScrollView
-                        ref={scrollViewRef}
-                        itemCount={itemCount}
-                        bufferedItemHeight={spacing[gridRowHeight]}
-                        renderItem={renderItem}
-                        alwaysRenderAdditionalItemIndexes={alwaysRenderIndexes}
-                        scrollbarInsetTopItemIndex={0}
-                        scrollbarInsetBottomItemIndex={addRowIndex}
-                        contentMinWidth={gridFields.contentMinWidth}
-                        extraChildren={
-                            <DatabaseGridViewSelectionOverlay
-                                selection={visibleSelection}
-                                fields={gridFields.fields}
-                                fieldIndexById={gridFields.fieldIndexById}
-                                rowCount={rowCount}
-                                scrollViewRef={scrollViewRef}
-                            />
-                        }
-                    />
-                </Box>
-            </GlobalKeyDownEvent>
-        </DatabaseRelationFieldCreationOptionsInitialDataProvider>
+        <GlobalKeyDownEvent onGlobalKeyDown={handleGlobalKeyDown}>
+            <Box
+                flexGrow="1"
+                overflowY="hidden"
+                onFocus={() => dispatch({type: "focus"})}
+                onBlur={e => {
+                    // Only deactivate if focus moved outside the grid entirely (not between children).
+                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                        dispatch({type: "focusout"});
+                    }
+                }}
+            >
+                <VirtualizedScrollView
+                    ref={scrollViewRef}
+                    itemCount={itemCount}
+                    bufferedItemHeight={spacing[gridRowHeight]}
+                    renderItem={renderItem}
+                    alwaysRenderAdditionalItemIndexes={alwaysRenderIndexes}
+                    scrollbarInsetTopItemIndex={0}
+                    scrollbarInsetBottomItemIndex={addRowIndex}
+                    contentMinWidth={gridFields.contentMinWidth}
+                    extraChildren={
+                        <DatabaseGridViewSelectionOverlay
+                            selection={visibleSelection}
+                            fields={gridFields.fields}
+                            fieldIndexById={gridFields.fieldIndexById}
+                            rowCount={rowCount}
+                            scrollViewRef={scrollViewRef}
+                        />
+                    }
+                />
+            </Box>
+        </GlobalKeyDownEvent>
     );
 }
 
@@ -545,7 +536,6 @@ function DatabaseGridViewLoadMoreSentinel({query}: {query: DatabaseQuery}) {
 // -- Header row ---------------------------------------------------------------
 
 function DatabaseGridViewHeaderRow({
-    tableId,
     fields,
     hiddenFields,
     onStartAddingField,
@@ -555,7 +545,6 @@ function DatabaseGridViewHeaderRow({
     onUpdateFieldVisibility,
     onUpdateFieldConfig,
 }: {
-    tableId: DatabaseTableId;
     fields: ReadonlyArray<DatabaseGridViewFieldWithEditing>;
     hiddenFields: ReadonlyArray<DatabaseGridViewField>;
     onStartAddingField: () => void;
@@ -581,7 +570,6 @@ function DatabaseGridViewHeaderRow({
             {fields.map(field => (
                 <DatabaseGridViewHeaderCell
                     key={field.id}
-                    tableId={tableId}
                     field={field}
                     startResizingField={startResizingField}
                     isResizingThisField={resizingState?.fieldId === field.id}
@@ -617,14 +605,12 @@ function DatabaseGridViewHeaderRow({
 }
 
 function DatabaseGridViewHeaderCell({
-    tableId,
     field,
     startResizingField,
     isResizingThisField,
     onRenameField,
     onUpdateFieldConfig,
 }: {
-    tableId: DatabaseTableId;
     field: DatabaseGridViewFieldWithEditing;
     startResizingField: (
         fieldId: DatabaseFieldId,
@@ -661,7 +647,6 @@ function DatabaseGridViewHeaderCell({
                     preventOverflow={false}
                     overlay={
                         <DatabaseGridViewFieldTypePicker
-                            tableId={tableId}
                             editing={editing}
                             onSelect={type => editing.commitWithType(type)}
                         />
@@ -863,12 +848,10 @@ function DatabaseGridViewHeaderRenameInput({
 
 function DatabaseGridViewFieldTypePicker({
     ref,
-    tableId,
     editing,
     onSelect,
 }: {
     ref?: React.Ref<HTMLElement>;
-    tableId: DatabaseTableId;
     editing: DatabaseGridViewFieldEditing;
     onSelect: (type: DatabaseFieldType) => void;
 }) {
@@ -898,7 +881,7 @@ function DatabaseGridViewFieldTypePicker({
                 />
             ))}
             {editing.fieldType === "relation" ? (
-                <DatabaseRelationFieldCreationOptions tableId={tableId} editing={editing} />
+                <DatabaseRelationFieldCreationOptions editing={editing} />
             ) : null}
         </Box>
     );

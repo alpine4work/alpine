@@ -68,7 +68,7 @@ async function createRelationField(page: Page, fieldName: string, linkedTableNam
 
     const linkedTableButton = page.getByRole("button", {name: `Link to table ${linkedTableName}`});
     await expect(linkedTableButton).toBeVisible();
-    await linkedTableButton.click();
+    await linkedTableButton.dispatchEvent("mousedown");
     await fieldNameInput.press("Enter");
 
     await expect(page.getByRole("button", {name: fieldName, exact: true})).toBeVisible();

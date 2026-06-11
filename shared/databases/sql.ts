@@ -239,11 +239,16 @@ sql.raw = (text: string): SqlQuery => new SqlQuery(text);
 
 /**
  * Create a quoted SQL identifier. Double-quotes are escaped per the SQL standard
- * (`"` → `""`). Returns a {@link SqlQuery} that can be interpolated into a tagged
- * template.
+ * (`"` → `""`). Multiple names are joined as a qualified identifier. Returns a
+ * {@link SqlQuery} that can be interpolated into a tagged template.
  */
-// eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
-sql.identifier = (name: string): SqlQuery => new SqlQuery(`"${name.replace(/"/g, '""')}"`);
+sql.identifier = (name: string, ...moreNames: Array<string>): SqlQuery =>
+    new SqlQuery(
+        [name, ...moreNames]
+            // eslint-disable-next-line cyberworlds/string-quotes -- SQL identifier quoting
+            .map(identifierName => `"${identifierName.replace(/"/g, '""')}"`)
+            .join("."),
+    );
 
 /**
  * Prefix for the SQLite schema name of a table's `ATTACH`-ed per-db file.
@@ -270,8 +275,6 @@ export function databaseTableSchemaName(tableId: DatabaseTableId): string {
  * per-db file. Both parts are quoted and escaped via {@link sql.identifier}.
  */
 sql.tableRef = (schema: DatabaseTableId, name: string): SqlQuery =>
-    new SqlQuery(
-        `${sql.identifier(databaseTableSchemaName(schema)).query}.${sql.identifier(name).query}`,
-    );
+    sql.identifier(databaseTableSchemaName(schema), name);
 
 export {sql, SqlQuery};

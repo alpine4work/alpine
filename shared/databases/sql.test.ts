@@ -154,6 +154,11 @@ describe("sql.identifier", () => {
         const q = sql.identifier('my "table"');
         expect(q.query).toBe('"my ""table"""');
     });
+
+    test("qualifies multiple names", () => {
+        const q = sql.identifier("table_alias", "column_name");
+        expect(q.query).toBe('"table_alias"."column_name"');
+    });
 });
 
 describe("sql.tableRef", () => {
