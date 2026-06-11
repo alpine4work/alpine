@@ -34,7 +34,11 @@ import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
 } from "~/client/web/styles/other/internal/helpers/extrapolate_highlight_color.js";
-import {navigationBarHeight} from "~/client/web/styles/other/internal/navigation_bar.css.js";
+import {
+    navigationBarBreadcrumbToTitleSpacing,
+    navigationBarHeight,
+    navigationBarTitleBreadcrumbButtonHeight,
+} from "~/client/web/styles/other/internal/navigation_bar.css.js";
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {
@@ -216,6 +220,20 @@ export const withUserSelectNoneDocClassName = style({
  */
 export const withoutTitleTopSpacingDocClassName = style({});
 
+/**
+ * Grow the title node's top breathing room by the height of the site breadcrumb
+ * row (`SiteBreadcrumbChip`'s button plus its breadcrumb-to-title spacing). Used
+ * by `<DocumentContentEditor>` when it overlays an absolutely positioned site
+ * breadcrumb above the title: the editor stays in flow covering 100% of the space
+ * (so covers lay out normally and clicking the top area focuses the editor) and
+ * this clearance makes room for the chip between the navigation bar and the title
+ * text.
+ *
+ * Only narrow-layout variants exist since the site breadcrumb only renders in
+ * narrow layouts (mobile or a peek).
+ */
+export const withTitleSiteBreadcrumbDocClassName = style({});
+
 const blockStyles = {
     position: "relative",
     width: "100%",
@@ -375,7 +393,7 @@ globalStyle(
 // `withoutTitleTopSpacingDocClassName`. Covers wide, desktop-narrow, and mobile
 // variants since each declares its own `padding-top` / `min-height`.
 globalStyle(`${docClassName}${withoutTitleTopSpacingDocClassName} ${titleClassName}`, {
-    paddingTop: "var(--safe-area-inset-top, 0px)",
+    paddingTop: 0,
     minHeight: fontSizes[titleFontSize.wide].lineHeight,
 });
 globalStyle(
@@ -390,7 +408,57 @@ globalStyle(
         `${mobilePlatformSelector} ${docClassName}${withoutTitleTopSpacingDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
     ].join(", "),
     {
+        // The mobile-platform title `padding-top` (declared with a
+        // `mobilePlatformSelector` ancestor) out-specifies the base strip above, so
+        // re-strip it here — otherwise the title keeps its full `titlePaddingTop` on
+        // mobile and leaves a gap below whatever sits above it (e.g. a site breadcrumb).
+        paddingTop: 0,
         minHeight: fontSizes[titleFontSize.narrow].lineHeight,
+    },
+);
+
+// The title's top clearance grown by the site breadcrumb row, per narrow layout.
+// The chip itself carries the breadcrumb-to-title gap as `padding-bottom` so the
+// row height is the button height plus that gap.
+const titlePaddingTopWithSiteBreadcrumb = {
+    mobileNarrow: addRemLengths(
+        titlePaddingTop.mobileNarrow,
+        navigationBarTitleBreadcrumbButtonHeight,
+        navigationBarBreadcrumbToTitleSpacing.mobile,
+    ),
+    desktopNarrow: addRemLengths(
+        titlePaddingTop.desktopNarrow,
+        navigationBarTitleBreadcrumbButtonHeight,
+        navigationBarBreadcrumbToTitleSpacing.desktop,
+    ),
+};
+
+globalStyle(
+    [
+        `${docClassName}${withTitleSiteBreadcrumbDocClassName}${narrowRouteLayoutDocClassName} ${titleClassName}`,
+        `${docClassName}${withTitleSiteBreadcrumbDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    ].join(", "),
+    {
+        paddingTop: `calc(${
+            titlePaddingTopWithSiteBreadcrumb.desktopNarrow
+        } + var(--safe-area-inset-top, 0px))`,
+        minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
+            titlePaddingTopWithSiteBreadcrumb.desktopNarrow
+        })`,
+    },
+);
+globalStyle(
+    [
+        `${mobilePlatformSelector} ${docClassName}${withTitleSiteBreadcrumbDocClassName} ${titleClassName}`,
+        `${mobilePlatformSelector} ${docClassName}${withTitleSiteBreadcrumbDocClassName} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
+    ].join(", "),
+    {
+        paddingTop: `calc(${
+            titlePaddingTopWithSiteBreadcrumb.mobileNarrow
+        } + var(--safe-area-inset-top, 0px))`,
+        minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
+            titlePaddingTopWithSiteBreadcrumb.mobileNarrow
+        })`,
     },
 );
 

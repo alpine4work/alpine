@@ -22,6 +22,8 @@ import {MenuAction} from "~/client/web/design/menu.js";
 import {
     navigationBarHeight,
     navigationBarHeightRem,
+    navigationBarHeightWithTitleBreadcrumb,
+    navigationBarHeightWithTitleBreadcrumbRem,
 } from "~/client/web/design/navigation_bar_helpers.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/web/design/safe_area_inset.js";
 import {scrollbarVisibleAfterScrollDurationMs} from "~/client/web/design/scrollbar.js";
@@ -33,6 +35,7 @@ import {
 import {
     NavigationBarRef,
     NavigationBarShareButtonProps,
+    NavigationBarTitleBreadcrumb,
 } from "~/client/web/navigation/navigation_bar_types.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -42,6 +45,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {navigationBarStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,
@@ -135,11 +139,48 @@ const initialScrollDirectionState: ScrollDirectionState = {
     animateNavigationBar: null,
 };
 
+// A title element that isn't interactive shouldn't be clickable (it may overlap
+// other interactive content) or visible to assistive technology.
+function setNavigationBarTitleElementInteractivity(
+    navigationBarTitleElement: HTMLElement,
+    isInteractive: boolean,
+) {
+    navigationBarTitleElement.style.pointerEvents = isInteractive ? "auto" : "none";
+    if (isInteractive) {
+        navigationBarTitleElement.removeAttribute("inert");
+        navigationBarTitleElement.removeAttribute("aria-hidden");
+    } else {
+        navigationBarTitleElement.setAttribute("inert", "");
+        navigationBarTitleElement.setAttribute("aria-hidden", "true");
+    }
+}
+
+function setNavigationBarTitleElementVisibility(
+    navigationBarTitleElement: HTMLElement,
+    isVisible: boolean,
+) {
+    navigationBarTitleElement.style.opacity = isVisible ? "1" : "0";
+    setNavigationBarTitleElementInteractivity(navigationBarTitleElement, isVisible);
+}
+
+function getNavigationBarHeightPx(
+    remPx: number,
+    withTitleBreadcrumb: boolean,
+    platform: Platform,
+): number {
+    return (
+        (withTitleBreadcrumb
+            ? navigationBarHeightWithTitleBreadcrumbRem[platform]
+            : navigationBarHeightRem) * remPx
+    );
+}
+
 export function NavigationBar({
     handleRef,
     navigationBarRef: externalNavigationBarRef,
     withScrollAway,
     title,
+    titleBreadcrumb,
     getTitleBoundaryElement,
     titleBoundaryMarginTop,
     withoutDisappearingTitle,
@@ -175,6 +216,7 @@ export function NavigationBar({
     navigationBarRef: Ref<NavigationBarRef> | undefined;
     withScrollAway: boolean;
     title: ReactNode;
+    titleBreadcrumb: NavigationBarTitleBreadcrumb | undefined;
     getTitleBoundaryElement: Memo<() => HTMLElement> | undefined;
     titleBoundaryMarginTop: Spacing | RemLength | undefined;
     withoutDisappearingTitle: boolean;
@@ -202,6 +244,7 @@ export function NavigationBar({
     defaultPreviousRoute: MaybeThunk<string> | undefined;
 }) {
     const platform = usePlatform();
+    const withTitleBreadcrumb = titleBreadcrumb !== undefined;
 
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
         null,
@@ -243,7 +286,11 @@ export function NavigationBar({
                 const navigationBarElement = assertExists(navigationBarRef.current);
 
                 const remPx = getRemPxWithoutListening();
-                const navigationBarHeight = navigationBarHeightRem * remPx;
+                const navigationBarHeight = getNavigationBarHeightPx(
+                    remPx,
+                    withTitleBreadcrumb,
+                    platform,
+                );
 
                 const lastNavigationBarScrollOffset = Math.max(
                     0,
@@ -263,12 +310,16 @@ export function NavigationBar({
                 const navigationBarElement = assertExists(navigationBarRef.current);
 
                 const remPx = getRemPxWithoutListening();
-                const navigationBarHeight = navigationBarHeightRem * remPx;
+                const navigationBarHeight = getNavigationBarHeightPx(
+                    remPx,
+                    withTitleBreadcrumb,
+                    platform,
+                );
 
                 return navigationBarHeight + getElementSafeAreaInsetTopPx(navigationBarElement);
             },
         }),
-        [],
+        [platform, withTitleBreadcrumb],
     );
 
     const animationControlsRef = useRef<Set<AnimationPlaybackControls> | null>(null);
@@ -278,7 +329,7 @@ export function NavigationBar({
         let navigationBarBackgroundElement: HTMLDivElement | undefined;
         let navigationBarContent: NavigationBarContentRef | undefined;
         let navigationBarContentElement: HTMLElement | undefined;
-        let navigationBarTitleElement: HTMLElement | undefined;
+        let navigationBarTitleElements: ReadonlyArray<HTMLElement> | undefined;
         let safeAreaInsetTopPx: number | undefined;
 
         let scrollDebounceTimeout: Timeout | null = null;
@@ -329,7 +380,7 @@ export function NavigationBar({
             navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
             navigationBarContent ??= assertExists(navigationBarContentRef.current);
             navigationBarContentElement ??= navigationBarContent.getElement();
-            navigationBarTitleElement ??= navigationBarContent.getTitleElement();
+            navigationBarTitleElements ??= navigationBarContent.getTitleElements();
             safeAreaInsetTopPx ??= getElementSafeAreaInsetTopPx(navigationBarContentElement);
 
             // Immediately finish any animations when scrolling begins.
@@ -347,7 +398,15 @@ export function NavigationBar({
 
             const spacingScale = getSpacingScaleWithoutListening();
             const remPx = remPxBySpacingScale[spacingScale];
-            const navigationBarHeight = navigationBarHeightRem * remPx;
+            const navigationBarHeight = getNavigationBarHeightPx(
+                remPx,
+                withTitleBreadcrumb,
+                platform,
+            );
+            // The title boundary keeps using the standard navigation bar height even when a
+            // breadcrumb grows the bar, since the title itself stays aligned to the standard
+            // nav bar floor.
+            const navigationBarTitleBoundaryHeight = navigationBarHeightRem * remPx;
 
             const scrollOffset = Math.max(0, element.scrollTop);
 
@@ -376,7 +435,7 @@ export function NavigationBar({
             const isNavigationBarTitleVisible =
                 withoutDisappearingTitle ||
                 titleBoundaryOffset === null ||
-                scrollOffset >= titleBoundaryOffset - navigationBarHeight;
+                scrollOffset >= titleBoundaryOffset - navigationBarTitleBoundaryHeight;
             lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
 
             if (
@@ -393,29 +452,31 @@ export function NavigationBar({
             }
 
             if (isNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
-                navigationBarTitleElement.style.opacity = isNavigationBarTitleVisible ? "1" : "0";
-                navigationBarTitleElement.style.pointerEvents = isNavigationBarTitleVisible
-                    ? "auto"
-                    : "none";
+                for (const navigationBarTitleElement of navigationBarTitleElements) {
+                    setNavigationBarTitleElementVisibility(
+                        navigationBarTitleElement,
+                        isNavigationBarTitleVisible,
+                    );
 
-                if (lastIsNavigationBarTitleVisible !== null) {
-                    if (isNavigationBarTitleVisible) {
-                        navigationBarTitleElement.classList.remove(
-                            navigationBarStyles.titleFadeOutAnimationClassName,
-                        );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
-                            navigationBarTitleElement.classList.add(
-                                navigationBarStyles.titleFadeInAnimationClassName,
-                            );
-                        }
-                    } else {
-                        navigationBarTitleElement.classList.add(
-                            navigationBarStyles.titleFadeOutAnimationClassName,
-                        );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
+                    if (lastIsNavigationBarTitleVisible !== null) {
+                        if (isNavigationBarTitleVisible) {
                             navigationBarTitleElement.classList.remove(
-                                navigationBarStyles.titleFadeInAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.add(
+                                    navigationBarStyles.titleFadeInAnimationClassName,
+                                );
+                            }
+                        } else {
+                            navigationBarTitleElement.classList.add(
+                                navigationBarStyles.titleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.remove(
+                                    navigationBarStyles.titleFadeInAnimationClassName,
+                                );
+                            }
                         }
                     }
                 }
@@ -450,7 +511,7 @@ export function NavigationBar({
             navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
             navigationBarContent ??= assertExists(navigationBarContentRef.current);
             navigationBarContentElement ??= navigationBarContent.getElement();
-            navigationBarTitleElement ??= navigationBarContent.getTitleElement();
+            navigationBarTitleElements ??= navigationBarContent.getTitleElements();
             safeAreaInsetTopPx ??= getElementSafeAreaInsetTopPx(navigationBarContentElement);
 
             const doesNavigationBarHaveSafeAreaInsetTop = safeAreaInsetTopPx > 0;
@@ -495,7 +556,12 @@ export function NavigationBar({
 
             const spacingScale = getSpacingScaleWithoutListening();
             const remPx = remPxBySpacingScale[spacingScale];
-            const navigationBarHeight = navigationBarHeightRem * remPx;
+            const navigationBarHeight = getNavigationBarHeightPx(
+                remPx,
+                withTitleBreadcrumb,
+                platform,
+            );
+            const navigationBarTitleBoundaryHeight = navigationBarHeightRem * remPx;
 
             const lastScrollOffset = lastScrollOffsetRef.current;
             lastScrollOffsetRef.current = scrollOffset;
@@ -584,7 +650,7 @@ export function NavigationBar({
                 const isNavigationBarTitleVisible =
                     withoutDisappearingTitle ||
                     titleBoundaryOffset === null ||
-                    scrollOffset >= titleBoundaryOffset - navigationBarHeight;
+                    scrollOffset >= titleBoundaryOffset - navigationBarTitleBoundaryHeight;
 
                 lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
 
@@ -598,30 +664,30 @@ export function NavigationBar({
                 });
 
                 if (isNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
-                    navigationBarTitleElement.style.opacity = isNavigationBarTitleVisible
-                        ? "1"
-                        : "0";
-                    navigationBarTitleElement.style.pointerEvents = isNavigationBarTitleVisible
-                        ? "auto"
-                        : "none";
+                    for (const navigationBarTitleElement of navigationBarTitleElements) {
+                        setNavigationBarTitleElementVisibility(
+                            navigationBarTitleElement,
+                            isNavigationBarTitleVisible,
+                        );
 
-                    if (isNavigationBarTitleVisible) {
-                        navigationBarTitleElement.classList.remove(
-                            navigationBarStyles.titleFadeOutAnimationClassName,
-                        );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
-                            navigationBarTitleElement.classList.add(
-                                navigationBarStyles.titleFadeInAnimationClassName,
-                            );
-                        }
-                    } else {
-                        navigationBarTitleElement.classList.add(
-                            navigationBarStyles.titleFadeOutAnimationClassName,
-                        );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
+                        if (isNavigationBarTitleVisible) {
                             navigationBarTitleElement.classList.remove(
-                                navigationBarStyles.titleFadeInAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.add(
+                                    navigationBarStyles.titleFadeInAnimationClassName,
+                                );
+                            }
+                        } else {
+                            navigationBarTitleElement.classList.add(
+                                navigationBarStyles.titleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.remove(
+                                    navigationBarStyles.titleFadeInAnimationClassName,
+                                );
+                            }
                         }
                     }
                 }
@@ -691,7 +757,7 @@ export function NavigationBar({
                 const isNavigationBarTitleVisible =
                     withoutDisappearingTitle ||
                     ((titleBoundaryOffset === null ||
-                        scrollOffset >= titleBoundaryOffset - navigationBarHeight) &&
+                        scrollOffset >= titleBoundaryOffset - navigationBarTitleBoundaryHeight) &&
                         (!withScrollAway ||
                             navigationBarScrollOffset >= navigationBarHeight ||
                             lastIsNavigationBarTitleVisible));
@@ -726,29 +792,30 @@ export function NavigationBar({
                 // Handle the transition from a visible navigation bar title to a hidden navigation
                 // bar title.
                 if (lastIsNavigationBarTitleVisible !== isNavigationBarTitleVisible) {
-                    if (!isNavigationBarTitleVisible) {
-                        navigationBarTitleElement.style.opacity = "0";
-                        navigationBarTitleElement.style.pointerEvents = "none";
-
-                        navigationBarTitleElement.classList.add(
-                            navigationBarStyles.titleFadeOutAnimationClassName,
+                    for (const navigationBarTitleElement of navigationBarTitleElements) {
+                        setNavigationBarTitleElementVisibility(
+                            navigationBarTitleElement,
+                            isNavigationBarTitleVisible ?? false,
                         );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
-                            navigationBarTitleElement.classList.remove(
-                                navigationBarStyles.titleFadeInAnimationClassName,
-                            );
-                        }
-                    } else {
-                        navigationBarTitleElement.style.opacity = "1";
-                        navigationBarTitleElement.style.pointerEvents = "auto";
 
-                        navigationBarTitleElement.classList.remove(
-                            navigationBarStyles.titleFadeOutAnimationClassName,
-                        );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
+                        if (!isNavigationBarTitleVisible) {
                             navigationBarTitleElement.classList.add(
-                                navigationBarStyles.titleFadeInAnimationClassName,
+                                navigationBarStyles.titleFadeOutAnimationClassName,
                             );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.remove(
+                                    navigationBarStyles.titleFadeInAnimationClassName,
+                                );
+                            }
+                        } else {
+                            navigationBarTitleElement.classList.remove(
+                                navigationBarStyles.titleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.add(
+                                    navigationBarStyles.titleFadeInAnimationClassName,
+                                );
+                            }
                         }
                     }
                 }
@@ -784,6 +851,12 @@ export function NavigationBar({
                     NativeMobileBridge?.navigationBar.runScrollDebounceTimeout();
 
                     const remPx = getRemPxWithoutListening();
+                    const navigationBarHeight = getNavigationBarHeightPx(
+                        remPx,
+                        withTitleBreadcrumb,
+                        platform,
+                    );
+                    const navigationBarTitleBoundaryHeight = navigationBarHeightRem * remPx;
 
                     // Assert is ok since this ref should be initialized by the `initialize()`
                     // function.
@@ -820,7 +893,7 @@ export function NavigationBar({
                     const nextIsNavigationBarTitleVisible =
                         withoutDisappearingTitle ||
                         titleBoundaryOffset === null ||
-                        scrollOffset >= titleBoundaryOffset - navigationBarHeight;
+                        scrollOffset >= titleBoundaryOffset - navigationBarTitleBoundaryHeight;
 
                     const lastNavigationBarTopOffset =
                         scrollOffset >= scrollHeight - clientHeight
@@ -845,15 +918,19 @@ export function NavigationBar({
                     // We'll animate the navigation bar title's opacity with `motion` in our effect
                     // after the state update but update these non-animatable properties immediately.
                     if (nextIsNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
-                        navigationBarTitleElement!.style.pointerEvents =
-                            nextIsNavigationBarTitleVisible ? "auto" : "none";
-                        navigationBarTitleElement!.classList.remove(
-                            navigationBarStyles.titleFadeOutAnimationClassName,
-                        );
-                        if (!withScrollAway && !withoutDisappearingTitle) {
-                            navigationBarTitleElement!.classList.add(
-                                navigationBarStyles.titleFadeInAnimationClassName,
+                        for (const navigationBarTitleElement of navigationBarTitleElements!) {
+                            setNavigationBarTitleElementInteractivity(
+                                navigationBarTitleElement,
+                                nextIsNavigationBarTitleVisible,
                             );
+                            navigationBarTitleElement.classList.remove(
+                                navigationBarStyles.titleFadeOutAnimationClassName,
+                            );
+                            if (!withScrollAway && !withoutDisappearingTitle) {
+                                navigationBarTitleElement.classList.add(
+                                    navigationBarStyles.titleFadeInAnimationClassName,
+                                );
+                            }
                         }
                     }
 
@@ -881,7 +958,11 @@ export function NavigationBar({
                 lastScrollDirectionRef.current = scrollDirection;
 
                 const remPx = getRemPxWithoutListening();
-                const navigationBarHeight = navigationBarHeightRem * remPx;
+                const navigationBarHeight = getNavigationBarHeightPx(
+                    remPx,
+                    withTitleBreadcrumb,
+                    platform,
+                );
 
                 const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
 
@@ -911,7 +992,14 @@ export function NavigationBar({
             onScroll,
             onPrepareSmoothScrollTo,
         };
-    }, [getTitleBoundaryElement, titleBoundaryMarginTop, withScrollAway, withoutDisappearingTitle]);
+    }, [
+        getTitleBoundaryElement,
+        titleBoundaryMarginTop,
+        withTitleBreadcrumb,
+        platform,
+        withScrollAway,
+        withoutDisappearingTitle,
+    ]);
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
 
@@ -924,7 +1012,7 @@ export function NavigationBar({
         const navigationBarElement = assertExists(navigationBarRef.current);
         const navigationBarContent = assertExists(navigationBarContentRef.current);
         const navigationBarContentElement = navigationBarContent.getElement();
-        const navigationBarTitleElement = navigationBarContent.getTitleElement();
+        const navigationBarTitleElements = navigationBarContent.getTitleElements();
 
         const {
             translateY,
@@ -947,12 +1035,20 @@ export function NavigationBar({
             ]);
         }
 
+        // TODO(#sites): There are two title elements when a site breadcrumb is rendered
+        // (the breadcrumb row and the title row) so we push one animation per element.
+        // Consider restructuring `NavigationBarContent` so the breadcrumb and title share
+        // a single animatable column (with the more-menu padded beside it) and we're back
+        // to animating one element:
+        // https://github.com/cyberworlds/cyberworlds/pull/1550#discussion_r3392116246
         if (isNavigationBarTitleVisible !== lastIsNavigationBarTitleVisible) {
-            timelineDefinition.push([
-                navigationBarTitleElement,
-                {opacity: isNavigationBarTitleVisible ? 1 : 0},
-                {at: "<", ease: "easeIn"},
-            ]);
+            for (const navigationBarTitleElement of navigationBarTitleElements) {
+                timelineDefinition.push([
+                    navigationBarTitleElement,
+                    {opacity: isNavigationBarTitleVisible ? 1 : 0},
+                    {at: "<", ease: "easeIn"},
+                ]);
+            }
         }
 
         const animationControls = animate(timelineDefinition, {
@@ -986,6 +1082,10 @@ export function NavigationBar({
 
     const backgroundBorderMaxWidth =
         platform === "desktop" ? (desktopMaxWidth ?? desktopTitleMaxWidth) : undefined;
+
+    const effectiveNavigationBarHeight = withTitleBreadcrumb
+        ? navigationBarHeightWithTitleBreadcrumb[platform]
+        : spacing[navigationBarHeight];
 
     return (
         <div
@@ -1040,15 +1140,15 @@ export function NavigationBar({
                         position: "sticky",
                         width: "100%",
                         height: !withScrollAway
-                            ? `${navigationBarHeightRem}rem`
+                            ? effectiveNavigationBarHeight
                             : `calc(${
                                   scrollViewSize?.height ?? 0
-                              }px + ${navigationBarHeightRem}rem)`,
+                              }px + ${effectiveNavigationBarHeight})`,
                         ...(!withScrollAway
                             ? {top: "0"}
                             : scrollDirectionState.scrollDirection === "Down"
-                              ? {top: `-${navigationBarHeightRem}rem`}
-                              : {bottom: `-${navigationBarHeightRem}rem`}),
+                              ? {top: `-${effectiveNavigationBarHeight}`}
+                              : {bottom: `-${effectiveNavigationBarHeight}`}),
                     }}
                 >
                     <Box position="relative" zIndex="0" paddingTop="safe-area-inset">
@@ -1064,7 +1164,7 @@ export function NavigationBar({
                             right="0"
                             backgroundColor="grey-0"
                             style={{
-                                height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
+                                height: `calc(${effectiveNavigationBarHeight} + var(--safe-area-inset-top, 0px))`,
                             }}
                         >
                             {contentCover && (
@@ -1102,6 +1202,7 @@ export function NavigationBar({
                         <NavigationBarContent
                             ref={navigationBarContentRef}
                             title={title}
+                            titleBreadcrumb={titleBreadcrumb}
                             withDisappearingTitle={!withoutDisappearingTitle}
                             subtitle={subtitle}
                             menuActions={menuActions}

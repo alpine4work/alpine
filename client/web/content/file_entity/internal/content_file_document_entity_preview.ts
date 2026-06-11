@@ -130,12 +130,13 @@ export function renderContentFileDocumentEntityPreview(
         // full-width preview.
         const breadcrumbBlockHtml = scaledDocHtml.appendChild(new HtmlElementGenerator("div"));
         breadcrumbBlockHtml.setAttribute("class", contentStyles.docBlockClassName);
-        renderContentFileEntitySiteBreadcrumb(
+        renderContentFileEntitySiteBreadcrumb({
             get,
             siteRegistry,
-            breadcrumbBlockHtml,
-            fileEntity.site,
-        );
+            parent: breadcrumbBlockHtml,
+            site: fileEntity.site,
+            platform,
+        });
     }
 
     const cover: DocumentContentCover = content.doc.attrs.cover;

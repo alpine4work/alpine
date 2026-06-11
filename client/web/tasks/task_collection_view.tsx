@@ -28,6 +28,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {useSiteNavigationBarTitleBreadcrumb} from "~/client/web/sites/breadcrumb/use_site_navigation_bar_title_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -622,6 +623,7 @@ export function TaskCollectionView({
     );
 
     const isCreatedCollectionFromGhostTaskPrivate = !accessPolicy.defaultGrant;
+    const navigationBarTitleBreadcrumb = useSiteNavigationBarTitleBreadcrumb({accessPolicy});
 
     const {
         stateKey: gridViewStateKey,
@@ -789,6 +791,7 @@ export function TaskCollectionView({
                         sorts={sorts}
                         onSortsChange={setSorts}
                         onCopyLink={copyLink}
+                        isSiteBreadcrumbRendered={!!navigationBarTitleBreadcrumb}
                     />
                 ),
             };
@@ -803,6 +806,7 @@ export function TaskCollectionView({
             filterReferences,
             filters,
             menuActions,
+            navigationBarTitleBreadcrumb,
             queryReferencesForUrlGrant,
             routeLayout,
             setSorts,
@@ -813,78 +817,81 @@ export function TaskCollectionView({
         ]),
     });
 
-    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        isDisabled: routeLayout !== "narrow",
-        withoutDisappearingTitle: true,
-        title: (
-            <TaskCollectionViewMobileNavigationBarTitle
-                accessLevel={accessLevel}
-                store={store}
-                collectionId={collectionId}
-                collectionSubscription={collectionSubscription}
-                shouldInitiallyFocusEditableCollectionName={
-                    shouldInitiallyFocusEditableCollectionName
-                }
-                createCollection={createCollection}
-                affinityManager={affinityManager}
-                desktopNameRef={navigationBarDesktopNameRef}
-            />
-        ),
-        desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
-        shareButton: accessPolicy
-            ? {
-                  isReadOnly: !collectionSubscription,
-                  entityNoun: "task collection",
-                  entityId: `TaskCollection:${collectionId}`,
-                  accessPolicy,
-                  onAccessPolicyChange: async (notification, accessPolicy) => {
-                      if (accessPolicy.type === "Site") {
-                          await applySiteAccessPolicyChange({
-                              context,
-                              accessPolicy,
-                              handleEventForSite: assertExists(siteContext).handleEventForSite,
-                          });
-                          return;
-                      }
+    const {scrollViewRef, navigationBar, effectiveNavigationBarHeight, scrollbarInsetTop} =
+        useNavigationBar({
+            isDisabled: routeLayout !== "narrow",
+            withoutDisappearingTitle: true,
+            title: (
+                <TaskCollectionViewMobileNavigationBarTitle
+                    accessLevel={accessLevel}
+                    store={store}
+                    collectionId={collectionId}
+                    collectionSubscription={collectionSubscription}
+                    shouldInitiallyFocusEditableCollectionName={
+                        shouldInitiallyFocusEditableCollectionName
+                    }
+                    createCollection={createCollection}
+                    affinityManager={affinityManager}
+                    desktopNameRef={navigationBarDesktopNameRef}
+                    isSiteBreadcrumbRendered={!!navigationBarTitleBreadcrumb}
+                />
+            ),
+            titleBreadcrumb: navigationBarTitleBreadcrumb,
+            desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
+            shareButton: accessPolicy
+                ? {
+                      isReadOnly: !collectionSubscription,
+                      entityNoun: "task collection",
+                      entityId: `TaskCollection:${collectionId}`,
+                      accessPolicy,
+                      onAccessPolicyChange: async (notification, accessPolicy) => {
+                          if (accessPolicy.type === "Site") {
+                              await applySiteAccessPolicyChange({
+                                  context,
+                                  accessPolicy,
+                                  handleEventForSite: assertExists(siteContext).handleEventForSite,
+                              });
+                              return;
+                          }
 
-                      store.commitTaskActionTransaction(
-                          context,
-                          [
-                              {
-                                  type: "UpdateCollection",
-                                  time: store.clock.now(),
-                                  collectionId,
-                                  collectionAction: {
-                                      type: "UpdateAccessPolicy",
-                                      accessPolicy,
+                          store.commitTaskActionTransaction(
+                              context,
+                              [
+                                  {
+                                      type: "UpdateCollection",
+                                      time: store.clock.now(),
+                                      collectionId,
+                                      collectionAction: {
+                                          type: "UpdateAccessPolicy",
+                                          accessPolicy,
+                                      },
                                   },
+                              ],
+                              {
+                                  // Collection access policy changes can't be undone.
+                                  undoManager: null,
+                                  affinityManager,
+                                  // Include a notification if the user decided to configure one.
+                                  updateAccessPolicyShareNotification: notification ?? undefined,
                               },
-                          ],
-                          {
-                              // Collection access policy changes can't be undone.
-                              undoManager: null,
-                              affinityManager,
-                              // Include a notification if the user decided to configure one.
-                              updateAccessPolicyShareNotification: notification ?? undefined,
-                          },
-                      );
-                  },
-                  onCopyLink: copyLink,
-              }
-            : undefined,
-        menuActions,
-        defaultPreviousRoute: `/home/${space.id}`,
-    });
+                          );
+                      },
+                      onCopyLink: copyLink,
+                  }
+                : undefined,
+            menuActions,
+            defaultPreviousRoute: `/home/${space.id}`,
+        });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             if (routeLayout === "narrow" && index === 0) {
                 return {
                     key: "CustomizationBar",
-                    minHeight: spacing[navigationBarHeight],
+                    minHeight: effectiveNavigationBarHeight,
                     node: (
                         <Box paddingTop="safe-area-inset">
-                            <Box height={navigationBarHeight} />
+                            <Box style={{height: effectiveNavigationBarHeight}} />
                             {customizationState &&
                                 (platform === "mobile" ? (
                                     <TaskQueryViewCustomizationMobileSection
@@ -927,6 +934,7 @@ export function TaskCollectionView({
             routeLayout,
             renderGridViewItem,
             itemCountBeforeGridView,
+            effectiveNavigationBarHeight,
             customizationState,
             platform,
             store,
@@ -1068,6 +1076,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     createCollection,
     affinityManager,
     desktopNameRef,
+    isSiteBreadcrumbRendered,
 }: {
     accessLevel: AccessLevel | null;
     store: TaskClientStore;
@@ -1077,6 +1086,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     createCollection: (name: string) => Promise<void>;
     affinityManager: TaskClientStoreSearchAffinityManager;
     desktopNameRef: RefObject<TaskCollectionViewDesktopHeaderNameRef | null>;
+    isSiteBreadcrumbRendered: boolean;
 }) {
     const platform = usePlatform();
 
@@ -1084,8 +1094,14 @@ function TaskCollectionViewMobileNavigationBarTitle({
     const collection = collectionEntry?.collection ?? null;
 
     if (platform === "mobile") {
+        // Dot + name share one row. Wrapped in an explicit `flex` row instead of the old
+        // inline-flex fragment so the surrounding 2-line nav bar title column doesn't pull
+        // the dot onto its own line.
         return (
-            <>
+            // The mobile title component may eventually get wrapped in a column flex container
+            // if we are rendering a title breadcrumb above the title. Setting a flex direction
+            // here ensures the dot and name are on the same row.
+            <Box display="flex" flexDirection="row" alignItems="center">
                 <Box
                     display="inline-flex"
                     alignItems="center"
@@ -1100,7 +1116,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
                     />
                 </Box>
                 {collection?.getName() ?? ""}
-            </>
+            </Box>
         );
     }
 
@@ -1115,6 +1131,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
             collection={collection}
             createCollection={createCollection}
             affinityManager={affinityManager}
+            isSiteBreadcrumbRendered={isSiteBreadcrumbRendered}
         />
     );
 }

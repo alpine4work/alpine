@@ -35,6 +35,7 @@ ts_project(
         "//client/web/rpc",
         "//client/web/search",
         "//client/web/search/core",
+        "//client/web/sites/breadcrumb",
         "//client/web/sites/context",
         "//client/web/sites/helpers",
         "//client/web/shimmer",

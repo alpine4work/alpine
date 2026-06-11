@@ -81,6 +81,7 @@ import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {Context} from "~/shared/context/context.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
@@ -236,17 +237,46 @@ export async function loader({context: loaderContext, params, request, matches}:
               runAllPromises(
                   spaceMatches.map(match =>
                       match.promise.then(result => {
+                          // Always ensure that we throw loader errors from any matched route before we throw
+                          // an error about not discovering a `SpaceId`.
                           if (result.type === "error") throw result.result;
 
-                          throw new InternalError(
-                              quote`Route ${match.route.id}\u2019s loader function resolved without discovering a \`SpaceId\`, all space routes must discover a \`SpaceId\` at some point in the loader function`,
-                          );
+                          // Originally this function would throw the space discovery error if the result was
+                          // NOT an error. But this broke the following scenario:
+                          //
+                          // When loading the site index route, remix loads both the `site.$siteId` and
+                          // `site.$siteId._index` routes.
+                          //
+                          // - `_space.site.$siteId`: the "outlet" container for the site index and site
+                          //   navigate routes. Needed so that the site navigate route does not run the
+                          //   loader for the site index route and vice versa.
+                          // - `_space.site.$siteId._index`: the route that loads the actual site.
+                          //
+                          // What was happening was that the `site.$siteId._index` would throw a
+                          // NotFoundError, for instance, and `site.$siteId` would not throw any errors at
+                          // all (since it does no work). Because we used to throw the discovery error here
+                          // for any matched route, we would throw the "space not discovered" error for the
+                          // `site.$siteId` route. What we saw in practice is that the space discovery error
+                          // was swallowing the NotFoundError, which leads to a very different UX – instead
+                          // of telling the user that the site doesn't exist, the app would just crash
+                          return match.route.id;
                       }),
                   ),
-              ).then(() => {
+              ).then(routeIds => {
                   // If there are any `spaceMatches` then they should have thrown above. At this
                   // point there should be no space matches.
-                  throw new InternalError("No `spaceMatches` found");
+                  if (routeIds.length === 0) throw new InternalError("No `spaceMatches` found");
+
+                  if (routeIds.length === 1) {
+                      throw new InternalError(
+                          quote`Route ${routeIds[0]}\u2019s loader function resolved without discovering a \`SpaceId\`, all space routes must discover a \`SpaceId\` at some point in the loader function`,
+                      );
+                  }
+
+                  const routeIdConjunction = joinPrettyConjunctionList(routeIds, "or");
+                  throw new InternalError(
+                      quote`One of ${routeIdConjunction} loader functions resolved without discovering a \`SpaceId\`, all space routes must discover a \`SpaceId\` at some point in the loader function`,
+                  );
               }),
           ]);
 

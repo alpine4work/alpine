@@ -1,4 +1,5 @@
 import {Page, expect, test} from "@playwright/test";
+import {activateMobileButton} from "~/app/integration_tests/helpers/activate_mobile_button.js";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
@@ -91,7 +92,7 @@ test("can toggle channel sharing on/off with switch", async ({
     );
 
     if (isMobile) {
-        await page2.getByRole("button", {name: "Close"}).click();
+        await activateMobileButton(page2, "Close");
         await expect(page2.getByTestId("ShareOverlayDefaultGrant")).toBeHidden();
     }
 
@@ -341,7 +342,7 @@ test("can toggle channel sharing on/off with share dialog account grant", async 
     ).toHaveAttribute("aria-label", "Icon indicating the channel is private");
 
     if (isMobile) {
-        await page2.getByRole("button", {name: "Close"}).click();
+        await activateMobileButton(page2, "Close");
         await expect(page2.getByTestId("ShareOverlayDefaultGrant")).toBeHidden();
     }
 
@@ -434,7 +435,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
 
                 if (isMobile) {
                     await expect(page.getByText("About")).toBeHidden();
-                    await page.getByRole("button", {name: "Go back"}).click();
+                    await activateMobileButton(page, "Go back");
                     await expect(page.getByText("About")).toBeVisible();
                 }
             }
@@ -465,7 +466,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
 
             if (isMobile) {
                 await expect(page.getByText("About")).toBeHidden();
-                await page.getByRole("button", {name: "Go back"}).click();
+                await activateMobileButton(page, "Go back");
                 await expect(page.getByText("About")).toBeVisible();
             }
 
@@ -496,7 +497,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
                     ).toHaveText("can post");
                     await page.keyboard.press("Escape");
                 } else {
-                    await page.getByRole("button", {name: "Close"}).click();
+                    await activateMobileButton(page, "Close");
                 }
 
                 await expect(page.getByPlaceholder("Add people…")).toBeHidden();
@@ -796,7 +797,7 @@ test("can switch other account access level between comment and view in realtime
 
     if (isMobile) {
         await expect(page2.getByText("About")).toBeHidden();
-        await page2.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page2, "Go back");
         await expect(page2.getByText("About")).toBeVisible();
     }
 
@@ -856,7 +857,7 @@ test("can switch other account access level between comment and view in realtime
     await expect(page1.getByText("Can\u2019t comment on posts")).toBeHidden();
 
     if (isMobile) {
-        await page2.getByRole("button", {name: "Close"}).click();
+        await activateMobileButton(page2, "Close");
         await page2.getByRole("button", {name: "0 comments"}).click();
     }
 
@@ -894,7 +895,7 @@ test("can switch own account access level between manage and view in realtime", 
 
     if (isMobile) {
         await expect(page.getByText("About")).toBeHidden();
-        await page.getByRole("button", {name: "Go back"}).click();
+        await activateMobileButton(page, "Go back");
         await expect(page.getByText("About")).toBeVisible();
     }
 
@@ -921,7 +922,7 @@ test("can switch own account access level between manage and view in realtime", 
     await expect(page.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`)).toBeVisible();
 
     if (isMobile) {
-        await page.getByRole("button", {name: "Close"}).click();
+        await activateMobileButton(page, "Close");
         await expect(page.getByTestId("NavigationBar").getByText("Test Channel")).toBeVisible();
         await page.getByRole("button", {name: "0 comments"}).click();
     }

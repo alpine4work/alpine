@@ -2,10 +2,11 @@ import {CalendarDate} from "@internationalized/date";
 import {renderAccountAvatar} from "~/client/web/accounts/account_avatar_html.js";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {setupContentFileEntityPreviewContainer} from "~/client/web/content/file_entity/internal/content_file_entity_preview_container.js";
+import {renderContentFileEntitySiteBreadcrumb} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
 import {
-    renderContentFileEntitySiteBreadcrumb,
-    siteBreadcrumbToTitleSpacing,
-} from "~/client/web/content/file_entity/internal/render_content_file_entity_site_breadcrumb.js";
+    navigationBarBreadcrumbToTitleSpacing,
+    navigationBarTitleBreadcrumbButtonHeight,
+} from "~/client/web/design/navigation_bar_helpers.js";
 import {renderTaskDisplayStatusCircle} from "~/client/web/design/task_display_status_circle_html.js";
 import {calendarBlankIconSvg} from "~/client/web/icons/calendar_blank_icon_svg.js";
 import {caretRightIconSvg} from "~/client/web/icons/caret_right_icon_svg.js";
@@ -141,19 +142,20 @@ export function renderContentFileTaskEntityPreview(
         const hasBreadcrumb = showSiteBreadcrumb || fileEntity.parent !== null;
 
         if (hasBreadcrumb) {
-            const breadcrumbLineHeight = fontSizesBySpacingScale["75"][spacingScale].lineHeight;
-
             // Offset the status circle down so it centers on the title row rather than a
             // breadcrumb. Each breadcrumb line above the title contributes its own line height
             // plus the gap it leaves below itself, so sum every line that's actually shown —
             // when both the site and parent breadcrumbs render that's two lines, not one
             // (otherwise the circle lands on the lower breadcrumb).
             const siteBreadcrumbOffset = showSiteBreadcrumb
-                ? addRemLengths(breadcrumbLineHeight, siteBreadcrumbToTitleSpacing)
+                ? addRemLengths(
+                      navigationBarTitleBreadcrumbButtonHeight,
+                      navigationBarBreadcrumbToTitleSpacing[platform],
+                  )
                 : addRemLengths();
             const parentBreadcrumbOffset = fileEntity.parent
                 ? // `"0.5"` matches the parent breadcrumb row's `padding-bottom` below.
-                  addRemLengths(breadcrumbLineHeight, "0.5")
+                  addRemLengths(fontSizesBySpacingScale["75"][spacingScale].lineHeight, "0.5")
                 : addRemLengths();
             const breadcrumbOffset = addRemLengths(siteBreadcrumbOffset, parentBreadcrumbOffset);
 
@@ -167,12 +169,16 @@ export function renderContentFileTaskEntityPreview(
         }
 
         if (showSiteBreadcrumb && fileEntity.site) {
-            renderContentFileEntitySiteBreadcrumb(
+            // TODO(#sites): render the site breadcrumb on the same line as the task parent
+            // breadcrumb. Should look very similar to implementation of
+            // `TaskDetailViewParentBreadcrumbs`.
+            renderContentFileEntitySiteBreadcrumb({
                 get,
                 siteRegistry,
-                titleContainerHtml,
-                fileEntity.site,
-            );
+                parent: titleContainerHtml,
+                site: fileEntity.site,
+                platform,
+            });
         }
 
         if (fileEntity.parent) {

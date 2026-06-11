@@ -596,37 +596,13 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await runner.mouse.move(0, 0);
         await runner.screenshot("b04E1", "task-collection-peek-name-editor");
 
-        // Replace the name.
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
         await runner.getByPlaceholder("Bugs").fill("Lorem ipsum");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("b04E2", "task-collection-peek-name-editor-filled");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
         await runner.getByTestId("TaskCollectionScrollView").first().click();
         await runner.getByText("Save collection name").waitFor();
         await runner.mouse.move(0, 0);
         await runner.screenshot("b04E3", "task-collection-peek-name-editor-confirm-save");
-
-        // Discard the new name so the rest of the screenshots see the original name.
-        await runner.getByRole("button", {name: "Discard name"}).click();
-        await runner.getByTestId("PeekStackOverlay").getByRole("heading", {name: "Bugs"}).waitFor();
-
-        await runner
-            .getByTestId("PeekStackOverlay")
-            .getByRole("heading", {name: "Bugs"})
-            .dblclick();
-        // Replace the name.
-        await runner
-            .getByPlaceholder("Bugs")
-            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("b04E4", "task-collection-peek-name-editor-filled-long-name");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
-        await runner.getByTestId("TaskCollectionScrollView").first().click();
-        await runner.getByText("Save collection name").waitFor();
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("b04E5", "task-collection-peek-name-editor-confirm-save-long-name");
 
         // Discard the new name so the rest of the screenshots see the original name.
         await runner.getByRole("button", {name: "Discard name"}).click();
@@ -675,43 +651,13 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await runner.mouse.move(0, 0);
         await runner.screenshot("b05E1", "task-collection-peek-in-site-name-editor");
 
-        // Replace the name.
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
         await runner.getByPlaceholder("Bugs").fill("Lorem ipsum");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("b05E2", "task-collection-peek-in-site-name-editor-filled");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
         await runner.getByTestId("TaskCollectionScrollView").first().click();
         await runner.getByText("Save collection name").waitFor();
         await runner.mouse.move(0, 0);
         await runner.screenshot("b05E3", "task-collection-peek-in-site-name-editor-confirm-save");
-
-        // Discard the new name so the rest of the screenshots see the original name.
-        await runner.getByRole("button", {name: "Discard name"}).click();
-        await runner.getByTestId("PeekStackOverlay").getByRole("heading", {name: "Bugs"}).waitFor();
-
-        await runner
-            .getByTestId("PeekStackOverlay")
-            .getByRole("heading", {name: "Bugs"})
-            .dblclick();
-        // Replace the name.
-        await runner
-            .getByPlaceholder("Bugs")
-            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot(
-            "b05E4",
-            "task-collection-peek-in-site-name-editor-filled-long-name",
-        );
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
-        await runner.getByTestId("TaskCollectionScrollView").first().click();
-        await runner.getByText("Save collection name").waitFor();
-        await runner.mouse.move(0, 0);
-        await runner.screenshot(
-            "b05E5",
-            "task-collection-peek-in-site-name-editor-confirm-save-long-name",
-        );
 
         // Discard the new name so the rest of the screenshots see the original name.
         await runner.getByRole("button", {name: "Discard name"}).click();

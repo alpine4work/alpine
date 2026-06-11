@@ -11,9 +11,31 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
-const {navigationBarHeight, navigationBarHeightRem} = navigationBarStyles;
+const {
+    navigationBarHeight,
+    navigationBarHeightRem,
+    navigationBarHeightWithTitleBreadcrumb,
+    navigationBarHeightWithTitleBreadcrumbRem,
+    navigationBarTitleBreadcrumbColor,
+    navigationBarTitleBreadcrumbFontSize,
+    navigationBarTitleBreadcrumbCaretSize,
+    navigationBarBreadcrumbToTitleSpacing,
+    navigationBarBreadcrumbInnerGap,
+    navigationBarTitleBreadcrumbButtonHeight,
+} = navigationBarStyles;
 
-export {navigationBarHeight, navigationBarHeightRem};
+export {
+    navigationBarHeight,
+    navigationBarHeightRem,
+    navigationBarHeightWithTitleBreadcrumb,
+    navigationBarHeightWithTitleBreadcrumbRem,
+    navigationBarTitleBreadcrumbColor,
+    navigationBarTitleBreadcrumbFontSize,
+    navigationBarTitleBreadcrumbCaretSize,
+    navigationBarBreadcrumbToTitleSpacing,
+    navigationBarBreadcrumbInnerGap,
+    navigationBarTitleBreadcrumbButtonHeight,
+};
 
 {
     // IMPORTANT: If you change this value, you must also change `navigationBarHeight`

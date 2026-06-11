@@ -42,8 +42,10 @@ import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_in
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
+import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
+import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {getSearchDynamicEntityPath} from "~/client/web/search/core/get_search_entity_path.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {AddExistingEntityToSiteModal} from "~/client/web/sites/add_existing_entity_to_site_modal.js";
@@ -83,8 +85,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {updateSiteName} from "~/shared/rpc/sites_rpc_definitions.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
@@ -106,12 +110,22 @@ type SearchModalState = {
 
 /**
  * Renders the navigation content inside a site sidebar.
+ *
+ * - `isFullWidth` makes the sidebar fill its container and drops the trailing
+ *   divider — used by the narrow site-navigate route, where the tree is the entire
+ *   view rather than a column beside the entity content.
+ * - `withoutNameHeader` omits the inline site-name header (the navigate route
+ *   shows the site name in its own navbar instead).
  */
 export function SiteSideBarContent({
     item,
+    isFullWidth = false,
+    withoutNameHeader = false,
     withoutContextMenu = false,
 }: {
     item: SiteSideBarModel;
+    isFullWidth?: boolean;
+    withoutNameHeader?: boolean;
     withoutContextMenu?: boolean;
 }) {
     const canManage = useCanManageSite();
@@ -242,12 +256,15 @@ export function SiteSideBarContent({
             flexDirection="column"
             gap="0.5"
             flexShrink="0"
-            overflow="auto"
-            height="full"
-            width="1/4"
-            borderRight="grey-10"
+            // When full-width (the navigate route) an outer navbar + scroll container owns
+            // scrolling, so this is plain flow content. Otherwise it's the scrollable sidebar
+            // column beside the entity content.
+            overflow={isFullWidth ? undefined : "auto"}
+            height={isFullWidth ? undefined : "full"}
+            width={isFullWidth ? "full" : "1/4"}
+            borderRight={isFullWidth ? undefined : "grey-10"}
         >
-            {item.id === site?.rootContainerId && (
+            {item.id === site?.rootContainerId && !withoutNameHeader && (
                 <SiteSideBarNavigationBar site={site} withoutContextMenu={withoutContextMenu} />
             )}
             {canManage && (
@@ -279,7 +296,12 @@ export function SiteSideBarContent({
                 dragPreview={dragPreview}
                 rows={sortableRows}
             />
+
             {canManage && (
+                // Scope the root context menu to the empty space below the entry list. Wrapping
+                // the whole sidebar would cause the root actions to merge into every entry's
+                // context menu, since `<ContextMenuActions>` intentionally appends parent actions
+                // to nested children — see `client/web/design/context_menu.tsx`.
                 <ContextMenuActions actions={rootContextMenuActions}>
                     <Box flexGrow="1" />
                 </ContextMenuActions>
@@ -1063,7 +1085,12 @@ function SiteNavLink({
     isActive: boolean;
     children: ReactNode;
 }) {
+    const navigate = useNavigate();
     const rootNavigate = useRootNavigate();
+    const routeLayout = useRouteLayout();
+    const peekContext = usePeekContext();
+    const site = useSite();
+
     const [isPressed, setIsPressed] = useState(false);
     const [isPendingNavigation, setIsPendingNavigation] = useState(false);
     // Debounce the spinner so fast warm-cache navigations don't flash it. Mirrors the
@@ -1076,6 +1103,25 @@ function SiteNavLink({
         : isPendingNavigation || isActive
           ? "grey-5"
           : undefined;
+
+    const onNavigateToEntity = useCallback(() => {
+        if (routeLayout === "narrow") {
+            const path = new UrlPath(url);
+            // Inside a peek, navigate to the matching peek path so the entity opens within the
+            // same overlay rather than stacking a new peek or replacing the page. On mobile
+            // there's no peek, so navigate the page directly.
+            const to = peekContext ? (convertSpacePathToPeekPath(path) ?? path) : path;
+            return navigate(to, {
+                unstable_headers: {"cyberworlds-active-site-id": site.id},
+            });
+        }
+
+        return rootNavigate(url, {
+            unstable_headers: {
+                "cyberworlds-active-site-id": activeSiteId,
+            },
+        });
+    }, [navigate, rootNavigate, peekContext, site.id, routeLayout, activeSiteId, url]);
 
     return (
         <Box position="relative">
@@ -1096,15 +1142,20 @@ function SiteNavLink({
                         return;
                     }
                     event.preventDefault();
-                    if (isActive) return;
+
+                    // In narrow routes, we render the site side bar without the entity content. So
+                    // when an entity is active in a narrow view, it simply means that the entry is
+                    // highlighted in the navigation pane. Clicking on the "active" entry should open
+                    // that entity in peek/mobile.
+                    if (isActive && routeLayout !== "narrow") return;
                     if (isPendingNavigation) return;
 
                     setIsPendingNavigation(true);
-                    void rootNavigate(url, {
-                        unstable_headers: {
-                            "cyberworlds-active-site-id": activeSiteId,
-                        },
-                    }).finally(() => {
+                    // When an override is present (the narrow site route's sidebar) it owns navigation
+                    // so activating an entry stays within the current peek. Otherwise navigate the
+                    // root router, carrying the active-site header so the destination reuses the live
+                    // realtime subscription.
+                    void onNavigateToEntity().finally(() => {
                         setIsPendingNavigation(false);
                     });
                 }}

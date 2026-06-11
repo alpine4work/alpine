@@ -1,4 +1,5 @@
 import {type Page, expect, test} from "@playwright/test";
+import {activateMobileButton} from "~/app/integration_tests/helpers/activate_mobile_button.js";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {pageKeyboardShortcut} from "~/app/integration_tests/helpers/page_keyboard_shortcut.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
@@ -254,7 +255,8 @@ test("asks for confirmation to save edited post", async ({
 
         await page.getByRole("button", {name: "Discard changes"}).click();
     } else {
-        await page.getByRole("button", {name: "Cancel"}).click();
+        await page.getByLabel("Post", {exact: true}).blur();
+        await activateMobileButton(page, "Cancel");
     }
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();

@@ -136,12 +136,13 @@ export function renderContentFileChatEntityPreview(
             "style",
             `padding-top: ${(containerPaddingPx / transformScale).toFixed(2)}px`,
         );
-        renderContentFileEntitySiteBreadcrumb(
+        renderContentFileEntitySiteBreadcrumb({
             get,
             siteRegistry,
-            breadcrumbWrapperHtml,
-            fileEntity.site,
-        );
+            parent: breadcrumbWrapperHtml,
+            site: fileEntity.site,
+            platform,
+        });
     }
 
     renderFileChatEntityPreviewTopBar(get, scaledContainerHtml, {
@@ -153,8 +154,9 @@ export function renderContentFileChatEntityPreview(
         transformScale,
         containerPaddingPx,
         // Suppress the top bar's own `padding-top` when the site breadcrumb is rendered
-        // above it — the breadcrumb's `padding-bottom` (`siteBreadcrumbToTitleSpacing`) is
-        // now the only spacing between the breadcrumb and the chat name.
+        // above it — the breadcrumb's `padding-bottom`
+        // (`navigationBarBreadcrumbToTitleSpacing`) is now the only spacing between the
+        // breadcrumb and the chat name.
         suppressTopPadding: fileEntity.site !== null,
     });
 

@@ -157,6 +157,9 @@ const metadataByRouteId: Record<
     "routes/_space.site.$siteId._index": {
         errorTitle: "Couldn\u2019t open site",
     },
+    "routes/_space.site.$siteId.navigate": {
+        errorTitle: "Couldn\u2019t open site",
+    },
     "routes/_space.task.$taskId._index": {
         errorTitle: "Couldn\u2019t open task",
     },

@@ -210,34 +210,13 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await runner.mouse.move(0, 0);
         await runner.screenshot("aDE1", "chat-peek-name-editor");
 
-        // Replace the name.
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
         await runner.getByPlaceholder("Incident Response").fill("Lorem ipsum");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("aDE2", "chat-peek-name-editor-filled");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
         await runner.getByTestId("MessagingScrollView").first().click();
         await runner.getByText("Save chat name").waitFor();
         await runner.mouse.move(0, 0);
         await runner.screenshot("aDE3", "chat-peek-name-editor-confirm-save");
-
-        // Discard the new name so the rest of the screenshots see the original name.
-        await runner.getByRole("button", {name: "Discard name"}).click();
-        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").waitFor();
-
-        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").dblclick();
-        // Replace the name.
-        await runner
-            .getByPlaceholder("Incident Response")
-            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("aDE4", "chat-peek-name-editor-filled-long-name");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
-        await runner.getByTestId("MessagingScrollView").first().click();
-        await runner.getByText("Save chat name").waitFor();
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("aDE5", "chat-peek-name-editor-confirm-save-name");
 
         // Discard the new name so the rest of the screenshots see the original name.
         await runner.getByRole("button", {name: "Discard name"}).click();
@@ -283,34 +262,13 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await runner.mouse.move(0, 0);
         await runner.screenshot("aEE1", "chat-peek-in-site-name-editor");
 
-        // Replace the name.
+        // Replace the name then click away. Losing focus asks for confirmation instead of
+        // saving silently.
         await runner.getByPlaceholder("Incident Response").fill("Lorem ipsum");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("aEE2", "chat-peek-in-site-name-editor-filled");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
         await runner.getByTestId("MessagingScrollView").first().click();
         await runner.getByText("Save chat name").waitFor();
         await runner.mouse.move(0, 0);
         await runner.screenshot("aEE3", "chat-peek-in-site-name-editor-confirm-save");
-
-        // Discard the new name so the rest of the screenshots see the original name.
-        await runner.getByRole("button", {name: "Discard name"}).click();
-        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").waitFor();
-
-        await runner.getByTestId("PeekStackOverlay").getByText("Incident Response").dblclick();
-        // Replace the name.
-        await runner
-            .getByPlaceholder("Incident Response")
-            .fill("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod");
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("aEE4", "chat-peek-in-site-name-editor-filled-long-name");
-
-        // Click away. Losing focus asks for confirmation instead of saving silently.
-        await runner.getByTestId("MessagingScrollView").first().click();
-        await runner.getByText("Save chat name").waitFor();
-        await runner.mouse.move(0, 0);
-        await runner.screenshot("aEE5", "chat-peek-in-site-name-editor-confirm-save-name");
 
         // Discard the new name so the rest of the screenshots see the original name.
         await runner.getByRole("button", {name: "Discard name"}).click();

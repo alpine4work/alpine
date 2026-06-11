@@ -61,6 +61,7 @@ function TaskCollectionViewDesktopHeader(
         sorts,
         onSortsChange,
         onCopyLink,
+        isSiteBreadcrumbRendered = false,
     }: {
         store: TaskClientStore;
         queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
@@ -83,6 +84,7 @@ function TaskCollectionViewDesktopHeader(
         sorts: ReadonlyArray<TaskQuerySort>;
         onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
         onCopyLink: () => MaybePromise<void>;
+        isSiteBreadcrumbRendered?: boolean;
     },
     ref: Ref<TaskCollectionViewDesktopHeaderRef>,
 ) {
@@ -149,6 +151,7 @@ function TaskCollectionViewDesktopHeader(
                     shouldInitiallyFocusEditableName={shouldInitiallyFocusEditableCollectionName}
                     collection={collection}
                     createCollection={createCollection}
+                    isSiteBreadcrumbRendered={isSiteBreadcrumbRendered}
                 />
             </Box>
             <Box

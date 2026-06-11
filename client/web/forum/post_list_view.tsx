@@ -1149,7 +1149,7 @@ function PostListView(
                     return {
                         key: "Header",
                         minHeight: addRemLengths(
-                            hasNavigationBar ? spacing[navigationBarHeight] : "0rem",
+                            navigationBar?.effectiveNavigationBarHeight ?? "0rem",
                             item.header.type === "FeedCreateSection"
                                 ? feedCreateSectionMinHeight[platform]
                                 : "0rem",
@@ -1173,7 +1173,11 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {hasNavigationBar && <Spacer space={navigationBarHeight} />}
+                                    {hasNavigationBar && (
+                                        <Spacer
+                                            space={navigationBar.effectiveNavigationBarHeight}
+                                        />
+                                    )}
                                     {item.header.type === "Channel" ? (
                                         <ChannelViewHeader
                                             header={item.header}
@@ -2010,6 +2014,7 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
+            navigationBar?.effectiveNavigationBarHeight,
             routeLayout,
             sideBarLeftSpacer,
             asideSpacer,

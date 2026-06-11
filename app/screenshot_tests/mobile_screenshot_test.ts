@@ -1,10 +1,13 @@
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
+import {clearAccountInbox} from "~/app/screenshot_tests/helpers/clear_account_inbox.js";
 import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
@@ -18,9 +21,8 @@ const mobileViewport = {width: 390, height: 844};
  * subtask whose parent task is in a site — the parent-breadcrumb chain shows the
  * site context even though the subtask itself isn't a direct site member.
  *
- * The site `navigate` route (the in-order tree the chip opens) and the chip-click
- * flow are also captured so the whole mobile-narrow site experience is
- * screenshotted end-to-end.
+ * The site `navigate` route (the in-order tree the chip opens) is also captured so
+ * the whole mobile-narrow site experience is screenshotted end-to-end.
  */
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {space, accounts} = await runner.createDemoSpace(context);
@@ -69,6 +71,16 @@ Draft of the H2 portfolio. Inputs from each owner are due next week.
 - **Enterprise SSO scoping** — Elle + Cliff. Design doc, not a build. Three of Cliff\u2019s deals
   are gated on this.
 - **Customer case studies** — Holly. Second published, third in draft by end of quarter.
+
+## P2s
+
+Tentative. Nothing here is staffed yet.
+
+- **Sales enablement** — Holly + Cliff. One-pager plus a demo script for the tables flow so the team
+  isn\u2019t improvising in calls.
+- **Editor interaction audit follow-ups** — Matt. Top five paper cuts from the audit, nothing
+  bigger.
+- **Support macro refresh** — Rose. Quick pass once the GA copy settles.
 
 We\u2019re not committing to anything below P1 until the P0s have a clear path. If you want
 something added, bring it to the planning sync with the trade-off you\u2019d make to fit it in.
@@ -169,6 +181,14 @@ announcement?
 
     await runner.drainBackgroundWork();
 
+    // The status channel subscription and launch room messages above leave Cass with
+    // unread loud notifications, and the tab bar's inbox badge is realtime-delivered
+    // so whether it shows depends on how quickly notification processing settles —
+    // flaking every mobile screenshot in this suite. Clear the inbox before pass 1 so
+    // the tab bar renders at inbox zero with no badge.
+    await clearAccountInbox(cass);
+    await runner.drainBackgroundWork();
+
     // ======================================================================== Pass 1:
     // each entity on mobile, without a site (no chip).
     // ========================================================================
@@ -213,4 +233,143 @@ announcement?
     });
     await runner.mouse.move(0, 0);
     await runner.screenshot("a4S", "chat-mobile-scrolled");
+
+    // ======================================================================== Add
+    // each entity to a site. `addEntityToSite` (via `TestSite.addEntity`) updates the
+    // access policy of documents, channels, and chats to `type: "Site"` along the way.
+    // ========================================================================
+
+    const site = await TestSite.create(cass, {name: "FY2026 H2 Planning", access: "Public"});
+    const rootContainerId = site.initialRootContainerId;
+
+    await site.addEntity(cass, {
+        entityId: `Task:${okrsTask.id}`,
+        parentId: rootContainerId,
+        orderKey: assertOrderKey("a0"),
+    });
+    await site.addEntity(cass, {
+        entityId: `Document:${betsDocument.id}`,
+        parentId: rootContainerId,
+        orderKey: assertOrderKey("a1"),
+    });
+    await site.addEntity(cass, {
+        entityId: `TaskCollection:${tablesCollection.id}`,
+        parentId: rootContainerId,
+        orderKey: assertOrderKey("a2"),
+    });
+    await site.addEntity(cass, {
+        entityId: `Channel:${statusChannel.id}`,
+        parentId: rootContainerId,
+        orderKey: assertOrderKey("a3"),
+    });
+    await site.addEntity(cass, {
+        entityId: `Chat:${launchRoom.id}`,
+        parentId: rootContainerId,
+        orderKey: assertOrderKey("a4"),
+    });
+
+    await runner.drainBackgroundWork();
+
+    // ======================================================================== Pass 2:
+    // same entities on mobile, now inside the site (chip visible).
+    // ========================================================================
+
+    await runner.goto(cass, `/s/${space.id}/tasks/${okrsTask.id}`, {viewport: mobileViewport});
+    await runner.getByText("Lock the OKRs").first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a5", "task-mobile-in-site");
+
+    await runner.goto(cass, `/s/${space.id}/documents/${betsDocument.id}`, {
+        viewport: mobileViewport,
+    });
+    await runner.getByText("Bets and Owners").first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a6", "document-mobile-in-site");
+    await runner.getByTestId("DocumentContentEditorMain").evaluate(element => {
+        element.scrollTop = 320;
+    });
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a6S", "document-mobile-in-site-scrolled");
+    // Scroll back up a little. An upward scroll reveals the scrolled-away navigation
+    // bar (chip + title) again, now layered over mid-document content.
+    await runner.getByTestId("DocumentContentEditorMain").evaluate(element => {
+        element.scrollTop = 220;
+    });
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a6SU", "document-mobile-in-site-scrolled-up");
+
+    await runner.goto(cass, `/s/${space.id}/tasks/collections/${tablesCollection.id}`, {
+        viewport: mobileViewport,
+    });
+    await runner.getByText("Tables crew").first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a7", "task-collection-mobile-in-site");
+    await runner.getByTestId("TaskCollectionScrollView").evaluate(element => {
+        element.scrollTop = 320;
+    });
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a7S", "task-collection-mobile-in-site-scrolled");
+    // Scroll back up a little. An upward scroll reveals the scrolled-away navigation
+    // bar (chip + title) again, now layered over mid-list content.
+    await runner.getByTestId("TaskCollectionScrollView").evaluate(element => {
+        element.scrollTop = 220;
+    });
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a7SU", "task-collection-mobile-in-site-scrolled-up");
+
+    await runner.goto(cass, `/s/${space.id}/channels/${statusChannel.id}`, {
+        viewport: mobileViewport,
+    });
+    await runner.getByText("Status", {exact: true}).first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a8", "channel-mobile-in-site");
+
+    await runner.goto(cass, `/s/${space.id}/chat/${launchRoom.id}`, {viewport: mobileViewport});
+    await runner.getByText("Tables GA launch room").first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a9", "chat-mobile-in-site");
+    await runner.getByTestId("MessagingScrollView").evaluate(element => {
+        element.scrollTop = 200;
+    });
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a9S", "chat-mobile-in-site-scrolled");
+
+    // ======================================================================== Subtask
+    // whose parent task is in the site AND which is itself added to the same site —
+    // the worst case for stacking, since the site and the parent both want to appear
+    // above the title. The single breadcrumb chain absorbs both ("Site › Parent ›") on
+    // one row instead of two.
+    // ========================================================================
+
+    const subtask = await TestTask.create(cass, {
+        title: "Draft all-hands talking points",
+        parent: okrsTask,
+        assignee: cass,
+        priority: "Medium",
+        notes: markdown`
+Bullet list for the open. Lead with what shipped in H1 then the H2 bets.
+        `,
+    });
+    await site.addEntity(cass, {
+        entityId: `Task:${subtask.id}`,
+        parentId: rootContainerId,
+        orderKey: assertOrderKey("a5"),
+    });
+    await runner.drainBackgroundWork();
+
+    await runner.goto(cass, `/s/${space.id}/tasks/${subtask.id}`, {viewport: mobileViewport});
+    await runner.getByText("Draft all-hands talking points").first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("aA", "subtask-mobile-parent-in-site");
+
+    // ======================================================================== The
+    // site `navigate` route the chip opens — a navbar + the in-order tree so users can
+    // jump to other entities while inside a peek / on mobile.
+    // ========================================================================
+
+    await runner.goto(cass, `/site/${site.id}/navigate`, {viewport: mobileViewport});
+    await runner.getByText("Lock the OKRs").first().waitFor();
+    await runner.getByText("Status", {exact: true}).first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("aB", "navigate-route-mobile");
 }

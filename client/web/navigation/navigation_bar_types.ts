@@ -50,6 +50,12 @@ export type NavigationBarShareButtonProps = {
     readonly onActivationHintHide?: () => void;
 };
 
+export type NavigationBarTitleBreadcrumb = {
+    readonly title: ReactNode;
+    readonly onPress: () => MaybePromise<void>;
+    readonly pressErrorTitle: string;
+};
+
 export type NavigationBarProps = {
     /**
      * A ref for interacting with the navigation bar when mounted.
@@ -93,6 +99,13 @@ export type NavigationBarProps = {
      * The title will not be displayed when scrolled to the top of the view.
      */
     readonly title?: ReactNode;
+
+    /**
+     * A breadcrumb rendered above the title in the navigation bar. The navigation bar
+     * owns the breadcrumb's chrome, vertical spacing, and platform alignment; callers
+     * only provide the label and press behavior.
+     */
+    readonly titleBreadcrumb?: NavigationBarTitleBreadcrumb;
 
     /**
      * The title only displays once the user has scrolled past this element. When
@@ -322,4 +335,11 @@ export type NavigationBarResult = {
      * expected to pass this to `useScrollbar()`.
      */
     scrollbarInsetTop?: ScrollbarInsetDynamic;
+
+    /**
+     * (Required) The visual height of the navigation bar before safe area is added.
+     * Virtualized scroll views should use this to reserve top content space that
+     * matches the bar.
+     */
+    effectiveNavigationBarHeight: RemLength;
 };

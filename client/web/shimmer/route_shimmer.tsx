@@ -295,6 +295,7 @@ const shimmerOptionsByRouteId: Record<
     // TODO(#sites): Sites routes don't have a custom shimmer design yet, so show the
     // generic fullscreen loading spinner.
     "routes/_space.site.$siteId._index": false,
+    "routes/_space.site.$siteId.navigate": false,
 };
 
 const RouteShimmerMemo = memo(RouteShimmer);

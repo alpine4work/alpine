@@ -1,4 +1,4 @@
-import {ArrowLeft, DotsThreeVertical, Globe, Lock, X} from "phosphor-react";
+import {ArrowLeft, CaretRight, DotsThreeVertical, Globe, Lock, X} from "phosphor-react";
 import {
     ReactNode,
     Ref,
@@ -18,11 +18,16 @@ import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_moda
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarActionsFlexBasis,
+    navigationBarBreadcrumbToTitleSpacing,
     navigationBarDoneButtonActionFlexBasis,
     navigationBarDoneButtonActionSpacerWidth,
     navigationBarDoneButtonActionWidth,
     navigationBarHeight,
+    navigationBarHeightWithTitleBreadcrumb,
     navigationBarMobileGap,
+    navigationBarTitleBreadcrumbCaretSize,
+    navigationBarTitleBreadcrumbColor,
+    navigationBarTitleBreadcrumbFontSize,
 } from "~/client/web/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {OverlayTriggerButton} from "~/client/web/design/overlay_trigger_button.js";
@@ -36,7 +41,10 @@ import {ShareMobileModal} from "~/client/web/navigation/internal/share_mobile_mo
 import {ShareOverlay, ShareOverlayRef} from "~/client/web/navigation/internal/share_overlay.js";
 import {ShareSwitch} from "~/client/web/navigation/internal/share_switch.js";
 import {useShareState} from "~/client/web/navigation/internal/use_share_state.js";
-import {NavigationBarShareButtonProps} from "~/client/web/navigation/navigation_bar_types.js";
+import {
+    NavigationBarShareButtonProps,
+    NavigationBarTitleBreadcrumb,
+} from "~/client/web/navigation/navigation_bar_types.js";
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {ShareButton} from "~/client/web/navigation/share_button.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
@@ -61,13 +69,14 @@ import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 export type NavigationBarContentRef = {
     getElement(): HTMLElement;
-    getTitleElement(): HTMLElement;
+    getTitleElements(): ReadonlyArray<HTMLElement>;
     reconcileFocusedTextInputIfMobile(): void;
 };
 
 export const NavigationBarContent = forwardRef(function NavigationBarContent(
     {
         title,
+        titleBreadcrumb,
         withDisappearingTitle = false,
         withoutFocusedTextInputDoneButton = false,
         subtitle,
@@ -93,6 +102,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         onMobileCancel,
     }: {
         title?: ReactNode;
+        titleBreadcrumb?: NavigationBarTitleBreadcrumb;
         withDisappearingTitle?: boolean;
         withoutFocusedTextInputDoneButton?: boolean;
         subtitle?: ReactNode;
@@ -127,10 +137,21 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const navigationState = useNavigationState();
 
     const isMobile = platform === "mobile";
+    const withTitleBreadcrumb = titleBreadcrumb !== undefined;
 
     titleJustifyContent ??= isMobile ? "center" : "flex-start";
 
+    // Always use a CSS length string for the nav content height. The base case is just
+    // the standard `navigationBarHeight`; when a title breadcrumb is set, the bar uses
+    // the precomputed breadcrumb total height so the supratitle row gets its own
+    // breathing room while the entity title stays aligned to the standard nav bar
+    // floor.
+    const navigationBarContentHeight = withTitleBreadcrumb
+        ? navigationBarHeightWithTitleBreadcrumb[platform]
+        : spacing[navigationBarHeight];
+
     const contentRef = useRef<HTMLDivElement>(null);
+    const titleBreadcrumbRef = useRef<HTMLDivElement>(null);
     const titleRef = useRef<HTMLDivElement>(null);
 
     const {isTextInputFocused, reconcileFocusedTextInput} = useIsTextInputFocused({
@@ -164,7 +185,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         ref,
         () => ({
             getElement: () => assertExists(contentRef.current),
-            getTitleElement: () => assertExists(titleRef.current),
+            getTitleElements: () => {
+                const titleElement = assertExists(titleRef.current);
+                const titleBreadcrumbElement = titleBreadcrumbRef.current;
+                return titleBreadcrumbElement
+                    ? [titleBreadcrumbElement, titleElement]
+                    : [titleElement];
+            },
             reconcileFocusedTextInputIfMobile: reconcileFocusedTextInput,
         }),
         [reconcileFocusedTextInput],
@@ -189,6 +216,15 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             ? isSpacing(desktopTitleMaxWidthCenterOffsetProp)
                 ? spacing[desktopTitleMaxWidthCenterOffsetProp]
                 : desktopTitleMaxWidthCenterOffsetProp
+            : undefined;
+
+    const desktopTitleLeadingSpacerWidth =
+        !isMobile && desktopTitleMaxWidth !== undefined
+            ? `max(0px, 50% - ${
+                  desktopTitleMaxWidthCenterOffset !== undefined
+                      ? addRemLengths(desktopTitleMaxWidth, desktopTitleMaxWidthCenterOffset)
+                      : desktopTitleMaxWidth
+              } / 2)`
             : undefined;
 
     const hasLeftActions: boolean =
@@ -220,18 +256,19 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         <Box
             ref={contentRef}
             data-testid="NavigationBar"
-            // Override `pointerEvents="none"` of parent in `navigation_bar_internal.tsx`.
-            pointerEvents="auto"
+            // Keep the transparent navigation bar shell from blocking content under it. The
+            // controls and title opt back into pointer events below.
+            pointerEvents="none"
             position="relative"
             zIndex="0"
             flexShrink="0"
             width="full"
-            height={navigationBarHeight}
             display="flex"
-            gap={!isMobile ? "5" : undefined}
+            flexDirection="column"
             style={{
                 maxWidth: !isMobile ? desktopMaxWidth : undefined,
                 margin: !isMobile ? "0 auto" : undefined,
+                height: navigationBarContentHeight,
             }}
             onContextMenu={event => {
                 if (contextMenuActions !== undefined && contextMenuActions.length > 0) {
@@ -240,144 +277,189 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             }}
         >
             <OverlayScopeContextProvider>
-                {isMobile
-                    ? (hasLeftActions || hasRightActions) && (
-                          <Box
-                              flexShrink="0"
-                              height={navigationBarHeight}
-                              paddingLeft={navigationBarMobileGap}
-                              display="flex"
-                              justifyContent="flex-start"
-                              alignItems="center"
-                              style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
-                          >
-                              {onMobileClose ? (
-                                  <IconButton
-                                      size="base"
-                                      description="Close"
-                                      withoutTooltip={true}
-                                      pressErrorTitle="Couldn&#x2019;t close"
-                                      onPress={onMobileClose}
-                                  >
-                                      <X />
-                                  </IconButton>
-                              ) : onMobileCancel ? (
-                                  <Box
-                                      display="flex"
-                                      justifyContent="flex-start"
-                                      style={{
-                                          width: mobileNavigationBarActionsWidthFittingFlexBasis,
-                                      }}
-                                  >
-                                      <Button
-                                          paddingX="2"
-                                          fontSize="100"
-                                          pressErrorTitle="Couldn&#x2019;t cancel"
-                                          onPress={onMobileCancel}
-                                      >
-                                          Cancel
-                                      </Button>
-                                  </Box>
-                              ) : (
-                                  !withoutMobileBackButton &&
-                                  // Don't show the back button if the actor doesn't have space access. If the actor
-                                  // doesn't have space access they're probably looking at a shared URL in their web
-                                  // browser. So they're not in an application context. A back button doesn't make
-                                  // sense in a non-application context.
-                                  //
-                                  // TODO(calebmer): Maybe put an Alpine logo here instead? When `currentAccount`
-                                  // does not exist. Or put the space logo.
-                                  (spaceContext?.currentAccount || isNativeMobile) && (
-                                      <IconButton
-                                          size="base"
-                                          description="Go back"
-                                          withoutTooltip={true}
-                                          pressErrorTitle="Couldn&#x2019;t go back"
-                                          onPress={handleBackButtonPress}
-                                      >
-                                          <ArrowLeft />
-                                      </IconButton>
-                                  )
-                              )}
-                          </Box>
-                      )
-                    : desktopTitleMaxWidth !== undefined && (
-                          <Box
-                              flexGrow="0"
-                              flexShrink="0"
-                              style={{
-                                  width: `max(0px, 50% - ${
-                                      desktopTitleMaxWidthCenterOffset !== undefined
-                                          ? addRemLengths(
-                                                desktopTitleMaxWidth,
-                                                desktopTitleMaxWidthCenterOffset,
-                                            )
-                                          : desktopTitleMaxWidth
-                                  } / 2)`,
-                              }}
-                          />
-                      )}
-                {titleJustifyContent === "center" && !replaceActions && isTextInputFocused && (
-                    // This spacer keeps the title centered when the done button is visible if the
-                    // title is small enough to still fit in the center. If the title is longer then
-                    // this spacer will shrink to give the title space.
+                {titleBreadcrumb && !isMobile && (
+                    // The breadcrumb gets different styling on desktop and mobile. On the desktop, we
+                    // add a new "breadcrumb row" above the title row. This is because we want to keep
+                    // the title row aligned with the rest of the navbar content (e.g. the 3 dot menu
+                    // and any extra actions) \
+                    // On mobile, however, the 3 dot menu should be at the vertical center of the
+                    // entire navigation bar.
                     <Box
-                        style={{
-                            flexShrink: 1000,
-                            width: navigationBarDoneButtonActionSpacerWidth,
-                        }}
-                    />
+                        ref={titleBreadcrumbRef}
+                        // We add some extra Y margin/padding to the title that will cover some of the
+                        // breadcrumb button. To make sure the entire breadcrumb button is clickable, we
+                        // set the z-index to 50.
+                        zIndex="50"
+                        display="flex"
+                        flexDirection="row"
+                        width="full"
+                        gap={!isMobile ? "5" : undefined}
+                        paddingTop="3"
+                        opacity={withDisappearingTitle ? "0" : undefined}
+                        pointerEvents={withDisappearingTitle ? "none" : "auto"}
+                        inert={withDisappearingTitle ? true : undefined}
+                        aria-hidden={withDisappearingTitle ? "true" : undefined}
+                        // Matches the style for the title div
+                        paddingX={isMobile ? navigationBarMobileGap : undefined}
+                        paddingLeft={
+                            desktopTitleMaxWidth === undefined &&
+                            !isMobile &&
+                            titleJustifyContent !== "center"
+                                ? "5"
+                                : undefined
+                        }
+                        paddingBottom={navigationBarBreadcrumbToTitleSpacing[platform]}
+                    >
+                        {desktopTitleLeadingSpacerWidth !== undefined && (
+                            <Box
+                                flexGrow="0"
+                                flexShrink="0"
+                                style={{
+                                    width: desktopTitleLeadingSpacerWidth,
+                                }}
+                            />
+                        )}
+                        <Box
+                            display="flex"
+                            style={{
+                                maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
+                            }}
+                        >
+                            <NavigationBarTitleBreadcrumbButton
+                                isMobile={isMobile}
+                                titleBreadcrumb={titleBreadcrumb}
+                            />
+                        </Box>
+                    </Box>
                 )}
                 <Box
-                    flexGrow="1"
-                    flexShrink="1"
-                    minWidth="flex-fit"
-                    height={navigationBarHeight}
-                    paddingX={isMobile ? navigationBarMobileGap : undefined}
-                    paddingLeft={
-                        desktopTitleMaxWidth === undefined &&
-                        !isMobile &&
-                        titleJustifyContent !== "center"
-                            ? "5"
-                            : undefined
-                    }
                     display="flex"
-                    justifyContent={titleJustifyContent}
-                    alignItems="center"
-                    gap="3"
-                    style={{
-                        maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
-                    }}
+                    flexDirection="row"
+                    width="full"
+                    gap={!isMobile ? "5" : undefined}
                 >
-                    {!isMobile && desktopControls && <Box>{desktopControls}</Box>}
-                    <Box
-                        ref={titleRef}
-                        overflow="hidden"
-                        // Initial opacity is 0. Our code will update the opacity.
-                        opacity={withDisappearingTitle ? "0" : undefined}
-                        // Initial pointer events is auto. Our code will update this style.
-                        pointerEvents={!withDisappearingTitle ? "auto" : undefined}
-                        paddingLeft={
-                            !isMobile && desktopTitleLeftSlop !== undefined
-                                ? desktopTitleLeftSlop
-                                : undefined
-                        }
-                        marginLeft={
-                            !isMobile && desktopTitleLeftSlop !== undefined
-                                ? `-${desktopTitleLeftSlop}`
-                                : undefined
-                        }
-                    >
+                    {isMobile
+                        ? (hasLeftActions || hasRightActions) && (
+                              <Box
+                                  flexShrink="0"
+                                  paddingLeft={navigationBarMobileGap}
+                                  display="flex"
+                                  justifyContent="flex-start"
+                                  alignItems="center"
+                                  style={{
+                                      flexBasis: spacing[navigationBarActionsFlexBasis],
+                                      height: navigationBarContentHeight,
+                                  }}
+                              >
+                                  {onMobileClose ? (
+                                      <IconButton
+                                          size="base"
+                                          description="Close"
+                                          withoutTooltip={true}
+                                          pressErrorTitle="Couldn&#x2019;t close"
+                                          onPress={onMobileClose}
+                                      >
+                                          <X />
+                                      </IconButton>
+                                  ) : onMobileCancel ? (
+                                      <Box
+                                          display="flex"
+                                          justifyContent="flex-start"
+                                          style={{
+                                              width: mobileNavigationBarActionsWidthFittingFlexBasis,
+                                          }}
+                                      >
+                                          <Button
+                                              paddingX="2"
+                                              fontSize="100"
+                                              pressErrorTitle="Couldn&#x2019;t cancel"
+                                              onPress={onMobileCancel}
+                                          >
+                                              Cancel
+                                          </Button>
+                                      </Box>
+                                  ) : (
+                                      !withoutMobileBackButton &&
+                                      // Don't show the back button if the actor doesn't have space access. If the actor
+                                      // doesn't have space access they're probably looking at a shared URL in their web
+                                      // browser. So they're not in an application context. A back button doesn't make
+                                      // sense in a non-application context.
+                                      //
+                                      // TODO(calebmer): Maybe put an Alpine logo here instead? When `currentAccount`
+                                      // does not exist. Or put the space logo.
+                                      (spaceContext?.currentAccount || isNativeMobile) && (
+                                          <IconButton
+                                              size="base"
+                                              description="Go back"
+                                              withoutTooltip={true}
+                                              pressErrorTitle="Couldn&#x2019;t go back"
+                                              onPress={handleBackButtonPress}
+                                          >
+                                              <ArrowLeft />
+                                          </IconButton>
+                                      )
+                                  )}
+                              </Box>
+                          )
+                        : desktopTitleLeadingSpacerWidth !== undefined && (
+                              <Box
+                                  flexGrow="0"
+                                  flexShrink="0"
+                                  style={{
+                                      width: desktopTitleLeadingSpacerWidth,
+                                  }}
+                              />
+                          )}
+                    {titleJustifyContent === "center" && !replaceActions && isTextInputFocused && (
+                        // This spacer keeps the title centered when the done button is visible if the
+                        // title is small enough to still fit in the center. If the title is longer then
+                        // this spacer will shrink to give the title space.
                         <Box
-                            overflow="hidden"
-                            // We have less space on mobile so use a smaller font size.
-                            fontSize={isMobile ? "100" : desktopTitleFontSize}
-                            fontStyle={
-                                isMobile
-                                    ? "truncate-semi-bold"
-                                    : `truncate-${desktopTitleFontWeight}`
-                            }
-                            userSelect={!isMobile ? "text" : undefined}
+                            style={{
+                                flexShrink: 1000,
+                                width: navigationBarDoneButtonActionSpacerWidth,
+                            }}
+                        />
+                    )}
+                    <Box
+                        flexGrow="1"
+                        flexShrink="1"
+                        minWidth="flex-fit"
+                        height={!titleBreadcrumb ? navigationBarHeight : undefined}
+                        paddingX={isMobile ? navigationBarMobileGap : undefined}
+                        paddingLeft={
+                            desktopTitleMaxWidth === undefined &&
+                            !isMobile &&
+                            titleJustifyContent !== "center"
+                                ? "5"
+                                : undefined
+                        }
+                        display="flex"
+                        justifyContent={titleJustifyContent}
+                        alignItems="center"
+                        gap="3"
+                        style={{
+                            maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
+                        }}
+                    >
+                        {!isMobile && desktopControls && (
+                            <Box
+                                // Gives children `pointer-events: initial` so the user can interact with them.
+                                className={pointerEventsNoneNotInheritedClassName}
+                            >
+                                {desktopControls}
+                            </Box>
+                        )}
+                        <Box
+                            ref={titleRef}
+                            minWidth="flex-fit"
+                            // Initial opacity is 0. Our code will update the opacity.
+                            opacity={withDisappearingTitle ? "0" : undefined}
+                            // Start disappearing titles as fully inert. Scroll handling reenables the subtree
+                            // once the title is visible.
+                            pointerEvents={withDisappearingTitle ? "none" : "auto"}
+                            inert={withDisappearingTitle ? true : undefined}
+                            aria-hidden={withDisappearingTitle ? "true" : undefined}
                             paddingLeft={
                                 !isMobile && desktopTitleLeftSlop !== undefined
                                     ? desktopTitleLeftSlop
@@ -388,27 +470,41 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     ? `-${desktopTitleLeftSlop}`
                                     : undefined
                             }
-                            textAlign={
-                                subtitle && (isMobile || titleJustifyContent === "center")
-                                    ? "center"
-                                    : undefined
-                            }
-                            style={{
-                                // Render contextual alternate glyphs. User text may be rendered here. Helpful
-                                // for consistency if the user types anything like 2x2 or an @ mention.
-                                // eslint-disable-next-line cyberworlds/string-quotes
-                                fontFeatureSettings: '"calt" on',
-                            }}
+                            paddingY={!isMobile ? "4" : undefined}
+                            marginY={!isMobile ? "-4" : undefined}
+                            paddingRight={!isMobile ? "4" : undefined}
+                            marginRight={!isMobile ? "-4" : undefined}
                         >
-                            {title}
-                        </Box>
-                        {subtitle && (
                             <Box
-                                fontSize="50"
-                                color="grey-50"
-                                fontStyle="truncate"
+                                // We have less space on mobile so use a smaller font size.
+                                fontSize={isMobile ? "100" : desktopTitleFontSize}
+                                fontStyle={
+                                    isMobile
+                                        ? "truncate-semi-bold"
+                                        : `truncate-${desktopTitleFontWeight}`
+                                }
                                 userSelect={!isMobile ? "text" : undefined}
-                                textAlign={isMobile ? "center" : "left"}
+                                paddingLeft={
+                                    !isMobile && desktopTitleLeftSlop !== undefined
+                                        ? desktopTitleLeftSlop
+                                        : undefined
+                                }
+                                marginLeft={
+                                    !isMobile && desktopTitleLeftSlop !== undefined
+                                        ? `-${desktopTitleLeftSlop}`
+                                        : undefined
+                                }
+                                // We need this Y slop to grow the title row when editing the title without
+                                // shifting the navigation bar height.
+                                paddingY={!isMobile ? "4" : undefined}
+                                marginY={!isMobile ? "-4" : undefined}
+                                paddingRight={!isMobile ? "4" : undefined}
+                                marginRight={!isMobile ? "-4" : undefined}
+                                textAlign={
+                                    subtitle && (isMobile || titleJustifyContent === "center")
+                                        ? "center"
+                                        : undefined
+                                }
                                 style={{
                                     // Render contextual alternate glyphs. User text may be rendered here. Helpful
                                     // for consistency if the user types anything like 2x2 or an @ mention.
@@ -416,113 +512,152 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     fontFeatureSettings: '"calt" on',
                                 }}
                             >
-                                {subtitle}
-                            </Box>
-                        )}
-                    </Box>
-                </Box>
-                {(hasLeftActions || hasRightActions) && (
-                    <Box
-                        flexGrow={!isMobile ? "1" : undefined}
-                        flexShrink="0"
-                        height={navigationBarHeight}
-                        paddingRight={isMobile ? navigationBarMobileGap : "5"}
-                        display="flex"
-                        justifyContent="flex-end"
-                        alignItems="center"
-                        gap="1"
-                        // Gives children `pointer-events: initial` so the user can interact with them.
-                        className={pointerEventsNoneNotInheritedClassName}
-                        style={{
-                            flexBasis:
-                                !replaceActions && isTextInputFocused
-                                    ? spacing[navigationBarDoneButtonActionFlexBasis]
-                                    : spacing[navigationBarActionsFlexBasis],
-                        }}
-                    >
-                        {replaceActions ? (
-                            replaceActions
-                        ) : (
-                            <>
-                                {desktopAdditionalActions && platform === "desktop" && (
-                                    <Box paddingRight="4">{desktopAdditionalActions}</Box>
-                                )}
-                                {shareButton &&
-                                    !withWideRouteLayoutShareMenuItem &&
-                                    routeLayout === "wide" && (
-                                        <Box paddingRight="4">
-                                            <ShareButton
-                                                entityNoun={shareButton.entityNoun}
-                                                entityId={shareButton.entityId}
-                                                isReadOnly={shareButton.isReadOnly}
-                                                accessPolicy={shareButton.accessPolicy}
-                                                inherited={shareButton.inherited}
-                                                onAccessPolicyChange={
-                                                    shareButton.onAccessPolicyChange
-                                                }
-                                                withoutEditAccessLevel={
-                                                    shareButton.withoutEditAccessLevel
-                                                }
-                                                withHiddenCommentAccessLevel={
-                                                    shareButton.withHiddenCommentAccessLevel
-                                                }
-                                                onCopyLink={shareButton.onCopyLink}
-                                                activationHint={shareButton.activationHint}
-                                                onActivationHintHide={
-                                                    shareButton.onActivationHintHide
-                                                }
-                                            />
-                                        </Box>
-                                    )}
-                                {isTextInputFocused ? (
-                                    // If a text input is focused then we hide menu actions and replace it with a
-                                    // "Done" button. This helps the user see how to end their editing session. Opening
-                                    // menu actions would cause the text input to unfocus anyway.
+                                {titleBreadcrumb && isMobile ? (
                                     <Box
                                         display="flex"
-                                        justifyContent="flex-end"
-                                        style={{width: navigationBarDoneButtonActionWidth}}
+                                        flexDirection="column"
+                                        minWidth="0"
+                                        width="full"
+                                        alignItems="center"
+                                        justifyContent="center"
+                                        style={{
+                                            height: navigationBarContentHeight,
+                                        }}
                                     >
-                                        <Button
-                                            fontSize="100"
-                                            // Don't remove focus from the current text input element on press start. Remove
-                                            // focus on press finish.
-                                            isFocusable={false}
-                                            onPress={() => {
-                                                if (document.activeElement instanceof HTMLElement) {
-                                                    document.activeElement.blur();
-                                                }
-                                            }}
-                                        >
-                                            <Box display="inline" fontStyle="semi-bold">
-                                                Done
-                                            </Box>
-                                        </Button>
+                                        <NavigationBarTitleBreadcrumbButton
+                                            isMobile={isMobile}
+                                            titleBreadcrumb={titleBreadcrumb}
+                                        />
+                                        {title}
                                     </Box>
                                 ) : (
-                                    (menuActions.length > 0 ||
-                                        (shareButton &&
-                                            (routeLayout !== "wide" ||
-                                                withWideRouteLayoutShareMenuItem))) && (
-                                        // We re-create `<MenuButton>` in this file since when clicking on the share option
-                                        // we want to dynamically switch the menu for the `<ShareOverlay>`.
-                                        <NavigationBarContentMoreButton
-                                            menuActions={menuActions}
-                                            menuOffset={menuOffset}
-                                            extraBottom={contextMenuExtraBottom}
-                                            shareButton={
-                                                routeLayout !== "wide" ||
-                                                withWideRouteLayoutShareMenuItem
-                                                    ? shareButton
-                                                    : undefined
-                                            }
-                                        />
-                                    )
+                                    title
                                 )}
-                            </>
-                        )}
+                            </Box>
+                            {subtitle && (
+                                <Box
+                                    fontSize="50"
+                                    color="grey-50"
+                                    fontStyle="truncate"
+                                    userSelect={!isMobile ? "text" : undefined}
+                                    textAlign={isMobile ? "center" : "left"}
+                                    style={{
+                                        // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                                        // for consistency if the user types anything like 2x2 or an @ mention.
+                                        // eslint-disable-next-line cyberworlds/string-quotes
+                                        fontFeatureSettings: '"calt" on',
+                                    }}
+                                >
+                                    {subtitle}
+                                </Box>
+                            )}
+                        </Box>
                     </Box>
-                )}
+                    {(hasLeftActions || hasRightActions) && (
+                        <Box
+                            flexGrow={!isMobile ? "1" : undefined}
+                            flexShrink="0"
+                            paddingRight={isMobile ? navigationBarMobileGap : "5"}
+                            display="flex"
+                            justifyContent="flex-end"
+                            alignItems="center"
+                            gap="1"
+                            // Gives children `pointer-events: initial` so the user can interact with them.
+                            className={pointerEventsNoneNotInheritedClassName}
+                            style={{
+                                flexBasis:
+                                    !replaceActions && isTextInputFocused
+                                        ? spacing[navigationBarDoneButtonActionFlexBasis]
+                                        : spacing[navigationBarActionsFlexBasis],
+                            }}
+                        >
+                            {replaceActions ? (
+                                replaceActions
+                            ) : (
+                                <>
+                                    {desktopAdditionalActions && platform === "desktop" && (
+                                        <Box paddingRight="4">{desktopAdditionalActions}</Box>
+                                    )}
+                                    {shareButton &&
+                                        !withWideRouteLayoutShareMenuItem &&
+                                        routeLayout === "wide" && (
+                                            <Box paddingRight="4">
+                                                <ShareButton
+                                                    entityNoun={shareButton.entityNoun}
+                                                    entityId={shareButton.entityId}
+                                                    isReadOnly={shareButton.isReadOnly}
+                                                    accessPolicy={shareButton.accessPolicy}
+                                                    inherited={shareButton.inherited}
+                                                    onAccessPolicyChange={
+                                                        shareButton.onAccessPolicyChange
+                                                    }
+                                                    withoutEditAccessLevel={
+                                                        shareButton.withoutEditAccessLevel
+                                                    }
+                                                    withHiddenCommentAccessLevel={
+                                                        shareButton.withHiddenCommentAccessLevel
+                                                    }
+                                                    onCopyLink={shareButton.onCopyLink}
+                                                    activationHint={shareButton.activationHint}
+                                                    onActivationHintHide={
+                                                        shareButton.onActivationHintHide
+                                                    }
+                                                />
+                                            </Box>
+                                        )}
+                                    {isTextInputFocused ? (
+                                        // If a text input is focused then we hide menu actions and replace it with a
+                                        // "Done" button. This helps the user see how to end their editing session. Opening
+                                        // menu actions would cause the text input to unfocus anyway.
+                                        <Box
+                                            display="flex"
+                                            justifyContent="flex-end"
+                                            style={{width: navigationBarDoneButtonActionWidth}}
+                                        >
+                                            <Button
+                                                fontSize="100"
+                                                // Don't remove focus from the current text input element on press start. Remove
+                                                // focus on press finish.
+                                                isFocusable={false}
+                                                onPress={() => {
+                                                    if (
+                                                        document.activeElement instanceof
+                                                        HTMLElement
+                                                    ) {
+                                                        document.activeElement.blur();
+                                                    }
+                                                }}
+                                            >
+                                                <Box display="inline" fontStyle="semi-bold">
+                                                    Done
+                                                </Box>
+                                            </Button>
+                                        </Box>
+                                    ) : (
+                                        (menuActions.length > 0 ||
+                                            (shareButton &&
+                                                (routeLayout !== "wide" ||
+                                                    withWideRouteLayoutShareMenuItem))) && (
+                                            // We re-create `<MenuButton>` in this file since when clicking on the share option
+                                            // we want to dynamically switch the menu for the `<ShareOverlay>`.
+                                            <NavigationBarContentMoreButton
+                                                menuActions={menuActions}
+                                                menuOffset={menuOffset}
+                                                extraBottom={contextMenuExtraBottom}
+                                                shareButton={
+                                                    routeLayout !== "wide" ||
+                                                    withWideRouteLayoutShareMenuItem
+                                                        ? shareButton
+                                                        : undefined
+                                                }
+                                            />
+                                        )
+                                    )}
+                                </>
+                            )}
+                        </Box>
+                    )}
+                </Box>
             </OverlayScopeContextProvider>
         </Box>
     );
@@ -718,6 +853,72 @@ export function NavigationBarContentMoreButton({
                 </MobileFullScreenModal>
             )}
         </>
+    );
+}
+
+// IMPORTANT: This design also exists in `TaskDetailViewParentBreadcrumbs` under
+// and `SiteBreadcrumbChip`. When updating this component, also update those
+// components.
+function NavigationBarTitleBreadcrumbButton({
+    isMobile,
+    titleBreadcrumb,
+}: {
+    readonly isMobile: boolean;
+    readonly titleBreadcrumb: NavigationBarTitleBreadcrumb;
+}) {
+    return (
+        <Box
+            display="flex"
+            alignItems="center"
+            justifyContent={isMobile ? "center" : "flex-start"}
+            minWidth="0"
+            color={navigationBarTitleBreadcrumbColor}
+            // The button has a padding of 1.5 from the left edge of the button to the button
+            // text. Without a negative marging the breadcrumb would look like this:
+            //
+            // ```
+            //           [<padding>ButtonText<padding>]
+            //           Title
+            // ```
+            //
+            // So this looks terrible in the UI. what the user would see is the following:
+            //
+            // ```
+            //           [         ButtonText         ]
+            //           Title
+            // ```
+            //
+            // So we add some negative margin to the left of the button to offset its inner
+            // padding:
+            //
+            // ```
+            // negative margin
+            // v
+            //  [         ButtonText         ]
+            //            Title
+            // ```
+
+            marginLeft={!isMobile ? "-1.5" : undefined}
+        >
+            <Box flexShrink="1" minWidth="flex-fit" maxWidth="full">
+                <Button
+                    variant="quietest"
+                    height="5"
+                    paddingX="1.5"
+                    fontSize={navigationBarTitleBreadcrumbFontSize}
+                    pressErrorTitle={titleBreadcrumb.pressErrorTitle}
+                    onPress={titleBreadcrumb.onPress}
+                >
+                    {titleBreadcrumb.title}
+                </Button>
+            </Box>
+            {!isMobile && (
+                <CaretRight
+                    size={spacing[navigationBarTitleBreadcrumbCaretSize]}
+                    style={{flexShrink: 0}}
+                />
+            )}
+        </Box>
     );
 }
 

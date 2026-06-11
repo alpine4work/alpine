@@ -44,7 +44,10 @@ export function useSiteChromeContainer<Children extends ReactNode>(
     }
 
     if (routeLayout === "narrow") {
-        // TODO(#sites): Implement narrow (peek and mobile) layout support in following PR.
+        // Narrow layouts (mobile, peeks) don't render persistent site chrome. Each
+        // entity's detail view instead renders a `SiteBreadcrumbChip` above its title
+        // (matching the file-entity preview), which opens the site's `navigate` route to
+        // browse the tree.
         return children;
     }
 

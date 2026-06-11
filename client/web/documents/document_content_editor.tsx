@@ -110,6 +110,8 @@ import {
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {SiteBreadcrumbChip} from "~/client/web/sites/breadcrumb/site_breadcrumb_chip.js";
+import {useSiteNavigationBarTitleBreadcrumb} from "~/client/web/sites/breadcrumb/use_site_navigation_bar_title_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
@@ -303,6 +305,7 @@ export function DocumentContentEditor({
 
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
+    const siteBreadcrumbTitleBoundaryRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const commentThreadListViewRef = useRef<DocumentCommentThreadListViewRef>(null);
     const presentationControllerRef = useRef<DocumentPresentationControllerRef>(null);
@@ -1552,6 +1555,7 @@ export function DocumentContentEditor({
     const cover = editorState.getDoc().attrs.cover as DocumentContentCover | null;
 
     const withinPeekStackOverlay = !!peekContext?.stack;
+    const navigationBarTitleBreadcrumb = useSiteNavigationBarTitleBreadcrumb({accessPolicy});
 
     const blobsScale = useRouteLayout() === "narrow" ? 0.75 : 1;
     const blobsSettings = useMemo(
@@ -1569,20 +1573,37 @@ export function DocumentContentEditor({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title,
+        titleBreadcrumb: navigationBarTitleBreadcrumb,
         defaultPreviousRoute: `/home/${spaceId}`,
         getTitleBoundaryElement: useCallback(() => {
+            if (navigationBarTitleBreadcrumb) {
+                return assertExists(siteBreadcrumbTitleBoundaryRef.current);
+            }
+
             // Assume the title `<h1>` element is always the first element in the ProseMirror
             // DOM.
             const editor = assertExists(editorRef.current);
             return editor.getEditorElement().firstElementChild! as HTMLHeadingElement;
-        }, []),
+        }, [navigationBarTitleBreadcrumb]),
         titleBoundaryMarginTop: useMemo(
             () =>
-                addRemLengths(
-                    contentStyles.titlePaddingTop[getPlatformRouteLayout(platform, routeLayout)],
-                    "4",
-                ),
-            [platform, routeLayout],
+                // This is the extra scroll distance after the chosen header boundary before the
+                // navbar title appears. When a site breadcrumb is rendered,
+                // `getTitleBoundaryElement` returns the breadcrumb boundary, whose wrapper already
+                // owns the layout-specific `titlePaddingTop` clearance. When there is no site
+                // breadcrumb, the boundary is the document title itself, so we include that same
+                // `titlePaddingTop` here to preserve the old reveal point. The trailing `4` is
+                // intentionally constant across layouts: it is the shared reveal buffer after the
+                // visual header boundary, not a measurement of the breadcrumb's rendered height.
+                navigationBarTitleBreadcrumb
+                    ? spacing["4"]
+                    : addRemLengths(
+                          contentStyles.titlePaddingTop[
+                              getPlatformRouteLayout(platform, routeLayout)
+                          ],
+                          "4",
+                      ),
+            [platform, routeLayout, navigationBarTitleBreadcrumb],
         ),
         menuActions: useMemo(
             (): ReadonlyArray<ReadonlyArray<MenuAction>> => [
@@ -1957,6 +1978,50 @@ export function DocumentContentEditor({
                     )}
                     <OverlayScopeContextProvider>
                         <Box className={contentEditorStyles.containerClassName}>
+                            {navigationBarTitleBreadcrumb && (
+                                // The site breadcrumb is absolutely positioned over the editor (which stays in
+                                // flow covering 100% of the space, so covers lay out normally and clicking
+                                // anywhere in the top area still focuses the editor). The editor title makes room
+                                // for the chip by growing its own top clearance with
+                                // `withTitleSiteBreadcrumbDocClassName`, and this overlay anchors the chip at the
+                                // title's original `titlePaddingTop` clearance so the chip's bottom lands exactly
+                                // where the grown title text begins.
+                                //
+                                // The overlay recreates the editor's two-layer horizontal layout.
+                                // `contentClassName` normally applies `screenPaddingX` to the editor shell, then
+                                // `docBlockClassName` centers and constrains each document block. Since the
+                                // breadcrumb lives outside the ProseMirror DOM, it needs the same outer padding
+                                // plus inner block class to line up with the title and paragraphs in both mobile
+                                // and peek widths.
+                                //
+                                // Pointer events pass through everywhere except the chip itself so the editor
+                                // below remains clickable beside the chip.
+                                <Box
+                                    position="absolute"
+                                    left="0"
+                                    right="0"
+                                    zIndex="10"
+                                    paddingX={screenPaddingX}
+                                    pointerEvents="none"
+                                    style={{
+                                        top: `calc(${
+                                            contentStyles.titlePaddingTop[
+                                                getPlatformRouteLayout(platform, routeLayout)
+                                            ]
+                                        } + var(--safe-area-inset-top, 0px))`,
+                                    }}
+                                >
+                                    <Box
+                                        ref={siteBreadcrumbTitleBoundaryRef}
+                                        className={contentStyles.docBlockClassName}
+                                    >
+                                        <Box display="inline-flex" pointerEvents="auto">
+                                            {/* Always render the breadcrumb caret for documents */}
+                                            <SiteBreadcrumbChip withoutCaret={false} />
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            )}
                             <GlobalKeyDownEvent
                                 onGlobalKeyDown={event => {
                                     // Perform undo/redo on the document even if the document isn't focused. If the
@@ -2077,7 +2142,14 @@ export function DocumentContentEditor({
                                     // While the sidebar is open, don't render our document toolbar. It would be weird
                                     // for it to pop up when writing a comment.
                                     withoutMobileKeyboardToolbar={sidebarState.isOpen}
-                                    className={documentContentStyles.contentClassName}
+                                    // When the site breadcrumb is overlaid above the title, grow the title's top
+                                    // clearance by the breadcrumb row height so the chip fits between the navigation
+                                    // bar and the title text.
+                                    className={
+                                        navigationBarTitleBreadcrumb
+                                            ? `${documentContentStyles.contentClassName} ${contentStyles.withTitleSiteBreadcrumbDocClassName}`
+                                            : documentContentStyles.contentClassName
+                                    }
                                     phantomSelections={phantomSelections}
                                     fileAttachmentTarget={fileAttachmentTarget}
                                     commentFileAttachmentTarget={useMemo(
