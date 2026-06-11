@@ -335,10 +335,14 @@ export class DatabaseClient {
     private invalidationScheduled = false;
 
     /**
-     * Register a reactive action. Executes the action with page tracking and returns
-     * the initial output. When pages in the action's read-set are subsequently
-     * written, the action re-executes and {@link notify} is called with the new
-     * output. If re-execution fails, {@link reportError} is called with the error.
+     * Register a reactive action. The steady-state path is synchronous and local:
+     * {@link Database.createReactive} owns the read-page set, invalidation overlap
+     * checks, and lazy recomputation.
+     *
+     * This client wrapper only adds the async cache-miss path. If the local reactive
+     * snapshot throws because pages are missing, we fetch/attach through {@link
+     * executeActionWithTracking}, invalidate the pages it read, and then ask the
+     * reactive store for its snapshot again.
      *
      * The action's `writeLevel` must be `"none"`.
      */
@@ -359,44 +363,56 @@ export class DatabaseClient {
             () => this.executeReadOnly(actionObject).output,
         );
         let reExecuting = false;
+
+        const getSnapshotWithServerFallback = async (): Promise<DatabaseActionOutput<N>> => {
+            try {
+                return reactive.getSnapshot() as DatabaseActionOutput<N>;
+            } catch {
+                // `Database.createReactive` is intentionally synchronous. The browser client,
+                // however, may discover during local execution that a page/table is missing from
+                // OPFS. Keep that asynchronous server fallback at this layer instead of making the
+                // shared Database primitive async.
+                const {readPages} = await this.executeActionWithTracking(conn, actionObject);
+
+                // `executeActionWithTracking()` may have fetched pages from the server and
+                // attached per-table files. Its read set is now a concrete dependency set for this
+                // action, so invalidate the reactive store and let the next snapshot establish
+                // those dependencies inside `Database`.
+                this.database.invalidatePages(readPages);
+                return reactive.getSnapshot() as DatabaseActionOutput<N>;
+            }
+        };
+
         const listener = () => {
             if (reExecuting) return;
             reExecuting = true;
             void (async () => {
                 try {
-                    notify(reactive.getSnapshot() as DatabaseActionOutput<N>);
-                } catch {
-                    try {
-                        const {readPages} = await this.executeActionWithTracking(
-                            conn,
-                            actionObject,
-                        );
-                        this.database.invalidatePages(readPages);
-                        notify(reactive.getSnapshot() as DatabaseActionOutput<N>);
-                    } catch (error) {
-                        reportError(error);
-                    }
+                    // Store listeners mean "some dependency may have changed". Calling `getSnapshot()`
+                    // here mirrors React's `useSyncExternalStore` pattern: recompute only after an
+                    // invalidation, and only for actions whose previous read set overlapped the
+                    // written pages.
+                    notify(await getSnapshotWithServerFallback());
+                } catch (error) {
+                    reportError(error);
                 } finally {
                     reExecuting = false;
                 }
             })();
         };
 
-        try {
-            // Use the existing async fallback path to fetch missing pages and attach cached
-            // per-table files before the synchronous reactive function runs.
-            await this.executeActionWithTracking(conn, actionObject);
-        } catch {
-            // The reactive store still registers failed computations with an unknown
-            // dependency set, so any later page write retries the action.
-        }
-
+        // `addListener()` primes the reactive store once so it has an initial read set.
+        // For the common cache-hit path this is the only initial local action execution;
+        // the `getSnapshotWithServerFallback()` call below reuses that cached result.
         reactive.addListener(listener);
         this.reactiveActions.set(id, {reactive});
 
         try {
-            return {ok: true, value: reactive.getSnapshot() as DatabaseActionOutput<N>};
+            return {ok: true, value: await getSnapshotWithServerFallback()};
         } catch (error) {
+            // Failed computations are retained by `Database.createReactive` with an unknown
+            // dependency set, so any later page invalidation will retry and call
+            // `reportError()` only if that retry still fails.
             return {ok: false, error};
         }
     }
