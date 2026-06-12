@@ -16,6 +16,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -71,6 +72,7 @@ const apiMentionTargetTypes = new Set<string>(
             Post: true,
             Task: true,
             TaskCollection: true,
+            Site: true,
         }),
     ),
 );
@@ -147,6 +149,11 @@ type ApiPathsType = [
     {
         path: `/posts/${PostId}/messages/${number}`;
         pathObject: {readonly type: "PostComment"; readonly id: PostId; readonly index: number};
+    },
+    {
+        // TODO(#site-api): Implement site API.
+        path: `/sites/${SiteId}`;
+        pathObject: {readonly type: "Site"; readonly id: SiteId};
     },
     {
         path: `/tasks/${TaskId}`;
@@ -465,6 +472,9 @@ export function printApiPath(path: ApiPathObject): ApiPath {
             return `/posts/${path.id}/messages/${path.index}`;
         case "PostComments":
             return `/posts/${path.id}/messages`;
+        case "Site":
+            // TODO(#site-api): Implement site API.
+            return `/sites/${path.id}`;
         case "Task":
             return `/tasks/${path.id}`;
         case "TaskComment":

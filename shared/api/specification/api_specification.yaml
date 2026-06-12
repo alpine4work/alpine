@@ -1027,6 +1027,36 @@ paths:
                                         items:
                                             $ref: "#/components/schemas/SearchResult"
 
+    # TODO(#site-api): Implement site API.
+    /sites/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SiteId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, mention]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required: [target, title]
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/SiteMentionTarget"
+                                            title:
+                                                type: string
+
     /tasks:
         post:
             requestBody:
@@ -1775,6 +1805,10 @@ components:
             type: string
             pattern: ^{{idRegExp}}$
 
+        SiteId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
         SpaceId:
             type: string
             pattern: ^{{idRegExp}}$
@@ -1849,6 +1883,26 @@ components:
                 id:
                     $ref: "#/components/schemas/PostId"
 
+        # TODO(#sites-api): We may want to add a mention response type for sites
+        # that includes the first entity id in the site. I'm still not sure how
+        # we will communicate site data via the API, so I'm only adding what's
+        # necessary for now. The mention target is necessary because the site file
+        # entity mention will exist in Alpine content, and API requests to fetch that
+        # content should still succeed.
+        # We also may NOT want to add a mention target response with the first entity
+        # id. Rerouting to the first entity in the site makes sense in the app since
+        # we render the site chrome around the entity. For the API, that "reroute"
+        # may be pretty confusing/jarring for clients.
+        SiteMentionTarget:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
+
         TaskMentionTarget:
             type: object
             required: [type, id]
@@ -1888,6 +1942,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -1898,6 +1953,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
 
@@ -1907,6 +1963,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -1916,6 +1973,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
 
@@ -3885,6 +3943,7 @@ components:
                 - $ref: "#/components/schemas/SearchDocumentMessageResult"
                 - $ref: "#/components/schemas/SearchPostResult"
                 - $ref: "#/components/schemas/SearchPostMessageResult"
+                - $ref: "#/components/schemas/SearchSiteResult"
                 - $ref: "#/components/schemas/SearchTaskResult"
                 - $ref: "#/components/schemas/SearchTaskMessageResult"
                 - $ref: "#/components/schemas/SearchTaskCollectionResult"
@@ -3899,6 +3958,7 @@ components:
                     DocumentMessage: "#/components/schemas/SearchDocumentMessageResult"
                     Post: "#/components/schemas/SearchPostResult"
                     PostMessage: "#/components/schemas/SearchPostMessageResult"
+                    Site: "#/components/schemas/SearchSiteResult"
                     Task: "#/components/schemas/SearchTaskResult"
                     TaskMessage: "#/components/schemas/SearchTaskMessageResult"
                     TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
@@ -4057,6 +4117,22 @@ components:
                     minimum: 0
                 author:
                     $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+
+        SearchSiteResult:
+            type: object
+            required: [title, bodyMatch, type, id]
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
 

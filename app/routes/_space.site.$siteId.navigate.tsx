@@ -1,30 +1,40 @@
-import {Link as LinkIcon} from "phosphor-react";
-import {useMemo} from "react";
+import {useSearchParams} from "@remix-run/react";
+import {useEffect, useMemo, useState} from "react";
 import {deserializeSiteIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {loadWithSpaceDiscovery} from "~/app/helpers/load_with_space_discovery.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {MenuAction} from "~/client/web/design/menu.js";
-import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {
-    useFavoriteSiteMenuAction,
+    useCanManageSite,
     useSiteContext,
     useSiteTree,
 } from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
+import {useSiteMenuActions} from "~/client/web/sites/site_menu_actions.js";
+import {SiteNameHeader} from "~/client/web/sites/site_name_header.js";
 import {SiteSideBarContent} from "~/client/web/sites/site_side_bar_content.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {peekControlsHeight} from "~/client/web/styles/peek_shared_styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {getSite} from "~/server/sites/data/get_site.js";
+import {
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
+import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -100,8 +110,48 @@ export default function SiteNavigateRoute() {
     const context = useAppContext();
     const tree = useSiteTree();
     const {handleEventForSite} = useSiteContext();
+    const {currentAccount} = useSpaceContext();
     const platform = usePlatform();
-    const favoriteSiteMenuAction = useFavoriteSiteMenuAction();
+    const routeLayout = useRouteLayout();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const canManage = useCanManageSite();
+
+    const isMobile = platform === "mobile";
+
+    const shouldFocusNameInput = searchParams.get("focus") === "name";
+
+    const [isEditingNameInline, setIsEditingNameInline] = useState(
+        canManage && platform !== "mobile" && shouldFocusNameInput,
+    );
+    if (isEditingNameInline && platform === "mobile") setIsEditingNameInline(false);
+
+    const accessPolicy = tree.site.accessPolicy;
+
+    const accessLevel = useMemo(
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
+    );
+
+    // Strip the consumed `?focus` param so a refresh doesn't replay it and it doesn't
+    // end up in shared links.
+    useEffect(() => {
+        if (!searchParams.has("focus")) return;
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete("focus");
+        setSearchParams(newSearchParams, {replace: true});
+    }, [searchParams, setSearchParams]);
+
+    const menuActions = useSiteMenuActions({
+        editSiteNameAction:
+            hasAccessLevel(accessLevel, "Manage") && !isMobile
+                ? cast<MenuAction>({
+                      label: "Edit name",
+                      onPress: () => {
+                          setIsEditingNameInline(true);
+                      },
+                  })
+                : undefined,
+    });
 
     const site = tree.site;
 
@@ -109,49 +159,42 @@ export default function SiteNavigateRoute() {
     // TODO(#sites-top-bar): Support top bar-rooted sites.
     assert(rootEntry.type === "SideBar");
 
-    const menuActions = useMemo<ReadonlyArray<ReadonlyArray<MenuAction>>>(
-        () => [
-            [
-                ...(favoriteSiteMenuAction ? [favoriteSiteMenuAction] : []),
-                {
-                    label: "Copy link",
-                    icon: <LinkIcon size={16} />,
-                    pressErrorTitle: "Couldn\u2019t copy link",
-                    onPress: async () => {
-                        const url = new URL(`/site/${site.id}`, window.location.href);
-                        await writeTextToClipboard(url.toString());
-                    },
+    const {scrollViewRef, navigationBar, scrollbarInsetTop, effectiveNavigationBarHeight} =
+        useNavigationBar({
+            title: (
+                <SiteNameHeader
+                    site={site}
+                    setIsEditingNameInline={setIsEditingNameInline}
+                    isEditingNameInline={isEditingNameInline}
+                />
+            ),
+            desktopTitleFontSize: "400",
+            desktopTitleFontWeight: "bold",
+            desktopTitleLeftSlop: "1",
+            titleJustifyContent: isMobile ? "center" : "flex-start",
+            withoutDisappearingTitle: true,
+            // If the user lands here without browser history (e.g. opening a deep link), fall
+            // back to the bare site URL — its `firstEntityId` redirect then sends them into
+            // the actual entity tree.
+            defaultPreviousRoute: `/site/${site.id}`,
+            menuActions,
+            shareButton: {
+                entityNoun: "site",
+                entityId: `Site:${site.id}`,
+                accessPolicy: site.accessPolicy,
+                onAccessPolicyChange: async (notification, accessPolicy) => {
+                    await applySiteAccessPolicyChange({
+                        context,
+                        accessPolicy: {...accessPolicy, type: "Site", siteId: site.id},
+                        handleEventForSite,
+                    });
                 },
-            ],
-        ],
-        [favoriteSiteMenuAction, site.id],
-    );
-
-    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        title: site.name,
-        withoutDisappearingTitle: true,
-        // If the user lands here without browser history (e.g. opening a deep link), fall
-        // back to the bare site URL — its `firstEntityId` redirect then sends them into
-        // the actual entity tree.
-        defaultPreviousRoute: `/site/${site.id}`,
-        menuActions,
-        shareButton: {
-            entityNoun: "site",
-            entityId: `Site:${site.id}`,
-            accessPolicy: site.accessPolicy,
-            onAccessPolicyChange: async (notification, accessPolicy) => {
-                await applySiteAccessPolicyChange({
-                    context,
-                    accessPolicy: {...accessPolicy, type: "Site", siteId: site.id},
-                    handleEventForSite,
-                });
+                onCopyLink: async () => {
+                    const url = new URL(`/site/${site.id}`, window.location.href);
+                    await writeTextToClipboard(url.toString());
+                },
             },
-            onCopyLink: async () => {
-                const url = new URL(`/site/${site.id}`, window.location.href);
-                await writeTextToClipboard(url.toString());
-            },
-        },
-    });
+        });
 
     // TODO(#sites-redesign): Mostly for calebmer, we may want to iterate on this
     // design. Specifically in peek (and secondarily, "wide") view.
@@ -162,21 +205,29 @@ export default function SiteNavigateRoute() {
                 useScrollbar({insetTop: scrollbarInsetTop}),
             )}
             data-testid="SiteNavigateView"
-            flexGrow="1"
-            width="full"
+            flexShrink="0"
+            overflow="auto"
             height="full"
+            width="full"
             position="relative"
-            zIndex="0"
-            overflowX="hidden"
-            overflowY="auto"
         >
-            {navigationBar}
-            <Box height={navigationBarHeight} />
-            <Box
-                marginLeft={platform === "mobile" ? "4" : "6"}
-                paddingTop={platform === "mobile" ? "0" : "4"}
-            >
-                <SiteSideBarContent item={rootEntry} isFullWidth={true} withoutNameHeader={true} />
+            <Box display="flex" flexDirection="column" gap="0.5" minHeight="full">
+                <Box
+                    style={{
+                        height:
+                            routeLayout === "narrow" && platform !== "mobile"
+                                ? addRemLengths(effectiveNavigationBarHeight, peekControlsHeight)
+                                : effectiveNavigationBarHeight,
+                    }}
+                />
+                <Box marginLeft={platform === "mobile" ? "4" : "6"}>
+                    <SiteSideBarContent
+                        item={rootEntry}
+                        isFullWidth={true}
+                        withoutNameHeader={true}
+                    />
+                </Box>
+                {navigationBar}
             </Box>
         </Box>
     );

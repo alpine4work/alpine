@@ -174,8 +174,6 @@ export function ChannelCreator({
                                 description: descriptionState.getDoc(),
                                 accessPolicy: !isPublic
                                     ? {
-                                          // TODO(#sites): We probably want to add a prop if the channel is being directly
-                                          // added to a site (create within site).
                                           type: "Local",
                                           accountGrantById: new Map([
                                               [currentAccount.id, {level: "Manage", generation: 0}],

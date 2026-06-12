@@ -84,6 +84,7 @@ async function main() {
         "DocumentThreadId",
         "FileId",
         "PostId",
+        "SiteId",
         "SpaceId",
         "TaskId",
         "TaskCollectionId",

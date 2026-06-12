@@ -11,6 +11,7 @@ ts_project(
         "//server/api/internal/files",
         "//server/api/internal/forum",
         "//server/api/internal/shared",
+        "//server/api/internal/sites",
         "//server/api/internal/spaces",
         "//server/api/internal/tasks",
         "//server/chat/data",

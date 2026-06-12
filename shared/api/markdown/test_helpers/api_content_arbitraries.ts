@@ -72,6 +72,7 @@ import {
     DocumentId,
     FileId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -96,6 +97,7 @@ const ApiPreviewAndMentionTargets = {
     Chat: createIdArbitrary<ChatId>().map(id => ({type: "Chat" as const, id})),
     Document: createIdArbitrary<DocumentId>().map(id => ({type: "Document" as const, id})),
     Post: createIdArbitrary<PostId>().map(id => ({type: "Post" as const, id})),
+    Site: createIdArbitrary<SiteId>().map(id => ({type: "Site" as const, id})),
     Task: createIdArbitrary<TaskId>().map(id => ({type: "Task" as const, id})),
     TaskCollection: createIdArbitrary<TaskCollectionId>().map(id => ({
         type: "TaskCollection" as const,
@@ -513,6 +515,7 @@ const ApiPreviewAndMentionTargetResponses = {
     Chat: createIdArbitrary<ChatId>().map(id => ({type: "Chat" as const, id})),
     Document: createIdArbitrary<DocumentId>().map(id => ({type: "Document" as const, id})),
     Post: createIdArbitrary<PostId>().map(id => ({type: "Post" as const, id})),
+    Site: createIdArbitrary<SiteId>().map(id => ({type: "Site" as const, id})),
     Task: fc.record({
         type: fc.constant("Task" as const),
         id: createIdArbitrary<TaskId>(),

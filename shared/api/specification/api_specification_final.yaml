@@ -1116,6 +1116,40 @@ paths:
                                             $ref: "#/components/schemas/SearchResult"
                 default:
                     $ref: "#/components/responses/Error"
+    /sites/{id}/mention:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/SiteId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - mention
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    mention:
+                                        type: object
+                                        required:
+                                            - target
+                                            - title
+                                        additionalProperties: false
+                                        properties:
+                                            target:
+                                                $ref: "#/components/schemas/SiteMentionTarget"
+                                            title:
+                                                type: string
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks:
         post:
             requestBody:
@@ -1909,6 +1943,9 @@ components:
         PostId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+        SiteId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
         SpaceId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
@@ -1985,6 +2022,17 @@ components:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
+        SiteMentionTarget:
+            type: object
+            required:
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
         TaskMentionTarget:
             type: object
             required:
@@ -2028,6 +2076,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -2038,6 +2087,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         PreviewTarget:
@@ -2046,6 +2096,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -2055,6 +2106,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         Content:
@@ -4456,6 +4508,7 @@ components:
                 - $ref: "#/components/schemas/SearchDocumentMessageResult"
                 - $ref: "#/components/schemas/SearchPostResult"
                 - $ref: "#/components/schemas/SearchPostMessageResult"
+                - $ref: "#/components/schemas/SearchSiteResult"
                 - $ref: "#/components/schemas/SearchTaskResult"
                 - $ref: "#/components/schemas/SearchTaskMessageResult"
                 - $ref: "#/components/schemas/SearchTaskCollectionResult"
@@ -4470,6 +4523,7 @@ components:
                     DocumentMessage: "#/components/schemas/SearchDocumentMessageResult"
                     Post: "#/components/schemas/SearchPostResult"
                     PostMessage: "#/components/schemas/SearchPostMessageResult"
+                    Site: "#/components/schemas/SearchSiteResult"
                     Task: "#/components/schemas/SearchTaskResult"
                     TaskMessage: "#/components/schemas/SearchTaskMessageResult"
                     TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
@@ -4662,6 +4716,25 @@ components:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+        SearchSiteResult:
+            type: object
+            required:
+                - title
+                - bodyMatch
+                - type
+                - id
+            additionalProperties: false
+            properties:
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+                type:
+                    const: Site
+                id:
+                    $ref: "#/components/schemas/SiteId"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
         SearchTaskResult:
             type: object
             required:
@@ -4760,6 +4833,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget_Response"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -4770,6 +4844,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         PreviewTarget_Response:
@@ -4778,6 +4853,7 @@ components:
                 - $ref: "#/components/schemas/ChatMentionTarget"
                 - $ref: "#/components/schemas/DocumentMentionTarget"
                 - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/SiteMentionTarget"
                 - $ref: "#/components/schemas/TaskMentionTarget_Response"
                 - $ref: "#/components/schemas/TaskCollectionMentionTarget"
             discriminator:
@@ -4787,6 +4863,7 @@ components:
                     Chat: "#/components/schemas/ChatMentionTarget"
                     Document: "#/components/schemas/DocumentMentionTarget"
                     Post: "#/components/schemas/PostMentionTarget"
+                    Site: "#/components/schemas/SiteMentionTarget"
                     Task: "#/components/schemas/TaskMentionTarget_Response"
                     TaskCollection: "#/components/schemas/TaskCollectionMentionTarget"
         ContentBlockElement_Response:

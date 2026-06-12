@@ -198,6 +198,12 @@ function getApiMentionContentMention(target: ApiMentionTarget): ContentMention {
                 entityId: `TaskCollection:${target.id}`,
             };
         }
+        case "Site": {
+            return {
+                type: "SearchEntity",
+                entityId: `Site:${target.id}`,
+            };
+        }
         default:
             throw exhaustive(target);
     }

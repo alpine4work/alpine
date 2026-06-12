@@ -11,6 +11,7 @@ import {
     DocumentId,
     FileId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -116,6 +117,12 @@ function parseApiMentionTargetFromMarkdownPathnameSegmentsIfPossible(
         case "post": {
             if (isId<PostId>(pathnameSegment2)) {
                 return {type: "Post", id: pathnameSegment2};
+            }
+            break;
+        }
+        case "site": {
+            if (isId<SiteId>(pathnameSegment2)) {
+                return {type: "Site", id: pathnameSegment2};
             }
             break;
         }

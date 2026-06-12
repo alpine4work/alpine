@@ -34,6 +34,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -106,6 +107,13 @@ export type CreateAgentLinkOptions =
           postId: PostId;
           commentIndex: number;
           preview: string;
+      }
+    | {
+          type: "Site";
+          site: {
+              id: SiteId;
+              name: string;
+          };
       }
     | {
           type: "Task";
@@ -208,6 +216,13 @@ export async function createAgentLink(
                 label: options.preview,
                 rootMessage: null,
                 tokenLimitForPage: agentMessageFirstPageTokenLimit,
+            });
+        }
+        case "Site": {
+            return await actuallyPutAgentLink(storage, {
+                type: "Site",
+                siteId: options.site.id,
+                name: options.site.name,
             });
         }
         case "Task": {
@@ -560,6 +575,7 @@ function assertValidAgentLink(link: AgentLink): void {
         }
         case "Account":
         case "Channel":
+        case "Site":
         case "Task":
         case "TaskCollection":
             return;

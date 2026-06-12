@@ -1594,6 +1594,15 @@ function intoCreateAgentLinkOptions(entity: ApiMentionResponse): CreateAgentLink
                 },
             };
         }
+        case "Site": {
+            return {
+                type: "Site",
+                site: {
+                    id: entity.target.id,
+                    name: entity.title,
+                },
+            };
+        }
         default:
             throw exhaustive(entity.target);
     }

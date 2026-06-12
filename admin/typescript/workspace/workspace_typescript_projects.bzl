@@ -107,6 +107,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/api/internal/files:files",
     "//server/api/internal/forum:forum",
     "//server/api/internal/shared:shared",
+    "//server/api/internal/sites:sites",
     "//server/api/internal/spaces:spaces",
     "//server/api/internal/tasks:tasks",
     "//server/api/internal/test_helpers:test_helpers",

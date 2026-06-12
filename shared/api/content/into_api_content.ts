@@ -29,9 +29,13 @@ import {
 } from "~/shared/content/content_node_type_name.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {
+    FileEntityIdObject,
+    isFileEntityId,
+    parseFileEntityId,
+} from "~/shared/files/file_entity_id.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -493,11 +497,6 @@ function intoApiContentFileOrPreviewElement(
     if (isFileEntityId(fileId)) {
         const entityIdObject = parseFileEntityId(fileId);
 
-        // TODO(#sites): Add support for Site previews.
-        if (entityIdObject.type === "Site") {
-            throw new UnimplementedError("Site previews aren\u2019t supported yet");
-        }
-
         const target = fileEntityIdObjectToPreviewTarget(entityIdObject, options);
 
         const title =
@@ -518,7 +517,7 @@ function intoApiContentFileOrPreviewElement(
 }
 
 function fileEntityIdObjectToPreviewTarget(
-    entityIdObject: Exclude<ReturnType<typeof parseFileEntityId>, {type: "Site"}>,
+    entityIdObject: FileEntityIdObject,
     options: ApiContentMarkdownIntoOptions,
 ): ApiPreviewTargetResponse {
     switch (entityIdObject.type) {
@@ -530,6 +529,8 @@ function fileEntityIdObjectToPreviewTarget(
             return {type: "Document", id: entityIdObject.documentId};
         case "Post":
             return {type: "Post", id: entityIdObject.postId};
+        case "Site":
+            return {type: "Site", id: entityIdObject.siteId};
         case "Task":
             return {
                 type: "Task",
@@ -653,8 +654,11 @@ function intoApiContentInlineElement(
                         break;
                     }
                     case "Site": {
-                        // TODO(#sites): Implement site mentions.
-                        throw new UnimplementedError("Site mentions aren\u2019t implemented");
+                        target = {
+                            type: "Site",
+                            id: entityIdObject.siteId,
+                        };
+                        break;
                     }
                     default:
                         throw exhaustive(entityIdObject);

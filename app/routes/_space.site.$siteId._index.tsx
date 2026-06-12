@@ -328,15 +328,15 @@ function EmptySiteContent({
                     <Box fontSize="100" color="grey-50">
                         {canManage
                             ? "Add a document, channel, task, or task collection to get started."
-                            : // TODO(#sites): Maybe add messaging to inform user that they don't have the
-                              // ability to add anything to the site, and that they should ask someone who can
-                              // share the site to give them ability to add content.
+                            : // TODO(#sites-redesign): Maybe add messaging to inform user that they don't have
+                              // the ability to add anything to the site, and that they should ask someone who
+                              // can share the site to give them ability to add content.
                               "This site doesn\u2019t have any content yet."}
                     </Box>
                     {canManage && (
                         <Box paddingTop="2">
                             <MenuButton actions={rootAddEntityMenuActions} placement="bottom">
-                                {/* TODO(#sites): Maybe add quick buttons for each entity type? */}
+                                {/* TODO(#sites-redesign): Maybe add quick buttons for each entity type? */}
                                 <Button icon={<Plus size={14} />}>Add to site</Button>
                             </MenuButton>
                         </Box>

@@ -35,6 +35,8 @@ function previewTargetToFileEntityId(
             return `Task:${target.id}`;
         case "TaskCollection":
             return `TaskCollection:${target.id}`;
+        case "Site":
+            return `Site:${target.id}`;
         default:
             throw exhaustive(target);
     }

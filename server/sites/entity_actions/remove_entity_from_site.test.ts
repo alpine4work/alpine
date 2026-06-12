@@ -1,5 +1,5 @@
-// TODO(#sites): Create testing framework for adding/removing from sites similar to
-// the way we have "messaging" tests
+// TODO(#sites-not-blocking): Create testing framework for adding/removing from
+// sites similar to the way we have "messaging" tests
 
 import {getChatDefinition} from "~/server/chat/data/get_chat_definition.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
@@ -433,11 +433,6 @@ describe("removeEntityFromSite", () => {
 // =============================================================================
 
 describe("addEntityToSite and removeEntityFromSite edge cases", () => {
-    // TODO(#sites): Re-add after removal fails with ConditionalCheckFailed because
-    // `dangerouslyGetAddToSiteTransactionEntries` uses
-    // `transactionCreateItemWithEvent` which expects the item doesn't exist. After
-    // deletion, the realtime table still has a tombstone. Fix by using
-    // `transactionCreateOrReplaceItemWithEvent` instead.
     test("add then remove then re-add increments the entity version", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();

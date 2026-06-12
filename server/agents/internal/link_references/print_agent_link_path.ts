@@ -98,6 +98,10 @@ export function printAgentLinkPath(link: AgentLink) {
 
             return `/task-comments/${taskCommentLabel}${paginationQueryString}`;
         }
+        case "Site": {
+            const siteLabel = dedupeAgentLinkPath(link.name, link.dedupeNumber);
+            return `/site/${siteLabel}`;
+        }
         default:
             throw exhaustive(link);
     }
@@ -161,6 +165,10 @@ export function printApiPathForAgentLink(link: AgentLink): ApiPath {
         case "TaskComments": {
             return `/tasks/${link.taskId}/messages`;
         }
+        case "Site": {
+            // TODO(#site-api): Implement site API.
+            return `/sites/${link.siteId}`;
+        }
         default: {
             throw exhaustive(link);
         }
@@ -186,6 +194,9 @@ export function printAgentPlainTextLabel(link: AgentLink): string {
         }
         case "PostComments": {
             return link.label;
+        }
+        case "Site": {
+            return link.name;
         }
         case "Task": {
             // Intentionally not including whether the task is active in this label. Keeping
@@ -216,6 +227,7 @@ function isLinkMessageRoomPage(
         case "Account":
         case "Channel":
         case "DocumentPage":
+        case "Site":
         case "Task":
         case "TaskCollection":
             return false;

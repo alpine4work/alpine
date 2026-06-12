@@ -6630,8 +6630,8 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
 // Site addition and removal via intentionallyUpdateAccessPolicy
 // =============================================================================
 
-// TODO(#sites): Create testing framework for adding/removing from sites similar to
-// the way we have "messaging" tests
+// TODO(#sites-not-blocking): Create testing framework for adding/removing from
+// sites similar to the way we have "messaging" tests
 describe("adding and removing documents from sites", () => {
     test("adding a document to a site persists the site entity ref and updates the document\u2019s access policy", async () => {
         const space = await TestSpace.create(context);

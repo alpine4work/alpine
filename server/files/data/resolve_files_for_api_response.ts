@@ -104,7 +104,6 @@ function resolveFileEntityIdToPreview(
 ): ApiContentPreviewBlockElementResponse | null {
     const entityIdObject = parseFileEntityId(fileEntityId);
 
-    // TODO(#sites): Add Site to PreviewTarget.
     switch (entityIdObject.type) {
         case "Document":
             return {
@@ -147,10 +146,11 @@ function resolveFileEntityIdToPreview(
                 title: "Task Collection",
             };
         case "Site":
-            // TODO(#sites): Add Site to PreviewTarget once sites is publically available. Even
-            // then, it may not make sense to show a site preview to an agent because they
-            // won't be able to access the site until we add Sites to the API.
-            return null;
+            return {
+                type: "Preview",
+                target: {type: "Site", id: entityIdObject.siteId},
+                title: "Site",
+            };
         default:
             throw exhaustive(entityIdObject);
     }

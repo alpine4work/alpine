@@ -203,6 +203,17 @@ async function getOrderedListItemForSearchEntityResult(
 
             return createListItemWithSnippet(postLink, result);
         }
+        case "Site": {
+            const siteLink = await createAgentLink(transaction, {
+                type: "Site",
+                site: {
+                    id: result.id,
+                    name: result.title,
+                },
+            });
+
+            return createListItemWithSnippet(siteLink, result);
+        }
         case "Task": {
             const taskLink = await createAgentLink(transaction, {
                 type: "Task",
@@ -390,6 +401,7 @@ function intoApiMessageRoomPathFromPathIfPossible(
         case "Account":
         case "Channel":
         case "Document":
+        case "Site":
         case "TaskCollection":
         // NOTE(ifitzsimmons, 2025-11-05): Tasks are not loaded with task comments, so if
         // the current conversation is occurring in task comments, there's no guarantee

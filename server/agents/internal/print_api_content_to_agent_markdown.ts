@@ -195,6 +195,15 @@ function createAgentLinkForApiMentionPath(
                 },
             });
         }
+        case "Site": {
+            return createAgentLink(storage, {
+                type: "Site",
+                site: {
+                    id: mentionElement.target.id,
+                    name: mentionElement.title,
+                },
+            });
+        }
         case "Task": {
             return createAgentLink(storage, {
                 type: "Task",

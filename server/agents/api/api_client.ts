@@ -624,6 +624,11 @@ export function getApiMention(
                 params: {path: {id: target.id}},
             });
         }
+        case "Site": {
+            return apiClient.get(tracer, "/sites/{id}/mention", {
+                params: {path: {id: target.id}},
+            });
+        }
         default: {
             throw exhaustive(target);
         }

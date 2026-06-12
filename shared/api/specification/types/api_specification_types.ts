@@ -1597,6 +1597,51 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/sites/{id}/mention": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["SiteId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["SiteId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly mention: {
+                                    readonly target: components["schemas"]["SiteMentionTarget"];
+                                    readonly title: string;
+                                };
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/tasks": {
             readonly parameters: {
                 readonly query?: never;
@@ -2331,6 +2376,7 @@ export namespace ApiSpecification {
             readonly DocumentThreadId: IdTypes.DocumentCommentThreadId;
             readonly FileId: IdTypes.FileId;
             readonly PostId: IdTypes.PostId;
+            readonly SiteId: IdTypes.SiteId;
             readonly SpaceId: IdTypes.SpaceId;
             readonly TaskId: IdTypes.TaskId;
             readonly TaskCollectionId: IdTypes.TaskCollectionId;
@@ -2385,6 +2431,14 @@ export namespace ApiSpecification {
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
             };
+            readonly SiteMentionTarget: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Site";
+                readonly id: components["schemas"]["SiteId"];
+            };
             readonly TaskMentionTarget: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -2416,6 +2470,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ChatMentionTarget"]
                 | components["schemas"]["DocumentMentionTarget"]
                 | components["schemas"]["PostMentionTarget"]
+                | components["schemas"]["SiteMentionTarget"]
                 | components["schemas"]["TaskMentionTarget"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
             readonly PreviewTarget:
@@ -2423,6 +2478,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ChatMentionTarget"]
                 | components["schemas"]["DocumentMentionTarget"]
                 | components["schemas"]["PostMentionTarget"]
+                | components["schemas"]["SiteMentionTarget"]
                 | components["schemas"]["TaskMentionTarget"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
             readonly Content: {
@@ -3629,6 +3685,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["SearchDocumentMessageResult"]
                 | components["schemas"]["SearchPostResult"]
                 | components["schemas"]["SearchPostMessageResult"]
+                | components["schemas"]["SearchSiteResult"]
                 | components["schemas"]["SearchTaskResult"]
                 | components["schemas"]["SearchTaskMessageResult"]
                 | components["schemas"]["SearchTaskCollectionResult"];
@@ -3733,6 +3790,18 @@ export namespace ApiSpecification {
                 readonly author: components["schemas"]["Account"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
+            readonly SearchSiteResult: {
+                readonly title: string;
+                /** @constant */
+                readonly bodyMatch: null;
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Site";
+                readonly id: components["schemas"]["SiteId"];
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
+            };
             readonly SearchTaskResult: {
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
@@ -3785,6 +3854,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ChatMentionTarget"]
                 | components["schemas"]["DocumentMentionTarget"]
                 | components["schemas"]["PostMentionTarget"]
+                | components["schemas"]["SiteMentionTarget"]
                 | components["schemas"]["TaskMentionTarget_Response"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
             readonly PreviewTarget_Response:
@@ -3792,6 +3862,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ChatMentionTarget"]
                 | components["schemas"]["DocumentMentionTarget"]
                 | components["schemas"]["PostMentionTarget"]
+                | components["schemas"]["SiteMentionTarget"]
                 | components["schemas"]["TaskMentionTarget_Response"]
                 | components["schemas"]["TaskCollectionMentionTarget"];
             readonly ContentBlockElement_Response:

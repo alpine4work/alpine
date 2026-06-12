@@ -7,6 +7,7 @@ import {
     DocumentId,
     FileId,
     PostId,
+    SiteId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -122,6 +123,15 @@ test("parses post preview URL", () => {
             `https://alpine.inc/post/${postId}/preview`,
         ),
     ).toEqual({type: "Preview", target: {type: "Post", id: postId}});
+});
+
+test("parses site preview URL", () => {
+    const siteId = generateId<SiteId>();
+    expect(
+        parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
+            `https://alpine.inc/site/${siteId}/preview`,
+        ),
+    ).toEqual({type: "Preview", target: {type: "Site", id: siteId}});
 });
 
 test("parses task preview URL", () => {

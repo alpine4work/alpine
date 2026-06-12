@@ -494,11 +494,11 @@ export function ChannelView({
             flexDirection="column"
             overflow="hidden"
             height="full"
-            // TODO(#sites): `width="full"` here makes the People/About right-rail section
-            // placement correct when the channel is rendered inside site chrome, but throws
-            // off the channel content layout when the channel is standalone. Pick a single
-            // layout pattern that works in both — likely moving the width constraint up to
-            // whichever wrapper owns the chrome.
+            // TODO(#sites-redesign): `width="full"` here makes the People/About right-rail
+            // section placement correct when the channel is rendered inside site chrome, but
+            // throws off the channel content layout when the channel is standalone. Pick a
+            // single layout pattern that works in both — likely moving the width constraint up
+            // to whichever wrapper owns the chrome.
             width={accessPolicy.type === "Site" ? "full" : undefined}
         >
             <PostListView

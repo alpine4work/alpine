@@ -14,6 +14,7 @@ import {
     ApiContentMentionInlineElement,
     ApiContentPreviewBlockElement,
     ApiContentTableBlockElementCellBlockElement,
+    ApiPreviewTarget,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
@@ -298,19 +299,19 @@ function fromApiContentFileOrPreviewElement(
     }
 }
 
-function previewTargetToFileEntityId(target: {readonly type: string; readonly id: string}): string {
+function previewTargetToFileEntityId(target: ApiPreviewTarget): string {
     // Construct a FileEntityId (`Type:id`) from the preview target.
     switch (target.type) {
         case "Channel":
         case "Chat":
         case "Document":
         case "Post":
+        case "Site":
         case "Task":
         case "TaskCollection":
             return `${target.type}:${target.id}`;
-        // TODO(#sites): Add support for Site previews.
         default:
-            throw new InternalError(`Unknown preview target type: ${target.type}`);
+            throw exhaustive(target);
     }
 }
 

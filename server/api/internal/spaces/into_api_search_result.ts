@@ -3,7 +3,6 @@ import {
     ApiSearchResult,
     ApiSearchResultBodyMatchItem,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -193,8 +192,13 @@ function actuallyIntoApiSearchResult({
             };
         }
         case "Site": {
-            // TODO(#sites-api): Implement sites in API
-            throw new UnimplementedError("Site search entity support is not implemented");
+            return {
+                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
+                bodyMatch: null,
+                parsedFilter,
+                type: "Site",
+                id: entity.site.id,
+            };
         }
         default:
             throw exhaustive(entity);

@@ -1,8 +1,8 @@
-// TODO(#sites): This whole component needs to be revisited. Like we proabbly only
-// want to search for entities that are valid site entities and we also may want to
-// filter out entities that are part of another site. There are also a whole bunch
-// of hard-coded pixel dimensions and other styling that should be moved to the
-// design system.
+// TODO(#sites-redesign): This whole component needs to be revisited. Like we
+// proabbly only want to search for entities that are valid site entities and we
+// also may want to filter out entities that are part of another site. There are
+// also a whole bunch of hard-coded pixel dimensions and other styling that should
+// be moved to the design system.
 import {isFocusVisible, setInteractionModality} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {MagnifyingGlass, SpinnerGap, X} from "phosphor-react";

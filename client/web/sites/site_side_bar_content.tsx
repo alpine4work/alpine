@@ -30,7 +30,6 @@ import {
 } from "phosphor-react";
 import {CSSProperties, ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {createPortal, flushSync} from "react-dom";
-import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {ContextMenuActions} from "~/client/web/design/context_menu.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
@@ -40,7 +39,6 @@ import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
-import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
@@ -53,7 +51,6 @@ import {
     useCanManageSite,
     useSite,
     useSiteActiveState,
-    useSiteContext,
     useSiteSideBarState,
     useSiteTree,
 } from "~/client/web/sites/context/site_context.js";
@@ -61,10 +58,10 @@ import {
     CollapsedSectionsState,
     isSectionCollapsed,
 } from "~/client/web/sites/helpers/site_side_bar_collapsed_section_state.js";
-import {SiteNameEditor} from "~/client/web/sites/internal/site_name_editor.js";
 import {useSiteMutations} from "~/client/web/sites/internal/use_site_mutations.js";
 import {SiteEntrySearchEntityViewTitle} from "~/client/web/sites/site_entry_search_entity_view_title.js";
 import {useSiteMenuActions} from "~/client/web/sites/site_menu_actions.js";
+import {SiteNameHeader} from "~/client/web/sites/site_name_header.js";
 import {useAddEntityToSiteMenuActions} from "~/client/web/sites/use_add_entity_to_site_menu_actions.js";
 import {
     SiteSideBarDndRow,
@@ -78,8 +75,6 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {spacing} from "~/shared/design/core/spacing.js";
-import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -88,7 +83,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
-import {updateSiteName} from "~/shared/rpc/sites_rpc_definitions.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {getSearchDynamicEntityPath} from "~/shared/search/path/get_search_entity_path.js";
 import {
@@ -1255,14 +1249,10 @@ function SiteSideBarNavigationBar({
     withoutContextMenu: boolean;
     children: ReactNode;
 }) {
-    const context = useAppContext();
     const {currentAccount} = useSpaceContext();
     const platform = usePlatform();
     const canManage = useCanManageSite();
-    const siteContext = useSiteContext();
     const [searchParams, setSearchParams] = useSearchParams();
-
-    const lastPointerDownTimeRef = useRef<number | null>(null);
 
     const shouldFocusNameInput = searchParams.get("focus") === "name";
 
@@ -1301,83 +1291,19 @@ function SiteSideBarNavigationBar({
 
     const {navigationBar, scrollViewRef, effectiveNavigationBarHeight, scrollbarInsetTop} =
         useNavigationBar({
+            title: (
+                <SiteNameHeader
+                    site={site}
+                    setIsEditingNameInline={setIsEditingNameInline}
+                    isEditingNameInline={isEditingNameInline}
+                />
+            ),
             withoutDisappearingTitle: true,
             menuActions: withoutContextMenu ? undefined : overflowMenuActions,
             desktopTitleFontSize: "400",
             desktopTitleFontWeight: "bold",
             desktopTitleLeftSlop: "1",
             titleJustifyContent: "flex-start",
-
-            title: (
-                <Box
-                    display="flex"
-                    alignItems="center"
-                    gap={platform === "mobile" ? "1.5" : "2"}
-                    minWidth="0"
-                    height="9"
-                >
-                    {!accessPolicy.defaultGrant && !accessPolicy.urlGrant && (
-                        // TODO(#sites-redesign): I do think there's value in making it clear that a Site
-                        // is private/public, but I don't think the channel approach is the best way to do
-                        // it. \
-                        // We add a lock icon to private sites because we want the access to be super
-                        // obvious to the user while they quickly create content in the site chrome, which
-                        // can feel a little detached from the site's permissions switch.
-                        <LockBoldFillIcon
-                            className={sprinkles({flexShrink: "0"})}
-                            size={spacing[platform === "mobile" ? "3" : "4"]}
-                        />
-                    )}
-                    {isEditingNameInline ? (
-                        <SiteNameEditor
-                            initialName={site.name}
-                            onCancel={() => setIsEditingNameInline(false)}
-                            onSave={async name => {
-                                const {events} = await updateSiteName(context, {
-                                    siteId: site.id,
-                                    name,
-                                });
-
-                                setIsEditingNameInline(false);
-
-                                // Immediately apply a realtime event transaction to update our site in case our
-                                // realtime WebSocket connection is slow.
-                                siteContext.handleEventForSite([events]);
-                            }}
-                        />
-                    ) : (
-                        <Box
-                            onPointerDown={event => {
-                                const currentTime = Date.now();
-                                const lastPointerDownTime = lastPointerDownTimeRef.current;
-                                lastPointerDownTimeRef.current = currentTime;
-
-                                if (lastPointerDownTime === null) return;
-
-                                if (currentTime - lastPointerDownTime > doubleClickDelayMs) return;
-
-                                if (
-                                    hasAccessLevel(accessLevel, "Manage") &&
-                                    platform !== "mobile"
-                                ) {
-                                    // Disable selection from double click.
-                                    //
-                                    // We implement double click with `onPointerDown` instead of `onDoubleClick`
-                                    // because `onDoubleClick` fires one pointer up but the browser performs text
-                                    // selection on double click pointer down. So there's a small visual glitch where
-                                    // you can see the browser selection after double click before pointer up when you
-                                    // use `onDoubleClick`,
-                                    event.preventDefault();
-
-                                    setIsEditingNameInline(true);
-                                }
-                            }}
-                        >
-                            {site.name}
-                        </Box>
-                    )}
-                </Box>
-            ),
         });
     return (
         <Box
