@@ -19,13 +19,13 @@ import {
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
-const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTimeBlock> =
+export const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTimeBlock> =
     fc.record({
         type: fc.constant("Time"),
         timeContent: ApiContentTextArbitrary,
     });
 
-const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPageMessageBlock> =
+export const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPageMessageBlock> =
     fc.record({
         type: fc.constant("Message"),
         idAttribute: fc.oneof(
@@ -62,14 +62,14 @@ const AgentWebMessagingPageMessageBlockArbitrary: Arbitrary<AgentWebMessagingPag
         content: ApiContentWithoutCommentMarkArbitrary,
     });
 
-const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<AgentWebMessagingPageBlock<never>>(
-    {
-        Time: {weight: 1, arbitrary: AgentWebMessagingPageTimeBlockArbitrary},
-        Message: {weight: 10, arbitrary: AgentWebMessagingPageMessageBlockArbitrary},
-    },
-);
+export const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<
+    AgentWebMessagingPageBlock<never>
+>({
+    Time: {weight: 1, arbitrary: AgentWebMessagingPageTimeBlockArbitrary},
+    Message: {weight: 10, arbitrary: AgentWebMessagingPageMessageBlockArbitrary},
+});
 
-const AgentWebMessagingPagePaginationPageLinkArbitrary =
+export const AgentWebMessagingPagePaginationPageLinkArbitrary =
     createUnionArbitrary<AgentWebMessagingPagePaginationPageLink>({
         Chat: ApiChatReferenceArbitrary,
         Post: fc.record({
@@ -83,36 +83,37 @@ const AgentWebMessagingPagePaginationPageLinkArbitrary =
         }),
     });
 
-const AgentWebMessagingPagePaginationArbitrary: Arbitrary<AgentWebMessagingPagePagination<never>> =
-    fc.oneof(
-        fc.record({
-            pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
-            previousLink: fc.record({
-                type: fc.constant("Message"),
-                beforeMessageIndex: fc.integer({min: 0}),
-            }),
-            nextLink: fc.constant(null),
+export const AgentWebMessagingPagePaginationArbitrary: Arbitrary<
+    AgentWebMessagingPagePagination<never>
+> = fc.oneof(
+    fc.record({
+        pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
+        previousLink: fc.record({
+            type: fc.constant("Message"),
+            beforeMessageIndex: fc.integer({min: 0}),
         }),
-        fc.record({
-            pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
-            previousLink: fc.constant(null),
-            nextLink: fc.record({
-                type: fc.constant("Message"),
-                afterMessageIndex: fc.integer({min: 0}),
-            }),
+        nextLink: fc.constant(null),
+    }),
+    fc.record({
+        pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
+        previousLink: fc.constant(null),
+        nextLink: fc.record({
+            type: fc.constant("Message"),
+            afterMessageIndex: fc.integer({min: 0}),
         }),
-        fc.record({
-            pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
-            previousLink: fc.record({
-                type: fc.constant("Message"),
-                beforeMessageIndex: fc.integer({min: 0}),
-            }),
-            nextLink: fc.record({
-                type: fc.constant("Message"),
-                afterMessageIndex: fc.integer({min: 0}),
-            }),
+    }),
+    fc.record({
+        pageLink: AgentWebMessagingPagePaginationPageLinkArbitrary,
+        previousLink: fc.record({
+            type: fc.constant("Message"),
+            beforeMessageIndex: fc.integer({min: 0}),
         }),
-    );
+        nextLink: fc.record({
+            type: fc.constant("Message"),
+            afterMessageIndex: fc.integer({min: 0}),
+        }),
+    }),
+);
 
 export function createAgentWebMessagingPageArbitrary<
     Preamble,

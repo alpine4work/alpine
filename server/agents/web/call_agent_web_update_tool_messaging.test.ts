@@ -15,6 +15,7 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {getReadAgentWebMessagingPageAroundMessageStartCursor} from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     ApiAccount,
@@ -204,6 +205,19 @@ function getReadPageInfo(path: string): {
 
     if (url.searchParams.has("start")) {
         return {};
+    }
+
+    const message = url.searchParams.get("message");
+    if (message !== null) {
+        const messageIndex = Number(message);
+        assert(Number.isInteger(messageIndex));
+
+        return {
+            cursor: getReadAgentWebMessagingPageAroundMessageStartCursor({
+                startMessageIndex: messageIndex,
+                endMessageIndex: messageIndex + 1,
+            }),
+        };
     }
 
     const after = url.searchParams.get("after");
@@ -788,6 +802,46 @@ test("rejects creating messages before the end of the chat", async () => {
             "You can only add a `<message>` after all other messages (messages are in chronological order). Look for \u201CEnd of messages\u201D to know when you\u2019re at the end of a message list. Call the `read` tool with `/chat/incident-response?end` to jump to the end of a message list.",
     });
 });
+
+test.each([
+    {path: `${chatPath}?start`, pageDescription: "start page"},
+    {path: `${chatPath}?message=4`, pageDescription: "message page"},
+])(
+    "rejects creating messages on a truncated $pageDescription that originally reached the end",
+    async ({path}) => {
+        const response = await readChat({path, limit: "1kb", totalMessageCount: 20});
+        expect(response).toContain("[Next page »](/chat/incident-response?after=");
+        expect(response).not.toContain("End of messages.");
+
+        const lastMessage = getLastMessageMarkdown(response);
+
+        function getLastMessageMarkdown(response: string): string {
+            let lastMessage: string | null = null;
+
+            for (const match of response.matchAll(/<message\b[\s\S]*?<\/message>/g)) {
+                lastMessage = match[0];
+            }
+
+            assert(lastMessage !== null);
+            return lastMessage;
+        }
+
+        await expectInvalidUpdateDisplayMessage({
+            path,
+            updates: [
+                {
+                    old: lastMessage,
+                    new: `${lastMessage}\n\n<message from="[ChatGPT](/bot/chatgpt)">\n\nToo early after truncation.\n\n</message>`,
+                    replaceAll: false,
+                },
+            ],
+            expected:
+                "You can only add a `<message>` after all other messages (messages are in chronological order). Look for \u201CEnd of messages\u201D to know when you\u2019re at the end of a message list. Call the `read` tool with `/chat/incident-response?end` to jump to the end of a message list.",
+        });
+
+        expect(getCreateMessageRequests()).toEqual([]);
+    },
+);
 
 test("rejects creating messages from another account", async () => {
     await readChat({

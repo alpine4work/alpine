@@ -409,7 +409,7 @@ export async function updateAgentWebChatPage(
 
     const {id} = await unwrapMaybeThunk(oldPageMetadata);
 
-    return {...newPageMetadata, type: "Chat", id};
+    return buildAgentWebChatPageMetadata(newPageMetadata, id);
 }
 
 export function normalizeAgentWebChatPage<Page extends AgentWebChatPage>(page: Page): Page {

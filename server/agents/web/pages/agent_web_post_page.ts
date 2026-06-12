@@ -5,6 +5,7 @@ import {
     AgentWebContext,
     AgentWebContextWithoutStorage,
 } from "~/server/agents/web/agent_web_context.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
@@ -13,7 +14,6 @@ import {
     AgentWebMessagingPageBlock,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPagePagination,
-    AgentWebMessagingPagePaginationPageLink,
     AgentWebMessagingPageTimeBlock,
     AgentWebMessagingPageWithMetadata,
     agentWebMessagingPageCommentNouns,
@@ -47,6 +47,7 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {mapMaybePromise} from "~/shared/helpers/async/map_maybe_promise.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -55,9 +56,14 @@ import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {mapMaybeThunk} from "~/shared/helpers/control/map_maybe_thunk.js";
+import {memoMaybeThunk} from "~/shared/helpers/control/memo_maybe_thunk.js";
+import {unwrapMaybeThunk} from "~/shared/helpers/control/unwrap_maybe_thunk.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebPostPage = {
@@ -484,10 +490,101 @@ export function normalizeAgentWebPostPage<Page extends AgentWebPostPage>(page: P
     });
 }
 
+export async function createAgentWebPostPage(
+    context: AgentWebContext,
+    newPage: AgentWebPostPage,
+): Promise<{
+    pageMetadata: AgentWebPostPageMetadata;
+    pageLink: Extract<AgentWebPageStoredLink, {type: "Post"}>;
+}> {
+    if (newPage.subType !== "Head" || !newPage.preamble.channel) {
+        throw new InvalidArgumentError("Channel is required when creating post", {
+            displayMessage: errorDisplayMessage`A channel is required when creating a \`<post>\`. You must add a \`Post in [My Channel](/channel/my-channel).\` line at the start of the post markdown with the channel you want to create the post in. Try again and add a channel.`,
+        });
+    }
+
+    if (newPage.blocks[0].type === "Time") {
+        throw new InvalidArgumentError("Can only create posts", {
+            displayMessage: errorDisplayMessage`Unexpected \`<time>\`, you can only add a \`<post>\`. The creation time of the post will be decided by the server. Try again and remove the new \`<time>\`.`,
+        });
+    }
+
+    const {channel} = newPage.preamble;
+    const postBlock = newPage.blocks[0];
+
+    // NOCOMMIT: Optional `from` when creating posts?
+    if (postBlock.author.id !== context.botAccount.id) {
+        const authorLink: Link = {
+            type: "link",
+            url: context.botAccount.pathname,
+            children: [{type: "text", value: context.botAccount.shortName}],
+        };
+
+        throw new InvalidArgumentError("Can only create posts as own account", {
+            displayMessage: errorDisplayMessage`You can only create a \`<post>\` as yourself. Try again with a \`from\` attribute that references yourself (\`from="${escapeHtml(printMarkdownTree(authorLink).trim())}"\`).`,
+        });
+    }
+
+    if (postBlock.timeZoneAttribute !== null) {
+        // TODO(#agents-web): Implement parsing of time zone attribute.
+        throw new UnimplementedError(
+            "Parsing of time zone attribute into `TimeZone` type hasn\u2019t been implemented",
+        );
+    }
+
+    // Creation is placed in a `Lazy` since we want to create the post at the last
+    // possible moment before it's needed. We want `updateAgentWebPostPage()` to run
+    // any validations first before we create the post and then only right before
+    // `updateAgentWebPostPage()` tries to create new post comments do we want to
+    // create the post.
+    const createPromise = new Lazy(async () => {
+        const {
+            data: {post},
+        } = await context.api.post(context.span, "/posts", {
+            body: {
+                spaceId: context.spaceId,
+                post: {
+                    channel,
+                    content: postBlock.content,
+                },
+            },
+        });
+
+        const pageLink: Extract<AgentWebPageStoredLink, {type: "Post"}> = {
+            type: "Post",
+            id: post.id,
+            title: post.reference.title,
+        };
+
+        return {
+            post,
+            pageLink,
+        };
+    });
+
+    const pageMetadata = await updateAgentWebPostPage(
+        context,
+        async () => {
+            const {pageLink} = await createPromise.get();
+            return await createAgentWebPageStoredLinkPathname(context.storage, pageLink);
+        },
+        async () => {
+            const {post} = await createPromise.get();
+            return {type: "Post", id: post.id, isEndOfMessages: true, messages: []};
+        },
+        {...newPage, blocks: [postBlock]},
+        newPage,
+    );
+
+    const {pageLink} = await createPromise.get();
+
+    return {pageMetadata, pageLink};
+}
+
 export async function updateAgentWebPostPage(
     context: AgentWebContextWithoutStorage,
-    pathname: string,
-    oldPageMetadata: AgentWebPostPageMetadata,
+    pathname: MaybeThunk<MaybePromise<string>>,
+    oldPageMetadata: MaybeThunk<MaybePromise<AgentWebPostPageMetadata>>,
     oldPage: AgentWebPostPage,
     newPage: AgentWebPostPage,
 ): Promise<AgentWebPostPageMetadata> {
@@ -529,13 +626,23 @@ export async function updateAgentWebPostPage(
             throw exhaustive(oldPage);
     }
 
+    // Only call the `oldPageMetadata` thunk once. We're about to reference it multiple
+    // times and don't want each reference to call the underlying thunk again when
+    // unwrapped.
+    oldPageMetadata = memoMaybeThunk(oldPageMetadata);
+
     const newPageMetadata = await updateAgentWebMessagingPage<
         AgentWebPostPagePreambleBase,
         AgentWebPostPageCustomBlock
     >(context, {
         messageNouns: agentWebMessagingPageCommentNouns,
         pathname,
-        room: {type: "Post", id: oldPageMetadata.id},
+        room: mapMaybeThunk(oldPageMetadata, oldPageMetadata =>
+            mapMaybePromise(oldPageMetadata, oldPageMetadata => ({
+                type: "Post",
+                id: oldPageMetadata.id,
+            })),
+        ),
         oldPageMetadata,
         oldPage,
         newPage,
@@ -596,7 +703,9 @@ export async function updateAgentWebPostPage(
         },
     });
 
-    return {...newPageMetadata, type: "Post", id: oldPageMetadata.id};
+    const {id} = await unwrapMaybeThunk(oldPageMetadata);
+
+    return buildAgentWebPostPageMetadata(newPageMetadata, id);
 }
 
 export async function printAgentWebPostPage(

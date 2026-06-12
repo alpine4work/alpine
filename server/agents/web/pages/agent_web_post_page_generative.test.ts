@@ -9,7 +9,11 @@ import {
     printAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
-import {createAgentWebMessagingPageArbitrary} from "~/server/agents/web/test_helpers/agent_web_messaging_page_arbitrary.js";
+import {
+    AgentWebMessagingPageBlockArbitrary,
+    AgentWebMessagingPagePaginationArbitrary,
+    AgentWebMessagingPageTimeBlockArbitrary,
+} from "~/server/agents/web/test_helpers/agent_web_messaging_page_arbitrary.js";
 import {
     ApiAccountReferenceArbitrary,
     ApiChannelReferenceArbitrary,
@@ -27,17 +31,11 @@ const ApiPostReferenceArbitrary = fc.record({
 
 const AgentWebPostPageHeadPagePreambleArbitrary: Arbitrary<AgentWebPostPageHeadPagePreamble> =
     fc.record({
-        type: fc.constant("HeadPage"),
+        type: fc.constant("Head"),
         channel: fc.oneof(
             {weight: 1, arbitrary: fc.constant(null)},
             {weight: 10, arbitrary: ApiChannelReferenceArbitrary},
         ),
-    });
-
-const AgentWebPostPageTailPagePreambleArbitrary: Arbitrary<AgentWebPostPageTailPagePreamble> =
-    fc.record({
-        type: fc.constant("TailPage"),
-        post: ApiPostReferenceArbitrary,
     });
 
 const AgentWebPostPageCustomBlockArbitrary: Arbitrary<AgentWebPostPageCustomBlock> = fc.record({
@@ -51,22 +49,43 @@ const AgentWebPostPageCustomBlockArbitrary: Arbitrary<AgentWebPostPageCustomBloc
 
 const AgentWebPostHeadPageArbitrary: Arbitrary<AgentWebPostPage> = fc.record({
     type: fc.constant("Post"),
-    subType: fc.constant("HeadPage"),
-    ...createAgentWebMessagingPageArbitrary<
-        AgentWebPostPageHeadPagePreamble,
-        AgentWebPostPageCustomBlock
-    >({
-        preambleArbitrary: AgentWebPostPageHeadPagePreambleArbitrary,
-        customBlockArbitrary: AgentWebPostPageCustomBlockArbitrary,
-    }),
+    subType: fc.constant("Head"),
+    preamble: AgentWebPostPageHeadPagePreambleArbitrary,
+    pagination: fc.oneof(
+        {weight: 10, arbitrary: fc.constant(null)},
+        {weight: 1, arbitrary: AgentWebMessagingPagePaginationArbitrary},
+    ),
+    isEndOfMessages: fc.boolean(),
+    blocks: fc
+        .tuple(
+            fc.oneof(
+                fc.tuple(AgentWebPostPageCustomBlockArbitrary),
+                fc.tuple(
+                    AgentWebMessagingPageTimeBlockArbitrary,
+                    AgentWebPostPageCustomBlockArbitrary,
+                ),
+            ),
+            fc.array(AgentWebMessagingPageBlockArbitrary),
+        )
+        .map(([blocks1, blocks2]) => [...blocks1, ...blocks2]),
 });
+
+const AgentWebPostPageTailPagePreambleArbitrary: Arbitrary<AgentWebPostPageTailPagePreamble> =
+    fc.record({
+        type: fc.constant("Tail"),
+        post: ApiPostReferenceArbitrary,
+    });
 
 const AgentWebPostTailPageArbitrary: Arbitrary<AgentWebPostPage> = fc.record({
     type: fc.constant("Post"),
-    subType: fc.constant("TailPage"),
-    ...createAgentWebMessagingPageArbitrary<AgentWebPostPageTailPagePreamble>({
-        preambleArbitrary: AgentWebPostPageTailPagePreambleArbitrary,
-    }),
+    subType: fc.constant("Tail"),
+    preamble: AgentWebPostPageTailPagePreambleArbitrary,
+    pagination: fc.oneof(
+        {weight: 10, arbitrary: fc.constant(null)},
+        {weight: 1, arbitrary: AgentWebMessagingPagePaginationArbitrary},
+    ),
+    isEndOfMessages: fc.boolean(),
+    blocks: fc.array(AgentWebMessagingPageBlockArbitrary),
 });
 
 const AgentWebPostPageArbitrary: Arbitrary<AgentWebPostPage> = fc.oneof(

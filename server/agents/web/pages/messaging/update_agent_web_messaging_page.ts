@@ -274,7 +274,21 @@ export async function updateAgentWebMessagingPage<
     for (let index = commonBlocksLength; index < newPage.blocks.length; index++) {
         const newBlock = newPage.blocks[index]!;
 
-        if (newBlock.type !== "Message" || newBlock.author.id !== context.botAccount.id) {
+        // NOCOMMIT: Test!
+        if (newBlock.type !== "Message") {
+            if (newBlock.type === "Time") {
+                throw new InvalidArgumentError("Can only create messages (not `<time>`)", {
+                    displayMessage: errorDisplayMessage`Unexpected \`<time>\`, you can only add \`<${messageNouns.noun}>\`s. The creation time of ${messageNouns.pluralNoun} will be decided by the server. Try again and remove the new \`<time>\`.`,
+                });
+            } else {
+                throw new InvalidArgumentError("Can only create messages", {
+                    displayMessage: errorDisplayMessage`Unexpected \`<${newBlock.tagName}>\`, you can only add \`<${messageNouns.noun}>\`s. Try again and remove the new \`<${newBlock.tagName}>\`.`,
+                });
+            }
+        }
+
+        // NOCOMMIT: Optional `from` when creating messages?
+        if (newBlock.author.id !== context.botAccount.id) {
             const authorLink: Link = {
                 type: "link",
                 url: context.botAccount.pathname,
@@ -323,7 +337,7 @@ export async function updateAgentWebMessagingPage<
                 );
             }
 
-            if (newBlock.timeZoneAttribute) {
+            if (newBlock.timeZoneAttribute !== null) {
                 // TODO(#agents-web): Implement parsing of time zone attribute.
                 throw new UnimplementedError(
                     "Parsing of time zone attribute into `TimeZone` type hasn\u2019t been implemented",

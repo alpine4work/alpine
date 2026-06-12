@@ -18,6 +18,10 @@ import {
     createAgentWebDocumentPage,
     parseAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
+import {
+    createAgentWebPostPage,
+    parseAgentWebPostPage,
+} from "~/server/agents/web/pages/agent_web_post_page.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
@@ -203,6 +207,17 @@ async function createAgentWebPageLink(
 
             return {
                 noun: "chat",
+                pageMetadata,
+                pageLink,
+            };
+        }
+        case "post": {
+            const newPage = await parseAgentWebPostPage(context.storage, null, content);
+
+            const {pageMetadata, pageLink} = await createAgentWebPostPage(context, newPage);
+
+            return {
+                noun: "post",
                 pageMetadata,
                 pageLink,
             };
