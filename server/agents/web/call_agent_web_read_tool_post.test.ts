@@ -93,25 +93,16 @@ function mockGetPost({
     );
 }
 
-function mockGetPostPreview({
-    createdTime = new Date("2026-05-14T15:00:00.000Z"),
-    createdTimeZone = defaultTimeZone,
-}: {
-    createdTime?: Date;
-    createdTimeZone?: TimeZone;
-} = {}) {
+function mockGetPostReference() {
     api.mockGet(
-        "/posts/{id}/preview",
+        "/posts/{id}/reference",
         {
             data: {
                 spaceId,
-                post: {
+                reference: {
+                    type: "Post",
                     id: postId,
-                    author: aliceAccount,
-                    createdTime: serializeDateString(createdTime),
-                    createdTimeZone,
-                    channel: {id: channelId, name: "Announcements"},
-                    reference: {title: postReference.title},
+                    title: postReference.title,
                 },
             },
         },
@@ -131,7 +122,7 @@ test("reads the first post page with the post above comments", async () => {
     });
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch", limit: "10kb"})).toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -142,7 +133,7 @@ End of comments.`);
 });
 
 test("reads later post comment pages without the post", async () => {
-    mockGetPostPreview();
+    mockGetPostReference();
     mockApiGetPostMessages(api, {
         spaceId,
         postId,
@@ -163,12 +154,70 @@ test("reads later post comment pages without the post", async () => {
     });
 
     expect(response).toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Comments on [post](/post/launch).
 
 <time>May 14th at 11:15am EDT</time>
 
 <comment id="3" from="[Bob](/human/bob)">\n\nThird comment.\n\n</comment>\n
 <comment id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nFourth comment.\n\n</comment>
+
+End of comments.`);
+});
+
+test("reads tail post comment pages after a comment", async () => {
+    mockGetPostReference();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        cursor: 8,
+        totalMessageCount: 100,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: index % 2 === 0 ? bobAccount : aliceAccount,
+                content: `Tail comment ${index}.`,
+            }),
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/post/launch?after=8", limit: "750b"}))
+        .toEqual(`\
+Comments on [post](/post/launch). [Next page »](/post/launch?after=14)
+
+<time>May 14th at 11:45am EDT</time>
+
+<comment id="9" from="[Alice](/human/alice)">\n\nTail comment 9.\n\n</comment>\n
+<comment id="10" from="[Bob](/human/bob)" time="5 minutes later">\n\nTail comment 10.\n\n</comment>\n
+<comment id="11" from="[Alice](/human/alice)" time="5 minutes later">\n\nTail comment 11.\n\n</comment>\n
+<comment id="12" from="[Bob](/human/bob)" time="5 minutes later">\n\nTail comment 12.\n\n</comment>\n
+<comment id="13" from="[Alice](/human/alice)" time="5 minutes later">\n\nTail comment 13.\n\n</comment>\n
+<comment id="14" from="[Bob](/human/bob)" time="5 minutes later">\n\nTail comment 14.\n\n</comment>`);
+});
+
+test("reads small tail post comment pages after a comment", async () => {
+    mockGetPostReference();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        cursor: 8,
+        totalMessageCount: 11,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: index % 2 === 0 ? bobAccount : aliceAccount,
+                content: `Tail comment ${index}.`,
+            }),
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/post/launch?after=8", limit: "10kb"}))
+        .toEqual(`\
+Comments on [post](/post/launch).
+
+<time>May 14th at 11:45am EDT</time>
+
+<comment id="9" from="[Alice](/human/alice)">\n\nTail comment 9.\n\n</comment>\n
+<comment id="10" from="[Bob](/human/bob)" time="5 minutes later">\n\nTail comment 10.\n\n</comment>
 
 End of comments.`);
 });
@@ -184,7 +233,7 @@ test("reads a post with no comments", async () => {
     });
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch", limit: "10kb"})).toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -204,7 +253,7 @@ test("reads a post with a timezone attribute when the post timezone differs", as
     });
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch", limit: "10kb"})).toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -229,7 +278,7 @@ test("truncates comments while keeping the first-page post", async () => {
     });
 
     expect(response).toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=3)
+Post in [Announcements](/channel/announcements). [Next page »](/post/launch?after=3)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -259,7 +308,7 @@ test("post was ten minutes before first comment", async () => {
     });
 
     expect(response).toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=3)
+Post in [Announcements](/channel/announcements). [Next page »](/post/launch?after=3)
 
 <time>May 14th at 10:50am EDT</time>
 
@@ -289,7 +338,7 @@ test("post was three hours before first comment", async () => {
     });
 
     expect(response).toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=3)
+Post in [Announcements](/channel/announcements). [Next page »](/post/launch?after=3)
 
 <time>May 14th at 8:00am EDT</time>
 
@@ -320,7 +369,7 @@ test("drops the post around a comment when the post does not fit", async () => {
     });
 
     expect(response).toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=0)
+Post in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=0)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -342,7 +391,7 @@ test("paginates forward from the post and truncates comments", async () => {
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?start", limit: "650b"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=3)
+Post in [Announcements](/channel/announcements). [Next page »](/post/launch?after=3)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -366,7 +415,7 @@ test("paginates forward from the post without truncating comments", async () => 
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?start", limit: "10kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -382,7 +431,7 @@ End of comments.`);
 });
 
 test("paginates after the post with a custom cursor", async () => {
-    mockGetPostPreview();
+    mockGetPostReference();
     mockApiGetPostMessages(api, {
         spaceId,
         postId,
@@ -398,7 +447,7 @@ test("paginates after the post with a custom cursor", async () => {
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?after=post", limit: "750b"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Comments on [post](/post/launch).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -409,7 +458,7 @@ End of comments.`);
 });
 
 test("paginates after the post with a custom cursor when there are many messages", async () => {
-    mockGetPostPreview();
+    mockGetPostReference();
     mockApiGetPostMessages(api, {
         spaceId,
         postId,
@@ -425,7 +474,7 @@ test("paginates after the post with a custom cursor when there are many messages
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?after=post", limit: "750b"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=5)
+Comments on [post](/post/launch). [Next page »](/post/launch?after=5)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -438,7 +487,7 @@ Post and comments in [Announcements](/channel/announcements). [Next page »](/po
 });
 
 test("paginates before the post with a custom cursor", async () => {
-    mockGetPostPreview();
+    mockGetPostReference();
     mockApiGetPostMessages(api, {
         spaceId,
         postId,
@@ -452,7 +501,34 @@ test("paginates before the post with a custom cursor", async () => {
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?before=post", limit: "10kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).`);
+Comments on [post](/post/launch).`);
+});
+
+test("reads a comment-only page before a later comment", async () => {
+    mockGetPost({content: contentFromText("Long post. ".repeat(300))});
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        from: "End",
+        cursor: 20,
+        totalMessageCount: 100,
+        limit: 30,
+        createMessage: index =>
+            createApiMessageMock({
+                index,
+                author: bobAccount,
+                content: `Before comment ${index}.`,
+                createdTime: new Date(Date.UTC(2026, 4, 14, 15, index)).toISOString(),
+            }),
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/post/launch?before=20", limit: "3kb"}))
+        .toEqual(`\
+Post in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=0)
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0-19" from="[Bob](/human/bob)">\n\nBefore comment 0.\n\nBefore comment 1.\n\nBefore comment 2.\n\nBefore comment 3.\n\nBefore comment 4.\n\nBefore comment 5.\n\nBefore comment 6.\n\nBefore comment 7.\n\nBefore comment 8.\n\nBefore comment 9.\n\nBefore comment 10.\n\nBefore comment 11.\n\nBefore comment 12.\n\nBefore comment 13.\n\nBefore comment 14.\n\nBefore comment 15.\n\nBefore comment 16.\n\nBefore comment 17.\n\nBefore comment 18.\n\nBefore comment 19.\n\n</comment>`);
 });
 
 test("paginates backward near the post and truncates the post", async () => {
@@ -470,7 +546,7 @@ test("paginates backward near the post and truncates the post", async () => {
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?before=2", limit: "650b"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=0)
+Post in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=0)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -493,7 +569,7 @@ test("paginates backward near the post without truncating the post", async () =>
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?before=2", limit: "10kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -503,7 +579,7 @@ Post and comments in [Announcements](/channel/announcements).
 });
 
 test("paginates backward with a second comment load and reaches the post", async () => {
-    mockGetPostPreview();
+    mockGetPostReference();
     mockGetPost();
     mockApiGetPostMessages(api, {
         spaceId,
@@ -528,7 +604,7 @@ test("paginates backward with a second comment load and reaches the post", async
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?before=31", limit: "10kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -580,7 +656,7 @@ test("paginates around the first comment and keeps the post when it fits", async
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?comment=0", limit: "10kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -606,7 +682,7 @@ test("paginates around a comment and truncates the post before a following comme
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?comment=1", limit: "3kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [« Previous page](/post/launch?before=0) | [Next page »](/post/launch?after=2)
+Post in [Announcements](/channel/announcements). [« Previous page](/post/launch?before=0) | [Next page »](/post/launch?after=2)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -616,7 +692,7 @@ Post and comments in [Announcements](/channel/announcements). [« Previous page]
 });
 
 test("paginates around a comment with a second load and reaches the post", async () => {
-    mockGetPostPreview();
+    mockGetPostReference();
     mockGetPost();
     mockApiGetPostMessages(api, {
         spaceId,
@@ -640,7 +716,7 @@ test("paginates around a comment with a second load and reaches the post", async
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?comment=20", limit: "10kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -700,7 +776,7 @@ test("paginates backward before the first comment and only reads the post", asyn
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?before=0", limit: "10kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -738,7 +814,7 @@ test("uses scroll truncation for a post larger than the limit and hides comments
     });
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch", limit: "430b"})).toEqual(`\
-Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=post)
+Post in [Announcements](/channel/announcements). [Next page »](/post/launch?after=post)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -775,7 +851,7 @@ Long post paragraph 8 detail detail detail detail detail detail detail detail.
 });
 
 test("before way after message range still able to load the post if there aren\u2019t many messages", async () => {
-    mockGetPostPreview();
+    mockGetPostReference();
     mockGetPost();
     mockApiGetPostMessages(api, {
         spaceId,
@@ -790,7 +866,7 @@ test("before way after message range still able to load the post if there aren\u
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?before=100", limit: "20kb"}))
         .toEqual(`\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 

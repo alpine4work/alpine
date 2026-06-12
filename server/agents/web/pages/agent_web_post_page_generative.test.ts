@@ -2,7 +2,8 @@ import fc, {Arbitrary} from "fast-check";
 import {
     AgentWebPostPage,
     AgentWebPostPageCustomBlock,
-    AgentWebPostPagePreamble,
+    AgentWebPostPageHeadPagePreamble,
+    AgentWebPostPageTailPagePreamble,
     normalizeAgentWebPostPage,
     parseAgentWebPostPage,
     printAgentWebPostPage,
@@ -18,12 +19,26 @@ import {
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
-const AgentWebPostPagePreambleArbitrary: Arbitrary<AgentWebPostPagePreamble> = fc.record({
-    channel: fc.oneof(
-        {weight: 1, arbitrary: fc.constant(null)},
-        {weight: 10, arbitrary: ApiChannelReferenceArbitrary},
-    ),
+const ApiPostReferenceArbitrary = fc.record({
+    type: fc.constant("Post"),
+    id: createIdArbitrary<PostId>(),
+    title: ApiContentTextArbitrary,
 });
+
+const AgentWebPostPageHeadPagePreambleArbitrary: Arbitrary<AgentWebPostPageHeadPagePreamble> =
+    fc.record({
+        type: fc.constant("HeadPage"),
+        channel: fc.oneof(
+            {weight: 1, arbitrary: fc.constant(null)},
+            {weight: 10, arbitrary: ApiChannelReferenceArbitrary},
+        ),
+    });
+
+const AgentWebPostPageTailPagePreambleArbitrary: Arbitrary<AgentWebPostPageTailPagePreamble> =
+    fc.record({
+        type: fc.constant("TailPage"),
+        post: ApiPostReferenceArbitrary,
+    });
 
 const AgentWebPostPageCustomBlockArbitrary: Arbitrary<AgentWebPostPageCustomBlock> = fc.record({
     type: fc.constant("Custom"),
@@ -34,13 +49,30 @@ const AgentWebPostPageCustomBlockArbitrary: Arbitrary<AgentWebPostPageCustomBloc
     content: ApiContentWithoutCommentMarkArbitrary,
 });
 
-const AgentWebPostPageArbitrary: Arbitrary<AgentWebPostPage> = fc.record({
+const AgentWebPostHeadPageArbitrary: Arbitrary<AgentWebPostPage> = fc.record({
     type: fc.constant("Post"),
-    ...createAgentWebMessagingPageArbitrary<AgentWebPostPagePreamble, AgentWebPostPageCustomBlock>({
-        preambleArbitrary: AgentWebPostPagePreambleArbitrary,
+    subType: fc.constant("HeadPage"),
+    ...createAgentWebMessagingPageArbitrary<
+        AgentWebPostPageHeadPagePreamble,
+        AgentWebPostPageCustomBlock
+    >({
+        preambleArbitrary: AgentWebPostPageHeadPagePreambleArbitrary,
         customBlockArbitrary: AgentWebPostPageCustomBlockArbitrary,
     }),
 });
+
+const AgentWebPostTailPageArbitrary: Arbitrary<AgentWebPostPage> = fc.record({
+    type: fc.constant("Post"),
+    subType: fc.constant("TailPage"),
+    ...createAgentWebMessagingPageArbitrary<AgentWebPostPageTailPagePreamble>({
+        preambleArbitrary: AgentWebPostPageTailPagePreambleArbitrary,
+    }),
+});
+
+const AgentWebPostPageArbitrary: Arbitrary<AgentWebPostPage> = fc.oneof(
+    AgentWebPostHeadPageArbitrary,
+    AgentWebPostTailPageArbitrary,
+);
 
 runAgentWebPageGenerativeTests({
     print: printAgentWebPostPage,

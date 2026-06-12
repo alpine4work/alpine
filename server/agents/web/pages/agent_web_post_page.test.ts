@@ -11,6 +11,7 @@ import {
     ApiContentParagraphBlockElementResponse,
     ApiContentResponse,
     ApiContentTextInlineElement,
+    ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, PostId} from "~/shared/id/types/id_types.js";
@@ -18,6 +19,11 @@ import {AccountId, BotId, ChannelId, PostId} from "~/shared/id/types/id_types.js
 const postId = generateId<PostId>();
 const paginationPostId = generateId<PostId>();
 const announcementsChannelId = generateId<ChannelId>();
+const launchPostReference: ApiPostReferenceResponse = {
+    type: "Post",
+    id: paginationPostId,
+    title: "Launch",
+};
 
 function accountReference({
     name,
@@ -61,7 +67,7 @@ runAgentWebPageTests<PostId, AgentWebPostPage>({
             name: "post and comments",
             pageLink: postId,
             markdown: `\
-Post and comments in [Announcements](/channel/announcements).
+Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 10:55am EDT</time>
 
@@ -81,7 +87,9 @@ End of comments.
 `,
             page: {
                 type: "Post",
+                subType: "HeadPage",
                 preamble: {
+                    type: "HeadPage",
                     channel: {
                         type: "Channel",
                         id: announcementsChannelId,
@@ -119,7 +127,7 @@ End of comments.
             name: "post with timezone attribute",
             pageLink: postId,
             markdown: `\
-Post and comments.
+Post that\u2019s not in any channel.
 
 <post from="[Alice](/human/alice)" timezone="PDT">
 
@@ -129,7 +137,8 @@ Post body from the west coast.
 `,
             page: {
                 type: "Post",
-                preamble: {channel: null},
+                subType: "HeadPage",
+                preamble: {type: "HeadPage", channel: null},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [
@@ -148,7 +157,7 @@ Post body from the west coast.
             name: "comments-only page with pagination",
             pageLink: postId,
             markdown: `\
-Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=1)
+Comments on [post](/post/launch). [Next page »](/post/launch?after=1)
 
 <comment id="0-1" from="[Alice](/human/alice)">
 
@@ -160,19 +169,10 @@ Second comment.
 `,
             page: {
                 type: "Post",
-                preamble: {
-                    channel: {
-                        type: "Channel",
-                        id: announcementsChannelId,
-                        title: "Announcements",
-                    },
-                },
+                subType: "TailPage",
+                preamble: {type: "TailPage", post: launchPostReference},
                 pagination: {
-                    pageLink: {
-                        type: "Post",
-                        id: paginationPostId,
-                        title: "Launch",
-                    },
+                    pageLink: launchPostReference,
                     previousLink: null,
                     nextLink: {type: "Message", afterMessageIndex: 1},
                 },
@@ -200,7 +200,7 @@ Second comment.
             name: "post page with custom pagination links",
             pageLink: postId,
             markdown: `\
-Post and comments in [Announcements](/channel/announcements). [« Previous page](/post/launch?before=post) | [Next page »](/post/launch?after=post)
+Post in [Announcements](/channel/announcements). [« Previous page](/post/launch?before=post) | [Next page »](/post/launch?after=post)
 
 <post from="[Alice](/human/alice)">
 
@@ -210,7 +210,9 @@ Post body.
 `,
             page: {
                 type: "Post",
+                subType: "HeadPage",
                 preamble: {
+                    type: "HeadPage",
                     channel: {
                         type: "Channel",
                         id: announcementsChannelId,
@@ -246,7 +248,7 @@ Post body.
             name: "post page with custom next page pagination link",
             pageLink: postId,
             markdown: `\
-Post and comments in [Announcements](/channel/announcements). [Next page »](/post/launch?after=post)
+Post in [Announcements](/channel/announcements). [Next page »](/post/launch?after=post)
 
 <post from="[Alice](/human/alice)">
 
@@ -256,7 +258,9 @@ Post body.
 `,
             page: {
                 type: "Post",
+                subType: "HeadPage",
                 preamble: {
+                    type: "HeadPage",
                     channel: {
                         type: "Channel",
                         id: announcementsChannelId,
@@ -292,7 +296,7 @@ Post body.
             name: "post page with custom previous page pagination link",
             pageLink: postId,
             markdown: `\
-Post and comments in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=post)
+Post in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=post)
 
 <post from="[Alice](/human/alice)">
 
@@ -302,7 +306,9 @@ Post body.
 `,
             page: {
                 type: "Post",
+                subType: "HeadPage",
                 preamble: {
+                    type: "HeadPage",
                     channel: {
                         type: "Channel",
                         id: announcementsChannelId,
@@ -338,7 +344,7 @@ Post body.
             name: "post without channel",
             pageLink: postId,
             markdown: `\
-Post and comments.
+Post that\u2019s not in any channel.
 
 <post from="[Alice](/human/alice)">
 
@@ -348,7 +354,8 @@ Post body.
 `,
             page: {
                 type: "Post",
-                preamble: {channel: null},
+                subType: "HeadPage",
+                preamble: {type: "HeadPage", channel: null},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [
@@ -367,7 +374,7 @@ Post body.
             name: "post missing from attribute",
             pageLink: postId,
             markdown: `\
-Post and comments.
+Post that\u2019s not in any channel.
 
 <post>
 
@@ -383,7 +390,7 @@ Post body.
             name: "post missing closing tag",
             pageLink: postId,
             markdown: `\
-Post and comments.
+Post that\u2019s not in any channel.
 
 <post from="[Alice](/human/alice)" in="[Announcements](/channel/announcements)">
 

@@ -483,7 +483,7 @@ export async function printAgentWebPostPage(
                                         : [
                                               {
                                                   type: "Text" as const,
-                                                  text: "that\u2019s not in any channel",
+                                                  text: " that\u2019s not in any channel",
                                               },
                                           ]),
                                     {type: "Text", text: "."},
@@ -565,7 +565,7 @@ export async function parseAgentWebPostPage(
         parsePreamble: async (storage, preamble): Promise<AgentWebPostPagePreambleBase> => {
             const createError = () => {
                 return new InvalidArgumentError("Invalid post preamble", {
-                    displayMessage: errorDisplayMessage`Post markdown must start with \`Post and comments in [My Channel](/channel/my-channel).\`. Try again with a proper start to post markdown on line 1.`,
+                    displayMessage: errorDisplayMessage`Post markdown must start with \`Post in [My Channel](/channel/my-channel).\` or \`Comments on [post](/post/my-post).\`. Try again with a proper start to post markdown on line 1.`,
                 });
             };
 
@@ -583,13 +583,15 @@ export async function parseAgentWebPostPage(
 
             const elements = preambleContent.elements[0].elements;
 
-            if (
-                elements.length === 1 &&
-                elements[0]!.type === "Text" &&
-                (elements[0]!.text === "Post and comments" ||
-                    elements[0]!.text === "Post and comments.")
-            ) {
-                return {channel: null};
+            if (elements.length === 1 && elements[0]!.type === "Text") {
+                switch (elements[0]!.text) {
+                    case "Post that\u2019s not in any channel":
+                    case "Post that\u2019s not in any channel.": {
+                        return {type: "HeadPage", channel: null};
+                    }
+                    default:
+                        throw createError();
+                }
             }
 
             const lastElement = elements[elements.length - 1]!;
@@ -600,16 +602,22 @@ export async function parseAgentWebPostPage(
 
             const [firstElement, secondElement] = actualElements;
 
-            if (
-                firstElement?.type !== "Text" ||
-                firstElement.text !== "Post and comments in " ||
-                secondElement?.type !== "Mention" ||
-                secondElement.reference.type !== "Channel"
-            ) {
+            if (firstElement?.type !== "Text" || secondElement?.type !== "Mention") {
                 throw createError();
             }
 
-            return {channel: secondElement.reference};
+            switch (firstElement.text) {
+                case "Post in ": {
+                    if (secondElement.reference.type !== "Channel") throw createError();
+                    return {type: "HeadPage", channel: secondElement.reference};
+                }
+                case "Comments on ": {
+                    if (secondElement.reference.type !== "Post") throw createError();
+                    return {type: "TailPage", post: secondElement.reference};
+                }
+                default:
+                    throw createError();
+            }
         },
         parseCustomBlockByTagName: {
             post: async (
