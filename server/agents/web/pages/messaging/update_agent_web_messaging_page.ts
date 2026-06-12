@@ -5,6 +5,7 @@ import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_conte
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,
+    AgentWebMessagingPageCustomBlockBase,
     AgentWebMessagingPageMetadata,
     AgentWebMessagingPageNouns,
     AgentWebMessagingPagePagination,
@@ -35,7 +36,10 @@ import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 export const updateAgentWebMessagingPageUnexpectedNewMessageIndexesErrorMessage =
     "Update was successful, but the agent needs to know there were some other messages added it hasn\u2019t observed";
 
-export async function updateAgentWebMessagingPage<Preamble>(
+export async function updateAgentWebMessagingPage<
+    Preamble,
+    CustomBlock extends AgentWebMessagingPageCustomBlockBase,
+>(
     context: AgentWebContextWithoutStorage,
     {
         messageNouns,
@@ -44,6 +48,7 @@ export async function updateAgentWebMessagingPage<Preamble>(
         oldPageMetadata,
         oldPage,
         newPage,
+        prepareCustomBlockUpdate,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
         // Will only run the thunk in the error cases which need to display the `pathname`.
@@ -54,8 +59,12 @@ export async function updateAgentWebMessagingPage<Preamble>(
         // Will only run the thunk right before messages are created. Validation always
         // runs before we call this thunk.
         oldPageMetadata: MaybeThunk<MaybePromise<AgentWebMessagingPageMetadata>>;
-        oldPage: AgentWebMessagingPage<Preamble>;
-        newPage: AgentWebMessagingPage<Preamble>;
+        oldPage: AgentWebMessagingPage<Preamble, CustomBlock>;
+        newPage: AgentWebMessagingPage<Preamble, CustomBlock>;
+        prepareCustomBlockUpdate: (
+            oldCustomBlock: CustomBlock,
+            newCustomBlock: CustomBlock,
+        ) => {update: () => Promise<void>};
     },
 ): Promise<AgentWebMessagingPageMetadata> {
     const updateThunks: Array<() => Promise<void>> = [];
@@ -64,7 +73,9 @@ export async function updateAgentWebMessagingPage<Preamble>(
     // Strip response properties from the preamble before comparing for equality. We
     // don't care if `pageLink.title`s aren't equal. The `title` might have changed
     // between the old page load time and new page generation time.
-    const normalizePagination = (pagination: AgentWebMessagingPagePagination | null) => {
+    const normalizePagination = (
+        pagination: AgentWebMessagingPagePagination<CustomBlock> | null,
+    ) => {
         if (!pagination) return null;
 
         return {
@@ -92,7 +103,10 @@ export async function updateAgentWebMessagingPage<Preamble>(
 
     const commonBlocksLength = Math.min(oldPage.blocks.length, newPage.blocks.length);
 
-    let fallbackMessageIndex = newPage.pagination?.previousLink?.beforeMessageIndex ?? 0;
+    let fallbackMessageIndex =
+        newPage.pagination?.previousLink?.type === "Message"
+            ? newPage.pagination.previousLink.beforeMessageIndex
+            : 0;
 
     for (let index = 0; index < commonBlocksLength; index++) {
         const oldBlock = oldPage.blocks[index]!;
@@ -106,10 +120,38 @@ export async function updateAgentWebMessagingPage<Preamble>(
             }
         }
 
+        if (oldBlock.type === "Custom" || newBlock.type === "Custom") {
+            if (oldBlock.type === "Custom" && newBlock.type === "Custom") {
+                updateThunks.push(prepareCustomBlockUpdate(oldBlock, newBlock).update);
+                continue;
+            }
+
+            const oldTagName =
+                oldBlock.type === "Message"
+                    ? messageNouns.noun
+                    : oldBlock.type === "Time"
+                      ? "time"
+                      : oldBlock.tagName;
+
+            const newTagName =
+                newBlock.type === "Message"
+                    ? messageNouns.noun
+                    : newBlock.type === "Time"
+                      ? "time"
+                      : newBlock.tagName;
+
+            throw new InvalidArgumentError(
+                "Can\u2019t convert between custom blocks and other blocks",
+                {
+                    displayMessage: errorDisplayMessage`You can\u2019t turn \`<${oldTagName}>\`s into \`<${newTagName}>\`s. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
+                },
+            );
+        }
+
         // Strip response properties from the block before comparing for equality. We don't
         // care if `reference.title`s aren't equal. The `title` might have changed between
         // the old page load time and new page generation time.
-        const normalizeBlock = (block: AgentWebMessagingPageBlock) => {
+        const normalizeBlock = (block: AgentWebMessagingPageBlock<never>) => {
             if (block.type === "Time") return block;
 
             return {

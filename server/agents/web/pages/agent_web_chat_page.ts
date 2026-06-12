@@ -408,6 +408,9 @@ export async function updateAgentWebChatPage(
         oldPageMetadata,
         oldPage,
         newPage,
+        prepareCustomBlockUpdate: oldCustomBlock => {
+            throw exhaustive(oldCustomBlock);
+        },
     });
 
     const {id} = await unwrapMaybeThunk(oldPageMetadata);

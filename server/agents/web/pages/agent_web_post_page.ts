@@ -32,6 +32,10 @@ import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/u
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
+import {
+    normalizeApiContent,
+    normalizeApiReference,
+} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
@@ -41,15 +45,18 @@ import {
     ApiContentResponse,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
 export type AgentWebPostPage = {
@@ -60,11 +67,7 @@ export type AgentWebPostPage = {
     | {
           readonly subType: "HeadPage";
           readonly preamble: AgentWebPostPageHeadPagePreamble;
-          readonly blocks: readonly [
-              AgentWebMessagingPageTimeBlock,
-              AgentWebPostPageCustomBlock,
-              ...ReadonlyArray<AgentWebMessagingPageBlock<never>>,
-          ];
+          readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock<AgentWebPostPageCustomBlock>>;
       }
     | {
           readonly subType: "TailPage";
@@ -440,13 +443,109 @@ export async function updateAgentWebPostPage(
     oldPage: AgentWebPostPage,
     newPage: AgentWebPostPage,
 ): Promise<AgentWebPostPageMetadata> {
-    const newPageMetadata = await updateAgentWebMessagingPage(context, {
+    switch (oldPage.subType) {
+        case "HeadPage": {
+            if (newPage.subType !== "HeadPage") {
+                throw new InvalidArgumentError("Can\u2019t update post preamble", {
+                    displayMessage: errorDisplayMessage`You can only update your \`<post>\`s and \`<comment>\`s. You must leave the \`Post in [My Channel](/channel/my-channel).\` line at the start of the post markdown in place. Try again with a more specific update that only changes the content of the post (if it\u2019s from you) or adds new comments.`,
+                });
+            }
+
+            // We may support this in the future but we don't today! That's why we say you
+            // can't _currently_ do this thing.
+            if (oldPage.preamble.channel?.id !== newPage.preamble.channel?.id) {
+                throw new InvalidArgumentError(
+                    "Can\u2019t currently change the channel a post is in",
+                    {
+                        displayMessage: errorDisplayMessage`You can\u2019t currently move a post to a different channel. Try again with a more specific update that only changes the content of the post (if it\u2019s from you) or adds new comments.`,
+                    },
+                );
+            }
+            break;
+        }
+        case "TailPage": {
+            if (newPage.subType !== "TailPage") {
+                throw new InvalidArgumentError("Can\u2019t update post preamble", {
+                    displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You must leave the \`Comments on [post](/post/my-post).\` line at the start of the post markdown in place. Try again with a more specific update that only changes the content comments from you or adds new comments.`,
+                });
+            }
+
+            if (oldPage.preamble.post.id !== newPage.preamble.post.id) {
+                throw new InvalidArgumentError("Can\u2019t update post in post preamble", {
+                    displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You can\u2019t change which post the comments belong to on line 1. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+                });
+            }
+            break;
+        }
+        default:
+            throw exhaustive(oldPage);
+    }
+
+    const newPageMetadata = await updateAgentWebMessagingPage<
+        AgentWebPostPagePreambleBase,
+        AgentWebPostPageCustomBlock
+    >(context, {
         messageNouns: agentWebMessagingPageCommentNouns,
         pathname,
         room: {type: "Post", id: oldPageMetadata.id},
         oldPageMetadata,
         oldPage,
         newPage,
+        prepareCustomBlockUpdate: (oldCustomBlock, newCustomBlock) => {
+            // Strip response properties from the block before comparing for equality. We don't
+            // care if `reference.title`s aren't equal. The `title` might have changed between
+            // the old page load time and new page generation time.
+            const normalizeBlock = (block: AgentWebPostPageCustomBlock) => {
+                return {
+                    author: normalizeApiReference(block.author),
+                    timeAttribute: block.timeAttribute,
+                    timeZoneAttribute: block.timeZoneAttribute,
+                    content: normalizeApiContent(block.content),
+                };
+            };
+
+            const normalizedOldBlock = normalizeBlock(oldCustomBlock);
+            const normalizedNewBlock = normalizeBlock(newCustomBlock);
+
+            if (isDeepEqual(normalizedOldBlock, normalizedNewBlock)) return {update: asyncNoop};
+
+            if (
+                normalizedOldBlock.author.id !== context.botAccount.id ||
+                normalizedNewBlock.author.id !== context.botAccount.id
+            ) {
+                if (normalizedOldBlock.author.id !== context.botAccount.id) {
+                    throw new InvalidArgumentError(
+                        "Can\u2019t update post created by someone else",
+                        {
+                            displayMessage: errorDisplayMessage`You can only update your \`<post>\`s. You can\u2019t update a \`<post>\` created by ${oldCustomBlock.author.shortName}. \`<post from="${escapeHtml(oldCustomBlock.author.shortName)}">\` was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+                        },
+                    );
+                } else {
+                    // Going to continue from here. The `if (isDeepEqual(...))` immediately below will
+                    // throw in this case and will produce a much better error message.
+                }
+            }
+
+            if (
+                !isDeepEqual(
+                    omitObject(normalizedOldBlock, ["content"]),
+                    omitObject(normalizedNewBlock, ["content"]),
+                )
+            ) {
+                throw new InvalidArgumentError("Can\u2019t update post created by someone else", {
+                    displayMessage: errorDisplayMessage`You can only update the content of your \`<post>\`s. Any metadata (the \`from\`/\`timezone\` attributes) must be left unchanged. The metadata of the \`<post>\` was changed by this update. Try again with a more specific update that only changes the content of your post.`,
+                });
+            }
+
+            return {
+                update: async () => {
+                    // TODO(#agents-web): Implement post update content endpoint.
+                    throw new UnimplementedError(
+                        "Post update content API endpoint hasn\u2019t been implemented yet",
+                    );
+                },
+            };
+        },
     });
 
     return {...newPageMetadata, type: "Post", id: oldPageMetadata.id};

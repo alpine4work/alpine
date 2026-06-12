@@ -194,6 +194,9 @@ export async function updateAgentWebTaskMessageListPage(
         oldPageMetadata,
         oldPage,
         newPage,
+        prepareCustomBlockUpdate: oldCustomBlock => {
+            throw exhaustive(oldCustomBlock);
+        },
     });
 
     return {...newPageMetadata, type: "TaskMessageList", id: oldPageMetadata.id};

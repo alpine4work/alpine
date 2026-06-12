@@ -37,6 +37,7 @@ export function runAgentWebPageTests<PageLink, Page>({
             markdown: string;
             printMarkdown?: string;
             createParseError?: string;
+            setupStorage?: (storage: AgentWebSessionStorage) => Promise<void>;
         } & (
             | {
                   page: Page;
@@ -99,6 +100,8 @@ export function runAgentWebPageTests<PageLink, Page>({
             }
 
             test("parses page from markdown", async () => {
+                if (testCase.setupStorage) await testCase.setupStorage(storage);
+
                 if (normalizedTestCasePage) {
                     // We must print the page first before we parse it so that any references are
                     // written to storage.
@@ -155,6 +158,8 @@ export function runAgentWebPageTests<PageLink, Page>({
             });
 
             test("parses new page from markdown", async () => {
+                if (testCase.setupStorage) await testCase.setupStorage(storage);
+
                 if (!testCase.createParseError && normalizedTestCasePage) {
                     // We must print the page first before we parse it so that any references are
                     // written to storage.
