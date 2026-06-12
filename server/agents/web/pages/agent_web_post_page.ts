@@ -50,6 +50,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -226,7 +227,7 @@ export async function readAgentWebPostPage(
     });
 
     type RoomMetadata = {
-        pageLink: AgentWebMessagingPagePaginationPageLink;
+        pageLink: ApiPostReferenceResponse;
         preamble: AgentWebPostPagePreambleBase;
         startCustomBlock: {
             time: Date;
@@ -294,10 +295,12 @@ export async function readAgentWebPostPage(
         };
     });
 
+    let roomMetadataPromise: Promise<RoomMetadata>;
+    let response: string;
+    let metadata: AgentWebMessagingPageMetadata;
+
     switch (parsedSearchParams.type) {
         case "Direction": {
-            let roomMetadataPromise: Promise<RoomMetadata>;
-
             switch (parsedSearchParams.direction) {
                 case "Start": {
                     if (
@@ -342,7 +345,7 @@ export async function readAgentWebPostPage(
                     throw exhaustive(parsedSearchParams.direction);
             }
 
-            const [, {response, metadata}] = await runAllPromises([
+            [, {response, metadata}] = await runAllPromises([
                 roomMetadataPromise,
                 readAgentWebMessagingPageInDirection(context, {
                     messageNouns: agentWebMessagingPageCommentNouns,
@@ -367,12 +370,9 @@ export async function readAgentWebPostPage(
                     printPage: page => printPage(buildAgentWebPostPage(page, id)),
                 }),
             ]);
-
-            return {response, metadata: {...metadata, type: "Post", id}};
+            break;
         }
         case "Around": {
-            let roomMetadataPromise: Promise<RoomMetadata>;
-
             // Loads the full post even if we don't need it. The post may be truncated if it
             // doesn't fit within the limit.
             if (
@@ -385,7 +385,7 @@ export async function readAgentWebPostPage(
                 roomMetadataPromise = roomMetadataWithoutStartCustomBlock.get();
             }
 
-            const [, {response, metadata}] = await runAllPromises([
+            [, {response, metadata}] = await runAllPromises([
                 roomMetadataPromise,
                 readAgentWebMessagingPageAroundMessage(context, {
                     messageNouns: agentWebMessagingPageCommentNouns,
@@ -409,12 +409,37 @@ export async function readAgentWebPostPage(
                     printPage: page => printPage(buildAgentWebPostPage(page, id)),
                 }),
             ]);
-
-            return {response, metadata: {...metadata, type: "Post", id}};
+            break;
         }
         default:
             throw exhaustive(parsedSearchParams);
     }
+
+    // Kinda hacky but truncate is implemented via string manipulation. So if we see a
+    // response that thought it was a head page but the `<post>` was truncated then
+    // switch the preamble to a tail page preamble.
+    if (response.startsWith("Post in ") && !/^.*\n+(?:.*\n+)?<post(?: |>)/.test(response)) {
+        const match = assertExists(response.match(/^.*\)\. ([^.]+)\n/));
+
+        const roomMetadata = await roomMetadataPromise;
+
+        const roomPageLinkPathname = await createAgentWebPageStoredLinkPathname(
+            context.storage,
+            roomMetadata.pageLink,
+        );
+
+        const linkMarkdown = printMarkdownTree({
+            type: "link",
+            url: roomPageLinkPathname,
+            children: [{type: "text", value: "post"}],
+        }).trim();
+
+        response =
+            `Comments on ${linkMarkdown}. ` +
+            response.slice(match[0].length - 1 - match[1]!.length);
+    }
+
+    return {response, metadata: buildAgentWebPostPageMetadata(metadata, id)};
 }
 
 export async function readAgentWebPostMessagePage(

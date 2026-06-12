@@ -237,9 +237,7 @@ Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
-<post from="[Alice](/human/alice)">\n\nPost body.\n\n</post>
-
-End of comments.`);
+<post from="[Alice](/human/alice)">\n\nPost body.\n\n</post>`);
 });
 
 test("reads a post with a timezone attribute when the post timezone differs", async () => {
@@ -257,9 +255,7 @@ Post in [Announcements](/channel/announcements).
 
 <time>May 14th at 11:00am EDT</time>
 
-<post from="[Alice](/human/alice)" timezone="PDT">\n\nPost body.\n\n</post>
-
-End of comments.`);
+<post from="[Alice](/human/alice)" timezone="PDT">\n\nPost body.\n\n</post>`);
 });
 
 test("truncates comments while keeping the first-page post", async () => {
@@ -369,7 +365,7 @@ test("drops the post around a comment when the post does not fit", async () => {
     });
 
     expect(response).toEqual(`\
-Post in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=0)
+Comments on [post](/post/launch). [Previous page »](/post/launch?before=0)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -524,7 +520,7 @@ test("reads a comment-only page before a later comment", async () => {
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?before=20", limit: "3kb"}))
         .toEqual(`\
-Post in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=0)
+Comments on [post](/post/launch). [Previous page »](/post/launch?before=0)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -546,7 +542,7 @@ test("paginates backward near the post and truncates the post", async () => {
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?before=2", limit: "650b"}))
         .toEqual(`\
-Post in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=0)
+Comments on [post](/post/launch). [Previous page »](/post/launch?before=0)
 
 <time>May 14th at 11:00am EDT</time>
 
@@ -682,7 +678,7 @@ test("paginates around a comment and truncates the post before a following comme
 
     expect(await callAgentWebReadTool(context, {path: "/post/launch?comment=1", limit: "3kb"}))
         .toEqual(`\
-Post in [Announcements](/channel/announcements). [« Previous page](/post/launch?before=0) | [Next page »](/post/launch?after=2)
+Comments on [post](/post/launch). [« Previous page](/post/launch?before=0) | [Next page »](/post/launch?after=2)
 
 <time>May 14th at 11:00am EDT</time>
 
