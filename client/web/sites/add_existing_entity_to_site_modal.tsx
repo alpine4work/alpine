@@ -190,6 +190,7 @@ function AddExistingEntityToSiteModalBody({
         items: mapIterable(searchedEntities, ([id, entity]) => ({...entity, key: id})),
         children: renderItem,
         selectionMode: "multiple",
+        selectionBehavior: "toggle",
         selectedKeys,
         onSelectionChange: keys => {
             if (keys === "all") return;

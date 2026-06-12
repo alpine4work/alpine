@@ -5,6 +5,10 @@ import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screensho
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {
+    getSearchEntityIndexesForTest,
+    searchByKeywords,
+} from "~/server/search/data/index/search_entity_index.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
@@ -12,6 +16,7 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {
     OrderKey,
     assertOrderKey,
@@ -22,102 +27,161 @@ import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {ChatId, PostId} from "~/shared/id/types/id_types.js";
 import {SiteContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 
+const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
+
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {accounts} = await runner.createDemoSpace(context);
 
+    await runSetupFlowScenario(accounts.cassCade, runner);
+
+    const showcase = await createShowcaseSite({accounts, runner});
+
+    await ProcessContextModule.waitForTestTasks();
+    await runner.services.waitForSqsProcessJobs();
+    await clearAccountInbox(accounts.cassCade);
+    await ProcessContextModule.waitForTestTasks();
+    await runner.services.waitForSqsProcessJobs();
+
+    await runShowcaseSiteScreenshot(accounts.cassCade, runner, showcase);
+    await runScrollToActiveEntityScenario(accounts.cassCade, runner, showcase);
+    await runSiteMenuScenario(accounts.cassCade, runner, showcase);
+    await runEntityContextMenuScenario(accounts.cassCade, runner, showcase);
+    await runSectionContextMenuScenario(accounts.cassCade, runner, showcase);
+    await runSearchModalScenario(context, accounts.cassCade, runner, showcase);
+    await runShareScenario(accounts.cassCade, runner, showcase);
+    await runChromeAroundEntityScenarios(accounts.cassCade, runner, showcase);
+    await runDragOverlayCollapsedSectionScenario(accounts.cassCade, runner, showcase);
+    await runExpandedSectionsScenario(accounts.cassCade, runner, showcase);
+}
+
+type ShowcaseSite = {
+    readonly site: TestSite;
+    readonly betsDocument: TestDocument;
+    readonly scrollTargetTask: TestTask;
+    readonly scrollTargetTaskTitle: string;
+    readonly searchModalEntities: {
+        readonly tablesProjectTask: TestTask;
+        readonly tablesCollection: TestTaskCollection;
+        readonly tablesGAChatRoom: TestChat;
+    };
+    readonly sectionLabels: {
+        readonly engineering: string;
+        readonly tables: string;
+        readonly editorPolish: string;
+        readonly realtime: string;
+        readonly operations: string;
+        readonly longCustomerFeedback: string;
+    };
+    readonly expectedTexts: {
+        readonly deepestEditorTask: string;
+        readonly tablesExpandedTask: string;
+        readonly realtimeExpandedTask: string;
+        readonly operationsChild: string;
+    };
+};
+
+async function createShowcaseSite({
+    accounts,
+    runner,
+}: {
+    accounts: DemoSpaceAccounts;
+    runner: ScreenshotTestRunner;
+}): Promise<ShowcaseSite> {
     const site = await TestSite.create(accounts.cassCade, {
-        name: "FY2026 H2 Planning",
+        name: "FY2026 Q4 launch readiness and reliability",
         access: "Public",
+    });
+
+    await runViewerAccessScenario(accounts, runner, site, {
+        expectedSiteName: "FY2026 Q4 launch readiness and reliability",
     });
 
     const rootContainerId = site.initialRootContainerId;
 
-    // Top-level section with deeply nested content so the depth lines have multiple
-    // ancestors to span — mirrors the "Test multiselect → Contractors → Deep nesting"
-    // shape that motivated this screenshot test.
-    const planningSectionId = await site.addSection(accounts.cassCade, {
-        label: "Planning",
+    const engineeringLabel = "Engineering";
+    const tablesLabel = "Tables GA";
+    const editorPolishLabel = "Editor polish";
+    const realtimeLabel = "Realtime Reliability";
+    const operationsLabel = "Operations";
+    const longCustomerFeedbackLabel = "Customer feedback and launch readiness follow-ups";
+
+    const engineeringSectionId = await site.addSection(accounts.cassCade, {
+        label: engineeringLabel,
+        orderKey: assertOrderKey("a0"),
+        parent: site.initialSideBarRoot,
+    });
+
+    const longCustomerFeedbackSectionId = await site.addSection(accounts.cassCade, {
+        label: longCustomerFeedbackLabel,
         orderKey: assertOrderKey("a1"),
         parent: site.initialSideBarRoot,
     });
-    const planningSectionContainerId = printSiteContainerId({
+    const longCustomerFeedbackSectionContainerId = printSiteContainerId({
         type: "SideBarSection",
-        id: planningSectionId,
+        id: longCustomerFeedbackSectionId,
     });
 
-    const engineeringSectionId = await site.addSection(accounts.cassCade, {
-        label: "Engineering",
-        orderKey: assertOrderKey("a1"),
-        parent: {type: "SideBarSection", id: planningSectionId},
-    });
-    const engineeringSectionContainerId = printSiteContainerId({
-        type: "SideBarSection",
-        id: engineeringSectionId,
-    });
-
-    // A second top-level section so we can see the line stop at the right depth and
-    // not bleed into subsequent siblings.
-    const launchesSectionId = await site.addSection(accounts.cassCade, {
-        label: "Launches",
+    const goToMarketSectionId = await site.addSection(accounts.cassCade, {
+        label: "Go-to-market",
         orderKey: assertOrderKey("a2"),
         parent: site.initialSideBarRoot,
     });
-    const launchesSectionContainerId = printSiteContainerId({
+
+    const operationsSectionId = await site.addSection(accounts.cassCade, {
+        label: operationsLabel,
+        orderKey: assertOrderKey("a3"),
+        parent: site.initialSideBarRoot,
+    });
+    const operationsSectionContainerId = printSiteContainerId({
         type: "SideBarSection",
-        id: launchesSectionId,
+        id: operationsSectionId,
     });
 
-    // Depth-0 entry at the very top — depth-0 rows should never render a line slot.
     const okrsTask = await TestTask.create(accounts.cassCade, {
-        title: "Lock the OKRs",
+        title: "Lock Q4 plan with Rose",
         assignee: accounts.cassCade,
         priority: "High",
         notes: markdown`
-Get the OKRs locked before the all-hands. Rose has the company-level outcomes; this task is the
-build out underneath: bets, owners, measurable signals, and the rough sequencing across the half.
+Get the Q4 plan locked before Rose reviews the investor update. Pull in the customer survey, Tables
+launch timing, realtime reliability rollout, and the hiring offer stage.
         `,
     });
     await okrsTask.createComment(
         accounts.cassCade,
         markdown`
-Draft of the bets doc is up for review. Aiming to lock by Monday morning, please drop comments
-inline by EOD Friday. Rose is doing the final pass over the weekend.
+Draft is ready for comments. I want the owner map to be boringly clear before the all-hands.
         `,
         {overrideCreatedTime: new Date("2025-10-15T15:14:00-04:00")},
     );
     await site.addEntity(accounts.cassCade, {
         entityId: `Task:${okrsTask.id}`,
         parentId: rootContainerId,
-        orderKey: assertOrderKey("a0"),
+        orderKey: assertOrderKey("a4"),
     });
 
-    // Document with a rich body so document-chrome screenshots show real content
-    // rather than an empty editor.
     const betsDocument = await TestDocument.create(accounts.cassCade, {
-        title: "Bets and Owners",
+        title: "Q4 Bets and Owners",
         access: {type: "Site", siteId: site.id},
         body: markdown`
 Author: Cass Cade
 
-Draft of the H2 portfolio. Inputs from each owner are due by the end of next week. Rose and I will
-finalize the week after.
+Draft of the Q4 portfolio. Inputs from each owner are due by Friday. Rose and I will finalize the
+readout on Monday morning.
 
 ## Priorities
 
-- **P0**: Tables GA + follow-on editor polish (Mason Clay)
+- **P0**: Tables GA plus follow-on editor polish (Mason Clay)
 - **P0**: Realtime reliability phase 3 (Elle Kappa-Tan)
 - **P1**: Enterprise SSO design partner build (Elle Kappa-Tan + Cliff Weathers)
-- **P2**: Customer case studies + sales enablement (Holly Evergreen)
+- **P2**: Customer case studies and sales enablement (Holly Evergreen)
         `,
         sitePosition: {
             siteId: site.id,
             parentId: rootContainerId,
-            orderKey: assertOrderKey("a05"),
+            orderKey: assertOrderKey("a5"),
         },
     });
 
-    // Project task with subtasks so the project-task chrome screenshot has real child
-    // rows instead of an empty subtasks list.
     const tablesProjectTask = await TestTask.create(accounts.cassCade, {
         title: "Tables GA Project",
         assignee: accounts.masonClay,
@@ -147,11 +211,9 @@ last open design question is how column resizing should feel.
     await site.addEntity(accounts.cassCade, {
         entityId: `Task:${tablesProjectTask.id}`,
         parentId: rootContainerId,
-        orderKey: assertOrderKey("a06"),
+        orderKey: assertOrderKey("a6"),
     });
 
-    // Task collection with member tasks so the task-collection chrome screenshot shows
-    // a populated list instead of an empty board.
     const tablesCollection = await TestTaskCollection.create(accounts.cassCade, {
         name: "Tables crew",
         access: "Public",
@@ -173,7 +235,7 @@ last open design question is how column resizing should feel.
     await site.addEntity(accounts.cassCade, {
         entityId: `TaskCollection:${tablesCollection.id}`,
         parentId: rootContainerId,
-        orderKey: assertOrderKey("a07"),
+        orderKey: assertOrderKey("a7"),
     });
 
     const tablesGAChatRoom = await createTablesGAChatRoom({
@@ -183,182 +245,650 @@ last open design question is how column resizing should feel.
         runner,
     });
 
-    // Depth-1 entry inside Planning (sits above the nested Engineering section).
-    const betsTask = await TestTask.create(accounts.cassCade, {
-        title: "Bets list reviewed with Rose",
-        assignee: accounts.cassCade,
-        status: "Closed",
-    });
-    await site.addEntity(accounts.cassCade, {
-        entityId: `Task:${betsTask.id}`,
-        parentId: planningSectionContainerId,
+    const tablesSectionId = await site.addSection(accounts.cassCade, {
+        label: tablesLabel,
         orderKey: assertOrderKey("a0"),
+        parent: {type: "SideBarSection", id: engineeringSectionId},
+    });
+    const tablesSectionContainerId = printSiteContainerId({
+        type: "SideBarSection",
+        id: tablesSectionId,
     });
 
-    // Depth-2 entries inside Engineering — these are the rows where the line for
-    // Planning has to extend all the way down through the Engineering column.
-    const tablesTask = await TestTask.create(accounts.cassCade, {
-        title: "Stabilize and announce Tables GA",
+    const realtimeSectionId = await site.addSection(accounts.cassCade, {
+        label: realtimeLabel,
+        orderKey: assertOrderKey("a1"),
+        parent: {type: "SideBarSection", id: engineeringSectionId},
+    });
+    const realtimeSectionContainerId = printSiteContainerId({
+        type: "SideBarSection",
+        id: realtimeSectionId,
+    });
+
+    const editorPolishSectionId = await site.addSection(accounts.cassCade, {
+        label: editorPolishLabel,
+        orderKey: assertOrderKey("a0"),
+        parent: {type: "SideBarSection", id: tablesSectionId},
+    });
+    const editorPolishSectionContainerId = printSiteContainerId({
+        type: "SideBarSection",
+        id: editorPolishSectionId,
+    });
+
+    const deepestEditorTaskTitle =
+        "Column resizing snap-by-default with Alt smooth override across every table surface";
+    const deepestEditorTask = await TestTask.create(accounts.cassCade, {
+        title: deepestEditorTaskTitle,
         assignee: accounts.masonClay,
         assigneeStatus: "Active",
         priority: "High",
     });
     await site.addEntity(accounts.cassCade, {
-        entityId: `Task:${tablesTask.id}`,
-        parentId: engineeringSectionContainerId,
+        entityId: `Task:${deepestEditorTask.id}`,
+        parentId: editorPolishSectionContainerId,
         orderKey: assertOrderKey("a0"),
     });
 
-    const realtimeTask = await TestTask.create(accounts.cassCade, {
-        title: "Realtime reliability phase 3",
-        assignee: accounts.elleKappaTan,
-        assigneeStatus: "Active",
+    await TestDocument.create(accounts.cassCade, {
+        title: "Editor interaction audit and toolbar state inventory before Tables ships",
+        access: {type: "Site", siteId: site.id},
+        body: markdown`
+Matt\u2019s audit notes for the final tables pass. The big thing: keep resizing, selection, and
+toolbar placement aligned with the rest of the editor so the feature feels native on day one.
+        `,
+        sitePosition: {
+            siteId: site.id,
+            parentId: editorPolishSectionContainerId,
+            orderKey: assertOrderKey("a1"),
+        },
+    });
+
+    const tablesExpandedTaskTitle = "Paste from Sheets dogfood report";
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: tablesSectionContainerId,
+        orderKey: assertOrderKey("a1"),
+        title: tablesExpandedTaskTitle,
+        assignee: accounts.masonClay,
         priority: "High",
     });
-    await site.addEntity(accounts.cassCade, {
-        entityId: `Task:${realtimeTask.id}`,
-        parentId: engineeringSectionContainerId,
-        orderKey: assertOrderKey("a1"),
+    await addDocumentToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: tablesSectionContainerId,
+        orderKey: assertOrderKey("a2"),
+        title: "Tables launch checklist",
+        body: markdown`
+## Launch checklist
+
+- Update the help center examples with real table-heavy docs
+- Confirm paste from Sheets and CSV import behavior with support
+- Keep the snap-by-default note in the launch post
+- Add a short clip to the demo workspace
+        `,
+    });
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: tablesSectionContainerId,
+        orderKey: assertOrderKey("a3"),
+        title: "Header row freeze exploration",
+        assignee: accounts.mattRHorn,
+    });
+    const tablesUpdatesChannel = await addChannelToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: tablesSectionContainerId,
+        orderKey: assertOrderKey("a4"),
+        name: "Tables updates",
+        description: markdown`
+Short customer-facing launch updates for everyone dogfooding tables.
+        `,
+    });
+    await tablesUpdatesChannel.createPost(
+        accounts.masonClay,
+        markdown`
+Paste from Sheets is passing the normal cases now. The only remaining edge case is merged cells, and
+we are going to document that as unsupported for GA.
+        `,
+        {overrideCreatedTime: new Date("2025-10-10T15:12:00-04:00")},
+    );
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: tablesSectionContainerId,
+        orderKey: assertOrderKey("a5"),
+        title: "Toolbar placement regression pass",
+        assignee: accounts.masonClay,
+    });
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: tablesSectionContainerId,
+        orderKey: assertOrderKey("a6"),
+        title: "Table keyboard navigation acceptance checklist",
+        assignee: accounts.masonClay,
+    });
+    await addDocumentToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: tablesSectionContainerId,
+        orderKey: assertOrderKey("a7"),
+        title: "Help doc examples",
+        body: markdown`
+Examples to include in the public help doc: roadmap tables, launch checklists, and simple customer
+research matrices. Keep the screenshots in the same demo workspace so sales can reuse them.
+        `,
+    });
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: tablesSectionContainerId,
+        orderKey: assertOrderKey("a8"),
+        title: "Launch announcement screenshots ready",
+        assignee: accounts.hollyEvergreen,
     });
 
-    const ssoTask = await TestTask.create(accounts.cassCade, {
-        title: "Enterprise SSO pilot",
+    const realtimeExpandedTaskTitle = "Jittered reconnection backoff rollout";
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: realtimeSectionContainerId,
+        orderKey: assertOrderKey("a0"),
+        title: realtimeExpandedTaskTitle,
+        assignee: accounts.elleKappaTan,
+        priority: "High",
+    });
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: realtimeSectionContainerId,
+        orderKey: assertOrderKey("a1"),
+        title: "Deploy health check alert polish",
         assignee: accounts.elleKappaTan,
     });
-    await site.addEntity(accounts.cassCade, {
-        entityId: `Task:${ssoTask.id}`,
-        parentId: engineeringSectionContainerId,
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: realtimeSectionContainerId,
         orderKey: assertOrderKey("a2"),
+        title: "On-call handoff notes after phase 3 rollout",
+        assignee: accounts.elleKappaTan,
     });
 
-    const statusChannel = await createStatusChannel({
+    const launchCollateralSectionId = await site.addSection(accounts.cassCade, {
+        label: "Launch collateral",
+        orderKey: assertOrderKey("a0"),
+        parent: {type: "SideBarSection", id: goToMarketSectionId},
+    });
+    const launchCollateralSectionContainerId = printSiteContainerId({
+        type: "SideBarSection",
+        id: launchCollateralSectionId,
+    });
+    await addDocumentToSite({
         site,
-        planningSectionContainerId,
+        session: accounts.cassCade,
+        parentId: launchCollateralSectionContainerId,
+        orderKey: assertOrderKey("a0"),
+        title: "Tables GA launch narrative",
+        body: markdown`
+## Draft narrative
+
+Tables make docs a better home for structured work. The customer story is not \u201Cspreadsheet in a
+doc\u201D; it is project plans, launch trackers, and research synthesis living next to the
+discussion and tasks that move them forward.
+        `,
+    });
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: launchCollateralSectionContainerId,
+        orderKey: assertOrderKey("a1"),
+        title: "Rewrite enablement one-pager after Cliff demo feedback",
+        assignee: accounts.hollyEvergreen,
+    });
+    const salesQuestionsChannel = await addChannelToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: launchCollateralSectionContainerId,
+        orderKey: assertOrderKey("a2"),
+        name: "Sales questions",
+        description: markdown`
+Questions from late-stage deals that need a crisp answer before the launch webinar.
+        `,
+    });
+    await salesQuestionsChannel.createPost(
+        accounts.cliffWeathers,
+        markdown`
+Two prospects asked the same thing: can tables replace the project tracker they keep in Sheets? My
+answer is \u201Cfor operating docs, yes; for analysis work, not yet.\u201D
+        `,
+        {overrideCreatedTime: new Date("2025-10-14T12:20:00-04:00")},
+    );
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: launchCollateralSectionContainerId,
+        orderKey: assertOrderKey("a3"),
+        title: "Customer case study pull quote approvals",
+        assignee: accounts.cliffWeathers,
+    });
+
+    let scrollTargetTask: TestTask | null = null;
+    const scrollTargetTaskTitle = "Q4 customer council agenda";
+    let lastCustomerFeedbackKey: OrderKey | null = null;
+    function nextCustomerFeedbackOrderKey(): OrderKey {
+        lastCustomerFeedbackKey = generateOrderKeyBetween(lastCustomerFeedbackKey, null);
+        return lastCustomerFeedbackKey;
+    }
+
+    async function addCustomerFeedbackTask({
+        title,
+        assignee,
+        priority,
+    }: {
+        title: string;
+        assignee: TestSpaceSession;
+        priority?: "High" | "Medium" | "Low";
+    }) {
+        return await addTaskToSite({
+            site,
+            session: accounts.cassCade,
+            parentId: longCustomerFeedbackSectionContainerId,
+            orderKey: nextCustomerFeedbackOrderKey(),
+            title,
+            assignee,
+            priority,
+        });
+    }
+
+    await addDocumentToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        title: "Customer survey readout",
+        body: markdown`
+## Themes
+
+Customers want structured project plans in docs, quieter notifications around active launches, and
+faster search in larger workspaces. Tables shows up in the same sentence as planning, not
+spreadsheets.
+
+## Watchlist
+
+Acme and Globex both asked whether launch docs can become the source of truth for status, tasks, and
+discussion. That is the story to tell in the webinar.
+        `,
+    });
+    const customerVoiceChannel = await addChannelToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        name: "Customer voice",
+        description: markdown`
+Fresh feedback from design partners, support, sales, and onboarding.
+        `,
+    });
+    await customerVoiceChannel.createPost(
+        accounts.hollyEvergreen,
+        markdown`
+Acme is using one launch doc for status, risks, and decisions. They asked for better table examples
+and a shorter path from a customer quote to a task.
+        `,
+        {overrideCreatedTime: new Date("2025-10-16T14:44:00-04:00")},
+    );
+    await addCustomerFeedbackTask({
+        title: "Acme admin pilot search-latency readout",
+        assignee: accounts.cliffWeathers,
+        priority: "High",
+    });
+    await addDocumentToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        title: "Launch FAQ",
+        body: markdown`
+Questions we expect during the webinar:
+
+- Can tables be mentioned in comments and tasks?
+- Do table-heavy docs work in mobile review flows?
+- What should teams keep in Sheets instead?
+- How does this change the team wiki story?
+        `,
+    });
+    await createSiteChatRoom({
+        site,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        accounts,
+        runner,
+        stableIdKey: "customerLaunchRoom",
+        name: "Customer launch room",
+        messages: [
+            {
+                sender: accounts.hollyEvergreen,
+                body: markdown`
+Cliff, I pulled the Acme quote into the survey readout. Can you sanity-check the wording before the
+case study draft goes to Rose?
+                `,
+                overrideCreatedTime: new Date("2025-10-16T16:04:00-04:00"),
+            },
+            {
+                sender: accounts.cliffWeathers,
+                body: markdown`
+Yes. Also adding Globex because their feedback is the clearest \u201Cwiki plus work\u201D example we
+have.
+                `,
+                overrideCreatedTime: new Date("2025-10-16T16:08:00-04:00"),
+            },
+            {
+                sender: accounts.cassCade,
+                body: markdown`
+Great. Keep the customer names in docs, not tasks, until approvals are done.
+                `,
+                overrideCreatedTime: new Date("2025-10-16T16:11:00-04:00"),
+            },
+        ],
+    });
+    await addCustomerFeedbackTask({
+        title: "Globex onboarding notes",
+        assignee: accounts.hollyEvergreen,
+    });
+    await addDocumentToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        title: "Case study pipeline",
+        body: markdown`
+Acme is approved for a short anonymous quote. Globex wants one more week of product usage before
+being named. Initech is useful for internal objections but not ready for public copy.
+        `,
+    });
+    await addCustomerFeedbackTask({
+        title: "Support article gap: paste from Sheets",
+        assignee: accounts.hollyEvergreen,
+        priority: "High",
+    });
+    const launchQuestionsChannel = await addChannelToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        name: "Launch questions",
+        description: markdown`
+Questions from active deals and support that need a product answer.
+        `,
+    });
+    await launchQuestionsChannel.createPost(
+        accounts.cliffWeathers,
+        markdown`
+Prospects keep asking whether project tasks can sit next to launch docs. The short answer is yes,
+and it is landing better than a separate tracker.
+        `,
+        {overrideCreatedTime: new Date("2025-10-17T09:18:00-04:00")},
+    );
+
+    const customerFeedbackTasks = [
+        ["Customer education snippet for Alt smooth resize", accounts.hollyEvergreen, undefined],
+        ["Sales demo script section on unified inbox", accounts.cliffWeathers, undefined],
+        ["Design partner notes for Enterprise SSO pilot", accounts.cliffWeathers, "High"],
+        ["Pricing page feedback sweep", accounts.hollyEvergreen, undefined],
+        ["Renewal risk notes after admin permissions review", accounts.cliffWeathers, "Medium"],
+        ["Onboarding checklist language pass", accounts.hollyEvergreen, undefined],
+        ["Launch metrics dashboard ownership", accounts.cliffWeathers, undefined],
+        ["Customer quote approval", accounts.hollyEvergreen, "High"],
+        ["Support macro for table resizing", accounts.hollyEvergreen, undefined],
+        ["Survey follow-up thread for notification batching", accounts.cliffWeathers, undefined],
+        ["CS handoff notes for search affinity tuning", accounts.hollyEvergreen, undefined],
+        ["Enablement FAQ after Holly and Cliff review", accounts.cliffWeathers, undefined],
+        ["Demos needing the new Tables path", accounts.hollyEvergreen, undefined],
+        ["Accounts to invite to launch webinar", accounts.cliffWeathers, undefined],
+    ] as const;
+    for (const [title, assignee, priority] of customerFeedbackTasks) {
+        await addCustomerFeedbackTask({title, assignee, priority});
+    }
+
+    await addDocumentToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        title: "Post-launch survey draft",
+        body: markdown`
+Three-question version for the week after GA: what made tables useful, what still forced a context
+switch, and what documentation example should we write next?
+        `,
+    });
+    await addCustomerFeedbackTask({
+        title: "Customer-facing release note polish",
+        assignee: accounts.hollyEvergreen,
+    });
+    await addDocumentToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        title: "Forum announcement response plan",
+        body: markdown`
+Draft responses for expected comments: mobile tables, CSV import, table mentions, and the difference
+between table docs and task collections.
+        `,
+    });
+    for (const [title, assignee] of [
+        ["October active-deal blocker sweep", accounts.cliffWeathers],
+        ["Renewal one-pager appendix", accounts.hollyEvergreen],
+        ["Support queue triage for Tables week", accounts.hollyEvergreen],
+        ["Demo workspace cleanup before launch", accounts.cliffWeathers],
+        ["Case study edits from Rose", accounts.hollyEvergreen],
+    ] as const) {
+        await addCustomerFeedbackTask({title, assignee});
+    }
+    scrollTargetTask = await addCustomerFeedbackTask({
+        title: scrollTargetTaskTitle,
+        assignee: accounts.cliffWeathers,
+        priority: "Medium",
+    });
+    await addDocumentToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: longCustomerFeedbackSectionContainerId,
+        orderKey: nextCustomerFeedbackOrderKey(),
+        title: "Search performance anecdotes",
+        body: markdown`
+Collect customer language around \u201CI know the answer exists somewhere\u201D searches. Pull
+examples from support, design partner interviews, and the customer launch room.
+        `,
+    });
+    await addCustomerFeedbackTask({
+        title: "Late-stage prospect follow-up sequence",
+        assignee: accounts.cliffWeathers,
+    });
+    await addCustomerFeedbackTask({
+        title: "Field feedback retro agenda",
+        assignee: accounts.hollyEvergreen,
+    });
+
+    const operationsChildTitle = "Senior backend offer checklist";
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: operationsSectionContainerId,
+        orderKey: assertOrderKey("a0"),
+        title: operationsChildTitle,
+        assignee: accounts.cassCade,
+    });
+    await addTaskToSite({
+        site,
+        session: accounts.cassCade,
+        parentId: operationsSectionContainerId,
+        orderKey: assertOrderKey("a1"),
+        title: "Q4 planning readout for Rose",
+        assignee: accounts.cassCade,
+    });
+
+    await createStatusChannel({
+        site,
+        parentContainerId: rootContainerId,
         accounts,
         runner,
     });
 
-    // Depth-1 entries under Launches — separate top-level section.
-    const launchPostTask = await TestTask.create(accounts.cassCade, {
-        title: "Tables GA launch post",
-        assignee: accounts.hollyEvergreen,
+    return {
+        site,
+        betsDocument,
+        scrollTargetTask,
+        scrollTargetTaskTitle,
+        searchModalEntities: {
+            tablesProjectTask,
+            tablesCollection,
+            tablesGAChatRoom,
+        },
+        sectionLabels: {
+            engineering: engineeringLabel,
+            tables: tablesLabel,
+            editorPolish: editorPolishLabel,
+            realtime: realtimeLabel,
+            operations: operationsLabel,
+            longCustomerFeedback: longCustomerFeedbackLabel,
+        },
+        expectedTexts: {
+            deepestEditorTask: deepestEditorTaskTitle,
+            tablesExpandedTask: tablesExpandedTaskTitle,
+            realtimeExpandedTask: realtimeExpandedTaskTitle,
+            operationsChild: operationsChildTitle,
+        },
+    };
+}
+
+async function addTaskToSite({
+    site,
+    session,
+    parentId,
+    orderKey,
+    title,
+    assignee,
+    priority,
+}: {
+    site: TestSite;
+    session: TestSpaceSession;
+    parentId: SiteContainerId;
+    orderKey: OrderKey;
+    title: string;
+    assignee: TestSpaceSession;
+    priority?: "High" | "Medium" | "Low";
+}) {
+    const task = await TestTask.create(session, {
+        title,
+        assignee,
+        assigneeStatus: "Active",
+        priority,
     });
-    await site.addEntity(accounts.cassCade, {
-        entityId: `Task:${launchPostTask.id}`,
-        parentId: launchesSectionContainerId,
-        orderKey: assertOrderKey("a0"),
+    await site.addEntity(session, {
+        entityId: `Task:${task.id}`,
+        parentId,
+        orderKey,
+    });
+    return task;
+}
+
+async function addDocumentToSite({
+    site,
+    session,
+    parentId,
+    orderKey,
+    title,
+    body,
+}: {
+    site: TestSite;
+    session: TestSpaceSession;
+    parentId: SiteContainerId;
+    orderKey: OrderKey;
+    title: string;
+    body: string;
+}) {
+    return await TestDocument.create(session, {
+        title,
+        access: {type: "Site", siteId: site.id},
+        body,
+        sitePosition: {
+            siteId: site.id,
+            parentId,
+            orderKey,
+        },
+    });
+}
+
+async function addChannelToSite({
+    site,
+    session,
+    parentId,
+    orderKey,
+    name,
+    description,
+}: {
+    site: TestSite;
+    session: TestSpaceSession;
+    parentId: SiteContainerId;
+    orderKey: OrderKey;
+    name: string;
+    description: string;
+}) {
+    const channel = await TestChannel.create(session, {name, description});
+    await channel.subscribe(session);
+    await site.addEntity(session, {
+        entityId: `Channel:${channel.id}`,
+        parentId,
+        orderKey,
+    });
+    return channel;
+}
+
+async function createSiteChatRoom({
+    site,
+    parentId,
+    orderKey,
+    accounts,
+    runner,
+    stableIdKey,
+    name,
+    messages,
+}: {
+    site: TestSite;
+    parentId: SiteContainerId;
+    orderKey: OrderKey;
+    accounts: DemoSpaceAccounts;
+    runner: ScreenshotTestRunner;
+    stableIdKey: string;
+    name: string;
+    messages: ReadonlyArray<{
+        readonly sender: TestSpaceSession;
+        readonly body: string;
+        readonly overrideCreatedTime: Date;
+    }>;
+}) {
+    const chat = await TestChat.createRoom(accounts.cassCade, {
+        id: unsafelyGenerateStableId<ChatId>(runner.stableRandom, stableIdKey),
+        name,
+        access: {
+            type: "Site",
+            siteId: site.id,
+            position: {parentId, orderKey},
+        },
     });
 
-    const ssoAnnounceTask = await TestTask.create(accounts.cassCade, {
-        title: "SSO design-partner announcement",
-        assignee: accounts.cliffWeathers,
-    });
-    await site.addEntity(accounts.cassCade, {
-        entityId: `Task:${ssoAnnounceTask.id}`,
-        parentId: launchesSectionContainerId,
-        orderKey: assertOrderKey("a1"),
-    });
+    for (const message of messages) {
+        await chat.sendMessage(message.sender, message.body, {
+            overrideCreatedTime: message.overrideCreatedTime,
+        });
+    }
 
-    // Trailing depth-0 entry after both sections — depth-0 rows should never render a
-    // line slot, even when they follow nested content.
-    const walkthroughTask = await TestTask.create(accounts.cassCade, {
-        title: "Walk through with Rose before all-hands",
-        assignee: accounts.cassCade,
-        priority: "High",
-    });
-    await site.addEntity(accounts.cassCade, {
-        entityId: `Task:${walkthroughTask.id}`,
-        parentId: rootContainerId,
-        orderKey: assertOrderKey("a3"),
-    });
-
-    // The chat room and status channel above leave Cass with unread loud
-    // notifications, and the nav-rail badge count is realtime-delivered so it climbs
-    // as the page settles — flaking every screenshot in this suite. Clear the inbox
-    // before loading the page so it mounts at inbox zero with no badge.
-    await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
-    await clearAccountInbox(accounts.cassCade);
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-
-    await runner.goto(accounts.cassCade, `/site/${site.id}`);
-
-    // Wait for the section labels (plain text in the sidebar) — proxy for "the whole
-    // tree has rendered" so the screenshot captures every depth slot.
-    await runner.getByText("Planning").first().waitFor();
-    await runner.getByText("Engineering").first().waitFor();
-
-    // Nested sections default to collapsed, so we click Engineering to expand it and
-    // reveal its depth-2 children. The depth-2 rows are the ones that need _two_ lines
-    // (one for Planning, one for Engineering) to verify the comb pattern.
-    await runner.getByText("Engineering").first().click();
-    await runner.getByText("Realtime reliability phase 3").first().waitFor();
-
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-
-    await runner.screenshot("a0", "depth-lines");
-
-    await runActivationAndScrollScenario(accounts.cassCade, runner);
-    await runSiteLifecycleScenario(accounts.cassCade, runner);
-    await runDeepNestingScenario(accounts.cassCade, runner);
-    await runLongTitlesScenario(accounts.cassCade, runner);
-    await runGhostRowMenuScenario(accounts.cassCade, runner);
-    await runEntityContextMenuScenario(accounts.cassCade, runner);
-    await runSectionContextMenuScenario(accounts.cassCade, runner);
-    await runDragOverlayExpandedSectionScenario(accounts.cassCade, runner, site.id);
-    await runDragOverlayCollapsedSectionScenario(accounts.cassCade, runner, site.id);
-    await runSearchModalMultiselectScenario(accounts.cassCade, runner);
-    await runShareMenuScenario(accounts.cassCade, runner);
-    await runShareSwitchTogglingOffScenario(accounts.cassCade, runner);
-    await runShareSwitchTogglingOnScenario(accounts.cassCade, runner);
-
-    // Chrome around each entity type, navigating to entities that live inside the
-    // showcase site so every screenshot doubles as a marketing-ready surface with real
-    // content — body text, comments, posts, messages, subtasks. Run last so the
-    // active-entity state from the share scenarios doesn't bleed across.
-    await runner.goto(accounts.cassCade, `/doc/${betsDocument.id}`);
-    await runner.getByText("Bets and Owners").first().waitFor();
-    await runner.mouse.move(0, 0);
-    await runner.screenshot("aj", "chrome-around-document");
-
-    await runner.goto(accounts.cassCade, `/task/${okrsTask.id}`);
-    await runner.getByText("Lock the OKRs").first().waitFor();
-    await runner.mouse.move(0, 0);
-    await runner.screenshot("ak", "chrome-around-task");
-
-    await runner.goto(accounts.cassCade, `/task/${tablesProjectTask.id}`);
-    await runner.getByText("Tables GA Project").first().waitFor();
-    await runner.getByText("GTM section with Cliff + Holly").first().waitFor();
-    await runner.mouse.move(0, 0);
-    await runner.screenshot("al", "chrome-around-project-task");
-
-    await runner.goto(accounts.cassCade, `/task-collection/${tablesCollection.id}`);
-    await runner.getByText("Tables crew").first().waitFor();
-    await runner.mouse.move(0, 0);
-    await runner.screenshot("am", "chrome-around-task-collection");
-
-    await runner.goto(accounts.cassCade, `/channel/${statusChannel.id}`);
-    await runner.getByText("Status", {exact: true}).first().waitFor();
-    await runner.getByText("Tables status", {exact: false}).first().waitFor();
-    await runner.mouse.move(0, 0);
-    await runner.screenshot("an", "chrome-around-channel");
-
-    await runner.goto(accounts.cassCade, `/chat/${tablesGAChatRoom.id}`);
-    await runner.getByText("Tables GA launch room").first().waitFor();
-    await runner.getByText("latest tables build", {exact: false}).first().waitFor();
-    await runner.mouse.move(0, 0);
-    await runner.screenshot("ao", "chrome-around-chat-room");
-
-    await runViewerAccessScenario(site, accounts, runner, async () => {
-        await runner.goto(accounts.hollyEvergreen, `/chat/${tablesGAChatRoom.id}`);
-        await runner.getByText("Tables GA launch room").first().waitFor();
-        await runner.getByText("latest tables build", {exact: false}).first().waitFor();
-        await runner.mouse.move(0, 0);
-
-        await runner.screenshot("ap", "view-access-sidebar");
-    });
+    return chat;
 }
 
 // Chat room with a back-and-forth conversation so the chat-room chrome screenshot
@@ -385,7 +915,7 @@ async function createTablesGAChatRoom({
         access: {
             type: "Site",
             siteId: site.id,
-            position: {parentId: rootContainerId, orderKey: assertOrderKey("a08")},
+            position: {parentId: rootContainerId, orderKey: assertOrderKey("a8")},
         },
     });
 
@@ -720,18 +1250,15 @@ Love it. Thanks all!
 
 async function createStatusChannel({
     site,
-    planningSectionContainerId,
+    parentContainerId,
     accounts,
     runner,
 }: {
     site: TestSite;
-    planningSectionContainerId: SiteContainerId;
+    parentContainerId: SiteContainerId;
     accounts: DemoSpaceAccounts;
     runner: ScreenshotTestRunner;
 }) {
-    // Another depth-1 entry under Planning after the nested Engineering section —
-    // confirms the Planning line continues past the section block. Populated with a
-    // real post + replies so the channel-chrome screenshot shows actual content.
     const statusChannel = await TestChannel.create(accounts.cassCade, {
         name: "Status",
         description: markdown`
@@ -767,7 +1294,7 @@ move to people who know what they want.
         accounts.elleKappaTan,
         markdown`
 +1. Realtime phase 3 progress on my end: alerting wired, paging policy reviewed with oncall. On
-track for late February.
+track for Friday afternoon.
         `,
         {overrideCreatedTime: new Date("2025-10-17T10:08:00.000Z")},
     );
@@ -775,8 +1302,8 @@ track for late February.
     await tablesWeeklyPost.setReaction(accounts.elleKappaTan, "Yes");
     await site.addEntity(accounts.cassCade, {
         entityId: `Channel:${statusChannel.id}`,
-        parentId: planningSectionContainerId,
-        orderKey: assertOrderKey("a2"),
+        parentId: parentContainerId,
+        orderKey: assertOrderKey("a9"),
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -785,214 +1312,9 @@ track for late February.
     return statusChannel;
 }
 
-/**
- * Second scenario: navigate directly to an entity URL for a task buried inside a
- * nested (default-collapsed) section, far enough down a long sibling list that it
- * would be below the sidebar's scroll viewport. This exercises the sideBarState
- * context end-to-end — on site activation the ancestor chain is pre-expanded and
- * the row is scrolled into view, with no per-navigation reaction afterwards.
- */
-async function runActivationAndScrollScenario(
-    session: TestSpaceSession,
-    runner: ScreenshotTestRunner,
-) {
-    const site = await TestSite.create(session, {
-        name: "Engineering archive",
-        access: "Public",
-    });
-
-    // A couple of top-level tasks so the section below is meaningfully indented.
-    const topLevelKey1 = generateOrderKeyBetween(null, null);
-    const topLevelTask1 = await TestTask.create(session, {
-        title: "Triage incoming bug reports",
-        assignee: session,
-    });
-    await site.addEntity(session, {
-        entityId: `Task:${topLevelTask1.id}`,
-        parentId: site.initialRootContainerId,
-        orderKey: topLevelKey1,
-    });
-
-    const topLevelKey2 = generateOrderKeyBetween(topLevelKey1, null);
-    const topLevelTask2 = await TestTask.create(session, {
-        title: "Sync with Rose on H2 OKRs",
-        assignee: session,
-    });
-    await site.addEntity(session, {
-        entityId: `Task:${topLevelTask2.id}`,
-        parentId: site.initialRootContainerId,
-        orderKey: topLevelKey2,
-    });
-
-    // Root section "Completed initiatives" — expanded by default at depth 0.
-    const rootSectionKey = generateOrderKeyBetween(topLevelKey2, null);
-    const completedSectionId = await site.addSection(session, {
-        label: "Completed initiatives",
-        orderKey: rootSectionKey,
-        parent: site.initialSideBarRoot,
-    });
-    const completedSectionContainerId = printSiteContainerId({
-        type: "SideBarSection",
-        id: completedSectionId,
-    });
-
-    // Many archived items inside Completed initiatives. The list is intentionally tall
-    // enough to exceed the sidebar viewport so the target row would be below the fold
-    // without an explicit scroll — that's how this screenshot proves
-    // `initialScrollTargetEntityId` actually drives a scroll, not just the
-    // ancestor-expansion half of the context.
-    const completedTaskTitles = [
-        "Stabilize and announce Tables GA",
-        "Realtime reliability phase 2",
-        "Realtime reliability phase 1",
-        "Enterprise SSO design partner kickoff",
-        "Mobile inbox redesign",
-        "Search affinity tuning round 1",
-        "Search affinity tuning round 2",
-        "Spell-check alpha",
-        "Sites preview file rollout",
-        "Onboarding playbook refresh",
-        "Customer case study – Acme",
-        "Customer case study – Globex",
-        "Customer case study – Initech",
-        "Q3 metrics review",
-        "Q3 retrospective notes",
-        "Annual security audit prep",
-        "Forum search ranking tweak",
-        "Notification batching v2",
-        "Task assignee migration",
-        "Document outline overhaul",
-        "Chat reactions rollout",
-        "Inbox grouping experiment",
-        "Sidebar drag-and-drop polish",
-        "Realtime presence indicators",
-        "Mention autocomplete refresh",
-        "API rate-limiting headers",
-        "Feed algorithm v3",
-        "Cold-start onboarding email",
-        "Pricing page redesign",
-        "Sales handoff document v2",
-        "Calendar sync investigation",
-        "Slack integration kickoff",
-        "Linear migration helper",
-        "Workspace export tool",
-        "Audit log polish",
-        "Channel notification settings UX",
-    ];
-    let lastChildKey: OrderKey | null = null;
-    for (const title of completedTaskTitles) {
-        lastChildKey = generateOrderKeyBetween(lastChildKey, null);
-        const task = await TestTask.create(session, {
-            title,
-            assignee: session,
-            status: "Closed",
-        });
-        await site.addEntity(session, {
-            entityId: `Task:${task.id}`,
-            parentId: completedSectionContainerId,
-            orderKey: lastChildKey,
-        });
-    }
-
-    // Nested section at depth 1 — collapsed by default. The active entity will live
-    // inside this section, so activation has to expand it for the row to even mount.
-    const nestedSectionKey = generateOrderKeyBetween(lastChildKey, null);
-    const oldProjectsSectionId = await site.addSection(session, {
-        label: "Old projects",
-        orderKey: nestedSectionKey,
-        parent: {type: "SideBarSection", id: completedSectionId},
-    });
-    const oldProjectsSectionContainerId = printSiteContainerId({
-        type: "SideBarSection",
-        id: oldProjectsSectionId,
-    });
-
-    // The target task — depth 2, inside the default-collapsed nested section, far
-    // enough down that the sidebar must scroll for it to be visible.
-    const targetTask = await TestTask.create(session, {
-        title: "FY2025 budget review",
-        assignee: session,
-        status: "Closed",
-    });
-    await site.addEntity(session, {
-        entityId: `Task:${targetTask.id}`,
-        parentId: oldProjectsSectionContainerId,
-        orderKey: generateOrderKeyBetween(null, null),
-    });
-
-    // Navigating to the entity URL is what triggers `useSideBarState`'s
-    // initialization: ancestors of `targetTask` get expanded and the scroll target is
-    // armed for the first paint.
-    await runner.goto(session, `/task/${targetTask.id}`);
-
-    // Wait until the row for the target task mounts — proves the ancestor chain was
-    // expanded.
-    await runner.getByText("FY2025 budget review").first().waitFor();
-
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-
-    await runner.screenshot("a1", "expand-and-scroll-to-active-entity");
-}
-
-/**
- * The full lifecycle of a brand-new site, driven through the real UI on a single
- * site instead of spinning up a fresh site per screenshot. We follow the natural
- * order a user works in — create, name, favorite, set permissions, then add the
- * first piece of content — and screenshot each surface as the site transitions
- * from empty to full:
- *
- * 1. **`create-flow-editor-open`** — what a user sees the moment they click the
- *    global "+" Create button in the space sidebar and pick "Site" from the
- *    overlay. The create route adds `?focus=name` which `SiteNameHeader` reads to
- *    open `SiteNameEditor` immediately with the default `"New site"` name
- *    pre-selected and focused, so the user can type a real name without an extra
- *    click. The welcome copy ("Start building New site") and the empty sidebar are
- *    also visible.
- * 2. **`create-flow-renamed-site`** — type a real name into the open editor, press
- *    Enter. After the rename mutation completes the new name appears in both the
- *    header and the welcome copy, proving the rename was saved (the welcome copy
- *    reads from the same site context that wraps the header, so a stale-cache
- *    rename would not update it).
- * 3. **`navigation-bar-menu-{not-,}favorited`** — an _empty_ site has no sidebar,
- *    so its 3-dot menu lives in the **top navigation bar** (`More`). Capture it
- *    both before and after favoriting (the star fills in).
- * 4. **`make-site-private-modal`** — newly created sites are private by default,
- *    so we first share the site (no confirmation), then toggle it back to private,
- *    which asks for confirmation. Capture that modal.
- * 5. **`site-menu-{not-,}favorited`** — add the first entity through the UI. Now
- *    the site is _full_, so the sidebar renders its own navigation bar `More`
- *    menu. Capture the favorite/unfavorite states there too.
- *
- * Worth driving through the UI because the create button → overlay → Site item
- * path is the canonical entry point and exercises the `?focus=name` →
- * SiteNameHeader handoff, and because reusing one site keeps the empty→full
- * transition (and which menu surface owns favoriting at each stage) honest.
- */
-async function runSiteLifecycleScenario(session: TestSpaceSession, runner: ScreenshotTestRunner) {
-    // Start somewhere neutral inside the space — any entity URL puts the global "+"
-    // button in the space sidebar in view.
-    await runner.goto(session, `/home/${session.space.id}`);
-
-    // Click the global "+" Create button. `IconButton` exposes its `description` as
-    // `aria-label`, so a label lookup finds it deterministically without depending on
-    // icon SVG markup.
+async function runSetupFlowScenario(session: TestSpaceSession, runner: ScreenshotTestRunner) {
+    await runner.goto(session, `/home/${session.space.id}/`);
     await runner.getByLabel("Create", {exact: true}).first().click();
-
-    // Pick "Site" in the create overlay's secondary menu. The item is rendered as
-    // `role="menuitem"` with `aria-labelledby` pointing at the label box, so the name
-    // match below targets exactly that label (not the longer description text also
-    // inside the item).
-    //
-    // The create overlay puts a sibling pointer-clearance layer over the page that
-    // intercepts pointer events (see `withoutClearSelectionOnMouseDownClassName`) and
-    // contains focus with react-aria's `FocusScope`, so Playwright can't get a mouse
-    // click or keyboard Enter to reliably reach the menuitem. The menuitem
-    // implementation exposes a `.press()` method on its DOM element specifically so
-    // tests and shortcuts can trigger it imperatively — call that here. This is the
-    // same handler the menuitem would invoke on a real user activation; we're
-    // bypassing only Playwright's event-dispatch path, not the menuitem's own
-    // `onPress` logic.
     await runner
         .getByRole("menuitem", {name: "Site"})
         .first()
@@ -1000,80 +1322,43 @@ async function runSiteLifecycleScenario(session: TestSpaceSession, runner: Scree
             (element as HTMLElement & {press(): void}).press();
         });
 
-    // The "Create → Site" handler generates a `siteId` on the client and navigates to
-    // `/site/$siteId?create&focus=name`, which creates the site in the loader then
-    // renders — and because the URL carries `?focus=name`, `SiteNameHeader` opens
-    // directly in edit mode with `SiteNameEditor`'s input auto-focused and the
-    // existing "New site" name pre-selected. Wait for navigation, the welcome copy,
-    // and the editor's input (placeholder "New site") to all be on screen.
-    await runner.page.waitForURL(/\/site\//);
     await runner.getByText("Start building New site").first().waitFor();
     await runner.getByPlaceholder("New site").first().waitFor();
     await runner.mouse.move(0, 0);
+    await runner.screenshot("a0", "create-flow-editor-open");
 
-    await runner.screenshot("a2", "create-flow-editor-open");
-
-    // The editor's input is already focused with the placeholder name selected, so
-    // typing replaces it wholesale and Enter commits.
-    await runner.page.keyboard.type("H2 stretch goals");
+    await runner.page.keyboard.type("Q4 launch readiness");
     await runner.page.keyboard.press("Enter");
-
-    // Wait for the rename to land — the welcome copy comes from the same site context
-    // as the header, so seeing the new name there confirms the rename mutation
-    // resolved and the site model has the updated `name` field.
-    await runner.getByText("Start building H2 stretch goals").first().waitFor();
+    await runner.getByText("Start building Q4 launch readiness").first().waitFor();
     await runner.mouse.move(0, 0);
+    await runner.screenshot("a1", "create-flow-renamed-site");
 
-    await runner.screenshot("a25", "create-flow-renamed-site");
-
-    // Capture the new site's id from the URL before we navigate away — we come back to
-    // its `/site/$siteId` page once it has content (see the full-site steps).
-    const siteIdMatch = runner.page.url().match(/\/site\/([^/?#]+)/);
-    if (!siteIdMatch)
-        throw new InternalError("Could not determine the created site id from the URL");
-    const siteId = siteIdMatch[1];
-
-    // Let the new site's search entity index so favoriting resolves cleanly.
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    // --- Empty site: the 3-dot menu lives in the top navigation bar (`More`), not the
-    // sidebar (an empty site has no sidebar). Favorite + Copy link flow through it.
     await runner.getByLabel("More").first().click();
     await runner.getByText("Favorite").first().waitFor();
     await runner.getByText("Copy link").first().waitFor();
-    await runner.screenshot("a26", "navigation-bar-menu-not-favorited");
+    await runner.screenshot("a2", "navigation-bar-menu-not-favorited");
 
-    // Favoriting updates the star in place without closing the menu, so screenshot the
-    // filled-star state directly rather than reopening (reopening is blocked by the
-    // open menu's pointer-clearance backdrop).
     await runner.getByText("Favorite").first().click();
     await ProcessContextModule.waitForTestTasks();
-    await runner.screenshot("a27", "navigation-bar-menu-favorited");
+    await runner.screenshot("a3", "navigation-bar-menu-favorited");
 
-    // Unfavorite — still inside the open menu — so the full-site sidebar menu steps
-    // below start from a clean not-favorited state (favorite state is shared across
-    // both menu surfaces). Then close the menu so it doesn't intercept later clicks.
     await runner.getByText("Favorite").first().click();
     await ProcessContextModule.waitForTestTasks();
     await runner.page.keyboard.press("Escape");
 
-    // --- Permissions: newly created sites are private by default. Sharing a site (a
-    // `Local` access policy) takes effect immediately with no confirmation, so toggle
-    // the switch on first to reach the public state.
-    await runner.getByLabel("Toggle sharing with everyone", {exact: false}).first().click();
+    await pressShareSwitch(runner);
     await runner
         .getByLabel("Icon indicating the site is shared with everyone", {exact: false})
         .first()
         .waitFor();
-
-    // Toggling back to private asks the user to confirm. Capture that modal.
-    await runner.getByLabel("Toggle sharing with everyone", {exact: false}).first().click();
+    await pressShareSwitch(runner);
     await runner.getByText("Make this site private?").first().waitFor();
     await runner.mouse.move(0, 0);
-    await runner.screenshot("a28", "make-site-private-modal");
+    await runner.screenshot("a4", "make-site-private-modal");
 
-    // Confirm to actually make the site private again, returning to the default state.
     await runner.getByRole("button", {name: "Confirm"}).first().click();
     await runner
         .getByLabel("Icon indicating the site is private", {exact: false})
@@ -1082,442 +1367,415 @@ async function runSiteLifecycleScenario(session: TestSpaceSession, runner: Scree
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    // --- Add the first piece of content through the UI. `createDocumentInSite`
-    // navigates to the new document, so the site is no longer empty afterwards.
-    await runner.getByText("Add to site", {exact: true}).first().click();
-    await runner.getByText("Document", {exact: true}).first().click();
-    await runner.page.waitForURL(/\/doc\//);
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
+    await runner.getByText("Add", {exact: true}).first().waitFor();
+    await runner.getByText("Add", {exact: true}).first().click();
+    await runner.getByText("Document", {exact: true}).first().waitFor();
+    await runner.getByText("Search for existing", {exact: false}).first().waitFor();
+    await runner.screenshot("a5", "ghost-row-menu");
+}
 
-    // Back on the now-full site page the sidebar renders its own navigation bar whose
-    // `More` menu takes over favoriting from the nav bar menu.
-    await runner.goto(session, `/site/${siteId}`);
-    await runner.getByLabel("More").first().waitFor();
+async function runShowcaseSiteScreenshot(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
+) {
+    await openShowcaseSite(session, runner, showcase);
+    await expandSectionIfNeeded(
+        runner,
+        showcase.sectionLabels.tables,
+        showcase.expectedTexts.tablesExpandedTask,
+    );
+    await expandSectionIfNeeded(
+        runner,
+        showcase.sectionLabels.editorPolish,
+        showcase.expectedTexts.deepestEditorTask,
+    );
+    await runner
+        .getByText(showcase.sectionLabels.engineering, {exact: true})
+        .first()
+        .scrollIntoViewIfNeeded();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a6", "site");
+}
+
+async function runScrollToActiveEntityScenario(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
+) {
+    await runner.goto(session, `/task/${showcase.scrollTargetTask.id}`);
+    await runner.getByText(showcase.scrollTargetTaskTitle, {exact: true}).first().waitFor();
+    await runner
+        .getByText(showcase.sectionLabels.longCustomerFeedback, {exact: true})
+        .first()
+        .waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("a6a", "route-scrolls-active-entity");
+}
+
+async function runSiteMenuScenario(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
+) {
+    await openShowcaseSite(session, runner, showcase);
     await runner.getByLabel("More").first().click();
     await runner.getByText("Favorite").first().waitFor();
     await runner.getByText("Copy link").first().waitFor();
-    await runner.screenshot("a29", "site-menu-not-favorited");
+    await runner.screenshot("a7", "site-menu-not-favorited");
 
-    // The star fills in place here too, so screenshot the favorited state without
-    // reopening the menu.
     await runner.getByText("Favorite").first().click();
     await ProcessContextModule.waitForTestTasks();
-    await runner.screenshot("a2a", "site-menu-favorited");
+    await runner.screenshot("a8", "site-menu-favorited");
 
-    // Unfavorite so this throwaway site doesn't surface as a favorite in the space
-    // chrome of later screenshots, then close the menu.
     await runner.getByText("Favorite").first().click();
     await ProcessContextModule.waitForTestTasks();
     await runner.page.keyboard.press("Escape");
 }
 
-/**
- * Section nested 3 levels deep so the comb of vertical lines is at its visual
- * extreme. Verifies that the depth-line math holds up at depths the typical user
- * won't hit but a power user might.
- */
-async function runDeepNestingScenario(session: TestSpaceSession, runner: ScreenshotTestRunner) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
-
-    const root = site.initialSideBarRoot;
-    const level1 = await site.addSection(session, {
-        label: "Engineering",
-        orderKey: assertOrderKey("a0"),
-        parent: root,
-    });
-    const level2 = await site.addSection(session, {
-        label: "Tables",
-        orderKey: assertOrderKey("a0"),
-        parent: {type: "SideBarSection", id: level1},
-    });
-    const level3 = await site.addSection(session, {
-        label: "Editor",
-        orderKey: assertOrderKey("a0"),
-        parent: {type: "SideBarSection", id: level2},
-    });
-    const level3Container = printSiteContainerId({type: "SideBarSection", id: level3});
-
-    let firstTaskId: string | null = null;
-    for (const [index, title] of [
-        "Column resizing decision",
-        "Paste from Google Sheets",
-        "Header row freeze",
-    ].entries()) {
-        const task = await TestTask.create(session, {title, assignee: session});
-        if (firstTaskId === null) firstTaskId = task.id;
-        await site.addEntity(session, {
-            entityId: `Task:${task.id}`,
-            parentId: level3Container,
-            orderKey: assertOrderKey(`a${index}`),
-        });
-    }
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    // Navigate to the deepest task. The site activation auto-expands the ancestor
-    // chain (Engineering → Tables → Editor) so the comb is visible without us having
-    // to drive clicks.
-    await runner.goto(session, `/task/${firstTaskId}`);
-    await runner.getByText("Column resizing decision").first().waitFor();
-    await runner.mouse.move(0, 0);
-
-    await runner.screenshot("a3", "deep-nesting-comb");
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-}
-
-/**
- * Site name and entry titles long enough to overflow the sidebar. Verifies the
- * `textOverflow: ellipsis` truncation in both the header and the row labels.
- */
-async function runLongTitlesScenario(session: TestSpaceSession, runner: ScreenshotTestRunner) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 engineering planning and rollout",
-        access: "Public",
-    });
-
-    const rootId = site.initialRootContainerId;
-    for (const [index, title] of [
-        "Quarterly retrospective and cross-team handoff coordination (Q3 follow-ups)",
-        "Sales pipeline review with Cliff covering Q4 commitments and renewals",
-        "Realtime reliability phase 3: alerting wired end-to-end with paging policy review",
-    ].entries()) {
-        const task = await TestTask.create(session, {title, assignee: session, priority: "High"});
-        await site.addEntity(session, {
-            entityId: `Task:${task.id}`,
-            parentId: rootId,
-            orderKey: assertOrderKey(`a${index}`),
-        });
-    }
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/site/${site.id}`);
-    await runner.getByText("Quarterly retrospective", {exact: false}).first().waitFor();
-    await runner.mouse.move(0, 0);
-
-    await runner.screenshot("a4", "long-titles");
-}
-
-/**
- * Click the ghost "+ Add" row, capture the opened menu showing every entity-create
- * row (Document / Task / Channel / Task collection / Section) plus the search-for-
- * existing row.
- */
-async function runGhostRowMenuScenario(session: TestSpaceSession, runner: ScreenshotTestRunner) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/site/${site.id}`);
-    await runner.getByText("Add", {exact: true}).first().waitFor();
-    await runner.getByText("Add", {exact: true}).first().click();
-
-    // Wait for the menu to render an item the user would recognize.
-    await runner.getByText("Document", {exact: true}).first().waitFor();
-    await runner.getByText("Search for existing", {exact: false}).first().waitFor();
-
-    await runner.screenshot("a5", "ghost-row-menu");
-}
-
-/**
- * Right-click on an entity row to capture its context menu — Insert above / Insert
- * below, Copy link, Remove from site. The full per-row affordance.
- */
 async function runEntityContextMenuScenario(
     session: TestSpaceSession,
     runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
 ) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
-
-    const task = await TestTask.create(session, {
-        title: "Lock the OKRs",
-        assignee: session,
-        priority: "High",
-    });
-    await site.addEntity(session, {
-        entityId: `Task:${task.id}`,
-        parentId: site.initialRootContainerId,
-        orderKey: assertOrderKey("a0"),
-    });
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/site/${site.id}`);
-    await runner.getByText("Lock the OKRs").first().waitFor();
-    await runner.getByText("Lock the OKRs").first().click({button: "right"});
-
+    await openShowcaseSite(session, runner, showcase);
+    await rightClickRow(runner, "Lock Q4 plan with Rose", {exact: true});
     await runner.getByText("Insert above").first().waitFor();
     await runner.getByText("Copy link").first().waitFor();
     await runner.getByText("Remove task from site").first().waitFor();
-
-    await runner.screenshot("a8", "entity-context-menu");
+    await runner.screenshot("a9", "entity-context-menu");
 }
 
-/**
- * Right-click on a section header to capture its context menu — Rename / Add
- * section / Add entity / Delete section. Captures the "Delete section" disabled
- * state because the section has children (a real-world common case).
- */
 async function runSectionContextMenuScenario(
     session: TestSpaceSession,
     runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
 ) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
+    await openShowcaseSite(session, runner, showcase);
+    await rightClickRow(runner, showcase.sectionLabels.tables, {exact: true});
+    await runner.getByText("Rename").first().waitFor();
+    await runner.getByText("Delete section").first().waitFor();
+    await runner.screenshot("aa", "section-context-menu");
+}
 
-    const sectionId = await site.addSection(session, {
-        label: "Planning",
-        orderKey: assertOrderKey("a0"),
-        parent: site.initialSideBarRoot,
-    });
-    const sectionContainerId = printSiteContainerId({type: "SideBarSection", id: sectionId});
+async function runSearchModalScenario(
+    context: TestActualContext,
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
+) {
+    async function index(
+        update: Extract<
+            Parameters<typeof context.jobs.sendAndWait>[0],
+            {readonly type: "IndexSearchEntity"}
+        >["update"],
+    ) {
+        await context.jobs.sendAndWait({
+            type: "IndexSearchEntity",
+            spaceId: session.space.id,
+            update,
+        });
+    }
 
-    const task = await TestTask.create(session, {title: "Bets and Owners", assignee: session});
-    await site.addEntity(session, {
-        entityId: `Task:${task.id}`,
-        parentId: sectionContainerId,
-        orderKey: assertOrderKey("a0"),
+    await index({
+        type: "Task",
+        taskId: showcase.searchModalEntities.tablesProjectTask.id,
+        updatedTraits: {type: "None"},
     });
+    await index({
+        type: "TaskCollection",
+        collectionId: showcase.searchModalEntities.tablesCollection.id,
+        updatedTraits: {type: "None"},
+    });
+    await index({
+        type: "Chat",
+        chatId: showcase.searchModalEntities.tablesGAChatRoom.id,
+        updatedTraits: {type: "None"},
+    });
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
 
+    const searchResultIds = new Set<string>(
+        (
+            await searchByKeywords(session.action(), {
+                spaceId: session.space.id,
+                queryText: "tables",
+                limit: 30,
+                timeZone: defaultTimeZone,
+                currentTime: new Date("2025-10-20T12:00:00-04:00"),
+            })
+        ).map(result => result.id),
+    );
+    for (const expectedId of [
+        `Task:${showcase.searchModalEntities.tablesProjectTask.id}`,
+        `TaskCollection:${showcase.searchModalEntities.tablesCollection.id}`,
+        `Chat:${showcase.searchModalEntities.tablesGAChatRoom.id}`,
+    ]) {
+        if (!searchResultIds.has(expectedId)) {
+            throw new InternalError(
+                `Search modal setup did not index ${expectedId}. Results: ${Array.from(
+                    searchResultIds,
+                ).join(", ")}`,
+            );
+        }
+    }
+
+    await openShowcaseSite(session, runner, showcase);
+    await runner.getByText("Add", {exact: true}).first().click();
+    await runner.getByText("Search for existing", {exact: false}).first().click();
+    const searchInput = runner.getByPlaceholder("Search for a document", {exact: false}).first();
+    await searchInput.waitFor();
+    await searchInput.click();
+    await runner.page.keyboard.type("tables");
+    const projectTaskOption = runner.page.getByRole("option", {name: /Tables GA Project/}).first();
+    const collectionOption = runner.page.getByRole("option", {name: /Tables crew/}).first();
+    const chatOption = runner.page.getByRole("option", {name: /Tables GA launch room/}).first();
+    await projectTaskOption.waitFor();
+    await collectionOption.waitFor();
+    await chatOption.waitFor();
+
+    await projectTaskOption.click();
+    await runner.page.keyboard.press("Space");
+    await runner.getByText("Add 1", {exact: true}).first().waitFor();
+    await collectionOption.click();
+    await runner.page.keyboard.press("Space");
+    await runner.getByText("Add 2", {exact: true}).first().waitFor();
+    await chatOption.click();
+    await runner.page.keyboard.press("Space");
+    await runner.getByText("Add 3", {exact: true}).first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("ab", "search-modal");
+}
+
+async function runShareScenario(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
+) {
+    await runner.goto(session, `/doc/${showcase.betsDocument.id}`);
+    await runner.getByText("Q4 Bets and Owners").first().waitFor();
+    await runner.getByRole("button", {name: "Share"}).first().click();
+    await runner.getByText("Copy link").first().waitFor();
+    await runner.screenshot("ac", "share-menu");
+
+    await pressShareSwitch(runner);
+    await runner.getByText("Make the entire site private?").first().waitFor();
+    await runner.screenshot("ad", "share-switch-toggling-off");
+
+    await runner.getByRole("button", {name: "Confirm"}).first().click();
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
-    await runner.goto(session, `/site/${site.id}`);
-    await runner.getByText("Planning", {exact: true}).first().waitFor();
-    // Match exactly "Planning" so we hit the section row, not the site name header
-    // (which contains the word "Planning" as a substring).
-    await runner.getByText("Planning", {exact: true}).first().click({button: "right"});
-
-    await runner.getByText("Rename").first().waitFor();
-    await runner.getByText("Delete section").first().waitFor();
-
-    await runner.screenshot("a9", "section-context-menu");
+    const sharingSwitch = runner.getByLabel("Toggle sharing with everyone", {exact: false});
+    if ((await sharingSwitch.count()) === 0) {
+        await runner.getByRole("button", {name: "Share"}).first().click();
+        await runner.getByText("Copy link").first().waitFor();
+    }
+    await pressShareSwitch(runner);
+    await runner.getByText("Share the entire site?").first().waitFor();
+    await runner.screenshot("ae", "share-switch-toggling-on");
+    await runner.page.keyboard.press("Escape");
 }
 
-/**
- * Begin a drag on an EXPANDED section in the showcase site — the dnd-kit
- * `DragOverlay` renders a compact preview of the section header plus its real
- * child rows (a mix of documents, tasks, sub-sections, channels).
- */
-async function runDragOverlayExpandedSectionScenario(
+async function runChromeAroundEntityScenarios(
     session: TestSpaceSession,
     runner: ScreenshotTestRunner,
-    siteId: string,
+    showcase: ShowcaseSite,
 ) {
-    await runner.goto(session, `/site/${siteId}`);
-    await runner.getByText("Planning", {exact: true}).first().waitFor();
-    await runner.getByText("Bets list reviewed with Rose").first().waitFor();
-
-    await beginDragOnRow(runner, "Planning", {exact: true});
-
-    await runner.screenshot("aa", "drag-overlay-expanded-section");
-
-    await runner.mouse.up();
+    await clickEntityFromShowcaseChrome({
+        session,
+        runner,
+        showcase,
+        rowText: "Q4 Bets and Owners",
+        waitText: "Q4 Bets and Owners",
+        screenshotKey: "af",
+        screenshotName: "chrome-around-document",
+    });
+    await clickEntityFromShowcaseChrome({
+        session,
+        runner,
+        showcase,
+        rowText: "Lock Q4 plan with Rose",
+        waitText: "Lock Q4 plan with Rose",
+        screenshotKey: "ag",
+        screenshotName: "chrome-around-task",
+    });
+    await clickEntityFromShowcaseChrome({
+        session,
+        runner,
+        showcase,
+        rowText: "Tables GA Project",
+        waitText: "GTM section with Cliff + Holly",
+        screenshotKey: "ah",
+        screenshotName: "chrome-around-project-task",
+    });
+    await clickEntityFromShowcaseChrome({
+        session,
+        runner,
+        showcase,
+        rowText: "Tables crew",
+        waitText: "Enterprise SSO design partner pilot",
+        screenshotKey: "ai",
+        screenshotName: "chrome-around-task-collection",
+    });
+    await clickEntityFromShowcaseChrome({
+        session,
+        runner,
+        showcase,
+        rowText: "Status",
+        waitText: "Tables status",
+        screenshotKey: "aj",
+        screenshotName: "chrome-around-channel",
+    });
+    await clickEntityFromShowcaseChrome({
+        session,
+        runner,
+        showcase,
+        rowText: "Tables GA launch room",
+        waitText: "latest tables build",
+        screenshotKey: "ak",
+        screenshotName: "chrome-around-chat-room",
+    });
 }
 
-/**
- * Begin a drag on a COLLAPSED section in the showcase site — the overlay should
- * mirror what's on screen, just the section header without a children preview.
- * Proves the `SiteSideBarContent` trimming we wired in earlier.
- */
 async function runDragOverlayCollapsedSectionScenario(
     session: TestSpaceSession,
     runner: ScreenshotTestRunner,
-    siteId: string,
+    showcase: ShowcaseSite,
 ) {
-    await runner.goto(session, `/site/${siteId}`);
-    await runner.getByText("Launches", {exact: true}).first().waitFor();
-
-    // Collapse the Launches section first — root sections default to expanded.
-    await runner.getByText("Launches", {exact: true}).first().click();
-    await runner.mouse.move(0, 0);
-
-    await beginDragOnRow(runner, "Launches", {exact: true});
-
-    await runner.screenshot("ab", "drag-overlay-collapsed-section");
-
+    await openShowcaseSite(session, runner, showcase);
+    await collapseSectionIfNeeded(
+        runner,
+        showcase.sectionLabels.operations,
+        showcase.expectedTexts.operationsChild,
+    );
+    await beginDragOnRow(runner, showcase.sectionLabels.operations, {exact: true});
+    await runner.screenshot("al", "drag-overlay-collapsed-section");
     await runner.mouse.up();
 }
 
-/**
- * Drives the dnd-kit MouseSensor activation sequence (150ms delay + a real pointer
- * move) on a row identified by visible text, leaving the page in a mid-drag state
- * suitable for screenshotting.
- */
+async function runExpandedSectionsScenario(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
+) {
+    await openShowcaseSite(session, runner, showcase);
+    await expandSectionIfNeeded(
+        runner,
+        showcase.sectionLabels.tables,
+        showcase.expectedTexts.tablesExpandedTask,
+    );
+    await expandSectionIfNeeded(
+        runner,
+        showcase.sectionLabels.realtime,
+        showcase.expectedTexts.realtimeExpandedTask,
+    );
+
+    await beginDragOnRow(runner, showcase.sectionLabels.tables, {exact: true});
+    await runner.screenshot("an", "drag-overlay-expanded-section-with-more");
+    await runner.mouse.up();
+}
+
+async function openShowcaseSite(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
+) {
+    await runner.goto(session, `/site/${showcase.site.id}`);
+    await runner.getByText(showcase.sectionLabels.engineering, {exact: true}).first().waitFor();
+    await runner
+        .getByText(showcase.sectionLabels.longCustomerFeedback, {exact: true})
+        .first()
+        .waitFor();
+}
+
+async function expandSectionIfNeeded(
+    runner: ScreenshotTestRunner,
+    sectionLabel: string,
+    expectedVisibleText: string,
+) {
+    const expected = runner.getByText(expectedVisibleText, {exact: true}).first();
+    if (await expected.isVisible()) return;
+
+    const section = runner.getByText(sectionLabel, {exact: true}).first();
+    await section.scrollIntoViewIfNeeded();
+    await section.click();
+    await expected.waitFor();
+}
+
+async function collapseSectionIfNeeded(
+    runner: ScreenshotTestRunner,
+    sectionLabel: string,
+    expectedHiddenText: string,
+) {
+    const expected = runner.getByText(expectedHiddenText, {exact: true}).first();
+    if (!(await expected.isVisible())) return;
+
+    const section = runner.getByText(sectionLabel, {exact: true}).first();
+    await section.scrollIntoViewIfNeeded();
+    await section.click();
+    await expected.waitFor({state: "hidden"});
+}
+
+async function rightClickRow(
+    runner: ScreenshotTestRunner,
+    rowText: string,
+    options: {exact?: boolean} = {},
+) {
+    const row = runner.getByText(rowText, options).first();
+    await row.scrollIntoViewIfNeeded();
+    await row.click({button: "right"});
+}
+
+async function pressShareSwitch(runner: ScreenshotTestRunner) {
+    await runner
+        .getByLabel("Toggle sharing with everyone", {exact: false})
+        .first()
+        .evaluate(element => {
+            (element as HTMLElement).click();
+        });
+}
+
+async function clickEntityFromShowcaseChrome({
+    session,
+    runner,
+    showcase,
+    rowText,
+    waitText,
+    screenshotKey,
+    screenshotName,
+}: {
+    session: TestSpaceSession;
+    runner: ScreenshotTestRunner;
+    showcase: ShowcaseSite;
+    rowText: string;
+    waitText: string;
+    screenshotKey: string;
+    screenshotName: string;
+}) {
+    await openShowcaseSite(session, runner, showcase);
+    const row = runner.getByText(rowText, {exact: true}).first();
+    await row.click();
+    await runner.getByText(waitText, {exact: false}).first().waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot(screenshotKey, screenshotName);
+}
+
 async function beginDragOnRow(
     runner: ScreenshotTestRunner,
     rowText: string,
     options: {exact?: boolean} = {},
 ) {
     const row = runner.getByText(rowText, options).first();
+    await row.scrollIntoViewIfNeeded();
     const box = await row.boundingBox();
-    if (!box)
-        throw new InternalError(`Couldn\u2019t locate the bounding box of \u201C${rowText}\u201D`);
+    if (!box) throw new InternalError(`Could not locate the bounding box of ${rowText}`);
 
     const startX = box.x + box.width / 2;
     const startY = box.y + box.height / 2;
     await runner.mouse.move(startX, startY);
     await runner.mouse.down();
-    // dnd-kit's MouseSensor uses `activationConstraint: {delay: 150, tolerance: 500}`.
-    // Wait past the delay then nudge the pointer so dnd-kit observes a pointermove and
-    // emits `onDragStart`.
-    await runner.page.waitForTimeout(200);
-    await runner.mouse.move(startX, startY + 40);
-}
-
-/**
- * Open the "Search for existing" modal from the ghost row and pick a couple of
- * entities — captures the multiselect chip state above the listbox, which is the
- * key affordance for adding many entities to a site at once.
- */
-async function runSearchModalMultiselectScenario(
-    session: TestSpaceSession,
-    runner: ScreenshotTestRunner,
-) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
-
-    // Pre-create a few standalone entities; whichever ones the search index has picked
-    // up by the time the modal opens will appear in the listbox. The empty/initial
-    // state of the modal is the important part of this screenshot — the chrome around
-    // the input, the "Add to site" CTA, etc. — and we don't want the test to flake on
-    // search-indexing timing.
-    await TestTask.create(session, {title: "Planning sync notes", assignee: session});
-    await TestDocument.create(session, {title: "Planning kickoff doc", access: "Public"});
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/site/${site.id}`);
-    await runner.getByText("Add", {exact: true}).first().waitFor();
-    await runner.getByText("Add", {exact: true}).first().click();
-    await runner.getByText("Search for existing", {exact: false}).first().click();
-
-    await runner.getByPlaceholder("Search for a document", {exact: false}).first().waitFor();
-    await runner.mouse.move(0, 0);
-
-    await runner.screenshot("af", "search-modal");
-}
-
-/**
- * Click the `Share` button on a site-resident document — captures the share
- * overlay (member list, copy-link CTA, etc.) sitting next to the site sidebar.
- */
-async function runShareMenuScenario(session: TestSpaceSession, runner: ScreenshotTestRunner) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
-    const document = await TestDocument.create(session, {
-        title: "Bets and Owners",
-        access: {type: "Site", siteId: site.id},
-        sitePosition: {
-            siteId: site.id,
-            parentId: site.initialRootContainerId,
-            orderKey: assertOrderKey("a0"),
-        },
-    });
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/doc/${document.id}`);
-    await runner.getByText("Bets and Owners").first().waitFor();
-    await runner.getByRole("button", {name: "Share"}).first().click();
-    await runner.getByText("Copy link").first().waitFor();
-
-    await runner.screenshot("ag", "share-menu");
-}
-
-/**
- * Confirmation modal that appears when toggling the share switch OFF on a
- * site-resident entity. Permissions live on the site, so the modal warns that
- * making it private affects every entity in the site, not just this one.
- */
-async function runShareSwitchTogglingOffScenario(
-    session: TestSpaceSession,
-    runner: ScreenshotTestRunner,
-) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Public",
-    });
-    const document = await TestDocument.create(session, {
-        title: "Bets and Owners",
-        access: {type: "Site", siteId: site.id},
-        sitePosition: {
-            siteId: site.id,
-            parentId: site.initialRootContainerId,
-            orderKey: assertOrderKey("a0"),
-        },
-    });
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/doc/${document.id}`);
-    await runner.getByText("Bets and Owners").first().waitFor();
-
-    // The switch label includes the space name; substring match keeps the test
-    // agnostic to the demo space's display name.
-    await runner.getByLabel("Toggle sharing with everyone", {exact: false}).first().click();
-    await runner.getByText("Make the entire site private?").first().waitFor();
-
-    await runner.screenshot("ah", "share-switch-toggling-off");
-}
-
-/**
- * Confirmation modal that appears when toggling the share switch ON for a private
- * site. Mirror of the toggle-off case — warns that sharing affects every entity in
- * the site.
- */
-async function runShareSwitchTogglingOnScenario(
-    session: TestSpaceSession,
-    runner: ScreenshotTestRunner,
-) {
-    const site = await TestSite.create(session, {
-        name: "FY2026 H2 Planning",
-        access: "Private",
-    });
-    const document = await TestDocument.create(session, {
-        title: "Bets and Owners",
-        access: {type: "Site", siteId: site.id},
-        sitePosition: {
-            siteId: site.id,
-            parentId: site.initialRootContainerId,
-            orderKey: assertOrderKey("a0"),
-        },
-    });
-
-    await runner.services.waitForSqsProcessJobs();
-    await ProcessContextModule.waitForTestTasks();
-
-    await runner.goto(session, `/doc/${document.id}`);
-    await runner.getByText("Bets and Owners").first().waitFor();
-
-    await runner.getByLabel("Toggle sharing with everyone", {exact: false}).first().click();
-    await runner.getByText("Share the entire site?").first().waitFor();
-
-    await runner.screenshot("ai", "share-switch-toggling-on");
+    await runner.mouse.move(startX, startY + 12);
+    await runner.page.waitForTimeout(100);
 }
 
 /**
@@ -1532,10 +1790,10 @@ async function runShareSwitchTogglingOnScenario(
  * a section.
  */
 async function runViewerAccessScenario(
-    site: TestSite,
     accounts: DemoSpaceAccounts,
     runner: ScreenshotTestRunner,
-    run: () => Promise<void>,
+    site: TestSite,
+    {expectedSiteName}: {expectedSiteName: string},
 ) {
     const oldAccess = await site.access.get();
     await site.access.set(accounts.cassCade, {
@@ -1555,7 +1813,11 @@ async function runViewerAccessScenario(
     await clearAccountInbox(accounts.hollyEvergreen);
     await runner.drainBackgroundWork();
 
-    await run();
+    await runner.goto(accounts.hollyEvergreen, `/site/${site.id}`);
+    await runner.getByText(expectedSiteName, {exact: true}).first().waitFor();
+    await runner.mouse.move(0, 0);
+
+    await runner.screenshot("a5A", "view-access-sidebar");
 
     assert(oldAccess.type === "Local");
     await site.access.set(accounts.cassCade, oldAccess);

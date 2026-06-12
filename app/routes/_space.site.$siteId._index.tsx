@@ -24,7 +24,6 @@ import {
 } from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {SiteChrome} from "~/client/web/sites/site_chrome.js";
-import {useSiteMenuActions} from "~/client/web/sites/site_menu_actions.js";
 import {useAddEntityToSiteMenuActions} from "~/client/web/sites/use_add_entity_to_site_menu_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -240,7 +239,7 @@ export default function SiteRoute() {
             flexDirection="column"
             marginLeft="8"
         >
-            <SiteChrome tree={tree} parentId={site.rootContainerId} withoutContextMenu={true}>
+            <SiteChrome tree={tree} parentId={site.rootContainerId}>
                 <EmptySiteContent
                     site={site}
                     canManage={canManage}
@@ -269,7 +268,6 @@ function EmptySiteContent({
 }) {
     const context = useAppContext();
     const siteContext = useSiteContext();
-    const siteMenuActions = useSiteMenuActions({});
 
     const {navigationBar} = useNavigationBar({
         shareButton: {
@@ -289,7 +287,6 @@ function EmptySiteContent({
                 await writeTextToClipboard(url.toString());
             },
         },
-        menuActions: siteMenuActions,
     });
 
     // TODO(#sites): The empty site in peek mode needs some work. I'm not exactly sure
@@ -322,16 +319,18 @@ function EmptySiteContent({
                     maxWidth="1/3"
                     textAlign="center"
                 >
-                    <Box fontSize="200" fontStyle="bold">
-                        Start building {site.name}
-                    </Box>
+                    {canManage && (
+                        <Box fontSize="200" fontStyle="bold">
+                            Start building {site.name}
+                        </Box>
+                    )}
                     <Box fontSize="100" color="grey-50">
                         {canManage
                             ? "Add a document, channel, task, or task collection to get started."
                             : // TODO(#sites-redesign): Maybe add messaging to inform user that they don't have
                               // the ability to add anything to the site, and that they should ask someone who
                               // can share the site to give them ability to add content.
-                              "This site doesn\u2019t have any content yet."}
+                              "This site doesn\u2019t have any content yet and you don\u2019t have permission to add any. Contact a site administrator to get access."}
                     </Box>
                     {canManage && (
                         <Box paddingTop="2">
