@@ -369,8 +369,32 @@ test("creates the first comment on a post", async () => {
             path: postPath,
             updates: [
                 {
-                    old: "\n\nEnd of comments.",
-                    new: '\n\n<comment from="[ChatGPT](/bot/chatgpt)">\n\nFirst bot comment.\n\n</comment>\n\nEnd of comments.',
+                    old: "</post>",
+                    new: '</post>\n\n<comment from="[ChatGPT](/bot/chatgpt)">\n\nFirst bot comment.\n\n</comment>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getCreateCommentRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("First bot comment."),
+        },
+    ]);
+});
+
+test("creates the first comment on a post with end marker", async () => {
+    await readPost({totalCommentCount: 0});
+    mockCreateComments({count: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: postPath,
+            updates: [
+                {
+                    old: "</post>",
+                    new: '</post>\n\n<comment from="[ChatGPT](/bot/chatgpt)">\n\nFirst bot comment.\n\n</comment>\n\nEnd of comments.',
                     replaceAll: false,
                 },
             ],
@@ -609,8 +633,8 @@ test("rejects creating comments from another account", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: "\n\nEnd of comments.",
-                new: '\n\n<comment from="[Alice](/human/alice)">\n\nNot from the bot.\n\n</comment>\n\nEnd of comments.',
+                old: "</post>",
+                new: '</post>\n\n<comment from="[Alice](/human/alice)">\n\nNot from the bot.\n\n</comment>',
                 replaceAll: false,
             },
         ],
@@ -644,39 +668,13 @@ test("rejects creating comments with a time attribute", async () => {
     await expectInvalidUpdateDisplayMessage({
         updates: [
             {
-                old: "\n\nEnd of comments.",
-                new: '\n\n<comment from="[ChatGPT](/bot/chatgpt)" time="3 minutes later">\n\nServer should choose the time.\n\n</comment>\n\nEnd of comments.',
+                old: "</post>",
+                new: '</post>\n\n<comment from="[ChatGPT](/bot/chatgpt)" time="3 minutes later">\n\nServer should choose the time.\n\n</comment>',
                 replaceAll: false,
             },
         ],
         expected:
             "You can\u2019t add a `<comment>` with a `time` attribute. The creation time of the comment will be decided by the server. Try again without the `time` attribute.",
-    });
-});
-
-test("rejects removing the end marker while creating comments", async () => {
-    await readPost({totalCommentCount: 0});
-
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of comments.",
-                new: '\n\n<comment id="0" from="[ChatGPT](/bot/chatgpt)">\n\nMissing end marker.\n\n</comment>',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "When you\u2019re adding a comment you need to keep the \u201cEnd of comments\u201d marker at the end of the comment list below your new comment. Try again without removing the \u201cEnd of comments\u201d marker.",
-    });
-});
-
-test("rejects removing the end marker without creating comments", async () => {
-    await readPost({totalCommentCount: 0});
-
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "\n\nEnd of comments.", new: "", replaceAll: false}],
-        expected:
-            "Can\u2019t remove the \u201cEnd of comments\u201d marker in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a comment list or not. Try again without removing the \u201cEnd of comments\u201d marker.",
     });
 });
 
@@ -758,8 +756,8 @@ test("throws UnimplementedError when creating a comment with a timezone attribut
             path: postPath,
             updates: [
                 {
-                    old: "\n\nEnd of comments.",
-                    new: '\n\n<comment id="0" from="[ChatGPT](/bot/chatgpt)" timezone="EDT">\n\nTimezone is explicit.\n\n</comment>\n\nEnd of comments.',
+                    old: "\n\n</post>",
+                    new: '\n\n</post>\n\n<comment id="0" from="[ChatGPT](/bot/chatgpt)" timezone="EDT">\n\nTimezone is explicit.\n\n</comment>\n\nEnd of comments.',
                     replaceAll: false,
                 },
             ],

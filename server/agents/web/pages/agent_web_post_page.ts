@@ -65,23 +65,31 @@ export type AgentWebPostPage = {
     readonly isEndOfMessages: boolean;
 } & (
     | {
-          readonly subType: "HeadPage";
+          readonly subType: "Head";
           readonly preamble: AgentWebPostPageHeadPagePreamble;
-          readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock<AgentWebPostPageCustomBlock>>;
+          readonly blocks: AgentWebPostHeadPageBlocks;
       }
     | {
-          readonly subType: "TailPage";
+          readonly subType: "Tail";
           readonly preamble: AgentWebPostPageTailPagePreamble;
           readonly blocks: ReadonlyArray<AgentWebMessagingPageBlock<never>>;
       }
 );
+
+export type AgentWebPostHeadPageBlocks =
+    | readonly [AgentWebPostPageCustomBlock, ...ReadonlyArray<AgentWebMessagingPageBlock<never>>]
+    | readonly [
+          AgentWebMessagingPageTimeBlock,
+          AgentWebPostPageCustomBlock,
+          ...ReadonlyArray<AgentWebMessagingPageBlock<never>>,
+      ];
 
 export type AgentWebPostPageBase = AgentWebMessagingPage<
     AgentWebPostPagePreambleBase,
     AgentWebPostPageCustomBlock
 > & {
     readonly type: "Post";
-    readonly subType: "HeadPage" | "TailPage";
+    readonly subType: "Head" | "Tail";
 };
 
 export type AgentWebPostPagePreambleBase =
@@ -91,12 +99,12 @@ export type AgentWebPostPagePreambleBase =
 assertAssignableTypes<AgentWebPostPage, AgentWebPostPageBase>();
 
 export type AgentWebPostPageHeadPagePreamble = {
-    readonly type: "HeadPage";
+    readonly type: "Head";
     readonly channel: ApiChannelReferenceResponse | null;
 };
 
 export type AgentWebPostPageTailPagePreamble = {
-    readonly type: "TailPage";
+    readonly type: "Tail";
     readonly post: ApiPostReferenceResponse;
 };
 
@@ -126,31 +134,46 @@ function buildAgentWebPostPage(
     id: PostId,
 ): AgentWebPostPageWithMetadata {
     switch (page.preamble.type) {
-        case "HeadPage": {
-            assert(page.blocks[0]?.type === "Time");
-            assert(page.blocks[1]?.type === "Custom");
-            assert(page.blocks.slice(2).every(block => block.type !== "Custom"));
+        case "Head": {
+            assert(
+                // Custom block can be the first block and no other.
+                (page.blocks[0]?.type === "Custom" &&
+                    page.blocks.slice(1).every(block => block.type !== "Custom")) ||
+                    // Custom block can be the second block after `<time>` and no other.
+                    (page.blocks[0]?.type === "Time" &&
+                        page.blocks[1]?.type === "Custom" &&
+                        page.blocks.slice(2).every(block => block.type !== "Custom")),
+            );
 
             return {
                 ...page,
                 type: "Post",
-                subType: "HeadPage",
+                subType: "Head",
                 preamble: page.preamble,
-                blocks: page.blocks as readonly [
-                    AgentWebMessagingPageTimeBlock,
-                    AgentWebPostPageCustomBlock,
-                    ...ReadonlyArray<AgentWebMessagingPageBlock<never>>,
-                ],
+                isEndOfMessages:
+                    // Don't include the "End of comments." marker if we only have a `<post>` and no
+                    // `<comment>`s. Since the "End of comments." marker is optional. "End of
+                    // comments." will still be reflected in the metadata so an agent will still be
+                    // able to create comments.
+                    //
+                    // We do this to return nicer markdown to the agent. If we had a post and then "End
+                    // of comments." it's a little strange since there's no other reference to
+                    // comments.
+                    (page.blocks[0].type === "Custom" && page.blocks.length === 1) ||
+                    (page.blocks[1]?.type === "Custom" && page.blocks.length === 2)
+                        ? false
+                        : page.isEndOfMessages,
+                blocks: page.blocks as AgentWebPostHeadPageBlocks,
                 metadata: buildAgentWebPostPageMetadata(page.metadata, id),
             };
         }
-        case "TailPage": {
+        case "Tail": {
             assert(page.blocks.every(block => block.type !== "Custom"));
 
             return {
                 ...page,
                 type: "Post",
-                subType: "TailPage",
+                subType: "Tail",
                 preamble: page.preamble,
                 blocks: page.blocks as ReadonlyArray<AgentWebMessagingPageBlock<never>>,
                 metadata: buildAgentWebPostPageMetadata(page.metadata, id),
@@ -228,7 +251,7 @@ export async function readAgentWebPostPage(
                 title: post.reference.title,
             },
             preamble: {
-                type: "HeadPage",
+                type: "Head",
                 channel: post.channel
                     ? {
                           type: "Channel",
@@ -264,7 +287,7 @@ export async function readAgentWebPostPage(
         return {
             pageLink: postReference,
             preamble: {
-                type: "TailPage",
+                type: "Tail",
                 post: postReference,
             },
             startCustomBlock: null,
@@ -417,11 +440,11 @@ export function normalizeAgentWebPostPage<Page extends AgentWebPostPage>(page: P
     return normalizeAgentWebMessagingPage(page, {
         normalizePreamble: (normalizer, preamble) => {
             switch (preamble.type) {
-                case "HeadPage": {
+                case "Head": {
                     if (preamble.channel) normalizer.normalizeReference(preamble.channel);
                     break;
                 }
-                case "TailPage": {
+                case "Tail": {
                     normalizer.normalizeReference(preamble.post);
                     break;
                 }
@@ -444,8 +467,8 @@ export async function updateAgentWebPostPage(
     newPage: AgentWebPostPage,
 ): Promise<AgentWebPostPageMetadata> {
     switch (oldPage.subType) {
-        case "HeadPage": {
-            if (newPage.subType !== "HeadPage") {
+        case "Head": {
+            if (newPage.subType !== "Head") {
                 throw new InvalidArgumentError("Can\u2019t update post preamble", {
                     displayMessage: errorDisplayMessage`You can only update your \`<post>\`s and \`<comment>\`s. You must leave the \`Post in [My Channel](/channel/my-channel).\` line at the start of the post markdown in place. Try again with a more specific update that only changes the content of the post (if it\u2019s from you) or adds new comments.`,
                 });
@@ -463,8 +486,8 @@ export async function updateAgentWebPostPage(
             }
             break;
         }
-        case "TailPage": {
-            if (newPage.subType !== "TailPage") {
+        case "Tail": {
+            if (newPage.subType !== "Tail") {
                 throw new InvalidArgumentError("Can\u2019t update post preamble", {
                     displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You must leave the \`Comments on [post](/post/my-post).\` line at the start of the post markdown in place. Try again with a more specific update that only changes the content comments from you or adds new comments.`,
                 });
@@ -564,7 +587,7 @@ export async function printAgentWebPostPage(
         messageNouns: agentWebMessagingPageCommentNouns,
         printPreamble: async (storage, preamble) => {
             switch (preamble.type) {
-                case "HeadPage": {
+                case "Head": {
                     return await printApiContentToAgentWebMarkdownTree(storage, {
                         elements: [
                             {
@@ -591,7 +614,7 @@ export async function printAgentWebPostPage(
                         ],
                     });
                 }
-                case "TailPage": {
+                case "Tail": {
                     const preambleTree = await printApiContentToAgentWebMarkdownTree(storage, {
                         elements: [
                             {
@@ -686,7 +709,7 @@ export async function parseAgentWebPostPage(
                 switch (elements[0]!.text) {
                     case "Post that\u2019s not in any channel":
                     case "Post that\u2019s not in any channel.": {
-                        return {type: "HeadPage", channel: null};
+                        return {type: "Head", channel: null};
                     }
                     default:
                         throw createError();
@@ -708,11 +731,11 @@ export async function parseAgentWebPostPage(
             switch (firstElement.text) {
                 case "Post in ": {
                     if (secondElement.reference.type !== "Channel") throw createError();
-                    return {type: "HeadPage", channel: secondElement.reference};
+                    return {type: "Head", channel: secondElement.reference};
                 }
                 case "Comments on ": {
                     if (secondElement.reference.type !== "Post") throw createError();
-                    return {type: "TailPage", post: secondElement.reference};
+                    return {type: "Tail", post: secondElement.reference};
                 }
                 default:
                     throw createError();
@@ -759,13 +782,13 @@ export async function parseAgentWebPostPage(
     }
 
     switch (page.preamble.type) {
-        case "HeadPage": {
+        case "Head": {
             const firstPostBlockIndex = postBlockIndexes[0]!;
 
             const hasPostBlockImmediatelyAfterOpeningTime =
                 postBlockIndexes.length === 1 &&
-                firstPostBlockIndex === 1 &&
-                page.blocks[0]?.type === "Time";
+                (firstPostBlockIndex === 0 ||
+                    (firstPostBlockIndex === 1 && page.blocks[0]?.type === "Time"));
 
             if (!hasPostBlockImmediatelyAfterOpeningTime) {
                 throw new InvalidArgumentError("Must have one post block at start of head page", {
@@ -776,11 +799,12 @@ export async function parseAgentWebPostPage(
             return {
                 ...page,
                 type: "Post",
-                subType: "HeadPage",
+                subType: "Head",
                 preamble: page.preamble,
+                blocks: page.blocks as AgentWebPostHeadPageBlocks,
             };
         }
-        case "TailPage": {
+        case "Tail": {
             if (postBlockIndexes.length > 0) {
                 throw new InvalidArgumentError("Post block on tail post page", {
                     displayMessage: errorDisplayMessage`Can\u2019t add a \`<post>\` to a post\u2019s comments section. Remove the \`<post>\` and try again.`,
@@ -790,7 +814,7 @@ export async function parseAgentWebPostPage(
             return {
                 ...page,
                 type: "Post",
-                subType: "TailPage",
+                subType: "Tail",
                 preamble: page.preamble,
                 blocks: page.blocks as ReadonlyArray<AgentWebMessagingPageBlock<never>>,
             };

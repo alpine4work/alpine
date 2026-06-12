@@ -277,6 +277,39 @@ End of messages.`,
     });
 });
 
+test("creates a direct chat without messages and without the end of messages mark", async () => {
+    const chatId = mockCreateDirectChat({title: "Alice and Bob Empty"});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New chat: [Alice and Bob Empty](/chat/alice-and-bob-empty).\n",
+    );
+
+    expect(getCreateChatRequests()).toMatchObject([
+        {
+            body: {
+                spaceId,
+                chat: {
+                    type: "Direct",
+                    members: [
+                        {account: intoApiAccountReference(aliceAccount)},
+                        {account: intoApiAccountReference(bobAccount)},
+                    ],
+                },
+            },
+        },
+    ]);
+    expect(getCreateMessageRequests()).toEqual([]);
+    expect(await storage.readResponseByPath.get("/chat/alice-and-bob-empty")).toMatchObject({
+        pageMetadata: {type: "Chat", id: chatId, messages: []},
+    });
+});
+
 test("creates a direct chat with messages", async () => {
     const chatId = mockCreateDirectChat({title: "Alice and Bob Kickoff"});
     mockCreateMessages({chatId, count: 2});
@@ -333,26 +366,139 @@ End of messages.`,
 });
 
 test("creates a direct chat with messages without the end marker", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
+    const chatId = mockCreateDirectChat({title: "Alice and Bob Kickoff"});
+    mockCreateMessages({chatId, count: 2});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
 Chat with [Alice](/human/alice) and [Bob](/human/bob).
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
 
-I can start this without an explicit end marker.
+I can help coordinate the handoff.
 
 </message>
 
 <message id="1" from="[ChatGPT](/bot/chatgpt)">
 
-The created messages should still use indexes zero and one.
+I will summarize the open questions next.
 
 </message>`,
-        expected:
-            "When you\u2019re adding a message you need to keep the \u201cEnd of messages\u201d marker at the end of the message list below your new message. Try again without removing the \u201cEnd of messages\u201d marker.",
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New chat: [Alice and Bob Kickoff](/chat/alice-and-bob-kickoff).\n",
+    );
+
+    expect(getCreateChatRequests()).toMatchObject([
+        {
+            body: {
+                spaceId,
+                chat: {
+                    type: "Direct",
+                    members: [
+                        {account: intoApiAccountReference(aliceAccount)},
+                        {account: intoApiAccountReference(bobAccount)},
+                    ],
+                },
+            },
+        },
+    ]);
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("I can help coordinate the handoff.")},
+        {content: createTextContent("I will summarize the open questions next.")},
+    ]);
+    expect(await storage.readResponseByPath.get("/chat/alice-and-bob-kickoff")).toMatchObject({
+        pageMetadata: {
+            type: "Chat",
+            id: chatId,
+            messages: [{index: 0}, {index: 1}],
+        },
     });
-    expect(getCreateChatRequests()).toEqual([]);
-    expect(getCreateMessageRequests()).toEqual([]);
+});
+
+test("creates a direct chat with messages without the end marker and then message via the update tool", async () => {
+    const chatId = mockCreateDirectChat({title: "Alice and Bob Kickoff"});
+    mockCreateMessages({chatId, count: 2});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
+Chat with [Alice](/human/alice) and [Bob](/human/bob).`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New chat: [Alice and Bob Kickoff](/chat/alice-and-bob-kickoff).\n",
+    );
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/chat/alice-and-bob-kickoff",
+            updates: [
+                {
+                    old: "human/bob).",
+                    new: `\
+human/bob).
+
+<message id="0" from="[ChatGPT](/bot/chatgpt)">
+
+I can help coordinate the handoff.
+
+</message>`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/chat/alice-and-bob-kickoff",
+            updates: [
+                {
+                    old: "</message>",
+                    new: `\
+</message>
+
+<message id="1" from="[ChatGPT](/bot/chatgpt)">
+
+I will summarize the open questions next.
+
+</message>
+
+End of messages.`,
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getCreateChatRequests()).toMatchObject([
+        {
+            body: {
+                spaceId,
+                chat: {
+                    type: "Direct",
+                    members: [
+                        {account: intoApiAccountReference(aliceAccount)},
+                        {account: intoApiAccountReference(bobAccount)},
+                    ],
+                },
+            },
+        },
+    ]);
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("I can help coordinate the handoff.")},
+        {content: createTextContent("I will summarize the open questions next.")},
+    ]);
+    expect(await storage.readResponseByPath.get("/chat/alice-and-bob-kickoff")).toMatchObject({
+        pageMetadata: {
+            type: "Chat",
+            id: chatId,
+            messages: [{index: 0}, {index: 1}],
+        },
+    });
 });
 
 test("does not create a chat when a new message is from another account", async () => {
@@ -497,26 +643,53 @@ End of messages.`,
 });
 
 test("creates a room chat with messages without the end marker", async () => {
-    await expectInvalidCreateDisplayMessage({
-        content: `\
-# Incident Launch Follow Up
+    const chatId = mockCreateRoomChat({name: "Incident Launch Room"});
+    mockCreateMessages({chatId, count: 2});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "chat",
+            content: `\
+# Incident Launch Room
 
 <message id="0" from="[ChatGPT](/bot/chatgpt)">
 
-I opened this room without an explicit end marker.
+I opened this room for launch triage.
 
 </message>
 
 <message id="1" from="[ChatGPT](/bot/chatgpt)">
 
-Message creation should still be sequential.
+Please post blockers here.
 
 </message>`,
-        expected:
-            "When you\u2019re adding a message you need to keep the \u201cEnd of messages\u201d marker at the end of the message list below your new message. Try again without removing the \u201cEnd of messages\u201d marker.",
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New chat: [Incident Launch Room](/chat/incident-launch-room).\n",
+    );
+
+    expect(getCreateChatRequests()).toMatchObject([
+        {
+            body: {
+                spaceId,
+                chat: {
+                    type: "Room",
+                    name: "Incident Launch Room",
+                },
+            },
+        },
+    ]);
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("I opened this room for launch triage.")},
+        {content: createTextContent("Please post blockers here.")},
+    ]);
+    expect(await storage.readResponseByPath.get("/chat/incident-launch-room")).toMatchObject({
+        pageMetadata: {
+            type: "Chat",
+            id: chatId,
+            messages: [{index: 0}, {index: 1}],
+        },
     });
-    expect(getCreateChatRequests()).toEqual([]);
-    expect(getCreateMessageRequests()).toEqual([]);
 });
 
 test("updates a created chat to add more messages", async () => {

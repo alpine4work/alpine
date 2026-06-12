@@ -97,6 +97,10 @@ export type AgentWebMessagingPageWithMetadata<
 };
 
 export type AgentWebMessagingPageMetadata = {
+    // Sometimes "End of messages." is not present in the page markdown but we still
+    // want to allow inserting messages. So we have invisible metadata tracking if
+    // we're at the end of messages as well.
+    readonly isEndOfMessages: boolean;
     readonly messages: ReadonlyArray<{
         readonly index: number;
 

@@ -268,15 +268,9 @@ export async function createAgentWebChatPage(
             },
             async () => {
                 const {chat} = await createPromise.get();
-                return {type: "Chat", id: chat.id, messages: []};
+                return {type: "Chat", id: chat.id, isEndOfMessages: true, messages: []};
             },
-            {
-                type: "Chat",
-                preamble: newPage.preamble,
-                pagination: null,
-                isEndOfMessages: true,
-                blocks: [],
-            },
+            {...newPage, blocks: []},
             newPage,
         );
 

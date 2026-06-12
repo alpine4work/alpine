@@ -335,6 +335,7 @@ export async function readAgentWebMessagingPageInDirection<
             limitLength,
             roomMetadataPageLink: roomMetadata.pageLink,
             direction,
+            isEndOfMessages,
             messages,
             contextTimeZone: context.timeZone,
             contextDate,
@@ -418,7 +419,10 @@ export async function readAgentWebMessagingPageAroundMessage<
             isEndOfMessages: true,
         });
 
-        const metadata: AgentWebMessagingPageMetadata = {messages: []};
+        const metadata: AgentWebMessagingPageMetadata = {
+            isEndOfMessages: true,
+            messages: [],
+        };
 
         return {
             response: await printPage({
@@ -474,6 +478,7 @@ export async function readAgentWebMessagingPageAroundMessage<
                 limitLength,
                 roomMetadataPageLink: roomMetadata.pageLink,
                 around,
+                isEndOfMessages,
                 messages,
                 contextTimeZone: context.timeZone,
                 contextDate,
@@ -751,6 +756,7 @@ function buildAgentWebMessagingPageFromApiMessages<
             isEndOfMessages,
             blocks,
             metadata: {
+                isEndOfMessages,
                 messages: messages.map(message => ({index: message.index})),
             },
         },

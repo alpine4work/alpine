@@ -48,6 +48,7 @@ export async function truncateAgentWebMessagingPage<
         limitLength,
         roomMetadataPageLink,
         direction,
+        isEndOfMessages,
         messages,
         contextTimeZone,
         contextDate,
@@ -59,6 +60,7 @@ export async function truncateAgentWebMessagingPage<
         limitLength: number;
         roomMetadataPageLink: AgentWebMessagingPagePaginationPageLink;
         direction: "Start" | "End";
+        isEndOfMessages: boolean;
         messages: ReadonlyArray<ApiMessageResponse>;
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
@@ -267,6 +269,9 @@ export async function truncateAgentWebMessagingPage<
             return {
                 truncatedResponse,
                 truncatedMetadata: {
+                    // If we truncated some messages from the end even if we were at the end we're
+                    // definitely not at the end now.
+                    isEndOfMessages: false,
                     messages: truncatedMessages.map(message => ({index: message.index})),
                 },
             };
@@ -539,6 +544,7 @@ export async function truncateAgentWebMessagingPage<
             return {
                 truncatedResponse,
                 truncatedMetadata: {
+                    isEndOfMessages,
                     messages: truncatedMessages.map(message => ({index: message.index})),
                 },
             };
@@ -558,6 +564,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
         limitLength,
         roomMetadataPageLink,
         around,
+        isEndOfMessages,
         messages,
         contextTimeZone,
         contextDate,
@@ -569,6 +576,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
         limitLength: number;
         roomMetadataPageLink: AgentWebMessagingPagePaginationPageLink;
         around: AgentWebMessagingPageMessageRange;
+        isEndOfMessages: boolean;
         messages: ReadonlyArray<ApiMessageResponse>;
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
@@ -1217,6 +1225,9 @@ export async function truncateAgentWebMessagingPageAroundMessage<
     return {
         truncatedResponse,
         truncatedMetadata: {
+            // If we truncated some messages from the end even if we were at the end we're
+            // definitely not at the end now.
+            isEndOfMessages: !didTruncateFromEnd && isEndOfMessages,
             messages: truncatedMessages.map(message => ({index: message.index})),
         },
     };

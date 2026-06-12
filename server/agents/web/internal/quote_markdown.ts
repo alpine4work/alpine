@@ -19,6 +19,11 @@ export function quoteMarkdown(markdown: Array<PhrasingContent>) {
         let openCurlyQuoteCount = 0;
 
         for (const character of markdownString) {
+            if (character === "\n") {
+                newMarkdownString += "\\n";
+                continue;
+            }
+
             if (character === "\u201C") {
                 openCurlyQuoteCount++;
             } else if (character === "\u201D") {

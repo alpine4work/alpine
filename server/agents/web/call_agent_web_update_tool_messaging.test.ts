@@ -847,36 +847,129 @@ test("rejects creating messages with a time attribute", async () => {
     });
 });
 
-test("rejects removing the end marker while creating messages", async () => {
+test("allows removing the end marker while creating messages", async () => {
     await readChat({
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
+    mockCreateMessages({count: 1, startIndex: 1});
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [
-            {
-                old: "\n\nEnd of messages.",
-                new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nMissing end marker.\n\n</message>',
-                replaceAll: false,
-            },
-        ],
-        expected:
-            "When you\u2019re adding a message you need to keep the \u201CEnd of messages\u201D marker at the end of the message list below your new message. Try again without removing the \u201CEnd of messages\u201D marker.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nMissing end marker.\n\n</message>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("Missing end marker."),
+        },
+    ]);
 });
 
-test("rejects removing the end marker without creating messages", async () => {
+test("allows removing the end marker while creating messages and then allows creating another message", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+    mockCreateMessages({count: 2, startIndex: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nTest message 1\n\n</message>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "Test message 1\n\n</message>",
+                    new: 'Test message 1\n\n</message>\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nTest message 2\n\n</message>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("Test message 1")},
+        {content: createTextContent("Test message 2")},
+    ]);
+});
+
+test("allows removing the end marker while creating messages and then allows creating another message with an end marker", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+    mockCreateMessages({count: 2, startIndex: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: '\n\n<message id="1" from="[ChatGPT](/bot/chatgpt)">\n\nTest message 1\n\n</message>',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "Test message 1\n\n</message>",
+                    new: 'Test message 1\n\n</message>\n\n<message id="2" from="[ChatGPT](/bot/chatgpt)">\n\nTest message 2\n\n</message>\n\nEnd of messages.',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {content: createTextContent("Test message 1")},
+        {content: createTextContent("Test message 2")},
+    ]);
+});
+
+test("allows removing the end marker without creating messages", async () => {
     await readChat({
         totalMessageCount: 1,
         createMessage: index => createMessage({index, content: "Existing message"}),
     });
 
-    await expectInvalidUpdateDisplayMessage({
-        updates: [{old: "\n\nEnd of messages.", new: "", replaceAll: false}],
-        expected:
-            "Can\u2019t remove the \u201CEnd of messages\u201D marker in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a message list or not. Try again without removing the \u201CEnd of messages\u201D marker.",
-    });
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: "",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
 });
 
 test("rejects adding the end marker to a non-final page", async () => {

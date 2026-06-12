@@ -103,10 +103,12 @@ export async function updateAgentWebMessagingPage<
 
     const commonBlocksLength = Math.min(oldPage.blocks.length, newPage.blocks.length);
 
-    let fallbackMessageIndex =
+    const newPagePaginationPreviousLinkBeforeMessageIndex =
         newPage.pagination?.previousLink?.type === "Message"
             ? newPage.pagination.previousLink.beforeMessageIndex
             : 0;
+
+    let fallbackMessageIndex = newPagePaginationPreviousLinkBeforeMessageIndex;
 
     for (let index = 0; index < commonBlocksLength; index++) {
         const oldBlock = oldPage.blocks[index]!;
@@ -265,21 +267,12 @@ export async function updateAgentWebMessagingPage<
         break;
     }
 
-    lastMessageIndex ??=
-        (oldPage.pagination?.previousLink?.beforeMessageIndex ?? 0) + nullIdAttributeCount;
+    lastMessageIndex ??= newPagePaginationPreviousLinkBeforeMessageIndex + nullIdAttributeCount;
 
     const expectedNewMessageIndexes: Array<number> = [];
 
     for (let index = commonBlocksLength; index < newPage.blocks.length; index++) {
         const newBlock = newPage.blocks[index]!;
-
-        if (!oldPage.isEndOfMessages) {
-            const actualPathname = await unwrapMaybeThunk(pathname);
-
-            throw new InvalidArgumentError("Can only create messages on the last page", {
-                displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` after all other ${messageNouns.pluralNoun} (${messageNouns.pluralNoun} are in chronological order). Look for \u201CEnd of ${messageNouns.pluralNoun}\u201D to know when you\u2019re at the end of a ${messageNouns.noun} list. Call the \`read\` tool with \`${actualPathname}?end\` to jump to the end of a ${messageNouns.noun} list.`,
-            });
-        }
 
         if (newBlock.type !== "Message" || newBlock.author.id !== context.botAccount.id) {
             const authorLink: Link = {
@@ -347,30 +340,34 @@ export async function updateAgentWebMessagingPage<
         });
     }
 
-    if (oldPage.isEndOfMessages !== newPage.isEndOfMessages) {
-        if (!newPage.isEndOfMessages && createThunks.length > 0) {
-            throw new InvalidArgumentError(
-                "Can\u2019t remove the end of messages paragraph when creating messages",
-                {
-                    displayMessage: errorDisplayMessage`When you\u2019re adding a ${messageNouns.noun} you need to keep the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker at the end of the ${messageNouns.noun} list below your new ${messageNouns.noun}. Try again without removing the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker.`,
-                },
-            );
-        } else {
-            throw new InvalidArgumentError(
-                "Can\u2019t change whether this page is the end of messages or not",
-                {
-                    displayMessage: errorDisplayMessage`Can\u2019t ${newPage.isEndOfMessages ? "add" : "remove"} the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} list or not. Try again without ${newPage.isEndOfMessages ? "adding" : "removing"} the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker.`,
-                },
-            );
-        }
-    }
-
     // Call the `room` and `oldPageMetadata` thunks right before actually running
     // mutations. That way all validation gets a chance to run first.
     const [actualRoom, actualOldPageMetadata] = await runAllPromises([
         unwrapMaybeThunk(room),
         unwrapMaybeThunk(oldPageMetadata),
     ]);
+
+    // The end of messages marker is optional for a page that's actually at the end of
+    // messages (according to metadata). However, for a page that's not at the end of
+    // messages you can't add the end of messages marker!
+    if (!actualOldPageMetadata.isEndOfMessages && newPage.isEndOfMessages) {
+        throw new InvalidArgumentError(
+            "Can\u2019t change whether this page is the end of messages or not",
+            {
+                displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} list or not. Try again without adding the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker.`,
+            },
+        );
+    }
+
+    // You can only create messages on the last page. Since the end of messages marker
+    // is optional on the last page we check metadata.
+    if (createThunks.length > 0 && !actualOldPageMetadata.isEndOfMessages) {
+        const actualPathname = await unwrapMaybeThunk(pathname);
+
+        throw new InvalidArgumentError("Can only create messages on the last page", {
+            displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` after all other ${messageNouns.pluralNoun} (${messageNouns.pluralNoun} are in chronological order). Look for \u201CEnd of ${messageNouns.pluralNoun}\u201D to know when you\u2019re at the end of a ${messageNouns.noun} list. Call the \`read\` tool with \`${actualPathname}?end\` to jump to the end of a ${messageNouns.noun} list.`,
+        });
+    }
 
     // Finally now that we're done validating the update, actually make all changes!
     const [, newMessages] = await runAllPromises([
@@ -414,6 +411,7 @@ export async function updateAgentWebMessagingPage<
     }
 
     return {
+        isEndOfMessages: actualOldPageMetadata.isEndOfMessages || newPage.isEndOfMessages,
         messages: [...actualOldPageMetadata.messages, ...newMessages],
     };
 }

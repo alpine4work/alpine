@@ -88,9 +88,9 @@ End of comments.
 `,
             page: {
                 type: "Post",
-                subType: "HeadPage",
+                subType: "Head",
                 preamble: {
-                    type: "HeadPage",
+                    type: "Head",
                     channel: {
                         type: "Channel",
                         id: announcementsChannelId,
@@ -140,8 +140,8 @@ Post body from the west coast.
 `,
             page: {
                 type: "Post",
-                subType: "HeadPage",
-                preamble: {type: "HeadPage", channel: null},
+                subType: "Head",
+                preamble: {type: "Head", channel: null},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [
@@ -176,8 +176,8 @@ Second comment.
 `,
             page: {
                 type: "Post",
-                subType: "TailPage",
-                preamble: {type: "TailPage", post: launchPostReference},
+                subType: "Tail",
+                preamble: {type: "Tail", post: launchPostReference},
                 pagination: {
                     pageLink: launchPostReference,
                     previousLink: null,
@@ -219,9 +219,9 @@ Post body.
 `,
             page: {
                 type: "Post",
-                subType: "HeadPage",
+                subType: "Head",
                 preamble: {
-                    type: "HeadPage",
+                    type: "Head",
                     channel: {
                         type: "Channel",
                         id: announcementsChannelId,
@@ -273,9 +273,9 @@ Post body.
 `,
             page: {
                 type: "Post",
-                subType: "HeadPage",
+                subType: "Head",
                 preamble: {
-                    type: "HeadPage",
+                    type: "Head",
                     channel: {
                         type: "Channel",
                         id: announcementsChannelId,
@@ -327,9 +327,9 @@ Post body.
 `,
             page: {
                 type: "Post",
-                subType: "HeadPage",
+                subType: "Head",
                 preamble: {
-                    type: "HeadPage",
+                    type: "Head",
                     channel: {
                         type: "Channel",
                         id: announcementsChannelId,
@@ -381,8 +381,8 @@ Post body.
 `,
             page: {
                 type: "Post",
-                subType: "HeadPage",
-                preamble: {type: "HeadPage", channel: null},
+                subType: "Head",
+                preamble: {type: "Head", channel: null},
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [
@@ -503,6 +503,127 @@ Post body.
             parseError:
                 "`<post>` on line 3 is missing a closing tag. Add a `</post>` closing tag " +
                 "and try again.",
+        },
+        {
+            name: "post page with no comments",
+            pageLink: postId,
+            markdown: `\
+Post in [Announcements](/channel/announcements).
+
+<time>May 14th at 10:55am EDT</time>
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+
+End of comments.
+`,
+            page: {
+                type: "Post",
+                subType: "Head",
+                preamble: {
+                    type: "Head",
+                    channel: {
+                        type: "Channel",
+                        id: announcementsChannelId,
+                        title: "Announcements",
+                    },
+                },
+                pagination: null,
+                isEndOfMessages: true,
+                blocks: [
+                    {
+                        type: "Time",
+                        timeContent: "May 14th at 10:55am EDT",
+                    },
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([paragraph([text("Post body.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "post page with no comments and no initial time",
+            pageLink: postId,
+            markdown: `\
+Post in [Announcements](/channel/announcements).
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+
+End of comments.
+`,
+            page: {
+                type: "Post",
+                subType: "Head",
+                preamble: {
+                    type: "Head",
+                    channel: {
+                        type: "Channel",
+                        id: announcementsChannelId,
+                        title: "Announcements",
+                    },
+                },
+                pagination: null,
+                isEndOfMessages: true,
+                blocks: [
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([paragraph([text("Post body.")])]),
+                    },
+                ],
+            },
+        },
+        {
+            name: "post page with no comments, no end comment marker, and no initial time",
+            pageLink: postId,
+            markdown: `\
+Post in [Announcements](/channel/announcements).
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+`,
+            page: {
+                type: "Post",
+                subType: "Head",
+                preamble: {
+                    type: "Head",
+                    channel: {
+                        type: "Channel",
+                        id: announcementsChannelId,
+                        title: "Announcements",
+                    },
+                },
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([paragraph([text("Post body.")])]),
+                    },
+                ],
+            },
         },
     ],
 });
