@@ -1162,9 +1162,14 @@ export namespace ApiSpecification {
                 readonly requestBody: {
                     readonly content: {
                         readonly "application/json": {
-                            readonly channelId: components["schemas"]["ChannelId"];
-                            readonly createdTimeZone?: components["schemas"]["TimeZone"];
-                            readonly content: components["schemas"]["Content"];
+                            readonly spaceId: components["schemas"]["SpaceId"];
+                            readonly post: {
+                                readonly createdTimeZone?: components["schemas"]["TimeZone"];
+                                readonly channel?: {
+                                    readonly id: components["schemas"]["ChannelId"];
+                                };
+                                readonly content: components["schemas"]["Content"];
+                            };
                         };
                     };
                 };

@@ -773,16 +773,29 @@ paths:
                         schema:
                             type: object
                             required:
-                                - channelId
-                                - content
+                                - spaceId
+                                - post
                             additionalProperties: false
                             properties:
-                                channelId:
-                                    $ref: "#/components/schemas/ChannelId"
-                                createdTimeZone:
-                                    $ref: "#/components/schemas/TimeZone"
-                                content:
-                                    $ref: "#/components/schemas/Content"
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                post:
+                                    type: object
+                                    required:
+                                        - channelId
+                                        - content
+                                    properties:
+                                        createdTimeZone:
+                                            $ref: "#/components/schemas/TimeZone"
+                                        channel:
+                                            type: object
+                                            required:
+                                                - id
+                                            properties:
+                                                id:
+                                                    $ref: "#/components/schemas/ChannelId"
+                                        content:
+                                            $ref: "#/components/schemas/Content"
             responses:
                 "200":
                     $ref: "#/components/responses/GetPost"
