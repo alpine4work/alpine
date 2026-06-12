@@ -25,6 +25,7 @@ import {
     navigationBarHeight,
     navigationBarHeightWithTitleBreadcrumb,
     navigationBarMobileGap,
+    navigationBarTitleBreadcrumbButtonHeight,
     navigationBarTitleBreadcrumbCaretSize,
     navigationBarTitleBreadcrumbColor,
     navigationBarTitleBreadcrumbFontSize,
@@ -346,6 +347,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                   display="flex"
                                   justifyContent="flex-start"
                                   alignItems="center"
+                                  // Gives children `pointer-events: initial` so the user can interact with them.
+                                  className={pointerEventsNoneNotInheritedClassName}
                                   style={{
                                       flexBasis: spacing[navigationBarActionsFlexBasis],
                                       height: navigationBarContentHeight,
@@ -903,7 +906,7 @@ function NavigationBarTitleBreadcrumbButton({
             <Box flexShrink="1" minWidth="flex-fit" maxWidth="full">
                 <Button
                     variant="quietest"
-                    height="5"
+                    height={navigationBarTitleBreadcrumbButtonHeight}
                     paddingX="1.5"
                     fontSize={navigationBarTitleBreadcrumbFontSize}
                     pressErrorTitle={titleBreadcrumb.pressErrorTitle}

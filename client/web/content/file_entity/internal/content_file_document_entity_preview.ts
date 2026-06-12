@@ -85,6 +85,7 @@ export function renderContentFileDocumentEntityPreview(
         transformScale,
         scaledWidthPx,
         blockMaxWidthPx,
+        containerPaddingPx,
     } = setupContentFileEntityPreviewContainer(html, {
         layout,
         platform,
@@ -99,11 +100,13 @@ export function renderContentFileDocumentEntityPreview(
         ],
         calculateScaledContainerTransformStyle: config => {
             if (fileEntity.site) {
-                // Match the container-top-to-breadcrumb-top spacing used by every other entity
-                // preview (a single container padding from the box top). Skip the negative
-                // `titlePaddingTop` translateY — the title's own top spacing is suppressed via
-                // `withoutTitleTopSpacingDocClassName` below.
-                return `translateY(${config.paddingPx}px) scale(${config.transformScale})`;
+                // Don't translate the container down for breadcrumb spacing — the cover is
+                // anchored to the container's top edge, so a translateY would push the cover down
+                // and chop it off from the top of the box. The breadcrumb block carries the
+                // container-top-to-breadcrumb-top spacing as `padding-top` instead. Skip the
+                // negative `titlePaddingTop` translateY — the title's own top spacing is
+                // suppressed via `withoutTitleTopSpacingDocClassName` below.
+                return `scale(${config.transformScale})`;
             }
             // Document-specific margin top calculation
             const marginTopPx = Math.max(
@@ -130,6 +133,15 @@ export function renderContentFileDocumentEntityPreview(
         // full-width preview.
         const breadcrumbBlockHtml = scaledDocHtml.appendChild(new HtmlElementGenerator("div"));
         breadcrumbBlockHtml.setAttribute("class", contentStyles.docBlockClassName);
+        // Match the container-top-to-breadcrumb-top spacing used by every other entity
+        // preview (a single container padding from the box top). This spacing lives here
+        // instead of on the scaled container's transform so the cover keeps bleeding from
+        // the box top. Divide by the transform scale since this padding is in the
+        // container's pre-scale coordinates.
+        breadcrumbBlockHtml.setAttribute(
+            "style",
+            `padding-top: ${containerPaddingPx / transformScale}px`,
+        );
         renderContentFileEntitySiteBreadcrumb({
             get,
             siteRegistry,

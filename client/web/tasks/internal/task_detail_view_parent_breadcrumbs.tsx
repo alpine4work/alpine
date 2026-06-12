@@ -15,6 +15,7 @@ import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/c
 import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -146,7 +147,6 @@ export function TaskDetailViewParentBreadcrumbs({
             ) {
                 const {activeState} = siteContext;
                 const site = siteContext.tree.site;
-                const focusEntityId = activeState.activeEntityId;
 
                 // IMPORTANT: This design also exists in `navigation_bar_content.tsx` under
                 // `NavigationBarTitleBreadcrumbButton` and `SiteBreadcrumbChip`. When updating
@@ -161,9 +161,7 @@ export function TaskDetailViewParentBreadcrumbs({
                             onPress={async () => {
                                 const path = {
                                     pathname: `/site/${site.id}/navigate`,
-                                    search: focusEntityId
-                                        ? `?focus=${encodeURIComponent(focusEntityId)}`
-                                        : "",
+                                    search: `activeEntityId=${encodeURIComponent(assertExists(activeState.activeEntityId))}`,
                                     hash: "",
                                 };
                                 const to = peekContext

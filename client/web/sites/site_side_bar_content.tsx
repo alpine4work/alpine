@@ -85,7 +85,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
@@ -1024,7 +1023,7 @@ function SiteNavigationEntryItem({
         <ContextMenuActions actions={contextMenuActions}>
             <Box>
                 <SiteNavLink
-                    url={getSearchDynamicEntityPath(spaceId, entityData, "wide")}
+                    pathname={getSearchDynamicEntityPath(spaceId, entityData, "wide")}
                     activeSiteId={site.id}
                     isActive={shouldHighlight}
                 >
@@ -1092,12 +1091,12 @@ function SiteNavigationEntryItem({
  * session anyway.
  */
 function SiteNavLink({
-    url,
+    pathname,
     activeSiteId,
     isActive,
     children,
 }: {
-    url: string;
+    pathname: string;
     activeSiteId: SiteId;
     isActive: boolean;
     children: ReactNode;
@@ -1122,8 +1121,9 @@ function SiteNavLink({
           : undefined;
 
     const onNavigateToEntity = useCallback(() => {
+        const path = {pathname, search: "", hash: ""};
+
         if (routeLayout === "narrow") {
-            const path = new UrlPath(url);
             // Inside a peek, navigate to the matching peek path so the entity opens within the
             // same overlay rather than stacking a new peek or replacing the page. On mobile
             // there's no peek, so navigate the page directly.
@@ -1133,17 +1133,17 @@ function SiteNavLink({
             });
         }
 
-        return rootNavigate(url, {
+        return rootNavigate(path, {
             unstable_headers: {
                 "cyberworlds-active-site-id": activeSiteId,
             },
         });
-    }, [navigate, rootNavigate, peekContext, site.id, routeLayout, activeSiteId, url]);
+    }, [pathname, routeLayout, rootNavigate, activeSiteId, peekContext, navigate, site.id]);
 
     return (
         <Box position="relative">
             <a
-                href={url}
+                href={pathname}
                 draggable={false}
                 onPointerDown={event => {
                     if (event.button !== 0) return;

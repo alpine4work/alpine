@@ -103,16 +103,17 @@ function convertPeekSiteNavigatePathToSitePathIfNecessary(
     if (!match) return null;
     const siteId = assertId<SiteId>(match[1]!);
 
-    const sitePath = `/sites/${siteId}`;
+    const sitePath = `/site/${siteId}`;
 
-    const focusParam = searchParams.get("focus");
-    if (!focusParam) return sitePath;
+    const activeEntityIdParam = searchParams.get("activeEntityId");
+    if (!activeEntityIdParam) return sitePath;
 
-    const focusEntityIdObject = parseSiteItemSearchEntityIdIfPossible(focusParam);
-    if (!focusEntityIdObject) return sitePath;
+    const activeEntityId = decodeURIComponent(activeEntityIdParam);
+    const activeEntityIdObject = parseSiteItemSearchEntityIdIfPossible(activeEntityId);
+    if (!activeEntityIdObject) return sitePath;
 
     return getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount(
-        focusEntityIdObject,
+        activeEntityIdObject,
         routeLayout,
     );
 }

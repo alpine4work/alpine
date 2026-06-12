@@ -57,9 +57,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
     const consistency = url.searchParams.get("consistency") === "strong" ? "Strong" : "Eventual";
 
     // The entity the user came from, so the tree can highlight and scroll to it.
-    const focusParam = url.searchParams.get("focus");
+    let activeEntityIdParam = url.searchParams.get("activeEntityId");
+    activeEntityIdParam = activeEntityIdParam && decodeURIComponent(activeEntityIdParam);
     const activeEntityId =
-        focusParam && isSiteItemSearchEntityId(focusParam) ? focusParam : undefined;
+        activeEntityIdParam && isSiteItemSearchEntityId(activeEntityIdParam)
+            ? activeEntityIdParam
+            : undefined;
 
     const activeSiteId = request.headers.get("cyberworlds-active-site-id")?.trim();
 

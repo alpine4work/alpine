@@ -54,7 +54,7 @@ export const navigationBarBreadcrumbToTitleSpacing: Record<Platform, Spacing> = 
     // looks _a lot_ better when editing the title.
     desktop: "1",
 };
-export const navigationBarTitleBreadcrumbButtonHeight: Spacing = "5";
+export const navigationBarTitleBreadcrumbButtonHeight = "5" as const;
 /**
  * Horizontal gap between the breadcrumb's title text and the caret icon.
  */
