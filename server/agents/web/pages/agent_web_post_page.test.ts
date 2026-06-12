@@ -1,3 +1,4 @@
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebPostPage,
     normalizeAgentWebPostPage,
@@ -129,6 +130,8 @@ End of comments.
             markdown: `\
 Post that\u2019s not in any channel.
 
+<time>May 14th at 10:55am EDT</time>
+
 <post from="[Alice](/human/alice)" timezone="PDT">
 
 Post body from the west coast.
@@ -142,6 +145,10 @@ Post body from the west coast.
                 pagination: null,
                 isEndOfMessages: false,
                 blocks: [
+                    {
+                        type: "Time",
+                        timeContent: "May 14th at 10:55am EDT",
+                    },
                     {
                         type: "Custom",
                         tagName: "post",
@@ -202,6 +209,8 @@ Second comment.
             markdown: `\
 Post in [Announcements](/channel/announcements). [« Previous page](/post/launch?before=post) | [Next page »](/post/launch?after=post)
 
+<time>May 14th at 10:55am EDT</time>
+
 <post from="[Alice](/human/alice)">
 
 Post body.
@@ -231,6 +240,10 @@ Post body.
                 isEndOfMessages: false,
                 blocks: [
                     {
+                        type: "Time",
+                        timeContent: "May 14th at 10:55am EDT",
+                    },
+                    {
                         type: "Custom",
                         tagName: "post",
                         author: aliceReference,
@@ -249,6 +262,8 @@ Post body.
             pageLink: postId,
             markdown: `\
 Post in [Announcements](/channel/announcements). [Next page »](/post/launch?after=post)
+
+<time>May 14th at 10:55am EDT</time>
 
 <post from="[Alice](/human/alice)">
 
@@ -279,6 +294,10 @@ Post body.
                 isEndOfMessages: false,
                 blocks: [
                     {
+                        type: "Time",
+                        timeContent: "May 14th at 10:55am EDT",
+                    },
+                    {
                         type: "Custom",
                         tagName: "post",
                         author: aliceReference,
@@ -297,6 +316,8 @@ Post body.
             pageLink: postId,
             markdown: `\
 Post in [Announcements](/channel/announcements). [Previous page »](/post/launch?before=post)
+
+<time>May 14th at 10:55am EDT</time>
 
 <post from="[Alice](/human/alice)">
 
@@ -327,6 +348,10 @@ Post body.
                 isEndOfMessages: false,
                 blocks: [
                     {
+                        type: "Time",
+                        timeContent: "May 14th at 10:55am EDT",
+                    },
+                    {
                         type: "Custom",
                         tagName: "post",
                         author: aliceReference,
@@ -346,6 +371,8 @@ Post body.
             markdown: `\
 Post that\u2019s not in any channel.
 
+<time>May 14th at 10:55am EDT</time>
+
 <post from="[Alice](/human/alice)">
 
 Post body.
@@ -360,6 +387,10 @@ Post body.
                 isEndOfMessages: false,
                 blocks: [
                     {
+                        type: "Time",
+                        timeContent: "May 14th at 10:55am EDT",
+                    },
+                    {
                         type: "Custom",
                         tagName: "post",
                         author: aliceReference,
@@ -369,6 +400,79 @@ Post body.
                     },
                 ],
             },
+        },
+        {
+            name: "post block without opening time",
+            pageLink: postId,
+            markdown: `\
+Post that\u2019s not in any channel.
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+            },
+            parseError:
+                "A `<post>` must be the first thing in post markdown after the first line which " +
+                "states what channel the post is in (e.g. `Post in [My Channel](/channel/my-channel).`) " +
+                "and there must only be one `<post>`. Try again with one `<post>` at the start " +
+                "of the markdown.",
+        },
+        {
+            name: "post block after comment",
+            pageLink: postId,
+            markdown: `\
+Post that\u2019s not in any channel.
+
+<time>May 14th at 10:55am EDT</time>
+
+<comment id="0" from="[Bob](/human/bob)">
+
+First comment.
+
+</comment>
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+                await createAgentWebPageStoredLinkPathname(storage, bobReference);
+            },
+            parseError:
+                "A `<post>` must be the first thing in post markdown after the first line which " +
+                "states what channel the post is in (e.g. `Post in [My Channel](/channel/my-channel).`) " +
+                "and there must only be one `<post>`. Try again with one `<post>` at the start " +
+                "of the markdown.",
+        },
+        {
+            name: "post block on tail page",
+            pageLink: postId,
+            markdown: `\
+Comments on [post](/post/launch).
+
+<time>May 14th at 10:55am EDT</time>
+
+<post from="[Alice](/human/alice)">
+
+Post body.
+
+</post>
+`,
+            setupStorage: async storage => {
+                await createAgentWebPageStoredLinkPathname(storage, launchPostReference);
+                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+            },
+            parseError:
+                "Can\u2019t add a `<post>` to a post\u2019s comments section. Remove the `<post>` " +
+                "and try again.",
         },
         {
             name: "post missing from attribute",

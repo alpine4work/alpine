@@ -651,7 +651,54 @@ export async function parseAgentWebPostPage(
         },
     });
 
-    return {...page, type: "Post"};
+    const postBlockIndexes: Array<number> = [];
+
+    for (const [index, block] of page.blocks.entries()) {
+        if (block.type === "Custom" && block.tagName === "post") {
+            postBlockIndexes.push(index);
+        }
+    }
+
+    switch (page.preamble.type) {
+        case "HeadPage": {
+            const firstPostBlockIndex = postBlockIndexes[0]!;
+
+            const hasPostBlockImmediatelyAfterOpeningTime =
+                postBlockIndexes.length === 1 &&
+                firstPostBlockIndex === 1 &&
+                page.blocks[0]?.type === "Time";
+
+            if (!hasPostBlockImmediatelyAfterOpeningTime) {
+                throw new InvalidArgumentError("Must have one post block at start of head page", {
+                    displayMessage: errorDisplayMessage`A \`<post>\` must be the first thing in post markdown after the first line which states what channel the post is in (e.g. \`Post in [My Channel](/channel/my-channel).\`) and there must only be one \`<post>\`. Try again with one \`<post>\` at the start of the markdown.`,
+                });
+            }
+
+            return {
+                ...page,
+                type: "Post",
+                subType: "HeadPage",
+                preamble: page.preamble,
+            };
+        }
+        case "TailPage": {
+            if (postBlockIndexes.length > 0) {
+                throw new InvalidArgumentError("Post block on tail post page", {
+                    displayMessage: errorDisplayMessage`Can\u2019t add a \`<post>\` to a post\u2019s comments section. Remove the \`<post>\` and try again.`,
+                });
+            }
+
+            return {
+                ...page,
+                type: "Post",
+                subType: "TailPage",
+                preamble: page.preamble,
+                blocks: page.blocks as ReadonlyArray<AgentWebMessagingPageBlock<never>>,
+            };
+        }
+        default:
+            throw exhaustive(page.preamble);
+    }
 }
 
 function parseAgentWebPostPageCustomBlockOpenTag(openTag: string): {
