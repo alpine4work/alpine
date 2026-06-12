@@ -1,16 +1,12 @@
-import {
-    CollaborativeContentEditorAction,
-    CollaborativeContentEditorState,
-    createCollaborativeContentEditorStateReducer,
-    getInitialCollaborativeContentEditorState,
-} from "~/client/web/content/collaborative_content_editor_state.js";
-import {
-    ContentEditorState,
-    reduceContentReferences,
-} from "~/client/web/content/state/content_editor_state.js";
+import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {MemoObject} from "~/client/web/helpers/types/memo_object.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
+import {
+    TaskNotesContentEditorAction,
+    TaskNotesContentEditorState,
+    reduceTaskNotesContentEditorState,
+} from "~/client/web/tasks/task_detail_notes_content_editor_state.js";
 import {
     WebSocketClient,
     WebSocketClientProcedures,
@@ -20,37 +16,18 @@ import {AccessLevel} from "~/shared/access/access_policy.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {taskNotesBackfillFutureVersionErrorMessage} from "~/shared/tasks/task_error_messages.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
-
-export type TaskNotesContentEditorState = CollaborativeContentEditorState<
-    TaskNotesContentWithReferences,
-    TaskNotesContentEditorExtraState
->;
-
-type TaskNotesContentEditorExtraState = {
-    readonly taskId: TaskId;
-};
-
-type TaskNotesContentEditorAction = CollaborativeContentEditorAction<
-    TaskNotesContentWithReferences,
-    TaskNotesContentEditorExtraAction
->;
-
-type TaskNotesContentEditorExtraAction = {
-    readonly type: "Reset";
-    readonly state: TaskNotesContentEditorState;
-};
 
 export type TaskDetailNotesContentEditorWebSocketClientProcedures = Pick<
     WebSocketClientProcedures<
@@ -58,39 +35,6 @@ export type TaskDetailNotesContentEditorWebSocketClientProcedures = Pick<
     >,
     (typeof TaskDetailNotesContentEditorWebSocketClient.procedureNames)[number]
 >;
-
-export const reduceTaskNotesContentEditorState = createCollaborativeContentEditorStateReducer<
-    TaskNotesContentWithReferences,
-    TaskNotesContentEditorExtraState,
-    TaskNotesContentEditorExtraAction
->((state, action) => {
-    if (action.type === "Extra") {
-        cast<"Reset">(action.extra.type);
-        return action.extra.state;
-    }
-
-    return state;
-});
-
-export function getInitialTaskNotesContentEditorState({
-    spaceId,
-    taskId,
-    initialNotesVersion,
-    initialNotesContent,
-}: {
-    spaceId: SpaceId;
-    taskId: TaskId;
-    initialNotesVersion: number;
-    initialNotesContent: TaskNotesContentWithReferences;
-}): TaskNotesContentEditorState {
-    return getInitialCollaborativeContentEditorState({
-        spaceId,
-        initialVersion: initialNotesVersion,
-        initialContent: initialNotesContent,
-        reduceReferences: reduceContentReferences,
-        extra: {taskId},
-    });
-}
 
 /**
  * Object representing our connection to the task notes collaboration service for
@@ -211,75 +155,100 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                 const ourConnectionState = {isBackfilling: true};
                 connectionState = ourConnectionState;
 
-                this._client.procedures
-                    .backfillNotes({
-                        version: this._state.getSnapshot().editorState.getVersion(),
-                    })
-                    .then(
-                        output => {
-                            // If while waiting on our backfill we disconnected then don't update our state. We
-                            // use an object to make sure if we connect/reconnect quickly we still ignore the
-                            // backfill result.
-                            if (connectionState !== ourConnectionState) return;
+                const attemptBackfill = () => {
+                    this._client.procedures
+                        .backfillNotes({
+                            version: this._state.getSnapshot().editorState.getVersion(),
+                        })
+                        .then(
+                            output => {
+                                // If while waiting on our backfill we disconnected then don't update our state. We
+                                // use an object to make sure if we connect/reconnect quickly we still ignore the
+                                // backfill result.
+                                if (connectionState !== ourConnectionState) return;
 
-                            if (output.result.type === "Available") {
                                 this._dispatchBatch([
                                     {
                                         type: "ReceiveSteps",
-                                        newVersion: output.result.newVersion,
-                                        steps: output.result.steps,
-                                        stepsContentReferences:
-                                            output.result.stepsContentReferences,
+                                        newVersion: output.newVersion,
+                                        steps: output.steps,
+                                        stepsContentReferences: output.stepsContentReferences,
                                     },
                                     {
                                         type: "Persisted",
-                                        newVersion: output.result.persistedVersion,
+                                        newVersion: output.persistedVersion,
                                     },
                                 ]);
-                            } else {
-                                const state = this._state.getSnapshot();
 
-                                // If the user had some pending changes they'll be reset. Show the user an error
-                                // message to let them know we threw away their changes.
-                                if (state.pendingSendableSteps) {
-                                    this._displayError(
-                                        "Couldn\u2019t save changes to task",
-                                        new UnavailableError(
-                                            "Throwing away local task notes changes because collaboration service is missing the steps we need to backfill",
-                                            {
-                                                displayMessage: errorDisplayMessage`The task\u2019s notes changed while you were offline and we didn\u2019t know how to update your changes to the task\u2019s notes to avoid conflicting updates. Now if you type your changes again they\u2019ll save.`,
-                                            },
-                                        ),
-                                    );
+                                ourConnectionState.isBackfilling = false;
+                                maybeSendUpdatesToServer();
+                            },
+                            error => {
+                                // If while waiting on our backfill we disconnected then don't update our state. We
+                                // use an object to make sure if we connect/reconnect quickly we still ignore the
+                                // backfill result.
+                                if (connectionState !== ourConnectionState) return;
+
+                                try {
+                                    // If the collaboration service is telling us that we're trying to backfill at a
+                                    // future version then that may be because we have steps a previous collaboration
+                                    // service confirmed but couldn't persist. Revert those steps back to our persisted
+                                    // version and retry our backfill.
+                                    let state = this._state.getSnapshot();
+                                    if (
+                                        error instanceof Error &&
+                                        error.message.includes(
+                                            taskNotesBackfillFutureVersionErrorMessage,
+                                        ) &&
+                                        state.persistedVersion < state.editorState.getVersion()
+                                    ) {
+                                        // If the user had some pending changes they'll be reset. Show the user an error
+                                        // message to let them know we threw away their changes.
+                                        if (state.pendingSendableSteps) {
+                                            this._displayError(
+                                                "Couldn\u2019t save changes to task",
+                                                new UnavailableError(
+                                                    "Throwing away local task notes changes because the collaboration service couldn\u2019t persist the steps we confirmed",
+                                                    {
+                                                        displayMessage: errorDisplayMessage`The task\u2019s notes changed while you were offline and we didn\u2019t know how to update your changes to the task\u2019s notes to avoid conflicting updates. Now if you type your changes again they\u2019ll save.`,
+                                                    },
+                                                ),
+                                            );
+                                        }
+
+                                        // Dispatching `ResetToPersistedVersion` also resets `pendingSendableSteps`. Reset
+                                        // our bookkeeping so the next update can work properly.
+                                        updateGeneration += 1;
+                                        lastPendingSendableStepsVersionSentToServer = null;
+
+                                        this._dispatch({
+                                            type: "Extra",
+                                            extra: {type: "ResetToPersistedVersion"},
+                                        });
+
+                                        // Check that the state's version moved back to `state.persistedVersion`. This
+                                        // makes sure we won't get stuck in an infinite retry loop.
+                                        state = this._state.getSnapshot();
+                                        assert(
+                                            state.persistedVersion ===
+                                                state.editorState.getVersion(),
+                                        );
+
+                                        attemptBackfill();
+                                        return;
+                                    }
+                                } catch (newError) {
+                                    // Handle an error thrown by our error handling logic.
+                                    this._dispatch({type: "Error", error: newError});
+                                    return;
                                 }
 
-                                this._dispatch({
-                                    type: "Extra",
-                                    extra: {
-                                        type: "Reset",
-                                        state: getInitialCollaborativeContentEditorState({
-                                            spaceId: state.spaceId,
-                                            initialVersion: output.result.newVersion,
-                                            initialContent: output.result.content,
-                                            reduceReferences: reduceContentReferences,
-                                            extra: {taskId: this.taskId},
-                                        }),
-                                    },
-                                });
-                            }
+                                this._dispatch({type: "Error", error});
+                            },
+                        );
+                };
 
-                            ourConnectionState.isBackfilling = false;
-                            maybeSendUpdatesToServer();
-                        },
-                        error => {
-                            // If while waiting on our backfill we disconnected then don't update our state. We
-                            // use an object to make sure if we connect/reconnect quickly we still ignore the
-                            // backfill result.
-                            if (connectionState !== ourConnectionState) return;
-
-                            this._dispatch({type: "Error", error});
-                        },
-                    );
+                attemptBackfill();
 
                 maybeSendUpdatesToServer();
             }

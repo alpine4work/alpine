@@ -35,6 +35,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {
+    ContentEditorClientId,
     TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
@@ -2511,8 +2512,12 @@ describe("commitTaskActionTransaction()", () => {
         await updateTaskNotesContent(session2.action(), {
             spaceId: space.id,
             taskId: task1.id,
-            version: 0,
-            steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+            clientVersion: 0,
+            clientSteps: [
+                new ReplaceStep(1, 1, textSlice("a")),
+                new ReplaceStep(2, 2, textSlice("b")),
+            ],
+            clientId: generateId<ContentEditorClientId>(),
         });
 
         await expect(

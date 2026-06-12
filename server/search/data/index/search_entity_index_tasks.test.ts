@@ -31,7 +31,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, ContentEditorClientId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
@@ -1556,8 +1557,8 @@ test("will not index a task twice if notes update happened within the timeout", 
     await updateTaskNotesContent(session.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 0,
-        steps: [
+        clientVersion: 0,
+        clientSteps: [
             new ReplaceStep(
                 1,
                 1,
@@ -1572,6 +1573,7 @@ test("will not index a task twice if notes update happened within the timeout", 
                 ),
             ),
         ],
+        clientId: generateId<ContentEditorClientId>(),
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -1625,8 +1627,8 @@ test("will index a task twice if a notes update happens after last indexing", as
     await updateTaskNotesContent(session.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 0,
-        steps: [
+        clientVersion: 0,
+        clientSteps: [
             new ReplaceStep(
                 1,
                 1,
@@ -1641,6 +1643,7 @@ test("will index a task twice if a notes update happens after last indexing", as
                 ),
             ),
         ],
+        clientId: generateId<ContentEditorClientId>(),
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -1673,8 +1676,8 @@ test("will index a task twice if a notes update happens after last indexing", as
     await updateTaskNotesContent(session.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 1,
-        steps: [
+        clientVersion: 1,
+        clientSteps: [
             new ReplaceStep(
                 45,
                 45,
@@ -1689,6 +1692,7 @@ test("will index a task twice if a notes update happens after last indexing", as
                 ),
             ),
         ],
+        clientId: generateId<ContentEditorClientId>(),
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -1751,8 +1755,8 @@ test("will not index a task twice if multiple notes updates and task updates hap
     await updateTaskNotesContent(session.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 0,
-        steps: [
+        clientVersion: 0,
+        clientSteps: [
             new ReplaceStep(
                 1,
                 1,
@@ -1767,6 +1771,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
                 ),
             ),
         ],
+        clientId: generateId<ContentEditorClientId>(),
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -1799,8 +1804,8 @@ test("will not index a task twice if multiple notes updates and task updates hap
     await updateTaskNotesContent(session.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 1,
-        steps: [
+        clientVersion: 1,
+        clientSteps: [
             new ReplaceStep(
                 45,
                 45,
@@ -1815,6 +1820,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
                 ),
             ),
         ],
+        clientId: generateId<ContentEditorClientId>(),
     });
 
     await ProcessContextModule.waitForTestTasks();

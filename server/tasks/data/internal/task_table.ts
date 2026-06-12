@@ -21,6 +21,7 @@ import {
 import {
     AccountId,
     BrowserId,
+    ContentEditorClientId,
     SpaceId,
     TaskActionTransactionId,
     TaskActionTransactionLeaseId,
@@ -45,7 +46,10 @@ import {
     TaskGridViewExpansionStateSchema,
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
-import {TaskNotesContentSchema} from "~/shared/tasks/task_notes_content_schema.js";
+import {
+    TaskNotesContentSchema,
+    TaskNotesContentStepSchema,
+} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 
 /**
@@ -571,19 +575,10 @@ const TaskTable = DynamoTableSchema.new({
                  * collaborative, and unlikely to be edited after they're initially written we're
                  * going for a simpler implementation of realtime content editing.
                  *
-                 * A notable difference between this collaborative content implementation and our
-                 * document collaborative content implementation is we don't keep track of all
-                 * steps ever applied to the task. Since we don't care about showing a full content
-                 * version history for task notes (like we want to show for documents). We do want
-                 * to have a task activity feed but that's a separate system.
-                 *
-                 * Using Y.js would be nice. However, Y.js replaces the whole document whenever a
-                 * change occurs which doesn't play nice with [ProseMirror decorations and other
-                 * plugins][1]. Having a single collaborative framework to deal with for
-                 * `<ContentEditor>` simplifies developing out our editor.
-                 *
-                 * [1]:
-                 *     https://discuss.prosemirror.net/t/offline-peer-to-peer-collaborative-editing-using-yjs/2488/5
+                 * This sort key range is analogous to a document's `Snapshot` sort key range, but
+                 * while we keep track of a task note's step history, we don't queue updates to it
+                 * like `StepTransactionsAfterSnapshot` does for documents. Instead, we update it
+                 * immediately on new steps.
                  */
                 {
                     name: "Notes",
@@ -600,6 +595,17 @@ const TaskTable = DynamoTableSchema.new({
                          * this content.
                          */
                         version: Schema.integer,
+
+                        /**
+                         * The time this notes item was originally created.
+                         */
+                        createdTime: Schema.date.default(new Date("2026-06-11T11:11:00.000Z")),
+
+                        /**
+                         * The time this item was last updated. If undefined, this item has never been
+                         * updated since it was originally created.
+                         */
+                        lastUpdatedTime: Schema.date.optional(),
 
                         /**
                          * The current notes content.
@@ -634,6 +640,29 @@ const TaskTable = DynamoTableSchema.new({
                         stepCountByAccountId: TaskStepCountByAccountId.schema.default(
                             new TaskStepCountByAccountId(new Map()),
                         ),
+                    }),
+                },
+
+                /**
+                 * Step transactions that have been applied to the task notes.
+                 *
+                 * This is named to mirror how documents name their step transactions even though
+                 * task notes don't have a snapshot. Instead, the `Notes` content is always updated
+                 * with the latest steps (effectively the same as a snapshot), and all previous
+                 * steps are kept in this sort range.
+                 */
+                {
+                    name: "NotesStepTransactionsBeforeSnapshot",
+                    sortKeyAttributes: {
+                        startVersion: DynamoKeyAttributeSchema.integer,
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                        steps: Schema.array(TaskNotesContentStepSchema),
+                        invertedSteps: Schema.array(TaskNotesContentStepSchema),
+                        clientId: Schema.id<ContentEditorClientId>(),
+                        accountId: Schema.id<AccountId>().nullable().default(null),
+                        fromBotAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
 
@@ -790,6 +819,12 @@ type TaskCollectionEssentialAttributesItemBase = Omit<
 
 type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
 
+type TaskNotesStepTransactionItem = DynamoTableItemType<
+    typeof TaskTable,
+    "Task",
+    "NotesStepTransactionsBeforeSnapshot"
+>;
+
 export const InternalFileTaskAuthorizer = FileAuthorizer.new(
     TaskTable,
     "Task",
@@ -825,4 +860,5 @@ export type {
     TaskEssentialAttributesItemBase,
     TaskCollectionEssentialAttributesItemBase,
     TaskNotesItem,
+    TaskNotesStepTransactionItem,
 };

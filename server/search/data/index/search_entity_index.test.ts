@@ -71,7 +71,7 @@ import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
@@ -1733,8 +1733,8 @@ test("search by semantics only sees entities the account has access to", async (
         await updateTaskNotesContent(task1.id === taskId ? session1.action() : session2.action(), {
             spaceId: space.id,
             taskId,
-            version: 0,
-            steps: [
+            clientVersion: 0,
+            clientSteps: [
                 new ReplaceStep(
                     1,
                     1,
@@ -1745,6 +1745,7 @@ test("search by semantics only sees entities the account has access to", async (
                     ),
                 ),
             ],
+            clientId: generateId<ContentEditorClientId>(),
         });
     }
 

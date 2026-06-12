@@ -174,6 +174,7 @@ class TaskNotesCollaborationDurableObject {
                         accountId,
                         contentManager: this._contentManager,
                         closeWithError,
+                        killProcess: (context, error) => this._destroy(context, error),
                         sendEvent,
                         sendEventToOthers: (context, event) => {
                             sendEventToOthers(context, event);

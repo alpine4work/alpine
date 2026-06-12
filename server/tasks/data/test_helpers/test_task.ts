@@ -308,8 +308,9 @@ export class TestTask extends TestCommentRoomBase {
             await updateTaskNotesContent(session.action(), {
                 spaceId: session.space.id,
                 taskId: id,
-                version: 0,
-                steps: [new ReplaceStep(0, 2, new Slice(fragment, 0, 0))],
+                clientVersion: 0,
+                clientSteps: [new ReplaceStep(0, 2, new Slice(fragment, 0, 0))],
+                clientId: generateId(),
             });
 
             notesState = new MutexValue({lastVersion: 1, lastUpdatePos: fragment.size - 1});
@@ -813,8 +814,8 @@ export class TestTask extends TestCommentRoomBase {
             const result = await updateTaskNotesContent(session.action(), {
                 spaceId: this.space.id,
                 taskId: this.id,
-                version: stateRef.current.lastVersion,
-                steps: [
+                clientVersion: stateRef.current.lastVersion,
+                clientSteps: [
                     new ReplaceStep(
                         stateRef.current.lastUpdatePos,
                         stateRef.current.lastUpdatePos,
@@ -832,6 +833,7 @@ export class TestTask extends TestCommentRoomBase {
                           ]
                         : []),
                 ],
+                clientId: generateId(),
             });
 
             stateRef.current.lastVersion += 1 + (secondText !== undefined ? 1 : 0);
@@ -871,8 +873,9 @@ export class TestTask extends TestCommentRoomBase {
             await updateTaskNotesContent(session.action(), {
                 spaceId: this.space.id,
                 taskId: this.id,
-                version: stateRef.current.lastVersion,
-                steps,
+                clientVersion: stateRef.current.lastVersion,
+                clientSteps: steps,
+                clientId: generateId(),
             });
 
             stateRef.current.lastVersion += steps.length;

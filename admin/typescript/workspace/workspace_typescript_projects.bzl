@@ -125,6 +125,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/cloudflare/test_helpers:test_helpers",
     "//server/cloudflare/types:types",
     "//server/content:content",
+    "//server/content/collaboration:collaboration",
     "//server/content/context_module:context_module",
     "//server/context:context",
     "//server/debug/chat_gpt:chat_gpt",

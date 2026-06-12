@@ -176,6 +176,8 @@ export async function createTaskFromApi(
         });
     }
 
+    const currentTime = new Date();
+
     await commitTaskActionTransaction(context, spaceId, actions, {
         consistency: "StrongWithinCache",
         waitForProcessing: true,
@@ -188,6 +190,7 @@ export async function createTaskFromApi(
                       spaceId,
                       taskId,
                       content: notesContent,
+                      createdTime: currentTime,
                   }),
               ]
             : undefined,

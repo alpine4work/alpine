@@ -14,6 +14,8 @@ ts_project(
     deps = [
         "//:node_modules/prosemirror-transform",
         "//server/cloudflare",
+        "//server/content",
+        "//server/content/collaboration",
         "//server/helpers",
         "//server/messaging/realtime",
         "//server/tracer",

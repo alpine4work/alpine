@@ -4,8 +4,8 @@ import {
     WorkerActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {CollaborativeContentStepCache} from "~/server/content/collaboration/collaborative_content_step_cache.js";
 import {DocumentCollaborationEventStub} from "~/server/documents/collaboration/document_collaboration_connection.js";
-import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
@@ -64,6 +64,7 @@ import {getAccounts} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
     confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency,
     getDocumentContentReferences,
+    getDocumentContentSteps,
     updateDocumentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
@@ -106,7 +107,7 @@ export type DocumentCollaborationContentManagerOptimisticCommentThread = {
 export class DocumentCollaborationContentManager {
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
-    public readonly stepCache: DocumentCollaborationStepCache;
+    public readonly stepCache: CollaborativeContentStepCache<WorkerActionContext>;
     private readonly _sendEventToAllAndWait: (
         context: WorkerProcessContext,
         event: DocumentCollaborationEventStub,
@@ -205,7 +206,16 @@ export class DocumentCollaborationContentManager {
             content: initialContent,
         });
         this._persistedVersion = initialVersion;
-        this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
+        this.stepCache = new CollaborativeContentStepCache({
+            startVersion: initialVersion,
+            loadSteps: (context, {startVersion, endVersion}) => {
+                return getDocumentContentSteps(context, {
+                    documentId: id,
+                    startVersion,
+                    endVersion,
+                });
+            },
+        });
         this._sendEventToAllAndWait = sendEventToAllAndWait;
         this._resetAllAuthorizationTimers = resetAllAuthorizationTimers;
         this._killProcess = killProcess;

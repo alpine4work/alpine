@@ -158,7 +158,7 @@ import {useTaskDetailNotesContentEditorWebSocketClient} from "~/client/web/tasks
 import {TaskUndoStackEntry} from "~/client/web/tasks/internal/use_task_undo_stack_state.js";
 import {normalizeTaskDetailViewQuery} from "~/client/web/tasks/normalize_task_detail_view_query.js";
 import {TaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_tasks_progress_wheel.js";
-import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
+import {TaskNotesContentEditorState} from "~/client/web/tasks/task_detail_notes_content_editor_state.js";
 import {taskDetailViewLoadMoreChildTasksLimit} from "~/client/web/tasks/task_detail_view_load_more_child_tasks_limit.js";
 import {useTaskQueryState} from "~/client/web/tasks/use_task_query_state.js";
 import {

@@ -13,11 +13,7 @@ import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_cont
 import {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {
-    FailedPreconditionError,
-    NotFoundError,
-    PermissionDeniedError,
-} from "~/shared/error/error.js";
+import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -28,6 +24,7 @@ import {
     updateTaskCommentContent,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {taskNotesBackfillFutureVersionErrorMessage} from "~/shared/tasks/task_error_messages.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
 
 const context = createTestWorkerContext({
@@ -304,7 +301,7 @@ test("can update a task\u2019s notes with out-of-order updates", async () => {
     ]);
 });
 
-test("can\u2019t update a task\u2019s notes with out-of-order updates if our durable object doesn\u2019t remember enough steps", async () => {
+test("can update a task\u2019s notes with out-of-order updates even if our durable object doesn\u2019t remember enough steps", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -314,11 +311,14 @@ test("can\u2019t update a task\u2019s notes with out-of-order updates if our dur
     await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
+    const client1Id = generateId<ContentEditorClientId>();
+
     await updateTaskNotesContent(session1.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 0,
-        steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientVersion: 0,
+        clientSteps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientId: client1Id,
     });
 
     const client2Id = generateId<ContentEditorClientId>();
@@ -329,16 +329,40 @@ test("can\u2019t update a task\u2019s notes with out-of-order updates if our dur
     expect(connection1.takeEvents()).toEqual([]);
     expect(connection2.takeEvents()).toEqual([]);
 
-    await expect(
-        connection2.procedures.updateNotesContent({
-            version: 0,
-            steps: [new ReplaceStep(1, 1, textSlice("c"))],
-            clientId: client2Id,
-        }),
-    ).rejects.toThrow(FailedPreconditionError);
+    // The durable object connected at version 2 so it doesn't remember the steps that
+    // took us from version 0 to version 2. Instead of rejecting this update we load
+    // those steps from the database and rebase the client's "c" insertion onto the
+    // latest content. The rebased step lands after the already-applied "ab".
+    await connection2.procedures.updateNotesContent({
+        version: 0,
+        steps: [new ReplaceStep(1, 1, textSlice("c"))],
+        clientId: client2Id,
+    });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(connection1.takeEvents()).toEqual([
+        {
+            type: "UpdateNotesContentWithoutPersistence",
+            newVersion: 3,
+            steps: [new ReplaceStep(3, 3, textSlice("c"))],
+            stepsContentReferences: emptyContentReferences,
+            clientId: client2Id,
+        },
+    ]);
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "UpdateNotesContentWithoutPersistence",
+            newVersion: 3,
+            steps: [new ReplaceStep(3, 3, textSlice("c"))],
+            stepsContentReferences: emptyContentReferences,
+            clientId: client2Id,
+        },
+    ]);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(connection1.takeEvents()).toEqual([{type: "PersistedContent", newVersion: 3}]);
+    expect(connection2.takeEvents()).toEqual([{type: "PersistedContent", newVersion: 3}]);
 });
 
 test("can update a task\u2019s notes when our durable object doesn\u2019t remember earlier steps", async () => {
@@ -351,11 +375,14 @@ test("can update a task\u2019s notes when our durable object doesn\u2019t rememb
     await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
+    const client1Id = generateId<ContentEditorClientId>();
+
     await updateTaskNotesContent(session1.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 0,
-        steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientVersion: 0,
+        clientSteps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientId: client1Id,
     });
 
     const client2Id = generateId<ContentEditorClientId>();
@@ -441,23 +468,20 @@ test("can backfill task notes steps our durable object remembers", async () => {
             version: 0,
         }),
     ).toEqual({
-        result: {
-            type: "Available",
-            persistedVersion: 2,
-            newVersion: 2,
-            steps: [
-                {step: new ReplaceStep(1, 1, textSlice("a")), clientId: client1Id},
-                {step: new ReplaceStep(2, 2, textSlice("b")), clientId: client1Id},
-            ],
-            stepsContentReferences: emptyContentReferences,
-        },
+        persistedVersion: 2,
+        newVersion: 2,
+        steps: [
+            {step: new ReplaceStep(1, 1, textSlice("a")), clientId: client1Id},
+            {step: new ReplaceStep(2, 2, textSlice("b")), clientId: client1Id},
+        ],
+        stepsContentReferences: emptyContentReferences,
     });
 
     expect(connection1.takeEvents()).toEqual([]);
     expect(connection2.takeEvents()).toEqual([]);
 });
 
-test("can\u2019t backfill task notes steps our durable object doesn\u2019t remember", async () => {
+test("can backfill task notes steps our durable object doesn\u2019t remember by loading them from the database", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -467,36 +491,41 @@ test("can\u2019t backfill task notes steps our durable object doesn\u2019t remem
     await collection.access.grantDefault(session1);
     await task.addCollection(session1, collection);
 
+    const client1Id = generateId<ContentEditorClientId>();
+
     await updateTaskNotesContent(session1.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 0,
-        steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientVersion: 0,
+        clientSteps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientId: client1Id,
     });
 
     const connection2 = await connectForTest(context.action(session2), task.id);
 
     expect(connection2.takeEvents()).toEqual([]);
 
+    // The durable object connected at version 2 so it doesn't remember the steps that
+    // took us from version 0 to version 2. Instead of resetting the client's document
+    // we load those steps from the database to backfill the client.
     expect(
         await connection2.procedures.backfillNotes({
             version: 0,
         }),
     ).toEqual({
-        result: {
-            type: "Unavailable",
-            newVersion: 2,
-            content: {
-                doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
-                references: emptyContentReferences,
-            },
-        },
+        persistedVersion: 2,
+        newVersion: 2,
+        steps: [
+            {step: new ReplaceStep(1, 1, textSlice("a")), clientId: client1Id},
+            {step: new ReplaceStep(2, 2, textSlice("b")), clientId: client1Id},
+        ],
+        stepsContentReferences: emptyContentReferences,
     });
 
     expect(connection2.takeEvents()).toEqual([]);
 });
 
-test("can current task notes version", async () => {
+test("can update a current task notes version", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -509,8 +538,9 @@ test("can current task notes version", async () => {
     await updateTaskNotesContent(session1.action(), {
         spaceId: space.id,
         taskId: task.id,
-        version: 0,
-        steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientVersion: 0,
+        clientSteps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientId: generateId(),
     });
 
     const connection2 = await connectForTest(context.action(session2), task.id);
@@ -522,16 +552,82 @@ test("can current task notes version", async () => {
             version: 2,
         }),
     ).toEqual({
-        result: {
-            type: "Available",
-            persistedVersion: 2,
-            newVersion: 2,
-            steps: [],
-            stepsContentReferences: emptyContentReferences,
-        },
+        persistedVersion: 2,
+        newVersion: 2,
+        steps: [],
+        stepsContentReferences: emptyContentReferences,
     });
 
     expect(connection2.takeEvents()).toEqual([]);
+});
+
+test("rejects backfilling a future task notes version with a recoverable error", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+    await task.addCollection(session1, collection);
+
+    const connection1 = await connectForTest(context.action(session1), task.id);
+
+    expect(connection1.takeEvents()).toEqual([]);
+
+    // The durable object is at version 0 but the client claims to be at version 1.
+    // This happens when a previous durable object confirmed steps to the client but
+    // crashed before persisting them. Because the database is also at version 0 the
+    // durable object is not out of sync, so we surface a recoverable error instead of
+    // crashing. The client reverts its unpersisted steps and backfills again.
+    await expect(connection1.procedures.backfillNotes({version: 1})).rejects.toThrow(
+        taskNotesBackfillFutureVersionErrorMessage,
+    );
+
+    expect(connection1.isClosed()).toEqual(false);
+    expect(connection1.takeEvents()).toEqual([]);
+});
+
+test("destroys the durable object when backfilling a future version the database has persisted", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.create(session1);
+    await collection.access.grantDefault(session1);
+    await task.addCollection(session1, collection);
+
+    // Initialize the durable object at version 0.
+    const connection1 = await connectForTest(context.action(session1), task.id);
+
+    expect(connection1.takeEvents()).toEqual([]);
+
+    // Persist steps directly to the database (bypassing the durable object) so the
+    // database advances to version 2 while the durable object stays at version 0.
+    await updateTaskNotesContent(session1.action(), {
+        spaceId: space.id,
+        taskId: task.id,
+        clientVersion: 0,
+        clientSteps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+        clientId: generateId(),
+    });
+
+    // The client backfills a version ahead of the in-memory version of the durable
+    // object. Since the database is actually ahead, the durable object is stale and
+    // must not tell the client to revert persisted steps. Instead it destroys itself
+    // so the next connection reloads from the database at the correct version.
+    await expect(connection1.procedures.backfillNotes({version: 1})).rejects.toThrow("out of sync");
+
+    expect(connection1.isClosed()).toEqual(true);
+    expect((connection1.getCloseError() as InternalError).message).toEqual(
+        "Task notes version in durable object is out of sync with the actual task notes version",
+    );
+
+    // After the stale durable object was destroyed a fresh connection reloads from the
+    // database at the correct version and can backfill from version 0.
+    const session2 = await space.createSession();
+    const connection2 = await connectForTest(context.action(session2), task.id);
+
+    expect((await connection2.procedures.backfillNotes({version: 0})).newVersion).toEqual(2);
 });
 
 test("can backfill task note steps but can\u2019t update if you only have view access", async () => {
@@ -586,16 +682,13 @@ test("can backfill task note steps but can\u2019t update if you only have view a
             version: 0,
         }),
     ).toEqual({
-        result: {
-            type: "Available",
-            persistedVersion: 2,
-            newVersion: 2,
-            steps: [
-                {step: new ReplaceStep(1, 1, textSlice("a")), clientId: client1Id},
-                {step: new ReplaceStep(2, 2, textSlice("b")), clientId: client1Id},
-            ],
-            stepsContentReferences: emptyContentReferences,
-        },
+        persistedVersion: 2,
+        newVersion: 2,
+        steps: [
+            {step: new ReplaceStep(1, 1, textSlice("a")), clientId: client1Id},
+            {step: new ReplaceStep(2, 2, textSlice("b")), clientId: client1Id},
+        ],
+        stepsContentReferences: emptyContentReferences,
     });
 
     expect(connection1.takeEvents()).toEqual([]);

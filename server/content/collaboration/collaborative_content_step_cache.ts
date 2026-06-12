@@ -1,53 +1,59 @@
 import {Step} from "prosemirror-transform";
-import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
 } from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.js";
-import {getDocumentContentSteps} from "~/shared/rpc/documents_rpc_definitions.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+
+export type CollaborationStepCacheStep = {
+    step: Step;
+    invertedStep: Step;
+    clientId: ContentEditorClientId;
+};
+
+type CollaborationStepCacheLoadSteps<ContextType> = (
+    context: ContextType,
+    versions: {
+        startVersion: number;
+        endVersion: number;
+    },
+) => Promise<{
+    steps: ReadonlyArray<CollaborationStepCacheStep>;
+}>;
 
 /**
- * Stores steps in an in-memory cache and loads old steps into that cache as we
- * request them.
+ * Stores prosemirror steps in an in-memory read-through cache to avoid having to
+ * load steps from the database on every read.
  */
-export class DocumentCollaborationStepCache {
-    private _id: DocumentId;
+export class CollaborativeContentStepCache<ContextType> {
     private _startVersion: number;
     private _endVersion: number;
-    private _stepByVersion: Map<
-        number,
-        {
-            step: Step;
-            invertedStep: Step;
-            clientId: ContentEditorClientId;
-        }
-    >;
+    private _stepByVersion: Map<number, CollaborationStepCacheStep>;
+    private _loadSteps: CollaborationStepCacheLoadSteps<ContextType>;
 
     private _loadOldStepsState: {
         startVersionAfterPromise: number;
         promise: Promise<void>;
     } | null = null;
 
-    constructor(id: DocumentId, version: number) {
-        this._id = id;
-        this._startVersion = version;
-        this._endVersion = version;
+    constructor(options: {
+        startVersion: number;
+        loadSteps: CollaborationStepCacheLoadSteps<ContextType>;
+    }) {
+        this._startVersion = options.startVersion;
+        this._endVersion = options.startVersion;
         this._stepByVersion = new Map();
+        this._loadSteps = options.loadSteps;
     }
 
     /**
      * Add a step to the end of our cache.
      *
-     * Does not validate whether the step is valid for this document!
+     * Does not validate whether the step is valid for its content!
      */
-    public dangerouslyAddStepToEnd(step: {
-        step: Step;
-        invertedStep: Step;
-        clientId: ContentEditorClientId;
-    }) {
+    public dangerouslyAddStepToEnd(step: CollaborationStepCacheStep) {
         this._stepByVersion.set(this._endVersion, step);
         this._endVersion += 1;
     }
@@ -60,31 +66,24 @@ export class DocumentCollaborationStepCache {
      * database and put them in our in-memory cache for future requests.
      */
     public async getSteps(
-        context: WorkerActionContext,
+        context: ContextType,
         startVersion: number,
         endVersion: number,
-    ): Promise<
-        Array<{
-            step: Step;
-            invertedStep: Step;
-            clientId: ContentEditorClientId;
-        }>
-    > {
-        if (startVersion < 0) throw new InvalidArgumentError("Start version is less than zero");
+    ): Promise<Array<CollaborationStepCacheStep>> {
+        if (startVersion < 0)
+            throw new InvalidArgumentError("Start version cannot be less than zero");
         if (startVersion > endVersion)
-            throw new InvalidArgumentError("End version is greater than start version");
+            throw new InvalidArgumentError(
+                "Cannot get collaborative content steps with start version greater than end version",
+            );
         if (endVersion > this._endVersion)
             throw new FailedPreconditionError(
-                "End version is greater than the last version in the document",
+                "Cannot get collaborative content steps with end version greater than the last version in the cache",
             );
 
         if (startVersion === endVersion) return [];
 
-        const steps: Array<{
-            step: Step;
-            invertedStep: Step;
-            clientId: ContentEditorClientId;
-        }> = [];
+        const steps: Array<CollaborationStepCacheStep> = [];
 
         // If we are trying to get steps not in our store, then first we need to load those
         // steps.
@@ -93,14 +92,14 @@ export class DocumentCollaborationStepCache {
 
         for (let version = startVersion; version < endVersion; version++) {
             const step = this._stepByVersion.get(version);
-            if (!step) throw new InternalError("Missing a document step");
+            if (!step) throw new InternalError("Missing step in collaborative content step cache");
             steps.push(step);
         }
 
         return steps;
     }
 
-    private _loadOldSteps(context: WorkerActionContext, newStartVersion: number): Promise<void> {
+    private _loadOldSteps(context: ContextType, newStartVersion: number): Promise<void> {
         assert(newStartVersion < this._startVersion);
 
         // If we have a promise that is already loading all the steps after
@@ -119,14 +118,13 @@ export class DocumentCollaborationStepCache {
         const endVersion = lastLoadOldStepsState?.startVersionAfterPromise ?? this._startVersion;
 
         const promise = (async () => {
-            const {steps} = await getDocumentContentSteps(context, {
-                documentId: this._id,
+            const {steps} = await this._loadSteps(context, {
                 startVersion: newStartVersion,
                 endVersion,
             });
 
-            // Before we update our store state, wait for our last load to finish.
-            // `getDocumentContentSteps()` should run in parallel with this promise.
+            // Before we update our store state, wait for our last load to finish. The current
+            // load should run in parallel with this promise.
             if (lastLoadOldStepsState) await lastLoadOldStepsState.promise;
 
             // Populate the steps we loaded in our store. We expect every step to only be
@@ -148,11 +146,13 @@ export class DocumentCollaborationStepCache {
 
         // If when the promise resolves, our load state is still the current load state
         // then clear the load state.
-        void ourLoadOldStepsState.promise.finally(() => {
-            if (this._loadOldStepsState === ourLoadOldStepsState) {
-                this._loadOldStepsState = null;
-            }
-        });
+        void ourLoadOldStepsState.promise
+            .finally(() => {
+                if (this._loadOldStepsState === ourLoadOldStepsState) {
+                    this._loadOldStepsState = null;
+                }
+            })
+            .catch(() => {});
 
         this._loadOldStepsState = ourLoadOldStepsState;
 

@@ -8,10 +8,12 @@ export function createTaskNotesCreateTransactionEntry({
     spaceId,
     taskId,
     content,
+    createdTime,
 }: {
     spaceId: SpaceId;
     taskId: TaskId;
     content: TaskNotesContent;
+    createdTime?: Date;
 }): DynamoTransactionEntry {
     // Create the initial notes row at version 0 in the same transaction as task
     // creation so we never end up with a task that exists without its initial notes.
@@ -20,6 +22,7 @@ export function createTaskNotesCreateTransactionEntry({
         sortRangeType: "Notes",
         spaceId,
         taskId,
+        createdTime: createdTime ?? new Date(),
         version: 0,
         content,
         stepCountByAccountId: new TaskStepCountByAccountId(new Map()),

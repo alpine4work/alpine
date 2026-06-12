@@ -8,6 +8,7 @@ import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_au
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {deleteTaskAndAllChildren} from "~/server/tasks/data/delete_task_and_all_children.js";
 import {duplicateTaskAndAllChildren} from "~/server/tasks/data/duplicate_task_and_all_children.js";
+import {getTaskNotesContentSteps} from "~/server/tasks/data/get_task_notes_content_steps.js";
 import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
 import {
     backfillTaskComments,
@@ -21,7 +22,7 @@ import {
     updateTaskCommentContent,
 } from "~/server/tasks/data/task_messaging.js";
 import {updateTaskGridViewExpansionState} from "~/server/tasks/data/update_task_grid_view_expansion_state.js";
-import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
+import {updateTaskNotesContentIdempotently} from "~/server/tasks/data/update_task_notes_content.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
@@ -159,9 +160,27 @@ export default implementRpcs(definitions, {
 
     updateTaskNotesContent: {
         visibility: ["TaskNotesCollaborationService"],
+        execute: async (context, {spaceId, taskId, version, steps, clientId}, {callId}) => {
+            const {newVersion} = await updateTaskNotesContentIdempotently(
+                context.actor.authorizeSession(),
+                {
+                    spaceId,
+                    taskId,
+                    clientId,
+                    clientVersion: version,
+                    clientSteps: steps,
+                    clientRequestToken: callId,
+                },
+            );
+            return {newVersion};
+        },
+    },
+
+    getTaskNotesContentSteps: {
+        visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
-            await updateTaskNotesContent(context.actor.authorizeSession(), input);
-            return {};
+            const steps = await getTaskNotesContentSteps(context.actor.authorizeSession(), input);
+            return {steps};
         },
     },
 
