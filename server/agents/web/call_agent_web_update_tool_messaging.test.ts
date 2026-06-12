@@ -15,7 +15,13 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import type {
+    AgentWebMessagingPage,
+    AgentWebMessagingPageCustomBlockBase,
+} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
+import {agentWebMessagingPageMessageNouns} from "~/server/agents/web/pages/messaging/agent_web_messaging_page.js";
 import {getReadAgentWebMessagingPageAroundMessageStartCursor} from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
+import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     ApiAccount,
@@ -899,6 +905,65 @@ test("rejects creating messages with a time attribute", async () => {
         expected:
             "You can\u2019t add a `<message>` with a `time` attribute. The creation time of the message will be decided by the server. Try again without the `time` attribute.",
     });
+});
+
+test("rejects creating time markers", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: "\n\n<time>May 14th at 11:05am EDT</time>\n\nEnd of messages.",
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "Unexpected `<time>`, you can only add `<message>`s. The creation time of messages will be decided by the server. Try again and remove the new `<time>`.",
+    });
+});
+
+test("rejects creating non-message custom blocks", async () => {
+    type StatusCustomBlock = AgentWebMessagingPageCustomBlockBase & {
+        readonly tagName: "status";
+    };
+
+    const oldPage: AgentWebMessagingPage<null, StatusCustomBlock> = {
+        preamble: null,
+        pagination: null,
+        isEndOfMessages: true,
+        blocks: [],
+    };
+
+    const newPage: AgentWebMessagingPage<null, StatusCustomBlock> = {
+        ...oldPage,
+        blocks: [{type: "Custom", tagName: "status", timeAttribute: null}],
+    };
+
+    const result = await captureResultPromise(
+        async () =>
+            await updateAgentWebMessagingPage(context, {
+                messageNouns: agentWebMessagingPageMessageNouns,
+                pathname: chatPath,
+                room: {type: "Chat", id: chatId},
+                oldPageMetadata: {isEndOfMessages: true, messages: []},
+                oldPage,
+                newPage,
+                prepareCustomBlockUpdate: () => ({update: async () => {}}),
+            }),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected update to throw");
+    }
+
+    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(
+        "Unexpected `<status>`, you can only add `<message>`s. Try again and remove the new `<status>`.",
+    );
+    expect(result.error).toBeInstanceOf(InvalidArgumentError);
 });
 
 test("allows removing the end marker while creating messages", async () => {
