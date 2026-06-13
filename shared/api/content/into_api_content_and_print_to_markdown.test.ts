@@ -1,7 +1,7 @@
 import {Node} from "prosemirror-model";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {
-    ApiContentMarkdownIntoOptions,
+    ApiContentMarkdownIntoOptionsWithoutKeys,
     intoApiContent,
 } from "~/shared/api/content/into_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
@@ -347,7 +347,7 @@ const testChannelId = generateId<ChannelId>();
 const documentEntityId = `Document:${testDocumentId}` as const;
 const channelEntityId = `Channel:${testChannelId}` as const;
 
-const fileOptions: ApiContentMarkdownIntoOptions = {
+const fileOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
     getAccountMentionTitleIfExists: () => undefined,
     getSearchEntityMentionTitleIfExists: entityId => {
         if (entityId === documentEntityId) return "My Document";

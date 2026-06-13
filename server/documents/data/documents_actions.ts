@@ -2047,11 +2047,14 @@ export async function getDocumentCommentThreadContent(
     );
 
     const fallbackContentSnippet = commentThreadItem.fallbackContentSnippet
-        ? assertDocumentWithOptionalTitleContent(
-              stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
-                  exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
-              }),
-          )
+        ? {
+              version: commentThreadItem.fallbackContentSnippet.version,
+              node: assertDocumentWithOptionalTitleContent(
+                  stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
+                      exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
+                  }),
+              ),
+          }
         : null;
 
     return {
@@ -3257,7 +3260,7 @@ export async function updateDocumentContent(
                                     // should also drop the `accessPolicy` attr on `doc`.
                                     node: assertDocumentWithOptionalTitleContent(
                                         DocumentWithOptionalTitleContentProsemirrorSchema.nodeFromJSON(
-                                            contentSnippet.toJSON(),
+                                            contentSnippet.node.toJSON(),
                                         ),
                                     ),
                                 },

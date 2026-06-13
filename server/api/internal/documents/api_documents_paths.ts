@@ -24,12 +24,14 @@ import {
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {
     fromApiContent,
     fromApiContentForPutDocument,
 } from "~/shared/api/content/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -60,13 +62,13 @@ export const apiDocumentsPaths: Pick<
 > = {
     "/documents": {
         post: async (context, {requestBody}) => {
+            const consistency = "StrongWithinCache" as const;
             const {
                 spaceId,
                 document: {creator, title, content: apiContent},
             } = requestBody;
 
             const documentId = generateId<DocumentId>();
-            const consistency = "StrongWithinCache" as const;
 
             const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
                 consistency,
@@ -123,6 +125,13 @@ export const apiDocumentsPaths: Pick<
                         documentId,
                     }),
                     documentContent,
+                    {
+                        encoder: new ApiContentKeyEncoder({
+                            entityId: `Document:${documentId}`,
+                            // All documents are created with version 0
+                            version: 0,
+                        }),
+                    },
                 ),
             ]);
 
@@ -163,6 +172,12 @@ export const apiDocumentsPaths: Pick<
                                 documentId: pathParameters.id,
                             }),
                             document.content,
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Document:${pathParameters.id}`,
+                                    version: document.version,
+                                }),
+                            },
                         ),
                     },
                 },
@@ -231,6 +246,12 @@ export const apiDocumentsPaths: Pick<
                                 documentId: pathParameters.id,
                             }),
                             responseBody.newContent,
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Document:${pathParameters.id}`,
+                                    version: responseBody.newVersion,
+                                }),
+                            },
                         ),
                     },
                 },
@@ -287,25 +308,55 @@ export const apiDocumentsPaths: Pick<
                   )
                 : null;
 
-            const contentSnippetByCommentThreadId = createDocumentCommentThreadSnippetCollector([
+            const contentSnippetByCommentThreadId = createDocumentCommentThreadSnippetCollector(
+                [pathParameters.threadId],
+                // Whole text blocks so every block in the snippet gets a content key that matches
+                // the key for the same block in the full document content.
+                {wholeTextBlocks: true},
+            )(documentContent.content);
+
+            const commentThreadSnippet = contentSnippetByCommentThreadId.get(
                 pathParameters.threadId,
-            ])(documentContent.content);
+            );
 
-            const contentSnippetOrFallback =
-                contentSnippetByCommentThreadId.get(pathParameters.threadId) ??
-                commentThread.fallbackContentSnippet;
-
-            const contentSnippet = contentSnippetOrFallback
-                ? await intoApiContentWithReferences(
-                      context,
-                      commentThread.spaceId,
-                      FileDocumentAuthorizer.bind({
-                          type: "Document",
-                          documentId: pathParameters.id,
-                      }),
-                      contentSnippetOrFallback,
-                  )
-                : null;
+            let contentSnippet: ApiContentResponse | null = null;
+            if (commentThreadSnippet) {
+                contentSnippet = await intoApiContentWithReferences(
+                    context,
+                    commentThread.spaceId,
+                    FileDocumentAuthorizer.bind({
+                        type: "Document",
+                        documentId: pathParameters.id,
+                    }),
+                    commentThreadSnippet.node,
+                    {
+                        encoder: new ApiContentKeyEncoder({
+                            entityId: `Document:${pathParameters.id}`,
+                            version: documentContent.version,
+                        }),
+                        posOffset: commentThreadSnippet.posOffset,
+                    },
+                );
+            } else if (commentThread.fallbackContentSnippet) {
+                contentSnippet = await intoApiContentWithReferences(
+                    context,
+                    commentThread.spaceId,
+                    FileDocumentAuthorizer.bind({
+                        type: "Document",
+                        documentId: pathParameters.id,
+                    }),
+                    commentThread.fallbackContentSnippet.node,
+                    {
+                        // The fallback snippet was saved from an older version of the document, so encode
+                        // its keys with that version. The keys identify blocks within the snippet but
+                        // can't be resolved against the current document content.
+                        encoder: new ApiContentKeyEncoder({
+                            entityId: `Document:${pathParameters.id}`,
+                            version: commentThread.fallbackContentSnippet.version,
+                        }),
+                    },
+                );
+            }
 
             return {
                 content: {
@@ -335,17 +386,17 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(
-                        context,
-                        message.spaceId,
+                    message: await intoApiMessage(context, {
+                        spaceId: message.spaceId,
                         message,
-                        createIntoApiDocumentCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiDocumentCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                             pathParameters.threadId,
                         ),
-                    ),
+                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${pathParameters.index}`,
+                    }),
                 },
             };
         },
@@ -401,17 +452,18 @@ export const apiDocumentsPaths: Pick<
                     nextCursor,
                     messages: await runAllPromises(
                         comments.map(message =>
-                            intoApiMessage(
-                                context,
+                            intoApiMessage(context, {
                                 spaceId,
                                 message,
-                                createIntoApiDocumentCommentContentPayloadParent(
-                                    context,
-                                    spaceId,
-                                    pathParameters.id,
-                                    pathParameters.threadId,
-                                ),
-                            ),
+                                intoContentPayloadParent:
+                                    createIntoApiDocumentCommentContentPayloadParent(
+                                        context,
+                                        spaceId,
+                                        pathParameters.id,
+                                        pathParameters.threadId,
+                                    ),
+                                entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${message.index}`,
+                            }),
                         ),
                     ),
                 },
@@ -504,10 +556,9 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(
-                        context,
+                    message: await intoApiMessage(context, {
                         spaceId,
-                        {
+                        message: {
                             index,
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
@@ -518,13 +569,14 @@ export const apiDocumentsPaths: Pick<
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        createIntoApiDocumentCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiDocumentCommentContentPayloadParent(
                             context,
                             spaceId,
                             pathParameters.id,
                             pathParameters.threadId,
                         ),
-                    ),
+                        entityId: `DocumentComment:${pathParameters.id}-${pathParameters.threadId}-${index}`,
+                    }),
                 },
             };
         },

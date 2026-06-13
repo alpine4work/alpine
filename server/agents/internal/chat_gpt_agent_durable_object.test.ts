@@ -23,6 +23,8 @@ import {
 } from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {AgentUsageDatabaseInterface} from "~/server/agents/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/internal/open_ai_client.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -50,6 +52,22 @@ function createChatGptAgentDurableObject() {
         API_SERVICE_URL: "https://api.test.com",
         OPEN_AI_API_KEY: "test-openai-key",
     } as any);
+}
+
+const apiResponseParagraphKey: ApiContentKey = new ApiContentKeyEncoder({
+    entityId: "Message:mock",
+    version: 0,
+}).encode({pos: 0, nodeSize: 0});
+
+/**
+ * Creates a keyed API paragraph fixture for agent response content.
+ */
+function createApiResponseParagraph(text: string) {
+    return {
+        type: "Paragraph" as const,
+        key: apiResponseParagraphKey,
+        elements: [{type: "Text" as const, text}],
+    };
 }
 
 // Shared mock for usage database - reset in afterEach
@@ -306,9 +324,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
                             files: [],
                         },
@@ -491,9 +507,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
                             files: [],
                         },
@@ -668,9 +682,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
                             files: [],
                         },
@@ -868,9 +880,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
                             files: [],
                         },
@@ -1116,12 +1126,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             type: "Content",
                             content: {
                                 elements: [
-                                    {
-                                        type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "Find and read the AI document"},
-                                        ],
-                                    },
+                                    createApiResponseParagraph("Find and read the AI document"),
                                 ],
                             },
                             files: [],
@@ -1156,15 +1161,9 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     version: 1,
                     content: {
                         elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [
-                                    {
-                                        type: "Text",
-                                        text: "This document explains artificial intelligence concepts.",
-                                    },
-                                ],
-                            },
+                            createApiResponseParagraph(
+                                "This document explains artificial intelligence concepts.",
+                            ),
                         ],
                     },
                 },
@@ -1533,9 +1532,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
                             files: [],
                         },
@@ -1791,12 +1788,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
                                 files: [],
                             },
@@ -1949,12 +1941,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
                                 files: [],
                             },
@@ -2177,12 +2164,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
                                 files: [],
                             },
@@ -2417,12 +2399,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
                                 files: [],
                             },
@@ -2583,12 +2560,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
                                 files: [],
                             },
@@ -2792,12 +2764,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                             payload: {
                                 type: "Content",
                                 content: {
-                                    elements: [
-                                        {
-                                            type: "Paragraph",
-                                            elements: [{type: "Text", text: "Hello"}],
-                                        },
-                                    ],
+                                    elements: [createApiResponseParagraph("Hello")],
                                 },
                                 files: [],
                             },
@@ -3040,9 +3007,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         payload: {
                             type: "Content",
                             content: {
-                                elements: [
-                                    {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
-                                ],
+                                elements: [createApiResponseParagraph("Hello")],
                             },
                             files: [],
                         },

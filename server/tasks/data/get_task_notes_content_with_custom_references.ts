@@ -11,7 +11,11 @@ export function getTaskNotesContentWithCustomReferences<Content>(
     buildContent: (
         context: ServerAccountActionContext,
         spaceId: SpaceId,
-        task: {assigneeId: AccountId | null; content: TaskNotesContent},
+        taskNotes: {
+            assigneeId: AccountId | null;
+            notesVersion: number;
+            notesContent: TaskNotesContent;
+        },
     ) => Promise<Content>,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
@@ -29,7 +33,8 @@ export function getTaskNotesContentWithCustomReferences<Content>(
             version: notesItem?.version ?? 0,
             content: await buildContent(context, item.spaceId, {
                 assigneeId: item.assigneeId.value,
-                content: notesItem?.content ?? emptyTaskNotesContent,
+                notesVersion: notesItem?.version ?? 0,
+                notesContent: notesItem?.content ?? emptyTaskNotesContent,
             }),
             stepCountByNonCreatorAccountId:
                 notesItem?.stepCountByAccountId ?? new TaskStepCountByAccountId(new Map()),

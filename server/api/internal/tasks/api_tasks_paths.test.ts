@@ -356,6 +356,7 @@ test("can create an empty task", async () => {
                     elements: [
                         {
                             type: "Paragraph",
+                            key: expect.any(String),
                             elements: [],
                         },
                     ],

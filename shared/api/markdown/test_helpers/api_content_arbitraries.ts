@@ -1,4 +1,5 @@
 import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/markdown/normalize_api_content.js";
 import {
@@ -626,9 +627,24 @@ const ApiContentInlineElementResponseArbitrary =
         Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
     });
 
+const ApiContentKeyArbitrary = fc
+    .record({
+        documentId: createIdArbitrary<DocumentId>(),
+        version: fc.integer({min: 0, max: 10}),
+        pos: fc.integer({min: 0, max: 10}),
+        nodeSize: fc.integer({min: 0, max: 10}),
+    })
+    .map(({documentId, version, pos, nodeSize}) =>
+        new ApiContentKeyEncoder({entityId: `Document:${documentId}`, version}).encode({
+            pos,
+            nodeSize,
+        }),
+    );
+
 const ApiContentParagraphBlockElementResponseArbitrary: Arbitrary<ApiContentParagraphBlockElementResponse> =
     fc.record({
         type: fc.constant("Paragraph"),
+        key: ApiContentKeyArbitrary,
         elements: fc.array(ApiContentInlineElementResponseArbitrary),
     });
 
@@ -758,6 +774,7 @@ const ApiContentQuoteBlockElementResponseArbitrary: Arbitrary<ApiContentQuoteBlo
 const ApiContentHeadingBlockElementResponseArbitrary: Arbitrary<ApiContentHeadingBlockElementResponse> =
     fc.record({
         type: fc.constant("Heading"),
+        key: ApiContentKeyArbitrary,
         level: fc.oneof(fc.constant(1), fc.constant(2), fc.constant(3)),
         elements: fc.array(ApiContentInlineElementResponseArbitrary),
     });

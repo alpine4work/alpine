@@ -1,24 +1,11 @@
 import murmurhash from "murmurhash";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {isSearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
-
-/**
- * An `ApiContentKey` is used to identify positions in content for our API.
- *
- * An `ApiContentKey` is a URL safe base64 encoded string. The underlying bytes are
- * scrambled using `entityId` as the seed. The unscrambled bytes are:
- *
- * - 1 version bit
- * - 23 bits of the entity hash
- * - version varint
- * - pos varint
- * - node size varint
- */
-export type ApiContentKey = string & {readonly _ApiContentKey: never};
 
 /**
  * Encode `ApiContentKey`s.

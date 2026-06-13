@@ -1,8 +1,10 @@
 import {Mark, Node} from "prosemirror-model";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/compute_api_content_file_row_widths.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {getApiMentionTargetNoun} from "~/shared/api/markdown/get_api_mention_target_noun.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
@@ -12,6 +14,7 @@ import {
     ApiContentInlineElementResponse,
     ApiContentListBlockElementItemResponse,
     ApiContentListBlockElementResponse,
+    ApiContentParagraphBlockElementResponse,
     ApiContentPreviewBlockElementResponse,
     ApiContentResponse,
     ApiContentTableBlockElementCellResponse,
@@ -41,6 +44,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {
@@ -67,35 +72,197 @@ export type ApiContentMarkdownIntoOptions = {
               size?: {width: number | null; height: number};
           }
         | undefined;
+    readonly encoder: ApiContentKeyEncoder;
+    readonly posOffset?: number;
 };
 
+export type ApiContentMarkdownIntoOptionsWithoutKeys = Replace<
+    ApiContentMarkdownIntoOptions,
+    {
+        readonly encoder?: undefined;
+        readonly posOffset?: undefined;
+    }
+>;
+
+type ApiContentMarkdownIntoOptionsForConversion =
+    | ApiContentMarkdownIntoOptions
+    | ApiContentMarkdownIntoOptionsWithoutKeys;
+
+type ApiContentMarkdownIntoContext = {
+    readonly rootNode: Node;
+    readonly posOffset: number;
+    readonly encoder: ApiContentKeyEncoder | undefined;
+};
+
+// `ApiContentResponse` includes resolved response-only fields such as mention
+// titles, task display status, file metadata, and content keys on addressable text
+// containers. API callers use those keys to create document comment target ranges
+// with `{key, index}`.
+//
+// Those keys are not just opaque ids. They encode the source entity/version and
+// the ProseMirror position of the block or code line. They are only meaningful
+// when we are returning content for a known API entity at a known version, such as
+// `GET /documents/{id}`, `PATCH /documents/{id}`, `GET /tasks/{id}`, or a document
+// comment snippet. Those callers pass an `encoder` and use the generated
+// `ApiContentResponse`.
+//
+// API content is also a general conversion/printing intermediate for flows that
+// never send positions back to the API. Current no-key flows include:
+//
+// - `client/web/documents/internal/export_document_content.ts`, which converts a
+//   local document to API content only so it can print Markdown/HTML export.
+// - Notion import conversion code, which uses API content as an intermediate
+//   representation while converting imported Markdown/CSV data into ProseMirror
+//   documents.
+// - `server/agents/internal/print_api_content_to_agent_markdown.ts` and its
+//   frontmatter wrapper, which need response-shaped mentions to produce agent
+//   links but never read content keys.
+// - Agent Markdown and shared converter tests, which build literal response
+//   content fixtures with no backing API entity/version.
+//
+// For those flows, requiring keys would force them to invent fake entity/version
+// provenance. That would make the type checker happy while implying the content
+// can be used for stable position mapping, which it cannot.
+//
+// This helper is the type-level mirror of the no-entity-context overload: keep the
+// response shape and recursively remove content keys. If a caller needs comment
+// ranges or any other stable position mapping, it should pass an `encoder` instead
+// of using this keyless shape. The conditional type preserves primitives, walks
+// arrays and objects, and strips `key` wherever the generated response type
+// declares one.
+type ApiContentWithoutKeys<Value> = Value extends JsonScalarValue | undefined
+    ? Value
+    : Value extends ReadonlyArray<infer Item>
+      ? ReadonlyArray<ApiContentWithoutKeys<Item>>
+      : Value extends {readonly key?: string}
+        ? Omit<{readonly [Key in keyof Value]: ApiContentWithoutKeys<Value[Key]>}, "key">
+        : Value extends object
+          ? {readonly [Key in keyof Value]: ApiContentWithoutKeys<Value[Key]>}
+          : Value;
+
+export type ApiContentResponseWithoutKeys = ApiContentWithoutKeys<ApiContentResponse>;
+
+type ApiContentWithOptionalKeys<Value> = Value extends JsonScalarValue | undefined
+    ? Value
+    : Value extends ReadonlyArray<infer Item>
+      ? ReadonlyArray<ApiContentWithOptionalKeys<Item>>
+      : Value extends {readonly key: infer Key}
+        ? Omit<{readonly [K in keyof Value]: ApiContentWithOptionalKeys<Value[K]>}, "key"> & {
+              readonly key?: Key;
+          }
+        : Value extends object
+          ? {readonly [K in keyof Value]: ApiContentWithOptionalKeys<Value[K]>}
+          : Value;
+
+type ApiContentResponseWithOptionalKeys = ApiContentWithOptionalKeys<ApiContentResponse>;
+type ApiContentBlockElementResponseWithOptionalKeys =
+    ApiContentWithOptionalKeys<ApiContentBlockElementResponse>;
+type ApiContentParagraphBlockElementResponseWithOptionalKeys =
+    ApiContentWithOptionalKeys<ApiContentParagraphBlockElementResponse>;
+type ApiContentListBlockElementResponseWithOptionalKeys =
+    ApiContentWithOptionalKeys<ApiContentListBlockElementResponse>;
+type ApiContentListBlockElementItemResponseWithOptionalKeys =
+    ApiContentWithOptionalKeys<ApiContentListBlockElementItemResponse>;
+type ApiContentCheckListBlockElementItemResponseWithOptionalKeys =
+    ApiContentWithOptionalKeys<ApiContentCheckListBlockElementItemResponse>;
+type ApiContentTableBlockElementCellResponseWithOptionalKeys =
+    ApiContentWithOptionalKeys<ApiContentTableBlockElementCellResponse>;
+type ApiContentTableBlockElementRowResponseWithOptionalKeys =
+    ApiContentWithOptionalKeys<ApiContentTableBlockElementRowResponse>;
+
 /**
- * Convert ProseMirror content into the format returned by the API.
+ * Converts content with required entity context and guarantees content keys on
+ * paragraphs, headings, and code block lines in the returned API content.
  */
 export function intoApiContent(
     node: Node,
     options: ApiContentMarkdownIntoOptions,
-): ApiContentResponse {
+): ApiContentResponse;
+/**
+ * Converts content without entity context and omits content keys from the returned
+ * paragraphs, headings, and code block lines.
+ */
+export function intoApiContent(
+    node: Node,
+    options: ApiContentMarkdownIntoOptionsWithoutKeys,
+): ApiContentResponseWithoutKeys;
+export function intoApiContent(
+    node: Node,
+    options: ApiContentMarkdownIntoOptionsForConversion,
+): ApiContentResponseWithoutKeys | ApiContentResponse {
     assert(node.type.name === "doc");
-    return {elements: Array.from(intoApiContentBlockElements(node.content.content, options))};
+    const posOffset = options.posOffset ?? 0;
+    assert(posOffset >= 0);
+    const context: ApiContentMarkdownIntoContext = {
+        rootNode: node,
+        posOffset,
+        encoder: options.encoder,
+    };
+
+    const apiContent: ApiContentResponseWithOptionalKeys = {
+        elements: Array.from(
+            intoApiContentBlockElements(node.content.content, options, context, posOffset),
+        ),
+    };
+
+    if (context.encoder !== undefined) {
+        assertApiContentResponseHasKeys(apiContent);
+        return apiContent;
+    }
+
+    return apiContent;
 }
 
-type ApiContentListBlockElementWorkingItem = {
-    node: Node | null;
+type ApiContentListBlockElementWorkingItem =
+    | ApiContentListBlockElementRealWorkingItem
+    | ApiContentListBlockElementPhantomWorkingItem;
+
+type ApiContentListBlockElementRealWorkingItem = {
+    node: Node;
+    pos: number;
     items: Array<ApiContentListBlockElementWorkingItem>;
 };
 
+/**
+ * Private structural placeholder for floating indented list items.
+ *
+ * Alpine stores list items as flat ProseMirror siblings with an `indent` attr.
+ * That means valid content can start at `indent: 2`, or jump from `indent: 1` to
+ * `indent: 3`, without real parent nodes for the missing levels. API content is
+ * nested, so we synthesize phantom parent items to preserve that shape.
+ *
+ * These phantom items do not correspond to source ProseMirror nodes and must not
+ * carry positions or content keys. Keep this `null` state inside the private
+ * working tree; real list items must always have a concrete `pos`.
+ */
+type ApiContentListBlockElementPhantomWorkingItem = {
+    node: null;
+    pos: null;
+    items: Array<ApiContentListBlockElementWorkingItem>;
+};
+
+/**
+ * Converts sibling ProseMirror block nodes into API block elements while tracking
+ * absolute positions for keyed text containers.
+ */
 function* intoApiContentBlockElements(
     nodes: ReadonlyArray<Node>,
-    options: ApiContentMarkdownIntoOptions,
-): IterableIterator<ApiContentBlockElementResponse> {
+    options: ApiContentMarkdownIntoOptionsForConversion,
+    context: ApiContentMarkdownIntoContext,
+    startPos: number,
+): IterableIterator<ApiContentBlockElementResponseWithOptionalKeys> {
     let nodeIndex = 0;
+    // Track each sibling's absolute ProseMirror start position. Encoded content keys
+    // use that position so API ranges can resolve back into the document.
+    let nodePos = startPos;
     while (nodeIndex < nodes.length) {
         const node = nodes[nodeIndex]!;
+        const currentNodePos = nodePos;
         nodeIndex++;
+        nodePos += node.nodeSize;
 
         if (node.type.name === "title") {
-            // Noop. Ignore document title nodes. Document titles will be handled separately.
+            // Ignore document title nodes. Document titles will be handled separately.
             continue;
         }
 
@@ -109,18 +276,27 @@ function* intoApiContentBlockElements(
 
                 // Make sure the while loop below sees the current node.
                 nodeIndex--;
+                nodePos -= node.nodeSize;
 
                 while (nodeIndex < nodes.length) {
                     const listItemNode = nodes[nodeIndex]!;
+                    const listItemPos = nodePos;
                     if (!listItemNode.type.groups.includes("listItem")) break;
                     nodeIndex++;
+                    nodePos += listItemNode.nodeSize;
 
                     const indent: number = listItemNode.attrs.indent;
                     let indentedItems: Array<ApiContentListBlockElementWorkingItem> = items;
 
+                    // ProseMirror stores nested list items as indented siblings. Build a tree first so
+                    // the API can emit nested list elements.
                     for (let i = 0; i < indent; i++) {
                         if (indentedItems.length === 0) {
-                            const phantomItem = {node: null, items: []};
+                            const phantomItem: ApiContentListBlockElementPhantomWorkingItem = {
+                                node: null,
+                                pos: null,
+                                items: [],
+                            };
                             indentedItems.push(phantomItem);
                             indentedItems = phantomItem.items;
                         } else {
@@ -130,11 +306,12 @@ function* intoApiContentBlockElements(
 
                     indentedItems.push({
                         node: listItemNode,
+                        pos: listItemPos,
                         items: [],
                     });
                 }
 
-                yield* intoApiContentListBlockElements(items, options);
+                yield* intoApiContentListBlockElements(items, options, context);
                 break;
             }
             case "fileRow": {
@@ -150,11 +327,13 @@ function* intoApiContentBlockElements(
 
                 // Back up to include the current node.
                 nodeIndex--;
+                nodePos -= node.nodeSize;
 
                 while (nodeIndex < nodes.length) {
                     const fileRowNode = nodes[nodeIndex]!;
                     if (fileRowNode.type.name !== "fileRow") break;
                     nodeIndex++;
+                    nodePos += fileRowNode.nodeSize;
 
                     const rowElements = fileRowNode.content.content.map(child =>
                         intoApiContentFileOrPreviewElement(child, options),
@@ -187,33 +366,50 @@ function* intoApiContentBlockElements(
                 break;
             }
             default:
-                yield intoApiContentBlockElement(typeName, node, options);
+                yield intoApiContentBlockElement(typeName, node, currentNodePos, options, context);
                 break;
         }
     }
 }
 
+/**
+ * Converts the normalized list item tree into API list block elements.
+ */
 function* intoApiContentListBlockElements(
     items: Array<ApiContentListBlockElementWorkingItem>,
-    options: ApiContentMarkdownIntoOptions,
-): IterableIterator<ApiContentListBlockElementResponse> {
+    options: ApiContentMarkdownIntoOptionsForConversion,
+    context: ApiContentMarkdownIntoContext,
+): IterableIterator<ApiContentListBlockElementResponseWithOptionalKeys> {
     let lastElement:
-        | {type: "UnorderedList"; items: Array<ApiContentListBlockElementItemResponse>}
+        | {
+              type: "UnorderedList";
+              items: Array<ApiContentListBlockElementItemResponseWithOptionalKeys>;
+          }
         | {
               type: "OrderedList";
               orderStart?: number;
-              items: Array<ApiContentListBlockElementItemResponse>;
+              items: Array<ApiContentListBlockElementItemResponseWithOptionalKeys>;
           }
-        | {type: "CheckList"; items: Array<ApiContentCheckListBlockElementItemResponse>}
+        | {
+              type: "CheckList";
+              items: Array<ApiContentCheckListBlockElementItemResponseWithOptionalKeys>;
+          }
         | null = null;
 
     for (const item of items) {
         const typeName = item.node?.type.name as ContentListItemNodeTypeName | undefined;
 
-        const elements =
+        // A list item's child content starts one position inside the item wrapper, which
+        // is where nested paragraph keys should be rooted.
+        const elements: Array<ApiContentParagraphBlockElementResponseWithOptionalKeys> =
             item.node !== null
                 ? Array.from(
-                      intoApiContentBlockElements(item.node.content.content, options),
+                      intoApiContentBlockElements(
+                          item.node.content.content,
+                          options,
+                          context,
+                          item.pos + 1,
+                      ),
                       element => {
                           if (element.type !== "Paragraph") {
                               throw new InternalError(
@@ -225,19 +421,28 @@ function* intoApiContentListBlockElements(
                   )
                 : [];
 
+        // The `item.node !== null` guard filters out internal phantom list items. Phantom
+        // items preserve nested API shape for floating indents, but they do not correspond
+        // to source ProseMirror nodes or content keys.
         if (item.node !== null && elements.length === 0) {
-            elements.push({type: "Paragraph", elements: []});
+            const key = maybeEncodeApiContentKey(context, item.pos, item.node);
+            const element = {
+                type: "Paragraph" as const,
+                ...(key !== undefined ? {key} : {}),
+                elements: [],
+            };
+            elements.push(element);
         }
 
         const nestedListElements =
             item.items.length > 0
-                ? Array.from(intoApiContentListBlockElements(item.items, options))
+                ? Array.from(intoApiContentListBlockElements(item.items, options, context))
                 : undefined;
 
         switch (typeName) {
             case undefined:
             case "unorderedListItem": {
-                const elementItem: ApiContentListBlockElementItemResponse = {
+                const elementItem: ApiContentListBlockElementItemResponseWithOptionalKeys = {
                     elements,
                     nestedListElements,
                 };
@@ -255,7 +460,7 @@ function* intoApiContentListBlockElements(
                 break;
             }
             case "orderedListItem": {
-                const elementItem: ApiContentListBlockElementItemResponse = {
+                const elementItem: ApiContentListBlockElementItemResponseWithOptionalKeys = {
                     elements,
                     nestedListElements,
                 };
@@ -280,7 +485,7 @@ function* intoApiContentListBlockElements(
                 break;
             }
             case "checkListItem": {
-                const elementItem: ApiContentCheckListBlockElementItemResponse = {
+                const elementItem: ApiContentCheckListBlockElementItemResponseWithOptionalKeys = {
                     checked: item.node?.attrs.checked ?? false,
                     elements,
                     nestedListElements,
@@ -312,20 +517,31 @@ function intoApiContentBlockElement(
         "unorderedListItem" | "orderedListItem" | "checkListItem" | "fileRow"
     >,
     node: Node,
-    options: ApiContentMarkdownIntoOptions,
-): ApiContentBlockElementResponse {
+    nodePos: number,
+    options: ApiContentMarkdownIntoOptionsForConversion,
+    context: ApiContentMarkdownIntoContext,
+): ApiContentBlockElementResponseWithOptionalKeys {
     switch (typeName) {
         case "paragraph": {
+            const elements = intoApiContentInlineElements(node.content.content, options);
+            const key = maybeEncodeApiContentKey(context, nodePos, node);
+
             return {
                 type: "Paragraph",
-                elements: intoApiContentInlineElements(node.content.content, options),
+                ...(key !== undefined ? {key} : {}),
+                elements,
             };
         }
         case "quoteBlock": {
             return {
                 type: "Quote",
                 elements: Array.from(
-                    intoApiContentBlockElements(node.content.content, options),
+                    intoApiContentBlockElements(
+                        node.content.content,
+                        options,
+                        context,
+                        nodePos + 1,
+                    ),
                     element => {
                         switch (element.type) {
                             case "Paragraph":
@@ -355,10 +571,14 @@ function intoApiContentBlockElement(
             };
         }
         case "heading": {
+            const elements = intoApiContentInlineElements(node.content.content, options);
+            const key = maybeEncodeApiContentKey(context, nodePos, node);
+
             return {
                 type: "Heading",
                 level: clampHeadingLevel(node.attrs.level),
-                elements: intoApiContentInlineElements(node.content.content, options),
+                ...(key !== undefined ? {key} : {}),
+                elements,
             };
         }
         case "divider": {
@@ -366,23 +586,33 @@ function intoApiContentBlockElement(
         }
         case "table": {
             let columnWidth = 2;
+            // Rows and cells are wrapper nodes. Advance through their sizes so child block
+            // keys point at positions inside the correct cell.
+            let rowPos = nodePos + 1;
 
             const rows = node.content.content.map(
-                (rowNode): ApiContentTableBlockElementRowResponse => {
+                (rowNode): ApiContentTableBlockElementRowResponseWithOptionalKeys => {
                     assert(rowNode.type.name === "tableRow");
+                    const currentRowPos = rowPos;
+                    rowPos += rowNode.nodeSize;
 
                     columnWidth = Math.max(columnWidth, rowNode.content.content.length);
+                    let cellPos = currentRowPos + 1;
 
                     return {
                         cells: rowNode.content.content.map(
-                            (cellNode): ApiContentTableBlockElementCellResponse => {
+                            (cellNode): ApiContentTableBlockElementCellResponseWithOptionalKeys => {
                                 assert(cellNode.type.name === "tableCell");
+                                const currentCellPos = cellPos;
+                                cellPos += cellNode.nodeSize;
 
                                 return {
                                     elements: Array.from(
                                         intoApiContentBlockElements(
                                             cellNode.content.content,
                                             options,
+                                            context,
+                                            currentCellPos + 1,
                                         ),
                                         element => {
                                             switch (element.type) {
@@ -429,33 +659,46 @@ function intoApiContentBlockElement(
             };
         }
         case "codeBlock": {
+            // Code lines are addressable independently, so each key uses the line node's
+            // position instead of the surrounding code block.
+            let linePos = nodePos + 1;
+
             return {
                 type: "Code",
                 language: node.attrs.language,
                 lines: node.content.content.map(lineNode => {
                     assert(lineNode.type.name === "codeBlockLine");
+                    const currentLinePos = linePos;
+                    linePos += lineNode.nodeSize;
+
+                    const elements = lineNode.content.content.map(textNode => {
+                        assert(textNode.type.name === "text");
+
+                        return {
+                            type: "Text" as const,
+                            text: textNode.text!,
+                            // Code block text can carry formatting marks, but nested Code marks are not
+                            // representable.
+                            marks:
+                                textNode.marks.length > 0
+                                    ? textNode.marks.map(mark => {
+                                          const apiMark = intoApiContentInlineElementMark(mark);
+                                          if (apiMark.type === "Code") {
+                                              throw new InternalError(
+                                                  quote`${apiMark.type} mark isn\u2019t supported in \`Code\` block element`,
+                                              );
+                                          }
+                                          return apiMark;
+                                      })
+                                    : undefined,
+                        };
+                    });
+
+                    const key = maybeEncodeApiContentKey(context, currentLinePos, lineNode);
 
                     return {
-                        elements: lineNode.content.content.map(textNode => {
-                            assert(textNode.type.name === "text");
-
-                            return {
-                                type: "Text",
-                                text: textNode.text!,
-                                marks:
-                                    textNode.marks.length > 0
-                                        ? textNode.marks.map(mark => {
-                                              const apiMark = intoApiContentInlineElementMark(mark);
-                                              if (apiMark.type === "Code") {
-                                                  throw new InternalError(
-                                                      quote`${apiMark.type} mark isn\u2019t supported in \`Code\` block element`,
-                                                  );
-                                              }
-                                              return apiMark;
-                                          })
-                                        : undefined,
-                            };
-                        }),
+                        ...(key !== undefined ? {key} : {}),
+                        elements,
                     };
                 }),
             };
@@ -480,9 +723,123 @@ function intoApiContentBlockElement(
     }
 }
 
+/**
+ * Encodes a content key when the caller provided stable entity context. Keyless
+ * conversion paths intentionally omit the property rather than inventing fake
+ * provenance for content that cannot be used for API position mapping.
+ */
+function maybeEncodeApiContentKey(
+    context: ApiContentMarkdownIntoContext,
+    pos: number,
+    node: Node,
+): ApiContentKey | undefined {
+    if (process.env.NODE_ENV !== "production") {
+        // Stream content may encode an offset position, but the ProseMirror node still
+        // lives at the local position inside this root node.
+        const localPos = pos - context.posOffset;
+        assert(localPos >= 0);
+        assert(context.rootNode.resolve(localPos).nodeAfter === node);
+    }
+
+    if (!context.encoder) return undefined;
+
+    return context.encoder.encode({pos, nodeSize: node.nodeSize});
+}
+
+function assertApiContentResponseHasKeys(
+    content: ApiContentResponseWithOptionalKeys,
+): asserts content is ApiContentResponse {
+    if (process.env.NODE_ENV === "production") {
+        // Missing keys are a bug, but not worth blocking a user API call in production.
+        return;
+    }
+
+    for (const element of content.elements) {
+        assertApiContentBlockElementHasKeys(element);
+    }
+}
+
+function assertApiContentBlockElementHasKeys(
+    element: ApiContentBlockElementResponseWithOptionalKeys,
+): asserts element is ApiContentBlockElementResponse {
+    switch (element.type) {
+        case "Paragraph":
+        case "Heading": {
+            assert(element.key !== undefined);
+            break;
+        }
+        case "UnorderedList":
+        case "OrderedList": {
+            for (const item of element.items) {
+                assertApiContentListBlockElementItemHasKeys(item);
+            }
+            break;
+        }
+        case "CheckList": {
+            for (const item of element.items) {
+                assertApiContentCheckListBlockElementItemHasKeys(item);
+            }
+            break;
+        }
+        case "Quote": {
+            for (const childElement of element.elements) {
+                assertApiContentBlockElementHasKeys(childElement);
+            }
+            break;
+        }
+        case "Table": {
+            for (const row of element.rows) {
+                for (const cell of row.cells) {
+                    for (const childElement of cell.elements) {
+                        assertApiContentBlockElementHasKeys(childElement);
+                    }
+                }
+            }
+            break;
+        }
+        case "Code": {
+            for (const line of element.lines) {
+                assert(line.key !== undefined);
+            }
+            break;
+        }
+        case "Divider":
+        case "File":
+        case "FileGallery":
+        case "FileFloat":
+        case "Preview": {
+            break;
+        }
+        default:
+            throw exhaustive(element);
+    }
+}
+
+function assertApiContentListBlockElementItemHasKeys(
+    item: ApiContentListBlockElementItemResponseWithOptionalKeys,
+): asserts item is ApiContentListBlockElementItemResponse {
+    for (const element of item.elements) {
+        assertApiContentBlockElementHasKeys(element);
+    }
+    for (const element of item.nestedListElements ?? []) {
+        assertApiContentBlockElementHasKeys(element);
+    }
+}
+
+function assertApiContentCheckListBlockElementItemHasKeys(
+    item: ApiContentCheckListBlockElementItemResponseWithOptionalKeys,
+): asserts item is ApiContentCheckListBlockElementItemResponse {
+    for (const element of item.elements) {
+        assertApiContentBlockElementHasKeys(element);
+    }
+    for (const element of item.nestedListElements ?? []) {
+        assertApiContentBlockElementHasKeys(element);
+    }
+}
+
 function intoApiContentFileOrPreviewElement(
     fileNode: Node,
-    options: ApiContentMarkdownIntoOptions,
+    options: ApiContentMarkdownIntoOptionsForConversion,
 ): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse {
     const fileId: string | null = fileNode.attrs.fileId;
     if (fileId === null) {
@@ -518,7 +875,7 @@ function intoApiContentFileOrPreviewElement(
 
 function fileEntityIdObjectToPreviewTarget(
     entityIdObject: FileEntityIdObject,
-    options: ApiContentMarkdownIntoOptions,
+    options: ApiContentMarkdownIntoOptionsForConversion,
 ): ApiPreviewTargetResponse {
     switch (entityIdObject.type) {
         case "Channel":
@@ -549,14 +906,14 @@ function fileEntityIdObjectToPreviewTarget(
 
 function intoApiContentInlineElements(
     nodes: ReadonlyArray<Node>,
-    options: ApiContentMarkdownIntoOptions,
+    options: ApiContentMarkdownIntoOptionsForConversion,
 ): ReadonlyArray<ApiContentInlineElementResponse> {
     return nodes.map(node => intoApiContentInlineElement(node, options));
 }
 
 function intoApiContentInlineElement(
     node: Node,
-    options: ApiContentMarkdownIntoOptions,
+    options: ApiContentMarkdownIntoOptionsForConversion,
 ): ApiContentInlineElementResponse {
     const typeName = node.type.name as ContentInlineNodeTypeName;
 

@@ -22,7 +22,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreview<
     buildContent: (
         context: Context,
         spaceId: SpaceId,
-        post: {authorId: AccountId; content: PostContent},
+        post: {authorId: AccountId; contentVersion: number; content: PostContent},
     ) => Promise<Content>,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{
@@ -52,7 +52,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreviewIfPossi
     buildContent: (
         context: Context,
         spaceId: SpaceId,
-        post: {authorId: AccountId; content: PostContent},
+        post: {authorId: AccountId; contentVersion: number; content: PostContent},
     ) => Promise<Content>,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<
@@ -69,7 +69,13 @@ export async function getPostContentWithCustomReferencesAndChannelPreviewIfPossi
 
     const [channelResult, contentResult] = await runAllPromises([
         getChannelPreviewIfPossible(context, postItem.channelId, {consistency}),
-        captureResultPromise(buildContent(context, postItem.spaceId, postItem)),
+        captureResultPromise(
+            buildContent(context, postItem.spaceId, {
+                authorId: postItem.authorId,
+                contentVersion: postItem.contentUpdate?.mappings.length ?? 0,
+                content: postItem.content,
+            }),
+        ),
     ]);
 
     if (!channelResult) return {ok: false, error: createPostNotFoundError(postId)};

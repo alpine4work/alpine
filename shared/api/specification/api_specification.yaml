@@ -1821,6 +1821,10 @@ components:
             type: string
             pattern: ^{{idRegExp}}$
 
+        ContentKey:
+            type: string
+            minLength: 1
+
         TaskCollectionColor:
             type: string
             enum: [Red, Orange, Yellow, Green, Cyan, Blue, Indigo, Purple, Pink]
@@ -2033,10 +2037,26 @@ components:
             properties:
                 type:
                     const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentParagraphBlockElement_Response:
+            type: object
+            required: [type, key, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
 
         ContentListBlockElement:
             oneOf:
@@ -2163,6 +2183,8 @@ components:
             properties:
                 type:
                     const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 level:
                     type: integer
                     minimum: 1
@@ -2171,6 +2193,24 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentHeadingBlockElement_Response:
+            type: object
+            required: [type, key, level, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
 
         ContentDividerBlockElement:
             type: object
@@ -2273,6 +2313,8 @@ components:
             required: [elements]
             additionalProperties: false
             properties:
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:

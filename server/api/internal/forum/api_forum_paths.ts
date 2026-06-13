@@ -25,6 +25,7 @@ import {
     pingPostCommentStream,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
@@ -63,11 +64,15 @@ export const apiForumPaths: Pick<
                     channel: {
                         id: pathParameters.id,
                         name: channel.name,
-                        description: await intoApiMessageContentWithReferences(
-                            context,
-                            channel.spaceId,
-                            channel.description,
-                        ),
+                        description: await intoApiMessageContentWithReferences(context, {
+                            spaceId: channel.spaceId,
+                            node: channel.description,
+                            encoder: new ApiContentKeyEncoder({
+                                entityId: `Channel:${pathParameters.id}`,
+                                // We don't track channel versions like we do for messages/posts
+                                version: 0,
+                            }),
+                        }),
                     },
                 },
             };
@@ -102,7 +107,6 @@ export const apiForumPaths: Pick<
     "/posts": {
         post: async (context, {requestBody}) => {
             const channelId = requestBody.channelId;
-
             const postId = generateId<PostId>();
 
             const content = assertPostContent(
@@ -126,7 +130,6 @@ export const apiForumPaths: Pick<
             }
 
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
-
             const [post, author] = await runAllPromises([
                 createPost(context, {
                     id: postId,
@@ -150,6 +153,12 @@ export const apiForumPaths: Pick<
                     referencesContext.actor.getSpaceId(),
                     FilePostAuthorizer.bind({type: "Post", postId}),
                     content,
+                    {
+                        encoder: new ApiContentKeyEncoder({
+                            entityId: `Post:${postId}`,
+                            version: 0,
+                        }),
+                    },
                 );
 
             return {
@@ -191,6 +200,12 @@ export const apiForumPaths: Pick<
                             spaceId,
                             FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
                             post.content,
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Post:${pathParameters.id}`,
+                                    version: post.contentVersion,
+                                }),
+                            },
                         ),
                     ]);
 
@@ -266,16 +281,16 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(
-                        context,
-                        message.spaceId,
+                    message: await intoApiMessage(context, {
+                        spaceId: message.spaceId,
                         message,
-                        createIntoApiPostCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `PostComment:${pathParameters.id}-${pathParameters.index}`,
+                    }),
                 },
             };
         },
@@ -329,16 +344,17 @@ export const apiForumPaths: Pick<
                     nextCursor,
                     messages: await runAllPromises(
                         comments.map(message =>
-                            intoApiMessage(
-                                context,
+                            intoApiMessage(context, {
                                 spaceId,
                                 message,
-                                createIntoApiPostCommentContentPayloadParent(
-                                    context,
-                                    spaceId,
-                                    pathParameters.id,
-                                ),
-                            ),
+                                intoContentPayloadParent:
+                                    createIntoApiPostCommentContentPayloadParent(
+                                        context,
+                                        spaceId,
+                                        pathParameters.id,
+                                    ),
+                                entityId: `PostComment:${pathParameters.id}-${message.index}`,
+                            }),
                         ),
                     ),
                 },
@@ -429,10 +445,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(
-                        context,
+                    message: await intoApiMessage(context, {
                         spaceId,
-                        {
+                        message: {
                             index,
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
@@ -443,12 +458,13 @@ export const apiForumPaths: Pick<
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        createIntoApiPostCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
                             context,
                             spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `PostComment:${pathParameters.id}-${index}`,
+                    }),
                 },
             };
         },

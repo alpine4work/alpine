@@ -5,8 +5,11 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {generateId} from "~/shared/id/id.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,
@@ -14,11 +17,16 @@ const baseContext = createTestContext({
 });
 
 const context = TestTaskRealtimeServer.with(baseContext);
+const taskNoteKey = new ApiContentKeyEncoder({
+    entityId: `Task:${generateId<TaskId>()}`,
+    version: 0,
+}).encode({pos: 0, nodeSize: 1});
 
 const content: ApiContentResponse = {
     elements: [
         {
             type: "Paragraph",
+            key: taskNoteKey,
             elements: [{type: "Text", text: "Hello from task notes"}],
         },
     ],

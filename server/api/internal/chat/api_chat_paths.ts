@@ -114,16 +114,16 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
             const content: ApiOperation200JsonResponseType<"/chats/{id}/messages/{index}", "get"> =
                 {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(
-                        context,
-                        message.spaceId,
+                    message: await intoApiMessage(context, {
+                        spaceId: message.spaceId,
                         message,
-                        createIntoApiChatMessageContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiChatMessageContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `ChatMessage:${pathParameters.id}-${pathParameters.index}`,
+                    }),
                 };
 
             // We want to test that response schemas are validated in a Jest unit test. So
@@ -188,16 +188,17 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                     nextCursor,
                     messages: await runAllPromises(
                         messages.map(message =>
-                            intoApiMessage(
-                                context,
+                            intoApiMessage(context, {
                                 spaceId,
                                 message,
-                                createIntoApiChatMessageContentPayloadParent(
-                                    context,
-                                    spaceId,
-                                    pathParameters.id,
-                                ),
-                            ),
+                                intoContentPayloadParent:
+                                    createIntoApiChatMessageContentPayloadParent(
+                                        context,
+                                        spaceId,
+                                        pathParameters.id,
+                                    ),
+                                entityId: `ChatMessage:${pathParameters.id}-${message.index}`,
+                            }),
                         ),
                     ),
                 },
@@ -291,10 +292,9 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(
-                        context,
+                    message: await intoApiMessage(context, {
                         spaceId,
-                        {
+                        message: {
                             index,
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
@@ -305,12 +305,13 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        createIntoApiChatMessageContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiChatMessageContentPayloadParent(
                             context,
                             spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `ChatMessage:${pathParameters.id}-${index}`,
+                    }),
                 },
             };
         },

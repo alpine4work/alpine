@@ -6,14 +6,12 @@ import {
     printAgentLinkPath,
     printAgentPlainTextLabel,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {
-    ApiContentMentionInlineElementResponse,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentMentionInlineElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -24,7 +22,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  */
 export async function printApiContentToAgentMarkdown(
     storage: DurableObjectStorageInterface,
-    content: ApiContentResponse,
+    content: ApiContentResponseWithoutKeys,
 ) {
     const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
     return printAgentContentMarkdownTree(markdownTree);
@@ -37,7 +35,7 @@ export async function printApiContentToAgentMarkdown(
  */
 export async function printApiContentToAgentMarkdownTree(
     storage: DurableObjectStorageInterface,
-    content: ApiContentResponse,
+    content: ApiContentResponseWithoutKeys,
 ) {
     const promiseWaiter = new PromiseWaiter();
 
@@ -80,8 +78,8 @@ export async function printApiContentToAgentMarkdownTree(
                 promiseWaiter.waitUntil(async () => {
                     const link = await createAgentLinkForApiMentionPath(
                         storage,
-                        // Since this function only accepts `ApiContentResponse`, we know the mention
-                        // element should also be the response specialization.
+                        // Since this function only accepts response-shaped API content, we know the
+                        // mention element should also be the response specialization.
                         mentionElement as ApiContentMentionInlineElementResponse,
                     );
 

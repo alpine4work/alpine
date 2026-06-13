@@ -6,23 +6,67 @@ import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messag
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
+import {
+    ApiMessageRoomPath,
+    parseApiMessageRoomPath,
+} from "~/shared/api/specification/parse_api_path.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {TaskTitleModel, createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
 
 const knownTaskId = generateId<TaskId>();
 const privateTaskId = generateId<TaskId>();
 const deletedTaskId = generateId<TaskId>();
+
+/**
+ * Wraps expected paragraph and heading content with key matchers.
+ */
+function expectApiContentWithTextBlockKeys(content: {
+    elements: Array<
+        | {type: "Paragraph"; elements: Array<unknown>}
+        | {type: "Heading"; level: number; elements: Array<unknown>}
+    >;
+}) {
+    return {
+        elements: content.elements.map(element => ({
+            ...element,
+            key: expect.any(String),
+        })),
+    };
+}
+
+function getApiMessageEntityIdForRoomPath(
+    roomPath: ApiMessageRoomPath,
+    messageIndex: number,
+): SearchDynamicEntityId {
+    const room = parseApiMessageRoomPath(roomPath);
+
+    switch (room.type) {
+        case "Chat":
+            return `ChatMessage:${room.id}-${messageIndex}`;
+        case "DocumentCommentThread":
+            return `DocumentComment:${room.id}-${room.threadId}-${messageIndex}`;
+        case "Post":
+            return `PostComment:${room.id}-${messageIndex}`;
+        case "Task":
+            return `TaskComment:${room.id}-${messageIndex}`;
+        default:
+            throw exhaustive(room);
+    }
+}
 
 export const testMessagingApiImplementationSearchInjection: Partial<SearchInjection> = {
     getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
@@ -1945,14 +1989,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Hello, world!"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -1987,7 +2031,9 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {elements: [{type: "Paragraph", elements: []}]},
+                                content: expectApiContentWithTextBlockKeys({
+                                    elements: [{type: "Paragraph", elements: []}],
+                                }),
                             }),
                         }),
                     }),
@@ -2044,14 +2090,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2108,14 +2154,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2216,7 +2262,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -2231,11 +2277,147 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
                 });
+            });
+
+            test("stream message content keys decode to merged content positions", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+                const apiKey = await botAccount.createApiKey(room.getBotScope());
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {
+                        isStream: true,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Base"}],
+                                },
+                            ],
+                        },
+                    },
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const messageIndex = messageResponse.body.message.index;
+
+                expect(
+                    await server.POST(`${roomPath}/messages/${messageIndex}/stream/parts`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                        body: {
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Part 1"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    }),
+                ).toEqual(expect.objectContaining({status: 200}));
+
+                expect(
+                    await server.POST(`${roomPath}/messages/${messageIndex}/stream/parts`, {
+                        headers: {authorization: `bearer ${apiKey}`},
+                        body: {
+                            payload: {
+                                type: "Content",
+                                content: {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Part 2"}],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    }),
+                ).toEqual(expect.objectContaining({status: 200}));
+
+                const response = await server.GET(`${roomPath}/messages/${messageIndex}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response).toEqual({
+                    status: 200,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: expect.objectContaining({
+                        message: expect.objectContaining({
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expectApiContentWithTextBlockKeys({
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Base"}],
+                                        },
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Part 1"}],
+                                        },
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Part 2"}],
+                                        },
+                                    ],
+                                }),
+                            }),
+                        }),
+                    }),
+                });
+
+                const [baseElement, part1Element, part2Element] =
+                    response.body.message.payload.content.elements;
+                assert(baseElement?.type === "Paragraph");
+                assert(baseElement.key !== undefined);
+                assert(part1Element?.type === "Paragraph");
+                assert(part1Element.key !== undefined);
+                assert(part2Element?.type === "Paragraph");
+                assert(part2Element.key !== undefined);
+
+                const baseNode = MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Base"),
+                ]);
+                const part1Node = MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Part 1"),
+                ]);
+                const part2Node = MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Part 2"),
+                ]);
+                const decoder = new ApiContentKeyDecoder(
+                    getApiMessageEntityIdForRoomPath(roomPath, messageIndex),
+                );
+
+                expect([
+                    decoder.decode(baseElement.key),
+                    decoder.decode(part1Element.key),
+                    decoder.decode(part2Element.key),
+                ]).toEqual([
+                    {version: 0, pos: 0, nodeSize: baseNode.nodeSize},
+                    {version: 0, pos: baseNode.nodeSize, nodeSize: part1Node.nodeSize},
+                    {
+                        version: 0,
+                        pos: baseNode.nodeSize + part1Node.nodeSize,
+                        nodeSize: part2Node.nodeSize,
+                    },
+                ]);
             });
 
             test("can\u2019t put stream message part if message isn\u2019t a stream", async () => {
@@ -2404,7 +2586,9 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {elements: [{type: "Paragraph", elements: []}]},
+                                content: expectApiContentWithTextBlockKeys({
+                                    elements: [{type: "Paragraph", elements: []}],
+                                }),
                             }),
                         }),
                     }),
@@ -2471,7 +2655,9 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {elements: [{type: "Paragraph", elements: []}]},
+                                content: expectApiContentWithTextBlockKeys({
+                                    elements: [{type: "Paragraph", elements: []}],
+                                }),
                             }),
                         }),
                     }),
@@ -2572,7 +2758,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -2587,7 +2773,7 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2688,14 +2874,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2840,7 +3026,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -2855,7 +3041,7 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 5"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -2965,7 +3151,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -2976,7 +3162,7 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 2"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3040,14 +3226,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3155,7 +3341,7 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
@@ -3170,7 +3356,7 @@ export function testMessagingApiImplementation(
                                             elements: [{type: "Text", text: "Test part 3"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3264,14 +3450,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3365,14 +3551,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3454,14 +3640,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3633,14 +3819,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),
@@ -3714,14 +3900,14 @@ export function testMessagingApiImplementation(
                         message: expect.objectContaining({
                             payload: expect.objectContaining({
                                 type: "Content",
-                                content: {
+                                content: expectApiContentWithTextBlockKeys({
                                     elements: [
                                         {
                                             type: "Paragraph",
                                             elements: [{type: "Text", text: "Test part 1"}],
                                         },
                                     ],
-                                },
+                                }),
                             }),
                         }),
                     }),

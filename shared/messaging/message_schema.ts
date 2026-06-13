@@ -224,6 +224,10 @@ export const MessageContentPayloadSchema = Schema.object({
     payload => payload.fileIds.length > 0 || payload.filesReactions.get().size === 0,
 );
 
+export function getMessageContentVersion(payload: MessageContentPayload) {
+    return payload.contentUpdate?.mappings.length ?? 0;
+}
+
 const MessageDeletedPayloadSchema: Schema<{
     readonly type: "Deleted";
     readonly deletedTime: Date;

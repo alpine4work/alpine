@@ -7,8 +7,8 @@ import {
     printAgentPlainTextLabel,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -20,7 +20,7 @@ export async function printApiContentToAgentMarkdownTreeWithFrontmatter({
 }: {
     transaction: DurableObjectTransactionInterface;
     frontmatter: Record<string, AgentLink | string | number | boolean | undefined>;
-    content?: ApiContentResponse;
+    content?: ApiContentResponseWithoutKeys;
 }): Promise<Root> {
     const markdownTree = await printApiContentToAgentMarkdownTree(
         transaction,

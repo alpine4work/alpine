@@ -1955,6 +1955,9 @@ components:
         TaskCollectionId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+        ContentKey:
+            type: string
+            minLength: 1
         TaskCollectionColor:
             type: string
             enum:
@@ -2159,10 +2162,28 @@ components:
             properties:
                 type:
                     const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+        ContentParagraphBlockElement_Response:
+            type: object
+            required:
+                - type
+                - key
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
         ContentListBlockElement:
             oneOf:
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
@@ -2287,6 +2308,8 @@ components:
             properties:
                 type:
                     const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 level:
                     type: integer
                     minimum: 1
@@ -2295,6 +2318,27 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
+        ContentHeadingBlockElement_Response:
+            type: object
+            required:
+                - type
+                - key
+                - level
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
         ContentDividerBlockElement:
             type: object
             required:
@@ -2439,6 +2483,8 @@ components:
                 - elements
             additionalProperties: false
             properties:
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 elements:
                     type: array
                     items:
@@ -4897,6 +4943,50 @@ components:
                     FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                     FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        ContentListBlockElementItem_Response:
+            type: object
+            required:
+                - elements
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentCheckListBlockElementItem_Response:
+            type: object
+            required:
+                - checked
+                - elements
+            additionalProperties: false
+            properties:
+                checked:
+                    type: boolean
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentQuoteBlockElementBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
         ContentTableBlockElementCellBlockElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
@@ -5006,37 +5096,65 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentBlockElement_Response"
-        ContentParagraphBlockElement_Response:
+        ContentUnorderedListBlockElement_Response:
             type: object
             required:
                 - type
-                - elements
+                - items
             additionalProperties: false
             properties:
                 type:
-                    const: Paragraph
-                elements:
+                    const: UnorderedList
+                items:
                     type: array
+                    minItems: 1
                     items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
-        ContentHeadingBlockElement_Response:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentOrderedListBlockElement_Response:
             type: object
             required:
                 - type
-                - level
-                - elements
+                - items
             additionalProperties: false
             properties:
                 type:
-                    const: Heading
-                level:
+                    const: OrderedList
+                orderStart:
                     type: integer
                     minimum: 1
-                    maximum: 3
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentCheckListBlockElement_Response:
+            type: object
+            required:
+                - type
+                - items
+            additionalProperties: false
+            properties:
+                type:
+                    const: CheckList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response"
+        ContentQuoteBlockElement_Response:
+            type: object
+            required:
+                - type
+                - elements
+            additionalProperties: false
+            properties:
+                type:
+                    const: Quote
                 elements:
                     type: array
+                    minItems: 1
                     items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
+                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
         ContentTableBlockElementCell_Response:
             type: object
             required:
@@ -5131,47 +5249,14 @@ components:
                     $ref: "#/components/schemas/MentionTarget_Response"
                 parent:
                     $ref: "#/components/schemas/BotWebhookNewMessageEventParent"
-        ContentListBlockElementItem_Response:
-            type: object
-            required:
-                - elements
-            additionalProperties: false
-            properties:
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                nestedListElements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElement_Response"
-        ContentCheckListBlockElementItem_Response:
-            type: object
-            required:
-                - checked
-                - elements
-            additionalProperties: false
-            properties:
-                checked:
-                    type: boolean
-                elements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
-                nestedListElements:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElement_Response"
-        ContentQuoteBlockElementBlockElement_Response:
+        ContentListBlockElement_Response:
             oneOf:
-                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
@@ -5357,65 +5442,6 @@ components:
                 mapping:
                     NewMessage: "#/components/schemas/BotWebhookNewMessageEvent_Response"
                     NewPost: "#/components/schemas/BotWebhookNewPostEvent"
-        ContentUnorderedListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: UnorderedList
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
-        ContentOrderedListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: OrderedList
-                orderStart:
-                    type: integer
-                    minimum: 1
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
-        ContentCheckListBlockElement_Response:
-            type: object
-            required:
-                - type
-                - items
-            additionalProperties: false
-            properties:
-                type:
-                    const: CheckList
-                items:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentCheckListBlockElementItem_Response"
-        ContentQuoteBlockElement_Response:
-            type: object
-            required:
-                - type
-                - elements
-            additionalProperties: false
-            properties:
-                type:
-                    const: Quote
-                elements:
-                    type: array
-                    minItems: 1
-                    items:
-                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
         ContentTableBlockElement_Response:
             type: object
             required:
@@ -5471,17 +5497,6 @@ components:
                     const: ToolCall
                 call:
                     $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
-        ContentListBlockElement_Response:
-            oneOf:
-                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
-                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
-                    CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
         MessageStreamPart_Response:
             type: object
             required:

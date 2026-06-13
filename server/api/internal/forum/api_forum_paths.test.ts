@@ -1,4 +1,5 @@
 import {apiForumPaths} from "~/server/api/internal/forum/api_forum_paths.js";
+import {ApiOperation200JsonResponseType} from "~/server/api/internal/shared/api_paths_type.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
@@ -10,10 +11,12 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.js";
@@ -21,9 +24,31 @@ import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.js";
 const context = createTestContext({
     documentsInjection,
     forumInjection,
+    notificationsInjection: {
+        archiveInboxPostCommentsEntryAfterSetPostCommentReaction: async () => {},
+    },
 });
 
 const server = createTestApiServer(context, apiForumPaths);
+
+/**
+ * Wraps expected paragraph and heading content with key matchers.
+ */
+function expectApiContentWithTextBlockKeys(content: {
+    elements: Array<
+        | {type: "Paragraph"; elements: Array<unknown>}
+        | {type: "Heading"; level: number; elements: Array<unknown>}
+    >;
+}) {
+    return {
+        elements: content.elements.map(element =>
+            expect.objectContaining({
+                ...element,
+                key: expect.any(String),
+            }),
+        ),
+    };
+}
 
 test("can read channel information", async () => {
     const space = await TestSpace.create(context);
@@ -246,6 +271,48 @@ test("can read post information", async () => {
             }),
         }),
     });
+});
+
+test("post content keys use content version instead of update lock version", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Post Author", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session, {
+        name: "Test Channel",
+        access: "Public",
+    });
+    const post = await channel.createPost(session, "Original post content.");
+
+    await post.updateContent(session, "Updated post content.");
+    await post.setReaction(session);
+
+    const response = await server.GET(`/posts/${post.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: {
+            post: {
+                content: {
+                    elements: [{key: expect.any(String)}],
+                },
+            },
+        },
+    });
+
+    const body: ApiOperation200JsonResponseType<"/posts/{id}", "get"> = response.body;
+
+    const firstElement = body.post.content.elements[0];
+    assert(firstElement?.type === "Paragraph");
+    assert(firstElement.key !== undefined);
+
+    const decoder = new ApiContentKeyDecoder(`Post:${post.id}`);
+
+    expect(decoder.decode(firstElement.key).version).toBe(1);
 });
 
 test("can\u2019t read post information without access", async () => {
@@ -498,17 +565,19 @@ describe("post creation", () => {
                         name: "Test Channel",
                     },
                     content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [
-                                    {
-                                        type: "Text",
-                                        text: "This is my new post!",
-                                    },
-                                ],
-                            },
-                        ],
+                        elements: expectApiContentWithTextBlockKeys({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "This is my new post!",
+                                        },
+                                    ],
+                                },
+                            ],
+                        }).elements,
                     },
                     contentPreview: "in Test Channel: This is my new post!",
                 },
@@ -586,23 +655,29 @@ describe("post creation", () => {
                         name: "Rich Content Channel",
                     },
                     content: {
-                        elements: [
-                            {
-                                type: "Heading",
-                                level: 1,
-                                elements: [{type: "Text", text: "Important Announcement"}],
-                            },
-                            {
-                                type: "Paragraph",
-                                elements: [
-                                    {type: "Text", text: "This is "},
-                                    {type: "Text", text: "bold", marks: [{type: "Bold"}]},
-                                    {type: "Text", text: " and "},
-                                    {type: "Text", text: "italic", marks: [{type: "Italic"}]},
-                                    {type: "Text", text: " text."},
-                                ],
-                            },
-                        ],
+                        elements: expectApiContentWithTextBlockKeys({
+                            elements: [
+                                {
+                                    type: "Heading",
+                                    level: 1,
+                                    elements: [{type: "Text", text: "Important Announcement"}],
+                                },
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {type: "Text", text: "This is "},
+                                        {type: "Text", text: "bold", marks: [{type: "Bold"}]},
+                                        {type: "Text", text: " and "},
+                                        {
+                                            type: "Text",
+                                            text: "italic",
+                                            marks: [{type: "Italic"}],
+                                        },
+                                        {type: "Text", text: " text."},
+                                    ],
+                                },
+                            ],
+                        }).elements,
                     },
                     contentPreview: "in Rich Content Channel: Important Announcement",
                 },
@@ -760,12 +835,14 @@ describe("post creation", () => {
                         name: "Test Channel",
                     },
                     content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [],
-                            },
-                        ],
+                        elements: expectApiContentWithTextBlockKeys({
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [],
+                                },
+                            ],
+                        }).elements,
                     },
                     contentPreview: "in Test Channel:",
                     createdTime: expect.any(String),

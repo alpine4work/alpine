@@ -4,7 +4,7 @@ import {agentMessageFirstPageTokenLimit} from "~/server/agents/internal/agent_li
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {listAgentLinksForTest} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {printApiContentToAgentMarkdown} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, PostId, TaskId} from "~/shared/id/types/id_types.js";
@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 async function testPrintAgentContentToMarkdown(
-    content: ApiContentResponse,
+    content: ApiContentResponseWithoutKeys,
     expectedMarkdown: string,
     expectedContentLinkReferences: ReadonlyMap<string, AgentLink> = emptyMap,
 ) {

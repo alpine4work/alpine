@@ -30,6 +30,7 @@ import {
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_messaging.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {fromApiThemeColor} from "~/shared/api/content/from_api_theme_color.js";
@@ -134,6 +135,12 @@ export const apiTasksPaths: Pick<
                     spaceId,
                     FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                     notesContent ?? emptyTaskNotesContent,
+                    {
+                        encoder: new ApiContentKeyEncoder({
+                            entityId: `Task:${taskId}`,
+                            version: 0,
+                        }),
+                    },
                 ),
             ]);
 
@@ -171,7 +178,7 @@ export const apiTasksPaths: Pick<
             const taskContentPromise = getTaskNotesContentWithCustomReferences(
                 context,
                 taskId,
-                async (context, spaceId, task) =>
+                async (context, spaceId, taskNotes) =>
                     await intoApiContentWithReferences(
                         context,
                         spaceId,
@@ -179,7 +186,13 @@ export const apiTasksPaths: Pick<
                             type: "TaskNotes",
                             taskId,
                         }),
-                        task.content,
+                        taskNotes.notesContent,
+                        {
+                            encoder: new ApiContentKeyEncoder({
+                                entityId: `Task:${taskId}`,
+                                version: taskNotes.notesVersion,
+                            }),
+                        },
                     ),
                 {consistency},
             );
@@ -217,7 +230,7 @@ export const apiTasksPaths: Pick<
                 getTaskNotesContentWithCustomReferences(
                     context,
                     pathParameters.id,
-                    (context, spaceId, task) =>
+                    (context, spaceId, taskNotes) =>
                         intoApiContentWithReferences(
                             context,
                             spaceId,
@@ -225,7 +238,13 @@ export const apiTasksPaths: Pick<
                                 type: "TaskNotes",
                                 taskId: pathParameters.id,
                             }),
-                            task.content,
+                            taskNotes.notesContent,
+                            {
+                                encoder: new ApiContentKeyEncoder({
+                                    entityId: `Task:${pathParameters.id}`,
+                                    version: taskNotes.notesVersion,
+                                }),
+                            },
                         ),
                     {consistency: "StrongWithinCache"},
                 ),
@@ -277,16 +296,16 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(
-                        context,
-                        message.spaceId,
+                    message: await intoApiMessage(context, {
+                        spaceId: message.spaceId,
                         message,
-                        createIntoApiTaskCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiTaskCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `TaskComment:${pathParameters.id}-${pathParameters.index}`,
+                    }),
                 },
             };
         },
@@ -340,16 +359,17 @@ export const apiTasksPaths: Pick<
                     nextCursor,
                     messages: await runAllPromises(
                         comments.map(message =>
-                            intoApiMessage(
-                                context,
+                            intoApiMessage(context, {
                                 spaceId,
                                 message,
-                                createIntoApiTaskCommentContentPayloadParent(
-                                    context,
-                                    spaceId,
-                                    pathParameters.id,
-                                ),
-                            ),
+                                intoContentPayloadParent:
+                                    createIntoApiTaskCommentContentPayloadParent(
+                                        context,
+                                        spaceId,
+                                        pathParameters.id,
+                                    ),
+                                entityId: `TaskComment:${pathParameters.id}-${message.index}`,
+                            }),
                         ),
                     ),
                 },
@@ -423,10 +443,9 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(
-                        context,
+                    message: await intoApiMessage(context, {
                         spaceId,
-                        {
+                        message: {
                             index,
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
@@ -437,12 +456,13 @@ export const apiTasksPaths: Pick<
                                 ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
                                 : null,
                         },
-                        createIntoApiTaskCommentContentPayloadParent(
+                        intoContentPayloadParent: createIntoApiTaskCommentContentPayloadParent(
                             context,
                             spaceId,
                             pathParameters.id,
                         ),
-                    ),
+                        entityId: `TaskComment:${pathParameters.id}-${index}`,
+                    }),
                 },
             };
         },
