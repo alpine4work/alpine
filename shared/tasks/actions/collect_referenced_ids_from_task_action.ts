@@ -31,6 +31,11 @@ export function collectReferencedIdsFromTaskAction(
                 case "Create": {
                     if (action.taskAction.creator.accountId !== unknownAccountId)
                         accountIds.add(action.taskAction.creator.accountId);
+
+                    if (action.taskAction.accessPolicy?.type === "Site") {
+                        siteIds.add(action.taskAction.accessPolicy.siteId);
+                    }
+
                     return;
                 }
                 case "UpdateStatus": {

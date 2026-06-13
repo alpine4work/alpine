@@ -58,6 +58,7 @@ export type TaskTestInterface = {
     removedChildTaskCount: number;
     addedClosedChildTaskCount: number;
     removedClosedChildTaskCount: number;
+    accessPolicy: AccessPolicy | null;
     collections: TaskCollectionSet;
     collectionPositions: Map<TaskCollectionId, TaskPosition>;
     status: TaskStatusWithSortableAccount;
@@ -119,6 +120,31 @@ const taskTaskActionTestCases: Array<{
             ],
             task: {},
         }),
+    },
+    {
+        name: "create task with access policy",
+        create: ({creator, account2}): TaskTaskActionTestArtifacts => {
+            const accessPolicy: AccessPolicy = {
+                type: "Local",
+                accountGrantById: new Map([[account2.accountId, {level: "Edit"}]]),
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
+            };
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        creator: {accountId: creator.accountId, from: null},
+                        creatorTimeZone: defaultTimeZone,
+                        accessPolicy,
+                    },
+                ],
+                task: {
+                    accessPolicy,
+                },
+            };
+        },
     },
     {
         name: "create task incompatible accounts",
@@ -4635,6 +4661,10 @@ export function testTaskActionPermutations({
                                         removedChildTaskCount: 0,
                                         addedClosedChildTaskCount: 0,
                                         removedClosedChildTaskCount: 0,
+                                        accessPolicy:
+                                            expectation.task.accessPolicy ??
+                                            createAction?.taskAction.accessPolicy ??
+                                            null,
                                         collections: TaskCollectionSet.empty,
                                         collectionPositions: new Map(
                                             (

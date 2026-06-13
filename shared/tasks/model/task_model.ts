@@ -196,7 +196,9 @@ export class TaskModel {
             removedClosedChildTaskCount: 0,
             collections: TaskCollectionSet.empty,
             positionByCollectionId: TaskPositionByCollectionIdMap.empty,
-            accessPolicy: null,
+            accessPolicy: action.accessPolicy
+                ? new AccessPolicyRegister(action.accessPolicy, actionTime)
+                : null,
             status: new TaskStatusWithSortableAccountRegister({type: "Open"}, actionTime),
             assignee: new TaskAssigneeWithSortableAccountRegister(null, actionTime),
             assigneeStatus: new TaskAssigneeStatusRegister({type: "Inactive"}, actionTime),

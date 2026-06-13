@@ -138,6 +138,7 @@ testTaskActionPermutations({
             removedChildTaskCount: task.rawData.removedChildTaskCount,
             addedClosedChildTaskCount: task.rawData.addedClosedChildTaskCount,
             removedClosedChildTaskCount: task.rawData.removedClosedChildTaskCount,
+            accessPolicy: task.rawData.accessPolicy?.value ?? null,
             collections: task.getCollections(),
             collectionPositions: new Map(
                 task

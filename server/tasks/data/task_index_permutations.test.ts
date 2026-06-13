@@ -124,6 +124,7 @@ testTaskActionPermutations({
             removedChildTaskCount: task.removedChildTaskCount,
             addedClosedChildTaskCount: task.addedClosedChildTaskCount,
             removedClosedChildTaskCount: task.removedClosedChildTaskCount,
+            accessPolicy: task.accessPolicy?.value ?? null,
             collections: task.collections.raw.collections,
             collectionPositions: new Map(
                 task.collections.raw.collections.getArray().map(({collectionId, version}) => [

@@ -67,8 +67,26 @@ export function applyTaskActionToTaskModelData(
                 getActionReferencedSortableAccount(action.creator.accountId),
             );
 
-            if (task.creator === mergedCreator) return task;
-            return {...task, creator: {...mergedCreator, from: action.creator.from}};
+            let newAccessPolicy = task.accessPolicy;
+
+            if (action.accessPolicy) {
+                newAccessPolicy = newAccessPolicy
+                    ? newAccessPolicy.apply({
+                          value: action.accessPolicy,
+                          version: actionTime,
+                      })
+                    : new AccessPolicyRegister(action.accessPolicy, actionTime);
+            }
+
+            if (task.creator === mergedCreator && task.accessPolicy === newAccessPolicy) {
+                return task;
+            }
+
+            return {
+                ...task,
+                creator: {...mergedCreator, from: action.creator.from},
+                accessPolicy: newAccessPolicy,
+            };
         }
         case "Delete": {
             const newDeletedTime =
