@@ -23,7 +23,7 @@ export function createUserElement(
     id: string,
     options: CreateUserElementOptions = {},
 ): ApiSpecification.components["schemas"]["ContentInlineElement"] {
-    const {tagUser = true} = options;
+    const {tagUser = shouldTagUsers()} = options;
     const alpineId =
         pagerDutyIdToAlpineId[id.toLowerCase()] ||
         gitHubUsernameToAlpineId[id.toLowerCase()] ||
@@ -64,4 +64,8 @@ export function createUserElement(
             },
         ],
     };
+}
+
+function shouldTagUsers(): boolean {
+    return process.env.NODE_ENV !== "development";
 }

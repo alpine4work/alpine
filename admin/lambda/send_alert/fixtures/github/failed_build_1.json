@@ -1,0 +1,77 @@
+{
+    "type": "workflow_run",
+    "action": "completed",
+    "workflow_run": {
+        "id": 26844239591,
+        "name": "Deploy",
+        "head_branch": "main",
+        "head_sha": "7b61d27320c5e441043ad496328da12b874c361d",
+        "path": ".github/workflows/deploy.yaml",
+        "display_title": "Fix bazel cache key in ami image builder job",
+        "run_number": 1784,
+        "event": "push",
+        "status": "completed",
+        "conclusion": "failure",
+        "workflow_id": 45008180,
+        "html_url": "https://github.com/cyberworlds/cyberworlds/actions/runs/26844239591",
+        "created_at": "2026-06-02T19:50:06Z",
+        "updated_at": "2026-06-02T20:44:02Z",
+        "run_started_at": "2026-06-02T19:50:06Z",
+        "triggering_actor": {
+            "login": "cyberworlds-job-queue-service[bot]",
+            "id": 178444464,
+            "node_id": "BOT_kgDOCqLYsA",
+            "avatar_url": "https://avatars.githubusercontent.com/in/970892?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D",
+            "html_url": "https://github.com/apps/cyberworlds-job-queue-service",
+            "followers_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/followers",
+            "following_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/following{/other_user}",
+            "gists_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/subscriptions",
+            "organizations_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/orgs",
+            "repos_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/repos",
+            "events_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/cyberworlds-job-queue-service%5Bbot%5D/received_events",
+            "type": "Bot",
+            "site_admin": false
+        },
+        "jobs_url": "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/26844239591/jobs",
+        "logs_url": "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/26844239591/logs",
+        "artifacts_url": "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/26844239591/artifacts",
+        "cancel_url": "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/26844239591/cancel",
+        "rerun_url": "https://api.github.com/repos/cyberworlds/cyberworlds/actions/runs/26844239591/rerun",
+        "workflow_url": "https://api.github.com/repos/cyberworlds/cyberworlds/actions/workflows/45008180",
+        "head_commit": {
+            "id": "7b61d27320c5e441043ad496328da12b874c361d",
+            "tree_id": "aabbc115d0491d1422088d8dd23472ec7d6aa656",
+            "message": "Fix bazel cache key in ami image builder job",
+            "timestamp": "2026-06-02T19:50:04Z",
+            "author": {
+                "name": "Josh Johnson",
+                "email": "5430474+imjoshin@users.noreply.github.com"
+            },
+            "committer": {
+                "name": "Josh Johnson",
+                "email": "5430474+imjoshin@users.noreply.github.com"
+            }
+        }
+    },
+    "workflow": {
+        "id": 45008180,
+        "name": "Deploy",
+        "path": ".github/workflows/deploy.yaml",
+        "state": "active",
+        "html_url": "https://github.com/cyberworlds/cyberworlds/blob/main/.github/workflows/deploy.yaml"
+    },
+    "repository": {
+        "name": "cyberworlds",
+        "full_name": "cyberworlds/cyberworlds",
+        "html_url": "https://github.com/cyberworlds/cyberworlds"
+    },
+    "sender": {
+        "login": "cyberworlds-job-queue-service[bot]",
+        "html_url": "https://github.com/apps/cyberworlds-job-queue-service"
+    }
+}

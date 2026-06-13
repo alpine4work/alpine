@@ -1,0 +1,43 @@
+{
+    "type": "push",
+    "ref": "refs/heads/main",
+    "before": "3b75649f0349d5ae9ba1f30ca7c5fd7205cd637a",
+    "after": "662d25d4cbcab1f1063d0e3f9f028a1cea7c1532",
+    "compare": "https://github.com/cyberworlds/cyberworlds/compare/3b75649f0349...662d25d4cbca",
+    "deleted": false,
+    "forced": false,
+    "repository": {
+        "name": "cyberworlds",
+        "full_name": "cyberworlds/cyberworlds",
+        "html_url": "https://github.com/cyberworlds/cyberworlds"
+    },
+    "pusher": {
+        "name": "imjoshin",
+        "email": "5430474+imjoshin@users.noreply.github.com"
+    },
+    "sender": {
+        "login": "imjoshin",
+        "html_url": "https://github.com/imjoshin"
+    },
+    "commits": [
+        {
+            "id": "662d25d4cbcab1f1063d0e3f9f028a1cea7c1532",
+            "message": "Temporary: Disable CloudWatch agent for ami builder",
+            "timestamp": "2026-06-04T14:32:37-04:00",
+            "url": "https://github.com/cyberworlds/cyberworlds/commit/662d25d4cbcab1f1063d0e3f9f028a1cea7c1532",
+            "author": {
+                "name": "Josh Johnson",
+                "email": "5430474+imjoshin@users.noreply.github.com",
+                "username": "imjoshin"
+            },
+            "committer": {
+                "name": "Josh Johnson",
+                "email": "5430474+imjoshin@users.noreply.github.com",
+                "username": "imjoshin"
+            },
+            "added": [],
+            "removed": [],
+            "modified": ["admin/aws/internal/aws_github_runner_image_builder_components.ts"]
+        }
+    ]
+}
