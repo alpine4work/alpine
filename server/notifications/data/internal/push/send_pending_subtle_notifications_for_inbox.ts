@@ -2,7 +2,7 @@ import {ServerSystemActionContextModules} from "~/server/context/server_action_c
 import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {WebPushContextModuleBase} from "~/server/context/web_push_context_module.js";
 import {getInboxEntryItemKey} from "~/server/notifications/data/internal/get_inbox_entry_item_key.js";
-import {InboxEntriesIndex, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
+import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {clearPendingSubtleNotificationsForInbox} from "~/server/notifications/data/internal/push/clear_pending_subtle_notifications_for_inbox.js";
 import {getAllPushNotificationTargetsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_all_push_notification_targets_without_authorization.js";
@@ -181,27 +181,29 @@ export async function getPendingSubtleNotificationSummaryContent({
         }),
     );
 
-    const lexicographicallySortedReferencedNotificationAuthorIdsSet = new Set(
-        lexicographicallySortedReferencedNotificationAuthorIds,
+    const authorAffinityPointsByAccountId = new Map<AccountId, number>(
+        authorAffinities.map(item => [item.accountId, item.points] as const),
     );
-    const sortedAuthorAffinities = authorAffinities
-        .filter(item =>
-            lexicographicallySortedReferencedNotificationAuthorIdsSet.has(item.accountId),
-        )
+
+    // Authors without an affinity entity (e.g. a bot) are treated as having zero
+    // affinity points so they're still eligible to be selected as the top author.
+    const sortedAuthorAffinities = lexicographicallySortedReferencedNotificationAuthorIds
+        .map(accountId => ({
+            accountId,
+            points: authorAffinityPointsByAccountId.get(accountId) ?? 0,
+        }))
         .toSorted((a, b) => b.points - a.points);
 
-    const potentialTopAccounts = await runAllPromises([
-        sortedAuthorAffinities[0]
-            ? getAccountWithoutAvatarIfExists(context, spaceId, sortedAuthorAffinities[0].accountId)
-            : null,
-        sortedAuthorAffinities[1]
-            ? getAccountWithoutAvatarIfExists(context, spaceId, sortedAuthorAffinities[1].accountId)
-            : null,
-    ]);
+    const potentialTopAccounts = await runAllPromises(
+        sortedAuthorAffinities
+            .slice(0, 2)
+            .map(authorAffinity =>
+                getAccountWithoutAvatarIfExists(context, spaceId, authorAffinity.accountId),
+            ),
+    );
 
     const authorCount = lexicographicallySortedReferencedNotificationAuthorIds.length;
 
-    let inboxEntry: InboxEntryModel | undefined;
     let authorsListString: string = `from ${printPrettySmallNumberSummary(
         Math.max(authorCount, 1),
         "person",
@@ -211,28 +213,11 @@ export async function getPendingSubtleNotificationSummaryContent({
         },
     )}`;
 
-    // Get the most recent inbox entry for the author with the highest affinity to
-    // display in the body of the notification.
-    if (sortedAuthorAffinities[0] && potentialTopAccounts[0]) {
-        const topAuthor = sortedAuthorAffinities[0];
-        const associatedNotifications = Array.from(
-            pendingSubtleNotifications
-                .values()
-                .filter(notification => notification.eventAuthorId === topAuthor.accountId),
-        ).sort((a, b) => b.eventTime.getTime() - a.eventTime.getTime());
-        const mostRecentNotification = assertExists(associatedNotifications[0]);
-        const inboxEntryItemKey = getInboxEntryItemKey({
-            spaceId,
-            accountId: currentAccount.id,
-            key: mostRecentNotification.inboxEntryKey,
-        });
-        const realtimeItem = await InboxTable.getRealtimeItemIfExists(context, inboxEntryItemKey);
-        inboxEntry = realtimeItem?.model;
+    const topAuthorNames = potentialTopAccounts
+        .filter(account => account !== null)
+        .map(account => getAccountShortNameWithoutFullNameTooltip(account));
 
-        const topAuthorNames = potentialTopAccounts
-            .filter(account => account !== null)
-            .map(account => getAccountShortNameWithoutFullNameTooltip(account));
-
+    if (topAuthorNames.length > 0) {
         const authorNamesWithSummary =
             authorCount > topAuthorNames.length
                 ? [
@@ -243,31 +228,33 @@ export async function getPendingSubtleNotificationSummaryContent({
                   ]
                 : topAuthorNames;
 
-        authorsListString =
-            authorNamesWithSummary.length > 0
-                ? `from ${joinPrettyConjunctionList(authorNamesWithSummary)}`
-                : authorsListString;
+        authorsListString = `from ${joinPrettyConjunctionList(authorNamesWithSummary)}`;
     }
 
-    // If we don't have an inbox entry for the top affinity author, get the most recent
-    // inbox entry.
-    if (!inboxEntry) {
-        const inboxEntryItems = await InboxEntriesIndex.realtimeQuery(context, {
-            partitionKey: {
-                spaceId,
-                accountId: currentAccount.id,
-            },
-            endSortKey: {
-                isArchived: false,
-                generation: InboxEntriesIndex.sortKeyAttributes.generation.maxValue,
-                enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.maxValue,
-            },
-            limit: 1,
+    // Display the most recent inbox entry for the highest affinity author in the body
+    // of the notification. If that author no longer has an inbox entry, keep trying
+    // the next highest affinity author.
+    let inboxEntry: InboxEntryModel | undefined;
+    for (const authorAffinity of sortedAuthorAffinities) {
+        const associatedNotifications = Array.from(
+            pendingSubtleNotifications
+                .values()
+                .filter(notification => notification.eventAuthorId === authorAffinity.accountId),
+        ).sort((a, b) => b.eventTime.getTime() - a.eventTime.getTime());
+        const mostRecentNotification = assertExists(associatedNotifications[0]);
+        const inboxEntryItemKey = getInboxEntryItemKey({
+            spaceId,
+            accountId: currentAccount.id,
+            key: mostRecentNotification.inboxEntryKey,
         });
-        inboxEntry = inboxEntryItems.items[0]?.model;
+        const realtimeItem = await InboxTable.getRealtimeItemIfExists(context, inboxEntryItemKey);
+        if (realtimeItem) {
+            inboxEntry = realtimeItem.model;
+            break;
+        }
     }
 
-    // If we don't actually have any inbox entries at all, there's no content to send.
+    // If none of the authors have an inbox entry, there's no content to send.
     if (!inboxEntry) {
         return null;
     }
@@ -283,19 +270,29 @@ export async function getPendingSubtleNotificationSummaryContent({
             ),
     ).size;
 
-    const title = `${printPrettySmallNumberSummary(distinctInboxEntryCount, "update")} ${authorsListString}`;
-
     const inboxEntryDisplay = getInboxEntryDisplayContent({
         entry: inboxEntry,
         locale: defaultLocale,
         currentAccount: currentAccount,
     });
-    const body = printInboxEntryDisplayContentTitleAsText(
+    const inboxEntryTitleText = printInboxEntryDisplayContentTitleAsText(
         inboxEntryDisplay.title,
         account => account.initialData,
     );
+
+    // For a single inbox entry the generic "1 update from 1 person" summary adds no
+    // information, so surface the inbox entry's own title as the notification title
+    // and use the latest message snippet as the body.
+    if (distinctInboxEntryCount === 1) {
+        return {
+            title: inboxEntryTitleText,
+            body: inboxEntryDisplay.latestMessage?.contentTextSnippet ?? "",
+        };
+    }
+
+    const title = `${printPrettySmallNumberSummary(distinctInboxEntryCount, "update")} ${authorsListString}`;
     return {
         title,
-        body,
+        body: inboxEntryTitleText,
     };
 }
