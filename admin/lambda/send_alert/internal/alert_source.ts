@@ -11,6 +11,10 @@ import {
 } from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
+type FetchAlpineApiResult<T> =
+    | {ok: true; value: T}
+    | {ok: false; error: string; statusCode: number};
+
 /**
  * Base class for an external service that can send alert webhook payloads into
  * Alpine.
@@ -49,6 +53,37 @@ export abstract class AlertSource {
         content: ApiContent,
     ): Promise<SendAlertResult> {
         const channelId = sendAlertAvailableChannels[channel];
+        const body = {
+            channelId,
+            content,
+        };
+
+        console.log(`Sending to ${channel}`);
+        console.log(JSON.stringify(body, null, 2));
+
+        const result = await this.fetchAlpineApi<unknown>("/posts", {
+            method: "POST",
+            body,
+        });
+
+        if (!result.ok) {
+            return result;
+        }
+
+        return {ok: true};
+    }
+
+    /**
+     * Sends a JSON request to the Alpine API using the same edge URL convention as
+     * production alert posts.
+     */
+    protected async fetchAlpineApi<T>(
+        path: string,
+        options: {
+            method: "GET" | "POST" | "PATCH";
+            body?: unknown;
+        },
+    ): Promise<FetchAlpineApiResult<T>> {
         const alpineAPIKey = process.env.ALPINE_API_KEY;
 
         if (!alpineAPIKey) {
@@ -70,29 +105,25 @@ export abstract class AlertSource {
             };
         }
 
-        const apiUrl = edgeServiceUrl.replace("://", "://api.") + "/posts";
-        const body = {
-            channelId,
-            content,
-        };
-
-        console.log(`Sending to ${channel}`);
-        console.log(JSON.stringify(body, null, 2));
+        const apiUrl = edgeServiceUrl.replace("://", "://api.") + path;
+        console.log(`${options.method} ${apiUrl}`);
 
         try {
             // eslint-disable-next-line cyberworlds/no-global-fetch
             const response = await fetch(apiUrl, {
-                method: "POST",
+                method: options.method,
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${alpineAPIKey}`,
                 },
-                body: JSON.stringify(body),
+                body: options.body === undefined ? undefined : JSON.stringify(options.body),
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`Failed to send alert: ${response.status} ${response.statusText}`);
+                console.error(
+                    `Alpine API request failed: ${response.status} ${response.statusText}`,
+                );
                 console.error(`Response: ${errorText}`);
                 return {
                     ok: false,
@@ -101,7 +132,9 @@ export abstract class AlertSource {
                 };
             }
 
-            return {ok: true};
+            const responseText = await response.text();
+            const value = responseText ? (JSON.parse(responseText) as T) : (undefined as T);
+            return {ok: true, value};
         } catch (error) {
             console.error("Error sending alert:", error);
             return {

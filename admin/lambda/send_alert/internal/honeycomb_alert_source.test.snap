@@ -1,5 +1,89 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`HoneycombAlertSource comments on an open task when a Honeycomb task title already exists 1`] = `
+"URL: https://api.test.cyberworlds.com/tasks/existing-task/messages
+
+### This happened again [7 times](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+**exception.cause.message:&#x20;**\`Root cause title\`
+"
+`;
+
+exports[`HoneycombAlertSource creates a task for each Honeycomb task payload row 1`] = `
+[
+  "URL: https://api.test.cyberworlds.com/tasks
+Title: [/settings] AssertionError: Root cause title
+Priority: Low
+
+## Honeycomb: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+Occurrences: 2
+
+**context.route:&#x20;**/settings
+
+**exception.cause.type:&#x20;**\`AssertionError\`
+
+**exception.cause.message:&#x20;**\`Root cause title\`
+
+**exception.message:&#x20;**\`Outer error\`
+",
+  "URL: https://api.test.cyberworlds.com/tasks
+Title: RouteError: Route exploded
+Priority: Low
+
+## Honeycomb: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+Occurrences: 1
+
+**exception.type:&#x20;**\`RouteError\`
+
+**exception.message:&#x20;**\`Route exploded\`
+",
+  "URL: https://api.test.cyberworlds.com/tasks
+Title: [/api] TimeoutError
+Priority: Low
+
+## Honeycomb: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+Occurrences: 3
+
+**context.route:&#x20;**/api
+
+**exception.type:&#x20;**\`TimeoutError\`
+",
+  "URL: https://api.test.cyberworlds.com/tasks
+Title: api Timeout
+Priority: Low
+
+## Honeycomb: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+Occurrences: 4
+
+**service.name:&#x20;**&#x61;pi
+
+**error.type:&#x20;**&#x54;imeout
+
+**count:&#x20;**&#x31;00
+",
+]
+`;
+
 exports[`HoneycombAlertSource event alert 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
@@ -36,6 +120,72 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 "
 `;
 
+exports[`HoneycombAlertSource posts a task preview when bumping priority for a task channel 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+Bumped priority to **High**
+
+![Root cause title](https://alpine.inc/task/existing-task/preview)
+"
+`;
+
+exports[`HoneycombAlertSource posts a warning task preview when bumping priority to medium 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## ⚠️ Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+Bumped priority to **Medium**
+
+![Root cause title](https://alpine.inc/task/existing-task/preview)
+"
+`;
+
+exports[`HoneycombAlertSource posts a warning task preview when payload priority is medium 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## ⚠️ Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+![Root cause title](https://alpine.inc/task/task-1/preview)
+"
+`;
+
+exports[`HoneycombAlertSource posts an alert task preview when payload priority is high 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+![Root cause title](https://alpine.inc/task/task-1/preview)
+"
+`;
+
+exports[`HoneycombAlertSource posts an alert task preview when payload priority skips medium 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
+
+## 🚨 Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+Bumped priority to **High**
+
+![Root cause title](https://alpine.inc/task/existing-task/preview)
+"
+`;
+
 exports[`HoneycombAlertSource resolved alert 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
@@ -61,6 +211,23 @@ Channel: 6dvn4zd99fwvzehdcjhmb0h1s0
 *High error rate detected in database connections*
 
 Environment: staging
+"
+`;
+
+exports[`HoneycombAlertSource starts Honeycomb task payload rows at the requested priority 1`] = `
+"URL: https://api.test.cyberworlds.com/tasks
+Title: Root cause title
+Priority: High
+
+## Honeycomb: Database Connection Error
+
+[View Result](https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C)
+
+*High error rate detected in database connections*
+
+Occurrences: 1
+
+**exception.cause.message:&#x20;**\`Root cause title\`
 "
 `;
 

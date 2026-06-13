@@ -25,6 +25,7 @@ Examples:
 ```bash
 bazel run //admin/lambda/send_alert:send_alert_local -- honeycomb unknown_ui_error_1
 bazel run //admin/lambda/send_alert:send_alert_local -- honeycomb unknown_ui_error_event_1
+bazel run //admin/lambda/send_alert:send_alert_local -- honeycomb unknown_ui_error_task_1
 bazel run //admin/lambda/send_alert:send_alert_local -- github main_push_1
 bazel run //admin/lambda/send_alert:send_alert_local -- github failed_build_1
 bazel run //admin/lambda/send_alert:send_alert_local -- pagerduty incident_triggered_1
@@ -50,6 +51,24 @@ SEND_ALERT_GITHUB_CHANNEL_ID=<channel id>
 ```
 
 If unset, channel IDs default to the current production alert channels.
+
+Optional local task collection overrides:
+
+```bash
+SEND_ALERT_HONEYCOMB_TASK_COLLECTION_ID=<task collection id>
+```
+
+Honeycomb payloads with `"type": "task"` use their `"collection"` value as a key into this map. For
+example, `"collection": "honeycomb"` resolves to `SEND_ALERT_HONEYCOMB_TASK_COLLECTION_ID`. Set this
+before running `unknown_ui_error_task_1`; task collection IDs do not have a committed production
+fallback.
+
+Task payloads may also set `"channel"` to one of the supported channel names above, such as
+`"honeycomb"`. When set, the Lambda posts a preview of each newly-created task to that channel. Raw
+channel ids are not accepted in payloads.
+
+Task payloads may set `"priority"` to `low`, `medium`, `high`, or `urgent` using any casing. Omitted
+or unknown values default to `Low`.
 
 The local runner sets `NODE_ENV=development`, so realistic production payloads render without
 production account mentions.

@@ -1,6 +1,6 @@
 import {createHmac} from "crypto";
 import {AlertSourceRequest} from "~/admin/lambda/send_alert/internal/alert_source_request_types.js";
-import {HoneycombEventPayload} from "~/admin/lambda/send_alert/internal/honeycomb_alert_source_types.js";
+import {HoneycombTriggerPayload} from "~/admin/lambda/send_alert/internal/honeycomb_alert_source_types.js";
 import {handler} from "~/admin/lambda/send_alert/send_alert_lambda.js";
 
 type LambdaFunctionUrlResult = {
@@ -31,8 +31,8 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
 });
 
 function createHoneycombPayload(
-    overrides: Partial<HoneycombEventPayload> = {},
-): HoneycombEventPayload {
+    overrides: Partial<HoneycombTriggerPayload> = {},
+): HoneycombTriggerPayload {
     return {
         name: "Database Connection Error",
         channel: "honeycomb",

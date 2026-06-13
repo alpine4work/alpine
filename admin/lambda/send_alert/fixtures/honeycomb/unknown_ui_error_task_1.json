@@ -1,7 +1,9 @@
 {
     "name": "Rendered unknown UI error",
     "channel": "honeycomb",
-    "type": "event",
+    "type": "task",
+    "collection": "honeycomb",
+    "priority": "low",
     "groupsTriggered": [
         {
             "group": [
@@ -10,8 +12,16 @@
                     "value": "/s/:spaceId"
                 },
                 {
+                    "key": "exception.type",
+                    "value": "Error"
+                },
+                {
                     "key": "exception.message",
                     "value": "Retry with exponential backoff failed after 5 attempts"
+                },
+                {
+                    "key": "exception.cause.type",
+                    "value": "AssertionError"
                 },
                 {
                     "key": "exception.cause.message",
@@ -21,8 +31,8 @@
             "result": 1
         }
     ],
-    "isEvent": "true",
-    "emoji": "⚠️",
+    "isEvent": "false",
+    "emoji": "",
     "id": "C7kWixVbbXC",
     "description": "These are unknown UI errors the user sees. They are a result of a bug and/or an error we did not handle properly.",
     "links": {
