@@ -13,7 +13,13 @@ import {ApiContent} from "~/shared/api/specification/types/api_specification_con
 
 type FetchAlpineApiResult<T> =
     | {ok: true; value: T}
-    | {ok: false; error: string; statusCode: number};
+    | {ok: false; error: string; statusCode: number; responseText?: string};
+
+type FetchAlpineApiOptions = {
+    method: "GET" | "POST" | "PATCH";
+    body?: unknown;
+    reportApiFailureToAlerts?: boolean;
+};
 
 /**
  * Base class for an external service that can send alert webhook payloads into
@@ -79,10 +85,7 @@ export abstract class AlertSource {
      */
     protected async fetchAlpineApi<T>(
         path: string,
-        options: {
-            method: "GET" | "POST" | "PATCH";
-            body?: unknown;
-        },
+        options: FetchAlpineApiOptions,
     ): Promise<FetchAlpineApiResult<T>> {
         const alpineAPIKey = process.env.ALPINE_API_KEY;
 
@@ -125,10 +128,23 @@ export abstract class AlertSource {
                     `Alpine API request failed: ${response.status} ${response.statusText}`,
                 );
                 console.error(`Response: ${errorText}`);
+
+                if (options.reportApiFailureToAlerts !== false) {
+                    await this.reportAlpineApiFailureToAlerts({
+                        path,
+                        apiUrl,
+                        options,
+                        responseStatus: response.status,
+                        responseStatusText: response.statusText,
+                        responseText: errorText,
+                    });
+                }
+
                 return {
                     ok: false,
                     error: `HTTP ${response.status}: ${response.statusText}`,
                     statusCode: response.status,
+                    responseText: errorText,
                 };
             }
 
@@ -142,6 +158,146 @@ export abstract class AlertSource {
                 error: error instanceof Error ? error.message : "Unknown error",
                 statusCode: 500,
             };
+        }
+    }
+
+    private async reportAlpineApiFailureToAlerts({
+        path,
+        apiUrl,
+        options,
+        responseStatus,
+        responseStatusText,
+        responseText,
+    }: {
+        path: string;
+        apiUrl: string;
+        options: FetchAlpineApiOptions;
+        responseStatus: number;
+        responseStatusText: string;
+        responseText: string;
+    }): Promise<void> {
+        const parseJsonIfPossible = (text: string): unknown => {
+            if (!text) return "";
+            try {
+                return JSON.parse(text);
+            } catch {
+                return text;
+            }
+        };
+
+        const stringifyForCodeBlock = (value: unknown): string => {
+            if (typeof value === "string") return value;
+            return JSON.stringify(value, null, 2) ?? "undefined";
+        };
+
+        const createLabel = (text: string): ApiContent["elements"][number] => ({
+            type: "Paragraph",
+            elements: [{type: "Text", text, marks: [{type: "Bold"}]}],
+        });
+
+        const createCodeBlock = (text: string): ApiContent["elements"][number] => ({
+            type: "Code",
+            language: "json",
+            lines: text.split(/\r?\n/).map(line => ({
+                elements: line ? [{type: "Text" as const, text: line}] : [],
+            })),
+        });
+
+        const headers = Object.fromEntries(
+            Object.entries(this.request.headers).map(([key, value]) => {
+                const normalizedKey = key.toLowerCase();
+                const isSensitive =
+                    normalizedKey.includes("authorization") ||
+                    normalizedKey.includes("secret") ||
+                    normalizedKey.includes("signature") ||
+                    normalizedKey.includes("token");
+                return [key, isSensitive ? "[REDACTED]" : value];
+            }),
+        );
+
+        const channelId = sendAlertAvailableChannels.alerts;
+
+        const body = {
+            channelId,
+            content: {
+                elements: [
+                    {
+                        type: "Heading" as const,
+                        level: 2,
+                        elements: [
+                            {
+                                type: "Text" as const,
+                                text: "Alpine API error while processing alert",
+                            },
+                        ],
+                    },
+                    {
+                        type: "Paragraph" as const,
+                        elements: [
+                            {
+                                type: "Text" as const,
+                                text: `${options.method} ${path} returned HTTP ${responseStatus}: ${responseStatusText}.`,
+                            },
+                        ],
+                    },
+                    createLabel("Data received:"),
+                    createCodeBlock(
+                        JSON.stringify(
+                            {
+                                body: parseJsonIfPossible(this.request.body ?? ""),
+                                headers,
+                                httpMethod: this.request.httpMethod,
+                                isBase64Encoded: this.request.isBase64Encoded,
+                                queryStringParameters: this.request.queryStringParameters,
+                                requestContext: this.request.requestContext,
+                            },
+                            null,
+                            2,
+                        ),
+                    ),
+                    createLabel("API request:"),
+                    createCodeBlock(
+                        JSON.stringify(
+                            {
+                                method: options.method,
+                                endpoint: path,
+                                url: apiUrl,
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: "[REDACTED]",
+                                },
+                            },
+                            null,
+                            2,
+                        ),
+                    ),
+                    createLabel("API response:"),
+                    createCodeBlock(
+                        JSON.stringify(
+                            {
+                                status: responseStatus,
+                                statusText: responseStatusText,
+                                body: parseJsonIfPossible(responseText),
+                            },
+                            null,
+                            2,
+                        ),
+                    ),
+                    createLabel("Data sent:"),
+                    createCodeBlock(stringifyForCodeBlock(options.body)),
+                ],
+            },
+        };
+
+        const result = await this.fetchAlpineApi<unknown>("/posts", {
+            method: "POST",
+            body,
+            reportApiFailureToAlerts: false,
+        });
+
+        if (!result.ok) {
+            console.error("Failed to report Alpine API failure to alerts channel");
+            console.error(result.error);
         }
     }
 }

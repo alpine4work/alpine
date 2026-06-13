@@ -186,6 +186,235 @@ Bumped priority to **High**
 "
 `;
 
+exports[`HoneycombAlertSource posts to alerts when the Alpine API rejects an alert 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: qt3xsqhh2fed7t8fyqnbfw0m3g
+
+## Alpine API error while processing alert
+
+POST /posts returned HTTP 400: Bad Request.
+
+**Data received:**
+
+\`\`\`json
+{
+  "body": {
+    "name": "Database Connection Error",
+    "channel": "honeycomb",
+    "isEvent": "false",
+    "emoji": "",
+    "id": "hc-alert-123",
+    "description": "High error rate detected in database connections",
+    "environment": "production",
+    "links": {
+      "trigger": "https://ui.honeycomb.io/cyberworlds/triggers/db-error-trigger",
+      "result": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C"
+    },
+    "threshold": {
+      "op": ">",
+      "value": "5"
+    },
+    "result": {
+      "groupsTriggered": []
+    },
+    "alert": {
+      "instanceId": "alert-instance-456",
+      "description": "Database connection errors exceeded threshold",
+      "status": "triggered",
+      "summary": "Database errors are spiking",
+      "isTest": false
+    },
+    "groupsTriggered": [
+      {
+        "group": [
+          {
+            "key": "exception.message",
+            "value": "Connection refused"
+          }
+        ],
+        "result": 1
+      }
+    ]
+  },
+  "headers": {
+    "content-type": "application/json",
+    "x-honeycomb-webhook-token": "[REDACTED]"
+  },
+  "httpMethod": "POST",
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/send-alert",
+      "sourceIp": "127.0.0.1"
+    }
+  }
+}
+\`\`\`
+
+**API request:**
+
+\`\`\`json
+{
+  "method": "POST",
+  "endpoint": "/posts",
+  "url": "https://api.test.cyberworlds.com/posts",
+  "headers": {
+    "Content-Type": "application/json",
+    "Authorization": "[REDACTED]"
+  }
+}
+\`\`\`
+
+**API response:**
+
+\`\`\`json
+{
+  "status": 400,
+  "statusText": "Bad Request",
+  "body": {
+    "error": {
+      "message": "Invalid request body (path: \`#/content/elements/3\`).",
+      "retry": {
+        "able": false
+      }
+    }
+  }
+}
+\`\`\`
+
+**Data sent:**
+
+\`\`\`json
+{
+  "channelId": "6dvn4zd99fwvzehdcjhmb0h1s0",
+  "content": {
+    "elements": [
+      {
+        "type": "Heading",
+        "level": 2,
+        "elements": [
+          {
+            "type": "Text",
+            "text": "🚨 Trigger: Database Connection Error"
+          }
+        ]
+      },
+      {
+        "type": "Paragraph",
+        "elements": [
+          {
+            "type": "Text",
+            "text": "View Result",
+            "marks": [
+              {
+                "type": "Link",
+                "url": "https://ui.honeycomb.io/cyberworlds/environments/production/result/znqGGwhdYP6/a/pwzJA4FzA1C"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Paragraph",
+        "elements": [
+          {
+            "type": "Text",
+            "text": "High error rate detected in database connections",
+            "marks": [
+              {
+                "type": "Italic"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Table",
+        "width": 1,
+        "hasHeaderRow": true,
+        "columns": [
+          {
+            "width": 1
+          },
+          {
+            "width": 0.000001
+          }
+        ],
+        "rows": [
+          {
+            "cells": [
+              {
+                "elements": [
+                  {
+                    "type": "Paragraph",
+                    "elements": [
+                      {
+                        "type": "Text",
+                        "text": "exception.message"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "elements": [
+                  {
+                    "type": "Paragraph",
+                    "elements": [
+                      {
+                        "type": "Text",
+                        "text": "Count"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "elements": [
+                  {
+                    "type": "Paragraph",
+                    "elements": [
+                      {
+                        "type": "Text",
+                        "text": "Connection refused",
+                        "marks": [
+                          {
+                            "type": "Code"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "elements": [
+                  {
+                    "type": "Paragraph",
+                    "elements": [
+                      {
+                        "type": "Text",
+                        "text": "1"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+\`\`\`
+"
+`;
+
 exports[`HoneycombAlertSource resolved alert 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: 6dvn4zd99fwvzehdcjhmb0h1s0

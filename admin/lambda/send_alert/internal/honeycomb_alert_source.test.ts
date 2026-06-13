@@ -27,7 +27,14 @@ let mockHoneycombApiCalls: Array<string> = [];
 
 let mockFetchCalls: Array<{url: string; method: string; body: unknown}> = [];
 
-let mockFetchResponses: Array<{url: string; method: string; body: unknown}> = [];
+let mockFetchResponses: Array<{
+    url: string;
+    method: string;
+    body: unknown;
+    ok?: boolean;
+    status?: number;
+    statusText?: string;
+}> = [];
 
 type HoneycombChannelPayload = HoneycombEventAlertPayload | HoneycombTriggerPayload;
 
@@ -54,14 +61,15 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
     const responseIndex = mockFetchResponses.findIndex(
         response => response.url === url && response.method === method,
     );
-    const responseBody =
-        responseIndex === -1 ? undefined : mockFetchResponses.splice(responseIndex, 1)[0]!.body;
+    const responseEntry =
+        responseIndex === -1 ? undefined : mockFetchResponses.splice(responseIndex, 1)[0]!;
 
     return Promise.resolve({
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        text: () => Promise.resolve(responseBody === undefined ? "" : JSON.stringify(responseBody)),
+        ok: responseEntry?.ok ?? true,
+        status: responseEntry?.status ?? 200,
+        statusText: responseEntry?.statusText ?? "OK",
+        text: () =>
+            Promise.resolve(responseEntry === undefined ? "" : JSON.stringify(responseEntry.body)),
     });
 });
 
@@ -108,11 +116,17 @@ function formatCreateTaskMessageCallForSnapshot(fetchCall: {url: string; body: u
 ${markdown}`;
 }
 
-function queueAlpineApiResponse(method: string, path: string, body: unknown): void {
+function queueAlpineApiResponse(
+    method: string,
+    path: string,
+    body: unknown,
+    options: {ok?: boolean; status?: number; statusText?: string} = {},
+): void {
     mockFetchResponses.push({
         url: `https://api.test.cyberworlds.com${path}`,
         method,
         body,
+        ...options,
     });
 }
 
@@ -270,6 +284,52 @@ describe("HoneycombAlertSource", () => {
 
         expect(mockFetchCalls).toHaveLength(1);
         expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("posts to alerts when the Alpine API rejects an alert", async () => {
+        const payload = createHoneycombFixture({
+            groupsTriggered: [
+                {
+                    group: [{key: "exception.message", value: "Connection refused"}],
+                    result: 1,
+                },
+            ],
+        });
+        queueAlpineApiResponse(
+            "POST",
+            "/posts",
+            {
+                error: {
+                    message: "Invalid request body (path: `#/content/elements/3`).",
+                    retry: {able: false},
+                },
+            },
+            {ok: false, status: 400, statusText: "Bad Request"},
+        );
+
+        const result = await new HoneycombAlertSource({
+            body: JSON.stringify(payload),
+            headers: {
+                "content-type": "application/json",
+                "x-honeycomb-webhook-token": "test-honeycomb-secret",
+            },
+            httpMethod: "POST",
+            requestContext: {
+                http: {
+                    method: "POST",
+                    path: "/send-alert",
+                    sourceIp: "127.0.0.1",
+                },
+            },
+        }).handlePayload(payload);
+
+        expect(result).toMatchObject({
+            ok: false,
+            error: "HTTP 400: Bad Request",
+            statusCode: 400,
+        });
+        expect(mockFetchCalls).toHaveLength(2);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[1]!)).toMatchSnapshot();
     });
 
     test("resolved alert", async () => {
