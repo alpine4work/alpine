@@ -158,7 +158,7 @@ async function traverseApiContentMarkdownNode(
                     .replaceAll(
                         /( alt="[^"]*")?( (?:src|data)=")([^"]*)(")/g,
                         (substring, string1, string2, string3, string4) => {
-                            return `${string1 ? ` alt="${pageLinkLabel}"` : ""}${string2}${pageLinkPathname}${string4}`;
+                            return `${string1 ? ` alt="${escapeHtml(pageLinkLabel)}"` : ""}${string2}${pageLinkPathname}${string4}`;
                         },
                     );
 

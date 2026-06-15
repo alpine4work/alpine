@@ -6,8 +6,8 @@ import {
     parseAgentWebChatPage,
     printAgentWebChatPage,
 } from "~/server/agents/web/pages/agent_web_chat_page.js";
-import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {createAgentWebMessagingPageArbitrary} from "~/server/agents/web/test_helpers/agent_web_messaging_page_arbitrary.js";
+import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
     ApiAccountReferenceArbitrary,
     ApiContentTextArbitrary,

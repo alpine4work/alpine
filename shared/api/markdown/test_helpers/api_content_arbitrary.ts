@@ -9,6 +9,9 @@ import {
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.js";
 import {
+    ApiAccountReferenceResponse,
+    ApiChannelReferenceResponse,
+    ApiChatReferenceResponse,
     ApiContentBlockElementResponse,
     ApiContentBreakInlineElement,
     ApiContentCheckListBlockElementItemResponse,
@@ -41,6 +44,7 @@ import {
     ApiContentUnorderedListBlockElementResponse,
     ApiMentionReferenceResponse,
     ApiPreviewReferenceResponse,
+    ApiTaskReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -97,19 +101,19 @@ export const ApiContentTextArbitrary = fc.oneof(
     {arbitrary: fc.string({unit: "grapheme"}), weight: 1},
 );
 
-export const ApiChannelReferenceArbitrary = fc.record({
+export const ApiChannelReferenceArbitrary: fc.Arbitrary<ApiChannelReferenceResponse> = fc.record({
     type: fc.constant("Channel"),
     id: createIdArbitrary<ChannelId>(),
     title: ApiContentTextArbitrary,
 });
 
-export const ApiChatReferenceArbitrary = fc.record({
+export const ApiChatReferenceArbitrary: fc.Arbitrary<ApiChatReferenceResponse> = fc.record({
     type: fc.constant("Chat"),
     id: createIdArbitrary<ChatId>(),
     title: ApiContentTextArbitrary,
 });
 
-export const ApiTaskReferenceArbitrary = fc.record({
+export const ApiTaskReferenceArbitrary: fc.Arbitrary<ApiTaskReferenceResponse> = fc.record({
     type: fc.constant("Task"),
     id: createIdArbitrary<TaskId>(),
     title: ApiContentTextArbitrary,
@@ -141,7 +145,7 @@ const ApiPreviewReferenceArbitraries = {
     }),
 };
 
-export const ApiAccountReferenceArbitrary = fc.record({
+export const ApiAccountReferenceArbitrary: fc.Arbitrary<ApiAccountReferenceResponse> = fc.record({
     type: fc.constant("Account"),
     id: createIdArbitrary<AccountId>(),
     title: ApiContentTextArbitrary,

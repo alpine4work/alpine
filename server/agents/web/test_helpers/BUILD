@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/fast-check",
         "//server/agents/web",
         "//server/cloudflare",
+        "//shared/api/markdown/test_helpers",
         "//shared/error",
         "//shared/helpers",
         "//shared/tracer",

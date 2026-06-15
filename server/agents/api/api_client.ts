@@ -12,7 +12,6 @@ import {
     ApiErrorResponseBody,
     ApiMentionReference,
     ApiMentionReferenceResponse,
-    ApiMentionResponse,
     ApiMessageContentPayloadParent,
     ApiMessageRoomReference,
     ApiMessageStreamPartPayload,
@@ -211,7 +210,7 @@ export function getApiMessage(
                 params: {path: {id: room.id, index}},
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
                 params: {
                     path: {
@@ -252,7 +251,7 @@ export function getApiMessagesFromStart(
                 },
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
@@ -299,7 +298,7 @@ export function getApiMessagesFromEnd(
                 },
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
@@ -349,7 +348,7 @@ export function createApiMessage(
                 body,
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.post(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {path: {id: room.id, threadId: room.threadId}},
                 body,
@@ -386,7 +385,7 @@ export function createApiMessageStreamPart(
                 body,
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.post(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts",
@@ -449,7 +448,7 @@ export async function putApiMessageStreamPart(
                 body,
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}",
@@ -495,7 +494,7 @@ export function completeApiMessageStream(
                 params: {path: {id: room.id, index: messageIndex}},
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/completion",
@@ -539,7 +538,7 @@ export function pingApiMessageStream(
                 },
             });
         }
-        case "DocumentCommentThread": {
+        case "DocumentThread": {
             return apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/ping",

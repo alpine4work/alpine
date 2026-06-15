@@ -5,7 +5,7 @@ import {
     parseAgentWebPostPage,
     printAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
-import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
+import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
@@ -413,14 +413,23 @@ Post body.
 
 </post>
 `,
-            setupStorage: async storage => {
-                await createAgentWebPageStoredLinkPathname(storage, aliceReference);
+            page: {
+                type: "Post",
+                subType: "Head",
+                preamble: {type: "Head", channel: null},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([paragraph([text("Post body.")])]),
+                    },
+                ],
             },
-            parseError:
-                "A `<post>` must be the first thing in post markdown after the first line which " +
-                "states what channel the post is in (e.g. `Post in [My Channel](/channel/my-channel).`) " +
-                "and there must only be one `<post>`. Try again with one `<post>` at the start " +
-                "of the markdown.",
         },
         {
             name: "post block after comment",

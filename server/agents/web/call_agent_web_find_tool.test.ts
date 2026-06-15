@@ -1,4 +1,3 @@
-import {jest} from "@jest/globals";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.js";
@@ -8,18 +7,37 @@ import {
     InvalidArgumentError,
     NotFoundError,
 } from "~/shared/error/error.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const {span} = testTracer.startSpan("call_agent_web_find_tool.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
-const context: AgentWebContext = {api, storage, span};
+
+const botAccountId = generateId<AccountId>();
+const botId = generateId<BotId>();
+
+const context: AgentWebContext = {
+    spaceId,
+    api,
+    storage,
+    span,
+    timeZone: defaultTimeZone,
+    botAccount: {
+        type: "Account",
+        id: botAccountId,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: {id: botId},
+        pathname: "/bot/chatgpt",
+    },
+};
 
 afterEach(() => {
-    jest.useRealTimers();
+    import.meta.jest.useRealTimers();
 });
 
 function createReadResponse(response: string): {
@@ -374,11 +392,11 @@ test("throws NotFoundError when the cached read response does not exist", async 
 });
 
 test("throws NotFoundError when the cached read response is expired", async () => {
-    jest.useFakeTimers();
+    import.meta.jest.useFakeTimers();
 
     const path = "/document/expired";
     const now = new Date("2026-01-01T00:00:00.000Z");
-    jest.setSystemTime(now);
+    import.meta.jest.setSystemTime(now);
 
     await seedReadResponse({
         path,

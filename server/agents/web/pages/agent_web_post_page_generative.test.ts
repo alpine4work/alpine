@@ -8,12 +8,12 @@ import {
     parseAgentWebPostPage,
     printAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
-import {runAgentWebPageGenerativeTests} from "~/server/agents/web/pages/run_agent_web_page_generative_tests.js";
 import {
     AgentWebMessagingPageBlockArbitrary,
     AgentWebMessagingPagePaginationArbitrary,
     AgentWebMessagingPageTimeBlockArbitrary,
 } from "~/server/agents/web/test_helpers/agent_web_messaging_page_arbitrary.js";
+import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {
     ApiAccountReferenceArbitrary,
     ApiChannelReferenceArbitrary,

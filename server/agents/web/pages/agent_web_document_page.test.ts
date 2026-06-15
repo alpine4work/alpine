@@ -4,7 +4,7 @@ import {
     parseAgentWebDocumentPage,
     printAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
-import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
+import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 

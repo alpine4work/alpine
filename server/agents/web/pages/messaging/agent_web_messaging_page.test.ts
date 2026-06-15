@@ -7,9 +7,9 @@ import {
 import {normalizeAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/normalize_agent_web_messaging_page.js";
 import {parseAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.js";
 import {printAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.js";
-import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiAccountReferenceResponse,
@@ -406,7 +406,7 @@ Some messages in Engineering Room. [Previous page »](/chat/engineering-room?bef
                         id: paginationChatId,
                         title: "Engineering Room",
                     },
-                    previousLink: {beforeMessageIndex: 3},
+                    previousLink: {type: "Message", beforeMessageIndex: 3},
                     nextLink: null,
                 },
                 isEndOfMessages: false,
@@ -432,7 +432,7 @@ Some messages in Engineering Room. [Next page »](/chat/engineering-room?after=9
                         title: "Engineering Room",
                     },
                     previousLink: null,
-                    nextLink: {afterMessageIndex: 9},
+                    nextLink: {type: "Message", afterMessageIndex: 9},
                 },
                 isEndOfMessages: false,
                 blocks: [],
@@ -456,8 +456,8 @@ Some messages in Engineering Room. [« Previous page](/chat/engineering-room?bef
                         id: paginationChatId,
                         title: "Engineering Room",
                     },
-                    previousLink: {beforeMessageIndex: 3},
-                    nextLink: {afterMessageIndex: 9},
+                    previousLink: {type: "Message", beforeMessageIndex: 3},
+                    nextLink: {type: "Message", afterMessageIndex: 9},
                 },
                 isEndOfMessages: false,
                 blocks: [],

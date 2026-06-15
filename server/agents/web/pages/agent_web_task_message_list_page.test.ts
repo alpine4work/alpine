@@ -4,7 +4,7 @@ import {
     parseAgentWebTaskMessageListPage,
     printAgentWebTaskMessageListPage,
 } from "~/server/agents/web/pages/agent_web_task_message_list_page.js";
-import {runAgentWebPageTests} from "~/server/agents/web/pages/run_agent_web_page_tests.js";
+import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
@@ -159,7 +159,7 @@ Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task-comm
                 preamble: {task: taskReference},
                 pagination: {
                     pageLink: {type: "TaskMessageList", task: taskReference},
-                    previousLink: {beforeMessageIndex: 3},
+                    previousLink: {type: "Message", beforeMessageIndex: 3},
                     nextLink: null,
                 },
                 isEndOfMessages: false,
@@ -181,7 +181,7 @@ Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task-comments
                 pagination: {
                     pageLink: {type: "TaskMessageList", task: taskReference},
                     previousLink: null,
-                    nextLink: {afterMessageIndex: 9},
+                    nextLink: {type: "Message", afterMessageIndex: 9},
                 },
                 isEndOfMessages: false,
                 blocks: [],
@@ -201,8 +201,8 @@ Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](/task-comm
                 preamble: {task: taskReference},
                 pagination: {
                     pageLink: {type: "TaskMessageList", task: taskReference},
-                    previousLink: {beforeMessageIndex: 3},
-                    nextLink: {afterMessageIndex: 9},
+                    previousLink: {type: "Message", beforeMessageIndex: 3},
+                    nextLink: {type: "Message", afterMessageIndex: 9},
                 },
                 isEndOfMessages: false,
                 blocks: [],

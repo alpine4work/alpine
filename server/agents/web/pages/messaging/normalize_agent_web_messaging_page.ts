@@ -60,7 +60,13 @@ export function normalizeAgentWebMessagingPage<
                         break;
                     }
                     case "Custom": {
-                        normalizeCustomBlock(normalizer, block);
+                        normalizeCustomBlock(
+                            normalizer,
+                            // @ts-expect-error: Getting the TypeScript types right here is challenging.
+                            // Accepting the tradeoff that the types are sound at callsite but unsound at
+                            // implementation site.
+                            block,
+                        );
                         break;
                     }
                     default:

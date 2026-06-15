@@ -32,6 +32,7 @@ ts_project(
         "//shared/api/markdown",
         "//shared/api/specification",
         "//shared/error",
+        "//shared/files",
         "//shared/helpers",
         "//shared/id",
     ],

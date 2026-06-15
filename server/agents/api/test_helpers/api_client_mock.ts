@@ -485,7 +485,7 @@ export class ApiClientMock implements ApiClient {
             {
                 data: {
                     spaceId,
-                    commentThread: {
+                    thread: {
                         id: commentThreadId,
                         createdTime: responseData.createdTime ?? serializeDateString(new Date()),
                         isResolved: responseData.isResolved ?? false,
@@ -567,8 +567,8 @@ export class ApiClientMock implements ApiClient {
                         author: responseData.author ?? createApiAccountMock({}),
                         createdTimeZone: responseData.createdTimeZone ?? defaultTimeZone,
                         content: responseData.content ?? defaultContent,
-                        contentPreview: responseData.contentPreview ?? "Test Post Content Preview",
                         createdTime: responseData.createdTime ?? serializeDateString(new Date()),
+                        reference: responseData.reference ?? {title: "Test Post Content Preview"},
                         ...responseData,
                     },
                     spaceId,

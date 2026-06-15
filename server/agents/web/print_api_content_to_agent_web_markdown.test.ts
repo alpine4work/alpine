@@ -45,6 +45,7 @@ const file3Id = generateChronologicalId<FileId>();
 const file4Id = generateChronologicalId<FileId>();
 const file5Id = generateChronologicalId<FileId>();
 const file6Id = generateChronologicalId<FileId>();
+const postId = generateId<PostId>();
 
 const exampleUrl = `https://example.com/${generateId()}/${generateId()}/${generateId()}`;
 const exampleTruncatedUrl = exampleUrl.slice(0, 40) + "…" + exampleUrl.slice(-10);
@@ -2287,6 +2288,27 @@ Review this today:
 <div style="display: flex">
 <video src="/file/video.mp4"></video>
 <video src="/file/video.mp4"></video>
+</div>
+`,
+    },
+    {
+        name: "post preview with strange title",
+        content: {
+            elements: [
+                {
+                    type: "FileFloat",
+                    side: "Left",
+                    element: {
+                        type: "Preview",
+                        // eslint-disable-next-line cyberworlds/string-quotes
+                        reference: {type: "Post", id: postId, title: '">'},
+                    },
+                },
+            ],
+        },
+        markdown: `\
+<div style="float: left">
+<img alt="&quot;&gt;" src="/post/unknown" />
 </div>
 `,
     },

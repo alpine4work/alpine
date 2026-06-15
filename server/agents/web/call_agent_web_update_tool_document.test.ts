@@ -8,15 +8,34 @@ import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_c
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const {span} = testTracer.startSpan("call_agent_web_update_tool_document.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
-const context: AgentWebContext = {spaceId, api, storage, span};
+
+const botAccountId = generateId<AccountId>();
+const botId = generateId<BotId>();
+
+const context: AgentWebContext = {
+    spaceId,
+    api,
+    storage,
+    span,
+    timeZone: defaultTimeZone,
+    botAccount: {
+        type: "Account",
+        id: botAccountId,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: {id: botId},
+        pathname: "/bot/chatgpt",
+    },
+};
 
 afterEach(() => {
     import.meta.jest.useRealTimers();
