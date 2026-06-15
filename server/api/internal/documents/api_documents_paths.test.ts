@@ -1,6 +1,6 @@
+import {jest} from "@jest/globals";
 import {Fragment, Mark, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {apiDocumentsPaths} from "~/server/api/internal/documents/api_documents_paths.js";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
@@ -106,6 +106,27 @@ const context = createTestContext({
         });
     },
 });
+
+// Mock content conversion so an individual test can force it to throw and assert
+// the document endpoints translate the failure into a 400 instead of a 500. This
+// is more robust than crafting content that happens to be invalid today, since the
+// schema may accept more shapes over time. The mocks default to the real
+// implementations so every other test is unaffected.
+const actualFromApiContentModule =
+    await import("../../../../shared/api/content/from_api_content.js");
+const fromApiContentMock = jest.fn(actualFromApiContentModule.fromApiContent);
+const fromApiContentToDocumentChildNodesMock = jest.fn(
+    actualFromApiContentModule.fromApiContentToDocumentChildNodes,
+);
+jest.unstable_mockModule("../../../../shared/api/content/from_api_content.js", () => ({
+    ...actualFromApiContentModule,
+    fromApiContent: fromApiContentMock,
+    fromApiContentToDocumentChildNodes: fromApiContentToDocumentChildNodesMock,
+}));
+
+// Must be dynamically imported after the mock so the handlers use the mocked
+// content conversion functions.
+const {apiDocumentsPaths} = await import("./api_documents_paths.js");
 
 const server = createTestApiServer(context, apiDocumentsPaths);
 
@@ -313,16 +334,57 @@ describe("POST /documents", () => {
             }),
         });
     });
-    test("returns 400 instead of 500 when the document content can\u2019t be parsed", async () => {
+
+    test("returns a 400 when the document body content can\u2019t be parsed", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
 
-        // An empty title is well-formed per the request schema but can't be represented as
-        // a Prosemirror text node. Parsing it should surface as a client error (400)
-        // instead of an internal error (500).
+        // Force content conversion to fail so we exercise the error-translation path
+        // independently of which content shapes the schema accepts.
+        fromApiContentToDocumentChildNodesMock.mockImplementationOnce(() => {
+            throw new InternalError("Simulated content conversion failure");
+        });
+
+        const response = await server.POST("/documents", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                document: {
+                    title: "Document with Invalid Body Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Hello, world!"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("The document content you provided is invalid."),
+                }),
+            },
+        });
+    });
+
+    test("can create a document with an empty title string", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        // An empty title string is represented as a `title` node with no text children, so
+        // creating the document succeeds and reads back an empty title.
         const response = await server.POST("/documents", {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
@@ -342,10 +404,10 @@ describe("POST /documents", () => {
         });
 
         expect(response).toMatchObject({
-            status: 400,
+            status: 200,
             body: {
-                error: expect.objectContaining({
-                    message: expect.stringMatching("The document content you provided is invalid."),
+                document: expect.objectContaining({
+                    title: "",
                 }),
             },
         });
@@ -1611,7 +1673,7 @@ describe("PATCH /documents/{id}", () => {
             ],
         });
     });
-    test("returns 400 instead of 500 when the document content can\u2019t be parsed", async () => {
+    test("can update a document with an empty title string", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
         const bot = await TestBot.createAndInstantiate(session);
@@ -1623,9 +1685,6 @@ describe("PATCH /documents/{id}", () => {
             access: "Public",
         });
 
-        // An empty title is well-formed per the request schema but can't be represented as
-        // a Prosemirror text node. Parsing it should surface as a client error (400)
-        // instead of an internal error (500).
         const response = await server.PATCH(`/documents/${document.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
@@ -1645,10 +1704,10 @@ describe("PATCH /documents/{id}", () => {
         });
 
         expect(response).toMatchObject({
-            status: 400,
+            status: 200,
             body: {
-                error: expect.objectContaining({
-                    message: expect.stringMatching("The document content you provided is invalid."),
+                document: expect.objectContaining({
+                    title: "",
                 }),
             },
         });

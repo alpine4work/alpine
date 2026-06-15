@@ -7296,3 +7296,30 @@ step({
 
 doc(quoteBlock(paragraph(break, "q")))"
 `;
+
+exports[`id: "253" | diff doc(title, paragraph("body")) with doc(title("Hello"), paragraph("body")) returns the expected steps 1`] = `
+"deletedSize: 0
+theoreticallyOptimalDeletedSize: 0
+
+doc(title, paragraph("body"))
+
+step({
+    "stepType": "replace",
+    "from": 1,
+    "to": 1,
+    "slice": {"content": [{"type": "text", "text": "Hello"}]}
+})
+
+doc(title("Hello"), paragraph("body"))"
+`;
+
+exports[`id: "254" | diff doc(title("Hello"), paragraph("body")) with doc(title, paragraph("body")) returns the expected steps 1`] = `
+"deletedSize: 5
+theoreticallyOptimalDeletedSize: 5
+
+doc(title("Hello"), paragraph("body"))
+
+step({"stepType": "replace", "from": 1, "to": 6})
+
+doc(title, paragraph("body"))"
+`;

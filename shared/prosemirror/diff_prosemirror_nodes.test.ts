@@ -13,7 +13,10 @@ import {findSpans} from "unicode-default-word-boundary";
 import {calebKnownAccountId, rachelKnownAccountId} from "~/shared/accounts/known_account_ids.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContentProsemirrorSchema,
+    DocumentWithoutTitleContentProsemirrorSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -49,7 +52,7 @@ const table = (...children: Children) => schema.nodes.table.create({}, fragment(
 const tableRow = (...children: Children) => schema.nodes.tableRow.create({}, fragment(children));
 const tableCell = (...children: Children) => schema.nodes.tableCell.create({}, fragment(children));
 const fileFloat = (...children: Array<Node>) =>
-    schema.nodes.fileFloat!.create({direction: "left"}, Fragment.fromArray(children));
+    schema.nodes.fileFloat.create({direction: "left"}, Fragment.fromArray(children));
 const fileRow = (...children: Array<Node>) =>
     schema.nodes.fileRow!.create({}, Fragment.fromArray(children));
 const file = (fileId: FileId = fileId1) => schema.nodes.file!.create({fileId});
@@ -85,8 +88,8 @@ const checkListItem = (
     ...children: [attrs: {indent?: number; checked?: boolean}, ...Children] | Children
 ) =>
     children[0] && isObject(children[0]) && "indent" in children[0]
-        ? schema.nodes.checkListItem!.create(children[0] as any, fragment(children.slice(1) as any))
-        : schema.nodes.checkListItem!.create(null, fragment(children as any));
+        ? schema.nodes.checkListItem.create(children[0] as any, fragment(children.slice(1) as any))
+        : schema.nodes.checkListItem.create(null, fragment(children as any));
 
 const heading = (...children: [attrs: {level?: number}, ...Children] | Children) =>
     children[0] && isObject(children[0]) && "level" in children[0]
@@ -97,6 +100,19 @@ const fragment = (children: Children | Child): Fragment =>
     !isReadonlyArray(children) ? fragment([children]) : Fragment.fromArray(children.map(node));
 
 const node = (child: Child): Node => (typeof child === "string" ? schema.text(child) : child);
+
+// The `schema` above (`DocumentWithoutTitleContentProsemirrorSchema`) has no
+// `title` node, so these helpers use the full document schema to build documents
+// with a `title`. An empty title is a `title` node with no text children (it can't
+// hold an empty text node). Text nodes are schema-specific, so build them with
+// `titleSchema` too.
+const titleSchema = DocumentContentProsemirrorSchema;
+const titleDoc = (...children: Array<Node>) =>
+    titleSchema.nodes.doc.create({}, Fragment.fromArray(children));
+const title = (text?: string) =>
+    titleSchema.nodes.title.create({}, text ? titleSchema.text(text) : null);
+const titleParagraph = (text?: string) =>
+    titleSchema.nodes.paragraph.create({}, text ? titleSchema.text(text) : null);
 
 const testCases: ReadonlyArray<{
     readonly only?: CommitBlocker;
@@ -2336,6 +2352,21 @@ const testCases: ReadonlyArray<{
         id: "252",
         old: doc(paragraph("e"), paragraph("5")),
         new: doc(quoteBlock(paragraph(break_(), "q"))),
+    },
+    // Regression test: A document `title` going from empty to non-empty. The
+    // non-empty, unchanged body paragraph would make the diff misalign the title
+    // against the body (producing an invalid document with two titles) without a
+    // title-specific compatibility key.
+    {
+        id: "253",
+        old: titleDoc(title(), titleParagraph("body")),
+        new: titleDoc(title("Hello"), titleParagraph("body")),
+    },
+    // A document `title` going from non-empty to empty.
+    {
+        id: "254",
+        old: titleDoc(title("Hello"), titleParagraph("body")),
+        new: titleDoc(title(), titleParagraph("body")),
     },
 ];
 

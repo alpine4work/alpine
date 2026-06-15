@@ -30,7 +30,7 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {
     fromApiContent,
-    fromApiContentForPutDocument,
+    fromApiContentToDocumentChildNodes,
 } from "~/shared/api/content/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {
@@ -653,8 +653,8 @@ export const apiDocumentsPaths: Pick<
     },
 };
 
-// Wraps `fromApiContent()` and the document node assembly in a try/catch block to
-// translate any Prosemirror schema validation errors into an
+// Wraps `fromApiContentToDocumentChildNodes()` and the document node assembly in a
+// try/catch block to translate any Prosemirror schema validation errors into an
 // `InvalidArgumentError` instead of an `InternalError`. This could happen if a
 // user submits structurally valid content that contains content types that aren't
 // supported by the document content schema.
@@ -668,19 +668,16 @@ function validateApiDocumentContentForCreate({
     content: ApiContent | undefined;
 }): DocumentContent {
     try {
-        const parsedContent = content
-            ? fromApiContent(DocumentContentProsemirrorSchema, content)
-            : undefined;
-
         return assertDocumentContent(
-            DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
-                DocumentContentProsemirrorSchema.node("title", {}, [
-                    DocumentContentProsemirrorSchema.text(title),
-                ]),
-                ...(parsedContent
-                    ? [...parsedContent.children]
-                    : [DocumentContentProsemirrorSchema.node("paragraph")]),
-            ]),
+            DocumentContentProsemirrorSchema.node(
+                "doc",
+                {accessPolicy},
+                fromApiContentToDocumentChildNodes(
+                    DocumentContentProsemirrorSchema,
+                    title,
+                    content ?? {elements: []},
+                ),
+            ),
         );
     } catch (error) {
         // TODO(#public-api): Document the schema rules for document content and add a link
@@ -691,9 +688,9 @@ function validateApiDocumentContentForCreate({
     }
 }
 
-// Wraps `fromApiContentForPutDocument()` in a try/catch block to translate any
-// Prosemirror schema validation errors into an `InvalidArgumentError` instead of
-// an `InternalError`. This could happen if a user submits structurally valid
+// Wraps `fromApiContentToDocumentChildNodes()` in a try/catch block to translate
+// any Prosemirror schema validation errors into an `InvalidArgumentError` instead
+// of an `InternalError`. This could happen if a user submits structurally valid
 // content that contains content types that aren't supported by the document
 // content schema.
 function validateApiDocumentContentForUpdate({
@@ -704,7 +701,7 @@ function validateApiDocumentContentForUpdate({
     content: ApiContent;
 }): ReadonlyArray<Node> {
     try {
-        return fromApiContentForPutDocument(DocumentContentProsemirrorSchema, title, content);
+        return fromApiContentToDocumentChildNodes(DocumentContentProsemirrorSchema, title, content);
     } catch (error) {
         // TODO(#public-api): Document the schema rules for document content and add a link
         // to the documentation in this error message.

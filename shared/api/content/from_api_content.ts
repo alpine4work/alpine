@@ -40,17 +40,20 @@ export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): 
 }
 
 /**
- * Specialized version of `fromApiContent()` specifically optimized for the API
- * `PUT` document endpoint.
+ * Converts a title string and API content into the ordered child nodes of a
+ * document `doc`: a `title` node followed by the body block nodes. Unlike
+ * `fromApiContent()`, which returns a full `doc` node, this returns just the
+ * children so callers can wrap them in a `doc` with the appropriate attributes
+ * (e.g. the `accessPolicy` on document create).
  */
-export function fromApiContentForPutDocument(
+export function fromApiContentToDocumentChildNodes(
     schema: ProsemirrorSchema,
     title: string,
     content: ApiContent,
 ): ReadonlyArray<Node> {
     const blockNodes = Array.from(
         concatIterables(
-            [schema.nodes.title!.create(null, schema.text(title))],
+            [schema.nodes.title!.create(null, title.length > 0 ? schema.text(title) : null)],
             fromApiContentBlockElements(schema, content.elements),
         ),
     );
