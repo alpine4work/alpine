@@ -3,6 +3,7 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -33,7 +34,11 @@ const context: AgentWebContext = {
     },
 };
 
-function createDocumentContentFromText(text: string): ApiContentResponse {
+function createDocumentContentFromText(text: string): ApiContentResponseWithoutKeys {
+    return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
+}
+
+function createDocumentContentFromTextWithKeys(text: string): ApiContentResponse {
     return {
         elements: [
             {
@@ -76,12 +81,11 @@ function mockCreateDocument({
 
 test("calls the documents API with parsed document content", async () => {
     const documentId = generateId<DocumentId>();
-    const content = createDocumentContentFromText("Initial body paragraph.");
 
     mockCreateDocument({
         id: documentId,
         title: "API Created Document",
-        content,
+        content: createDocumentContentFromTextWithKeys("Initial body paragraph."),
         version: 7,
     });
 
@@ -104,7 +108,7 @@ Initial body paragraph.`,
             spaceId,
             document: {
                 title: "API Created Document",
-                content,
+                content: createDocumentContentFromText("Initial body paragraph."),
             },
         },
     });

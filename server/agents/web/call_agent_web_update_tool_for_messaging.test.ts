@@ -24,6 +24,7 @@ import {getReadAgentWebMessagingPageAroundMessageStartCursor} from "~/server/age
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccount,
     ApiContentResponse,
@@ -176,19 +177,8 @@ async function expectFailedPreconditionDisplayMessage({
     expect(result.error).toBeInstanceOf(FailedPreconditionError);
 }
 
-function createTextContent(text: string): ApiContentResponse {
-    return {
-        elements: [
-            {
-                type: "Paragraph",
-                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-                    pos: 0,
-                    nodeSize: text.length + 2,
-                }),
-                elements: [{type: "Text", text}],
-            },
-        ],
-    };
+function createTextContent(text: string): ApiContentResponseWithoutKeys {
+    return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
 function createMessage({

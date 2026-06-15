@@ -8,6 +8,7 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import type {
     ApiAccount,
     ApiChannelReferenceResponse,
@@ -104,7 +105,11 @@ beforeEach(async () => {
     assert(actualExistingPostPathname === "/post/existing-post");
 });
 
-function createTextContent(text: string): ApiContentResponse {
+function createTextContent(text: string): ApiContentResponseWithoutKeys {
+    return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
+}
+
+function createTextContentWithKeys(text: string): ApiContentResponse {
     return {
         elements: [
             {
@@ -190,7 +195,7 @@ function mockCreatePost({
     id = generateId<PostId>(),
     title,
     author = botApiAccount,
-    content = createTextContent("Created post response."),
+    content = createTextContentWithKeys("Created post response."),
 }: {
     id?: PostId;
     title: string;

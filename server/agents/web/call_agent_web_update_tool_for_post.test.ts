@@ -11,6 +11,7 @@ import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccount,
     ApiChannelReferenceResponse,
@@ -193,7 +194,11 @@ async function expectInvalidUpdateDisplayMessage({
     expect(result.error).toBeInstanceOf(InvalidArgumentError);
 }
 
-function createTextContent(text: string): ApiContentResponse {
+function createTextContent(text: string): ApiContentResponseWithoutKeys {
+    return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
+}
+
+function createTextContentWithKeys(text: string): ApiContentResponse {
     return {
         elements: [
             {
@@ -257,7 +262,7 @@ function getReadPageInfo(path: string): {
 function mockGetPost({
     author = aliceAccount,
     channel = announcementsChannelReference,
-    content = createTextContent("Post body."),
+    content = createTextContentWithKeys("Post body."),
     createdTime = new Date("2026-05-14T15:00:00.000Z"),
     createdTimeZone = defaultTimeZone,
 }: {
