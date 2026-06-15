@@ -20,9 +20,11 @@ import {
 } from "~/server/agents/web/pages/messaging/truncate_agent_web_messaging_page.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
 import {
-    ApiContentBlockElementResponse,
+    ApiContentBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
     ApiContentInlineElementResponse,
-    ApiContentResponse,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageResponse,
     ApiMessageRoomReference,
@@ -834,7 +836,7 @@ function buildAgentWebMessagingPageFromApiMessages<
             }
         }
 
-        const elements: Array<ApiContentBlockElementResponse> = [];
+        const elements: Array<ApiContentBlockElementResponseWithoutKeys> = [];
 
         for (const message of currentBlock.messages) {
             switch (message.payload.type) {
@@ -875,7 +877,7 @@ function buildAgentWebMessagingPageFromApiMessages<
 
 function convertApiMessageContentPayloadParentContentSnippetToContent(
     parent: ApiMessageContentPayloadParentContentSnippet,
-): ApiContentResponse {
+): ApiContentResponseWithoutKeys {
     const elements: ReadonlyArray<ApiContentInlineElementResponse> = !parent.isTruncated
         ? parent.elements
         : [...parent.elements, {type: "Text", text: " […]"}];

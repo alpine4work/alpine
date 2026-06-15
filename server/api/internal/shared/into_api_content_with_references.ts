@@ -13,10 +13,10 @@ import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {
     ApiContentMarkdownIntoOptionsWithoutKeys,
-    ApiContentResponseWithoutKeys,
     intoApiContent,
 } from "~/shared/api/content/into_api_content.js";
 import {prepareApiMentionTitle} from "~/shared/api/content/prepare_api_mention_title.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {

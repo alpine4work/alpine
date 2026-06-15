@@ -19,11 +19,11 @@ import {
     printApiMentionReferenceToMentionUrl,
     printApiPreviewReferenceToPreviewUrl,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentBlockElement,
     ApiContentFileBlockElementResponse,
     ApiContentPreviewBlockElementResponse,
-    ApiContentResponse,
     ApiMessageStreamContentPartPayloadResponse,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -33,6 +33,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -40,7 +41,10 @@ export type AgentWebMarkdownStreamPart = {
     readonly index: number;
     readonly payload:
         | Exclude<ApiMessageStreamPartPayload, {type: "Content"}>
-        | ApiMessageStreamContentPartPayloadResponse;
+        | Replace<
+              ApiMessageStreamContentPartPayloadResponse,
+              {content: ApiContentResponseWithoutKeys}
+          >;
 };
 
 /**
@@ -146,7 +150,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                         // make sure to provide enough information that our parse function can return
                         // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
                         // `ApiContentMentionInlineElementResponse` object).
-                    ) as ApiContentResponse;
+                    ) as ApiContentResponseWithoutKeys;
                 };
 
                 if (
@@ -267,7 +271,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                     // make sure to provide enough information that our parse function can return
                     // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
                     // `ApiContentMentionInlineElementResponse` object).
-                ) as ApiContentResponse;
+                ) as ApiContentResponseWithoutKeys;
 
                 const part: AgentWebMarkdownStreamPart = {
                     index: this._parts.length,

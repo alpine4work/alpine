@@ -4,13 +4,13 @@ import {Mark, Node} from "prosemirror-model";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {
     ApiContentMarkdownIntoOptionsWithoutKeys,
-    ApiContentResponseWithoutKeys,
     intoApiContent,
 } from "~/shared/api/content/into_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";

@@ -1,3 +1,4 @@
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {
     ApiAccount,
     ApiContentResponse,
@@ -38,9 +39,23 @@ export function createApiMessageMock({
         payload: {
             type: "Content",
             content:
-                typeof content === "string"
-                    ? {elements: [{type: "Paragraph", elements: [{type: "Text", text: content}]}]}
-                    : content,
+                typeof content !== "string"
+                    ? content
+                    : {
+                          elements: [
+                              {
+                                  type: "Paragraph",
+                                  key: new ApiContentKeyEncoder({
+                                      entityId: `Message:${index}`,
+                                      version: 0,
+                                  }).encode({
+                                      pos: 0,
+                                      nodeSize: content.length + 2,
+                                  }),
+                                  elements: [{type: "Text", text: content}],
+                              },
+                          ],
+                      },
             parent: parent
                 ? {
                       type: "Message" as const,

@@ -8,9 +8,9 @@ import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
-    ApiContentBlockElementResponse,
-    ApiContentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    ApiContentBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -62,7 +62,7 @@ const storage = createAgentWebSessionStorageForTest(spaceId);
 const testCases: Array<{
     only?: CommitBlocker;
     name: string;
-    content: ApiContentResponse;
+    content: ApiContentResponseWithoutKeys;
     markdown: string;
 }> = [
     {
@@ -2384,7 +2384,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
             // Always perform one last update.
             await parser.update(null);
 
-            const elements: Array<ApiContentBlockElementResponse> = [];
+            const elements: Array<ApiContentBlockElementResponseWithoutKeys> = [];
 
             for (const part of parser.getParts()) {
                 // We only push text so there should be only content parts.
@@ -2395,7 +2395,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
                 }
             }
 
-            const actualContent: ApiContentResponse = {elements};
+            const actualContent: ApiContentResponseWithoutKeys = {elements};
 
             expect(normalizeApiContentForAgentWebMarkdown(actualContent)).toEqual(
                 normalizeApiContentForAgentWebMarkdown(expectedContent),

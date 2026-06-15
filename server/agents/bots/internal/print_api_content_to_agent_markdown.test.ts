@@ -4,7 +4,7 @@ import {agentMessageFirstPageTokenLimit} from "~/server/agents/bots/internal/age
 import {AgentLink} from "~/server/agents/bots/internal/link_references/agent_link.js";
 import {listAgentLinksForTest} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {printApiContentToAgentMarkdown} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/content/into_api_content.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, PostId, TaskId} from "~/shared/id/types/id_types.js";

@@ -14,12 +14,12 @@ import {
     printApiPreviewReferenceToPreviewUrl,
     printMarkdownTree,
 } from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiContentFileBlockElementResponse,
     ApiContentFileGalleryBlockElementRowResponse,
     ApiContentMentionInlineElementResponse,
     ApiContentPreviewBlockElementResponse,
-    ApiContentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -37,7 +37,7 @@ type ApiContentAgentWebMarkdownPrinterState = {
 
 export async function printApiContentToAgentWebMarkdown(
     storage: AgentWebSessionStorage,
-    content: ApiContentResponse,
+    content: ApiContentResponseWithoutKeys,
     options?: {documentId?: DocumentId | null},
 ): Promise<string> {
     const markdownTree = await printApiContentToAgentWebMarkdownTree(storage, content, options);
@@ -46,7 +46,7 @@ export async function printApiContentToAgentWebMarkdown(
 
 export async function printApiContentToAgentWebMarkdownTree(
     storage: AgentWebSessionStorage,
-    content: ApiContentResponse,
+    content: ApiContentResponseWithoutKeys,
     {documentId = null}: {documentId?: DocumentId | null} = emptyObject,
 ): Promise<Root> {
     const state: ApiContentAgentWebMarkdownPrinterState = {

@@ -7,10 +7,12 @@ import {
 } from "~/server/agents/web/pages/agent_web_post_page.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponse,
-    ApiContentResponse,
     ApiContentTextInlineElement,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -45,13 +47,15 @@ function accountReference({
 const aliceReference = accountReference({name: "Alice"});
 const bobReference = accountReference({name: "Bob"});
 
-function content(elements: ApiContentResponse["elements"]): ApiContentResponse {
+function content(
+    elements: ApiContentResponseWithoutKeys["elements"],
+): ApiContentResponseWithoutKeys {
     return {elements};
 }
 
 function paragraph(
     elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponse {
+): ApiContentParagraphBlockElementResponseWithoutKeys {
     return {type: "Paragraph", elements};
 }
 

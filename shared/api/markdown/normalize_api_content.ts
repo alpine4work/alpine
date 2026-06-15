@@ -292,6 +292,7 @@ export class ApiContentNormalizer {
     normalizeBlockElement(element: Draft<ApiContentBlockElement>) {
         switch (element.type) {
             case "Paragraph": {
+                if (hasOwnProperty(element, "key")) delete element.key;
                 this.normalizeInlineElements(element.elements);
                 break;
             }
@@ -343,6 +344,7 @@ export class ApiContentNormalizer {
                 break;
             }
             case "Heading": {
+                if (hasOwnProperty(element, "key")) delete element.key;
                 this.normalizeInlineElements(element.elements);
                 break;
             }

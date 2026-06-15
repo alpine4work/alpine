@@ -9,6 +9,7 @@ import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_
 import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -46,6 +47,10 @@ function createDocumentContentFromText(text: string): ApiContentResponse {
         elements: [
             {
                 type: "Paragraph",
+                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
+                    pos: 0,
+                    nodeSize: text.length + 2,
+                }),
                 elements: [{type: "Text", text}],
             },
         ],

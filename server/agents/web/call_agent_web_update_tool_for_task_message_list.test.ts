@@ -7,10 +7,8 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {
-    ApiContentResponse,
-    ApiTaskReferenceResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
@@ -84,7 +82,7 @@ beforeEach(async () => {
     assert(actualOtherTaskPathname === otherTaskPath);
 });
 
-function createTextContent(text: string): ApiContentResponse {
+function createTextContent(text: string): ApiContentResponseWithoutKeys {
     return {
         elements: [{type: "Paragraph", elements: [{type: "Text", text}]}],
     };

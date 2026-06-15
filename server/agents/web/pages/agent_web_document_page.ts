@@ -7,7 +7,7 @@ import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/n
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
@@ -16,7 +16,7 @@ import {DocumentId} from "~/shared/id/types/id_types.js";
 export type AgentWebDocumentPage = {
     readonly type: "Document";
     readonly title: string;
-    readonly content: ApiContentResponse;
+    readonly content: ApiContentResponseWithoutKeys;
 };
 
 export type AgentWebDocumentPageMetadata = {

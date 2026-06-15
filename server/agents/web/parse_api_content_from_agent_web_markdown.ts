@@ -5,7 +5,7 @@ import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
@@ -13,7 +13,7 @@ export async function parseApiContentFromAgentWebMarkdown(
     storage: AgentWebSessionStorage,
     markdown: string,
     options?: {documentId?: DocumentId | null},
-): Promise<ApiContentResponse> {
+): Promise<ApiContentResponseWithoutKeys> {
     const root = parseMarkdownTree(markdown);
     return await parseApiContentFromAgentWebMarkdownTree(storage, root, options);
 }
@@ -22,7 +22,7 @@ export async function parseApiContentFromAgentWebMarkdownTree(
     storage: AgentWebSessionStorage,
     root: Root,
     {documentId = null}: {documentId?: DocumentId | null} = emptyObject,
-): Promise<ApiContentResponse> {
+): Promise<ApiContentResponseWithoutKeys> {
     ({root} = await convertMarkdownTreeToAgentWebMarkdownTree(storage, documentId, null, root));
 
     // In our Markdown `convertMarkdownTreeToAgentWebMarkdownTree()` pre-processing we
@@ -34,5 +34,5 @@ export async function parseApiContentFromAgentWebMarkdownTree(
         // `ApiContentResponse` type but we don't save old item widths in storage. We also
         // set this in `normalizeApiContentForAgentWebMarkdown()`.
         withDummyFileGalleryElementLayout: true,
-    }) as ApiContentResponse;
+    }) as ApiContentResponseWithoutKeys;
 }

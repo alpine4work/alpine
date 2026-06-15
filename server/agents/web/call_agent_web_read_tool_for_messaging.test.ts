@@ -13,6 +13,7 @@ import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -149,6 +150,10 @@ test("prints rich message content using agent web markdown links", async () => {
         elements: [
             {
                 type: "Paragraph",
+                key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
+                    pos: 0,
+                    nodeSize: 0,
+                }),
                 elements: [
                     {type: "Text", text: "Review "},
                     {type: "Text", text: "carefully", marks: [{type: "Bold"}]},
@@ -461,6 +466,10 @@ test("caches the full chat read response for scroll", async () => {
     const content: ApiContentResponse = {
         elements: Array.from({length: 10}, (_, index) => ({
             type: "Paragraph",
+            key: new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
+                pos: 0,
+                nodeSize: 0,
+            }),
             elements: [{type: "Text", text: `Paragraph ${index + 1}.`}],
         })),
     };

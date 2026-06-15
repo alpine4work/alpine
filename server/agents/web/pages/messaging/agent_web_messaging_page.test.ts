@@ -12,11 +12,13 @@ import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_a
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
+    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentResponseWithoutKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
     ApiAccountReferenceResponse,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponse,
-    ApiContentResponse,
     ApiContentTextInlineElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -64,13 +66,15 @@ const escapedCarolDanTeamReference = accountReference({
     name: `Carol & Dan${apostrophe}s ${doubleQuote}Team${doubleQuote}`,
 });
 
-function content(elements: ApiContentResponse["elements"]): ApiContentResponse {
+function content(
+    elements: ApiContentResponseWithoutKeys["elements"],
+): ApiContentResponseWithoutKeys {
     return {elements};
 }
 
 function paragraph(
     elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponse {
+): ApiContentParagraphBlockElementResponseWithoutKeys {
     return {type: "Paragraph", elements};
 }
 

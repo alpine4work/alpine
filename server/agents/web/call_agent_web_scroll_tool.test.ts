@@ -6,6 +6,7 @@ import {
     truncateAgentWebReadResponse,
 } from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
@@ -257,6 +258,7 @@ test("iterates through realistic wikipedia content one page at a time", async ()
     api.mockGetDocument(spaceId, documentId, {
         title: "YouTube",
         content: intoApiContent(wikipediaYoutubeDocumentContent.get(), {
+            encoder: new ApiContentKeyEncoder({entityId: `Document:${documentId}`, version: 0}),
             getAccountMentionTitleIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
             getSearchTaskEntityDisplayStatusIfExists: () => undefined,

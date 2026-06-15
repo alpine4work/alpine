@@ -39,10 +39,10 @@ import {
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccountReferenceResponse,
     ApiChannelReferenceResponse,
-    ApiContentResponse,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
@@ -121,7 +121,7 @@ export type AgentWebPostPageCustomBlock = {
     readonly author: ApiAccountReferenceResponse;
     readonly timeAttribute: null;
     readonly timeZoneAttribute: string | null;
-    readonly content: ApiContentResponse;
+    readonly content: ApiContentResponseWithoutKeys;
 };
 
 export type AgentWebPostPageWithMetadata = AgentWebPostPage & {
