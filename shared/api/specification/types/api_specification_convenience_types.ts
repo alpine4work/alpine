@@ -18,6 +18,11 @@ export type ApiChatReference = ApiSpecification.components["schemas"]["ChatRefer
 export type ApiChatReferenceResponse =
     ApiSpecification.components["schemas"]["ChatReference_Response"];
 
+export type ApiDocumentReference = ApiSpecification.components["schemas"]["DocumentReference"];
+
+export type ApiDocumentReferenceResponse =
+    ApiSpecification.components["schemas"]["DocumentReference_Response"];
+
 export type ApiPostReference = ApiSpecification.components["schemas"]["PostReference"];
 
 export type ApiPostReferenceResponse =

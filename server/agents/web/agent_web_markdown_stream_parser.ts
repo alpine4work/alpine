@@ -532,10 +532,7 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                     const {pageLink} = pageLinkResult;
 
                     const mentionReferenceResult =
-                        createAgentWebPageLinkApiMentionReferenceIfPossible(
-                            storage.spaceId,
-                            pageLink,
-                        );
+                        createAgentWebPageLinkApiMentionReferenceIfPossible(pageLink);
 
                     switch (mentionReferenceResult.type) {
                         case "Url": {

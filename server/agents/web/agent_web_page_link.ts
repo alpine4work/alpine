@@ -34,7 +34,7 @@ import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_
  *   stored link.
  *
  *     For example, to view task comments for `/task/write-spec` you use
- *     `/task-comments/write-spec`. We don't store `/task-comments/write-spec`,
+ *     `/task/write-spec/comments`. We don't store `/task/write-spec/comments`,
  *     instead we check the `TaskId` associated with the `write-spec` path and use
  *     that to show task comments.
  *

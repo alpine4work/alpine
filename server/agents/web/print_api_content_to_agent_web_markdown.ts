@@ -7,7 +7,6 @@ import {
 } from "~/server/agents/web/agent_web_page_stored_link.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
-import {createApiReferenceAgentWebPageStoredLink} from "~/server/agents/web/create_api_reference_agent_web_page_stored_link.js";
 import {
     printApiContentToMarkdownTree,
     printApiFileContentUrl,
@@ -20,6 +19,7 @@ import {
     ApiContentFileGalleryBlockElementRowResponse,
     ApiContentMentionInlineElementResponse,
     ApiContentPreviewBlockElementResponse,
+    ApiMentionReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -129,10 +129,12 @@ async function traverseApiContentMarkdownNode(
                     | ApiContentFileBlockElementResponse
                     | ApiContentPreviewBlockElementResponse;
 
-                let pageLink: AgentWebPageStoredLink;
+                let pageLink:
+                    | ApiMentionReferenceResponse
+                    | Extract<AgentWebPageStoredLink, {type: "File"}>;
 
                 if (element.type === "Preview") {
-                    pageLink = createApiReferenceAgentWebPageStoredLink(element.reference);
+                    pageLink = element.reference;
                 } else {
                     pageLink = {
                         type: "File",
@@ -146,7 +148,8 @@ async function traverseApiContentMarkdownNode(
                     storage,
                     pageLink,
                 );
-                const pageLinkLabel = printAgentWebPageStoredLinkLabel(pageLink);
+                const pageLinkLabel =
+                    pageLink.type !== "File" ? printAgentWebPageStoredLinkLabel(pageLink) : null;
 
                 const newValue = node.value
                     // Strip any accessory attributes that are provided in case the printed HTML is
@@ -157,7 +160,7 @@ async function traverseApiContentMarkdownNode(
                     .replaceAll(
                         /( alt="[^"]*")?( (?:src|data)=")([^"]*)(")/g,
                         (substring, string1, string2, string3, string4) => {
-                            return `${string1 ? ` alt="${escapeHtml(pageLinkLabel)}"` : ""}${string2}${pageLinkPathname}${string4}`;
+                            return `${string1 && pageLinkLabel !== null ? ` alt="${escapeHtml(pageLinkLabel)}"` : ""}${string2}${pageLinkPathname}${string4}`;
                         },
                     );
 
@@ -177,14 +180,13 @@ async function traverseApiContentMarkdownNode(
 
                 const pageLinkByUrlEntries = await runAllPromises(
                     fileGalleryElementRow.items.map(async item => {
-                        let pageLink: AgentWebPageStoredLink;
+                        let pageLink:
+                            | ApiMentionReferenceResponse
+                            | Extract<AgentWebPageStoredLink, {type: "File"}>;
                         let url: string;
 
                         if (item.element.type === "Preview") {
-                            pageLink = createApiReferenceAgentWebPageStoredLink(
-                                item.element.reference,
-                            );
-
+                            pageLink = item.element.reference;
                             url = printApiPreviewReferenceToPreviewUrl(item.element.reference);
                         } else {
                             pageLink = {
@@ -202,7 +204,10 @@ async function traverseApiContentMarkdownNode(
                             pageLink,
                         );
 
-                        const pageLinkLabel = printAgentWebPageStoredLinkLabel(pageLink);
+                        const pageLinkLabel =
+                            pageLink.type !== "File"
+                                ? printAgentWebPageStoredLinkLabel(pageLink)
+                                : null;
 
                         return [
                             escapeHtml(url),
@@ -224,7 +229,7 @@ async function traverseApiContentMarkdownNode(
                         (substring, string1, string2, string3, string4) => {
                             const pageLink = pageLinkByUrl.get(string3);
                             if (!pageLink) return substring;
-                            return `${string1 ? ` alt="${escapeHtml(pageLink.label)}"` : ""}${string2}${escapeHtml(pageLink.pathname)}${string4}`;
+                            return `${string1 && pageLink.label !== null ? ` alt="${escapeHtml(pageLink.label)}"` : ""}${string2}${escapeHtml(pageLink.pathname)}${string4}`;
                         },
                     );
 
@@ -254,7 +259,7 @@ async function traverseApiContentMarkdownNode(
             const mentionElement = node.data
                 .mentionElement as ApiContentMentionInlineElementResponse;
 
-            const pageLink = createApiReferenceAgentWebPageStoredLink(mentionElement.reference);
+            const pageLink = mentionElement.reference;
             const pageLinkPathname = await createAgentWebPageStoredLinkPathname(storage, pageLink);
 
             const originalPageLinkLabel = printAgentWebPageStoredLinkLabel(pageLink);
@@ -321,7 +326,7 @@ async function traverseApiContentMarkdownNode(
                 const previewElement = node.data
                     .previewElement as ApiContentPreviewBlockElementResponse;
 
-                const pageLink = createApiReferenceAgentWebPageStoredLink(previewElement.reference);
+                const pageLink = previewElement.reference;
                 const pageLinkPathname = await createAgentWebPageStoredLinkPathname(
                     storage,
                     pageLink,

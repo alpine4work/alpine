@@ -12,6 +12,10 @@ import {
     updateAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
 import {
+    parseAgentWebDocumentThreadPage,
+    updateAgentWebDocumentThreadPage,
+} from "~/server/agents/web/pages/agent_web_document_thread_page.js";
+import {
     parseAgentWebPostPage,
     updateAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.js";
@@ -267,6 +271,30 @@ async function updateAgentWebPageLink(
             );
 
             return await updateAgentWebDocumentPage(context, oldPageMetadata, newPage);
+        }
+        case "DocumentThread": {
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebDocumentThreadPage(
+                    context.storage,
+                    {id: oldPageMetadata.id, threadId: oldPageMetadata.threadId},
+                    oldResponse,
+                ),
+                parseAgentWebDocumentThreadPage(
+                    context.storage,
+                    {id: oldPageMetadata.id, threadId: oldPageMetadata.threadId},
+                    newResponse,
+                ),
+            ]);
+
+            return await updateAgentWebDocumentThreadPage(
+                context,
+                pathname,
+                oldPageMetadata,
+                oldPage,
+                newPage,
+            );
         }
         case "Chat": {
             const oldResponse = oldResponseLazy.get();

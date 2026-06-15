@@ -32,7 +32,9 @@ export function normalizeAgentWebMessagingPage<
             normalizePreamble(normalizer, page.preamble);
 
             if (page.pagination) {
-                if (page.pagination.pageLink.type === "TaskMessageList") {
+                if (page.pagination.pageLink.type === "DocumentThread") {
+                    normalizer.normalizeReference(page.pagination.pageLink.document);
+                } else if (page.pagination.pageLink.type === "TaskMessageList") {
                     normalizer.normalizeReference(page.pagination.pageLink.task);
                 } else {
                     normalizer.normalizeReference(page.pagination.pageLink);

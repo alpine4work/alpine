@@ -28,7 +28,7 @@ const taskReference: ApiTaskReferenceResponse = {
 };
 
 const taskPath = "/task/write-spec";
-const taskCommentsPath = "/task-comments/write-spec";
+const taskCommentsPath = "/task/write-spec/comments";
 
 const {span} = testTracer.startSpan("call_agent_web_read_tool_task_message_list.test.ts");
 const api = new ApiClientMock();

@@ -3,10 +3,7 @@ import {Root} from "mdast";
 import {stemmer} from "stemmer";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.js";
-import {
-    AgentWebPageStoredLink,
-    printAgentWebPageStoredLinkLabel,
-} from "~/server/agents/web/agent_web_page_stored_link.js";
+import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.js";
 import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
@@ -90,8 +87,9 @@ export async function callAgentWebCreateTool(
     let noun: string;
     let pageMetadata: AgentWebPageMetadata;
     let pageLink: AgentWebPageStoredLink;
+    let pageLinkLabel: string;
     try {
-        ({noun, pageMetadata, pageLink} = await createAgentWebPageLink(
+        ({noun, pageMetadata, pageLink, pageLinkLabel} = await createAgentWebPageLink(
             contextWithPartialSuccessDetection,
             type,
             contentTree,
@@ -161,9 +159,7 @@ export async function callAgentWebCreateTool(
                         {
                             type: "link",
                             url: pageLinkPathname,
-                            children: [
-                                {type: "text", value: printAgentWebPageStoredLinkLabel(pageLink)},
-                            ],
+                            children: [{type: "text", value: pageLinkLabel}],
                         },
                         {type: "text", value: "."},
                     ],
@@ -177,7 +173,12 @@ async function createAgentWebPageLink(
     context: AgentWebContext,
     originalType: string,
     content: Root,
-): Promise<{noun: string; pageMetadata: AgentWebPageMetadata; pageLink: AgentWebPageStoredLink}> {
+): Promise<{
+    noun: string;
+    pageMetadata: AgentWebPageMetadata;
+    pageLink: AgentWebPageStoredLink;
+    pageLinkLabel: string;
+}> {
     // Stem and lowercase whatever random stuff the agent decides to throw at us.
     // Though we tell the agent to use whatever is in the path prefix (e.g. `document`
     // in `/document/cool-thing`, but we want to support `documents`).
@@ -190,14 +191,18 @@ async function createAgentWebPageLink(
 
             const pageMetadata = await createAgentWebDocumentPage(context, newPage);
 
+            const title = newPage.title.length === 0 ? "Untitled" : newPage.title;
+
             return {
                 noun: "document",
                 pageMetadata,
                 pageLink: {
                     type: "Document",
                     id: pageMetadata.id,
-                    title: newPage.title,
+                    // NOCOMMIT: Test create a document with no title
+                    title,
                 },
+                pageLinkLabel: title,
             };
         }
         case "chat": {
@@ -209,6 +214,7 @@ async function createAgentWebPageLink(
                 noun: "chat",
                 pageMetadata,
                 pageLink,
+                pageLinkLabel: pageLink.title,
             };
         }
         case "post": {
@@ -220,6 +226,7 @@ async function createAgentWebPageLink(
                 noun: "post",
                 pageMetadata,
                 pageLink,
+                pageLinkLabel: pageLink.title,
             };
         }
         default: {

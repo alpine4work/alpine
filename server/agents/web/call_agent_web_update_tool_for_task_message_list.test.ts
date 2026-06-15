@@ -42,7 +42,7 @@ const otherTaskReference: ApiTaskReferenceResponse = {
 };
 
 const taskPath = "/task/write-spec";
-const taskCommentsPath = "/task-comments/write-spec";
+const taskCommentsPath = "/task/write-spec/comments";
 const otherTaskPath = "/task/review-spec";
 
 const {span} = testTracer.startSpan("call_agent_web_update_tool_task_message_list.test.ts");

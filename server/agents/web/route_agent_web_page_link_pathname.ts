@@ -20,27 +20,67 @@ export async function routeAgentWebPageLinkPathname(
     const [pathnameType = "", pathnameRest = ""] = pathname.slice(1).split("/", 2);
 
     switch (pathnameType) {
-        case "task-comments": {
+        case "document": {
+            const pathnameParts = pathnameRest.split("/");
+            if (pathnameParts.length !== 3) break;
+            if (pathnameParts[1] !== "comments") break;
+            if (!/^(0|[1-9][0-9]*)$/.test(pathnameParts[2]!)) break;
+
+            const threadNumber = parseInt(pathnameParts[2]!, 10);
+
             const result = await getAgentWebPageStoredLinkByPathname(
                 storage,
-                `/task/${pathnameRest}`,
+                `/document/${pathnameParts[0]!}`,
+            );
+            if (result === null) return null;
+
+            assert(result.pageLink.type === "Document");
+
+            const threadId = await storage.documentCommentThreadIdByNumber.get(
+                `${result.pageLink.id}-${threadNumber}`,
+            );
+            if (threadId === undefined) return null;
+
+            assert(result.latestPathname.startsWith("/document/"));
+            const latestPathname = `${result.latestPathname}/comments/${threadNumber}`;
+
+            return {
+                pageLink: {type: "DocumentThread", document: result.pageLink, threadId},
+                latestPathname,
+            };
+        }
+        case "task": {
+            if (!pathnameRest.endsWith("/comments")) break;
+
+            const pathnameTitle = pathnameRest.slice(0, -"/comments".length);
+
+            // Make sure `/task/comments` doesn't get interpreted routing to a task with no
+            // title's comments.
+            //
+            // NOCOMMIT: Test this!
+            if (pathnameTitle.length === 0) break;
+
+            const result = await getAgentWebPageStoredLinkByPathname(
+                storage,
+                `/task/${pathnameTitle}`,
             );
             if (result === null) return null;
 
             assert(result.pageLink.type === "Task");
 
             assert(result.latestPathname.startsWith("/task/"));
-            const latestPathname = `/task-comments/${result.latestPathname.slice("/task/".length)}`;
+            const latestPathname = `${result.latestPathname}/comments`;
 
             return {
                 pageLink: {type: "TaskMessageList", task: result.pageLink},
                 latestPathname,
             };
         }
-        default: {
-            return await getAgentWebPageStoredLinkByPathname(storage, pathname);
-        }
+        default:
+            break;
     }
+
+    return await getAgentWebPageStoredLinkByPathname(storage, pathname);
 }
 
 /**

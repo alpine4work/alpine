@@ -23,6 +23,7 @@ export async function createAgentWebPageLinkPathname(
         case "Site":
         case "File":
             return await createAgentWebPageStoredLinkPathname(storage, pageLink);
+        case "DocumentThread":
         case "TaskMessageList":
             return await createAgentWebPageRoutedLinkPathname(storage, pageLink);
         default:

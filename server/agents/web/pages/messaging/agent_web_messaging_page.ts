@@ -45,7 +45,7 @@ export type AgentWebMessagingPagePagination<
 
 export type AgentWebMessagingPagePaginationPageLink = Extract<
     AgentWebPageLink,
-    {type: "Chat" | "Post" | "TaskMessageList"}
+    {type: "Chat" | "DocumentThread" | "Post" | "TaskMessageList"}
 >;
 
 export type AgentWebMessagingPageMessageRange = {

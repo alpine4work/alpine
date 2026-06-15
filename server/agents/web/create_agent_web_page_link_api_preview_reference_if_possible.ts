@@ -18,6 +18,7 @@ export function createAgentWebPageLinkApiPreviewReferenceIfPossible(
             return link.task;
         case "Account":
         case "ChatMessage":
+        case "DocumentThread":
         case "DocumentMessage":
         case "PostMessage":
         case "TaskMessage":

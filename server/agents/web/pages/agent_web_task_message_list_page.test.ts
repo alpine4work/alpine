@@ -156,7 +156,7 @@ End of comments.
             name: "task comments with previous page pagination link",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task-comments/write-spec?before=3)
+Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task/write-spec/comments?before=3)
 `,
             page: {
                 type: "TaskMessageList",
@@ -177,7 +177,7 @@ Comments on [Write Spec (Open)](/task/write-spec). [Previous page »](/task-comm
             name: "task comments with next page pagination link",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task-comments/write-spec?after=9)
+Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task/write-spec/comments?after=9)
 `,
             page: {
                 type: "TaskMessageList",
@@ -198,7 +198,7 @@ Comments on [Write Spec (Open)](/task/write-spec). [Next page »](/task-comments
             name: "task comments with previous and next page pagination links",
             pageLink: taskId,
             markdown: `\
-Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](/task-comments/write-spec?before=3) | [Next page »](/task-comments/write-spec?after=9)
+Comments on [Write Spec (Open)](/task/write-spec). [« Previous page](/task/write-spec/comments?before=3) | [Next page »](/task/write-spec/comments?after=9)
 `,
             page: {
                 type: "TaskMessageList",

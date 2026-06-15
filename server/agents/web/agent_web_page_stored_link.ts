@@ -4,10 +4,7 @@ import {
     FileContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
-import {
-    getFileContentTypeNoun,
-    getFileContentTypeStartOfSentenceNoun,
-} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -134,7 +131,7 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
             return `/document/${slugify(link.title)}${dedupe}`;
         }
         case "DocumentMessage": {
-            return `/document-thread-comment/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
+            return `/document-comment/${slugify(link.authorShortName)}-${slugify(link.bodySnippet)}${dedupe}`;
         }
         case "Post": {
             return `/post/${slugify(link.title)}${dedupe}`;
@@ -173,52 +170,26 @@ function slugify(string: string) {
 }
 
 /**
- * Prints a human readable label for an agent web page link. When a page link is
- * printed to Markdown this is the `label` part in `[label](path)`.
+ * Prints a human readable label for a mentionable agent web page link. When a page
+ * link is printed to Markdown this is the `label` part in `[label](path)`.
  * `printAgentWebPageStoredLinkPath(page)` prints the `path` part.
  */
-export function printAgentWebPageStoredLinkLabel(link: AgentWebPageStoredLink): string {
+export function printAgentWebPageStoredLinkLabel(link: ApiMentionReferenceResponse): string {
     switch (link.type) {
         case "Account":
         case "Channel":
+        case "Chat":
         case "Document":
+        case "Post":
         case "TaskCollection":
         case "Site": {
             return link.title;
-        }
-        case "Chat": {
-            return link.title;
-        }
-        case "ChatMessage": {
-            return `${link.authorShortName}: ${link.bodySnippet}`;
-        }
-        case "DocumentMessage": {
-            return `${link.authorShortName}: ${link.bodySnippet}`;
-        }
-        case "Post": {
-            return link.title;
-        }
-        case "PostMessage": {
-            return `${link.authorShortName}: ${link.bodySnippet}`;
         }
         case "Task": {
             // Intentionally not including whether the task is active in this label. Keeping
             // things simple for the agent. The agent can read the task to see whether it's
             // active.
             return `${link.title} ${link.status.type === "Open" ? "(Open)" : "(Closed)"}`;
-        }
-        case "TaskMessage": {
-            return `${link.authorShortName}: ${link.bodySnippet}`;
-        }
-        case "File": {
-            // NOTE(calebmer): This link label isn't really printed anywhere to my knowledge.
-            // Maybe we should update the types to make this impossible case actually
-            // impossible?
-            //
-            // Come to think of it, I'm not sure the `ChatMessage` etc. link labels are ever
-            // really printed? So this refactor to disallow printing labels for non-mention
-            // links may make a lot of sense.
-            return getFileContentTypeStartOfSentenceNoun(link.contentType);
         }
         default:
             throw exhaustive(link);

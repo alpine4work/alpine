@@ -28,6 +28,13 @@ import {
     readAgentWebDocumentPage,
 } from "~/server/agents/web/pages/agent_web_document_page.js";
 import {
+    normalizeAgentWebDocumentThreadPage,
+    parseAgentWebDocumentThreadPage,
+    printAgentWebDocumentThreadPage,
+    readAgentWebDocumentThreadMessagePage,
+    readAgentWebDocumentThreadPage,
+} from "~/server/agents/web/pages/agent_web_document_thread_page.js";
+import {
     normalizeAgentWebPostPage,
     parseAgentWebPostPage,
     printAgentWebPostPage,
@@ -222,6 +229,23 @@ function readAgentWebPageLink(
         case "Document": {
             return readAgentWebDocumentPage(context, pageLink.id, options);
         }
+        case "DocumentThread": {
+            return readAgentWebDocumentThreadPage(
+                context,
+                pageLink.document.id,
+                pageLink.threadId,
+                options,
+            );
+        }
+        case "DocumentMessage": {
+            return readAgentWebDocumentThreadMessagePage(
+                context,
+                pageLink.id,
+                pageLink.threadId,
+                pageLink.index,
+                options,
+            );
+        }
         case "Chat": {
             return readAgentWebChatPage(context, pageLink.id, options);
         }
@@ -256,6 +280,9 @@ function normalizeAgentWebPage(page: AgentWebPageWithMetadata): AgentWebPageWith
         case "Document": {
             return normalizeAgentWebDocumentPage(page);
         }
+        case "DocumentThread": {
+            return normalizeAgentWebDocumentThreadPage(page);
+        }
         case "Chat": {
             return normalizeAgentWebChatPage(page);
         }
@@ -277,6 +304,13 @@ function printAgentWebPage(
     switch (page.type) {
         case "Document": {
             return printAgentWebDocumentPage(storage, page.metadata.id, page);
+        }
+        case "DocumentThread": {
+            return printAgentWebDocumentThreadPage(
+                storage,
+                {id: page.metadata.id, threadId: page.metadata.threadId},
+                page,
+            );
         }
         case "Chat": {
             return printAgentWebChatPage(storage, page.metadata.id, page);
@@ -302,6 +336,13 @@ async function parseAgentWebPageForTest(
     switch (pageMetadata.type) {
         case "Document": {
             return await parseAgentWebDocumentPage(storage, pageMetadata.id, response);
+        }
+        case "DocumentThread": {
+            return await parseAgentWebDocumentThreadPage(
+                storage,
+                {id: pageMetadata.id, threadId: pageMetadata.threadId},
+                response,
+            );
         }
         case "Chat": {
             return await parseAgentWebChatPage(storage, pageMetadata.id, response);
