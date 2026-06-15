@@ -49,7 +49,7 @@ export function normalizeAgentWebMessagingPage<
                         // `createAgentWebPageStoredLinkPathname()` calls in
                         // `printAgentWebMessagingPage()`.
 
-                        normalizer.normalizeReference(block.author);
+                        if (block.author) normalizer.normalizeReference(block.author);
 
                         if (block.parent) {
                             normalizer.normalizeReference(block.parent.author);

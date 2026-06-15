@@ -23,7 +23,6 @@ import {agentWebMessagingPageMessageNouns} from "~/server/agents/web/pages/messa
 import {getReadAgentWebMessagingPageAroundMessageStartCursor} from "~/server/agents/web/pages/messaging/read_agent_web_messaging_page.js";
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccount,
@@ -313,6 +312,30 @@ test("creates the first message in an empty chat", async () => {
     expect(getCreateMessageRequests().map(request => request.body)).toEqual([
         {
             content: createTextContent("First bot update."),
+        },
+    ]);
+});
+
+test("creates a message without a from attribute", async () => {
+    await readChat({totalMessageCount: 0});
+    mockCreateMessages({count: 1});
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "\n\nEnd of messages.",
+                    new: "\n\n<message>\n\nFirst implicit-author update.\n\n</message>\n\nEnd of messages.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("First implicit-author update."),
         },
     ]);
 });
@@ -1239,4 +1262,105 @@ test("throws UnimplementedError when updating a cached new message without an id
             ],
         }),
     ).rejects.toThrow(UnimplementedError);
+});
+
+test("throws UnimplementedError when updating a cached new message without a from attribute", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+    mockCreateMessages({count: 1, startIndex: 1});
+
+    await callAgentWebUpdateTool(context, {
+        path: chatPath,
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1">\n\nNew message without author.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: "New message without author.",
+                    new: "Edited message without author.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).rejects.toThrow(UnimplementedError);
+});
+
+test("allows adding the current account from attribute to a cached message without a from attribute", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+    mockCreateMessages({count: 1, startIndex: 1});
+
+    await callAgentWebUpdateTool(context, {
+        path: chatPath,
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1">\n\nNew message without author.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: chatPath,
+            updates: [
+                {
+                    old: '<message id="1">',
+                    new: '<message id="1" from="[ChatGPT](/bot/chatgpt)">',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+
+    expect(getCreateMessageRequests().map(request => request.body)).toEqual([
+        {
+            content: createTextContent("New message without author."),
+        },
+    ]);
+});
+
+test("rejects adding another account from attribute to a cached message without a from attribute", async () => {
+    await readChat({
+        totalMessageCount: 1,
+        createMessage: index => createMessage({index, content: "Existing message"}),
+    });
+    mockCreateMessages({count: 1, startIndex: 1});
+
+    await callAgentWebUpdateTool(context, {
+        path: chatPath,
+        updates: [
+            {
+                old: "\n\nEnd of messages.",
+                new: '\n\n<message id="1">\n\nNew message without author.\n\n</message>\n\nEnd of messages.',
+                replaceAll: false,
+            },
+        ],
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        updates: [
+            {
+                old: '<message id="1">',
+                new: '<message id="1" from="[Alice](/human/alice)">',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            'You can only update the content of your `<message>`s. Any metadata (the `id`/`from`/`time` attributes or `<blockquote cite>`) must be left unchanged. The metadata of `<message id="1">` was changed by this update. Try again with a more specific update that only changes the content of messages from you.',
+    });
 });

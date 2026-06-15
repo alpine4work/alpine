@@ -190,6 +190,33 @@ Hello there.
             },
         },
         {
+            name: "message without author",
+            pageLink: true,
+            markdown: `\
+<message>
+
+Hello from the implicit author.
+
+</message>
+`,
+            page: {
+                preamble: {elements: []},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: null,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Hello from the implicit author.")])]),
+                    },
+                ],
+            },
+        },
+        {
             name: "custom block in message log",
             pageLink: true,
             markdown: `\
@@ -722,8 +749,22 @@ Hello.
 
 </message>
 `,
-            parseError:
-                "`<message>` on line 1 is missing the `from` attribute. All messages must include a link to the author.",
+            page: {
+                preamble: {elements: []},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Message",
+                        idAttribute: null,
+                        author: null,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        parent: null,
+                        content: content([paragraph([text("Hello.")])]),
+                    },
+                ],
+            },
         },
         {
             name: "unclosed message",

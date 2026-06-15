@@ -159,7 +159,7 @@ export async function updateAgentWebMessagingPage<
             return {
                 type: "Message",
                 idAttribute: block.idAttribute,
-                author: normalizeApiReference(block.author),
+                author: {id: block.author?.id ?? context.botAccount.id},
                 timeAttribute: block.timeAttribute,
                 timeZoneAttribute: block.timeZoneAttribute,
                 parent: block.parent
@@ -199,7 +199,7 @@ export async function updateAgentWebMessagingPage<
                     throw new InvalidArgumentError(
                         "Can\u2019t update message created by someone else",
                         {
-                            displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update a \`<${messageNouns.noun}>\` created by ${oldBlock.author.shortName}. \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""} from="${escapeHtml(oldBlock.author.shortName)}">\` was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
+                            displayMessage: errorDisplayMessage`You can only update your \`<${messageNouns.noun}>\`s. You can\u2019t update a \`<${messageNouns.noun}>\` created by ${oldBlock.author?.shortName ?? context.botAccount.shortName}. \`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""} from="${escapeHtml(oldBlock.author?.shortName ?? context.botAccount.shortName)}">\` was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
                         },
                     );
                 } else {
@@ -288,7 +288,7 @@ export async function updateAgentWebMessagingPage<
         }
 
         // NOCOMMIT: Optional `from` when creating messages?
-        if (newBlock.author.id !== context.botAccount.id) {
+        if (newBlock.author !== null && newBlock.author.id !== context.botAccount.id) {
             const authorLink: Link = {
                 type: "link",
                 url: context.botAccount.pathname,

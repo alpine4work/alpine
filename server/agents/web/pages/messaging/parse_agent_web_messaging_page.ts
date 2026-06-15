@@ -363,15 +363,6 @@ async function actuallyParseAgentWebMessagingPage<
                                 throw createUnexpectedMarkdownError(messageNouns, node.position);
                             }
 
-                            if (typeof state.fromAttribute !== "string") {
-                                throw new InvalidArgumentError(
-                                    "Message element is missing author link",
-                                    {
-                                        displayMessage: errorDisplayMessage`\`<${messageNouns.noun}>\` on line ${state.openTagPosition?.start.line ?? "unknown"} is missing the \`from\` attribute. All ${messageNouns.pluralNoun} must include a link to the author.`,
-                                    },
-                                );
-                            }
-
                             if (state.parent && !state.parent.hasCloseTag) {
                                 throw new InvalidArgumentError("Missing parent element close tag", {
                                     displayMessage: errorDisplayMessage`\`<blockquote>\` on line ${state.parent.openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</blockquote>\` closing tag and try again.`,
@@ -461,17 +452,20 @@ async function actuallyParseAgentWebMessagingPage<
                             const block: Replace<
                                 AgentWebMessagingPageMessageBlock,
                                 {
-                                    author: Promise<ApiAccountReferenceResponse>;
+                                    author: Promise<ApiAccountReferenceResponse> | null;
                                     content: Promise<ApiContentResponseWithoutKeys>;
                                     parent: Promise<AgentWebMessagingPageMessageBlockParent> | null;
                                 }
                             > = {
                                 type: "Message",
                                 idAttribute,
-                                author: parseAccountLink(
-                                    state.openTagPosition,
-                                    state.fromAttribute,
-                                ),
+                                author:
+                                    state.fromAttribute === null
+                                        ? null
+                                        : parseAccountLink(
+                                              state.openTagPosition,
+                                              state.fromAttribute,
+                                          ),
                                 timeAttribute: state.timeAttribute,
                                 timeZoneAttribute: state.timeZoneAttribute,
                                 parent,

@@ -183,7 +183,9 @@ export async function printAgentWebMessagingPage<
                         // The order of calls in this function matters and needs to match the normalization
                         // order in `normalizeAgentWebMessagingPage()`.
                         const [authorPathname, parent, contentTree] = await runAllPromises([
-                            createAgentWebPageStoredLinkPathname(storage, block.author),
+                            block.author
+                                ? createAgentWebPageStoredLinkPathname(storage, block.author)
+                                : null,
                             block.parent
                                 ? runAllObjectPromises({
                                       authorPathname: createAgentWebPageStoredLinkPathname(
@@ -258,19 +260,21 @@ export async function printAgentWebMessagingPage<
                 break;
             }
             case "Message": {
-                const authorLink: Link = {
-                    type: "link",
-                    url: block.authorPathname,
-                    children: [{type: "text", value: block.author.shortName}],
-                };
-
                 let openTag = `<${messageNouns.noun}`;
 
                 if (block.idAttribute !== null) {
                     openTag += ` id="${printAgentWebMessagingPageMessageIndexRange(block.idAttribute)}"`;
                 }
 
-                openTag += ` from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
+                if (block.author !== null) {
+                    const authorLink: Link = {
+                        type: "link",
+                        url: assertExists(block.authorPathname),
+                        children: [{type: "text", value: block.author.shortName}],
+                    };
+
+                    openTag += ` from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
+                }
 
                 if (block.timeAttribute !== null) {
                     openTag += ` time="${escapeHtml(block.timeAttribute)}"`;

@@ -77,6 +77,8 @@ const context: AgentWebContext = {
     },
 };
 
+type UpdateToolUpdate = Parameters<typeof callAgentWebUpdateTool>[1]["updates"][number];
+
 beforeEach(async () => {
     await storage.deleteAll();
 
@@ -191,6 +193,27 @@ async function expectInvalidCreateDisplayMessage({
     await expectCreateDisplayMessage({content, expected, ErrorConstructor: InvalidArgumentError});
 }
 
+async function expectInvalidUpdateDisplayMessage({
+    path,
+    updates,
+    expected,
+}: {
+    path: string;
+    updates: ReadonlyArray<UpdateToolUpdate>;
+    expected: string;
+}) {
+    const result = await captureResultPromise(
+        async () => await callAgentWebUpdateTool(context, {path, updates}),
+    );
+
+    if (result.ok) {
+        throw new InternalError("Expected update tool call to throw");
+    }
+
+    expect(printDisplayMessage(getDisplayMessage(result.error))).toEqual(expected);
+    expect(result.error).toBeInstanceOf(InvalidArgumentError);
+}
+
 function mockCreatePost({
     id = generateId<PostId>(),
     title,
@@ -291,6 +314,49 @@ Launch plan body.
             messages: [],
         },
     });
+});
+
+test("creates a post without a from attribute", async () => {
+    const postId = mockCreatePost({title: "Implicit Author Launch Plan"});
+
+    await expect(
+        callAgentWebCreateTool(context, {
+            type: "post",
+            content: `\
+Post in [Announcements](/channel/announcements).
+
+<post>
+
+Launch plan body.
+
+</post>`,
+        }),
+    ).resolves.toEqual(
+        "Create was successful. New post: [Implicit Author Launch Plan](/post/implicit-author-launch-plan).\n",
+    );
+
+    expect(getCreatePostRequests()).toMatchObject([
+        {
+            body: {
+                spaceId,
+                post: {
+                    channel: {id: announcementsChannelReference.id},
+                    content: createTextContent("Launch plan body."),
+                },
+            },
+        },
+    ]);
+    expect(getCreateCommentRequests()).toEqual([]);
+    expect(await storage.readResponseByPath.get("/post/implicit-author-launch-plan")).toMatchObject(
+        {
+            pageMetadata: {
+                type: "Post",
+                id: postId,
+                isEndOfMessages: true,
+                messages: [],
+            },
+        },
+    );
 });
 
 test("creates a post without comments with end marker", async () => {
@@ -453,6 +519,93 @@ End of comments.`,
             isEndOfMessages: true,
             messages: [{index: 0}, {index: 1}],
         },
+    });
+});
+
+test("throws UnimplementedError when updating a created post without a from attribute", async () => {
+    mockCreatePost({title: "Implicit Author Update"});
+
+    await callAgentWebCreateTool(context, {
+        type: "post",
+        content: `\
+Post in [Announcements](/channel/announcements).
+
+<post>
+
+Launch plan body.
+
+</post>`,
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/post/implicit-author-update",
+            updates: [
+                {
+                    old: "Launch plan body.",
+                    new: "Edited launch plan body.",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).rejects.toThrow(UnimplementedError);
+});
+
+test("allows adding the current account from attribute to a created post without a from attribute", async () => {
+    mockCreatePost({title: "Implicit Author From"});
+
+    await callAgentWebCreateTool(context, {
+        type: "post",
+        content: `\
+Post in [Announcements](/channel/announcements).
+
+<post>
+
+Launch plan body.
+
+</post>`,
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/post/implicit-author-from",
+            updates: [
+                {
+                    old: "<post>",
+                    new: '<post from="[ChatGPT](/bot/chatgpt)">',
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual("Update was successful.\n");
+});
+
+test("rejects adding another account from attribute to a created post without a from attribute", async () => {
+    mockCreatePost({title: "Implicit Author Other"});
+
+    await callAgentWebCreateTool(context, {
+        type: "post",
+        content: `\
+Post in [Announcements](/channel/announcements).
+
+<post>
+
+Launch plan body.
+
+</post>`,
+    });
+
+    await expectInvalidUpdateDisplayMessage({
+        path: "/post/implicit-author-other",
+        updates: [
+            {
+                old: "<post>",
+                new: '<post from="[Alice](/human/alice)">',
+                replaceAll: false,
+            },
+        ],
+        expected:
+            "You can only update the content of your `<post>`s. Any metadata (the `from`/`timezone` attributes) must be left unchanged. The metadata of the `<post>` was changed by this update. Try again with a more specific update that only changes the content of your post.",
     });
 });
 

@@ -32,10 +32,7 @@ import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/u
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
-import {
-    normalizeApiContent,
-    normalizeApiReference,
-} from "~/shared/api/markdown/normalize_api_content.js";
+import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
@@ -118,7 +115,7 @@ export type AgentWebPostPageTailPagePreamble = {
 export type AgentWebPostPageCustomBlock = {
     readonly type: "Custom";
     readonly tagName: "post";
-    readonly author: ApiAccountReferenceResponse;
+    readonly author: ApiAccountReferenceResponse | null;
     readonly timeAttribute: null;
     readonly timeZoneAttribute: string | null;
     readonly content: ApiContentResponseWithoutKeys;
@@ -484,7 +481,7 @@ export function normalizeAgentWebPostPage<Page extends AgentWebPostPage>(page: P
             }
         },
         normalizeCustomBlock: (normalizer, customBlock) => {
-            normalizer.normalizeReference(customBlock.author);
+            if (customBlock.author) normalizer.normalizeReference(customBlock.author);
             normalizer.normalizeBlockElements(customBlock.content.elements);
         },
     });
@@ -512,8 +509,7 @@ export async function createAgentWebPostPage(
     const {channel} = newPage.preamble;
     const postBlock = newPage.blocks[0];
 
-    // NOCOMMIT: Optional `from` when creating posts?
-    if (postBlock.author.id !== context.botAccount.id) {
+    if (postBlock.author !== null && postBlock.author.id !== context.botAccount.id) {
         const authorLink: Link = {
             type: "link",
             url: context.botAccount.pathname,
@@ -652,7 +648,7 @@ export async function updateAgentWebPostPage(
             // the old page load time and new page generation time.
             const normalizeBlock = (block: AgentWebPostPageCustomBlock) => {
                 return {
-                    author: normalizeApiReference(block.author),
+                    author: {id: block.author?.id ?? context.botAccount.id},
                     timeAttribute: block.timeAttribute,
                     timeZoneAttribute: block.timeZoneAttribute,
                     content: normalizeApiContent(block.content),
@@ -672,7 +668,7 @@ export async function updateAgentWebPostPage(
                     throw new InvalidArgumentError(
                         "Can\u2019t update post created by someone else",
                         {
-                            displayMessage: errorDisplayMessage`You can only update your \`<post>\`s. You can\u2019t update a \`<post>\` created by ${oldCustomBlock.author.shortName}. \`<post from="${escapeHtml(oldCustomBlock.author.shortName)}">\` was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+                            displayMessage: errorDisplayMessage`You can only update your \`<post>\`s. You can\u2019t update a \`<post>\` created by ${oldCustomBlock.author?.shortName ?? context.botAccount.shortName}. \`<post from="${escapeHtml(oldCustomBlock.author?.shortName ?? context.botAccount.shortName)}">\` was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
                         },
                     );
                 } else {
@@ -776,16 +772,21 @@ export async function printAgentWebPostPage(
         },
         printCustomBlock: async (storage, block) => {
             const [authorPathname, contentTree] = await runAllPromises([
-                createAgentWebPageStoredLinkPathname(storage, block.author),
+                block.author ? createAgentWebPageStoredLinkPathname(storage, block.author) : null,
                 printApiContentToAgentWebMarkdownTree(storage, block.content),
             ]);
 
-            const authorLink: Link = {
-                type: "link",
-                url: authorPathname,
-                children: [{type: "text", value: block.author.shortName}],
-            };
-            let openTag = `<post from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
+            let openTag = "<post";
+
+            if (block.author !== null) {
+                const authorLink: Link = {
+                    type: "link",
+                    url: assertExists(authorPathname),
+                    children: [{type: "text", value: block.author.shortName}],
+                };
+
+                openTag += ` from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
+            }
 
             if (block.timeZoneAttribute !== null) {
                 openTag += ` timezone="${escapeHtml(block.timeZoneAttribute)}"`;
@@ -884,14 +885,10 @@ export async function parseAgentWebPostPage(
                 const {fromAttribute, timeZoneAttribute} =
                     parseAgentWebPostPageCustomBlockOpenTag(openTag);
 
-                if (typeof fromAttribute !== "string") {
-                    throw new InvalidArgumentError("Post element is missing author link", {
-                        displayMessage: errorDisplayMessage`\`<post>\` on line ${openTagPosition?.start.line ?? "unknown"} is missing the \`from\` attribute. The post must include a link to the author.`,
-                    });
-                }
-
                 const [author, content] = await runAllPromises([
-                    parseAgentWebPostPageAccountLink(storage, openTagPosition, fromAttribute),
+                    fromAttribute === null
+                        ? null
+                        : parseAgentWebPostPageAccountLink(storage, openTagPosition, fromAttribute),
                     parseApiContentFromAgentWebMarkdownTree(storage, root),
                 ]);
 

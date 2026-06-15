@@ -129,6 +129,45 @@ End of comments.
             },
         },
         {
+            name: "post without author",
+            pageLink: postId,
+            markdown: `\
+Post in [Announcements](/channel/announcements).
+
+<post>
+
+Post body from the implicit author.
+
+</post>
+`,
+            page: {
+                type: "Post",
+                subType: "Head",
+                preamble: {
+                    type: "Head",
+                    channel: {
+                        type: "Channel",
+                        id: announcementsChannelId,
+                        title: "Announcements",
+                    },
+                },
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: null,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([
+                            paragraph([text("Post body from the implicit author.")]),
+                        ]),
+                    },
+                ],
+            },
+        },
+        {
             name: "post with timezone attribute",
             pageLink: postId,
             markdown: `\
@@ -499,9 +538,23 @@ Post body.
 
 </post>
 `,
-            parseError:
-                "`<post>` on line 3 is missing the `from` attribute. The post must include a " +
-                "link to the author.",
+            page: {
+                type: "Post",
+                subType: "Head",
+                preamble: {type: "Head", channel: null},
+                pagination: null,
+                isEndOfMessages: false,
+                blocks: [
+                    {
+                        type: "Custom",
+                        tagName: "post",
+                        author: null,
+                        timeAttribute: null,
+                        timeZoneAttribute: null,
+                        content: content([paragraph([text("Post body.")])]),
+                    },
+                ],
+            },
         },
         {
             name: "post missing closing tag",
