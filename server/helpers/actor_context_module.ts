@@ -97,6 +97,13 @@ interface ActorContextModuleBase extends ContextModuleBase {
     authorizeAccount<Modules extends {actor: ActorContextModuleBase}>(
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: AccountActorContextModule}>>;
+
+    /**
+     * Returns the same thing as `getPossiblyBotAccountId()` for account actors (ones
+     * that don't error when `authorizeAccount()` is called) and null for non-account
+     * actors.
+     */
+    getPossiblyBotAccountIdIfExists(): AccountId | null;
 }
 
 /**
@@ -265,6 +272,15 @@ export class SessionActorContextModule
         return this._accountId;
     }
 
+    /**
+     * Returns the same thing as `getPossiblyBotAccountId()` for account actors (ones
+     * that don't error when `authorizeAccount()` is called) and null for non-account
+     * actors.
+     */
+    public getPossiblyBotAccountIdIfExists(): AccountId | null {
+        return this._accountId;
+    }
+
     public fork() {
         return new SessionActorContextModule(this.serviceName, this._sessionId, this._accountId);
     }
@@ -356,6 +372,15 @@ export class SystemActorContextModule
         return this._spaceId;
     }
 
+    /**
+     * Returns the same thing as `getPossiblyBotAccountId()` for account actors (ones
+     * that don't error when `authorizeAccount()` is called) and null for non-account
+     * actors.
+     */
+    public getPossiblyBotAccountIdIfExists(): AccountId | null {
+        return null;
+    }
+
     public fork() {
         return new SystemActorContextModule(this.serviceName, this._spaceId);
     }
@@ -428,6 +453,15 @@ export class AnonymousActorContextModule
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: AccountActorContextModule}>> {
         throw new PermissionDeniedError("Anonymous actor is not an account actor");
+    }
+
+    /**
+     * Returns the same thing as `getPossiblyBotAccountId()` for account actors (ones
+     * that don't error when `authorizeAccount()` is called) and null for non-account
+     * actors.
+     */
+    public getPossiblyBotAccountIdIfExists(): AccountId | null {
+        return null;
     }
 
     public fork() {
@@ -535,6 +569,15 @@ export class ImpersonatedAccountActorContextModule
      * the possibility that the actor is a bot account.
      */
     public getPossiblyBotAccountId(): AccountId {
+        return this._accountId;
+    }
+
+    /**
+     * Returns the same thing as `getPossiblyBotAccountId()` for account actors (ones
+     * that don't error when `authorizeAccount()` is called) and null for non-account
+     * actors.
+     */
+    public getPossiblyBotAccountIdIfExists(): AccountId | null {
         return this._accountId;
     }
 
@@ -683,6 +726,15 @@ export class BotActorContextModule
      * consider the possibility that the actor is a bot account.
      */
     public getPossiblyBotAccountId(): AccountId {
+        return this._accountId;
+    }
+
+    /**
+     * Returns the same thing as `getPossiblyBotAccountId()` for account actors (ones
+     * that don't error when `authorizeAccount()` is called) and null for non-account
+     * actors.
+     */
+    public getPossiblyBotAccountIdIfExists(): AccountId | null {
         return this._accountId;
     }
 

@@ -116,6 +116,7 @@ export async function prepareTaskActionForClient(
                 case "UpdateName":
                 case "UpdateColor":
                 case "UpdateAccessPolicy":
+                case "UpdateDefaults":
                     return action;
                 default:
                     throw exhaustive(action.collectionAction);

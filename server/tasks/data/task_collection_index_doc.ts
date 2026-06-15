@@ -18,7 +18,10 @@ import {
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
 import {AccessPolicyRegister, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {
+    compareHybridLogicalTimes,
+    zeroHybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
@@ -26,6 +29,11 @@ import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.j
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {
+    TaskQueryDefaultsRegister,
+    TaskQueryDefaultsSchema,
+    emptyTaskQueryDefaults,
+} from "~/shared/tasks/task_query_defaults.js";
 
 // IMPORTANT: There are a couple small backwards incompatible changes we'd like to
 // make to our search index. (e.g. Remove `accessPolicyAccountGrantIds` from the
@@ -139,6 +147,13 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             AccessPolicyRegister,
             new OpensearchIndexIgnoredObjectType(AccessPolicySchema),
         ),
+
+        // Collections indexed before defaults existed don't have this property so we
+        // default to an empty register which loses to any update.
+        defaults: createCrdtRegisterOpensearchType(
+            TaskQueryDefaultsRegister,
+            new OpensearchIndexIgnoredObjectType(TaskQueryDefaultsSchema),
+        ).default(new TaskQueryDefaultsRegister(emptyTaskQueryDefaults, zeroHybridLogicalTime)),
     },
     computed: {
         fields: {

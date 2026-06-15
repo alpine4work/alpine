@@ -269,6 +269,7 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                             body: JSON.stringify(
                                 TaskRealtimeLoadQueriesInputSchema.serialize({
                                     queries: loadQueries.map((query, i) => ({
+                                        type: "Normalized",
                                         filters: query.filters,
                                         sorts: query.sorts,
                                         limit: loadQueryLimits[i]!,

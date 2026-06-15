@@ -157,6 +157,58 @@ describe("commitTaskActionTransaction()", () => {
         await collection.updateName(session2, "Test 2");
     });
 
+    test("collection manager can update the collection defaults", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const collection = await TestTaskCollection.create(session);
+
+        await collection.updateDefaults(session, {
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
+                },
+            ],
+            sorts: [{type: "DueDate", direction: "Ascending"}],
+        });
+
+        const collectionItem = await collection.getItem();
+        expect(collectionItem.defaults.value).toEqual({
+            filters: [
+                {
+                    type: "DisplayStatus",
+                    operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
+                },
+            ],
+            sorts: [{type: "DueDate", direction: "Ascending"}],
+        });
+    });
+
+    test("can\u2019t update the collection defaults without collection manage access", async () => {
+        const space = await TestSpace.create(context);
+
+        const [session1, session2] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+        ]);
+
+        const collection = await TestTaskCollection.create(session1);
+        await collection.access.grantDefault(session1, "Edit");
+
+        await expect(
+            collection.updateDefaults(session2, {
+                filters: [
+                    {
+                        type: "DisplayStatus",
+                        operation: {type: "OneOf", displayStatuses: new Set(["OpenActive"])},
+                    },
+                ],
+                sorts: [],
+            }),
+        ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
+    });
+
     test("task assignee can update the task", async () => {
         const space = await TestSpace.create(context);
 

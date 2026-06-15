@@ -1250,7 +1250,7 @@ export class TaskRealtimeStoreInternal {
                     );
 
                     if (!taskEntry) {
-                        throw retry(new InternalError("Task not found"));
+                        throw retry(new InternalError("Task collection not found"));
                     }
 
                     return taskEntry;

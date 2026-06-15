@@ -106,6 +106,10 @@ import {
     taskDeletedErrorDisplayMessage,
 } from "~/shared/tasks/task_error_messages.js";
 import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
+import {
+    TaskQueryDefaultsRegister,
+    emptyTaskQueryDefaults,
+} from "~/shared/tasks/task_query_defaults.js";
 
 /**
  * Commit a transaction of `TaskAction`s. Authorizes that each action is valid
@@ -2317,6 +2321,10 @@ async function actuallyCommitTaskActionTransaction(
                                 collectionAction.accessPolicy,
                                 action.time,
                             ),
+                            defaults: new TaskQueryDefaultsRegister(
+                                emptyTaskQueryDefaults,
+                                action.time,
+                            ),
                             hasAddedFeedCandidateEntry: !!newEffectiveAccessPolicy.defaultGrant,
                             taskCount: 0,
                             openTaskCount: 0,
@@ -2463,6 +2471,22 @@ async function actuallyCommitTaskActionTransaction(
                                     state.updateCollectionItem({
                                         ...collectionItem,
                                         color: newColor,
+                                    });
+                                }
+                                break;
+                            }
+                            case "UpdateDefaults": {
+                                await state.authorizeCollectionAccess(collectionId, "Manage");
+
+                                const newDefaults = collectionItem.defaults.apply({
+                                    value: collectionAction.defaults,
+                                    version: action.time,
+                                });
+
+                                if (collectionItem.defaults !== newDefaults) {
+                                    state.updateCollectionItem({
+                                        ...collectionItem,
+                                        defaults: newDefaults,
                                     });
                                 }
                                 break;

@@ -43,6 +43,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskRealtimeLoadQueriesInputQuery} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/title/task_title.js";
 
@@ -50,6 +51,19 @@ const context = createTestContext({
     shouldStartOpensearch: true,
     tasksInjection,
 });
+
+type TestLoadTaskRealtimeQueriesQuery =
+    | {
+          type?: "Normalized";
+          filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
+          sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
+          limit?: number;
+      }
+    | {
+          type: "Collection";
+          collectionId: TaskCollectionId;
+          limit?: number;
+      };
 
 async function testLoadTaskRealtimeQueries(
     actionContext: ServerActionContext,
@@ -62,15 +76,45 @@ async function testLoadTaskRealtimeQueries(
     }: {
         server: TestTaskRealtimeServer;
         spaceId: SpaceId;
-        queries: Array<{
-            filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
-            sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
-            limit?: number;
-        }>;
+        queries: Array<TestLoadTaskRealtimeQueriesQuery>;
         taskIds?: ReadonlyArray<TaskId>;
         collectionIds?: ReadonlyArray<TaskCollectionId>;
     },
 ) {
+    const inputQueries: Array<TaskRealtimeLoadQueriesInputQuery> = queries.map(query => {
+        const evaluationContext: TaskQueryEvaluationContext = {
+            currentAccountId:
+                actionContext.actor.type === "Session" ? actionContext.actor.getAccountId() : null,
+            currentDate: toCalendarDate(
+                parseAbsolute(new Date(testTaskClock.now()[0]).toISOString(), defaultTimeZone),
+            ),
+        };
+
+        if (query.type === "Collection") {
+            return {
+                type: "Collection",
+                collectionId: query.collectionId,
+                evaluationContext,
+                limit: query.limit ?? 100,
+            };
+        }
+
+        const filters = query?.filters
+            ? isReadonlyArray(query.filters)
+                ? normalizeTaskQueryFilters(query.filters, evaluationContext)
+                : ({type: "Possible", normalizedFilters: query.filters} as const)
+            : normalizeTaskQueryFilters([], evaluationContext);
+
+        assert(filters.type === "Possible");
+
+        return {
+            type: "Normalized",
+            filters: filters.normalizedFilters,
+            sorts: normalizeTaskQuerySorts(query?.sorts ?? []),
+            limit: query?.limit ?? 100,
+        };
+    });
+
     const {
         queries: queriesOutput,
         extraQueries,
@@ -79,31 +123,7 @@ async function testLoadTaskRealtimeQueries(
         server: server.server,
         dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
         spaceId,
-        queries: queries.map(query => {
-            const evaluationContext: TaskQueryEvaluationContext = {
-                currentAccountId:
-                    actionContext.actor.type === "Session"
-                        ? actionContext.actor.getAccountId()
-                        : null,
-                currentDate: toCalendarDate(
-                    parseAbsolute(new Date(testTaskClock.now()[0]).toISOString(), defaultTimeZone),
-                ),
-            };
-
-            const filters = query?.filters
-                ? isReadonlyArray(query.filters)
-                    ? normalizeTaskQueryFilters(query.filters, evaluationContext)
-                    : ({type: "Possible", normalizedFilters: query.filters} as const)
-                : normalizeTaskQueryFilters([], evaluationContext);
-
-            assert(filters.type === "Possible");
-
-            return {
-                filters: filters.normalizedFilters,
-                sorts: normalizeTaskQuerySorts(query?.sorts ?? []),
-                limit: query?.limit ?? 100,
-            };
-        }),
+        queries: inputQueries,
         taskIds,
         collectionIds,
     });
@@ -290,6 +310,48 @@ test("loads a query", async () => {
             referencedAccounts: [await session.get()],
             referencedSites: [],
         },
+    });
+});
+
+test("applies the collection default filters when asked", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const server = new TestTaskRealtimeServer(context);
+
+    const collection = await TestTaskCollection.create(session);
+    await collection.updateDefaults(session, {
+        filters: [
+            {
+                type: "DisplayStatus",
+                operation: {type: "OneOf", displayStatuses: new Set(["Closed"])},
+            },
+        ],
+        sorts: [],
+    });
+
+    const [, closedTask] = await runAllPromises([
+        TestTask.create(session, {collections: collection}),
+        TestTask.create(session, {collections: collection, status: "Closed"}),
+    ]);
+
+    await server.wait();
+
+    // The collection query applies the collection default filter (closed only) so only
+    // the closed task is backfilled.
+    const {updateEvent} = await testLoadTaskRealtimeQueries(session.action(), {
+        server,
+        spaceId: space.id,
+        collectionIds: [collection.id],
+        queries: [
+            {
+                type: "Collection",
+                collectionId: collection.id,
+            },
+        ],
+    });
+
+    expect(updateEvent.backfillTasks).toEqual({
+        [closedTask.id]: expectAuthorizedTask([collection.id]),
     });
 });
 

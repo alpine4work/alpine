@@ -49,6 +49,7 @@ import {
     TaskQueryFilterReferencesSchema,
     emptyTaskQueryFilterReferences,
 } from "~/shared/tasks/task_query_filter_references.js";
+import {TaskQueryFiltersSchema} from "~/shared/tasks/task_query_filters_schema.js";
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
@@ -61,6 +62,7 @@ import {
     deserializeTaskQuerySortsSearchParam,
     serializeTaskQuerySortsSearchParam,
 } from "~/shared/tasks/task_query_sort.js";
+import {TaskQuerySortsSchema} from "~/shared/tasks/task_query_sorts_schema.js";
 import {TaskRealtimeUpdateEventBackfillCollection} from "~/shared/tasks/task_realtime_protocol.js";
 
 const LoaderSchema = Schema.object({
@@ -79,6 +81,11 @@ const LoaderSchema = Schema.object({
             hasUrlGrant: Schema.boolean,
         }),
     }),
+    // The filters/sorts the initial query was loaded with. Either the filters/sorts
+    // from the URL or the collection's default filters/sorts when the URL doesn't have
+    // any.
+    initialFilters: TaskQueryFiltersSchema,
+    initialSorts: TaskQuerySortsSchema,
     filterReferences: TaskQueryFilterReferencesSchema,
 });
 
@@ -132,6 +139,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
             collectionState: {
                 type: "NotExists",
             },
+            initialFilters: [],
+            initialSorts: [],
             filterReferences: emptyTaskQueryFilterReferences,
         });
     }
@@ -200,7 +209,10 @@ export async function loader({request, params, context: unauthenticatedContext}:
         }
     }
 
-    const {data1: spaceId, siteLoaderData} = await loadWithSpaceAndSiteDiscovery(context, {
+    const {
+        data1: {spaceId, defaults},
+        siteLoaderData,
+    } = await loadWithSpaceAndSiteDiscovery(context, {
         request,
         entityId: `TaskCollection:${collectionId}`,
         load1: async ({onSiteId}) => {
@@ -212,22 +224,25 @@ export async function loader({request, params, context: unauthenticatedContext}:
             // Would love to figure out how to speed this up in the future! We could cache
             // `TaskCollectionId` -> `SpaceId` relationships in something like memcached
             // perhaps for very fast access.
-            const {spaceId} = await authorizeTaskCollectionAccess(
-                context,
-                collectionId,
-                "View",
-                null,
-                {onSiteId},
-            );
-            return spaceId;
+            //
+            // This call also returns the collection's defaults so we can apply the default
+            // filters/sorts to the initial query without an extra read.
+            return await authorizeTaskCollectionAccess(context, collectionId, "View", null, {
+                onSiteId,
+            });
         },
         load2: async () => {},
     });
 
+    // Apply the collection's default filters/sorts when the URL doesn't have any. The
+    // URL may explicitly set empty filters/sorts (serialized empty lists) which
+    // override non-empty defaults.
     const filtersString = url.searchParams.get("filter");
-    const filters = filtersString ? deserializeTaskQueryFiltersSearchParam(filtersString) : [];
+    const filters = filtersString
+        ? deserializeTaskQueryFiltersSearchParam(filtersString)
+        : defaults.filters;
     const sortsString = url.searchParams.get("sort");
-    const sorts = sortsString ? deserializeTaskQuerySortsSearchParam(sortsString) : [];
+    const sorts = sortsString ? deserializeTaskQuerySortsSearchParam(sortsString) : defaults.sorts;
 
     // Always include collection filter in our list of filters.
     const normalizedFiltersResult = normalizeTaskQueryFilters(
@@ -269,7 +284,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
             : normalizeTaskQuerySorts(sorts);
 
     const [filterReferences, loadQueryResult, isFavorite] = await runAllPromises([
-        getTaskQueryFilterReferences(context, spaceId, filters),
+        // Include the default filters so "Reset to default" can render any
+        // accounts/collections they reference without another request.
+        getTaskQueryFilterReferences(context, spaceId, [...filters, ...defaults.filters]),
         (async () => {
             if (normalizedFiltersResult.type !== "Possible") {
                 const result = await context.tasks.loadQueries(spaceId, {
@@ -287,11 +304,13 @@ export async function loader({request, params, context: unauthenticatedContext}:
             const {normalizedFilters} = normalizedFiltersResult;
 
             const query: {
+                type: "Normalized";
                 limit: number;
                 filters: TaskQueryNormalizedFilters;
                 sorts: ReadonlyArray<TaskQueryNormalizedSort>;
                 shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
             } = {
+                type: "Normalized",
                 limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
                 filters: normalizedFilters,
                 sorts: normalizedSorts,
@@ -366,6 +385,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 initialIsFavorite: isFavorite,
                 hasUrlGrant,
             },
+            initialFilters: filters,
+            initialSorts: sorts,
             filterReferences,
         },
         {
@@ -453,8 +474,12 @@ function TaskCollectionRouteInner() {
     const {collectionId} = useParams();
     assert(collectionId && isId<TaskCollectionId>(collectionId));
 
-    const {collectionState, filterReferences: initialFilterReferences} =
-        useLoaderDataWithSchema(LoaderSchema);
+    const {
+        collectionState,
+        initialFilters,
+        initialSorts,
+        filterReferences: initialFilterReferences,
+    } = useLoaderDataWithSchema(LoaderSchema);
     const {
         store,
         queries: [initialQuery],
@@ -476,18 +501,6 @@ function TaskCollectionRouteInner() {
             });
         };
     }, [collectionSubscription]);
-
-    const [initialFilters] = useState(() => {
-        const filtersString = searchParams.get("filter");
-        if (!filtersString) return [];
-        return deserializeTaskQueryFiltersSearchParam(filtersString);
-    });
-
-    const [initialSorts] = useState(() => {
-        const sortsString = searchParams.get("sort");
-        if (!sortsString) return [];
-        return deserializeTaskQuerySortsSearchParam(sortsString);
-    });
 
     const [shouldInitiallyFocusEditableCollectionName] = useState(() => {
         const focusString = searchParams.get("focus");
@@ -608,7 +621,14 @@ function TaskCollectionRouteInner() {
                 onFiltersChange={filters => {
                     const newSearchParams = new URLSearchParams(searchParams);
 
-                    if (filters.length === 0) {
+                    // When the collection has default filters we keep explicitly empty filters in the
+                    // URL. Otherwise reloading the page would re-apply the default filters the user
+                    // just removed.
+                    const defaults = collectionSubscription?.collectionEntryStore
+                        .getSnapshot()
+                        .collection?.getDefaults();
+
+                    if (filters.length === 0 && (defaults?.filters.length ?? 0) === 0) {
                         newSearchParams.delete("filter");
                     } else {
                         newSearchParams.set(
@@ -628,7 +648,14 @@ function TaskCollectionRouteInner() {
                 onSortsChange={sorts => {
                     const newSearchParams = new URLSearchParams(searchParams);
 
-                    if (sorts.length === 0) {
+                    // When the collection has default sorts we keep explicitly empty sorts in the URL.
+                    // Otherwise reloading the page would re-apply the default sorts the user just
+                    // removed.
+                    const defaults = collectionSubscription?.collectionEntryStore
+                        .getSnapshot()
+                        .collection?.getDefaults();
+
+                    if (sorts.length === 0 && (defaults?.sorts.length ?? 0) === 0) {
                         newSearchParams.delete("sort");
                     } else {
                         newSearchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));

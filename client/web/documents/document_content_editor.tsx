@@ -1848,7 +1848,7 @@ export function DocumentContentEditor({
                 spaceId,
             ],
         ),
-        contextMenuExtraBottom:
+        menuExtraBottom:
             initialDocument?.creator.from?.type === "Importer" ? (
                 <>
                     <Box paddingX="1" paddingY="1">

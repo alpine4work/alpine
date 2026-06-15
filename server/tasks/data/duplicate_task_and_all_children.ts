@@ -141,6 +141,7 @@ export function duplicateTaskAndAllChildren(
                 collectionIds: [],
                 queries: [
                     {
+                        type: "Normalized",
                         // Only request as many as we can support (+1 to allow hitting our limit)
                         limit: maxClonedObjectCount - totalClonedObjectCount + 1,
                         filters: {

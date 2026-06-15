@@ -172,6 +172,7 @@ testTaskActionPermutations({
             name: collection.getName(),
             color: collection.getColor(),
             accessPolicy: collection.getAccessPolicy(),
+            defaults: collection.getDefaults(),
         };
     },
 });

@@ -52,7 +52,7 @@ import {
     deserializeTaskQuerySortsSearchParam,
     serializeTaskQuerySortsSearchParam,
 } from "~/shared/tasks/task_query_sort.js";
-import {TaskRealtimeLoadQueriesInput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
+import {TaskRealtimeLoadQueriesInputQuery} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 const LoaderSchema = Schema.object({
     // Which sections have queries (Active, Overdue, DueToday, DueSoon, Closed,
@@ -445,7 +445,7 @@ function getNonActiveTaskQueriesIfExists(options: {
     queryLimit: number;
     browserId: BrowserId;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-}): Tuple<TaskRealtimeLoadQueriesInput["queries"][number] | null, 5> {
+}): Tuple<Extract<TaskRealtimeLoadQueriesInputQuery, {type: "Normalized"}> | null, 5> {
     // Non-active sections (Overdue, DueToday, DueSoon, Remaining) only show
     // OpenInactive tasks. Closed tasks are shown in their own dedicated Closed
     // section.
@@ -492,6 +492,7 @@ function getTaskActiveQueryIfExists({
     if (!filters) return null;
 
     return {
+        type: "Normalized" as const,
         limit: queryLimit,
         filters,
         sorts,
@@ -526,6 +527,7 @@ function getTaskOverdueQueryIfExists({
     if (!filters) return null;
 
     return {
+        type: "Normalized" as const,
         limit: queryLimit,
         filters,
         sorts,
@@ -560,6 +562,7 @@ function getTaskDueTodayQueryIfExists({
     if (!filters) return null;
 
     return {
+        type: "Normalized" as const,
         limit: queryLimit,
         filters,
         sorts,
@@ -594,6 +597,7 @@ function getTaskDueSoonQueryIfExists({
     if (!filters) return null;
 
     return {
+        type: "Normalized" as const,
         limit: queryLimit,
         filters,
         sorts,
@@ -631,6 +635,7 @@ function getTaskRemainingQueryIfExists({
     if (!filters) return null;
 
     return {
+        type: "Normalized" as const,
         limit: queryLimit,
         filters,
         sorts,
@@ -662,6 +667,7 @@ function getTaskClosedQueryIfExists({
     if (!filters) return null;
 
     return {
+        type: "Normalized" as const,
         limit: queryLimit,
         filters,
         sorts,

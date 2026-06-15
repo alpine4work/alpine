@@ -186,8 +186,9 @@ export function NavigationBar({
     withoutDisappearingTitle,
     subtitle,
     menuActions,
+    menuButtonIcon,
     menuOffset,
-    contextMenuExtraBottom,
+    menuExtraBottom,
     contextMenuActions,
     shareButton,
     withWideRouteLayoutShareMenuItem,
@@ -222,8 +223,9 @@ export function NavigationBar({
     withoutDisappearingTitle: boolean;
     subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    menuButtonIcon: ReactNode | undefined;
     menuOffset: Spacing | undefined;
-    contextMenuExtraBottom: ReactNode;
+    menuExtraBottom: ReactNode;
     contextMenuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     shareButton: NavigationBarShareButtonProps | undefined;
     withWideRouteLayoutShareMenuItem: boolean;
@@ -1206,8 +1208,9 @@ export function NavigationBar({
                             withDisappearingTitle={!withoutDisappearingTitle}
                             subtitle={subtitle}
                             menuActions={menuActions}
+                            menuButtonIcon={menuButtonIcon}
                             menuOffset={menuOffset}
-                            contextMenuExtraBottom={contextMenuExtraBottom}
+                            menuExtraBottom={menuExtraBottom}
                             contextMenuActions={contextMenuActions}
                             shareButton={shareButton}
                             withWideRouteLayoutShareMenuItem={withWideRouteLayoutShareMenuItem}

@@ -9,6 +9,7 @@ import {authorizeTaskAccessIfPossible} from "~/server/tasks/data/authorization/a
 import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_account_id.js";
 import {AccessLevel, AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -50,6 +51,10 @@ import {
     TaskNotesContentSchema,
     TaskNotesContentStepSchema,
 } from "~/shared/tasks/task_notes_content_schema.js";
+import {
+    TaskQueryDefaultsRegister,
+    emptyTaskQueryDefaults,
+} from "~/shared/tasks/task_query_defaults.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 
 /**
@@ -309,6 +314,25 @@ const TaskTable = DynamoTableSchema.new({
                          * Who is allowed to access the collection and with what permission level.
                          */
                         accessPolicy: AccessPolicyRegister.schema,
+
+                        /**
+                         * The default filters/sorts applied for everyone when they open the collection
+                         * without explicit filters/sorts of their own (e.g. filters in the URL).
+                         *
+                         * Included in the collection's `EssentialAttributes` so we can apply default
+                         * filters/sorts to the initial query in our task collection route loader without
+                         * an extra read. The loader already loads this item for authorization.
+                         *
+                         * Collections created before defaults existed don't have this property so we
+                         * default to an empty register which loses to any update.
+                         */
+                        defaults: TaskQueryDefaultsRegister.schema.default(
+                            () =>
+                                new TaskQueryDefaultsRegister(
+                                    emptyTaskQueryDefaults,
+                                    zeroHybridLogicalTime,
+                                ),
+                        ),
 
                         /**
                          * Have we added a feed candidate entry for the collection? We add an entry when

@@ -283,6 +283,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 .ok;
 
             const childrenQuery: {
+                type: "Normalized";
                 limit: number;
                 filters: TaskQueryNormalizedFilters;
                 sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -290,6 +291,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             } | null =
                 normalizedFiltersResult.type === "Possible"
                     ? {
+                          type: "Normalized",
                           limit: taskDetailViewLoadMoreChildTasksLimit,
                           filters: normalizedFiltersResult.normalizedFilters,
                           sorts: normalizedSorts,

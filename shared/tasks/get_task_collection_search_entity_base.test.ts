@@ -9,6 +9,10 @@ import {
     TaskCollectionModelData,
 } from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
+import {
+    TaskQueryDefaultsRegister,
+    emptyTaskQueryDefaults,
+} from "~/shared/tasks/task_query_defaults.js";
 
 function makeRawData({
     name = "Test Collection",
@@ -41,6 +45,7 @@ function makeRawData({
             {type: "Local", accountGrantById: new Map(), defaultGrant: null, urlGrant: null},
             [0, 0],
         ),
+        defaults: new TaskQueryDefaultsRegister(emptyTaskQueryDefaults, [0, 0]),
     };
 }
 

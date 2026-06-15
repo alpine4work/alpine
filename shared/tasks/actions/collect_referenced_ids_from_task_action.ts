@@ -95,7 +95,11 @@ export function collectReferencedIdsFromTaskAction(
                 case "Delete":
                 case "Undelete":
                 case "UpdateName":
-                case "UpdateColor": {
+                case "UpdateColor":
+                // Accounts referenced by default filters are rendered with
+                // `TaskQueryFilterReferences` (loaded by route loaders) instead of the task
+                // store's referenced accounts. So we don't consider them referenced here.
+                case "UpdateDefaults": {
                     return;
                 }
                 default:

@@ -4,6 +4,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCreator, TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskQueryDefaultsSchema} from "~/shared/tasks/task_query_defaults.js";
 
 export type TaskCollectionAction = SchemaType<typeof TaskCollectionActionSchema>;
 
@@ -121,6 +122,27 @@ const TaskCollectionUpdateAccessPolicyActionSchema = Schema.object({
     accessPolicy: CreateOrUpdateAccessPolicySchema,
 });
 
+/**
+ * Updates the defaults of our task collection. The default filters/sorts are
+ * applied for everyone when they open the collection without explicit
+ * filters/sorts of their own (e.g. filters in the URL).
+ *
+ * Will be rejected by the server if you don't have the `Manage` permission level
+ * on this collection.
+ *
+ * Conflicts are resolved by last-write-wins for the entire defaults object. The
+ * defaults are always saved together as one coherent view configuration so we
+ * don't resolve conflicts per-customization.
+ */
+export type TaskCollectionUpdateDefaultsAction = SchemaType<
+    typeof TaskCollectionUpdateDefaultsActionSchema
+>;
+
+const TaskCollectionUpdateDefaultsActionSchema = Schema.object({
+    type: Schema.value("UpdateDefaults"),
+    defaults: TaskQueryDefaultsSchema,
+});
+
 export const TaskCollectionActionSchema = Schema.union({
     Create: TaskCollectionCreateActionSchema,
     Delete: TaskCollectionDeleteActionSchema,
@@ -128,4 +150,5 @@ export const TaskCollectionActionSchema = Schema.union({
     UpdateName: TaskCollectionUpdateNameActionSchema,
     UpdateColor: TaskCollectionUpdateColorActionSchema,
     UpdateAccessPolicy: TaskCollectionUpdateAccessPolicyActionSchema,
+    UpdateDefaults: TaskCollectionUpdateDefaultsActionSchema,
 });

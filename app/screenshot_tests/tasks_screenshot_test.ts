@@ -18,6 +18,7 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -30,6 +31,8 @@ import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort
 const personalScreenshotTime = new Date("2025-10-01T13:00:00Z");
 const sprintScreenshotTime = new Date("2025-10-08T13:00:00Z");
 
+const mobileViewport = {width: 390, height: 844};
+
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     async function waitForTaskIndex() {
         await ProcessContextModule.waitForTestTasks();
@@ -39,6 +42,10 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             refreshTaskIndexForTest(context),
             refreshTaskCollectionIndexForTest(context),
         ]);
+    }
+
+    async function openCollectionMoreMenu() {
+        await runner.getByRole("button", {name: "More"}).last().click();
     }
 
     const {space, accounts} = await runner.createDemoSpace(context);
@@ -237,6 +244,137 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     await runner.goto(accounts.cassCade, bugsPath, {fixedTime: sprintScreenshotTime});
     await runner.screenshot("aA", "collection");
+
+    {
+        // Default filters/sorts: Cass filters the Bugs collection down to open bugs sorted
+        // by priority and saves that customization as the collection default. Restores the
+        // collection's defaults and access policy at the end so the screenshots below are
+        // unaffected.
+        const bugsSearchParams = new URLSearchParams();
+        bugsSearchParams.set(
+            "filter",
+            serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["High", "Medium"]),
+                    },
+                },
+            ]),
+        );
+
+        await runner.goto(accounts.cassCade, `${bugsPath}?${bugsSearchParams.toString()}`, {
+            fixedTime: sprintScreenshotTime,
+        });
+        // The more menu shows an asterisk since these filters/sorts differ from the
+        // collection's (empty) defaults.
+        await runner.getByRole("button", {name: "More"}).last().waitFor();
+        await runner.screenshot("aA1", "collection-filtered");
+
+        await openCollectionMoreMenu();
+        await runner.getByText("The current filters are only visible to you.").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA2", "collection-filtered-more-menu");
+
+        await runner.getByRole("menuitem", {name: "Save as default filters"}).click();
+
+        // The save commits over the browser's realtime connection. Wait until it lands on
+        // the server before loading the collection again.
+        while ((await collections.bugs.getItem()).defaults.value.filters.length === 0) {
+            await wait(50);
+        }
+
+        // Opening the collection without any filters/sorts in the URL applies the saved
+        // defaults. The more menu has no asterisk since nothing is customized.
+        await runner.goto(accounts.cassCade, bugsPath, {fixedTime: sprintScreenshotTime});
+        await runner.getByText("Filter:").waitFor();
+        await runner.screenshot("aA3", "collection-filtered-default");
+
+        // Mason can edit the Bugs collection but not manage it. When he customizes the
+        // filters the more menu tells him the changes are only visible to him and only
+        // offers a reset.
+        const oldBugsAccessPolicyForDefaults = await collections.bugs.access.get();
+        assert(oldBugsAccessPolicyForDefaults.type === "Local");
+        await collections.bugs.access.grantDefault(accounts.cassCade, "Edit");
+
+        bugsSearchParams.set(
+            "filter",
+            serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["Medium", "Low"])},
+                },
+            ]),
+        );
+
+        await runner.goto(accounts.masonClay, `${bugsPath}?${bugsSearchParams.toString()}`, {
+            fixedTime: sprintScreenshotTime,
+        });
+        await openCollectionMoreMenu();
+        await runner.getByText("The current filters are only visible to you.").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA4", "collection-filtered-not-manager");
+
+        await collections.bugs.access.set(accounts.cassCade, oldBugsAccessPolicyForDefaults);
+        await collections.bugs.updateDefaults(accounts.cassCade, {filters: [], sorts: []});
+    }
+
+    {
+        // Default filters/sorts on mobile: Cass filters the Bugs collection on a
+        // phone-sized viewport so the more menu shows an asterisk, then opens its menu. As
+        // with the desktop block above, restore the access policy at the end so the
+        // screenshots that follow are unaffected.
+        const mobileBugsSearchParams = new URLSearchParams();
+        mobileBugsSearchParams.set(
+            "filter",
+            serializeTaskQueryFiltersSearchParam([
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["High", "Medium"]),
+                    },
+                },
+            ]),
+        );
+        mobileBugsSearchParams.set(
+            "sort",
+            serializeTaskQuerySortsSearchParam([{type: "Priority", direction: "Descending"}]),
+        );
+
+        await runner.goto(accounts.cassCade, `${bugsPath}?${mobileBugsSearchParams.toString()}`, {
+            fixedTime: sprintScreenshotTime,
+            viewport: mobileViewport,
+        });
+        // The more menu shows an asterisk since these filters/sorts differ from the
+        // collection's (empty) defaults.
+        await runner.getByRole("button", {name: "More"}).last().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA5", "collection-filtered-mobile");
+
+        await openCollectionMoreMenu();
+        await runner.getByText("The current filters/sorts are only visible to you.").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA6", "collection-filtered-more-menu-mobile");
+
+        // Mason can edit the Bugs collection but not manage it. On mobile his more menu
+        // also only offers a reset and tells him the customization is only visible to him.
+        const oldBugsAccessPolicyForMobileDefaults = await collections.bugs.access.get();
+        assert(oldBugsAccessPolicyForMobileDefaults.type === "Local");
+        await collections.bugs.access.grantDefault(accounts.cassCade, "Edit");
+
+        await runner.goto(accounts.masonClay, `${bugsPath}?${mobileBugsSearchParams.toString()}`, {
+            fixedTime: sprintScreenshotTime,
+            viewport: mobileViewport,
+        });
+        await openCollectionMoreMenu();
+        await runner.getByText("The current filters/sorts are only visible to you.").waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aA7", "collection-filtered-not-manager-mobile");
+
+        await collections.bugs.access.set(accounts.cassCade, oldBugsAccessPolicyForMobileDefaults);
+    }
 
     // Reuse the `Tables` project task and the `Bugs` collection (which already has
     // tasks) for their in-site previews. `screenshotFileEntity` screenshots each

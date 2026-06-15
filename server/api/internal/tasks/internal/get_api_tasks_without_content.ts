@@ -41,7 +41,7 @@ export async function getApiTasksWithoutContent(
     const {queries, updateEvent} = await context.tasks.loadQueries(
         context.actor.getSpaceId(),
         {
-            queries: [{limit, filters, sorts}],
+            queries: [{type: "Normalized", limit, filters, sorts}],
             taskIds: [],
             collectionIds: [collectionId],
         },

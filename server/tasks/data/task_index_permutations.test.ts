@@ -166,6 +166,7 @@ testTaskActionPermutations({
             name: collection.name.value,
             color: collection.color.value,
             accessPolicy: collection.accessPolicy.value,
+            defaults: collection.defaults.value,
         };
     },
 });

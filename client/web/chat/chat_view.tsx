@@ -853,7 +853,7 @@ function ChatViewTopBar({
                                 setIsSubscribedOptimistically,
                             ],
                         )}
-                        extraBottom={null}
+                        menuExtraBottom={null}
                     />
                 </Box>
             </Box>

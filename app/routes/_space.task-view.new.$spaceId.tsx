@@ -81,11 +81,13 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
             }
 
             const query: {
+                type: "Normalized";
                 limit: number;
                 filters: TaskQueryNormalizedFilters;
                 sorts: ReadonlyArray<TaskQueryNormalizedSort>;
                 shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
             } = {
+                type: "Normalized",
                 limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
                 filters: normalizedFilters,
                 sorts: normalizedSorts,

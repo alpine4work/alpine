@@ -40,6 +40,7 @@ export function mergeTaskCollectionModelData(
         name: collection1.name.merge(collection2.name),
         color: collection1.color.merge(collection2.color),
         accessPolicy: collection1.accessPolicy.merge(collection2.accessPolicy),
+        defaults: collection1.defaults.merge(collection2.defaults),
     };
 
     // Optimization: If nothing changed between `collection1` and the merged collection

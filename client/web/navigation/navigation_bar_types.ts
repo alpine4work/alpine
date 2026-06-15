@@ -139,10 +139,16 @@ export type NavigationBarProps = {
     readonly menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
 
     /**
+     * Override the icon rendered in the navigation bar's menu button. Defaults to the
+     * standard three-dot More icon.
+     */
+    readonly menuButtonIcon?: ReactNode;
+
+    /**
      * Extra content to render at the bottom of the context menu. Useful for displaying
      * metadata like "Imported from..." text.
      */
-    readonly contextMenuExtraBottom?: ReactNode;
+    readonly menuExtraBottom?: ReactNode;
 
     /**
      * Offset between the menu button and its menu. Defaults to `defaultTooltipOffset`

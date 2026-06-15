@@ -82,8 +82,9 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutFocusedTextInputDoneButton = false,
         subtitle,
         menuActions = emptyArray,
+        menuButtonIcon,
         menuOffset = defaultTooltipOffset,
-        contextMenuExtraBottom,
+        menuExtraBottom,
         contextMenuActions = emptyArray,
         shareButton,
         withWideRouteLayoutShareMenuItem,
@@ -108,8 +109,9 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutFocusedTextInputDoneButton?: boolean;
         subtitle?: ReactNode;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+        menuButtonIcon?: ReactNode;
         menuOffset?: Spacing;
-        contextMenuExtraBottom?: ReactNode;
+        menuExtraBottom?: ReactNode;
         contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: NavigationBarShareButtonProps;
         withWideRouteLayoutShareMenuItem?: boolean;
@@ -645,8 +647,9 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                             // we want to dynamically switch the menu for the `<ShareOverlay>`.
                                             <NavigationBarContentMoreButton
                                                 menuActions={menuActions}
+                                                menuButtonIcon={menuButtonIcon}
                                                 menuOffset={menuOffset}
-                                                extraBottom={contextMenuExtraBottom}
+                                                menuExtraBottom={menuExtraBottom}
                                                 shareButton={
                                                     routeLayout !== "wide" ||
                                                     withWideRouteLayoutShareMenuItem
@@ -668,13 +671,15 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
 
 export function NavigationBarContentMoreButton({
     menuActions,
+    menuButtonIcon,
     menuOffset,
-    extraBottom,
+    menuExtraBottom,
     shareButton,
 }: {
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    menuButtonIcon?: ReactNode;
     menuOffset: Spacing;
-    extraBottom: ReactNode;
+    menuExtraBottom: ReactNode;
     shareButton: NavigationBarShareButtonProps | undefined;
 }) {
     const platform = usePlatform();
@@ -776,7 +781,7 @@ export function NavigationBarContentMoreButton({
                                           })
                                         : menuActions
                                 }
-                                extraBottom={extraBottom}
+                                extraBottom={menuExtraBottom}
                             />
                         )}
                     </Box>
@@ -820,13 +825,15 @@ export function NavigationBarContentMoreButton({
                     // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
                     withoutFocusOnPress={true}
                 >
-                    <DotsThreeVertical
-                    // Vertical dots create better visual balance on mobile because:
-                    //
-                    // 1. On mobile we have a back button on the left and we want this button to look
-                    //    aligned with that
-                    // 2. The title might be truncated with ellipsis which looks like horizontal dots
-                    />
+                    {menuButtonIcon ?? (
+                        <DotsThreeVertical
+                        // Vertical dots create better visual balance on mobile because:
+                        //
+                        // 1. On mobile we have a back button on the left and we want this button to look
+                        //    aligned with that
+                        // 2. The title might be truncated with ellipsis which looks like horizontal dots
+                        />
+                    )}
                 </IconButton>
             </OverlayTriggerButton>
             {!(shareButton && showShareMobileModal) ? (

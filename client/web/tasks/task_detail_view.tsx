@@ -2694,7 +2694,7 @@ export function TaskDetailView({
                     store={store}
                     taskSubscription={taskSubscription}
                     initialFields={initialFields}
-                    isReadOnly={!hasEditAccessLevel}
+                    accessLevel={accessLevel}
                     onTitleChange={onTitleChange}
                     statusButtonRef={statusButtonRef}
                     commitActionTransaction={commitActionTransaction}

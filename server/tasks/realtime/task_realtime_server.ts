@@ -48,6 +48,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
@@ -650,8 +651,8 @@ export class TaskRealtimeServer {
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
         options?: {consistency?: DynamoCacheReadConsistency},
-    ): Promise<void> {
-        const {spaceId: actualSpaceId} = await authorizeTaskCollectionAccess(
+    ): Promise<{defaults: TaskQueryDefaults}> {
+        const {spaceId: actualSpaceId, defaults} = await authorizeTaskCollectionAccess(
             context,
             collectionId,
             expectedAccessLevel,
@@ -667,6 +668,8 @@ export class TaskRealtimeServer {
                 "Tried loading `TaskCollectionId` with the wrong `SpaceId`",
             );
         }
+
+        return {defaults};
     }
 
     /**

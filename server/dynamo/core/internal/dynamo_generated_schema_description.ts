@@ -14926,6 +14926,39 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "optional": false
                                                                                 }
                                                                             }
+                                                                        },
+                                                                        "UpdateDefaults": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "UpdateDefaults"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "defaults": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "filters": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Bytes"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            },
+                                                                                            "sorts": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Bytes"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        },
+                                                                                        "referenceId": "a4800dcb"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
                                                                         }
                                                                     }
                                                                 },
@@ -15313,6 +15346,27 @@ export const dynamoGeneratedSchemaDescription: {
                                             "referenceId": "ea6170f1"
                                         },
                                         "optional": false
+                                    },
+                                    "defaults": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "value": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "a4800dcb"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "version": {
+                                                    "valueSchema": {
+                                                        "type": "Uint64"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "hasAddedFeedCandidateEntry": {
                                         "valueSchema": {
