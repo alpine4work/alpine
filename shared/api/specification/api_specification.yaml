@@ -1133,6 +1133,39 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetTask"}
 
+    /tasks/{id}/notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [notes]
+                            additionalProperties: false
+                            properties:
+                                notes:
+                                    type: object
+                                    required: [version, content]
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskNotes"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTaskNotes"}
+
     /tasks/{id}/mention:
         parameters:
             - name: id
@@ -1462,7 +1495,7 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutContent"
+                                            $ref: "#/components/schemas/TaskWithoutNotes"
 
     /files/{id}:
         parameters:
@@ -1599,6 +1632,19 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task"
+
+        GetTaskNotes:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, notes]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            notes:
+                                $ref: "#/components/schemas/TaskNotes"
 
         GetMessage:
             content:
@@ -3224,7 +3270,7 @@ components:
 
         Task:
             type: object
-            required: [id, status, title, content]
+            required: [id, status, title, notes]
             additionalProperties: false
             properties:
                 id:
@@ -3248,10 +3294,10 @@ components:
                 priority:
                     type: string
                     enum: [Low, Medium, High, Urgent]
-                content:
-                    $ref: "#/components/schemas/Content"
+                notes:
+                    $ref: "#/components/schemas/TaskNotes"
 
-        TaskWithoutContent:
+        TaskWithoutNotes:
             type: object
             required: [id, status, title]
             additionalProperties: false
@@ -3298,6 +3344,17 @@ components:
                 date:
                     type: string
                     format: date
+
+        TaskNotes:
+            type: object
+            required: [version, content]
+            additionalProperties: false
+            properties:
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content"
 
         TaskPatch:
             oneOf:

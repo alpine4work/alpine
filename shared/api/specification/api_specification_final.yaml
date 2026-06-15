@@ -1240,6 +1240,46 @@ paths:
                     $ref: "#/components/responses/GetTask"
                 default:
                     $ref: "#/components/responses/Error"
+    /tasks/{id}/notes:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+        patch:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - notes
+                            additionalProperties: false
+                            properties:
+                                notes:
+                                    type: object
+                                    required:
+                                        - version
+                                        - content
+                                    additionalProperties: false
+                                    properties:
+                                        version:
+                                            type: integer
+                                        content:
+                                            $ref: "#/components/schemas/Content"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTaskNotes"
+                default:
+                    $ref: "#/components/responses/Error"
+        get:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTaskNotes"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}/mention:
         parameters:
             - name: id
@@ -1615,7 +1655,7 @@ paths:
                                     tasks:
                                         type: array
                                         items:
-                                            $ref: "#/components/schemas/TaskWithoutContent"
+                                            $ref: "#/components/schemas/TaskWithoutNotes"
                 default:
                     $ref: "#/components/responses/Error"
     /files/{id}:
@@ -1767,6 +1807,20 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             task:
                                 $ref: "#/components/schemas/Task_Response"
+        GetTaskNotes:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - notes
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            notes:
+                                $ref: "#/components/schemas/TaskNotes_Response"
         GetMessage:
             content:
                 application/json:
@@ -3759,7 +3813,7 @@ components:
                 - id
                 - status
                 - title
-                - content
+                - notes
             additionalProperties: false
             properties:
                 id:
@@ -3788,9 +3842,9 @@ components:
                         - Medium
                         - High
                         - Urgent
-                content:
-                    $ref: "#/components/schemas/Content"
-        TaskWithoutContent:
+                notes:
+                    $ref: "#/components/schemas/TaskNotes"
+        TaskWithoutNotes:
             type: object
             required:
                 - id
@@ -3847,6 +3901,18 @@ components:
                 date:
                     type: string
                     format: date
+        TaskNotes:
+            type: object
+            required:
+                - version
+                - content
+            additionalProperties: false
+            properties:
+                version:
+                    type: integer
+                    minimum: 0
+                content:
+                    $ref: "#/components/schemas/Content"
         TaskPatch:
             oneOf:
                 - $ref: "#/components/schemas/TaskSetTitlePatch"
@@ -5362,41 +5428,16 @@ components:
                     $ref: "#/components/schemas/Content_Response"
                 contentPreview:
                     type: string
-        Task_Response:
+        TaskNotes_Response:
             type: object
             required:
-                - id
-                - status
-                - title
+                - version
                 - content
             additionalProperties: false
             properties:
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                creator:
-                    type: object
-                    required:
-                        - id
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                status:
-                    $ref: "#/components/schemas/TaskStatus"
-                title:
-                    type: string
-                    maxLength: 512
-                assignee:
-                    $ref: "#/components/schemas/Account"
-                due:
-                    $ref: "#/components/schemas/TaskDueDate"
-                priority:
-                    type: string
-                    enum:
-                        - Low
-                        - Medium
-                        - High
-                        - Urgent
+                version:
+                    type: integer
+                    minimum: 0
                 content:
                     $ref: "#/components/schemas/Content_Response"
         MessageStreamContentPartPayload_Response:
@@ -5475,6 +5516,43 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow_Response"
+        Task_Response:
+            type: object
+            required:
+                - id
+                - status
+                - title
+                - notes
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                creator:
+                    type: object
+                    required:
+                        - id
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                    maxLength: 512
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    $ref: "#/components/schemas/TaskDueDate"
+                priority:
+                    type: string
+                    enum:
+                        - Low
+                        - Medium
+                        - High
+                        - Urgent
+                notes:
+                    $ref: "#/components/schemas/TaskNotes_Response"
         MessageStreamPartPayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"

@@ -1,22 +1,97 @@
 import {CalendarDate} from "@internationalized/date";
+import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {apiTasksPaths} from "~/server/api/internal/tasks/api_tasks_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {getTaskNotesContentSteps} from "~/server/tasks/data/get_task_notes_content_steps.js";
+import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
+import {
+    TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
+    TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
+} from "~/shared/tasks/task_notes_collaboration_protocol.js";
+import {
+    TaskNotesContentProsemirrorSchema,
+    assertTaskNotesContent,
+} from "~/shared/tasks/task_notes_content_schema.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,
     tasksInjection,
+    sendRequestToDurableObject: async (actualContext, request) => {
+        const match = request.url.match(
+            /^\/api\/durable-objects\/task-notes\/([^/]+)\/update-content-with-diff/,
+        );
+        if (!match) return;
+
+        const context = (actualContext as ApiServiceBotActionContext).dynamo
+            // Strong consistency isn't required since this logic is test-only. So all requests
+            // will be strong consistency implicitly.
+            .unexpectStrongReadConsistency();
+
+        const taskId = assertId<TaskId>(match[1]!);
+
+        const requestBody =
+            TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema.deserialize(
+                request.body ?? null,
+            );
+
+        const taskNotes = await getTaskNotesContentWithoutReferences(context, taskId);
+
+        const invertedSteps =
+            requestBody.version < taskNotes.version
+                ? await getTaskNotesContentSteps(context, {
+                      taskId,
+                      startVersion: requestBody.version,
+                      endVersion: taskNotes.version,
+                  })
+                : [];
+
+        let oldContent = taskNotes.content;
+
+        for (let index = invertedSteps.length - 1; index >= 0; index--) {
+            const step = invertedSteps[index]!;
+            const stepResult = step.invertedStep.apply(oldContent);
+            if (!stepResult.doc) throw new InternalError(stepResult.failed!);
+            oldContent = assertTaskNotesContent(stepResult.doc);
+        }
+
+        const requestContent = assertTaskNotesContent(
+            TaskNotesContentProsemirrorSchema.nodes.doc.create(null, requestBody.content),
+        );
+
+        const steps = diffProsemirrorNodes(oldContent, requestContent);
+
+        const {newVersion} = await updateTaskNotesContent(context, {
+            spaceId: taskNotes.spaceId,
+            taskId,
+            clientVersion: requestBody.version,
+            clientSteps: steps,
+            clientId: generateId(),
+        });
+
+        const newTaskNotes = await getTaskNotesContentWithoutReferences(context, taskId);
+
+        return TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema.serialize({
+            ok: true,
+            spaceId: taskNotes.spaceId,
+            newVersion,
+            newContent: newTaskNotes.content,
+        });
+    },
 });
 
 const context = TestTaskRealtimeServer.with(baseContext);
@@ -84,18 +159,21 @@ test("can read task with notes content", async () => {
             task: expect.objectContaining({
                 id: task.id,
                 title: "Task with Notes",
-                content: expect.objectContaining({
-                    elements: expect.arrayContaining([
-                        expect.objectContaining({
-                            type: "Paragraph",
-                            elements: expect.arrayContaining([
-                                expect.objectContaining({
-                                    type: "Text",
-                                    text: "These are some task notes with important details.",
-                                }),
-                            ]),
-                        }),
-                    ]),
+                notes: expect.objectContaining({
+                    version: 1,
+                    content: expect.objectContaining({
+                        elements: expect.arrayContaining([
+                            expect.objectContaining({
+                                type: "Paragraph",
+                                elements: expect.arrayContaining([
+                                    expect.objectContaining({
+                                        type: "Text",
+                                        text: "These are some task notes with important details.",
+                                    }),
+                                ]),
+                            }),
+                        ]),
+                    }),
                 }),
             }),
         }),
@@ -352,14 +430,17 @@ test("can create an empty task", async () => {
                 creator: {id: bot.id},
                 status: {type: "Open", isActive: false},
                 title: "",
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            key: expect.any(String),
-                            elements: [],
-                        },
-                    ],
+                notes: {
+                    version: 0,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                key: expect.any(String),
+                                elements: [],
+                            },
+                        ],
+                    },
                 },
             },
         },
@@ -412,18 +493,21 @@ test("can create a task with all fields", async () => {
                 }),
                 due: {date: "2026-12-31"},
                 priority: "High",
-                content: expect.objectContaining({
-                    elements: expect.arrayContaining([
-                        expect.objectContaining({
-                            type: "Paragraph",
-                            elements: expect.arrayContaining([
-                                expect.objectContaining({
-                                    type: "Text",
-                                    text: "Task notes here.",
-                                }),
-                            ]),
-                        }),
-                    ]),
+                notes: expect.objectContaining({
+                    version: 0,
+                    content: expect.objectContaining({
+                        elements: expect.arrayContaining([
+                            expect.objectContaining({
+                                type: "Paragraph",
+                                elements: expect.arrayContaining([
+                                    expect.objectContaining({
+                                        type: "Text",
+                                        text: "Task notes here.",
+                                    }),
+                                ]),
+                            }),
+                        ]),
+                    }),
                 }),
             }),
         }),
@@ -586,6 +670,104 @@ test("can update a task title", async () => {
             }),
         }),
     });
+});
+
+test("can read task notes content", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Task with Notes"});
+    await task.typeNotes(session, "These are the task notes.");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.GET(`/tasks/${task.id}/notes`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            spaceId: space.id,
+            notes: expect.objectContaining({
+                version: expect.any(Number),
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Paragraph",
+                            elements: expect.arrayContaining([
+                                expect.objectContaining({
+                                    type: "Text",
+                                    text: "These are the task notes.",
+                                }),
+                            ]),
+                        }),
+                    ]),
+                }),
+            }),
+        }),
+    });
+});
+
+test("can update task notes content", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Task with Notes"});
+    await task.typeNotes(session, "Old notes");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const getResponse = await server.GET(`/tasks/${task.id}/notes`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    const response = await server.PATCH(`/tasks/${task.id}/notes`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            notes: {
+                version: getResponse.body.notes.version,
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Updated notes"}],
+                        },
+                    ],
+                },
+            },
+        },
+    });
+
+    expect(response).toMatchObject({
+        status: 200,
+        body: expect.objectContaining({
+            spaceId: space.id,
+            notes: expect.objectContaining({
+                version: expect.any(Number),
+                content: expect.objectContaining({
+                    elements: expect.arrayContaining([
+                        expect.objectContaining({
+                            type: "Paragraph",
+                            elements: expect.arrayContaining([
+                                expect.objectContaining({
+                                    type: "Text",
+                                    text: "Updated notes",
+                                }),
+                            ]),
+                        }),
+                    ]),
+                }),
+            }),
+        }),
+    });
+    expect(response.body.notes.version).toBeGreaterThan(getResponse.body.notes.version);
 });
 
 test("can update task status to closed", async () => {

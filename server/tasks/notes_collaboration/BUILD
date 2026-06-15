@@ -25,6 +25,7 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/prosemirror",
+        "//shared/rpc",
         "//shared/schema",
         "//shared/tasks",
         "//shared/tracer",

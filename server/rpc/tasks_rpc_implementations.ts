@@ -152,7 +152,7 @@ export default implementRpcs(definitions, {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
             return await getTaskNotesContentWithoutReferences(
-                context.actor.authorizeSession(),
+                context.actor.authorizeAccount(),
                 input.taskId,
             );
         },
@@ -162,7 +162,7 @@ export default implementRpcs(definitions, {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (context, {spaceId, taskId, version, steps, clientId}, {callId}) => {
             const {newVersion} = await updateTaskNotesContentIdempotently(
-                context.actor.authorizeSession(),
+                context.actor.authorizeAccount(),
                 {
                     spaceId,
                     taskId,
@@ -179,7 +179,7 @@ export default implementRpcs(definitions, {
     getTaskNotesContentSteps: {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
-            const steps = await getTaskNotesContentSteps(context.actor.authorizeSession(), input);
+            const steps = await getTaskNotesContentSteps(context.actor.authorizeAccount(), input);
             return {steps};
         },
     },
@@ -200,7 +200,7 @@ export default implementRpcs(definitions, {
     authorizeTaskAccess: {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (_context, input) => {
-            const context = _context.actor.authorizeSession();
+            const context = _context.actor.authorizeAccount();
 
             const {spaceId} = await authorizeTaskAccess(
                 context,

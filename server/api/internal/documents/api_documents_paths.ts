@@ -1,3 +1,4 @@
+import {Node} from "prosemirror-model";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createIntoApiDocumentCommentContentPayloadParent} from "~/server/api/internal/documents/internal/create_into_api_document_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
@@ -24,6 +25,7 @@ import {
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {
@@ -31,7 +33,10 @@ import {
     fromApiContentForPutDocument,
 } from "~/shared/api/content/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContent,
+    ApiContentResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -42,10 +47,13 @@ import {
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
 import {
+    DocumentContent,
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -74,20 +82,11 @@ export const apiDocumentsPaths: Pick<
                 consistency,
             });
 
-            const content = apiContent
-                ? fromApiContent(DocumentContentProsemirrorSchema, apiContent)
-                : undefined;
-
-            const documentContent = assertDocumentContent(
-                DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
-                    DocumentContentProsemirrorSchema.node("title", {}, [
-                        DocumentContentProsemirrorSchema.text(title),
-                    ]),
-                    ...(content
-                        ? [...content.children]
-                        : [DocumentContentProsemirrorSchema.node("paragraph")]),
-                ]),
-            );
+            const documentContent = validateApiDocumentContentForCreate({
+                title,
+                accessPolicy,
+                content: apiContent,
+            });
 
             // Attach files referenced in the content to the document before creating the
             // document so there's no race where a reader sees the document before its files
@@ -185,11 +184,10 @@ export const apiDocumentsPaths: Pick<
         },
 
         patch: async (context, {pathParameters, requestBody}) => {
-            const requestContent = fromApiContentForPutDocument(
-                DocumentContentProsemirrorSchema,
-                requestBody.document.title,
-                requestBody.document.content,
-            );
+            const requestContent = validateApiDocumentContentForUpdate({
+                title: requestBody.document.title,
+                content: requestBody.document.content,
+            });
 
             // Attach any new files referenced in the updated content before applying the
             // update so there's no race where a reader sees the updated content before its
@@ -654,3 +652,64 @@ export const apiDocumentsPaths: Pick<
         },
     },
 };
+
+// Wraps `fromApiContent()` and the document node assembly in a try/catch block to
+// translate any Prosemirror schema validation errors into an
+// `InvalidArgumentError` instead of an `InternalError`. This could happen if a
+// user submits structurally valid content that contains content types that aren't
+// supported by the document content schema.
+function validateApiDocumentContentForCreate({
+    title,
+    accessPolicy,
+    content,
+}: {
+    title: string;
+    accessPolicy: LocalAccessPolicy;
+    content: ApiContent | undefined;
+}): DocumentContent {
+    try {
+        const parsedContent = content
+            ? fromApiContent(DocumentContentProsemirrorSchema, content)
+            : undefined;
+
+        return assertDocumentContent(
+            DocumentContentProsemirrorSchema.node("doc", {accessPolicy}, [
+                DocumentContentProsemirrorSchema.node("title", {}, [
+                    DocumentContentProsemirrorSchema.text(title),
+                ]),
+                ...(parsedContent
+                    ? [...parsedContent.children]
+                    : [DocumentContentProsemirrorSchema.node("paragraph")]),
+            ]),
+        );
+    } catch (error) {
+        // TODO(#public-api): Document the schema rules for document content and add a link
+        // to the documentation in this error message.
+        throw InvalidArgumentError.from(error, "Received invalid document content", {
+            displayMessage: errorDisplayMessage`The document content you provided is invalid.`,
+        });
+    }
+}
+
+// Wraps `fromApiContentForPutDocument()` in a try/catch block to translate any
+// Prosemirror schema validation errors into an `InvalidArgumentError` instead of
+// an `InternalError`. This could happen if a user submits structurally valid
+// content that contains content types that aren't supported by the document
+// content schema.
+function validateApiDocumentContentForUpdate({
+    title,
+    content,
+}: {
+    title: string;
+    content: ApiContent;
+}): ReadonlyArray<Node> {
+    try {
+        return fromApiContentForPutDocument(DocumentContentProsemirrorSchema, title, content);
+    } catch (error) {
+        // TODO(#public-api): Document the schema rules for document content and add a link
+        // to the documentation in this error message.
+        throw InvalidArgumentError.from(error, "Received invalid document content", {
+            displayMessage: errorDisplayMessage`The document content you provided is invalid.`,
+        });
+    }
+}

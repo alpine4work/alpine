@@ -310,6 +310,13 @@ export class DocumentCollaborationContentManager {
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
+            /**
+             * An optional promise that must resolve before we mutate any durable object state.
+             * If it rejects we throw before applying the update so the caller can run
+             * expensive validation (e.g. an authorization round-trip) in parallel with
+             * computing the update without risking putting the durable object in a bad state.
+             */
+            validationPromise?: Promise<unknown>;
         },
     ): Promise<{
         newVersion: number;
@@ -390,6 +397,11 @@ export class DocumentCollaborationContentManager {
                           selection: ContentSelectionWrapper.new(newPresenceStateSelection),
                       }
                     : null;
+
+            // Wait for any validation to pass before mutating state. We compute the update
+            // above in parallel with the validation, but if validation fails we throw here
+            // before applying the update.
+            if (update.validationPromise) await update.validationPromise;
 
             stateRef.current = {
                 version: stateRef.current.version + steps.length,

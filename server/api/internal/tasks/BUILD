@@ -12,6 +12,7 @@ ts_project(
         "//server/spaces/test_helpers",
         "//server/tasks/data/test_helpers",
         "//server/tasks/realtime/test_helpers",
+        "//shared/prosemirror",
     ],
     tests = {"api_tasks_paths_test": {"size": "medium"}},
     visibility = ["//server/api:__subpackages__"],

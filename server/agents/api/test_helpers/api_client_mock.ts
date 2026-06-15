@@ -10,7 +10,7 @@ import {
     ApiPostResponse,
     ApiTaskCollection,
     ApiTaskResponse,
-    ApiTaskWithoutContent,
+    ApiTaskWithoutNotes,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -588,12 +588,13 @@ export class ApiClientMock implements ApiClient {
                         id: taskId,
                         status: responseData.status ?? {type: "Open", isActive: true},
                         title: responseData.title ?? "Test Task",
-                        content:
-                            responseData.content ??
-                            createApiContentResponseWithSingleParagraph(
+                        notes: responseData.notes ?? {
+                            version: 0,
+                            content: createApiContentResponseWithSingleParagraph(
                                 "mock-task",
                                 "Test Task Content",
                             ),
+                        },
                         ...responseData,
                     },
                     spaceId,
@@ -670,7 +671,7 @@ export class ApiClientMock implements ApiClient {
         responseData: {
             totalTaskCount?: number;
             nextCursor?: string | null;
-            tasks?: Array<ApiTaskWithoutContent>;
+            tasks?: Array<ApiTaskWithoutNotes>;
         },
         queryParams?: {
             limit?: number;

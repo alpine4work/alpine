@@ -313,6 +313,43 @@ describe("POST /documents", () => {
             }),
         });
     });
+    test("returns 400 instead of 500 when the document content can\u2019t be parsed", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        // An empty title is well-formed per the request schema but can't be represented as
+        // a Prosemirror text node. Parsing it should surface as a client error (400)
+        // instead of an internal error (500).
+        const response = await server.POST("/documents", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                document: {
+                    title: "",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Hello, world!"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("The document content you provided is invalid."),
+                }),
+            },
+        });
+    });
 });
 
 test("can read document content", async () => {
@@ -1572,6 +1609,48 @@ describe("PATCH /documents/{id}", () => {
                     elements: [{type: "Text", text: "Base one two three four"}],
                 },
             ],
+        });
+    });
+    test("returns 400 instead of 500 when the document content can\u2019t be parsed", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const document = await TestDocument.create(session, {
+            title: "Valid Title",
+            body: "Original content.",
+            access: "Public",
+        });
+
+        // An empty title is well-formed per the request schema but can't be represented as
+        // a Prosemirror text node. Parsing it should surface as a client error (400)
+        // instead of an internal error (500).
+        const response = await server.PATCH(`/documents/${document.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                document: {
+                    title: "",
+                    version: await document.getVersion(),
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Updated content."}],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 400,
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("The document content you provided is invalid."),
+                }),
+            },
         });
     });
 });

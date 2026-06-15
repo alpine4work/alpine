@@ -42,8 +42,8 @@ type ApiCreateTaskMessageRequestBody =
     ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"];
 type ApiGetTaskMessagesResponse =
     ApiSpecification.paths["/tasks/{id}/messages"]["get"]["responses"]["200"]["content"]["application/json"];
-type ApiTaskWithoutContent = ApiSpecification.components["schemas"]["TaskWithoutContent"];
-type ApiTaskPriority = NonNullable<ApiTaskWithoutContent["priority"]>;
+type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
+type ApiTaskPriority = NonNullable<ApiTaskWithoutNotes["priority"]>;
 type SendAlertErrorResult = Extract<SendAlertResult, {ok: false}>;
 
 // Keep in sync with `taskTitleMaxLength` from `shared/tasks/title/task_title.ts`.
@@ -305,11 +305,11 @@ export class HoneycombAlertSource extends AlertSource {
     private async listOpenTasks(collectionId: TaskCollectionId): Promise<
         | {
               ok: true;
-              tasks: Array<ApiTaskWithoutContent>;
+              tasks: Array<ApiTaskWithoutNotes>;
           }
         | SendAlertErrorResult
     > {
-        const tasks: Array<ApiTaskWithoutContent> = [];
+        const tasks: Array<ApiTaskWithoutNotes> = [];
         let cursor: string | null = null;
 
         do {
@@ -344,7 +344,7 @@ export class HoneycombAlertSource extends AlertSource {
         title: string,
         content: ApiContent,
         priority: ApiTaskPriority,
-    ): Promise<{ok: true; task: ApiTaskWithoutContent} | SendAlertErrorResult> {
+    ): Promise<{ok: true; task: ApiTaskWithoutNotes} | SendAlertErrorResult> {
         const body = {
             spaceId,
             task: {
@@ -386,7 +386,7 @@ export class HoneycombAlertSource extends AlertSource {
     }
 
     private async updateTaskPriorityIfNeeded(
-        task: ApiTaskWithoutContent,
+        task: ApiTaskWithoutNotes,
         data: HoneycombTaskPayload,
     ): Promise<{ok: true; updatedPriority: ApiTaskPriority | null} | SendAlertErrorResult> {
         const occurrenceCommentCount = await this.countTaskOccurrenceComments(task.id);
@@ -425,7 +425,7 @@ export class HoneycombAlertSource extends AlertSource {
     }
 
     private async countTaskOccurrenceComments(
-        taskId: ApiTaskWithoutContent["id"],
+        taskId: ApiTaskWithoutNotes["id"],
     ): Promise<{ok: true; count: number} | SendAlertErrorResult> {
         let cursor: number | null = null;
         let count = 0;
@@ -463,7 +463,7 @@ export class HoneycombAlertSource extends AlertSource {
 
     private async postTaskPreviewToChannel(
         channel: SendAlertAvailableChannel,
-        task: ApiTaskWithoutContent,
+        task: ApiTaskWithoutNotes,
         data: HoneycombTaskPayload,
     ): Promise<SendAlertResult> {
         return await this.postAlertToAlpine(channel, {
@@ -486,7 +486,7 @@ export class HoneycombAlertSource extends AlertSource {
 
     private async postTaskPriorityBumpToChannel(
         channel: SendAlertAvailableChannel,
-        task: ApiTaskWithoutContent,
+        task: ApiTaskWithoutNotes,
         priority: ApiTaskPriority,
         data: HoneycombTaskPayload,
     ): Promise<SendAlertResult> {
@@ -523,7 +523,7 @@ export class HoneycombAlertSource extends AlertSource {
     }
 
     private async createTaskOccurrenceComment(
-        task: ApiTaskWithoutContent,
+        task: ApiTaskWithoutNotes,
         count: number,
         resultUrl: string,
         row: HoneycombResultGroup,

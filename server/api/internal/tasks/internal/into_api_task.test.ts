@@ -6,7 +6,7 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -22,14 +22,17 @@ const taskNoteKey = new ApiContentKeyEncoder({
     version: 0,
 }).encode({pos: 0, nodeSize: 1});
 
-const content: ApiContentResponse = {
-    elements: [
-        {
-            type: "Paragraph",
-            key: taskNoteKey,
-            elements: [{type: "Text", text: "Hello from task notes"}],
-        },
-    ],
+const notes: ApiSpecification.components["schemas"]["TaskNotes_Response"] = {
+    version: 0,
+    content: {
+        elements: [
+            {
+                type: "Paragraph",
+                key: taskNoteKey,
+                elements: [{type: "Text", text: "Hello from task notes"}],
+            },
+        ],
+    },
 };
 
 test("intoApiTask serializes a fully populated task", async () => {
@@ -51,7 +54,7 @@ test("intoApiTask serializes a fully populated task", async () => {
             consistency: "StrongWithinCache",
         });
 
-    expect(await intoApiTask(session1.action(), taskModel, content)).toEqual({
+    expect(await intoApiTask(session1.action(), taskModel, notes)).toEqual({
         id: task.id,
         creator: {id: session1.account.id},
         status: {type: "Open", isActive: true},
@@ -67,7 +70,7 @@ test("intoApiTask serializes a fully populated task", async () => {
         },
         due: {date: "2026-12-31"},
         priority: "High",
-        content,
+        notes,
     });
 });
 
@@ -86,7 +89,7 @@ test("intoApiTask omits optional fields for a minimal task", async () => {
             consistency: "StrongWithinCache",
         });
 
-    expect(await intoApiTask(session.action(), taskModel, content)).toEqual({
+    expect(await intoApiTask(session.action(), taskModel, notes)).toEqual({
         id: task.id,
         creator: {id: session.account.id},
         status: {type: "Open", isActive: false},
@@ -94,6 +97,6 @@ test("intoApiTask omits optional fields for a minimal task", async () => {
         assignee: undefined,
         due: undefined,
         priority: undefined,
-        content,
+        notes,
     });
 });

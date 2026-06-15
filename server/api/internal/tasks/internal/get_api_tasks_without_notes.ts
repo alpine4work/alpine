@@ -3,7 +3,7 @@ import {serializeTaskQuerySortCursorForApi} from "~/server/api/internal/tasks/in
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {
     ApiAccount,
-    ApiTaskWithoutContent,
+    ApiTaskWithoutNotes,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -19,7 +19,7 @@ import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor
  * Returns a strongly consistent list of tasks without content that match the
  * provided filters ordered by the provided sorts.
  */
-export async function getApiTasksWithoutContent(
+export async function getApiTasksWithoutNotes(
     context: ApiServiceBotActionContext,
     {
         collectionId,
@@ -37,7 +37,7 @@ export async function getApiTasksWithoutContent(
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     },
-): Promise<{tasks: Array<ApiTaskWithoutContent>; nextCursor: string | null}> {
+): Promise<{tasks: Array<ApiTaskWithoutNotes>; nextCursor: string | null}> {
     const {queries, updateEvent} = await context.tasks.loadQueries(
         context.actor.getSpaceId(),
         {
@@ -77,7 +77,7 @@ export async function getApiTasksWithoutContent(
                 getTaskQueryNormalizedSortCursorForModel(sorts, taskB),
             ),
         )
-        .map((task): ApiTaskWithoutContent => {
+        .map((task): ApiTaskWithoutNotes => {
             const dueDate = task.getDueDate();
 
             return {

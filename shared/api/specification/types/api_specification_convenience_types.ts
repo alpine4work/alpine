@@ -200,6 +200,8 @@ export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
 export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];
 
+export type ApiTaskNotesResponse = ApiSpecification.components["schemas"]["TaskNotes_Response"];
+
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
@@ -282,7 +284,7 @@ export type ApiBotWebhookNewMessageEventMessageParent =
 export type ApiBotWebhookNewMessageEventPostParent =
     ApiSpecification.components["schemas"]["BotWebhookNewMessageEventPostParent"];
 
-export type ApiTaskWithoutContent = ApiSpecification.components["schemas"]["TaskWithoutContent"];
+export type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
 
 export type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"];
 

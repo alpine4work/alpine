@@ -1743,6 +1743,61 @@ export namespace ApiSpecification {
             };
             readonly trace?: never;
         };
+        readonly "/tasks/{id}/notes": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["TaskId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetTaskNotes"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly notes: {
+                                readonly version: number;
+                                readonly content: components["schemas"]["Content"];
+                            };
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: components["responses"]["GetTaskNotes"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly trace?: never;
+        };
         readonly "/tasks/{id}/mention": {
             readonly parameters: {
                 readonly query?: never;
@@ -2212,7 +2267,7 @@ export namespace ApiSpecification {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
                                 readonly nextCursor: string | null;
-                                readonly tasks: readonly components["schemas"]["TaskWithoutContent"][];
+                                readonly tasks: readonly components["schemas"]["TaskWithoutNotes"][];
                             };
                         };
                     };
@@ -3308,9 +3363,9 @@ export namespace ApiSpecification {
                 readonly due?: components["schemas"]["TaskDueDate"];
                 /** @enum {string} */
                 readonly priority?: "Low" | "Medium" | "High" | "Urgent";
-                readonly content: components["schemas"]["Content"];
+                readonly notes: components["schemas"]["TaskNotes"];
             };
-            readonly TaskWithoutContent: {
+            readonly TaskWithoutNotes: {
                 readonly id: components["schemas"]["TaskId"];
                 readonly creator?: {
                     readonly id: components["schemas"]["AccountId"];
@@ -3330,6 +3385,10 @@ export namespace ApiSpecification {
             readonly TaskDueDate: {
                 /** Format: date */
                 readonly date: string;
+            };
+            readonly TaskNotes: {
+                readonly version: number;
+                readonly content: components["schemas"]["Content"];
             };
             readonly TaskPatch:
                 | components["schemas"]["TaskSetTitlePatch"]
@@ -4078,17 +4137,8 @@ export namespace ApiSpecification {
                 readonly content: components["schemas"]["Content_Response"];
                 readonly contentPreview: string;
             };
-            readonly Task_Response: {
-                readonly id: components["schemas"]["TaskId"];
-                readonly creator?: {
-                    readonly id: components["schemas"]["AccountId"];
-                };
-                readonly status: components["schemas"]["TaskStatus"];
-                readonly title: string;
-                readonly assignee?: components["schemas"]["Account"];
-                readonly due?: components["schemas"]["TaskDueDate"];
-                /** @enum {string} */
-                readonly priority?: "Low" | "Medium" | "High" | "Urgent";
+            readonly TaskNotes_Response: {
+                readonly version: number;
                 readonly content: components["schemas"]["Content_Response"];
             };
             readonly MessageStreamContentPartPayload_Response: {
@@ -4127,6 +4177,19 @@ export namespace ApiSpecification {
                     readonly width: number;
                 }[];
                 readonly rows: readonly components["schemas"]["ContentTableBlockElementRow_Response"][];
+            };
+            readonly Task_Response: {
+                readonly id: components["schemas"]["TaskId"];
+                readonly creator?: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly status: components["schemas"]["TaskStatus"];
+                readonly title: string;
+                readonly assignee?: components["schemas"]["Account"];
+                readonly due?: components["schemas"]["TaskDueDate"];
+                /** @enum {string} */
+                readonly priority?: "Low" | "Medium" | "High" | "Urgent";
+                readonly notes: components["schemas"]["TaskNotes_Response"];
             };
             readonly MessageStreamPartPayload_Response:
                 | components["schemas"]["MessageStreamContentPartPayload_Response"]
@@ -4190,6 +4253,17 @@ export namespace ApiSpecification {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
                         readonly task: components["schemas"]["Task_Response"];
+                    };
+                };
+            };
+            readonly GetTaskNotes: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly notes: components["schemas"]["TaskNotes_Response"];
                     };
                 };
             };

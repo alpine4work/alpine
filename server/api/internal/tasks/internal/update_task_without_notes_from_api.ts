@@ -37,10 +37,14 @@ type TaskPatchState = {
 };
 
 /**
- * Applies API task patches, commits the resulting task actions, and returns the
- * updated task model used for the response.
+ * Applies API task metadata patches, commits the resulting task actions, and
+ * returns the updated task model used for the response.
+ *
+ * Notes patches are handled separately by `updateTaskNotesFromApi()` since they
+ * target the notes collaboration Durable Object rather than task action
+ * transactions.
  */
-export async function updateTaskFromApi(
+export async function updateTaskWithoutNotesFromApi(
     context: ApiServiceBotActionContext,
     {
         spaceId,
@@ -61,8 +65,8 @@ export async function updateTaskFromApi(
         consistency,
     });
 
-    const initialState = createTaskPatchState(initialTask);
-    const finalState = applyTaskPatches(initialState, patches);
+    const initialState = createTaskWithoutNotesPatchState(initialTask);
+    const finalState = applyTaskWithoutNotesPatches(initialState, patches);
 
     if (
         finalState.status.type === "Open" &&
@@ -74,7 +78,7 @@ export async function updateTaskFromApi(
         finalState.assigneeId = botAccountId;
     }
 
-    const actions = createTaskPatchActions({
+    const actions = createTaskWithoutNotesPatchActions({
         taskId,
         initialTask,
         initialState,
@@ -83,6 +87,7 @@ export async function updateTaskFromApi(
         botAccountId,
         timeZone,
     });
+
     if (actions.length === 0) return initialTask;
 
     const taskSortableAccountsPromise = loadTaskSortableAccountsForActions(context, {
@@ -107,7 +112,7 @@ export async function updateTaskFromApi(
  * Captures the current task fields that can be updated through the API patch
  * surface.
  */
-function createTaskPatchState(task: TaskModel): TaskPatchState {
+function createTaskWithoutNotesPatchState(task: TaskModel): TaskPatchState {
     return {
         title: task.getTitle().getText(),
         assigneeId: task.getAssignee()?.assignee.accountId ?? null,
@@ -127,7 +132,7 @@ function createTaskPatchState(task: TaskModel): TaskPatchState {
  * Applies the patch list in request order to compute the final intended task state
  * before any task actions are generated.
  */
-function applyTaskPatches(
+function applyTaskWithoutNotesPatches(
     initialState: TaskPatchState,
     patches: ReadonlyArray<TaskPatch>,
 ): TaskPatchState {
@@ -178,7 +183,7 @@ function applyTaskPatches(
  * Converts the before-and-after patch state into the normalized set of task
  * actions needed to realize the update.
  */
-function createTaskPatchActions({
+function createTaskWithoutNotesPatchActions({
     taskId,
     initialTask,
     initialState,

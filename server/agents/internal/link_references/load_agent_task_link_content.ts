@@ -115,9 +115,12 @@ export async function loadAgentTaskLinkContent({
         });
     }
 
-    for (const node of (await printApiContentToAgentMarkdownTree(transaction, task.content))
-        .children) {
-        children.push(node);
+    if (task.notes) {
+        for (const node of (
+            await printApiContentToAgentMarkdownTree(transaction, task.notes.content)
+        ).children) {
+            children.push(node);
+        }
     }
 
     // TODO(calebmer, #ai): We should include the first few child tasks in and give

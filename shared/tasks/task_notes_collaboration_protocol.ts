@@ -3,8 +3,9 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
@@ -16,7 +17,11 @@ import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
-import {TaskNotesContentStepSchema} from "~/shared/tasks/task_notes_content_schema.js";
+import {
+    TaskNotesContentNodeSchema,
+    TaskNotesContentSchema,
+    TaskNotesContentStepSchema,
+} from "~/shared/tasks/task_notes_content_schema.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
     WebSocketProtocolEventType,
@@ -190,3 +195,21 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
         }),
     },
 });
+
+export const TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema = Schema.object({
+    version: Schema.integer,
+    content: Schema.array(TaskNotesContentNodeSchema),
+});
+
+export const TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+        spaceId: Schema.id<SpaceId>(),
+        newVersion: Schema.integer,
+        newContent: TaskNotesContentSchema,
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);
