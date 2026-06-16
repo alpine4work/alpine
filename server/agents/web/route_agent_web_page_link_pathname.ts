@@ -17,20 +17,19 @@ export async function routeAgentWebPageLinkPathname(
     // We assume `normalizeAgentWebPath()` has already been called for this `pathname`.
     assert(pathname.startsWith("/"));
 
-    const [pathnameType = "", pathnameRest = ""] = pathname.slice(1).split("/", 2);
+    const pathnameParts = pathname.slice(1).split("/");
 
-    switch (pathnameType) {
+    switch (pathnameParts[0]) {
         case "document": {
-            const pathnameParts = pathnameRest.split("/");
-            if (pathnameParts.length !== 3) break;
-            if (pathnameParts[1] !== "comments") break;
-            if (!/^(0|[1-9][0-9]*)$/.test(pathnameParts[2]!)) break;
+            if (pathnameParts.length !== 4) break;
+            if (pathnameParts[2] !== "comments") break;
+            if (!/^(0|[1-9][0-9]*)$/.test(pathnameParts[3]!)) break;
 
-            const threadNumber = parseInt(pathnameParts[2]!, 10);
+            const threadNumber = parseInt(pathnameParts[3]!, 10);
 
             const result = await getAgentWebPageStoredLinkByPathname(
                 storage,
-                `/document/${pathnameParts[0]!}`,
+                `/document/${pathnameParts[1]!}`,
             );
             if (result === null) return null;
 
@@ -50,19 +49,12 @@ export async function routeAgentWebPageLinkPathname(
             };
         }
         case "task": {
-            if (!pathnameRest.endsWith("/comments")) break;
-
-            const pathnameTitle = pathnameRest.slice(0, -"/comments".length);
-
-            // Make sure `/task/comments` doesn't get interpreted routing to a task with no
-            // title's comments.
-            //
-            // NOCOMMIT: Test this!
-            if (pathnameTitle.length === 0) break;
+            if (pathnameParts.length !== 3) break;
+            if (pathnameParts[2] !== "comments") break;
 
             const result = await getAgentWebPageStoredLinkByPathname(
                 storage,
-                `/task/${pathnameTitle}`,
+                `/task/${pathnameParts[1]!}`,
             );
             if (result === null) return null;
 
