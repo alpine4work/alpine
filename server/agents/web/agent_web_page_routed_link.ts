@@ -12,12 +12,16 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
  * The actual routing logic lives in `routeAgentWebPageLinkPathname()`.
  */
 export type AgentWebPageRoutedLink =
-    | {
-          readonly type: "DocumentThread";
-          readonly document: ApiDocumentReferenceResponse;
-          readonly threadId: DocumentCommentThreadId;
-      }
-    | {
-          readonly type: "TaskMessageList";
-          readonly task: ApiTaskReferenceResponse;
-      };
+    | AgentWebPageDocumentThreadRoutedLink
+    | AgentWebPageTaskMessageListRoutedLink;
+
+export type AgentWebPageDocumentThreadRoutedLink = {
+    readonly type: "DocumentThread";
+    readonly document: ApiDocumentReferenceResponse;
+    readonly threadId: DocumentCommentThreadId;
+};
+
+export type AgentWebPageTaskMessageListRoutedLink = {
+    readonly type: "TaskMessageList";
+    readonly task: ApiTaskReferenceResponse;
+};

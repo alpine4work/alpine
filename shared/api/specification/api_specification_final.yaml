@@ -613,11 +613,24 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
+                                    - document
                                     - thread
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
+                                    document:
+                                        type: object
+                                        required:
+                                            - reference
+                                        properties:
+                                            reference:
+                                                type: object
+                                                required:
+                                                    - title
+                                                properties:
+                                                    title:
+                                                        type: string
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread_Response"
                 default:

@@ -568,11 +568,21 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, thread]
+                                required: [spaceId, document, thread]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
+                                    document:
+                                        type: object
+                                        required: [reference]
+                                        properties:
+                                            reference:
+                                                type: object
+                                                required: [title]
+                                                properties:
+                                                    title:
+                                                        type: string
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread"
 

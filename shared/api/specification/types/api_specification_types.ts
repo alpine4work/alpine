@@ -902,6 +902,11 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly document: {
+                                    readonly reference: {
+                                        readonly title: string;
+                                    };
+                                };
                                 readonly thread: components["schemas"]["DocumentThread_Response"];
                             };
                         };

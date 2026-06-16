@@ -249,7 +249,7 @@ export async function readAgentWebMessagingPageInDirection<
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
             startCustomBlock: {
-                time: Date;
+                time: Date | null;
                 block: CustomBlock;
             } | null;
         }>;
@@ -389,7 +389,7 @@ export async function readAgentWebMessagingPageAroundMessage<
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
             startCustomBlock: {
-                time: Date;
+                time: Date | null;
                 block: CustomBlock;
             } | null;
         }>;
@@ -544,7 +544,7 @@ function buildAgentWebMessagingPageFromApiMessages<
             pageLink: AgentWebMessagingPagePaginationPageLink;
             preamble: Preamble;
             startCustomBlock: {
-                time: Date;
+                time: Date | null;
                 block: CustomBlock;
             } | null;
         };
@@ -577,18 +577,20 @@ function buildAgentWebMessagingPageFromApiMessages<
     const insertTimeBlockAfterMinutesSinceLastMessage = 60;
 
     if (isStartOfMessages && roomMetadata.startCustomBlock !== null) {
-        const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
-            defaultLocale,
-            context.timeZone,
-            contextDate,
-            roomMetadata.startCustomBlock.time,
-            {withLongMonth: true},
-        );
+        if (roomMetadata.startCustomBlock.time !== null) {
+            const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                defaultLocale,
+                context.timeZone,
+                contextDate,
+                roomMetadata.startCustomBlock.time,
+                {withLongMonth: true},
+            );
 
-        blocks.push({
-            type: "Time",
-            timeContent: `${formattedTime} ${contextFormattedTimeZone}`,
-        });
+            blocks.push({
+                type: "Time",
+                timeContent: `${formattedTime} ${contextFormattedTimeZone}`,
+            });
+        }
 
         blocks.push(roomMetadata.startCustomBlock.block);
     }
@@ -598,7 +600,9 @@ function buildAgentWebMessagingPageFromApiMessages<
         const formattedTimeZone = formatTimeZoneAbbreviation(message.createdTimeZone, createdTime);
 
         const differenceInMinutesSinceLastMessage: number =
-            message.index === 0 && roomMetadata.startCustomBlock !== null
+            message.index === 0 &&
+            roomMetadata.startCustomBlock !== null &&
+            roomMetadata.startCustomBlock.time !== null
                 ? // If this is the first page of messages then get the difference in messages
                   // between this message and the start block.
                   differenceInMinutes(createdTime, roomMetadata.startCustomBlock.time)

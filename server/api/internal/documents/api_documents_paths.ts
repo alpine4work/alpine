@@ -51,7 +51,10 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
+import {
+    getDocumentContentTitle,
+    getDocumentContentTitleWithoutFallback,
+} from "~/shared/documents/document_model.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -357,6 +360,11 @@ export const apiDocumentsPaths: Pick<
             return {
                 content: {
                     spaceId: commentThread.spaceId,
+                    document: {
+                        reference: {
+                            title: getDocumentContentTitle(documentContent.content),
+                        },
+                    },
                     thread: {
                         id: commentThread.id,
                         createdTime: serializeDateString(commentThread.createdTime),

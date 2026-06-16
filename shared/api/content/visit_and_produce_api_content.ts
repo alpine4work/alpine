@@ -6,11 +6,14 @@ import {
     visitApiContentBlockElement,
     visitApiContentInlineElements,
 } from "~/shared/api/content/visit_api_content.js";
+import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
+    ApiContentMentionInlineElement,
+    ApiContentPreviewBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
 export type ApiContentDraftVisitor = {
@@ -25,6 +28,12 @@ export type ApiContentDraftVisitor = {
     readonly visitInlineElementMark?: (
         mark: Draft<ApiContentInlineElementMark>,
         context: {marks: Draft<ReadonlyArray<ApiContentInlineElementMark>>; index: number},
+    ) => void;
+    readonly visitReference?: (
+        reference: Draft<ApiReference>,
+        context: {
+            element: Draft<ApiContentMentionInlineElement> | Draft<ApiContentPreviewBlockElement>;
+        },
     ) => void;
 };
 
