@@ -1216,6 +1216,7 @@ async function parseAgentWebMessagingPagePaginationLink(
 
     switch (pageLink.type) {
         case "Chat":
+        case "DocumentThread":
         case "Post":
         case "TaskMessageList": {
             // Ok!
