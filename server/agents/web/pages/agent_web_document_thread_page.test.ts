@@ -99,7 +99,7 @@ async function printAgentWebDocumentThreadPageForTest(
 
 const previewBlock: AgentWebDocumentThreadPageCustomBlock = {
     type: "Custom",
-    tagName: "document_preview",
+    tagName: "document-preview",
     timeAttribute: null,
     content: content([paragraph([text("Preview body.")])]),
 };
@@ -125,11 +125,11 @@ runAgentWebPageTests<AgentWebPageDocumentThreadRoutedLink, AgentWebDocumentThrea
             markdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document_preview>
+<document-preview>
 
 Please review this section today.
 
-</document_preview>
+</document-preview>
 
 <time>May 14th at 10:55am EDT</time>
 
@@ -169,20 +169,20 @@ End of comments.
             markdown: `\
 Document thread on [Launch Spec](/document/launch-spec).
 
-<document_preview>
+<document-preview>
 
 Preview body.
 
-</document_preview>
+</document-preview>
 `,
             printMarkdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document_preview>
+<document-preview>
 
 Preview body.
 
-</document_preview>
+</document-preview>
 `,
             page: {
                 type: "DocumentThread",
@@ -267,13 +267,13 @@ First comment.
             name: "document thread page with custom pagination links",
             pageLink,
             markdown: `\
-Document comment thread on [Launch Spec](/document/launch-spec). [« Previous page](/document/launch-spec/comments/1?before=document_preview) | [Next page »](/document/launch-spec/comments/1?after=document_preview)
+Document comment thread on [Launch Spec](/document/launch-spec). [« Previous page](/document/launch-spec/comments/1?before=document-preview) | [Next page »](/document/launch-spec/comments/1?after=document-preview)
 
-<document_preview>
+<document-preview>
 
 Preview body.
 
-</document_preview>
+</document-preview>
 
 <time>May 14th at 10:55am EDT</time>
 
@@ -291,8 +291,8 @@ First comment.
                 },
                 pagination: {
                     pageLink,
-                    previousLink: {type: "Custom", beforeTagName: "document_preview"},
-                    nextLink: {type: "Custom", afterTagName: "document_preview"},
+                    previousLink: {type: "Custom", beforeTagName: "document-preview"},
+                    nextLink: {type: "Custom", afterTagName: "document-preview"},
                 },
                 isEndOfMessages: false,
                 blocks: [
@@ -312,11 +312,11 @@ First comment.
             markdown: `\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
-<document_preview>
+<document-preview>
 
 Please <comment>review this section</comment> today.
 
-</document_preview>
+</document-preview>
 `,
             page: {
                 type: "DocumentThread",
@@ -329,7 +329,7 @@ Please <comment>review this section</comment> today.
                 blocks: [
                     {
                         type: "Custom",
-                        tagName: "document_preview",
+                        tagName: "document-preview",
                         timeAttribute: null,
                         content: content([
                             paragraph([
@@ -359,18 +359,18 @@ First comment.
 
 </comment>
 
-<document_preview>
+<document-preview>
 
 Preview body.
 
-</document_preview>
+</document-preview>
 `,
             setupStorage: async storage => {
                 await seedDocumentThreadStorage(storage, pageLink);
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
-                "There must be only one `<document_preview>` immediately after the first line which states what document the thread is on (e.g. `Document thread on [My Document](/document/my-document).`). Try again with one `<document_preview>` at the start of the markdown.",
+                "There must be only one `<document-preview>` immediately after the first line which states what document the thread is on (e.g. `Document thread on [My Document](/document/my-document).`). Try again with one `<document-preview>` at the start of the markdown.",
             createParseError: "NOCOMMIT",
         },
     ],

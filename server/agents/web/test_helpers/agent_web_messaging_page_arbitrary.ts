@@ -13,11 +13,12 @@ import {
     ApiChatReferenceArbitrary,
     ApiContentTextArbitrary,
     ApiContentWithoutCommentMarkArbitrary,
+    ApiDocumentReferenceArbitrary,
     ApiTaskReferenceArbitrary,
     createIdArbitrary,
     createUnionArbitrary,
 } from "~/shared/api/markdown/test_helpers/api_content_arbitrary.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, PostId} from "~/shared/id/types/id_types.js";
 
 export const AgentWebMessagingPageTimeBlockArbitrary: Arbitrary<AgentWebMessagingPageTimeBlock> =
     fc.record({
@@ -72,6 +73,11 @@ export const AgentWebMessagingPageBlockArbitrary = createUnionArbitrary<
 export const AgentWebMessagingPagePaginationPageLinkArbitrary =
     createUnionArbitrary<AgentWebMessagingPagePaginationPageLink>({
         Chat: ApiChatReferenceArbitrary,
+        DocumentThread: fc.record({
+            type: fc.constant("DocumentThread"),
+            document: ApiDocumentReferenceArbitrary,
+            threadId: createIdArbitrary<DocumentCommentThreadId>(),
+        }),
         Post: fc.record({
             type: fc.constant("Post"),
             id: createIdArbitrary<PostId>(),

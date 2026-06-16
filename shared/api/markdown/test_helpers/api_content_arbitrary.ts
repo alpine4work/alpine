@@ -43,6 +43,7 @@ import {
     ApiContentTableBlockElementResponse,
     ApiContentTextInlineElement,
     ApiContentUnorderedListBlockElementResponse,
+    ApiDocumentReferenceResponse,
     ApiMentionReferenceResponse,
     ApiPreviewReferenceResponse,
     ApiTaskReferenceResponse,
@@ -115,6 +116,12 @@ export const ApiChatReferenceArbitrary: fc.Arbitrary<ApiChatReferenceResponse> =
     title: ApiContentTextArbitrary,
 });
 
+export const ApiDocumentReferenceArbitrary: fc.Arbitrary<ApiDocumentReferenceResponse> = fc.record({
+    type: fc.constant("Document"),
+    id: createIdArbitrary<DocumentId>(),
+    title: ApiContentTextArbitrary,
+});
+
 export const ApiTaskReferenceArbitrary: fc.Arbitrary<ApiTaskReferenceResponse> = fc.record({
     type: fc.constant("Task"),
     id: createIdArbitrary<TaskId>(),
@@ -129,11 +136,7 @@ export const ApiTaskReferenceArbitrary: fc.Arbitrary<ApiTaskReferenceResponse> =
 const ApiPreviewReferenceArbitraries = {
     Channel: ApiChannelReferenceArbitrary,
     Chat: ApiChatReferenceArbitrary,
-    Document: fc.record({
-        type: fc.constant("Document"),
-        id: createIdArbitrary<DocumentId>(),
-        title: ApiContentTextArbitrary,
-    }),
+    Document: ApiDocumentReferenceArbitrary,
     Post: fc.record({
         type: fc.constant("Post"),
         id: createIdArbitrary<PostId>(),

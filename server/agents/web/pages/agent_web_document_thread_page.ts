@@ -29,7 +29,7 @@ import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiDocumentReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {mapMaybePromise} from "~/shared/helpers/async/map_maybe_promise.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -83,7 +83,7 @@ export type AgentWebDocumentThreadPageMetadata = AgentWebMessagingPageMetadata &
 
 export type AgentWebDocumentThreadPageCustomBlock = {
     readonly type: "Custom";
-    readonly tagName: "document_preview";
+    readonly tagName: "document-preview";
     readonly timeAttribute: null;
     readonly content: ApiContentResponseWithoutKeys;
 };
@@ -148,13 +148,13 @@ export async function readAgentWebDocumentThreadPage(
 
     const searchParams = new URLSearchParams(originalSearchParams);
 
-    if (searchParams.get("after") === "document_preview") {
+    if (searchParams.get("after") === "document-preview") {
         excludesDocumentPreview = true;
         searchParams.delete("after");
         searchParams.set("start", "");
     }
 
-    if (searchParams.get("before") === "document_preview") {
+    if (searchParams.get("before") === "document-preview") {
         excludesDocumentPreview = true;
         searchParams.set("before", "0");
     }
@@ -175,7 +175,7 @@ export async function readAgentWebDocumentThreadPage(
     };
 
     const roomMetadataWithStartCustomBlock = new Lazy<Promise<RoomMetadata>>(async () => {
-        // If `excludesDocumentPreview` is set then never return a `<document_preview>`
+        // If `excludesDocumentPreview` is set then never return a `<document-preview>`
         // start block.
         if (excludesDocumentPreview) return await roomMetadataWithoutStartCustomBlock.get();
 
@@ -205,7 +205,7 @@ export async function readAgentWebDocumentThreadPage(
                 time: null,
                 block: {
                     type: "Custom",
-                    tagName: "document_preview",
+                    tagName: "document-preview",
                     timeAttribute: null,
                     // Make sure we only include comment marks in the preview for the current thread.
                     content: visitAndProduceApiContent(thread.documentContentSnippet, {
@@ -479,7 +479,7 @@ export async function updateAgentWebDocumentThreadPage(
             }
 
             throw new InvalidArgumentError("Can\u2019t update document preview", {
-                displayMessage: errorDisplayMessage`You can\u2019t update the \`<document_preview>\` in document thread markdown. The document preview is read-only context from the document. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+                displayMessage: errorDisplayMessage`You can\u2019t update the \`<document-preview>\` in document thread markdown. The document preview is read-only context from the document. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
             });
         },
     });
@@ -494,6 +494,32 @@ export async function printAgentWebDocumentThreadPage(
     pageLink: AgentWebPageDocumentThreadRoutedLink,
     page: AgentWebDocumentThreadPage,
 ): Promise<Root> {
+    // Get the number for the comment thread. If there's not currently a number for
+    // this thread then we'll generate the next number in the sequence.
+    const threadNumber = await storage.mutex.withLock(async () => {
+        const id: `${DocumentId}-${DocumentCommentThreadId}` = `${pageLink.document.id}-${pageLink.threadId}`;
+
+        let number = await storage.documentCommentThreadNumberById.get(id);
+
+        // Make a `list()` call to figure out the total number of comment threads we've
+        // seen and use a comment thread number that's one more than that.
+        if (number === undefined) {
+            const threads = await storage.documentCommentThreadNumberById.list({
+                prefix: `${pageLink.document.id}-`,
+            });
+
+            number = threads.size + 1;
+
+            await storage.documentCommentThreadNumberById.put(id, number);
+            await storage.documentCommentThreadIdByNumber.put(
+                `${pageLink.document.id}-${number}`,
+                pageLink.threadId,
+            );
+        }
+
+        return number;
+    });
+
     return await printAgentWebMessagingPage<
         AgentWebPageDocumentThreadRoutedLink,
         AgentWebDocumentThreadPagePreamble,
@@ -529,7 +555,7 @@ export async function printAgentWebDocumentThreadPage(
                     // only `<comment>` tag.
                     if (childNode.type === "html") {
                         childNode.value = childNode.value.replaceAll(
-                            /<comment [^>]*>/g,
+                            `<comment id="${threadNumber}">`,
                             "<comment>",
                         );
                     }
@@ -545,9 +571,9 @@ export async function printAgentWebDocumentThreadPage(
             return {
                 type: "root",
                 children: [
-                    {type: "html", value: "<document_preview>"},
+                    {type: "html", value: "<document-preview>"},
                     ...contentTree.children,
-                    {type: "html", value: "</document_preview>"},
+                    {type: "html", value: "</document-preview>"},
                 ],
             };
         },
@@ -559,12 +585,18 @@ export async function parseAgentWebDocumentThreadPage(
     pageLink: AgentWebPageDocumentThreadRoutedLink | null,
     root: Root,
 ): Promise<AgentWebDocumentThreadPage> {
-    if (pageLink === null) throw new UnimplementedError("NOCOMMIT");
+    if (pageLink === null)
+        throw new InvalidArgumentError("NOCOMMIT", {displayMessage: errorDisplayMessage`NOCOMMIT`});
 
+    // We expect `printAgentWebDocumentThreadPage()`,
+    // `createAgentWebPageRoutedLinkPathname()`, or
+    // `printApiContentToAgentWebMarkdown()` to generate a thread number for this
+    // thread by this point. We don't want the parser to mutate storage.
     const threadNumber = assertExists(
         await storage.documentCommentThreadNumberById.get(
             `${pageLink.document.id}-${pageLink.threadId}`,
         ),
+        "Document comment thread number hasn't been generated for this thread yet",
     );
 
     const page = await parseAgentWebMessagingPage(storage, pageLink, root, {
@@ -597,14 +629,14 @@ export async function parseAgentWebDocumentThreadPage(
 
             const [firstElement, secondElement] = actualElements;
 
-            if (firstElement?.type !== "Text" || secondElement?.type !== "Mention") {
+            if (firstElement?.type !== "Text" || secondElement?.type !== "Mention")
                 throw createError();
-            }
 
             if (secondElement.reference.type !== "Document") throw createError();
 
             if (
                 firstElement.text !== "Document comment thread on " &&
+                firstElement.text !== "Document comments thread on " &&
                 firstElement.text !== "Document thread on "
             ) {
                 throw createError();
@@ -613,7 +645,7 @@ export async function parseAgentWebDocumentThreadPage(
             return {document: secondElement.reference};
         },
         parseCustomBlockByTagName: {
-            document_preview: async (
+            "document-preview": async (
                 storage,
                 root,
             ): Promise<AgentWebDocumentThreadPageCustomBlock> => {
@@ -644,7 +676,7 @@ export async function parseAgentWebDocumentThreadPage(
 
                 return {
                     type: "Custom",
-                    tagName: "document_preview",
+                    tagName: "document-preview",
                     timeAttribute: null,
                     content,
                 };
@@ -655,7 +687,7 @@ export async function parseAgentWebDocumentThreadPage(
     const documentPreviewBlockIndexes: Array<number> = [];
 
     for (const [index, block] of page.blocks.entries()) {
-        if (block.type === "Custom" && block.tagName === "document_preview") {
+        if (block.type === "Custom" && block.tagName === "document-preview") {
             documentPreviewBlockIndexes.push(index);
         }
     }
@@ -674,7 +706,7 @@ export async function parseAgentWebDocumentThreadPage(
         throw new InvalidArgumentError(
             "Must only have one document preview block at start of head page",
             {
-                displayMessage: errorDisplayMessage`There must be only one \`<document_preview>\` immediately after the first line which states what document the thread is on (e.g. \`Document thread on [My Document](/document/my-document).\`). Try again with one \`<document_preview>\` at the start of the markdown.`,
+                displayMessage: errorDisplayMessage`There must be only one \`<document-preview>\` immediately after the first line which states what document the thread is on (e.g. \`Document thread on [My Document](/document/my-document).\`). Try again with one \`<document-preview>\` at the start of the markdown.`,
             },
         );
     }

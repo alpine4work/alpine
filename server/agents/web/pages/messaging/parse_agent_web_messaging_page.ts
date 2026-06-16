@@ -34,6 +34,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -192,11 +193,18 @@ async function actuallyParseAgentWebMessagingPage<
                         return;
                     }
 
+                    if (state?.type === "Custom") {
+                        hasUnknownHtml = true;
+                        return;
+                    }
+
                     switch (tagName) {
                         case messageNouns.noun: {
                             if (state) {
-                                const alreadyOpenTagName =
-                                    state.type === "Message" ? messageNouns.noun : state.tagName;
+                                // If there are other possible states here then `alreadyOpenTagName` may need to
+                                // match the tag in state.
+                                cast<"Message">(state.type);
+                                const alreadyOpenTagName = messageNouns.noun;
 
                                 throw new InvalidArgumentError("Invalid message element open tag", {
                                     displayMessage: errorDisplayMessage`Can\u2019t open a new \`<${messageNouns.noun}>\` on line ${node.position?.start.line ?? "unknown"}. There\u2019s already an open \`<${alreadyOpenTagName}>\` and you can\u2019t nest ${messageNouns.pluralNoun}.`,
