@@ -51,7 +51,12 @@ import {
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
 import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -226,6 +231,9 @@ function readAgentWebPageLink(
     },
 ): Promise<{response: string; metadata: AgentWebPageMetadata}> {
     switch (pageLink.type) {
+        case "Account": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
         case "Document": {
             return readAgentWebDocumentPage(context, pageLink.id, options);
         }
@@ -246,11 +254,29 @@ function readAgentWebPageLink(
                 options,
             );
         }
+        case "File": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
+        case "Channel": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
         case "Chat": {
             return readAgentWebChatPage(context, pageLink.id, options);
         }
         case "ChatMessage": {
             return readAgentWebChatMessagePage(context, pageLink.id, pageLink.index, options);
+        }
+        case "Post": {
+            return readAgentWebPostPage(context, pageLink.id, options);
+        }
+        case "PostMessage": {
+            return readAgentWebPostMessagePage(context, pageLink.id, pageLink.index, options);
+        }
+        case "Task": {
+            throw new UnimplementedError("NOCOMMIT");
+        }
+        case "TaskCollection": {
+            throw new UnimplementedError("NOCOMMIT");
         }
         case "TaskMessage": {
             return readAgentWebTaskMessageListMessagePage(
@@ -260,17 +286,13 @@ function readAgentWebPageLink(
                 options,
             );
         }
-        case "PostMessage": {
-            return readAgentWebPostMessagePage(context, pageLink.id, pageLink.index, options);
-        }
         case "TaskMessageList": {
             return readAgentWebTaskMessageListPage(context, pageLink.task.id, options);
         }
-        case "Post": {
-            return readAgentWebPostPage(context, pageLink.id, options);
+        case "Site": {
+            throw new UnimplementedError("NOCOMMIT");
         }
         default:
-            // @ts-expect-error: NOCOMMIT: Working on making this exhaustive
             throw exhaustive(pageLink);
     }
 }
