@@ -148,6 +148,7 @@ export function runAgentWebPageTests<PageLink, Page>({
                     } else {
                         throw new InternalError(
                             "Expected `parse()` to throw an error with a `displayMessage`",
+                            {cause: error},
                         );
                     }
 
@@ -198,6 +199,7 @@ export function runAgentWebPageTests<PageLink, Page>({
                     } else {
                         throw new InternalError(
                             "Expected `parse()` to throw an error with a `displayMessage`",
+                            {cause: error},
                         );
                     }
 

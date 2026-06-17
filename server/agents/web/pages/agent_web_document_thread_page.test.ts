@@ -1,6 +1,4 @@
-import {Root} from "mdast";
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
 import {
     AgentWebDocumentThreadPage,
@@ -345,7 +343,15 @@ Preview body.
 </document-preview>
 `,
             setupStorage: async storage => {
-                await seedDocumentThreadStorage(storage, pageLink);
+                await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
+                await storage.documentCommentThreadNumberById.put(
+                    `${pageLink.document.id}-${pageLink.threadId}`,
+                    1,
+                );
+                await storage.documentCommentThreadIdByNumber.put(
+                    `${pageLink.document.id}-1`,
+                    pageLink.threadId,
+                );
                 await createAgentWebPageStoredLinkPathname(storage, bobReference);
             },
             parseError:
