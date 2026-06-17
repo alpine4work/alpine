@@ -1,4 +1,4 @@
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {
     ApiAccount,
     ApiContentResponse,

@@ -1,5 +1,5 @@
 import {Mark, Node} from "prosemirror-model";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/compute_api_content_file_row_widths.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";

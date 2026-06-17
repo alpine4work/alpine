@@ -4,7 +4,7 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {AgentMessage} from "~/server/agents/bots/internal/messages/agent_message.js";
 import {printAgentMessagesLog} from "~/server/agents/bots/internal/messages/print_agent_messages_log.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiAccount,

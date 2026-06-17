@@ -1,6 +1,6 @@
 import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
 import {produce} from "immer";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/markdown/normalize_api_content.js";

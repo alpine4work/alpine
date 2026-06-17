@@ -23,7 +23,7 @@ import {
 } from "~/server/agents/bots/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {AgentUsageDatabaseInterface} from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/bots/internal/open_ai_client.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

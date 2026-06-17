@@ -4,7 +4,7 @@ import {intoApiMessageStreamPartPayload} from "~/server/api/internal/shared/into
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {resolveFilesForApiResponse} from "~/server/files/data/resolve_files_for_api_response.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {
     ApiMessageContentPayloadParentResponse,
     ApiMessagePayloadResponse,

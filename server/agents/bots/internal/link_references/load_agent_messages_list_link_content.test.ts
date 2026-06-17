@@ -7,7 +7,7 @@ import {AgentPaginatedMessagesListLink} from "~/server/agents/bots/internal/link
 import {createAgentLink} from "~/server/agents/bots/internal/link_references/agent_link_collection.js";
 import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkContent} from "~/server/agents/bots/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
