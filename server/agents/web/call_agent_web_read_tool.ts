@@ -73,7 +73,7 @@ export async function callAgentWebReadTool(
     // limit.
     const limitLength = parseAgentWebBytes(limitBytesString);
 
-    return getOrSetDefaultMapValue(
+    return await getOrSetDefaultMapValue(
         context.storage.readResponseMutexByPath,
         path,
         () => new Mutex(),
