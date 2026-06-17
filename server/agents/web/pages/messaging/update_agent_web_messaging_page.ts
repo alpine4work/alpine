@@ -380,7 +380,7 @@ export async function updateAgentWebMessagingPage<
         throw new InvalidArgumentError(
             "Can\u2019t change whether this page is the end of messages or not",
             {
-                displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} list or not. Try again without adding the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker.`,
+                displayMessage: errorDisplayMessage`Can\u2019t add the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker in an update. Only a \`read\` tool call can tell you whether you\u2019re at the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"} or not. Try again without adding the \u201CEnd of ${messageNouns.pluralNoun}\u201D marker.`,
             },
         );
     }
@@ -391,7 +391,7 @@ export async function updateAgentWebMessagingPage<
         const actualPathname = await unwrapMaybeThunk(pathname);
 
         throw new InvalidArgumentError("Can only create messages on the last page", {
-            displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` after all other ${messageNouns.pluralNoun} (${messageNouns.pluralNoun} are in chronological order). Look for \u201CEnd of ${messageNouns.pluralNoun}\u201D to know when you\u2019re at the end of a ${messageNouns.noun} list. Call the \`read\` tool with \`${actualPathname}?end\` to jump to the end of a ${messageNouns.noun} list.`,
+            displayMessage: errorDisplayMessage`You can only add a \`<${messageNouns.noun}>\` after all other ${messageNouns.pluralNoun} (${messageNouns.pluralNoun} are in chronological order). Look for \u201CEnd of ${messageNouns.pluralNoun}\u201D to know when you\u2019re at the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"}. Call the \`read\` tool with \`${actualPathname}?end\` to jump to the end of a ${messageNouns.noun} ${messageNouns.noun === "comment" ? "section" : "list"}.`,
         });
     }
 

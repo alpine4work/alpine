@@ -638,7 +638,7 @@ test("rejects creating comments before the end of the post comments", async () =
             },
         ],
         expected:
-            "You can only add a `<comment>` after all other comments (comments are in chronological order). Look for \u201cEnd of comments\u201d to know when you\u2019re at the end of a comment list. Call the `read` tool with `/post/launch?end` to jump to the end of a comment list.",
+            "You can only add a `<comment>` after all other comments (comments are in chronological order). Look for \u201cEnd of comments\u201d to know when you\u2019re at the end of a comment section. Call the `read` tool with `/post/launch?end` to jump to the end of a comment section.",
     });
 });
 
@@ -708,7 +708,7 @@ test("rejects adding the end marker to a non-final comments page", async () => {
             },
         ],
         expected:
-            "Can\u2019t add the \u201cEnd of comments\u201d marker in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a comment list or not. Try again without adding the \u201cEnd of comments\u201d marker.",
+            "Can\u2019t add the \u201cEnd of comments\u201d marker in an update. Only a `read` tool call can tell you whether you\u2019re at the end of a comment section or not. Try again without adding the \u201cEnd of comments\u201d marker.",
     });
 });
 
