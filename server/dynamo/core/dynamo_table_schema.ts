@@ -4146,15 +4146,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             sortKeyAttributes: config.sortKeyAttributes as any,
 
             serializeOpaquePartitionKey: partitionKey =>
-                this.#serializeOpaqueIndexPartitionKey(indexConfig, partitionKey),
+                this._serializeOpaqueIndexPartitionKey(indexConfig, partitionKey),
             deserializeOpaquePartitionKey: partitionKey =>
-                this.#deserializeOpaqueIndexPartitionKey(indexConfig, partitionKey) as any,
+                this._deserializeOpaqueIndexPartitionKey(indexConfig, partitionKey) as any,
             serializeOpaqueCursor: itemKey =>
-                this.#serializeOpaqueIndexCursor(indexConfig, itemKey),
+                this._serializeOpaqueIndexCursor(indexConfig, itemKey),
             deserializeOpaqueCursor: (partitionKey, cursor) =>
-                this.#deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor),
+                this._deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor),
             serializeOpaqueCursorBound: (itemKey, boundType) =>
-                this.#serializeOpaqueIndexCursorBound(indexConfig, itemKey, boundType),
+                this._serializeOpaqueIndexCursorBound(indexConfig, itemKey, boundType),
 
             async *query(
                 context,
@@ -4345,15 +4345,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             sortKeyAttributes: config.sortKeyAttributes as any,
 
             serializeOpaquePartitionKey: partitionKey =>
-                this.#serializeOpaqueIndexPartitionKey(indexConfig, partitionKey),
+                this._serializeOpaqueIndexPartitionKey(indexConfig, partitionKey),
             deserializeOpaquePartitionKey: partitionKey =>
-                this.#deserializeOpaqueIndexPartitionKey(indexConfig, partitionKey) as any,
+                this._deserializeOpaqueIndexPartitionKey(indexConfig, partitionKey) as any,
             serializeOpaqueCursor: itemKey =>
-                this.#serializeOpaqueIndexCursor(indexConfig, itemKey),
+                this._serializeOpaqueIndexCursor(indexConfig, itemKey),
             deserializeOpaqueCursor: (partitionKey, cursor) =>
-                this.#deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor),
+                this._deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor),
             serializeOpaqueCursorBound: (itemKey, boundType) =>
-                this.#serializeOpaqueIndexCursorBound(indexConfig, itemKey, boundType),
+                this._serializeOpaqueIndexCursorBound(indexConfig, itemKey, boundType),
 
             async *query(
                 context,
@@ -4893,8 +4893,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return key;
     }
 
-    #serializeOpaqueIndexPartitionKey(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _serializeOpaqueIndexPartitionKey(
+        indexConfig: Pick<DynamoTableSchemaIndexConfig, "partitionKeyAttributes">,
         partitionKey: {[key: string]: unknown},
     ): DynamoIndexPartitionKey {
         let totalByteCount = 0;
@@ -4929,7 +4929,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // In development and test environments, make sure we can deserialize our opaque
         // keys.
         if (process.env.NODE_ENV !== "production") {
-            const deserializedKey = this.#deserializeOpaqueIndexPartitionKey(
+            const deserializedKey = this._deserializeOpaqueIndexPartitionKey(
                 indexConfig,
                 partitionKeyString,
             );
@@ -4945,8 +4945,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return partitionKeyString;
     }
 
-    #deserializeOpaqueIndexPartitionKey(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _deserializeOpaqueIndexPartitionKey(
+        indexConfig: Pick<DynamoTableSchemaIndexConfig, "partitionKeyAttributes">,
         partitionKeyString: DynamoIndexPartitionKey,
     ): {[key: string]: unknown} {
         assert(this.#state.isInitialized, "Schema has not finished initializing");
@@ -4993,8 +4993,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     // Both these use cases do not need a partition key. For 1 we should provide the
     // partition key alongside the cursor anyway and for 2 the partition key does not
     // contribute to order.
-    #serializeOpaqueIndexCursor(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _serializeOpaqueIndexCursor(
+        indexConfig: Pick<
+            DynamoTableSchemaIndexConfig,
+            "partitionKeyAttributes" | "sortKeyAttributes"
+        >,
         item: {[key: string]: unknown},
     ): DynamoIndexCursor {
         assert(this.#state.isInitialized, "Schema has not finished initializing");
@@ -5131,7 +5134,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // In development and test environments, make sure we can deserialize our opaque
         // keys.
         if (process.env.NODE_ENV !== "production") {
-            const deserializedKey = this.#deserializeOpaqueIndexCursor(
+            const deserializedKey = this._deserializeOpaqueIndexCursor(
                 indexConfig,
                 item,
                 opaqueString,
@@ -5148,8 +5151,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return opaqueString;
     }
 
-    #deserializeOpaqueIndexCursor(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _deserializeOpaqueIndexCursor(
+        indexConfig: Pick<
+            DynamoTableSchemaIndexConfig,
+            "partitionKeyAttributes" | "sortKeyAttributes"
+        >,
         partitionKey: {[key: string]: any},
         opaqueString: DynamoIndexCursor,
     ) {
@@ -5265,8 +5271,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
     }
 
-    #serializeOpaqueIndexCursorBound(
-        indexConfig: DynamoTableSchemaIndexConfig,
+    _serializeOpaqueIndexCursorBound(
+        indexConfig: Pick<
+            DynamoTableSchemaIndexConfig,
+            "partitionKeyAttributes" | "sortKeyAttributes"
+        >,
         item: {[key: string]: unknown},
         boundType: "StartExclusive" | "StartInclusive" | "EndExclusive" | "EndInclusive",
     ): string {

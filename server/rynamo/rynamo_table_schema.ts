@@ -45,6 +45,7 @@ import {
     UnimplementedError,
 } from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -53,13 +54,15 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {
@@ -274,8 +277,10 @@ const rynamoPrivatePartitionEventExpirationDays = 7;
 export const rynamoBackfillSafetyWindowMinutes = 3;
 
 type RynamoInternalIndex = {
+    readonly isStrongConsistency: boolean;
     readonly canReuseTablePartitionKeyForRealtimeKey: boolean;
     readonly dynamicPartitionKeyAttributeNames: ReadonlyArray<string>;
+    readonly keyAttributeNames: ReadonlyArray<string>;
     readonly serializeOpaquePartitionKey: (partitionKey: unknown) => DynamoIndexPartitionKey;
     readonly serializeOpaqueCursor: (itemKey: unknown) => DynamoIndexCursor;
 };
@@ -771,10 +776,13 @@ export class RynamoTableSchema<
         oldItem: Item | null;
         newItem: Item;
         newVersion: number;
-    }): RynamoPutItemAction<
-        Item & Types["ItemKey"],
-        ModelMap[Item["partitionType"]][Item["sortRangeType"]]
-    > {
+    }): {
+        action: RynamoPutItemAction<
+            Item & Types["ItemKey"],
+            ModelMap[Item["partitionType"]][Item["sortRangeType"]]
+        >;
+        transactionEntries: Array<DynamoTransactionEntry>;
+    } {
         const itemType = `${newItem.partitionType}#${newItem.sortRangeType}`;
         const {getPartitionKey, getSortKey, key} =
             this.#table.serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(newItem);
@@ -795,6 +803,13 @@ export class RynamoTableSchema<
         let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
         let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
 
+        const indexes = new Map<
+            string,
+            {partitionKey: DynamoIndexPartitionKey; cursor: DynamoIndexCursor}
+        >();
+
+        const transactionEntries: Array<DynamoTransactionEntry> = [];
+
         if (indexByName) {
             for (const [indexName, index] of indexByName) {
                 if (oldItem !== null) {
@@ -805,24 +820,57 @@ export class RynamoTableSchema<
                     );
                 }
 
+                const newPartitionKey = index.serializeOpaquePartitionKey(newItem);
+
                 newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(
-                    indexName,
-                    index.serializeOpaquePartitionKey(newItem),
-                );
-            }
-        }
+                newPartitionKeyByIndexName.set(indexName, newPartitionKey);
 
-        const indexes = new Map<
-            string,
-            {partitionKey: DynamoIndexPartitionKey; cursor: DynamoIndexCursor}
-        >();
+                const newCursor = index.serializeOpaqueCursor(newItem);
+                indexes.set(indexName, {partitionKey: newPartitionKey, cursor: newCursor});
 
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                const partitionKey = assertExists(newPartitionKeyByIndexName?.get(indexName));
-                const cursor = index.serializeOpaqueCursor(newItem);
-                indexes.set(indexName, {partitionKey, cursor});
+                // If this is a strong consistency index then we need to create or delete index
+                // items in the same transaction. The caller is expected to add
+                // `transactionEntries` to their update.
+                if (index.isStrongConsistency) {
+                    const newItemIndexKeyAttributes = pickObject(newItem, index.keyAttributeNames);
+
+                    if (oldItem === null) {
+                        transactionEntries.push(
+                            this.#table.transactionCreateOrReplaceItem({
+                                ...newItemIndexKeyAttributes,
+                                partitionType: indexName,
+                                sortRangeType: "Index",
+                                actualPartitionType: newItem.partitionType,
+                                actualSortRangeType: newItem.sortRangeType,
+                            }),
+                        );
+                    } else {
+                        const oldItemIndexKeyAttributes = pickObject(
+                            oldItem,
+                            index.keyAttributeNames,
+                        );
+
+                        if (!isDeepEqual(oldItemIndexKeyAttributes, newItemIndexKeyAttributes)) {
+                            transactionEntries.push(
+                                this.#table.transactionDeleteItemIfExists({
+                                    ...oldItemIndexKeyAttributes,
+                                    partitionType: indexName,
+                                    sortRangeType: "Index",
+                                }),
+                            );
+
+                            transactionEntries.push(
+                                this.#table.transactionCreateOrReplaceItem({
+                                    ...newItemIndexKeyAttributes,
+                                    partitionType: indexName,
+                                    sortRangeType: "Index",
+                                    actualPartitionType: newItem.partitionType,
+                                    actualSortRangeType: newItem.sortRangeType,
+                                }),
+                            );
+                        }
+                    }
+                }
             }
         }
 
@@ -846,28 +894,34 @@ export class RynamoTableSchema<
         };
 
         return {
-            type: "PutItem",
-            itemKey: newItem as Item & Types["ItemKey"],
-            getPartitionKey,
-            getSortKey,
-            indexByName,
-            oldPartitionKeyByIndexName,
-            newPartitionKeyByIndexName,
-            eventStub: {
+            action: {
                 type: "PutItem",
-                item: {key, version: newVersion},
+                itemKey: newItem as Item & Types["ItemKey"],
+                getPartitionKey,
+                getSortKey,
+                indexByName,
+                oldPartitionKeyByIndexName,
+                newPartitionKeyByIndexName,
+                eventStub: {
+                    type: "PutItem",
+                    item: {key, version: newVersion},
+                },
+                getEvent: async context => ({
+                    type: "PutItem",
+                    item: {key, version: newVersion, model: await getModel(context)},
+                    indexes,
+                }),
             },
-            getEvent: async context => ({
-                type: "PutItem",
-                item: {key, version: newVersion, model: await getModel(context)},
-                indexes,
-            }),
+            transactionEntries,
         };
     }
 
     #createDeleteItemAction<Item extends Types["Item"]>(
         item: Item,
-    ): RynamoDeleteItemAction<Item & Types["ItemKey"]> {
+    ): {
+        action: RynamoDeleteItemAction<Item & Types["ItemKey"]>;
+        transactionEntries: Array<DynamoTransactionEntry>;
+    } {
         if (!this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
                 `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
@@ -884,10 +938,22 @@ export class RynamoTableSchema<
 
         let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
 
+        const transactionEntries: Array<DynamoTransactionEntry> = [];
+
         if (indexByName) {
             for (const [indexName, index] of indexByName) {
                 oldPartitionKeyByIndexName ??= new Map();
                 oldPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
+
+                if (index.isStrongConsistency) {
+                    transactionEntries.push(
+                        this.#table.transactionDeleteItemIfExists({
+                            ...pickObject(item, index.keyAttributeNames),
+                            partitionType: indexName,
+                            sortRangeType: "Index",
+                        }),
+                    );
+                }
             }
         }
 
@@ -904,15 +970,18 @@ export class RynamoTableSchema<
         };
 
         return {
-            type: "DeleteItem",
-            itemKey: item as Item & Types["ItemKey"],
-            getPartitionKey,
-            getSortKey,
-            indexByName,
-            oldPartitionKeyByIndexName,
-            newPartitionKeyByIndexName: undefined,
-            eventStub: event,
-            event,
+            action: {
+                type: "DeleteItem",
+                itemKey: item as Item & Types["ItemKey"],
+                getPartitionKey,
+                getSortKey,
+                indexByName,
+                oldPartitionKeyByIndexName,
+                newPartitionKeyByIndexName: undefined,
+                eventStub: event,
+                event,
+            },
+            transactionEntries,
         };
     }
 
@@ -950,17 +1019,14 @@ export class RynamoTableSchema<
             };
         }
 
-        const action = this.#createPutItemAction({
+        const {action, transactionEntries} = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        if (!this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
-            await this.#table.createItem(context, item, options);
-        } else {
-            await DynamoTableSchema.executeTransaction(context, [
-                this.#table.transactionCreateItem(item, options),
+        if (this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+            transactionEntries.push(
                 this.#table.transactionDoesNotExistConditionCheck(
                     cast<RynamoPrivateGraveyardPartitionItemKey>({
                         partitionType: rynamoPrivateGraveyardPartitionName,
@@ -969,6 +1035,15 @@ export class RynamoTableSchema<
                         deletedSortKey: action.getSortKey(),
                     }),
                 ),
+            );
+        }
+
+        if (transactionEntries.length === 0) {
+            await this.#table.createItem(context, item, options);
+        } else {
+            await DynamoTableSchema.executeTransaction(context, [
+                this.#table.transactionCreateItem(item, options),
+                ...transactionEntries,
             ]);
         }
 
@@ -1066,7 +1141,7 @@ export class RynamoTableSchema<
             );
         }
 
-        const action = this.#createPutItemAction({
+        const {action, transactionEntries} = this.#createPutItemAction({
             oldItem: newItem.oldItem,
             newItem,
             newVersion: (newItem.updateLockVersion ?? 0) + 1,
@@ -1104,17 +1179,13 @@ export class RynamoTableSchema<
             condition = actualCondition as any;
         }
 
-        if (
-            !this.#features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
-            (typeof newItem.updateLockVersion === "number" && newItem.updateLockVersion !== 0)
-        ) {
-            await this.#table.directlyUpdateItem(context, newItem, {condition});
-        }
         // If we're creating the item then we need to make sure it doesn't have a
         // gravestone.
-        else {
-            await DynamoTableSchema.executeTransaction(context, [
-                this.#table.transactionDirectlyUpdateItem(newItem, {condition}),
+        if (
+            this.#features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] &&
+            (typeof newItem.updateLockVersion !== "number" || newItem.updateLockVersion === 0)
+        ) {
+            transactionEntries.push(
                 this.#table.transactionDoesNotExistConditionCheck(
                     cast<RynamoPrivateGraveyardPartitionItemKey>({
                         partitionType: rynamoPrivateGraveyardPartitionName,
@@ -1123,6 +1194,15 @@ export class RynamoTableSchema<
                         deletedSortKey: action.getSortKey(),
                     }),
                 ),
+            );
+        }
+
+        if (transactionEntries.length === 0) {
+            await this.#table.directlyUpdateItem(context, newItem, {condition});
+        } else {
+            await DynamoTableSchema.executeTransaction(context, [
+                this.#table.transactionDirectlyUpdateItem(newItem, {condition}),
+                ...transactionEntries,
             ]);
         }
 
@@ -1203,11 +1283,15 @@ export class RynamoTableSchema<
 
             // Update was short-circuited.
             if (item === newItem) {
-                const action = this.#createPutItemAction({
-                    oldItem: null,
+                const {action, transactionEntries} = this.#createPutItemAction({
+                    oldItem: item,
                     newItem: item,
                     newVersion: newItem.updateLockVersion ?? 0,
                 });
+
+                // This was a noop, we shouldn't have any extra transaction entries from this
+                // update.
+                assert(transactionEntries.length === 0);
 
                 return {
                     getEvent: async context => {
@@ -1269,7 +1353,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const action = this.#createDeleteItemAction(item);
+        const {action, transactionEntries} = this.#createDeleteItemAction(item);
 
         let condition: DynamoCondition<Item> | undefined;
 
@@ -1306,6 +1390,7 @@ export class RynamoTableSchema<
                     updateLockVersion: action.eventStub.item.version,
                 }),
             ),
+            ...transactionEntries,
         ]);
 
         context.process.waitUntil(this.#broadcastActionTransaction(context, [action]));
@@ -1396,13 +1481,13 @@ export class RynamoTableSchema<
             updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
         };
 
-        const action = this.#createPutItemAction({
+        const {action, transactionEntries} = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        await DynamoTableSchema.executeTransaction(context, [
+        transactionEntries.push(
             this.#table.transactionDeleteItem(
                 cast<RynamoPrivateGraveyardPartitionItem>({
                     partitionType: rynamoPrivateGraveyardPartitionName,
@@ -1412,8 +1497,11 @@ export class RynamoTableSchema<
                     updateLockVersion: deletedItem.updateLockVersion,
                 }),
             ),
-            this.#table.transactionCreateOrReplaceItem(item),
-        ]);
+        );
+
+        transactionEntries.push(this.#table.transactionCreateOrReplaceItem(item));
+
+        await DynamoTableSchema.executeTransaction(context, transactionEntries);
 
         context.process.waitUntil(this.#broadcastActionTransaction(context, [action]));
 
@@ -1550,15 +1638,28 @@ export class RynamoTableSchema<
             };
         }
 
-        const action = this.#createPutItemAction({
+        const {action, transactionEntries} = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
+        if (this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+            transactionEntries.push(
+                this.#table.transactionDoesNotExistConditionCheck(
+                    cast<RynamoPrivateGraveyardPartitionItemKey>({
+                        partitionType: rynamoPrivateGraveyardPartitionName,
+                        sortRangeType: "Gravestone",
+                        deletedPartitionKey: action.getPartitionKey(),
+                        deletedSortKey: action.getSortKey(),
+                    }),
+                ),
+            );
+        }
+
         let transactionEntry;
 
-        if (!this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+        if (transactionEntries.length === 0) {
             transactionEntry = new RynamoTransactionEntryInternal({
                 entry: this.#table.transactionCreateItem(item),
                 schema: this,
@@ -1566,17 +1667,10 @@ export class RynamoTableSchema<
             });
         } else {
             transactionEntry = new RynamoTransactionEntryInternal({
-                entry: [
+                entry: assertNonEmptyReadonlyArray([
                     this.#table.transactionCreateItem(item),
-                    this.#table.transactionDoesNotExistConditionCheck(
-                        cast<RynamoPrivateGraveyardPartitionItemKey>({
-                            partitionType: rynamoPrivateGraveyardPartitionName,
-                            sortRangeType: "Gravestone",
-                            deletedPartitionKey: action.getPartitionKey(),
-                            deletedSortKey: action.getSortKey(),
-                        }),
-                    ),
-                ],
+                    ...transactionEntries,
+                ]),
                 schema: this,
                 action,
             });
@@ -1634,7 +1728,7 @@ export class RynamoTableSchema<
             );
         }
 
-        const action = this.#createPutItemAction({
+        const {action, transactionEntries} = this.#createPutItemAction({
             oldItem: newItem.oldItem,
             newItem,
             newVersion: (newItem.updateLockVersion ?? 0) + 1,
@@ -1671,12 +1765,29 @@ export class RynamoTableSchema<
             condition = actualCondition as any;
         }
 
+        if (
+            this.#features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] &&
+            (typeof newItem.updateLockVersion !== "number" || newItem.updateLockVersion === 0)
+        ) {
+            transactionEntries.push(
+                this.#table.transactionDoesNotExistConditionCheck(
+                    cast<RynamoPrivateGraveyardPartitionItemKey>({
+                        partitionType: rynamoPrivateGraveyardPartitionName,
+                        sortRangeType: "Gravestone",
+                        deletedPartitionKey: action.getPartitionKey(),
+                        deletedSortKey: action.getSortKey(),
+                    }),
+                    // The caller expects `transactionDirectlyUpdateItem()` to be retriable. Therefore
+                    // this gravestone check should be retriable in case it fails
+                    // (`transactionDoesNotExistConditionCheck()` isn't retriable by default).
+                    {isConditionCheckErrorRetriable: true},
+                ),
+            );
+        }
+
         let transactionEntry;
 
-        if (
-            !this.#features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
-            (typeof newItem.updateLockVersion === "number" && newItem.updateLockVersion !== 0)
-        ) {
+        if (transactionEntries.length === 0) {
             transactionEntry = new RynamoTransactionEntryInternal({
                 entry: this.#table.transactionDirectlyUpdateItem(newItem, {condition}),
                 schema: this,
@@ -1687,21 +1798,10 @@ export class RynamoTableSchema<
         // gravestone.
         else {
             transactionEntry = new RynamoTransactionEntryInternal({
-                entry: [
+                entry: assertNonEmptyReadonlyArray([
                     this.#table.transactionDirectlyUpdateItem(newItem, {condition}),
-                    this.#table.transactionDoesNotExistConditionCheck(
-                        cast<RynamoPrivateGraveyardPartitionItemKey>({
-                            partitionType: rynamoPrivateGraveyardPartitionName,
-                            sortRangeType: "Gravestone",
-                            deletedPartitionKey: action.getPartitionKey(),
-                            deletedSortKey: action.getSortKey(),
-                        }),
-                        // The caller expects `transactionDirectlyUpdateItem()` to be retriable. Therefore
-                        // this gravestone check should be retriable in case it fails
-                        // (`transactionDoesNotExistConditionCheck()` isn't retriable by default).
-                        {isConditionCheckErrorRetriable: true},
-                    ),
-                ],
+                    ...transactionEntries,
+                ]),
                 schema: this,
                 action,
             });
@@ -1751,7 +1851,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const action = this.#createDeleteItemAction(item);
+        const {action, transactionEntries} = this.#createDeleteItemAction(item);
 
         let condition: DynamoCondition<Item> | undefined;
 
@@ -1778,7 +1878,7 @@ export class RynamoTableSchema<
         }
 
         const transactionEntry = new RynamoTransactionEntryInternal({
-            entry: [
+            entry: assertNonEmptyReadonlyArray([
                 this.#table.transactionDeleteItem(item, {condition}),
                 this.#table.transactionCreateOrReplaceItem(
                     cast<RynamoPrivateGraveyardPartitionItem>({
@@ -1789,7 +1889,8 @@ export class RynamoTableSchema<
                         updateLockVersion: action.eventStub.item.version,
                     }),
                 ),
-            ],
+                ...transactionEntries,
+            ]),
             schema: this,
             action,
         });
@@ -1844,14 +1945,14 @@ export class RynamoTableSchema<
             updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
         };
 
-        const action = this.#createPutItemAction({
+        const {action, transactionEntries} = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
         const transactionEntry = new RynamoTransactionEntryInternal({
-            entry: [
+            entry: assertNonEmptyReadonlyArray([
                 this.#table.transactionDeleteItem(
                     cast<RynamoPrivateGraveyardPartitionItem>({
                         partitionType: rynamoPrivateGraveyardPartitionName,
@@ -1862,7 +1963,8 @@ export class RynamoTableSchema<
                     }),
                 ),
                 this.#table.transactionCreateOrReplaceItem(item),
-            ],
+                ...transactionEntries,
+            ]),
             schema: this,
             action,
         });
@@ -1963,17 +2065,28 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const action = this.#createPutItemAction({
+        const {action, transactionEntries} = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        return new RynamoTransactionEntryInternal({
-            entry: this.#table.transactionCreateOrReplaceItem(item),
-            schema: this,
-            action,
-        });
+        if (transactionEntries.length === 0) {
+            return new RynamoTransactionEntryInternal({
+                entry: this.#table.transactionCreateOrReplaceItem(item),
+                schema: this,
+                action,
+            });
+        } else {
+            return new RynamoTransactionEntryInternal({
+                entry: assertNonEmptyReadonlyArray([
+                    this.#table.transactionCreateOrReplaceItem(item),
+                    ...transactionEntries,
+                ]),
+                schema: this,
+                action,
+            });
+        }
     }
 
     /**
@@ -2755,6 +2868,11 @@ export class RynamoTableSchema<
                 ),
             );
 
+        const keyAttributeNames = [
+            ...Object.keys(Index.partitionKeyAttributes),
+            ...Object.keys(Index.sortKeyAttributes),
+        ];
+
         for (const {partitionType, sortRangeType} of config.itemTypes) {
             const itemType = `${partitionType}#${sortRangeType}`;
 
@@ -2768,17 +2886,19 @@ export class RynamoTableSchema<
 
             assert(!indexByName.has(config.name));
             indexByName.set(config.name, {
+                isStrongConsistency: false,
                 canReuseTablePartitionKeyForRealtimeKey,
                 dynamicPartitionKeyAttributeNames: Object.keys(Index.partitionKeyAttributes).filter(
                     attributeName =>
                         !hasOwnProperty(keyAttributes.partitionKeyAttributes, attributeName) &&
                         !hasOwnProperty(keyAttributes.sortKeyAttributes, attributeName),
                 ),
+                keyAttributeNames,
                 serializeOpaquePartitionKey: Index.serializeOpaquePartitionKey as (
                     partitionKey: unknown,
                 ) => DynamoIndexPartitionKey,
                 serializeOpaqueCursor: Index.serializeOpaqueCursor as (
-                    partitionKey: unknown,
+                    itemKey: unknown,
                 ) => DynamoIndexCursor,
             });
         }
@@ -2802,12 +2922,16 @@ export class RynamoTableSchema<
                     isEndSortKeyExclusive,
                     paginate = {type: "FromStart"},
                     limit,
+                    consistency = "Eventual",
                 },
             ): Promise<
                 RynamoIndexQueryResult<
                     ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
                 >
             > => {
+                // Index queries only support eventual consistency.
+                assert(consistency === "Eventual");
+
                 // We backfill realtime updates to `checkpoint` so it should be before the data is
                 // read from the database to avoid missing realtime updates.
                 const checkpoint = generateServerSynchronizationCheckpoint();
@@ -2929,9 +3053,15 @@ export class RynamoTableSchema<
                     limit: number | "All";
                     pageLimit?: number;
                     descending?: boolean;
+                    consistency?: DynamoCacheReadConsistency;
                 },
             ) => {
-                return Index.query(context, options);
+                const {consistency = "Eventual"} = options;
+
+                // Index queries only support eventual consistency.
+                assert(consistency === "Eventual");
+
+                return await arrayFromAsyncIterable(Index.query(context, options));
             },
 
             backfillRealtimeQuery: (context, {partitionKey, checkpoint}) => {
@@ -3093,6 +3223,11 @@ export class RynamoTableSchema<
                 ),
             );
 
+        const keyAttributeNames = [
+            ...Object.keys(Index.partitionKeyAttributes),
+            ...Object.keys(Index.sortKeyAttributes),
+        ];
+
         for (const {partitionType, sortRangeType} of config.itemTypes) {
             const itemType = `${partitionType}#${sortRangeType}`;
 
@@ -3106,17 +3241,19 @@ export class RynamoTableSchema<
 
             assert(!indexByName.has(config.name));
             indexByName.set(config.name, {
+                isStrongConsistency: false,
                 canReuseTablePartitionKeyForRealtimeKey,
                 dynamicPartitionKeyAttributeNames: Object.keys(Index.partitionKeyAttributes).filter(
                     attributeName =>
                         !hasOwnProperty(keyAttributes.partitionKeyAttributes, attributeName) &&
                         !hasOwnProperty(keyAttributes.sortKeyAttributes, attributeName),
                 ),
+                keyAttributeNames,
                 serializeOpaquePartitionKey: Index.serializeOpaquePartitionKey as (
                     partitionKey: unknown,
                 ) => DynamoIndexPartitionKey,
                 serializeOpaqueCursor: Index.serializeOpaqueCursor as (
-                    partitionKey: unknown,
+                    itemKey: unknown,
                 ) => DynamoIndexCursor,
             });
         }
@@ -3140,12 +3277,16 @@ export class RynamoTableSchema<
                     isEndSortKeyExclusive,
                     paginate = {type: "FromStart"},
                     limit,
+                    consistency = "Eventual",
                 },
             ): Promise<
                 RynamoIndexQueryResult<
                     ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
                 >
             > => {
+                // Index queries only support eventual consistency.
+                assert(consistency === "Eventual");
+
                 // We backfill realtime updates to `checkpoint` so it should be before the data is
                 // read from the database to avoid missing realtime updates.
                 const checkpoint = generateServerSynchronizationCheckpoint();
@@ -3272,17 +3413,21 @@ export class RynamoTableSchema<
                     limit: number | "All";
                     pageLimit?: number;
                     descending?: boolean;
+                    consistency?: DynamoCacheReadConsistency;
                 },
             ) => {
+                const {consistency = "Eventual"} = options;
+
+                // Index queries only support eventual consistency.
+                assert(consistency === "Eventual");
+
                 // Query the index to get item keys, then fetch full items from the table. This is
                 // the "join" operation - the index only stores keys, not full items.
-                return asyncIterableFromIterable(
-                    await parallelMapAsyncIterableToArray(
-                        Index.query(context, options),
-                        async itemKey => {
-                            return await this.#table.getItem(context, itemKey);
-                        },
-                    ),
+                return await parallelMapAsyncIterableToArray(
+                    Index.query(context, options),
+                    async itemKey => {
+                        return await this.#table.getItem(context, itemKey);
+                    },
                 );
             },
 
@@ -3380,6 +3525,457 @@ export class RynamoTableSchema<
             PartitionKeyAttributesConfig,
             SortKeyAttributesConfig
         >(config);
+    }
+
+    /**
+     * Adds an index which can be queried with strong consistency to the table.
+     *
+     * The index stores item keys as regular DynamoDB table items (instead of a global
+     * secondary index) and maintains those items in the same transaction as item
+     * writes. This costs additional WCUs on writes but allows queries to use strongly
+     * consistent reads.
+     */
+    addStrongConsistencyIndexWithQueryJoin<
+        ItemTypes extends Types["ItemType"],
+        PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+        SortKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+    >(
+        config: Omit<
+            DynamoTableSchemaIndexConfigOptions<
+                Types,
+                ItemTypes,
+                PartitionKeyAttributesConfig,
+                SortKeyAttributesConfig
+            >,
+            "includePrimaryKeyInSortKey"
+        >,
+    ): RynamoTableSchemaIndex<
+        ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
+        DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
+        DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
+    > {
+        assert(
+            config.itemTypes.every(
+                itemType =>
+                    itemType.partitionType !== rynamoPrivatePartitionName &&
+                    itemType.partitionType !== rynamoPrivateGraveyardPartitionName,
+            ),
+            "Can\u2019t access private realtime partition",
+        );
+
+        // All attributes in the item key must be included in the index partition key +
+        // sort key. That way index keys are uniquely assignable to items and we can
+        // correctly sort in user-land on the client.
+        //
+        // The `includePrimaryKeyInSortKey` option used in the
+        // `addEventualConsistencyIndexWithQueryJoin()` call solves the same underlying
+        // problem but by making sure we always include all attributes in index keys
+        // automatically. Which we could choose to do here eventually.
+        for (const itemType of config.itemTypes) {
+            const {partitionKeyAttributes, sortKeyAttributes} = this.#table.getKeyAttributes(
+                itemType.partitionType,
+                itemType.sortRangeType,
+            );
+
+            for (const keyAttributeName of Object.keys(partitionKeyAttributes)) {
+                assert(
+                    hasOwnProperty(config.partitionKeyAttributes, keyAttributeName) ||
+                        hasOwnProperty(config.sortKeyAttributes, keyAttributeName),
+                );
+            }
+
+            for (const keyAttributeName of Object.keys(sortKeyAttributes)) {
+                assert(
+                    hasOwnProperty(config.partitionKeyAttributes, keyAttributeName) ||
+                        hasOwnProperty(config.sortKeyAttributes, keyAttributeName),
+                );
+            }
+        }
+
+        const indexConfig = {
+            partitionKeyAttributes:
+                config.partitionKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
+            sortKeyAttributes:
+                config.sortKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
+        };
+
+        this.#table._addPartitionBeforeInitialization({
+            name: config.name,
+            partitionKeyAttributes: indexConfig.partitionKeyAttributes,
+            sortRanges: [
+                {
+                    name: "Index",
+                    sortKeyAttributes: indexConfig.sortKeyAttributes,
+                    attributes: Schema.object({
+                        actualPartitionType: Schema.enum(
+                            config.itemTypes.map(itemType => itemType.partitionType),
+                        ),
+                        actualSortRangeType: Schema.enum(
+                            config.itemTypes.map(itemType => itemType.sortRangeType),
+                        ),
+                    }),
+                },
+            ],
+        });
+
+        const partitionTypes = new Set(config.itemTypes.map(itemType => itemType.partitionType));
+
+        // If there is only partition type, we call it the index's "exclusive" partition
+        // type.
+        const exclusivePartitionType =
+            partitionTypes.size === 1 ? Array.from(partitionTypes)[0]! : null;
+
+        // We can reuse the table partition key as our index's realtime key and reduce the
+        // write capacity units we need when:
+        //
+        // - The index only serves data from a single partition
+        // - The index's partition key matches that partition's partition key
+        //
+        // This means we can get the partition key from our index partition key plus adding
+        // `partitionType: exclusivePartitionType`.
+        const canReuseTablePartitionKeyForRealtimeKey: boolean =
+            !!exclusivePartitionType &&
+            isDeepEqual(
+                Object.entries(
+                    mapObjectValues(
+                        this.#table.getPartitionKeyAttributes(exclusivePartitionType),
+                        attribute => attribute.description,
+                    ),
+                ),
+                Object.entries(
+                    mapObjectValues(
+                        indexConfig.partitionKeyAttributes,
+                        attribute => attribute.description,
+                    ),
+                ),
+            );
+
+        const keyAttributeNames = [
+            ...Object.keys(indexConfig.partitionKeyAttributes),
+            ...Object.keys(indexConfig.sortKeyAttributes),
+        ];
+
+        for (const {partitionType, sortRangeType} of config.itemTypes) {
+            const itemType = `${partitionType}#${sortRangeType}`;
+
+            const indexByName = getOrSetDefaultMapValue(
+                this.#indexByNameByItemType,
+                itemType,
+                () => new Map(),
+            );
+
+            const keyAttributes = this.#table.getKeyAttributes(partitionType, sortRangeType);
+
+            assert(!indexByName.has(config.name));
+            indexByName.set(config.name, {
+                isStrongConsistency: true,
+                canReuseTablePartitionKeyForRealtimeKey,
+                dynamicPartitionKeyAttributeNames: Object.keys(
+                    config.partitionKeyAttributes,
+                ).filter(
+                    attributeName =>
+                        !hasOwnProperty(keyAttributes.partitionKeyAttributes, attributeName) &&
+                        !hasOwnProperty(keyAttributes.sortKeyAttributes, attributeName),
+                ),
+                keyAttributeNames,
+                serializeOpaquePartitionKey: partitionKey =>
+                    this.#table._serializeOpaqueIndexPartitionKey(indexConfig, partitionKey as any),
+                serializeOpaqueCursor: item =>
+                    this.#table._serializeOpaqueIndexCursor(indexConfig, item as any),
+            });
+        }
+
+        const query = (
+            context: DynamoContext,
+            {
+                partitionKey,
+                startSortKey,
+                endSortKey,
+                isStartSortKeyExclusive,
+                isEndSortKeyExclusive,
+                afterItemKey,
+                limit,
+                pageLimit,
+                descending,
+                consistency,
+            }: {
+                partitionKey: DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>;
+                startSortKey?: DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>;
+                endSortKey?: DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>;
+                isStartSortKeyExclusive?: boolean;
+                isEndSortKeyExclusive?: boolean;
+                afterItemKey?: any;
+                // Required to specify a limit or the `All` string. So if you intentionally want
+                // everything you have to say so.
+                limit: number | "All";
+                pageLimit?: number;
+                descending?: boolean;
+                consistency?: DynamoCacheReadConsistency;
+            },
+        ) => {
+            return mapAsyncIterableIterator(
+                this.#table.query(context, {
+                    partitionKey: {...partitionKey, partitionType: config.name},
+                    startSortKey:
+                        startSortKey !== undefined
+                            ? ({...startSortKey, sortRangeType: "Index"} as any)
+                            : undefined,
+                    endSortKey:
+                        endSortKey !== undefined
+                            ? ({...endSortKey, sortRangeType: "Index"} as any)
+                            : undefined,
+                    isStartSortKeyExclusive,
+                    isEndSortKeyExclusive,
+                    afterItemKey,
+                    limit,
+                    pageLimit,
+                    descending,
+                    consistency,
+                }),
+                (item: any) => {
+                    item.partitionType = item.actualPartitionType;
+                    item.sortRangeType = item.actualSortRangeType;
+                    delete item.actualPartitionType;
+                    delete item.actualSortRangeType;
+                    return item;
+                },
+            );
+        };
+
+        return {
+            name: config.name,
+            partitionKeyAttributes: config.partitionKeyAttributes as any,
+            sortKeyAttributes: config.sortKeyAttributes as any,
+
+            getRealtimeQueryPartitionKey: partitionKey => {
+                return this.#table._serializeOpaqueIndexPartitionKey(indexConfig, partitionKey);
+            },
+
+            realtimeQuery: async (
+                context,
+                {
+                    partitionKey,
+                    startSortKey,
+                    endSortKey,
+                    isStartSortKeyExclusive,
+                    isEndSortKeyExclusive,
+                    paginate = {type: "FromStart"},
+                    limit,
+                    consistency,
+                },
+            ): Promise<
+                RynamoIndexQueryResult<
+                    ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
+                >
+            > => {
+                // We backfill realtime updates to `checkpoint` so it should be before the data is
+                // read from the database to avoid missing realtime updates.
+                const checkpoint = generateServerSynchronizationCheckpoint();
+
+                const cursor =
+                    paginate.type === "FromStart" ? paginate.afterCursor : paginate.beforeCursor;
+
+                const items = await parallelMapAsyncIterableToArray(
+                    query(context, {
+                        partitionKey,
+                        startSortKey,
+                        endSortKey,
+                        isStartSortKeyExclusive,
+                        isEndSortKeyExclusive,
+                        descending: paginate.type === "FromEnd",
+                        afterItemKey:
+                            typeof cursor === "string"
+                                ? this.#table._deserializeOpaqueIndexCursor(
+                                      indexConfig,
+                                      partitionKey,
+                                      cursor,
+                                  )
+                                : undefined,
+                        // Fetch one extra item so we can accurately say whether there are more items at
+                        // the beginning or end of the query.
+                        limit: typeof limit === "number" ? limit + 1 : limit,
+                        consistency,
+                    }),
+                    async (itemKey, index) => {
+                        // Don't build the model for an over-fetched item we use to determine if there are
+                        // more items in the query.
+                        if (typeof limit === "number" && index >= limit) return null;
+
+                        // This is the critical "join" operation referenced by the name
+                        // `addIndexWithQueryJoin()`. Basically everything else about this index creation
+                        // is the same as `addExpensiveFullIndex()`.
+                        const item = await this.#table.getItem(context, itemKey, {consistency});
+
+                        return {
+                            cursor: this.#table._serializeOpaqueIndexCursor(indexConfig, item),
+                            key: this.#table.serializeOpaqueItemKey(item),
+                            version: item.updateLockVersion ?? 0,
+                            model: await this.#buildModel(context, item),
+                        };
+                    },
+                );
+
+                const startCursorBound = startSortKey
+                    ? this.#table._serializeOpaqueIndexCursorBound(
+                          indexConfig,
+                          startSortKey,
+                          isStartSortKeyExclusive ? "StartExclusive" : "StartInclusive",
+                      )
+                    : null;
+
+                const endCursorBound = endSortKey
+                    ? this.#table._serializeOpaqueIndexCursorBound(
+                          indexConfig,
+                          endSortKey,
+                          isEndSortKeyExclusive ? "EndExclusive" : "EndInclusive",
+                      )
+                    : null;
+
+                const hasMoreItems = typeof limit === "number" && items.length > limit;
+
+                // Remove any items we over-fetched to determine if there were items after the
+                // limit. (Should just be one.)
+                while (typeof limit === "number" && items.length > limit) {
+                    items.pop();
+                }
+
+                // When paginating from the end, we queried items in descending order. Reverse them
+                // to get them back to the proper order.
+                if (paginate.type === "FromEnd") {
+                    items.reverse();
+                }
+
+                // We should have removed all null items past our limit above.
+                const finalItems = items as ReadonlyArray<NonNullable<(typeof items)[number]>>;
+
+                // If we are in a development or test environment, verify that cursors strings are
+                // orderable. This would create overhead in production.
+                if (process.env.NODE_ENV !== "production") {
+                    let lastCursor: DynamoIndexCursor | null = null;
+
+                    for (const item of finalItems) {
+                        if (lastCursor === null) {
+                            lastCursor = item.cursor;
+                        } else {
+                            assert(
+                                lastCursor < item.cursor,
+                                "Expected cursors to be lexicographically orderable",
+                            );
+                            lastCursor = item.cursor;
+                        }
+                    }
+                }
+
+                return {
+                    checkpoint,
+                    indexName: config.name,
+                    partitionKey: this.#table._serializeOpaqueIndexPartitionKey(
+                        indexConfig,
+                        partitionKey,
+                    ),
+                    startCursorBound,
+                    endCursorBound,
+                    pageInfo:
+                        paginate.type === "FromStart"
+                            ? {
+                                  type: "FromStart",
+                                  afterCursor: paginate.afterCursor ?? null,
+                                  hasNextPage: hasMoreItems,
+                              }
+                            : {
+                                  type: "FromEnd",
+                                  beforeCursor: paginate.beforeCursor ?? null,
+                                  hasPreviousPage: hasMoreItems,
+                              },
+                    items: finalItems,
+                };
+            },
+
+            query: async (
+                context: DynamoContext,
+                options: {
+                    partitionKey: DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>;
+                    startSortKey?: DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>;
+                    endSortKey?: DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>;
+                    isStartSortKeyExclusive?: boolean;
+                    isEndSortKeyExclusive?: boolean;
+                    // Required to specify a limit or the `All` string. So if you intentionally want
+                    // everything you have to say so.
+                    limit: number | "All";
+                    pageLimit?: number;
+                    descending?: boolean;
+                    consistency?: DynamoCacheReadConsistency;
+                },
+            ) => {
+                // Query the index to get item keys, then fetch full items from the table. This is
+                // the "join" operation - the index only stores keys, not full items.
+                return await parallelMapAsyncIterableToArray(
+                    query(context, options),
+                    async itemKey => {
+                        return (await this.#table.getItem(context, itemKey, {
+                            consistency: options.consistency,
+                        })) as any;
+                    },
+                );
+            },
+
+            backfillRealtimeQuery: (context, {partitionKey, checkpoint}) => {
+                const partitionKeyString = this.#table._serializeOpaqueIndexPartitionKey(
+                    indexConfig,
+                    partitionKey,
+                );
+
+                return this.#backfillRealtimeQuery(context, {
+                    // If our index's partition key is the same as our table's partition key then we
+                    // can save some WCUs by writing all updates under the table's partition key (which
+                    // is used for `table.realtimeQuery()`).
+                    realtimeKey: canReuseTablePartitionKeyForRealtimeKey
+                        ? this.#table.serializeOpaqueItemPartitionKey({
+                              partitionType: exclusivePartitionType,
+                              ...partitionKey,
+                          })
+                        : `${config.name}:${partitionKeyString}`,
+                    checkpoint,
+                    source: {
+                        type: "Index",
+                        name: config.name,
+                        partitionKey: partitionKeyString,
+                    },
+                });
+            },
+
+            getPartitionKeyAttributeFromEvent: (attributeName, event) => {
+                const oldPartitionKey = event.oldPartitionKeyByIndexName?.get(config.name);
+                const newPartitionKey = event.newPartitionKeyByIndexName?.get(config.name);
+
+                let oldValue: unknown;
+                let newValue: unknown;
+
+                if (oldPartitionKey !== undefined) {
+                    oldValue = this.#table._deserializeOpaqueIndexPartitionKey(
+                        indexConfig,
+                        oldPartitionKey,
+                    )[attributeName as string];
+                }
+
+                if (oldPartitionKey === newPartitionKey) {
+                    newValue = oldValue;
+                } else if (newPartitionKey !== undefined) {
+                    newValue = this.#table._deserializeOpaqueIndexPartitionKey(
+                        indexConfig,
+                        newPartitionKey,
+                    )[attributeName as string];
+                }
+
+                return {oldValue: oldValue as any, newValue: newValue as any};
+            },
+        };
     }
 
     #getRealtimeEventItem(
@@ -3733,25 +4329,6 @@ export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> 
     getRealtimeQueryPartitionKey(partitionKey: IndexPartitionKey): DynamoIndexPartitionKey;
 
     /**
-     * Query the index. Returns raw items without constructing models or cursors.
-     */
-    query(
-        context: DynamoContext,
-        options: {
-            partitionKey: IndexPartitionKey;
-            startSortKey?: IndexSortKey;
-            endSortKey?: IndexSortKey;
-            isStartSortKeyExclusive?: boolean;
-            isEndSortKeyExclusive?: boolean;
-            // Required to specify a limit or the `All` string. So if you intentionally want
-            // everything you have to say so.
-            limit: number | "All";
-            pageLimit?: number;
-            descending?: boolean;
-        },
-    ): Promise<AsyncIterableIterator<MergeObjectIntersection<IndexPartitionKey & IndexSortKey>>>;
-
-    /**
      * Query the index.
      */
     realtimeQuery(
@@ -3774,8 +4351,29 @@ export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> 
             // Required to specify a limit or the `All` string. So if you intentionally want
             // everything you have to say so.
             limit: number | "All";
+            consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<RynamoIndexQueryResult<Model>>;
+
+    /**
+     * Query the index. Returns raw items without constructing models or cursors.
+     */
+    query(
+        context: DynamoContext,
+        options: {
+            partitionKey: IndexPartitionKey;
+            startSortKey?: IndexSortKey;
+            endSortKey?: IndexSortKey;
+            isStartSortKeyExclusive?: boolean;
+            isEndSortKeyExclusive?: boolean;
+            // Required to specify a limit or the `All` string. So if you intentionally want
+            // everything you have to say so.
+            limit: number | "All";
+            pageLimit?: number;
+            descending?: boolean;
+            consistency?: DynamoCacheReadConsistency;
+        },
+    ): Promise<Array<MergeObjectIntersection<IndexPartitionKey & IndexSortKey>>>;
 
     /**
      * Backfill any updates that happened since the query was read and now. Useful when
