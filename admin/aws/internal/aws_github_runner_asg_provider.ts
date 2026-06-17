@@ -54,6 +54,7 @@ const awsGithubRunnerAmiSourceBundleKeyParameterName =
     "/cyberworlds/github-runners/test-runner-asg/ami-source-bundle-key";
 const awsGithubRunnerAmiBazelCacheKeyParameterName =
     "/cyberworlds/github-runners/test-runner-asg/bazel-cache-key";
+const awsGithubRunnerInstanceType = InstanceType.of(InstanceClass.C7G, InstanceSize.XLARGE4);
 
 /* eslint-disable cyberworlds/string-quotes */
 function createLinuxUserDataTemplate() {
@@ -319,7 +320,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                 // The AMI build runs `bazel fetch //...` and `build //:node_modules`. Give it a
                 // runner-sized box so weekly/main image refreshes spend their time warming the
                 // cache rather than waiting on a tiny builder.
-                instanceType: InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2),
+                instanceType: awsGithubRunnerInstanceType,
             },
             components: awsGithubTestRunnerImageBuilderComponents([], {
                 amiSourceBundleBucketName,
@@ -358,11 +359,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
             awsGithubRunnerAmiRootBlockDeviceMappings,
         );
 
-        assert(
-            runnerAmi.architecture.instanceTypeMatch(
-                InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2),
-            ),
-        );
+        assert(runnerAmi.architecture.instanceTypeMatch(awsGithubRunnerInstanceType));
         this.runnerLaunchTemplateId = assertExists(runnerAmi.launchTemplate.launchTemplateId);
         this.userDataTemplate = createLinuxUserDataTemplate();
         this.userDataExtraBase64 = Fn.base64(userDataExtra);
@@ -414,10 +411,7 @@ export class AwsGithubRunnerAsgProvider extends Construct implements IRunnerProv
                     },
                     MinCount: 1,
                     MaxCount: 1,
-                    InstanceType: InstanceType.of(
-                        InstanceClass.M7G,
-                        InstanceSize.XLARGE2,
-                    ).toString(),
+                    InstanceType: awsGithubRunnerInstanceType.toString(),
                     UserData: JsonPath.base64Encode(
                         JsonPath.format(
                             this.userDataTemplate,
