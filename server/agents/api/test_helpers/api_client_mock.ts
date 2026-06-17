@@ -486,6 +486,11 @@ export class ApiClientMock implements ApiClient {
             {
                 data: {
                     spaceId,
+                    document: {
+                        reference: {
+                            title: "Test Document",
+                        },
+                    },
                     thread: {
                         id: commentThreadId,
                         createdTime: responseData.createdTime ?? serializeDateString(new Date()),

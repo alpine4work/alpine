@@ -278,12 +278,12 @@ async function updateAgentWebPageLink(
             const [oldPage, newPage] = await runAllPromises([
                 parseAgentWebDocumentThreadPage(
                     context.storage,
-                    {id: oldPageMetadata.id, threadId: oldPageMetadata.threadId},
+                    {document: {id: oldPageMetadata.id}, threadId: oldPageMetadata.threadId},
                     oldResponse,
                 ),
                 parseAgentWebDocumentThreadPage(
                     context.storage,
-                    {id: oldPageMetadata.id, threadId: oldPageMetadata.threadId},
+                    {document: {id: oldPageMetadata.id}, threadId: oldPageMetadata.threadId},
                     newResponse,
                 ),
             ]);

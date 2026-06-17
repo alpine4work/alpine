@@ -456,7 +456,7 @@ export async function updateAgentWebDocumentThreadPage(
 
 export async function printAgentWebDocumentThreadPage(
     storage: AgentWebSessionStorage,
-    pageLink: AgentWebPageDocumentThreadRoutedLink,
+    pageLink: {document: {id: DocumentId}; threadId: DocumentCommentThreadId},
     page: AgentWebDocumentThreadPage,
 ): Promise<Root> {
     // Get the number for the comment thread. If there's not currently a number for
@@ -486,7 +486,7 @@ export async function printAgentWebDocumentThreadPage(
     });
 
     return await printAgentWebMessagingPage<
-        AgentWebPageDocumentThreadRoutedLink,
+        {document: {id: DocumentId}; threadId: DocumentCommentThreadId},
         AgentWebDocumentThreadPagePreamble,
         AgentWebDocumentThreadPageCustomBlock
     >(storage, pageLink, page, {
@@ -547,7 +547,7 @@ export async function printAgentWebDocumentThreadPage(
 
 export async function parseAgentWebDocumentThreadPage(
     storage: AgentWebSessionStorage,
-    pageLink: AgentWebPageDocumentThreadRoutedLink | null,
+    pageLink: {document: {id: DocumentId}; threadId: DocumentCommentThreadId} | null,
     root: Root,
 ): Promise<AgentWebDocumentThreadPage> {
     if (pageLink === null)

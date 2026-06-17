@@ -1,7 +1,4 @@
 import fc, {Arbitrary} from "fast-check";
-import {Root} from "mdast";
-import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.js";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
 import {
     AgentWebDocumentThreadPage,
     AgentWebDocumentThreadPageCustomBlock,
@@ -27,13 +24,6 @@ const ApiDocumentReferenceArbitrary = fc.record({
     id: createIdArbitrary<DocumentId>(),
     title: ApiContentTextArbitrary,
 });
-
-const AgentWebDocumentThreadPageLinkArbitrary: Arbitrary<AgentWebPageDocumentThreadRoutedLink> =
-    fc.record({
-        type: fc.constant("DocumentThread"),
-        document: ApiDocumentReferenceArbitrary,
-        threadId: createIdArbitrary<DocumentCommentThreadId>(),
-    });
 
 const AgentWebDocumentThreadPagePreambleArbitrary: Arbitrary<AgentWebDocumentThreadPagePreamble> =
     fc.record({
@@ -86,6 +76,9 @@ runAgentWebPageGenerativeTests({
     print: printAgentWebDocumentThreadPage,
     parse: parseAgentWebDocumentThreadPage,
     normalize: normalizeAgentWebDocumentThreadPage,
-    pageLink: AgentWebDocumentThreadPageLinkArbitrary,
+    pageLink: fc.record({
+        document: fc.record({id: createIdArbitrary<DocumentId>()}),
+        threadId: createIdArbitrary<DocumentCommentThreadId>(),
+    }),
     page: AgentWebDocumentThreadPageArbitrary,
 });

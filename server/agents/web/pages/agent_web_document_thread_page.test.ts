@@ -73,30 +73,6 @@ function text(text: string): ApiContentTextInlineElement {
     return {type: "Text", text};
 }
 
-async function seedDocumentThreadStorage(
-    storage: AgentWebSessionStorage,
-    pageLink: AgentWebPageDocumentThreadRoutedLink,
-): Promise<void> {
-    await createAgentWebPageStoredLinkPathname(storage, pageLink.document);
-    await storage.documentCommentThreadNumberById.put(
-        `${pageLink.document.id}-${pageLink.threadId}`,
-        1,
-    );
-    await storage.documentCommentThreadIdByNumber.put(
-        `${pageLink.document.id}-1`,
-        pageLink.threadId,
-    );
-}
-
-async function printAgentWebDocumentThreadPageForTest(
-    storage: AgentWebSessionStorage,
-    pageLink: AgentWebPageDocumentThreadRoutedLink,
-    page: AgentWebDocumentThreadPage,
-): Promise<Root> {
-    await seedDocumentThreadStorage(storage, pageLink);
-    return await printAgentWebDocumentThreadPage(storage, pageLink, page);
-}
-
 const previewBlock: AgentWebDocumentThreadPageCustomBlock = {
     type: "Custom",
     tagName: "document-preview",
@@ -114,8 +90,11 @@ const firstCommentBlock = {
     content: content([paragraph([text("First comment.")])]),
 };
 
-runAgentWebPageTests<AgentWebPageDocumentThreadRoutedLink, AgentWebDocumentThreadPage>({
-    print: printAgentWebDocumentThreadPageForTest,
+runAgentWebPageTests<
+    {document: {id: DocumentId}; threadId: DocumentCommentThreadId},
+    AgentWebDocumentThreadPage
+>({
+    print: printAgentWebDocumentThreadPage,
     parse: parseAgentWebDocumentThreadPage,
     normalize: normalizeAgentWebDocumentThreadPage,
     tests: [

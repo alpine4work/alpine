@@ -308,7 +308,7 @@ function printAgentWebPage(
         case "DocumentThread": {
             return printAgentWebDocumentThreadPage(
                 storage,
-                {id: page.metadata.id, threadId: page.metadata.threadId},
+                {document: page.preamble.document, threadId: page.metadata.threadId},
                 page,
             );
         }
@@ -340,7 +340,7 @@ async function parseAgentWebPageForTest(
         case "DocumentThread": {
             return await parseAgentWebDocumentThreadPage(
                 storage,
-                {id: pageMetadata.id, threadId: pageMetadata.threadId},
+                {document: {id: pageMetadata.id}, threadId: pageMetadata.threadId},
                 response,
             );
         }
