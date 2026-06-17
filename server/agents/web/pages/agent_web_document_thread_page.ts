@@ -413,49 +413,16 @@ export async function updateAgentWebDocumentThreadPage(
     oldPage: AgentWebDocumentThreadPage,
     newPage: AgentWebDocumentThreadPage,
 ): Promise<AgentWebDocumentThreadPageMetadata> {
-    switch (oldPage.subType) {
-        case "Head": {
-            if (newPage.subType !== "Head") {
-                throw new InvalidArgumentError("Can\u2019t update document thread preamble", {
-                    displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You must leave the \`Document thread on [My Document](/document/my-document).\` line at the start of the document thread markdown in place. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
-                });
-            }
-
-            if (oldPage.preamble.document.id !== newPage.preamble.document.id) {
-                throw new InvalidArgumentError(
-                    "Can\u2019t update document in document thread preamble",
-                    {
-                        displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You can\u2019t change which document the document thread belongs to on line 1. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
-                    },
-                );
-            }
-            break;
-        }
-        case "Tail": {
-            if (newPage.subType !== "Tail") {
-                throw new InvalidArgumentError("Can\u2019t update document thread preamble", {
-                    displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You must leave the \`Comments on document thread for [My Document](/document/my-document).\` line at the start of the document thread markdown in place. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
-                });
-            }
-
-            if (oldPage.preamble.document.id !== newPage.preamble.document.id) {
-                throw new InvalidArgumentError(
-                    "Can\u2019t update document in document thread preamble",
-                    {
-                        displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You can\u2019t change which document the document thread belongs to on line 1. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
-                    },
-                );
-            }
-            break;
-        }
-        default:
-            throw exhaustive(oldPage);
+    if (oldPage.preamble.document.id !== newPage.preamble.document.id) {
+        throw new InvalidArgumentError("Can\u2019t update document in document thread preamble", {
+            displayMessage: errorDisplayMessage`You can only update your \`<comment>\`s. You can\u2019t change which document the document comment thread belongs to on line 1. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+        });
     }
 
     oldPageMetadata = memoMaybeThunk(oldPageMetadata);
 
     const newPageMetadata = await updateAgentWebMessagingPage<
-        AgentWebDocumentThreadPagePreambleBase,
+        AgentWebDocumentThreadPagePreamble,
         AgentWebDocumentThreadPageCustomBlock
     >(context, {
         messageNouns: agentWebMessagingPageCommentNouns,
@@ -474,12 +441,10 @@ export async function updateAgentWebDocumentThreadPage(
             const normalizedOldContent = normalizeApiContent(oldCustomBlock.content);
             const normalizedNewContent = normalizeApiContent(newCustomBlock.content);
 
-            if (isDeepEqual(normalizedOldContent, normalizedNewContent)) {
-                return {update: asyncNoop};
-            }
+            if (isDeepEqual(normalizedOldContent, normalizedNewContent)) return {update: asyncNoop};
 
             throw new InvalidArgumentError("Can\u2019t update document preview", {
-                displayMessage: errorDisplayMessage`You can\u2019t update the \`<document-preview>\` in document thread markdown. The document preview is read-only context from the document. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+                displayMessage: errorDisplayMessage`You can\u2019t update the \`<document-preview>\` in document comment thread markdown. \`<document-preview>\` is a read-only preview of the document\u2019s content around the comment. If you want to update the document\u2019s content then call the \`update\` tool on the document itself.`,
             });
         },
     });
@@ -596,7 +561,7 @@ export async function parseAgentWebDocumentThreadPage(
         await storage.documentCommentThreadNumberById.get(
             `${pageLink.document.id}-${pageLink.threadId}`,
         ),
-        "Document comment thread number hasn't been generated for this thread yet",
+        "Document comment thread number hasn\u2019t been generated for this thread yet",
     );
 
     const page = await parseAgentWebMessagingPage(storage, pageLink, root, {

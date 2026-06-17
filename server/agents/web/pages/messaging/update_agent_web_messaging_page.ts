@@ -80,13 +80,25 @@ export async function updateAgentWebMessagingPage<
 
         return {
             ...pagination,
-            pageLink:
-                pagination.pageLink.type === "TaskMessageList"
-                    ? {
-                          ...pagination.pageLink,
-                          task: normalizeApiReference(pagination.pageLink.task),
-                      }
-                    : normalizeApiReference(pagination.pageLink),
+            pageLink: (() => {
+                switch (pagination.pageLink.type) {
+                    case "DocumentThread": {
+                        return {
+                            type: "DocumentThread",
+                            document: normalizeApiReference(pagination.pageLink.document),
+                            threadId: pagination.pageLink.threadId,
+                        };
+                    }
+                    case "TaskMessageList": {
+                        return {
+                            ...pagination.pageLink,
+                            task: normalizeApiReference(pagination.pageLink.task),
+                        };
+                    }
+                    default:
+                        return normalizeApiReference(pagination.pageLink);
+                }
+            })(),
         };
     };
 
