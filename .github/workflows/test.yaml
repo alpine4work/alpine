@@ -88,11 +88,11 @@ jobs:
               shell: bash
               env:
                   newCi: ${{ steps.ci_flags.outputs.new_ci }}
-                  unitTestBucketCount: ${{ steps.ci_flags.outputs.new_ci == 'true' && 4 || 2 }}
+                  unitTestBucketCount: ${{ steps.ci_flags.outputs.new_ci == 'true' && 6 || 2 }}
                   integrationTestBucketCount:
-                      ${{ steps.ci_flags.outputs.new_ci == 'true' && 6 || 3 }}
+                      ${{ steps.ci_flags.outputs.new_ci == 'true' && 10 || 3 }}
                   screenshotTestBucketCount:
-                      ${{ steps.ci_flags.outputs.new_ci == 'true' && 3 || 1 }}
+                      ${{ steps.ci_flags.outputs.new_ci == 'true' && 4 || 1 }}
               run: |
                   set -euo pipefail
 

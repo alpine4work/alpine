@@ -2579,7 +2579,7 @@ Resources:
             InstanceProfileName:
                 Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderInstanceProfileA6DB51AC
             InstanceTypes:
-                - c7g.4xlarge
+                - m7g.2xlarge
             Name: CyberworldsLifecycleStack-GithubRunners-TestRunnerAsgProvider-RunnerImageBuilder-9CED1E68
             SecurityGroupIds:
                 - Fn::GetAtt:
@@ -5560,7 +5560,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c7g.4xlarge\",\"UserD\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
                         pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
                         \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
@@ -5694,7 +5694,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c7g.4xlarge\",\"UserD\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
                         pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
                         \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
@@ -5828,7 +5828,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c7g.4xlarge\",\"UserD\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
                         pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
                         \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
@@ -5962,7 +5962,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c7g.4xlarge\",\"UserD\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
                         pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
                         \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
@@ -6096,7 +6096,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c7g.4xlarge\",\"UserD\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
                         pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
                         \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\
@@ -6230,7 +6230,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersTestRunnerAsgProviderRunnerImageBuilderLaunchtemplateBBE1EEC7
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c7g.4xlarge\",\"UserD\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format('#!/bin/bash -x\\nset -o
                         pipefail\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\
                         \\\"{}\\\"\\nrunnerTokenPath=\\\"{}\\\"\\nregistrationURL=\\\"{}\\\"\\nlabe\

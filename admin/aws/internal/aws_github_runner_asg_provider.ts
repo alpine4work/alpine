@@ -54,7 +54,7 @@ const awsGithubRunnerAmiSourceBundleKeyParameterName =
     "/cyberworlds/github-runners/test-runner-asg/ami-source-bundle-key";
 const awsGithubRunnerAmiBazelCacheKeyParameterName =
     "/cyberworlds/github-runners/test-runner-asg/bazel-cache-key";
-const awsGithubRunnerInstanceType = InstanceType.of(InstanceClass.C7G, InstanceSize.XLARGE4);
+const awsGithubRunnerInstanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2);
 
 /* eslint-disable cyberworlds/string-quotes */
 function createLinuxUserDataTemplate() {
