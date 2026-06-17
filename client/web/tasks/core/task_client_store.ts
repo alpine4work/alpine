@@ -39,7 +39,6 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {Result} from "~/shared/helpers/control/result.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -1153,10 +1152,10 @@ export class TaskClientStoreInternal {
         }
 
         // Incorporate referenced sites into site registry:
-        for (const site of event.referencedSites) {
-            if (!site.ok) continue;
+        for (const siteReference of event.referencedSites) {
+            if (siteReference.isPrivate) continue;
 
-            this.siteRegistry.getAndImmediatelyUpdateSiteStore(site.value);
+            this.siteRegistry.getAndImmediatelyUpdateSiteStore(siteReference.site);
         }
 
         // Backfill tasks:
@@ -2560,14 +2559,30 @@ export class TaskClientStoreInternal {
             T & {
                 readonly actions: ReadonlyArray<TaskAction>;
                 readonly referencedAccounts: ReadonlyArray<AccountModel>;
-                readonly referencedSites: ReadonlyArray<Result<SitePreviewModel, unknown>>;
+                readonly referencedSites: ReadonlyArray<
+                    | {
+                          readonly isPrivate: true;
+                      }
+                    | {
+                          readonly isPrivate: false;
+                          readonly site: SitePreviewModel;
+                      }
+                >;
             }
         >,
     ): Promise<
         T & {
             readonly actions: ReadonlyArray<TaskAction>;
             readonly referencedAccounts: ReadonlyArray<AccountModel>;
-            readonly referencedSites: ReadonlyArray<Result<SitePreviewModel, unknown>>;
+            readonly referencedSites: ReadonlyArray<
+                | {
+                      readonly isPrivate: true;
+                  }
+                | {
+                      readonly isPrivate: false;
+                      readonly site: SitePreviewModel;
+                  }
+            >;
         }
     > {
         // We don't use `addGlobalLoadingIndicator()` with this promise because it's

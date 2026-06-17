@@ -1,5 +1,6 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {authorizeSiteAccessIfPossible} from "~/server/sites/data/authorize_site_access.js";
 import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
@@ -30,6 +31,7 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
 import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {
@@ -436,6 +438,13 @@ export async function loadTaskRealtimeQueries(
             .ok,
         isCollectionAccessAuthorized: async (collectionId: TaskCollectionId) =>
             backfillAuthorizedCollectionIds.has(collectionId),
+        isSiteAccessAuthorized: async (siteId: SiteId) => {
+            const result = await authorizeSiteAccessIfPossible(context, siteId, "View", {
+                consistency,
+            });
+
+            return result?.ok ?? false;
+        },
     };
 
     const backfillAuthorizedTasks = await runAllPromises(
@@ -498,8 +507,16 @@ export async function loadTaskRealtimeQueries(
             ),
         ),
         runAllPromises(
-            mapIterable(referencedSiteIds, siteId =>
-                getSitePreviewIfPossible(referenceContext, siteId, {consistency}),
+            mapIterable(
+                referencedSiteIds,
+                async (
+                    siteId,
+                ): Promise<{isPrivate: false; site: SitePreviewModel} | {isPrivate: true}> => {
+                    const result = await getSitePreviewIfPossible(referenceContext, siteId, {
+                        consistency,
+                    });
+                    return result?.ok ? {isPrivate: false, site: result.value} : {isPrivate: true};
+                },
             ),
         ),
     ]);

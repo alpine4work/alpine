@@ -60,7 +60,12 @@ export default implementRpcs(definitions, {
                     ),
                 ),
                 runAllPromises(
-                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                    Array.from(siteIds, async siteId => {
+                        const result = await getSitePreviewIfPossible(context, siteId);
+                        return result?.ok
+                            ? ({isPrivate: false, site: result.value} as const)
+                            : ({isPrivate: true} as const);
+                    }),
                 ),
             ]);
 
@@ -95,7 +100,12 @@ export default implementRpcs(definitions, {
                     Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
                 ),
                 runAllPromises(
-                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                    Array.from(siteIds, async siteId => {
+                        const result = await getSitePreviewIfPossible(context, siteId);
+                        return result?.ok
+                            ? ({isPrivate: false, site: result.value} as const)
+                            : ({isPrivate: true} as const);
+                    }),
                 ),
             ]);
 
@@ -127,7 +137,12 @@ export default implementRpcs(definitions, {
                     Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
                 ),
                 runAllPromises(
-                    Array.from(siteIds, siteId => getSitePreviewIfPossible(context, siteId)),
+                    Array.from(siteIds, async siteId => {
+                        const result = await getSitePreviewIfPossible(context, siteId);
+                        return result?.ok
+                            ? ({isPrivate: false, site: result.value} as const)
+                            : ({isPrivate: true} as const);
+                    }),
                 ),
             ]);
 

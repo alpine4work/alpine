@@ -14981,7 +14981,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [{type: "Authorized", collection}],
             referencedAccounts: [account1],
-            referencedSites: [{ok: true, value: site}],
+            referencedSites: [{isPrivate: false, site}],
         });
 
         // The site store should be available
@@ -15018,7 +15018,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [{type: "Authorized", collection}],
             referencedAccounts: [account1],
-            referencedSites: [{ok: true, value: site}],
+            referencedSites: [{isPrivate: false, site}],
         });
 
         // Verify site store is available initially
@@ -15113,7 +15113,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [],
             referencedAccounts: [],
-            referencedSites: [{ok: true, value: site}],
+            referencedSites: [{isPrivate: false, site}],
         });
 
         // Now the site store should be available
@@ -15150,7 +15150,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [{type: "Authorized", collection}],
             referencedAccounts: [account1],
-            referencedSites: [{ok: true, value: site}],
+            referencedSites: [{isPrivate: false, site}],
         });
 
         // Site store should be available
@@ -15211,7 +15211,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [],
             referencedAccounts: [],
-            referencedSites: [{ok: true, value: site}],
+            referencedSites: [{isPrivate: false, site}],
         });
 
         // Site store should be available again
@@ -15247,12 +15247,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [{type: "Authorized", collection}],
             referencedAccounts: [account1],
-            referencedSites: [
-                {
-                    ok: false,
-                    error: new InternalError("Site not found"),
-                },
-            ],
+            referencedSites: [{isPrivate: true}],
         });
 
         // The site store should still be available because we pre-added it to the registry
@@ -15302,10 +15297,7 @@ describe("referenced sites", () => {
                 {type: "Authorized", collection: collection2},
             ],
             referencedAccounts: [account1],
-            referencedSites: [
-                {ok: true, value: site1},
-                {ok: false, error: new InternalError("Site 2 not accessible")},
-            ],
+            referencedSites: [{isPrivate: false, site: site1}, {isPrivate: true}],
         });
 
         // Both site stores should be available (because we pre-added them)
@@ -15353,7 +15345,7 @@ describe("referenced sites", () => {
                 {type: "Authorized", collection: collection2},
             ],
             referencedAccounts: [account1],
-            referencedSites: [{ok: true, value: site}],
+            referencedSites: [{isPrivate: false, site}],
         });
 
         // Site store should be available
@@ -15473,7 +15465,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [],
             referencedAccounts: [],
-            referencedSites: [{ok: true, value: site}],
+            referencedSites: [{isPrivate: false, site}],
         });
 
         // Now the site store should be available
@@ -15524,7 +15516,7 @@ describe("referenced sites", () => {
             backfillTasks: [{type: "Authorized", task}],
             backfillCollections: [{type: "Authorized", collection}],
             referencedAccounts: [account1],
-            referencedSites: [{ok: true, value: site}],
+            referencedSites: [{isPrivate: false, site}],
         });
 
         // Site store should be available
@@ -15660,7 +15652,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [{type: "Authorized", collection}],
             referencedAccounts: [account1],
-            referencedSites: [{ok: true, value: site1}],
+            referencedSites: [{isPrivate: false, site: site1}],
         });
 
         // Verify original name
@@ -15676,7 +15668,7 @@ describe("referenced sites", () => {
             backfillTasks: [],
             backfillCollections: [],
             referencedAccounts: [],
-            referencedSites: [{ok: true, value: site2}],
+            referencedSites: [{isPrivate: false, site: site2}],
         });
 
         // Verify name was updated

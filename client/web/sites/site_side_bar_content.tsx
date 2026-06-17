@@ -1317,6 +1317,9 @@ function SiteSideBarNavigationBar({
             width="1/4"
             borderRight="grey-10"
             position="relative"
+            data-testid={
+                process.env.NODE_ENV !== "production" ? "SiteSideBarNavigationBar" : undefined
+            }
         >
             {/* The navigation bar must render inside a `position: relative` wrapper
             containing all of the scroll view's content (see `NavigationBarResult`) — that's

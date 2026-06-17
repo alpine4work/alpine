@@ -255,11 +255,12 @@ export async function getFileTaskEntityModelIfPossible(
     if (taskAccessPolicy?.type === "Site") {
         const referencedSite = result.value.updateEvent.referencedSites.find(
             referencedSiteResult =>
-                referencedSiteResult.ok &&
-                referencedSiteResult.value.id === taskAccessPolicy.siteId,
+                !referencedSiteResult.isPrivate &&
+                referencedSiteResult.site.id === taskAccessPolicy.siteId,
         );
-        assert(referencedSite?.ok);
-        site = assertExists(referencedSite.value);
+
+        // The user may not have access to the site, so only use it if they do.
+        site = referencedSite?.isPrivate === false ? referencedSite.site : null;
     }
 
     return {

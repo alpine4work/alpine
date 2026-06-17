@@ -1,4 +1,3 @@
-import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -27,9 +26,10 @@ export const FileTaskEntityModelSchema = FileEntityModel.implement({
     }).nullable(),
     collections: Schema.array(TaskCollectionModel.schema),
     referencedSites: Schema.array(
-        Schema.result(
-            Schema.object({ok: Schema.value(true), value: SitePreviewModel.schema}),
-            Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+        Schema.booleanUnion(
+            "isPrivate",
+            Schema.object({isPrivate: Schema.value(true)}),
+            Schema.object({isPrivate: Schema.value(false), site: SitePreviewModel.schema}),
         ),
     ).default(emptyArray),
     /**

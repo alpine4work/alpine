@@ -47,6 +47,7 @@ import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {getSiteIfPossible} from "~/server/sites/data/get_site.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
@@ -268,6 +269,13 @@ export async function loader({params, context: unauthenticatedContext, request}:
     } = await loadWithSpaceAndSiteDiscovery(context, {
         request,
         entityId: `Task:${taskId}`,
+        fetchSite: async siteId => {
+            // It's possible that the account doesn't have access to the site in the case where
+            // the account is the task assignee.
+            const result = await getSiteIfPossible(context, {siteId});
+            if (result.ok) return result.value;
+            return null;
+        },
         load1: async ({onSiteId}) => {
             return await getTaskNotesContentAndOptionalInitialCommentsIfExists(context, {
                 taskId,
@@ -383,12 +391,15 @@ export async function loader({params, context: unauthenticatedContext, request}:
             }
             case "Site": {
                 const siteResult = loadQueriesOutput?.updateEvent.referencedSites.find(
-                    site => site.ok && site.value.id === accessPolicy.siteId,
+                    site => !site.isPrivate && site.site.id === accessPolicy.siteId,
                 );
 
-                assert(siteResult && siteResult.ok);
-                taskHasUrlGrant =
-                    assertExists(siteResult.value).initialData.accessPolicy.urlGrant !== null;
+                // TODO(#tasks-in-private-sites): Right now, if the user doesn't have access to the
+                // site then the task's access policy will be null. When we address this TODO
+                // elsewhere in `prepareTaskForClient` we'll want to remove this assertion and
+                // handle the case where the referenced site is private more elegantly.
+                assert(siteResult && !siteResult.isPrivate);
+                taskHasUrlGrant = siteResult.site.initialData.accessPolicy.urlGrant !== null;
                 break;
             }
             default:

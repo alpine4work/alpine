@@ -202,11 +202,11 @@ export async function getFileTaskCollectionEntityModelIfPossible(
     if (collectionAccessPolicy?.type === "Site") {
         const referencedSite = result.value.updateEvent.referencedSites.find(
             referencedSiteResult =>
-                referencedSiteResult.ok &&
-                referencedSiteResult.value.id === collectionAccessPolicy.siteId,
+                !referencedSiteResult.isPrivate &&
+                referencedSiteResult.site.id === collectionAccessPolicy.siteId,
         );
-        assert(referencedSite?.ok);
-        site = assertExists(referencedSite.value);
+        assert(referencedSite?.isPrivate === false);
+        site = assertExists(referencedSite.site);
     }
 
     return {

@@ -56,6 +56,10 @@ export interface TaskRealtimeUpdateEventConnection {
         context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
     ): Promise<boolean>;
+    isSiteAccessAuthorized(
+        context: TaskRealtimeSystemActionContext,
+        siteId: SiteId,
+    ): Promise<boolean>;
 }
 
 type TaskRealtimeUpdateEventBackfillTask =
@@ -356,6 +360,8 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
             isSpaceAccessAuthorized: true,
             isCollectionAccessAuthorized: (collectionId: TaskCollectionId) =>
                 connection.isReferencedCollectionAccessAuthorized(context, collectionId),
+            isSiteAccessAuthorized: (siteId: SiteId) =>
+                connection.isSiteAccessAuthorized(context, siteId),
         };
 
         const [unfilteredActions, backfillTasks] = await runAllPromises([
@@ -491,7 +497,9 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                         connection.accountId,
                         async actorContext => {
                             const result = await getSitePreviewIfPossible(actorContext, siteId);
-                            return result?.ok ? result : null;
+                            return result?.ok
+                                ? ({isPrivate: false, site: result.value} as const)
+                                : ({isPrivate: true} as const);
                         },
                     ),
                 ),

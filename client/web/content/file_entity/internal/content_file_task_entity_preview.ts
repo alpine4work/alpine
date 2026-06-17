@@ -75,8 +75,8 @@ export function renderContentFileTaskEntityPreview(
 
     const referencedSiteById = new Map(
         filterMapIterable(fileEntity.referencedSites, site => {
-            if (!site.ok) return;
-            return [site.value.id, site.value] as const;
+            if (site.isPrivate) return;
+            return [site.site.id, site.site] as const;
         }),
     );
 

@@ -361,11 +361,11 @@ export async function loader({request, params, context: unauthenticatedContext}:
         }
         case "Site": {
             const siteResult = loadQueryResult?.updateEvent.referencedSites.find(
-                site => site.ok && site.value.id === accessPolicy.siteId,
+                site => !site.isPrivate && site.site.id === accessPolicy.siteId,
             );
-            assert(siteResult && siteResult.ok);
+            assert(siteResult && !siteResult.isPrivate);
 
-            hasUrlGrant = assertExists(siteResult.value).initialData.accessPolicy.urlGrant !== null;
+            hasUrlGrant = siteResult.site.initialData.accessPolicy.urlGrant !== null;
             break;
         }
         default:

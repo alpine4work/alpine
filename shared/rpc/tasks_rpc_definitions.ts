@@ -7,7 +7,6 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/content/message_content_schema.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     BrowserId,
@@ -66,12 +65,10 @@ export const commitTaskActionTransaction = defineRpc({
         extraActions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
         referencedSites: Schema.array(
-            Schema.result(
-                Schema.object({
-                    ok: Schema.value(true),
-                    value: SitePreviewModel.schema,
-                }),
-                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({isPrivate: Schema.value(true)}),
+                Schema.object({isPrivate: Schema.value(false), site: SitePreviewModel.schema}),
             ),
         ),
         eventsForSite: Schema.array(RynamoSiteEventSchema).optional(),
@@ -91,12 +88,10 @@ export const deleteTaskAndAllChildren = defineRpc({
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
         referencedSites: Schema.array(
-            Schema.result(
-                Schema.object({
-                    ok: Schema.value(true),
-                    value: SitePreviewModel.schema,
-                }),
-                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({isPrivate: Schema.value(true)}),
+                Schema.object({isPrivate: Schema.value(false), site: SitePreviewModel.schema}),
             ),
         ),
     },
@@ -116,12 +111,10 @@ export const duplicateTaskAndAllChildren = defineRpc({
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
         referencedSites: Schema.array(
-            Schema.result(
-                Schema.object({
-                    ok: Schema.value(true),
-                    value: SitePreviewModel.schema,
-                }),
-                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+            Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({isPrivate: Schema.value(true)}),
+                Schema.object({isPrivate: Schema.value(false), site: SitePreviewModel.schema}),
             ),
         ),
         taskId: Schema.id<TaskId>(),

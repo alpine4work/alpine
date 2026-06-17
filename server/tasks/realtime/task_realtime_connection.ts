@@ -1,4 +1,5 @@
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {authorizeSiteAccessIfPossible} from "~/server/sites/data/authorize_site_access.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {authorizeTaskCollectionIndexDocAccessIfPossible} from "~/server/tasks/data/authorization/authorize_task_collection_index_doc_access_if_possible.js";
@@ -56,6 +57,7 @@ import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     BrowserId,
+    SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -2113,5 +2115,19 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
 
         const authorizationState = await referencedCollectionState.authorizationStatePromise;
         return authorizationState.type === "Authorized";
+    }
+
+    public async isSiteAccessAuthorized(
+        context: TaskRealtimeSystemActionContext,
+        siteId: SiteId,
+    ): Promise<boolean> {
+        const result = await impersonateAccountAsSystemContext(
+            context,
+            this.accountId,
+            async accountContext =>
+                await authorizeSiteAccessIfPossible(accountContext, siteId, "View"),
+        );
+
+        return result?.ok ?? false;
     }
 }
