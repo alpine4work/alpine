@@ -70,6 +70,7 @@ import {
     applyTaskTitleUpdate,
     createTaskTitleFromText,
     emptyTaskTitle,
+    randomlyGenerateTaskTitleClientId,
 } from "~/shared/tasks/title/task_title.js";
 
 const schema = TaskNotesContentProsemirrorSchema;
@@ -179,7 +180,7 @@ export class TestTask extends TestCommentRoomBase {
         if (titleText.length === 0) {
             titleState = new MutexValue(emptyTaskTitle.get());
         } else {
-            const title = createTaskTitleFromText(titleText);
+            const title = createTaskTitleFromText(randomlyGenerateTaskTitleClientId(), titleText);
 
             actions.push({
                 type: "UpdateTask",
@@ -788,7 +789,12 @@ export class TestTask extends TestCommentRoomBase {
         const title = new TaskTitleModel(this._titleState.getWithoutLock());
 
         const pos = title.getText().length;
-        const titleUpdate = title.replace(pos, pos, titleUpdateText);
+        const titleUpdate = title.replace(
+            randomlyGenerateTaskTitleClientId(),
+            pos,
+            pos,
+            titleUpdateText,
+        );
 
         await this.updateTitle(session, titleUpdate.raw);
     }

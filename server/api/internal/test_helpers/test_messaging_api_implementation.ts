@@ -25,7 +25,11 @@ import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
-import {TaskTitleModel, createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleModel,
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 const knownTaskId = generateId<TaskId>();
 const privateTaskId = generateId<TaskId>();
@@ -83,7 +87,10 @@ export const testMessagingApiImplementationSearchInjection: Partial<SearchInject
                     task: {
                         id: knownTaskId,
                         titleSnapshot: new TaskTitleModel(
-                            createTaskTitleFromText("Some bug"),
+                            createTaskTitleFromText(
+                                randomlyGenerateTaskTitleClientId(),
+                                "Some bug",
+                            ),
                         ).getSnapshot(),
                         displayStatus: {
                             value: displayStatus.displayStatus,
@@ -113,7 +120,10 @@ export const testMessagingApiImplementationSearchInjection: Partial<SearchInject
                     task: {
                         id: deletedTaskId,
                         titleSnapshot: new TaskTitleModel(
-                            createTaskTitleFromText("Deleted task"),
+                            createTaskTitleFromText(
+                                randomlyGenerateTaskTitleClientId(),
+                                "Deleted task",
+                            ),
                         ).getSnapshot(),
                         displayStatus: {
                             value: displayStatus.displayStatus,

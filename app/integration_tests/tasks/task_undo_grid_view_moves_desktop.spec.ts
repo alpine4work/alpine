@@ -17,7 +17,10 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
-import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 const {context, services} = createTestServices();
 
@@ -66,7 +69,10 @@ test.beforeAll(async () => {
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: createTaskTitleFromText(`Task ${taskIndex + 1}`),
+                titleUpdate: createTaskTitleFromText(
+                    randomlyGenerateTaskTitleClientId(),
+                    `Task ${taskIndex + 1}`,
+                ),
             },
         });
 

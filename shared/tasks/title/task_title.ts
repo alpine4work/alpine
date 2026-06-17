@@ -14,7 +14,7 @@ import {deepFreeze} from "~/shared/helpers/control/deep_freeze.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {decodeId} from "~/shared/id/id.js";
+import {Id, decodeId} from "~/shared/id/id.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -85,13 +85,15 @@ export const TaskTitleSchema = Schema.bytes as any as Schema<TaskTitle>;
 
 export const emptyTaskTitleProsemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, []);
 
+export type TaskTitleClientId = number & {readonly _TaskTitleClientId: never};
+
 /**
- * We use the `RealmId` (really the first 32 bits of the `RealmId`) as the
- * `clientID` for Yjs. For this to work we must be careful to not create two
- * conflicting `TaskTitleUpdate`s within the same JavaScript realm. Otherwise if we
- * commit two conflicting updates the task title will be corrupted!
+ * We derive Yjs client IDs from the `RealmId` so a single JavaScript realm can
+ * reuse a stable client ID across title updates. If an optimistic title update is
+ * reverted, increment the task entry's revert count and generate a new client ID
+ * so future updates are based on the new title state.
  */
-export const realmTaskTitleClientId = new Lazy((): number => {
+const taskTitleClientIdBase = new Lazy(() => {
     const realmIdBytes = decodeId(getRealmId());
     const realmIdDataView = new DataView(
         realmIdBytes.buffer,
@@ -101,29 +103,88 @@ export const realmTaskTitleClientId = new Lazy((): number => {
     return realmIdDataView.getUint32(0);
 });
 
+/**
+ * Generates a `TaskTitleClientId` from the `RealmId` and the revert count.
+ * Intended to be used by `<TaskRowTitleInput>` and `<TaskDetailTitleInput>` which
+ * make continuous updates and benefit from a stable `TaskTitleClientId` (since Yjs
+ * can merge adjacent items from the same `TaskTitleClientId`). We need a
+ * `revertCount` because in some race conditions `TaskClientStore` will sometimes
+ * revert a change that has actually been accepted by the server (e.g. if the
+ * browser goes temporarily offline). In that case we need to use a new
+ * `TaskTitleClientId` to avoid conflicting with updates from the server.
+ */
+export function generateTaskTitleClientIdFromRealmId(options: {
+    revertCount: number;
+}): TaskTitleClientId {
+    return actuallyGenerateTaskTitleClientIdFromRealmId(taskTitleClientIdBase.get(), options);
+}
+
+export function generateTaskTitleClientIdFromRealmIdForTest(
+    realmId: Id,
+    options: {revertCount: number},
+): TaskTitleClientId {
+    assert(import.meta.jest);
+
+    const realmIdBytes = decodeId(realmId);
+    const realmIdDataView = new DataView(
+        realmIdBytes.buffer,
+        realmIdBytes.byteOffset,
+        realmIdBytes.byteLength,
+    );
+
+    return actuallyGenerateTaskTitleClientIdFromRealmId(realmIdDataView.getUint32(0), options);
+}
+
+function actuallyGenerateTaskTitleClientIdFromRealmId(
+    realmId: number,
+    {revertCount}: {revertCount: number},
+): TaskTitleClientId {
+    let clientId = realmId;
+
+    for (let round = 0; round < revertCount; round++) {
+        clientId = shuffleTaskTitleClientId(clientId, round);
+    }
+
+    return clientId as TaskTitleClientId;
+}
+
+function shuffleTaskTitleClientId(clientId: number, round: number): number {
+    let value = (clientId + Math.imul(round + 1, 0x9e3779b9)) >>> 0;
+    value ^= value >>> 16;
+    value = Math.imul(value, 0x7feb352d) >>> 0;
+    value ^= value >>> 15;
+    value = Math.imul(value, 0x846ca68b) >>> 0;
+    value ^= value >>> 16;
+    return value >>> 0;
+}
+
+/**
+ * Generates a random `TaskTitleClientId`. This will be less efficient when
+ * continuously typing in the same input since Yjs won't be able to merge adjacent
+ * items. This could lead to massive Yjs docs which isn't good! However, it's
+ * useful in cases where you're making a one-off update to a task title and want to
+ * guarantee you don't conflict with any other edits (possibly made by the same
+ * `RealmId`).
+ */
+export function randomlyGenerateTaskTitleClientId(): TaskTitleClientId {
+    const bytes = new Uint32Array(1);
+    crypto.getRandomValues(bytes);
+    return bytes[0] as TaskTitleClientId;
+}
+
 // Put this in a constant so Jest `expect().toEqual()` checks will pass.
 const gcFilter = () => true;
 
 /**
- * Create a Yjs doc where the `clientID` is based on the `RealmId` (specifically
- * the first 32 bytes). We expect the code within a JavaScript realm to NOT create
- * conflicting updates.
+ * Create a Yjs doc with an explicit `clientID`.
  *
  * We create a Yjs document without using the initializer for more control and for
  * performance. (For instance, while profiling task grid view scrolling we found
  * Yjs's implementation of `guid` generation to be slow.)
  */
-function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
+function createDoc(clientId: TaskTitleClientId): Y.Doc {
     const doc = Object.create(Y.Doc.prototype);
 
-    // Can only change the client ID in tests.
-    if (!import.meta.jest) {
-        assert(clientIdForTest === undefined);
-    }
-
-    // Always use a client ID based on our realm ID. There should never be any
-    // concurrent updates within a single JavaScript realm.
-    //
     // Define the property as read-only. When detecting potential corruption [Yjs may
     // try to change the `clientID`][1]. Instead of silently changing the `clientID`
     // we'd prefer to loudly throw an error.
@@ -134,7 +195,7 @@ function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
         configurable: true,
         enumerable: true,
         writable: false,
-        value: clientIdForTest ?? realmTaskTitleClientId.get(),
+        value: clientId,
     });
 
     // Make sure the Yjs GC is enabled.
@@ -169,8 +230,8 @@ function createDoc({clientIdForTest}: {clientIdForTest?: number} = {}): Y.Doc {
  * If cloning becomes a performance issue then we should consider writing an
  * implementation of Yjs with efficient immutable data structures from scratch.
  */
-function cloneDoc(doc: Y.Doc, options?: {clientIdForTest?: number}): Y.Doc {
-    const clonedDoc = createDoc(options);
+function cloneDoc(doc: Y.Doc, clientId: TaskTitleClientId): Y.Doc {
+    const clonedDoc = createDoc(clientId);
     const clonedItemByClockByClientId = new Map<number, Map<number, Y.Item>>();
 
     // 1. Clone all structs
@@ -326,7 +387,11 @@ function cloneDoc(doc: Y.Doc, options?: {clientIdForTest?: number}): Y.Doc {
  * with any title without fear of conflicting updates.
  */
 export const emptyTaskTitle = new Lazy(() => {
-    const doc = createDoc();
+    // The `clientId` doesn't matter so use the `RealmId` based `clientId` since it's
+    // cheap to generate. The empty task title doesn't include `clientId`s or anything
+    // in fact as you can observe in the test "decoded empty task title is empty and
+    // has no client IDs".
+    const doc = createDoc(generateTaskTitleClientIdFromRealmId({revertCount: 0}));
     prosemirrorToYXmlFragment(emptyTaskTitleProsemirrorNode, doc.getXmlFragment("doc"));
     return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
 });
@@ -347,7 +412,9 @@ export function isTaskTitle(title: Uint8Array): title is TaskTitle {
  * Gets a ProseMirror node from a `TaskTitle`.
  */
 export function getTaskTitleProsemirrorNode(title: TaskTitle): Node {
-    const doc = createDoc();
+    // The `clientId` we use here shouldn't matter because we're not making any new
+    // updates to the doc. Just applying an existing update.
+    const doc = createDoc(generateTaskTitleClientIdFromRealmId({revertCount: 0}));
     Y.applyUpdateV2(doc, title);
     return yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, doc.getXmlFragment("doc"));
 }
@@ -379,17 +446,14 @@ export function getTaskTitleText(title: TaskTitle): string {
 /**
  * Creates a Yjs encoded task title from a string.
  */
-export function createTaskTitleFromText(
-    titleText: string,
-    options?: {clientIdForTest?: number},
-): TaskTitle {
+export function createTaskTitleFromText(clientId: TaskTitleClientId, titleText: string): TaskTitle {
     const prosemirrorNode = TaskTitleProsemirrorSchema.node(
         "doc",
         {},
         titleText.length > 0 ? [TaskTitleProsemirrorSchema.text(titleText)] : [],
     );
 
-    const doc = createDoc(options);
+    const doc = createDoc(clientId);
     prosemirrorToYXmlFragment(prosemirrorNode, doc.getXmlFragment("doc"));
     return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
 }
@@ -405,7 +469,10 @@ export function applyTaskTitleUpdate(title: TaskTitle, titleUpdate: TaskTitleUpd
     // We don't use `Y.mergeUpdatesV2()` because the result won't be in an optimized
     // form. Specifically, adjacent items won't be merged. See the test "applying task
     // title update to task title produces optimized form" for an example.
-    const doc = createDoc();
+    //
+    // The `clientId` we use here shouldn't matter because we're not making any new
+    // updates to the doc. Just applying an existing update.
+    const doc = createDoc(generateTaskTitleClientIdFromRealmId({revertCount: 0}));
     Y.applyUpdateV2(doc, assertExists(title));
     Y.applyUpdateV2(doc, assertExists(titleUpdate));
     return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
@@ -418,7 +485,10 @@ export function mergeTaskTitleUpdates(
     // We don't use `Y.mergeUpdatesV2()` because the result won't be in an optimized
     // form. Specifically, adjacent items won't be merged. See the test "applying task
     // title update to task title produces optimized form" for an example.
-    const doc = createDoc();
+    //
+    // The `clientId` we use here shouldn't matter because we're not making any new
+    // updates to the doc. Just applying an existing update.
+    const doc = createDoc(generateTaskTitleClientIdFromRealmId({revertCount: 0}));
     Y.applyUpdateV2(doc, assertExists(titleUpdate1));
     Y.applyUpdateV2(doc, assertExists(titleUpdate2));
     return Y.encodeStateAsUpdateV2(doc) as TaskTitleUpdate;
@@ -488,8 +558,8 @@ export function addFallbackToTaskTitle(title: string): string {
  *
  * ```ts
  * const title1 = emptyTaskTitleModel.get();
- * const updateA = title1.replace(0, 0, "a");
- * const updateB = title1.replace(0, 0, "b");
+ * const updateA = title1.replace(clientId, 0, 0, "a");
+ * const updateB = title1.replace(clientId, 0, 0, "b");
  * const title2 = title1.apply(updateA);
  * const title3 = title2.apply(updateB);
  * ```
@@ -505,9 +575,9 @@ export function addFallbackToTaskTitle(title: string): string {
  *
  * ```ts
  * const title1 = emptyTaskTitleModel.get();
- * const updateA = title1.replace(0, 0, "a");
+ * const updateA = title1.replace(clientId, 0, 0, "a");
  * const title2 = updateA.newTitle;
- * const updateB = title2.replace(0, 0, "b");
+ * const updateB = title2.replace(clientId, 0, 0, "b");
  * const title3 = updateB.newTitle;
  * ```
  *
@@ -557,14 +627,14 @@ export class TaskTitleModel {
         }
     }
 
-    public static fromText(text: string, options?: {clientIdForTest?: number}) {
+    public static fromText(clientId: TaskTitleClientId, text: string) {
         const prosemirrorNode = TaskTitleProsemirrorSchema.node(
             "doc",
             {},
             text.length > 0 ? [TaskTitleProsemirrorSchema.text(text)] : [],
         );
 
-        const doc = createDoc(options);
+        const doc = createDoc(clientId);
         prosemirrorToYXmlFragment(prosemirrorNode, doc.getXmlFragment("doc"));
 
         return new TaskTitleModel(doc);
@@ -575,7 +645,10 @@ export class TaskTitleModel {
      */
     private _getDoc() {
         if (this._doc === null) {
-            const doc = createDoc();
+            // The `clientId` we use here shouldn't matter because we're not making any new
+            // updates to the doc (we `deepFreeze()` the doc in fact!). The doc only exists to
+            // be read and then cloned.
+            const doc = createDoc(generateTaskTitleClientIdFromRealmId({revertCount: 0}));
             Y.applyUpdateV2(doc, assertExists(this._raw));
 
             // In development and test environments, make sure `doc` isn't mutated by deeply
@@ -687,8 +760,8 @@ export class TaskTitleModel {
      * Clones the underlying Yjs doc. You should only call this in `task_title.ts`.
      * That's why it's prefixed with an underscore.
      */
-    public _cloneDoc(options?: {clientIdForTest?: number}): Y.Doc {
-        return cloneDoc(this._getDoc(), options);
+    public _cloneDoc(clientId: TaskTitleClientId): Y.Doc {
+        return cloneDoc(this._getDoc(), clientId);
     }
 
     /**
@@ -700,12 +773,12 @@ export class TaskTitleModel {
      * comment on `TaskTitleModel` for more information.
      */
     public replace(
+        clientId: TaskTitleClientId,
         from: number,
         to: number,
         text: string,
-        options?: {clientIdForTest?: number},
     ): TaskTitleUpdateModel {
-        return this.replaceMany([{from, to, text}], options);
+        return this.replaceMany(clientId, [{from, to, text}]);
     }
 
     /**
@@ -717,10 +790,10 @@ export class TaskTitleModel {
      * comment on `TaskTitleModel` for more information.
      */
     public replaceMany(
+        clientId: TaskTitleClientId,
         steps: Iterable<{from: number; to: number} & ({text: string} | {slice: Slice})>,
-        options?: {clientIdForTest?: number},
     ): TaskTitleUpdateModel {
-        return this.replaceManyWithStepWithTruncatedCharacterCount(steps, options).update;
+        return this.replaceManyWithStepWithTruncatedCharacterCount(clientId, steps).update;
     }
 
     /**
@@ -733,10 +806,10 @@ export class TaskTitleModel {
      * comment on `TaskTitleModel` for more information.
      */
     public replaceManyWithStepWithTruncatedCharacterCount(
+        clientId: TaskTitleClientId,
         steps: Iterable<{from: number; to: number} & ({text: string} | {slice: Slice})>,
-        options?: {clientIdForTest?: number},
     ): {update: TaskTitleUpdateModel; truncatedCharacterCount: number} {
-        const doc = cloneDoc(this._getDoc(), options);
+        const doc = cloneDoc(this._getDoc(), clientId);
         const fragment = doc.getXmlFragment("doc");
 
         let update: TaskTitleUpdate | null = null;
@@ -901,7 +974,14 @@ export class TaskTitleModel {
         });
 
         const finalUpdate: TaskTitleUpdate = isEmptyFromTruncation
-            ? emptyTaskTitle.get()
+            ? (() => {
+                  const doc = createDoc(clientId);
+                  prosemirrorToYXmlFragment(
+                      emptyTaskTitleProsemirrorNode,
+                      doc.getXmlFragment("doc"),
+                  );
+                  return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
+              })()
             : // TypeScript thinks `update` is null even though we assign to it in the
               // `"updateV2"` event handler.
               assertExists<TaskTitleUpdate>(update);
@@ -922,8 +1002,8 @@ export class TaskTitleModel {
      * little different from `replace(0, length, "")` since it also clears some XML
      * structural metadata from the Yjs doc.
      */
-    public clear(options?: {clientIdForTest?: number}) {
-        const doc = cloneDoc(this._getDoc(), options);
+    public clear(clientId: TaskTitleClientId) {
+        const doc = cloneDoc(this._getDoc(), clientId);
         const fragment = doc.getXmlFragment("doc");
 
         let update: TaskTitleUpdate | null = null;
@@ -972,10 +1052,7 @@ export class TaskTitleModel {
      * optimized path where we can return `update.newTitle` instead of applying the
      * update from scratch.
      */
-    public apply(
-        update: TaskTitleModel | TaskTitleUpdateModel | TaskTitleUpdate,
-        options?: {clientIdForTest?: number},
-    ): TaskTitleModel {
+    public apply(update: TaskTitleModel | TaskTitleUpdateModel | TaskTitleUpdate): TaskTitleModel {
         if (update instanceof TaskTitleUpdateModel) {
             if (update.oldTitle === this) {
                 return update.newTitle;
@@ -986,7 +1063,15 @@ export class TaskTitleModel {
             update = update.getRaw();
         }
 
-        const doc = cloneDoc(this._getDoc(), options);
+        const oldDoc = this._getDoc();
+
+        const doc = cloneDoc(
+            oldDoc,
+            // Reuse the old `clientId` here. We aren't making any new updates in this
+            // `apply()` function so the `clientId` shouldn't matter.
+            oldDoc.clientID as TaskTitleClientId,
+        );
+
         Y.applyUpdateV2(doc, update);
 
         return new TaskTitleModel(doc);
@@ -1023,8 +1108,8 @@ function cloneDeleteSet(deleteSet: Y.DeleteSet): Y.DeleteSet {
  * Model representing a task title update. Wraps a binary `TaskTitleUpdate` and
  * provides some extra helpers and information for client applications.
  *
- * If you only use `title.replace().newTitle` to get a new title after an update
- * then you'll never be at risk of producing a corrupted title.
+ * If you only use `title.replace(clientId).newTitle` to get a new title after an
+ * update then you'll never be at risk of producing a corrupted title.
  */
 export class TaskTitleUpdateModel {
     public readonly raw: TaskTitleUpdate;
@@ -1078,10 +1163,10 @@ export class TaskTitleUpdateModel {
      * that will correctly override previous data.
      */
     public invert(
+        clientId: TaskTitleClientId,
         currentTitle: TaskTitleModel,
-        options?: {clientIdForTest?: number},
     ): TaskTitleUpdateModel | null {
-        const doc = currentTitle._cloneDoc(options);
+        const doc = currentTitle._cloneDoc(clientId);
         const xmlFragment = doc.getXmlFragment("doc");
 
         const undoManager = new Y.UndoManager(xmlFragment);

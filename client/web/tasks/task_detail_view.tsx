@@ -2946,7 +2946,8 @@ function TaskDetailViewMain(
     const accountRegistry = useAccountRegistry();
     const {currentAccount} = useSpaceContext();
 
-    const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task ?? null;
+    const taskEntry = useStore(taskSubscription?.taskEntryStore ?? null);
+    const task = taskEntry?.task ?? null;
 
     const assigneeAccountStore = !taskSubscription
         ? initialFields.assignee !== null
@@ -3109,6 +3110,7 @@ function TaskDetailViewMain(
                                     ref={titleInputRef}
                                     isReadOnly={!hasEditAccessLevel}
                                     title={title}
+                                    taskEntryRevertCount={taskEntry?.revertCount ?? 0}
                                     onTitleChange={onTitleChange}
                                     placeholder={taskFallbackTitle}
                                 />

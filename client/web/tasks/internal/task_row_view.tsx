@@ -1834,6 +1834,7 @@ function TaskRowView(
                     query={query}
                     isQueryManuallySorted={isQueryManuallySorted}
                     task={task}
+                    taskEntryRevertCount={taskEntry?.revertCount ?? 0}
                     onTitleChange={onTitleChange}
                     placeholder={titlePlaceholder}
                     indentation={parents.length}

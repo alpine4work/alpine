@@ -51,6 +51,7 @@ import {
     TaskTitleModel,
     addFallbackToTaskTitle,
     emptyTaskTitleModel,
+    randomlyGenerateTaskTitleClientId,
 } from "~/shared/tasks/title/task_title.js";
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
@@ -354,7 +355,14 @@ export class TaskModel {
             taskId: taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: TaskTitleModel.fromText(titleText).getRaw(),
+                titleUpdate: TaskTitleModel.fromText(
+                    // Since this could be called on the server, use a random `TaskTitleClientId` so we
+                    // don't run into any weird conflicts. If this is called on the client, it's not a
+                    // continuous update anyway so the Yjs adjacent item merging optimization doesn't
+                    // matter that much.
+                    randomlyGenerateTaskTitleClientId(),
+                    titleText,
+                ).getRaw(),
             },
         });
 

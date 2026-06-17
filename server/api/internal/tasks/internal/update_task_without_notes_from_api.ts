@@ -18,6 +18,7 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+import {randomlyGenerateTaskTitleClientId} from "~/shared/tasks/title/task_title.js";
 
 type TaskPatch = ApiSpecification.components["schemas"]["TaskPatch"];
 type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"];
@@ -212,7 +213,12 @@ function createTaskWithoutNotesPatchActions({
     if (finalState.title !== initialState.title) {
         const titleUpdate = initialTask
             .getTitle()
-            .replace(0, initialState.title.length, finalState.title);
+            .replace(
+                randomlyGenerateTaskTitleClientId(),
+                0,
+                initialState.title.length,
+                finalState.title,
+            );
         pushTaskAction({type: "UpdateTitle", titleUpdate: titleUpdate.raw});
     }
 

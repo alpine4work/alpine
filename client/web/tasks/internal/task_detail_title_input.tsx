@@ -35,6 +35,7 @@ import {
     TaskTitleModel,
     TaskTitleProsemirrorSchema,
     TaskTitleUpdateModel,
+    generateTaskTitleClientIdFromRealmId,
 } from "~/shared/tasks/title/task_title.js";
 
 export type TaskDetailTitleInputRef = {
@@ -65,6 +66,7 @@ export {TaskDetailTitleInputForwardRef as TaskDetailTitleInput};
 function TaskDetailTitleInput(
     props: {
         title: TaskTitleModel;
+        taskEntryRevertCount: number;
         onTitleChange: (titleUpdate: TaskTitleUpdateModel) => void;
         placeholder: string;
         isReadOnly: boolean;
@@ -169,6 +171,11 @@ function TaskDetailTitleInput(
 
                         const {update: titleUpdate, truncatedCharacterCount} =
                             propsRef.current.title.replaceManyWithStepWithTruncatedCharacterCount(
+                                // Very important that we use a consistent `TaskTitleClientId` here across updates
+                                // so the Yjs adjacent item merging optimization applies!
+                                generateTaskTitleClientIdFromRealmId({
+                                    revertCount: propsRef.current.taskEntryRevertCount,
+                                }),
                                 mapIterable(transaction.steps, step => {
                                     assert(step instanceof ReplaceStep);
                                     return step;

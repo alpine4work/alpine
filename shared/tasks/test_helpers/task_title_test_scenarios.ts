@@ -1,6 +1,6 @@
 import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {TaskTitle, TaskTitleUpdate, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {TaskTitle, TaskTitleUpdate} from "~/shared/tasks/title/task_title.js";
 
 assert(process.env.NODE_ENV === "test");
 
@@ -91,10 +91,4 @@ export const sentenceTaskTitleTestScenario = {
     title9: decodeBase64(
         "AAAG6cGihw8AAQAAAwcABEA9ZG9jVGhlIHF1aWNrICjigJxicm93buKAnSkgZm94IGNhbuKAmXQganVtcCAzMi4zIGZlZXQsIHJpZ2h0PwM0AwEAAAEGAAECAAA=",
     ) as TaskTitle,
-};
-
-export const createTaskTitleFromText = (text: string) => {
-    const title = emptyTaskTitleModel.get();
-    const update = title.replace(0, 0, text);
-    return title.apply(update);
 };

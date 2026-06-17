@@ -36,7 +36,10 @@ import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_
 import {generateId} from "~/shared/id/id.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {SearchMentionEntityId, SearchMentionEntityType} from "~/shared/search/search_entity_id.js";
-import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleModel,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
@@ -191,7 +194,12 @@ const testCaseByEntityType: Record<
 
                     await task.updateTitle(
                         session,
-                        oldTitle.replace(0, oldTitle.getText().length, title).raw,
+                        oldTitle.replace(
+                            randomlyGenerateTaskTitleClientId(),
+                            0,
+                            oldTitle.getText().length,
+                            title,
+                        ).raw,
                     );
                 },
                 delete: async () => {

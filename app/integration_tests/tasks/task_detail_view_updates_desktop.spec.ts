@@ -6,6 +6,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 
@@ -939,4 +940,131 @@ test("pressing backspace to delete a child task moves focus back to the parent t
     await page.keyboard.press("2");
 
     await expectTaskGridView(page, [[true, "Task 2"]], {withoutColumns: true});
+});
+
+test("title edit after client request aborted last title edit", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const task = await TestTask.create(session, {title: "test"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    let titleCommitCount = 0;
+    const firstTitleCommitReachedServer = createPromiseResolver<void>();
+    const secondTitleCommitStarted = createPromiseResolver<void>();
+    const releaseSecondTitleCommit = createPromiseResolver<void>();
+
+    await page.route("**/api/rpc/**", async route => {
+        const request = route.request();
+        const requestBody = request.postData() ?? "";
+
+        const isTaskTitleCommit =
+            request.method() === "POST" &&
+            (request.url().includes("/commitTaskActionTransaction") ||
+                requestBody.includes("commitTaskActionTransaction")) &&
+            requestBody.includes("UpdateTitle");
+
+        if (!isTaskTitleCommit) {
+            await route.continue();
+            return;
+        }
+
+        titleCommitCount++;
+        if (titleCommitCount === 1) {
+            await route.fetch();
+            firstTitleCommitReachedServer.resolve();
+            await route.abort("failed");
+            return;
+        }
+
+        if (titleCommitCount === 2) {
+            secondTitleCommitStarted.resolve();
+            await releaseSecondTitleCommit.promise;
+        }
+
+        await route.continue();
+    });
+
+    let shouldDelayNextSubscribeResponse = false;
+    let delayedMessages: Array<() => void> = [];
+    const closeCurrentTaskRealtimeWebSocket = createPromiseResolver<() => Promise<void>>();
+
+    await page.routeWebSocket("**/api/task-realtime/**", route => {
+        const server = route.connectToServer();
+        closeCurrentTaskRealtimeWebSocket.resolve(async () => {
+            await runAllPromises([server.close({code: 1011}), route.close({code: 1011})]);
+        });
+
+        route.onMessage(message => {
+            server.send(message);
+        });
+
+        server.onMessage(message => {
+            if (shouldDelayNextSubscribeResponse && isSubscribeProcedureResponse(message)) {
+                shouldDelayNextSubscribeResponse = false;
+                delayedMessages.push(() => route.send(message));
+                return;
+            }
+
+            route.send(message);
+        });
+
+        function isSubscribeProcedureResponse(data: unknown) {
+            if (typeof data !== "string") return false;
+
+            try {
+                const message = JSON.parse(data);
+                return (
+                    message.type === "ProcedureResponse" &&
+                    message.result?.ok === true &&
+                    message.result.output?.type === "subscribe"
+                );
+            } catch {
+                return false;
+            }
+        }
+    });
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/task/${task.id}`);
+
+    const titleInput = page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"});
+
+    await expect(titleInput).toHaveText(/^test$/);
+
+    await titleInput.click();
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "right"));
+    await page.keyboard.type("x");
+
+    await firstTitleCommitReachedServer.promise;
+
+    // Wait for client to revert the commit.
+    await expect(titleInput).toHaveText(/^test$/);
+
+    shouldDelayNextSubscribeResponse = true;
+    const close = await closeCurrentTaskRealtimeWebSocket.promise;
+    await close();
+    await expect.poll(() => delayedMessages.length).toBeGreaterThan(0);
+
+    // Try updating again.
+    await titleInput.click();
+    await page.keyboard.press(await pageKeyboardShortcut(page, "mod", "right"));
+    await page.keyboard.type("y");
+
+    await expect(titleInput).toHaveText(/^testy$/);
+
+    await secondTitleCommitStarted.promise;
+
+    for (const releaseMessage of delayedMessages) {
+        releaseMessage();
+    }
+    delayedMessages = [];
+
+    // When we reconnect, we should end up merging both updates.
+    await expect(titleInput).toHaveText(/^test(?:xy|yx)$/);
+
+    releaseSecondTitleCommit.resolve();
 });

@@ -5,7 +5,11 @@ import {
     parseSiteItemSearchEntityId,
 } from "~/shared/search/site_item_search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {TaskTitleModel, createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    TaskTitleModel,
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 export function buildTestSiteEntityData(entityId: SiteItemSearchEntityId): SearchEntityModelData {
     const idObject = parseSiteItemSearchEntityId(entityId);
@@ -57,7 +61,7 @@ export function buildTestSiteEntityData(entityId: SiteItemSearchEntityId): Searc
                 task: {
                     id: idObject.taskId,
                     titleSnapshot: new TaskTitleModel(
-                        createTaskTitleFromText("Test Entity"),
+                        createTaskTitleFromText(randomlyGenerateTaskTitleClientId(), "Test Entity"),
                     ).getSnapshot(),
                     displayStatus: {
                         value: displayStatus.displayStatus,

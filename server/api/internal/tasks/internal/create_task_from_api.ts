@@ -11,7 +11,10 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 export type ApiCreatedTask = {
     id: TaskId;
@@ -85,7 +88,7 @@ export async function createTaskFromApi(
             taskId,
             taskAction: {
                 type: "UpdateTitle",
-                titleUpdate: createTaskTitleFromText(title),
+                titleUpdate: createTaskTitleFromText(randomlyGenerateTaskTitleClientId(), title),
             },
         });
     }

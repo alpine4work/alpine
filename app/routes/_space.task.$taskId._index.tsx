@@ -107,7 +107,11 @@ import {
 } from "~/shared/tasks/task_query_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {addFallbackToTaskTitle, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {
+    addFallbackToTaskTitle,
+    emptyTaskTitleModel,
+    generateTaskTitleClientIdFromRealmId,
+} from "~/shared/tasks/title/task_title.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,
@@ -776,7 +780,14 @@ function TaskRouteInner() {
             layout: initialFields.layout,
             titleUpdate:
                 initialFields.title.length > 0
-                    ? emptyTaskTitleModel.get().replace(0, 0, initialFields.title)
+                    ? emptyTaskTitleModel
+                          .get()
+                          .replace(
+                              generateTaskTitleClientIdFromRealmId({revertCount: 0}),
+                              0,
+                              0,
+                              initialFields.title,
+                          )
                     : null,
             assignee:
                 initialFields.assigneeId === currentAccount?.id

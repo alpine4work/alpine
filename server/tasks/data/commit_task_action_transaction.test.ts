@@ -42,7 +42,10 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
-import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
+import {
+    createTaskTitleFromText,
+    randomlyGenerateTaskTitleClientId,
+} from "~/shared/tasks/title/task_title.js";
 
 let jobs: Array<JobDescription> = [];
 
@@ -3094,7 +3097,10 @@ describe("bot task creation authorization", () => {
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: createTaskTitleFromText("Bot task"),
+                    titleUpdate: createTaskTitleFromText(
+                        randomlyGenerateTaskTitleClientId(),
+                        "Bot task",
+                    ),
                 },
             },
         ]);
@@ -3138,7 +3144,10 @@ describe("bot task creation authorization", () => {
                     taskId: task.id,
                     taskAction: {
                         type: "UpdateTitle",
-                        titleUpdate: createTaskTitleFromText("Hacked"),
+                        titleUpdate: createTaskTitleFromText(
+                            randomlyGenerateTaskTitleClientId(),
+                            "Hacked",
+                        ),
                     },
                 },
             ]),
