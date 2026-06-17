@@ -45,7 +45,6 @@ import {
     UnimplementedError,
 } from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -63,6 +62,10 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
+import {
+    MaybeNonEmptyReadonlyArray,
+    MaybeReadonlyArray,
+} from "~/shared/helpers/types/maybe_array.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
@@ -378,8 +381,8 @@ export class RynamoTableSchema<
     Types extends DynamoTableSchemaTypesBase,
     ModelMap extends {[partitionType: string]: {[sortRangeType: string]: any}},
 > {
-    private readonly _table: DynamoTableSchema<Types>;
-    private readonly _features:
+    readonly #table: DynamoTableSchema<Types>;
+    readonly #features:
         | {
               readonly realtimeQuery?: {readonly [partitionType: string]: boolean | undefined};
               readonly deleteItem?: {
@@ -389,10 +392,10 @@ export class RynamoTableSchema<
               };
           }
         | undefined;
-    private readonly _models: RynamoTableSchemaPartitionModelConfigType<
+    readonly #models: RynamoTableSchemaPartitionModelConfigType<
         DynamoTableSchemaTypes.ConfigBase["partitions"]
     >;
-    private readonly _broadcastEventsCallback: (
+    readonly #broadcastEventsCallback: (
         context: ServerActionContext,
         events: ReadonlyArray<{
             itemKey: Types["ItemKey"];
@@ -405,9 +408,9 @@ export class RynamoTableSchema<
         }>,
     ) => Promise<void>;
 
-    private readonly _indexByNameByItemType = new Map<string, Map<string, RynamoInternalIndex>>();
+    readonly #indexByNameByItemType = new Map<string, Map<string, RynamoInternalIndex>>();
 
-    public static new<
+    static new<
         const PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
         const ModelsConfig extends RynamoTableSchemaPartitionModelConfigType<PartitionsConfig>,
     >({
@@ -578,18 +581,18 @@ export class RynamoTableSchema<
             }>,
         ) => Promise<void>;
     }) {
-        this._table = table;
-        this._features = features;
-        this._models = models;
-        this._broadcastEventsCallback = broadcastEvents;
+        this.#table = table;
+        this.#features = features;
+        this.#models = models;
+        this.#broadcastEventsCallback = broadcastEvents;
     }
 
-    public getName() {
-        return this._table.getName();
+    getName() {
+        return this.#table.getName();
     }
 
-    public isInitialized() {
-        return this._table.isInitialized();
+    isInitialized() {
+        return this.#table.isInitialized();
     }
 
     /**
@@ -599,23 +602,23 @@ export class RynamoTableSchema<
      * Remember this data is not secured in any way! If you share this with a client
      * then the client should be able to see all data in the item's primary key.
      */
-    public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
-        return this._table.serializeOpaqueItemKey(key);
+    serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
+        return this.#table.serializeOpaqueItemKey(key);
     }
 
     /**
      * Deserialize the opaque item key string into an object so we can see the data
      * inside.
      */
-    public deserializeOpaqueItemKey(key: DynamoItemKey): Types["ItemKey"] {
-        return this._table.deserializeOpaqueItemKey(key);
+    deserializeOpaqueItemKey(key: DynamoItemKey): Types["ItemKey"] {
+        return this.#table.deserializeOpaqueItemKey(key);
     }
 
-    private _buildModel<Item extends Types["Item"]>(
+    #buildModel<Item extends Types["Item"]>(
         context: ServerActionContext,
         item: Item,
     ): Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]> {
-        return this._models[item.partitionType]![item.sortRangeType]!.build(
+        return this.#models[item.partitionType]![item.sortRangeType]!.build(
             context,
             item,
         ) as Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>;
@@ -635,7 +638,7 @@ export class RynamoTableSchema<
      * won't get realtime updates. But if the client reloads their browser they're
      * going to pick up the new data.
      */
-    private _broadcastActionTransaction(
+    #broadcastActionTransaction(
         context: ServerActionContext,
         actionTransaction: ReadonlyArray<RynamoAction<Types["ItemKey"], ModelMap[string][string]>>,
     ): Promise<void> {
@@ -694,7 +697,7 @@ export class RynamoTableSchema<
                     //
                     // If `realtimeQuery()` is disabled then we won't need to backfill a realtime query
                     // so we don't need to save event transactions under our table's partition key.
-                    if (this._features?.realtimeQuery?.[action.itemKey.partitionType]) {
+                    if (this.#features?.realtimeQuery?.[action.itemKey.partitionType]) {
                         realtimeKeys.add(action.getPartitionKey());
                     }
 
@@ -747,7 +750,7 @@ export class RynamoTableSchema<
                     // event that happens to have the same `eventTime` which would be bad. Either we
                     // should switch this call to `createItem()` or (ideally) we should switch
                     // `eventTime` to a `ChronologicalId` to guarantee uniqueness.
-                    return this._table.createOrReplaceItem(context, item);
+                    return this.#table.createOrReplaceItem(context, item);
                 }),
             );
 
@@ -756,11 +759,11 @@ export class RynamoTableSchema<
             //
             // That way a strong consistency read of events in DynamoDB will give you all
             // events sent before the start of the read.
-            await this._broadcastEventsCallback(context, events);
+            await this.#broadcastEventsCallback(context, events);
         });
     }
 
-    private _createPutItemAction<Item extends Types["Item"]>({
+    #createPutItemAction<Item extends Types["Item"]>({
         oldItem,
         newItem,
         newVersion,
@@ -774,11 +777,11 @@ export class RynamoTableSchema<
     > {
         const itemType = `${newItem.partitionType}#${newItem.sortRangeType}`;
         const {getPartitionKey, getSortKey, key} =
-            this._table.serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(newItem);
+            this.#table.serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(newItem);
 
         if (oldItem !== null && oldItem !== newItem) {
             assert(
-                key === this._table.serializeOpaqueItemKey(oldItem),
+                key === this.#table.serializeOpaqueItemKey(oldItem),
                 "Can\u2019t update item key",
             );
             assert(
@@ -787,7 +790,7 @@ export class RynamoTableSchema<
             );
         }
 
-        const indexByName = this._indexByNameByItemType.get(itemType);
+        const indexByName = this.#indexByNameByItemType.get(itemType);
 
         let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
         let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
@@ -835,7 +838,7 @@ export class RynamoTableSchema<
                 modelCache,
                 getActorContextModuleKey(context.actor),
                 () =>
-                    this._buildModel(context, {
+                    this.#buildModel(context, {
                         ...newItem,
                         updateLockVersion: newVersion !== 0 ? newVersion : undefined,
                     }),
@@ -862,10 +865,10 @@ export class RynamoTableSchema<
         };
     }
 
-    private _createDeleteItemAction<Item extends Types["Item"]>(
+    #createDeleteItemAction<Item extends Types["Item"]>(
         item: Item,
     ): RynamoDeleteItemAction<Item & Types["ItemKey"]> {
-        if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+        if (!this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
                 `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
             );
@@ -873,11 +876,11 @@ export class RynamoTableSchema<
 
         const itemType = `${item.partitionType}#${item.sortRangeType}`;
         const {getPartitionKey, getSortKey, key} =
-            this._table.serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(item);
+            this.#table.serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(item);
 
         const version = (item.updateLockVersion ?? 0) + 1;
 
-        const indexByName = this._indexByNameByItemType.get(itemType);
+        const indexByName = this.#indexByNameByItemType.get(itemType);
 
         let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
 
@@ -890,7 +893,7 @@ export class RynamoTableSchema<
 
         const indexes = new Set<string>();
 
-        for (const [indexName] of this._indexByNameByItemType.get(itemType) ?? []) {
+        for (const [indexName] of this.#indexByNameByItemType.get(itemType) ?? []) {
             indexes.add(indexName);
         }
 
@@ -921,7 +924,7 @@ export class RynamoTableSchema<
      * because we need to maintain the item's version number across updates to
      * correctly order events received out-of-order on the client.
      */
-    public async createItem<Item extends Types["Item"]>(
+    async createItem<Item extends Types["Item"]>(
         context: ServerActionContext,
         item: Item,
         options?: {isConditionCheckErrorRetriable?: boolean},
@@ -936,7 +939,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        if (this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+        if (this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             item = {
                 ...item,
                 // Make sure if we call `transactionDirectlyUpdateItem()` we don't need to run
@@ -947,18 +950,18 @@ export class RynamoTableSchema<
             };
         }
 
-        const action = this._createPutItemAction({
+        const action = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
-            await this._table.createItem(context, item, options);
+        if (!this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+            await this.#table.createItem(context, item, options);
         } else {
             await DynamoTableSchema.executeTransaction(context, [
-                this._table.transactionCreateItem(item, options),
-                this._table.transactionDoesNotExistConditionCheck(
+                this.#table.transactionCreateItem(item, options),
+                this.#table.transactionDoesNotExistConditionCheck(
                     cast<RynamoPrivateGraveyardPartitionItemKey>({
                         partitionType: rynamoPrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
@@ -969,7 +972,7 @@ export class RynamoTableSchema<
             ]);
         }
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
+        context.process.waitUntil(this.#broadcastActionTransaction(context, [action]));
 
         return {getEvent: action.getEvent};
     }
@@ -982,7 +985,7 @@ export class RynamoTableSchema<
      * Dangerous since we don't send a realtime event if this succeeds. Useful when
      * seeding the database and we aren't in an action context.
      */
-    public async dangerouslyCreateItemIfNoneExistsWithoutEvent<Item extends Types["Item"]>(
+    async dangerouslyCreateItemIfNoneExistsWithoutEvent<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
     ): Promise<{
@@ -994,7 +997,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return await this._table.createItemIfNoneExists(context, item);
+        return await this.#table.createItemIfNoneExists(context, item);
     }
 
     /**
@@ -1014,7 +1017,7 @@ export class RynamoTableSchema<
      * If you don't want to write a retry loop yourself, consider using `updateItem()`
      * which does it for you.
      */
-    public async directlyUpdateItem<Item extends Types["Item"]>(
+    async directlyUpdateItem<Item extends Types["Item"]>(
         context: ServerActionContext,
         newItem: DynamoItem<Item>,
     ): Promise<{
@@ -1022,9 +1025,9 @@ export class RynamoTableSchema<
             context: ServerActionContext,
         ) => Promise<RynamoPutItemEvent<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>>;
     }> {
-        const action = await this._directlyUpdateItem(context, newItem);
+        const action = await this.#directlyUpdateItem(context, newItem);
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
+        context.process.waitUntil(this.#broadcastActionTransaction(context, [action]));
 
         return {getEvent: action.getEvent};
     }
@@ -1034,14 +1037,14 @@ export class RynamoTableSchema<
      * Only use this if your update has no visible impact on the item! So clients won't
      * care if the event is missed. Useful for database migrations.
      */
-    public async dangerouslyDirectlyUpdateItemWithoutEvent<Item extends Types["Item"]>(
+    async dangerouslyDirectlyUpdateItemWithoutEvent<Item extends Types["Item"]>(
         context: DynamoContext,
         newItem: DynamoItem<Item>,
     ): Promise<void> {
-        await this._directlyUpdateItem(context, newItem);
+        await this.#directlyUpdateItem(context, newItem);
     }
 
-    private async _directlyUpdateItem<Item extends Types["Item"]>(
+    async #directlyUpdateItem<Item extends Types["Item"]>(
         context: DynamoContext,
         newItem: Item,
     ): Promise<
@@ -1063,7 +1066,7 @@ export class RynamoTableSchema<
             );
         }
 
-        const action = this._createPutItemAction({
+        const action = this.#createPutItemAction({
             oldItem: newItem.oldItem,
             newItem,
             newVersion: (newItem.updateLockVersion ?? 0) + 1,
@@ -1102,17 +1105,17 @@ export class RynamoTableSchema<
         }
 
         if (
-            !this._features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
+            !this.#features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
             (typeof newItem.updateLockVersion === "number" && newItem.updateLockVersion !== 0)
         ) {
-            await this._table.directlyUpdateItem(context, newItem, {condition});
+            await this.#table.directlyUpdateItem(context, newItem, {condition});
         }
         // If we're creating the item then we need to make sure it doesn't have a
         // gravestone.
         else {
             await DynamoTableSchema.executeTransaction(context, [
-                this._table.transactionDirectlyUpdateItem(newItem, {condition}),
-                this._table.transactionDoesNotExistConditionCheck(
+                this.#table.transactionDirectlyUpdateItem(newItem, {condition}),
+                this.#table.transactionDoesNotExistConditionCheck(
                     cast<RynamoPrivateGraveyardPartitionItemKey>({
                         partitionType: rynamoPrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
@@ -1139,7 +1142,7 @@ export class RynamoTableSchema<
      *
      * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
      */
-    public async updateItem<ItemKey extends Types["ItemKey"]>(
+    async updateItem<ItemKey extends Types["ItemKey"]>(
         context: ServerActionContext,
         itemKey: ItemKey,
         update: (
@@ -1153,7 +1156,7 @@ export class RynamoTableSchema<
             RynamoPutItemEvent<ModelMap[ItemKey["partitionType"]][ItemKey["sortRangeType"]]>
         >;
     }>;
-    public async updateItem<ItemKey extends Types["ItemKey"]>(
+    async updateItem<ItemKey extends Types["ItemKey"]>(
         context: ServerActionContext,
         itemKey: ItemKey,
         update: (
@@ -1167,7 +1170,7 @@ export class RynamoTableSchema<
             RynamoPutItemEvent<ModelMap[ItemKey["partitionType"]][ItemKey["sortRangeType"]]>
         >;
     }>;
-    public async updateItem<ItemKey extends Types["ItemKey"]>(
+    async updateItem<ItemKey extends Types["ItemKey"]>(
         context: ServerActionContext,
         itemKey: ItemKey,
         // Typed as `never` since a caller should always match one of the overloads, not
@@ -1200,7 +1203,7 @@ export class RynamoTableSchema<
 
             // Update was short-circuited.
             if (item === newItem) {
-                const action = this._createPutItemAction({
+                const action = this.#createPutItemAction({
                     oldItem: null,
                     newItem: item,
                     newVersion: newItem.updateLockVersion ?? 0,
@@ -1233,9 +1236,9 @@ export class RynamoTableSchema<
      * Is `deleteItem()`, `undeleteItem()`, `getDeletedItemIfExists()`, and other
      * related methods enabled for this item type?
      */
-    public isDeleteItemEnabled<ItemType extends Types["ItemType"]>(itemType: ItemType): boolean {
+    isDeleteItemEnabled<ItemType extends Types["ItemType"]>(itemType: ItemType): boolean {
         return (
-            this._features?.deleteItem?.[itemType.partitionType]?.[itemType.sortRangeType] ?? false
+            this.#features?.deleteItem?.[itemType.partitionType]?.[itemType.sortRangeType] ?? false
         );
     }
 
@@ -1256,7 +1259,7 @@ export class RynamoTableSchema<
      * To use this function you must enable it with the `features.deleteItem` object
      * passed into `RynamoTableSchema`.
      */
-    public async deleteItem<Item extends Types["Item"]>(
+    async deleteItem<Item extends Types["Item"]>(
         context: ServerActionContext,
         item: Item,
     ): Promise<void> {
@@ -1266,7 +1269,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const action = this._createDeleteItemAction(item);
+        const action = this.#createDeleteItemAction(item);
 
         let condition: DynamoCondition<Item> | undefined;
 
@@ -1293,8 +1296,8 @@ export class RynamoTableSchema<
         }
 
         await DynamoTableSchema.executeTransaction(context, [
-            this._table.transactionDeleteItem(item, {condition}),
-            this._table.transactionCreateOrReplaceItem(
+            this.#table.transactionDeleteItem(item, {condition}),
+            this.#table.transactionCreateOrReplaceItem(
                 cast<RynamoPrivateGraveyardPartitionItem>({
                     partitionType: rynamoPrivateGraveyardPartitionName,
                     sortRangeType: "Gravestone",
@@ -1305,7 +1308,7 @@ export class RynamoTableSchema<
             ),
         ]);
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
+        context.process.waitUntil(this.#broadcastActionTransaction(context, [action]));
     }
 
     /**
@@ -1317,7 +1320,7 @@ export class RynamoTableSchema<
      * To use this function you must enable it with the `features.deleteItem` object
      * passed into `RynamoTableSchema`.
      */
-    public async getDeletedItemIfExists<ItemKey extends Types["ItemKey"]>(
+    async getDeletedItemIfExists<ItemKey extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: ItemKey,
         options?: {
@@ -1331,16 +1334,16 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        if (!this._features?.deleteItem?.[itemKey.partitionType]?.[itemKey.sortRangeType]) {
+        if (!this.#features?.deleteItem?.[itemKey.partitionType]?.[itemKey.sortRangeType]) {
             throw new InternalError(
                 `Deleted items are disabled (partition type: \`${itemKey.partitionType}\`, sort range type: \`${itemKey.sortRangeType}\`)`,
             );
         }
 
         const {partitionKey, sortKey} =
-            this._table.serializeOpaqueItemPartitionKeyAndSortKey(itemKey);
+            this.#table.serializeOpaqueItemPartitionKeyAndSortKey(itemKey);
 
-        const gravestoneItem = await this._table.getItemIfExists(
+        const gravestoneItem = await this.#table.getItemIfExists(
             context,
             cast<RynamoPrivateGraveyardPartitionItemKey>({
                 partitionType: rynamoPrivateGraveyardPartitionName,
@@ -1367,7 +1370,7 @@ export class RynamoTableSchema<
      * To use this function you must enable it with the `features.deleteItem` object
      * passed into `RynamoTableSchema`.
      */
-    public async undeleteItem<Item extends Types["Item"]>(
+    async undeleteItem<Item extends Types["Item"]>(
         context: ServerActionContext,
         deletedItem: RynamoTableDeletedItem,
         item: Item,
@@ -1382,7 +1385,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+        if (!this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
                 `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
             );
@@ -1393,14 +1396,14 @@ export class RynamoTableSchema<
             updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
         };
 
-        const action = this._createPutItemAction({
+        const action = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
         await DynamoTableSchema.executeTransaction(context, [
-            this._table.transactionDeleteItem(
+            this.#table.transactionDeleteItem(
                 cast<RynamoPrivateGraveyardPartitionItem>({
                     partitionType: rynamoPrivateGraveyardPartitionName,
                     sortRangeType: "Gravestone",
@@ -1409,10 +1412,10 @@ export class RynamoTableSchema<
                     updateLockVersion: deletedItem.updateLockVersion,
                 }),
             ),
-            this._table.transactionCreateOrReplaceItem(item),
+            this.#table.transactionCreateOrReplaceItem(item),
         ]);
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
+        context.process.waitUntil(this.#broadcastActionTransaction(context, [action]));
 
         return {getEvent: action.getEvent};
     }
@@ -1426,7 +1429,7 @@ export class RynamoTableSchema<
      * `DynamoTableSchema`. But may also include non-realtime transaction entries from
      * `DynamoTableSchema`.
      */
-    public static async executeTransaction(
+    static async executeTransaction(
         context: ServerActionContext,
         entries: ReadonlyArray<DynamoTransactionEntry | RynamoTransactionEntry>,
         options?: {clientRequestToken?: string},
@@ -1449,15 +1452,16 @@ export class RynamoTableSchema<
 
         await DynamoTableSchema.executeTransaction(
             context,
-            entries.flatMap(entry => {
-                if (entry instanceof DynamoTransactionEntry) return entry;
+            entries.flatMap((entry): MaybeReadonlyArray<DynamoTransactionEntry> => {
+                if (!(entry instanceof RynamoTransactionEntryInternal))
+                    return entry as DynamoTransactionEntry;
+
                 // The parameter is typed as the opaque handle from `~/shared`. At runtime every
                 // non-`DynamoTransactionEntry` value is constructed by
                 // `RynamoTransactionEntry._new()` in this file, so it's always an instance of the
                 // class. Assert to narrow back to the implementation type and unlock
                 // `_get(privateSymbol)`.
-                assert(entry instanceof RynamoTransactionEntryInternal);
-                const {entry: actualEntry, schema, action} = entry._get(privateSymbol);
+                const {entry: actualEntry, schema, action} = entry;
                 getOrSetDefaultMapValue(actionsBySchema, schema, () => []).push(action);
                 return actualEntry;
             }),
@@ -1467,7 +1471,7 @@ export class RynamoTableSchema<
         context.process.waitUntil(async () => {
             await runAllPromises(
                 mapIterable(actionsBySchema, ([schema, events]) =>
-                    schema._broadcastActionTransaction(context, events),
+                    schema.#broadcastActionTransaction(context, events),
                 ),
             );
         });
@@ -1506,7 +1510,7 @@ export class RynamoTableSchema<
      * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
      * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
-    public transactionCreateItem<Item extends Types["Item"]>(item: Item): RynamoTransactionEntry {
+    transactionCreateItem<Item extends Types["Item"]>(item: Item): RynamoTransactionEntry {
         return this.transactionCreateItemWithEvent(item).transactionEntry;
     }
 
@@ -1521,7 +1525,7 @@ export class RynamoTableSchema<
      * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
      * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
-    public transactionCreateItemWithEvent<const Item extends Types["Item"]>(
+    transactionCreateItemWithEvent<const Item extends Types["Item"]>(
         item: Item,
     ): {
         transactionEntry: RynamoTransactionEntry;
@@ -1535,7 +1539,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        if (this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+        if (this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             item = {
                 ...item,
                 // Make sure if we call `transactionDirectlyUpdateItem()` we don't need to run
@@ -1546,7 +1550,7 @@ export class RynamoTableSchema<
             };
         }
 
-        const action = this._createPutItemAction({
+        const action = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
@@ -1554,19 +1558,17 @@ export class RynamoTableSchema<
 
         let transactionEntry;
 
-        if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
-            transactionEntry = RynamoTransactionEntryInternal._new(
-                privateSymbol,
-                this._table.transactionCreateItem(item),
-                this,
+        if (!this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+            transactionEntry = new RynamoTransactionEntryInternal({
+                entry: this.#table.transactionCreateItem(item),
+                schema: this,
                 action,
-            );
+            });
         } else {
-            transactionEntry = RynamoTransactionEntryInternal._new(
-                privateSymbol,
-                [
-                    this._table.transactionCreateItem(item),
-                    this._table.transactionDoesNotExistConditionCheck(
+            transactionEntry = new RynamoTransactionEntryInternal({
+                entry: [
+                    this.#table.transactionCreateItem(item),
+                    this.#table.transactionDoesNotExistConditionCheck(
                         cast<RynamoPrivateGraveyardPartitionItemKey>({
                             partitionType: rynamoPrivateGraveyardPartitionName,
                             sortRangeType: "Gravestone",
@@ -1575,9 +1577,9 @@ export class RynamoTableSchema<
                         }),
                     ),
                 ],
-                this,
+                schema: this,
                 action,
-            );
+            });
         }
 
         return {
@@ -1594,7 +1596,7 @@ export class RynamoTableSchema<
      * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
      * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
-    public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
+    transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         newItem: DynamoItem<Item>,
     ): RynamoTransactionEntry {
         return this.transactionDirectlyUpdateItemWithEvent(newItem).transactionEntry;
@@ -1611,7 +1613,7 @@ export class RynamoTableSchema<
      * You execute realtime transactions with `RynamoTableSchema.executeTransaction()`.
      * Can not be executed with `DynamoTableSchema.executeTransaction()`.
      */
-    public transactionDirectlyUpdateItemWithEvent<Item extends Types["Item"]>(
+    transactionDirectlyUpdateItemWithEvent<Item extends Types["Item"]>(
         newItem: DynamoItem<Item>,
     ): {
         transactionEntry: RynamoTransactionEntry;
@@ -1632,7 +1634,7 @@ export class RynamoTableSchema<
             );
         }
 
-        const action = this._createPutItemAction({
+        const action = this.#createPutItemAction({
             oldItem: newItem.oldItem,
             newItem,
             newVersion: (newItem.updateLockVersion ?? 0) + 1,
@@ -1672,24 +1674,22 @@ export class RynamoTableSchema<
         let transactionEntry;
 
         if (
-            !this._features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
+            !this.#features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
             (typeof newItem.updateLockVersion === "number" && newItem.updateLockVersion !== 0)
         ) {
-            transactionEntry = RynamoTransactionEntryInternal._new(
-                privateSymbol,
-                this._table.transactionDirectlyUpdateItem(newItem, {condition}),
-                this,
+            transactionEntry = new RynamoTransactionEntryInternal({
+                entry: this.#table.transactionDirectlyUpdateItem(newItem, {condition}),
+                schema: this,
                 action,
-            );
+            });
         }
         // If we're creating the item then we need to make sure it doesn't have a
         // gravestone.
         else {
-            transactionEntry = RynamoTransactionEntryInternal._new(
-                privateSymbol,
-                [
-                    this._table.transactionDirectlyUpdateItem(newItem, {condition}),
-                    this._table.transactionDoesNotExistConditionCheck(
+            transactionEntry = new RynamoTransactionEntryInternal({
+                entry: [
+                    this.#table.transactionDirectlyUpdateItem(newItem, {condition}),
+                    this.#table.transactionDoesNotExistConditionCheck(
                         cast<RynamoPrivateGraveyardPartitionItemKey>({
                             partitionType: rynamoPrivateGraveyardPartitionName,
                             sortRangeType: "Gravestone",
@@ -1702,9 +1702,9 @@ export class RynamoTableSchema<
                         {isConditionCheckErrorRetriable: true},
                     ),
                 ],
-                this,
+                schema: this,
                 action,
-            );
+            });
         }
 
         return {
@@ -1724,7 +1724,7 @@ export class RynamoTableSchema<
      * To use this function you must enable it with the `features.deleteItem` object
      * passed into `RynamoTableSchema`.
      */
-    public transactionDeleteItem<Item extends Types["Item"]>(item: Item): RynamoTransactionEntry {
+    transactionDeleteItem<Item extends Types["Item"]>(item: Item): RynamoTransactionEntry {
         return this.transactionDeleteItemWithEvent(item).transactionEntry;
     }
 
@@ -1739,7 +1739,7 @@ export class RynamoTableSchema<
      * To use this function you must enable it with the `features.deleteItem` object
      * passed into `RynamoTableSchema`.
      */
-    public transactionDeleteItemWithEvent<const Item extends Types["Item"]>(
+    transactionDeleteItemWithEvent<const Item extends Types["Item"]>(
         item: Item,
     ): {
         transactionEntry: RynamoTransactionEntry;
@@ -1751,7 +1751,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const action = this._createDeleteItemAction(item);
+        const action = this.#createDeleteItemAction(item);
 
         let condition: DynamoCondition<Item> | undefined;
 
@@ -1777,11 +1777,10 @@ export class RynamoTableSchema<
             condition = actualCondition as any;
         }
 
-        const transactionEntry = RynamoTransactionEntryInternal._new(
-            privateSymbol,
-            [
-                this._table.transactionDeleteItem(item, {condition}),
-                this._table.transactionCreateOrReplaceItem(
+        const transactionEntry = new RynamoTransactionEntryInternal({
+            entry: [
+                this.#table.transactionDeleteItem(item, {condition}),
+                this.#table.transactionCreateOrReplaceItem(
                     cast<RynamoPrivateGraveyardPartitionItem>({
                         partitionType: rynamoPrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
@@ -1791,9 +1790,9 @@ export class RynamoTableSchema<
                     }),
                 ),
             ],
-            this,
+            schema: this,
             action,
-        );
+        });
 
         return {
             transactionEntry,
@@ -1812,14 +1811,14 @@ export class RynamoTableSchema<
      * To use this function you must enable it with the `features.deleteItem` object
      * passed into `RynamoTableSchema`.
      */
-    public transactionUndeleteItem<Item extends Types["Item"]>(
+    transactionUndeleteItem<Item extends Types["Item"]>(
         deletedItem: RynamoTableDeletedItem,
         item: Item,
     ): RynamoTransactionEntry {
         return this.transactionUndeleteItemWithEvent(deletedItem, item).transactionEntry;
     }
 
-    public transactionUndeleteItemWithEvent<const Item extends Types["Item"]>(
+    transactionUndeleteItemWithEvent<const Item extends Types["Item"]>(
         deletedItem: RynamoTableDeletedItem,
         item: Item,
     ): {
@@ -1834,7 +1833,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+        if (!this.#features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
                 `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
             );
@@ -1845,16 +1844,15 @@ export class RynamoTableSchema<
             updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
         };
 
-        const action = this._createPutItemAction({
+        const action = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        const transactionEntry = RynamoTransactionEntryInternal._new(
-            privateSymbol,
-            [
-                this._table.transactionDeleteItem(
+        const transactionEntry = new RynamoTransactionEntryInternal({
+            entry: [
+                this.#table.transactionDeleteItem(
                     cast<RynamoPrivateGraveyardPartitionItem>({
                         partitionType: rynamoPrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
@@ -1863,11 +1861,11 @@ export class RynamoTableSchema<
                         updateLockVersion: deletedItem.updateLockVersion,
                     }),
                 ),
-                this._table.transactionCreateOrReplaceItem(item),
+                this.#table.transactionCreateOrReplaceItem(item),
             ],
-            this,
+            schema: this,
             action,
-        );
+        });
 
         return {
             transactionEntry,
@@ -1879,7 +1877,7 @@ export class RynamoTableSchema<
      * Checks whether an item exists and optionally some other conditions on the item.
      * If this condition fails then the entire transaction fails.
      */
-    public transactionConditionCheck<Key extends Types["ItemKey"]>(
+    transactionConditionCheck<Key extends Types["ItemKey"]>(
         itemKey: Key,
         condition?: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
@@ -1889,14 +1887,14 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.transactionConditionCheck(itemKey, condition);
+        return this.#table.transactionConditionCheck(itemKey, condition);
     }
 
     /**
      * Creates a transaction entry that checks whether an item with the provided key
      * exists.
      */
-    public transactionExistsConditionCheck<Key extends Types["ItemKey"]>(
+    transactionExistsConditionCheck<Key extends Types["ItemKey"]>(
         itemKey: Key,
     ): DynamoTransactionEntry {
         assert(
@@ -1905,14 +1903,14 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.transactionExistsConditionCheck(itemKey);
+        return this.#table.transactionExistsConditionCheck(itemKey);
     }
 
     /**
      * Checks that an item does not exist as a part of a transaction. If this condition
      * fails then the entire transaction fails.
      */
-    public transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
+    transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
         itemKey: Key,
         options?: {isConditionCheckErrorRetriable?: boolean},
     ): DynamoTransactionEntry {
@@ -1922,14 +1920,14 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.transactionDoesNotExistConditionCheck(itemKey, options);
+        return this.#table.transactionDoesNotExistConditionCheck(itemKey, options);
     }
 
     /**
      * Creates a transaction entry that checks the provided item exists and checks the
      * item has the version provided by `updateLockVersion`.
      */
-    public transactionUpdateLockVersionConditionCheck<Key extends Types["ItemKey"]>(
+    transactionUpdateLockVersionConditionCheck<Key extends Types["ItemKey"]>(
         itemKey: Key,
         updateLockVersion: number | undefined,
     ): DynamoTransactionEntry {
@@ -1939,7 +1937,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.transactionUpdateLockVersionConditionCheck(itemKey, updateLockVersion);
+        return this.#table.transactionUpdateLockVersionConditionCheck(itemKey, updateLockVersion);
     }
 
     /**
@@ -1956,27 +1954,26 @@ export class RynamoTableSchema<
      * You may use this to save cost if you have other mechanisms in place to make
      * absolutely sure the item you're inserting does not currently exist.
      */
-    public transactionDangerouslyCreateItemWithoutExistenceConditionCheck<
-        Item extends Types["Item"],
-    >(item: Item): RynamoTransactionEntry {
+    transactionDangerouslyCreateItemWithoutExistenceConditionCheck<Item extends Types["Item"]>(
+        item: Item,
+    ): RynamoTransactionEntry {
         assert(
             item.partitionType !== rynamoPrivatePartitionName &&
                 item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
-        const action = this._createPutItemAction({
+        const action = this.#createPutItemAction({
             oldItem: null,
             newItem: item,
             newVersion: item.updateLockVersion ?? 0,
         });
 
-        return RynamoTransactionEntryInternal._new(
-            privateSymbol,
-            this._table.transactionCreateOrReplaceItem(item),
-            this,
+        return new RynamoTransactionEntryInternal({
+            entry: this.#table.transactionCreateOrReplaceItem(item),
+            schema: this,
             action,
-        );
+        });
     }
 
     /**
@@ -1990,7 +1987,7 @@ export class RynamoTableSchema<
      * know an item was created. Because this method is very dangerous it's basically
      * only useful for implementing database migrations.
      */
-    public transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent<
+    transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent<
         Item extends Types["Item"],
     >(
         item: Item,
@@ -2002,7 +1999,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.transactionCreateOrReplaceItem(item, options);
+        return this.#table.transactionCreateOrReplaceItem(item, options);
     }
 
     /**
@@ -2017,7 +2014,7 @@ export class RynamoTableSchema<
      * of the update. You should only use this method if you're confident it's ok if
      * the property is not updated in realtime.
      */
-    public transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent<
+    transactionDangerouslyDirectlyUpdateItemAttributeWithoutEvent<
         ItemKey extends Types["ItemKey"],
         Attribute extends DistributiveKeyOf<Types["Item"]> & string,
     >(
@@ -2032,7 +2029,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.transactionDirectlyUpdateItemAttribute(
+        return this.#table.transactionDirectlyUpdateItemAttribute(
             itemKey,
             attribute,
             attributeValue,
@@ -2055,22 +2052,22 @@ export class RynamoTableSchema<
      * If you want to delete an item from the table anyway while breaking this table's
      * realtime guarantees you may use this method.
      */
-    public transactionDangerouslyDeleteItemWithoutGravestoneAndWithoutEvent<
-        Item extends Types["Item"],
-    >(item: Item): DynamoTransactionEntry {
+    transactionDangerouslyDeleteItemWithoutGravestoneAndWithoutEvent<Item extends Types["Item"]>(
+        item: Item,
+    ): DynamoTransactionEntry {
         assert(
             item.partitionType !== rynamoPrivatePartitionName &&
                 item.partitionType !== rynamoPrivateGraveyardPartitionName,
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.transactionDeleteItem(item);
+        return this.#table.transactionDeleteItem(item);
     }
 
     /**
      * Get an item from the database and if it doesn't exist then return null.
      */
-    public async getItemIfExists<Key extends Types["ItemKey"]>(
+    async getItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         options?: {
@@ -2084,13 +2081,13 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return await this._table._getItemWithOldItemIfExists(context, itemKey, options);
+        return await this.#table._getItemWithOldItemIfExists(context, itemKey, options);
     }
 
     /**
      * Get an item from the database and if it doesn't exist then throw an error.
      */
-    public async getItem<Key extends Types["ItemKey"]>(
+    async getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         options?: {
@@ -2118,7 +2115,7 @@ export class RynamoTableSchema<
      * 3. You expect the item may have been recently created so an eventually
      *    consistent read may be stale and not return an item
      */
-    public async getItemWithEventualThenStrongConsistency<Key extends Types["ItemKey"]>(
+    async getItemWithEventualThenStrongConsistency<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         options?: {allowsEventualReadConsistency?: boolean},
@@ -2145,7 +2142,7 @@ export class RynamoTableSchema<
      * Gets a few attributes of a single item by its key from the database. Returns
      * `null` if the item does not exist.
      */
-    public getPartialItemIfExists<
+    getPartialItemIfExists<
         Key extends Types["ItemKey"],
         Attributes extends DistributiveKeyOf<Types["Item"]> & string,
     >(
@@ -2163,14 +2160,14 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.getPartialItemIfExists(context, itemKey, options);
+        return this.#table.getPartialItemIfExists(context, itemKey, options);
     }
 
     /**
      * Gets a few attributes of a single item by its key from the database. Throws an
      * error if the item doesn't exist.
      */
-    public getPartialItem<
+    getPartialItem<
         Key extends Types["ItemKey"],
         Attributes extends DistributiveKeyOf<Types["Item"]> & string,
     >(
@@ -2187,7 +2184,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.getPartialItem(context, itemKey, options);
+        return this.#table.getPartialItem(context, itemKey, options);
     }
 
     /**
@@ -2195,7 +2192,7 @@ export class RynamoTableSchema<
      * returns all the auxillary information a client will need to maintain this data
      * in realtime.
      */
-    public async getRealtimeItemIfExists<Key extends Types["ItemKey"]>(
+    async getRealtimeItemIfExists<Key extends Types["ItemKey"]>(
         context: ServerActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoCacheReadConsistency},
@@ -2206,13 +2203,13 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const item = await this._table.getItemIfExists(context, itemKey, options);
+        const item = await this.#table.getItemIfExists(context, itemKey, options);
         if (!item) return null;
 
         return {
-            key: this._table.serializeOpaqueItemKey(item),
+            key: this.#table.serializeOpaqueItemKey(item),
             version: item.updateLockVersion ?? 0,
-            model: await this._buildModel(context, item),
+            model: await this.#buildModel(context, item),
         };
     }
 
@@ -2221,7 +2218,7 @@ export class RynamoTableSchema<
      * returns all the auxillary information a client will need to maintain this data
      * in realtime.
      */
-    public async getRealtimeItem<Key extends Types["ItemKey"]>(
+    async getRealtimeItem<Key extends Types["ItemKey"]>(
         context: ServerActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoCacheReadConsistency},
@@ -2232,26 +2229,26 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const item = await this._table.getItem(context, itemKey, options);
+        const item = await this.#table.getItem(context, itemKey, options);
 
         return {
-            key: this._table.serializeOpaqueItemKey(item),
+            key: this.#table.serializeOpaqueItemKey(item),
             version: item.updateLockVersion ?? 0,
-            model: await this._buildModel(context, item),
+            model: await this.#buildModel(context, item),
         };
     }
 
     /**
      * Build a realtime item from a DynamoDB item object we've previously loaded.
      */
-    public async buildRealtimeItem<Item extends Types["Item"]>(
+    async buildRealtimeItem<Item extends Types["Item"]>(
         context: ServerActionContext,
         item: Item,
     ): Promise<RynamoItem<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>> {
         return {
-            key: this._table.serializeOpaqueItemKey(item),
+            key: this.#table.serializeOpaqueItemKey(item),
             version: item.updateLockVersion ?? 0,
-            model: await this._buildModel(context, item),
+            model: await this.#buildModel(context, item),
         };
     }
 
@@ -2260,7 +2257,7 @@ export class RynamoTableSchema<
      * related data. Does not return information to keep the query up-to-date in
      * realtime. For realtime support use `realtimeQuery()`.
      */
-    public query<
+    query<
         const PartitionKey extends Types["PartitionKey"],
         const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
         const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
@@ -2295,17 +2292,17 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table._queryWithOldItems(context, options);
+        return this.#table._queryWithOldItems(context, options);
     }
 
-    public getRealtimeQueryPartitionKey(partitionKey: Types["PartitionKey"]) {
-        if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
+    getRealtimeQueryPartitionKey(partitionKey: Types["PartitionKey"]) {
+        if (!this.#features?.realtimeQuery?.[partitionKey.partitionType]) {
             throw new InternalError(
                 `Realtime queries are disabled (partition type: \`${partitionKey.partitionType}\`)`,
             );
         }
 
-        return this._table.serializeOpaqueItemPartitionKey(partitionKey);
+        return this.#table.serializeOpaqueItemPartitionKey(partitionKey);
     }
 
     /**
@@ -2315,7 +2312,7 @@ export class RynamoTableSchema<
      * Does not perform any database operations. Be careful when using this! Realtime
      * can get stuck if there's actual data in the query and you use this.
      */
-    public realtimeQueryIfYouAreCertainThePartitionIsEmpty<
+    realtimeQueryIfYouAreCertainThePartitionIsEmpty<
         const PartitionKey extends Types["PartitionKey"],
         const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
         const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
@@ -2340,7 +2337,7 @@ export class RynamoTableSchema<
     }): RynamoQueryResult<
         ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
     > {
-        if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
+        if (!this.#features?.realtimeQuery?.[partitionKey.partitionType]) {
             throw new InternalError(
                 `Realtime queries are disabled (partition type: \`${partitionKey.partitionType}\`)`,
             );
@@ -2352,7 +2349,7 @@ export class RynamoTableSchema<
             paginate.type === "FromStart" ? paginate.afterItemKey : paginate.beforeItemKey;
 
         const paginateItemKey = paginateItemKeyString
-            ? this._table.deserializeOpaqueItemKey(paginateItemKeyString)
+            ? this.#table.deserializeOpaqueItemKey(paginateItemKeyString)
             : undefined;
 
         // Make sure the partition key part of `paginateItemKey` is the same as our
@@ -2364,7 +2361,7 @@ export class RynamoTableSchema<
                 );
             }
 
-            const partitionKeyAttributes = this._table.getPartitionKeyAttributes(
+            const partitionKeyAttributes = this.#table.getPartitionKeyAttributes(
                 partitionKey.partitionType,
             );
 
@@ -2381,16 +2378,16 @@ export class RynamoTableSchema<
         }
 
         const startItemKey = startSortKey
-            ? this._table.serializeOpaqueItemKey({...startSortKey, ...partitionKey})
+            ? this.#table.serializeOpaqueItemKey({...startSortKey, ...partitionKey})
             : null;
 
         const endItemKey = endSortKey
-            ? this._table.serializeOpaqueItemKey({...endSortKey, ...partitionKey})
+            ? this.#table.serializeOpaqueItemKey({...endSortKey, ...partitionKey})
             : null;
 
         return {
             checkpoint,
-            partitionKey: this._table.serializeOpaqueItemPartitionKey(partitionKey),
+            partitionKey: this.#table.serializeOpaqueItemPartitionKey(partitionKey),
             startItemKey,
             endItemKey,
             pageInfo:
@@ -2414,7 +2411,7 @@ export class RynamoTableSchema<
      * related data. Also returns all the auxillary information necessary for a client
      * to keep a query up-to-date in realtime.
      */
-    public async realtimeQuery<
+    async realtimeQuery<
         const PartitionKey extends Types["PartitionKey"],
         const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
         const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
@@ -2470,7 +2467,7 @@ export class RynamoTableSchema<
             ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
         >
     > {
-        if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
+        if (!this.#features?.realtimeQuery?.[partitionKey.partitionType]) {
             throw new InternalError(
                 `Realtime queries are disabled (partition type: \`${partitionKey.partitionType}\`)`,
             );
@@ -2484,7 +2481,7 @@ export class RynamoTableSchema<
             paginate.type === "FromStart" ? paginate.afterItemKey : paginate.beforeItemKey;
 
         const paginateItemKey = paginateItemKeyString
-            ? this._table.deserializeOpaqueItemKey(paginateItemKeyString)
+            ? this.#table.deserializeOpaqueItemKey(paginateItemKeyString)
             : undefined;
 
         // Make sure the partition key part of `paginateItemKey` is the same as our
@@ -2496,7 +2493,7 @@ export class RynamoTableSchema<
                 );
             }
 
-            const partitionKeyAttributes = this._table.getPartitionKeyAttributes(
+            const partitionKeyAttributes = this.#table.getPartitionKeyAttributes(
                 partitionKey.partitionType,
             );
 
@@ -2513,7 +2510,7 @@ export class RynamoTableSchema<
         }
 
         const items = await parallelMapAsyncIterableToArray(
-            this._table.query(context, {
+            this.#table.query(context, {
                 partitionKey,
                 startSortKey,
                 endSortKey,
@@ -2533,9 +2530,9 @@ export class RynamoTableSchema<
                 onItem?.(item as any);
 
                 const realtimeItem = {
-                    key: this._table.serializeOpaqueItemKey(item),
+                    key: this.#table.serializeOpaqueItemKey(item),
                     version: item.updateLockVersion ?? 0,
-                    model: await this._buildModel(context, item),
+                    model: await this.#buildModel(context, item),
                 };
 
                 // If you want to observe query items immediately after they're built you can use
@@ -2547,11 +2544,11 @@ export class RynamoTableSchema<
         );
 
         const startItemKey = startSortKey
-            ? this._table.serializeOpaqueItemKey({...startSortKey, ...partitionKey})
+            ? this.#table.serializeOpaqueItemKey({...startSortKey, ...partitionKey})
             : null;
 
         const endItemKey = endSortKey
-            ? this._table.serializeOpaqueItemKey({...endSortKey, ...partitionKey})
+            ? this.#table.serializeOpaqueItemKey({...endSortKey, ...partitionKey})
             : null;
 
         const hasMoreItems = typeof limit === "number" && items.length > limit;
@@ -2591,7 +2588,7 @@ export class RynamoTableSchema<
 
         return {
             checkpoint,
-            partitionKey: this._table.serializeOpaqueItemPartitionKey(partitionKey),
+            partitionKey: this.#table.serializeOpaqueItemPartitionKey(partitionKey),
             startItemKey,
             endItemKey,
             pageInfo:
@@ -2614,7 +2611,7 @@ export class RynamoTableSchema<
      * Backfill any updates that happened since the query was read and now. Useful when
      * you connect to realtime after dispatching your query.
      */
-    public backfillRealtimeQuery<const PartitionKey extends Types["PartitionKey"]>(
+    backfillRealtimeQuery<const PartitionKey extends Types["PartitionKey"]>(
         context: ServerActionContext,
         {
             partitionKey,
@@ -2625,9 +2622,9 @@ export class RynamoTableSchema<
             ModelMap[PartitionKey["partitionType"]][keyof ModelMap[PartitionKey["partitionType"]]]
         >
     > {
-        const partitionKeyString = this._table.serializeOpaqueItemPartitionKey(partitionKey);
+        const partitionKeyString = this.#table.serializeOpaqueItemPartitionKey(partitionKey);
 
-        return this._backfillRealtimeQuery(context, {
+        return this.#backfillRealtimeQuery(context, {
             realtimeKey: partitionKeyString,
             checkpoint,
             source: {
@@ -2646,7 +2643,7 @@ export class RynamoTableSchema<
      * [1]:
      *     https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
      */
-    public async *expensiveScan(
+    async *expensiveScan(
         context: DynamoContext,
         options: {
             limit?: number;
@@ -2656,7 +2653,7 @@ export class RynamoTableSchema<
             filter?: Types["ItemType"] | Array<Types["ItemType"]>;
         } = {},
     ): AsyncIterableIterator<DynamoItem<MergeObjectIntersection<Types["Item"]>>> {
-        for await (const item of this._table._expensiveScanWithOldItems(context, options)) {
+        for await (const item of this.#table._expensiveScanWithOldItems(context, options)) {
             if (item.partitionType === rynamoPrivatePartitionName) continue;
             if (item.partitionType === rynamoPrivateGraveyardPartitionName) continue;
             yield item;
@@ -2678,10 +2675,10 @@ export class RynamoTableSchema<
      *
      * ## Tradeoffs
      *
-     * Look at `addIndexWithQueryJoin()` and consider if it provides better performance
-     * characteristics for your use case.
+     * Look at `addEventualConsistencyIndexWithQueryJoin()` and consider if it provides
+     * better performance characteristics for your use case.
      */
-    public addExpensiveFullIndex<
+    addExpensiveFullEventualConsistencyIndex<
         ItemTypes extends Types["ItemType"],
         PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
             Types,
@@ -2715,7 +2712,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const Index = this._table.addExpensiveFullIndex<
+        const Index = this.#table.addExpensiveFullIndex<
             ItemTypes,
             PartitionKeyAttributesConfig,
             SortKeyAttributesConfig
@@ -2746,7 +2743,7 @@ export class RynamoTableSchema<
             isDeepEqual(
                 Object.entries(
                     mapObjectValues(
-                        this._table.getPartitionKeyAttributes(exclusivePartitionType),
+                        this.#table.getPartitionKeyAttributes(exclusivePartitionType),
                         attribute => attribute.description,
                     ),
                 ),
@@ -2762,12 +2759,12 @@ export class RynamoTableSchema<
             const itemType = `${partitionType}#${sortRangeType}`;
 
             const indexByName = getOrSetDefaultMapValue(
-                this._indexByNameByItemType,
+                this.#indexByNameByItemType,
                 itemType,
                 () => new Map(),
             );
 
-            const keyAttributes = this._table.getKeyAttributes(partitionType, sortRangeType);
+            const keyAttributes = this.#table.getKeyAttributes(partitionType, sortRangeType);
 
             assert(!indexByName.has(config.name));
             indexByName.set(config.name, {
@@ -2841,9 +2838,9 @@ export class RynamoTableSchema<
 
                         return {
                             cursor: Index.serializeOpaqueCursor(item),
-                            key: this._table.serializeOpaqueItemKey(item),
+                            key: this.#table.serializeOpaqueItemKey(item),
                             version: item.updateLockVersion ?? 0,
-                            model: await this._buildModel(context, item),
+                            model: await this.#buildModel(context, item),
                         };
                     },
                 );
@@ -2940,12 +2937,12 @@ export class RynamoTableSchema<
             backfillRealtimeQuery: (context, {partitionKey, checkpoint}) => {
                 const partitionKeyString = Index.serializeOpaquePartitionKey(partitionKey);
 
-                return this._backfillRealtimeQuery(context, {
+                return this.#backfillRealtimeQuery(context, {
                     // If our index's partition key is the same as our table's partition key then we
                     // can save some WCUs by writing all updates under the table's partition key (which
                     // is used for `table.realtimeQuery()`).
                     realtimeKey: canReuseTablePartitionKeyForRealtimeKey
-                        ? this._table.serializeOpaqueItemPartitionKey({
+                        ? this.#table.serializeOpaqueItemPartitionKey({
                               partitionType: exclusivePartitionType,
                               ...partitionKey,
                           })
@@ -2994,29 +2991,32 @@ export class RynamoTableSchema<
      *
      * ## Tradeoffs
      *
-     * Unlike `addExpensiveFullIndex()` we don't replicate the full item to the index.
-     * Instead we only replicate the item key. However, at query time we still need the
-     * full item so we call `getItem()` to grab it. The tradeoff here is:
+     * Unlike `addExpensiveFullEventualConsistencyIndex()` we don't replicate the full
+     * item to the index. Instead we only replicate the item key. However, at query
+     * time we still need the full item so we call `getItem()` to grab it. The tradeoff
+     * here is:
      *
-     * - `addExpensiveFullIndex()` doubles our write costs and storage costs. Since we
-     *   need to replicate the full item to the index.
+     * - `addExpensiveFullEventualConsistencyIndex()` doubles our write costs and
+     *   storage costs. Since we need to replicate the full item to the index.
      *
-     * - `addIndexWithQueryJoin()` increases our write costs and storage costs a little
-     *   (less than `addExpensiveFullIndex()`) but doubles our read costs. Since we
-     *   only replicate the key and at query time we load the full item.
+     * - `addEventualConsistencyIndexWithQueryJoin()` increases our write costs and
+     *   storage costs a little (less than
+     *   `addExpensiveFullEventualConsistencyIndex()`) but doubles our read costs.
+     *   Since we only replicate the key and at query time we load the full item.
      *
-     * `addIndexWithQueryJoin()` is better for you if:
+     * `addEventualConsistencyIndexWithQueryJoin()` is better for you if:
      *
      * 1. Your items are big. Then the write/storage savings of
-     *    `addIndexWithQueryJoin()` will be meaningful.
+     *    `addEventualConsistencyIndexWithQueryJoin()` will be meaningful.
      *
      * 2. Queries are infrequent so they can afford to be slower.
      *
-     * For example, forum posts use `addIndexWithQueryJoin()` because post content can
-     * get quite large and posts are mostly read through the home feed or inbox anyway
-     * (vs directly navigating to a channel which calls the query function).
+     * For example, forum posts use `addEventualConsistencyIndexWithQueryJoin()`
+     * because post content can get quite large and posts are mostly read through the
+     * home feed or inbox anyway (vs directly navigating to a channel which calls the
+     * query function).
      */
-    public addIndexWithQueryJoin<
+    addEventualConsistencyIndexWithQueryJoin<
         ItemTypes extends Types["ItemType"],
         PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
             Types,
@@ -3050,7 +3050,7 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        const Index = this._table.addIndex<
+        const Index = this.#table.addIndex<
             ItemTypes,
             PartitionKeyAttributesConfig,
             SortKeyAttributesConfig
@@ -3081,7 +3081,7 @@ export class RynamoTableSchema<
             isDeepEqual(
                 Object.entries(
                     mapObjectValues(
-                        this._table.getPartitionKeyAttributes(exclusivePartitionType),
+                        this.#table.getPartitionKeyAttributes(exclusivePartitionType),
                         attribute => attribute.description,
                     ),
                 ),
@@ -3097,12 +3097,12 @@ export class RynamoTableSchema<
             const itemType = `${partitionType}#${sortRangeType}`;
 
             const indexByName = getOrSetDefaultMapValue(
-                this._indexByNameByItemType,
+                this.#indexByNameByItemType,
                 itemType,
                 () => new Map(),
             );
 
-            const keyAttributes = this._table.getKeyAttributes(partitionType, sortRangeType);
+            const keyAttributes = this.#table.getKeyAttributes(partitionType, sortRangeType);
 
             assert(!indexByName.has(config.name));
             indexByName.set(config.name, {
@@ -3177,13 +3177,13 @@ export class RynamoTableSchema<
                         // This is the critical "join" operation referenced by the name
                         // `addIndexWithQueryJoin()`. Basically everything else about this index creation
                         // is the same as `addExpensiveFullIndex()`.
-                        const item = await this._table.getItem(context, itemKey);
+                        const item = await this.#table.getItem(context, itemKey);
 
                         return {
                             cursor: Index.serializeOpaqueCursor(item),
-                            key: this._table.serializeOpaqueItemKey(item),
+                            key: this.#table.serializeOpaqueItemKey(item),
                             version: item.updateLockVersion ?? 0,
-                            model: await this._buildModel(context, item),
+                            model: await this.#buildModel(context, item),
                         };
                     },
                 );
@@ -3280,7 +3280,7 @@ export class RynamoTableSchema<
                     await parallelMapAsyncIterableToArray(
                         Index.query(context, options),
                         async itemKey => {
-                            return await this._table.getItem(context, itemKey);
+                            return await this.#table.getItem(context, itemKey);
                         },
                     ),
                 );
@@ -3289,12 +3289,12 @@ export class RynamoTableSchema<
             backfillRealtimeQuery: (context, {partitionKey, checkpoint}) => {
                 const partitionKeyString = Index.serializeOpaquePartitionKey(partitionKey);
 
-                return this._backfillRealtimeQuery(context, {
+                return this.#backfillRealtimeQuery(context, {
                     // If our index's partition key is the same as our table's partition key then we
                     // can save some WCUs by writing all updates under the table's partition key (which
                     // is used for `table.realtimeQuery()`).
                     realtimeKey: canReuseTablePartitionKeyForRealtimeKey
-                        ? this._table.serializeOpaqueItemPartitionKey({
+                        ? this.#table.serializeOpaqueItemPartitionKey({
                               partitionType: exclusivePartitionType,
                               ...partitionKey,
                           })
@@ -3343,7 +3343,7 @@ export class RynamoTableSchema<
      * It is a wrapper around `DynamoTableSchema.addIndex()`, so has the same
      * implementation details.
      */
-    public addIndexWithoutRealtime<
+    addEventualConsistencyIndexWithoutRealtime<
         ItemTypes extends Types["ItemType"],
         PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
             Types,
@@ -3375,14 +3375,14 @@ export class RynamoTableSchema<
             "Can\u2019t access private realtime partition",
         );
 
-        return this._table.addIndex<
+        return this.#table.addIndex<
             ItemTypes,
             PartitionKeyAttributesConfig,
             SortKeyAttributesConfig
         >(config);
     }
 
-    private _getRealtimeEventItem(
+    #getRealtimeEventItem(
         context: ServerActionContext,
         {
             itemKey,
@@ -3450,7 +3450,7 @@ export class RynamoTableSchema<
         });
     }
 
-    private async _backfillRealtimeQuery(
+    async #backfillRealtimeQuery(
         context: ServerActionContext,
         {
             realtimeKey,
@@ -3509,7 +3509,7 @@ export class RynamoTableSchema<
             }
         >();
 
-        for await (const unknownItem of this._table.query<any, any, any>(context, {
+        for await (const unknownItem of this.#table.query<any, any, any>(context, {
             partitionKey: {
                 partitionType: "Realtime",
                 realtimeKey,
@@ -3525,11 +3525,11 @@ export class RynamoTableSchema<
             const item: RynamoPrivateRealtimePartitionItem = unknownItem as any;
 
             for (const event of item.events) {
-                const itemKey = this._table.deserializeOpaqueItemKey(event.key);
+                const itemKey = this.#table.deserializeOpaqueItemKey(event.key);
 
                 const index =
                     source.type === "Index"
-                        ? this._indexByNameByItemType
+                        ? this.#indexByNameByItemType
                               .get(`${itemKey.partitionType}#${itemKey.sortRangeType}`)
                               ?.get(source.name)
                         : undefined;
@@ -3568,13 +3568,13 @@ export class RynamoTableSchema<
                 async ([key, backfillItem]): Promise<RynamoEvent<unknown>> => {
                     const {itemKey} = backfillItem;
 
-                    const result = await this._getRealtimeEventItem(context, backfillItem);
+                    const result = await this.#getRealtimeEventItem(context, backfillItem);
 
                     if (result.isDeleted) {
                         const indexes = new Set<string>();
 
                         const itemType = `${itemKey.partitionType}#${itemKey.sortRangeType}`;
-                        for (const [indexName] of this._indexByNameByItemType.get(itemType) ?? []) {
+                        for (const [indexName] of this.#indexByNameByItemType.get(itemType) ?? []) {
                             indexes.add(indexName);
                         }
 
@@ -3594,13 +3594,13 @@ export class RynamoTableSchema<
                         source.type === "Index"
                             ? backfillItem.index!.serializeOpaquePartitionKey(result.item) !==
                               source.partitionKey
-                            : this._table.serializeOpaqueItemPartitionKey(result.item) !==
+                            : this.#table.serializeOpaqueItemPartitionKey(result.item) !==
                               source.partitionKey
                     ) {
                         const indexes = new Set<string>();
 
                         const itemType = `${itemKey.partitionType}#${itemKey.sortRangeType}`;
-                        for (const [indexName] of this._indexByNameByItemType.get(itemType) ?? []) {
+                        for (const [indexName] of this.#indexByNameByItemType.get(itemType) ?? []) {
                             indexes.add(indexName);
                         }
 
@@ -3613,7 +3613,7 @@ export class RynamoTableSchema<
                             indexes,
                         };
                     } else {
-                        const indexByName = this._indexByNameByItemType.get(
+                        const indexByName = this.#indexByNameByItemType.get(
                             `${result.item.partitionType}#${result.item.sortRangeType}`,
                         );
 
@@ -3635,7 +3635,7 @@ export class RynamoTableSchema<
                             item: {
                                 key,
                                 version: result.item.updateLockVersion ?? 0,
-                                model: await this._buildModel(context, result.item),
+                                model: await this.#buildModel(context, result.item),
                             },
                             indexes,
                         };
@@ -3652,7 +3652,7 @@ export class RynamoTableSchema<
      * (`RynamoEvent`). Gets a version of each item later than the version declared in
      * the stub and builds models for the items which loads any referenced data.
      */
-    public getRealtimeEvent(
+    getRealtimeEvent(
         context: ServerActionContext,
         events: ReadonlyArray<RynamoEventStub & {readonly itemKey?: Types["ItemKey"]}>,
     ): Promise<ReadonlyArray<RynamoEvent<ModelMap[string][string]>>> {
@@ -3661,7 +3661,7 @@ export class RynamoTableSchema<
                 const {key} = event.item;
                 const itemKey = event.itemKey ?? this.deserializeOpaqueItemKey(key);
 
-                const result = await this._getRealtimeEventItem(context, {
+                const result = await this.#getRealtimeEventItem(context, {
                     itemKey,
                     version: event.item.version,
                     eventType: event.type,
@@ -3671,7 +3671,7 @@ export class RynamoTableSchema<
                     const indexes = new Set<string>();
 
                     const itemType = `${itemKey.partitionType}#${itemKey.sortRangeType}`;
-                    for (const [indexName] of this._indexByNameByItemType.get(itemType) ?? []) {
+                    for (const [indexName] of this.#indexByNameByItemType.get(itemType) ?? []) {
                         indexes.add(indexName);
                     }
 
@@ -3684,7 +3684,7 @@ export class RynamoTableSchema<
                         indexes,
                     };
                 } else {
-                    const indexByName = this._indexByNameByItemType.get(
+                    const indexByName = this.#indexByNameByItemType.get(
                         `${result.item.partitionType}#${result.item.sortRangeType}`,
                     );
 
@@ -3706,7 +3706,7 @@ export class RynamoTableSchema<
                         item: {
                             key,
                             version: result.item.updateLockVersion ?? 0,
-                            model: await this._buildModel(context, result.item),
+                            model: await this.#buildModel(context, result.item),
                         },
                         indexes,
                     };
@@ -3806,10 +3806,8 @@ export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> 
     };
 }
 
-// Do not export this symbol! It lets us have methods that are private within this
-// file. Notably we want to construct `RynamoTransactionEntry` within this file but
-// have the class be opaque to the outside world.
-const privateSymbol = Symbol("private");
+type RynamoTransactionEntryInternal = InstanceType<typeof RynamoTransactionEntryInternal>;
+type RynamoTransactionEntryExternal = RynamoTransactionEntry;
 
 /**
  * Wrapper around a `DynamoTransactionEntry` that includes extra information we
@@ -3822,45 +3820,27 @@ const privateSymbol = Symbol("private");
  * `declare`-only so it has no runtime cost — it exists purely to make the class
  * nominally compatible with the shared handle type.
  */
-class RynamoTransactionEntryInternal implements RynamoTransactionEntry {
+// The class is named `RynamoTransactionEntry` for `console.log()` debugging
+// purposes but it should be referenced in code as
+// `RynamoTransactionEntryInternal`.
+const RynamoTransactionEntryInternal = class RynamoTransactionEntry implements RynamoTransactionEntryExternal {
     declare readonly _RynamoTransactionEntry: never;
 
-    private readonly _entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>;
-    private readonly _schema: RynamoTableSchema<any, any>;
-    private readonly _action: RynamoAction<unknown, unknown>;
+    readonly entry: MaybeNonEmptyReadonlyArray<DynamoTransactionEntry>;
+    readonly schema: RynamoTableSchema<any, any>;
+    readonly action: RynamoAction<unknown, unknown>;
 
-    private constructor(
-        entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>,
-        schema: RynamoTableSchema<any, any>,
-        action: RynamoAction<unknown, unknown>,
-    ) {
-        this._entry = entry;
-        this._schema = schema;
-        this._action = action;
+    constructor({
+        entry,
+        schema,
+        action,
+    }: {
+        entry: MaybeNonEmptyReadonlyArray<DynamoTransactionEntry>;
+        schema: RynamoTableSchema<any, any>;
+        action: RynamoAction<unknown, unknown>;
+    }) {
+        this.entry = entry;
+        this.schema = schema;
+        this.action = action;
     }
-
-    public static _new(
-        symbol: typeof privateSymbol,
-        entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>,
-        schema: RynamoTableSchema<any, any>,
-        event: RynamoAction<unknown, unknown>,
-    ): RynamoTransactionEntryInternal {
-        // `privateSymbol` is only accessible in this module so this assert makes sure we
-        // don't call this method from outside of this module.
-        assert(symbol === privateSymbol);
-
-        return new RynamoTransactionEntryInternal(entry, schema, event);
-    }
-
-    public _get(symbol: typeof privateSymbol) {
-        // `privateSymbol` is only accessible in this module so this assert makes sure we
-        // don't call this method from outside of this module.
-        assert(symbol === privateSymbol);
-
-        return {
-            entry: this._entry,
-            schema: this._schema,
-            action: this._action,
-        };
-    }
-}
+};

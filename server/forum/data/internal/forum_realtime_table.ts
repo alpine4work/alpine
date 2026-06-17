@@ -618,10 +618,10 @@ const FilePostAuthorizer = FileAuthorizer.new(
 export {FilePostAuthorizer as InternalFilePostAuthorizer};
 
 // We use an index with join queries since it reduces write/storage costs (compared
-// to `addExpensiveFullIndex()`) and the read performance sacrifice isn't that bad
-// since most of the time posts will be viewed through home feed or inbox anyway
-// (vs querying a channel).
-export const ChannelPostsIndex = ForumRealtimeTable.addIndexWithQueryJoin({
+// to `addExpensiveFullEventualConsistencyIndex()`) and the read performance
+// sacrifice isn't that bad since most of the time posts will be viewed through
+// home feed or inbox anyway (vs querying a channel).
+export const ChannelPostsIndex = ForumRealtimeTable.addEventualConsistencyIndexWithQueryJoin({
     name: "ChannelPosts",
     itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
     partitionKeyAttributes: {

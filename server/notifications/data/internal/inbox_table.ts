@@ -1418,7 +1418,7 @@ export const InboxTable = RynamoTableSchema.new({
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
  * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/LSI.html
  */
-export const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
+export const InboxEntriesIndex = InboxTable.addExpensiveFullEventualConsistencyIndex({
     name: "InboxEntries",
     itemTypes: inboxEntryItemTypes,
     partitionKeyAttributes: {
@@ -1463,22 +1463,24 @@ export const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
  * notification at a given time. Note that
  * `digestNotificationsNextScheduledDateTime` is in UTC time.
  */
-export const NotificationDigestEntriesIndex = InboxTable.addIndexWithoutRealtime({
-    name: "NotificationDigestEntries",
-    itemTypes: [{partitionType: "Account", sortRangeType: "InboxAttributes"}],
-    partitionKeyAttributes: {
-        digestNotificationsNextScheduledDateTime:
-            DynamoKeyAttributeSchema.ScheduleDateTime.nullable(),
+export const NotificationDigestEntriesIndex = InboxTable.addEventualConsistencyIndexWithoutRealtime(
+    {
+        name: "NotificationDigestEntries",
+        itemTypes: [{partitionType: "Account", sortRangeType: "InboxAttributes"}],
+        partitionKeyAttributes: {
+            digestNotificationsNextScheduledDateTime:
+                DynamoKeyAttributeSchema.ScheduleDateTime.nullable(),
+        },
+        sortKeyAttributes: {
+            spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+            accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            digestNotificationsOptedOutTime: DynamoKeyAttributeSchema.date.nullable(),
+        },
+        filter: item =>
+            item.digestNotificationsNextScheduledDateTime !== null &&
+            item.digestNotificationsOptedOutTime === null,
     },
-    sortKeyAttributes: {
-        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
-        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
-        digestNotificationsOptedOutTime: DynamoKeyAttributeSchema.date.nullable(),
-    },
-    filter: item =>
-        item.digestNotificationsNextScheduledDateTime !== null &&
-        item.digestNotificationsOptedOutTime === null,
-});
+);
 
 /**
  * When you're building an `InboxEntryModel` it should be with an actor

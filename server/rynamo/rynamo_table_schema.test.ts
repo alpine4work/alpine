@@ -6725,7 +6725,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             },
         });
 
-        const TestIndex = TestTable.addExpensiveFullIndex({
+        const TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
             name: "Index",
             itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
             partitionKeyAttributes: {
@@ -7146,7 +7146,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
             },
         });
 
-        const TestIndex = TestTable.addExpensiveFullIndex({
+        const TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
             name: "Index",
             itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
             partitionKeyAttributes: {
@@ -7489,7 +7489,7 @@ test("can update a property that\u2019s in an index\u2019s partition key and a p
             },
         });
 
-        const TestIndex = TestTable.addExpensiveFullIndex({
+        const TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
             name: "Index",
             itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
             partitionKeyAttributes: {
@@ -7917,7 +7917,7 @@ test("can delete an item with a property in an index\u2019s partition key that c
             },
         });
 
-        const TestIndex = TestTable.addExpensiveFullIndex({
+        const TestIndex = TestTable.addExpensiveFullEventualConsistencyIndex({
             name: "Index",
             itemTypes: [{partitionType: "Partition", sortRangeType: "SortRange"}],
             partitionKeyAttributes: {
