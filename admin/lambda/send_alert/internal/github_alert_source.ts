@@ -246,7 +246,7 @@ export class GitHubAlertSource extends AlertSource {
                 return;
             }
 
-            const searchQuery = `commit ${shortHash} in GitHub`;
+            const searchQuery = `${shortHash} in GitHub`;
             const searchResult = await this.fetchAlpineApi<{
                 results: Array<{
                     type: string;
@@ -396,12 +396,18 @@ export class GitHubAlertSource extends AlertSource {
             return {ok: true};
         }
 
-        const pusherElement = createUserElement(
+        let pusherElement = createUserElement(
             data.sender.login,
             data.sender.html_url,
             data.sender.login,
             {tagUser: false},
         );
+
+        if (data.sender.login === "graphite-app[bot]") {
+            if (this.commitsHaveSameAuthor(data.commits)) {
+                pusherElement = this.createCommitAuthorElement(data.commits[0]!);
+            }
+        }
 
         const elements: Array<ApiContentElement> =
             data.commits.length === 1
@@ -485,6 +491,7 @@ export class GitHubAlertSource extends AlertSource {
         data: GitHubPushEventPayload,
         pusherElement: ApiSpecification.components["schemas"]["ContentInlineElement"],
     ): Array<ApiContentElement> {
+        const includeCommitAuthors = !this.commitsHaveSameAuthor(data.commits);
         const commitElements: Array<ApiContentElement> = data.commits.map(commit => {
             const commitMessageTitle = commit.message.split("\n", 1)[0] || commit.message;
             const trailingPrReferenceMatch = commitMessageTitle.match(/\s*\(#(\d+)\)$/);
@@ -493,36 +500,37 @@ export class GitHubAlertSource extends AlertSource {
                 ? commitMessageTitle.substring(0, trailingPrReferenceMatch.index).trimEnd()
                 : commitMessageTitle;
 
-            const commitAuthorElement: ApiSpecification.components["schemas"]["ContentInlineElement"] =
-                commit.author.username
-                    ? createUserElement(
-                          commit.author.name,
-                          `https://github.com/${commit.author.username}`,
-                          commit.author.username,
-                          {tagUser: false},
-                      )
-                    : {
-                          type: "Text",
-                          text: commit.author.name,
-                      };
+            const commitAuthorElement = this.createCommitAuthorElement(commit);
 
             const shortHash = commit.id.substring(0, 7);
 
-            const elements: Array<ApiContentParagraphBlockElement["elements"][number]> = [
-                commitAuthorElement,
-                {
-                    type: "Text",
-                    text: ": ",
-                },
-                ...createCommitMessageElements(
-                    commitMessageTitleWithoutTrailingPr,
-                    data.repository.full_name,
-                ),
-                {
-                    type: "Text",
-                    text: " (",
-                },
-            ];
+            const elements: Array<ApiContentParagraphBlockElement["elements"][number]> =
+                includeCommitAuthors
+                    ? [
+                          commitAuthorElement,
+                          {
+                              type: "Text",
+                              text: ": ",
+                          },
+                          ...createCommitMessageElements(
+                              commitMessageTitleWithoutTrailingPr,
+                              data.repository.full_name,
+                          ),
+                          {
+                              type: "Text",
+                              text: " (",
+                          },
+                      ]
+                    : [
+                          ...createCommitMessageElements(
+                              commitMessageTitleWithoutTrailingPr,
+                              data.repository.full_name,
+                          ),
+                          {
+                              type: "Text",
+                              text: " (",
+                          },
+                      ];
 
             if (trailingPrReferenceMatch) {
                 elements.push({
@@ -585,6 +593,34 @@ export class GitHubAlertSource extends AlertSource {
             },
             ...commitElements,
         ];
+    }
+
+    private commitsHaveSameAuthor(
+        commits: ReadonlyArray<GitHubPushEventPayload["commits"][number]>,
+    ): boolean {
+        const firstCommitAuthor = commits[0]!.author;
+        return commits.every(
+            commit =>
+                commit.author.name === firstCommitAuthor.name &&
+                commit.author.email === firstCommitAuthor.email &&
+                commit.author.username === firstCommitAuthor.username,
+        );
+    }
+
+    private createCommitAuthorElement(
+        commit: GitHubPushEventPayload["commits"][number],
+    ): ApiSpecification.components["schemas"]["ContentInlineElement"] {
+        return commit.author.username
+            ? createUserElement(
+                  commit.author.name,
+                  `https://github.com/${commit.author.username}`,
+                  commit.author.username,
+                  {tagUser: false},
+              )
+            : {
+                  type: "Text",
+                  text: commit.author.name,
+              };
     }
 
     private verifySignature(

@@ -87,6 +87,38 @@ Josh pushed: Backfill alert 404 handling [(#811)](https://app.graphite.com/githu
 "
 `;
 
+exports[`GitHubAlertSource push to main by Graphite with mixed-author commits uses Graphite 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+[graphite-app\\[bot\\]](https://github.com/apps/graphite-app)[ pushed 2 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...2222222bbbbbb):
+
+Mona Lisa: Add Graphite attribution ([1111111](https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa))
+
+Josh: Polish Graphite attribution ([2222222](https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb))
+"
+`;
+
+exports[`GitHubAlertSource push to main by Graphite with one commit uses the commit author 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Mona Lisa pushed: Ship GitHub commit alert ([#812](https://app.graphite.com/github/pr/cyberworlds/cyberworlds/812), [def456a](https://github.com/cyberworlds/cyberworlds/commit/def456abc789))
+"
+`;
+
+exports[`GitHubAlertSource push to main by Graphite with same-author commits uses the commit author 1`] = `
+"URL: https://api.test.cyberworlds.com/posts
+Channel: cw0bwdj673tafptr8aete3ma8c
+
+Mona Lisa[ pushed 2 commits](https://github.com/cyberworlds/cyberworlds/compare/abc123def456...2222222bbbbbb):
+
+Add Graphite attribution ([1111111](https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa))
+
+Polish Graphite attribution ([2222222](https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb))
+"
+`;
+
 exports[`GitHubAlertSource push to main with multiple commits 1`] = `
 "URL: https://api.test.cyberworlds.com/posts
 Channel: cw0bwdj673tafptr8aete3ma8c

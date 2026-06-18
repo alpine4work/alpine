@@ -914,6 +914,110 @@ describe("GitHubAlertSource", () => {
         expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
     });
 
+    test("push to main by Graphite with one commit uses the commit author", async () => {
+        const payload = createGitHubPushFixture({
+            commits: [
+                createGitHubPushCommitFixture({
+                    author: {
+                        name: "Mona Lisa",
+                        email: "mona@example.com",
+                        username: null,
+                    },
+                }),
+            ],
+            sender: {
+                ...createGitHubFixture().sender,
+                login: "graphite-app[bot]",
+                html_url: "https://github.com/apps/graphite-app",
+            },
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("push to main by Graphite with same-author commits uses the commit author", async () => {
+        const firstCommit = createGitHubPushCommitFixture({
+            id: "1111111aaaaaa",
+            message: "Add Graphite attribution",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa",
+            author: {
+                name: "Mona Lisa",
+                email: "mona@example.com",
+                username: null,
+            },
+        });
+        const secondCommit = createGitHubPushCommitFixture({
+            id: "2222222bbbbbb",
+            message: "Polish Graphite attribution",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb",
+            author: {
+                name: "Mona Lisa",
+                email: "mona@example.com",
+                username: null,
+            },
+        });
+        const payload = createGitHubPushFixture({
+            after: secondCommit.id,
+            commits: [firstCommit, secondCommit],
+            head_commit: secondCommit,
+            compare:
+                "https://github.com/cyberworlds/cyberworlds/compare/abc123def456...2222222bbbbbb",
+            sender: {
+                ...createGitHubFixture().sender,
+                login: "graphite-app[bot]",
+                html_url: "https://github.com/apps/graphite-app",
+            },
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("push to main by Graphite with mixed-author commits uses Graphite", async () => {
+        const firstCommit = createGitHubPushCommitFixture({
+            id: "1111111aaaaaa",
+            message: "Add Graphite attribution",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/1111111aaaaaa",
+            author: {
+                name: "Mona Lisa",
+                email: "mona@example.com",
+                username: null,
+            },
+        });
+        const secondCommit = createGitHubPushCommitFixture({
+            id: "2222222bbbbbb",
+            message: "Polish Graphite attribution",
+            url: "https://github.com/cyberworlds/cyberworlds/commit/2222222bbbbbb",
+            author: {
+                name: "Josh Johnson",
+                email: "josh@example.com",
+                username: "imjoshin",
+            },
+        });
+        const payload = createGitHubPushFixture({
+            after: secondCommit.id,
+            commits: [firstCommit, secondCommit],
+            head_commit: secondCommit,
+            compare:
+                "https://github.com/cyberworlds/cyberworlds/compare/abc123def456...2222222bbbbbb",
+            sender: {
+                ...createGitHubFixture().sender,
+                login: "graphite-app[bot]",
+                html_url: "https://github.com/apps/graphite-app",
+            },
+        });
+
+        await handleGitHubPayload(payload);
+
+        expect(mockFetchCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+    });
+
     test("push pulls only the final PR reference out of the commit message", async () => {
         const payload = createGitHubPushFixture({
             commits: [
@@ -1139,7 +1243,7 @@ describe("GitHubAlertSource", () => {
                 `https://api.test.cyberworlds.com/channels/${sendAlertAvailableChannels.github}`,
             );
 
-            const searchQuery = encodeURIComponent(`commit ${shortHash} in GitHub`);
+            const searchQuery = encodeURIComponent(`${shortHash} in GitHub`);
             expect(mockFetchCalls[1]?.url).toBe(
                 `https://api.test.cyberworlds.com/spaces/${spaceId}/search?query=${searchQuery}`,
             );
