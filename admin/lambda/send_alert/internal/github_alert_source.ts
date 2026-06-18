@@ -27,6 +27,11 @@ import {ApiSpecification} from "~/shared/api/specification/types/api_specificati
 
 type ApiContentElement = ApiContent["elements"][number];
 
+// You can find the GitHub `workflow_id` with the CLI command `gh workflow list`.
+const deployGithubWorkflowId = 111000643;
+
+type WorkflowRunCommitCommentStatus = "success" | "failure";
+
 export class GitHubAlertSource extends AlertSource {
     override validateAuthorization(): AlertSourceAuthorizationResult {
         const gitHubWebhookSecret = process.env.GITHUB_ACTIONS_WEBHOOK_SECRET;
@@ -197,20 +202,38 @@ export class GitHubAlertSource extends AlertSource {
             console.log(`Created builds channel post with ID: ${buildsChannelPostId}`);
         }
 
-        await this.commentOnPostsWithCommitHash(
-            data.workflow_run.head_sha,
-            data.workflow_run.conclusion === "success" ? "success" : "failure",
-            data.workflow_run.name,
-            data.workflow_run.html_url,
-            buildsChannelPostId,
-        );
+        const commitCommentStatus = this.getWorkflowRunCommitCommentStatus(data);
+        if (commitCommentStatus) {
+            await this.commentOnPostsWithCommitHash(
+                data.workflow_run.head_sha,
+                commitCommentStatus,
+                data.workflow_run.name,
+                data.workflow_run.html_url,
+                buildsChannelPostId,
+            );
+        }
 
         return {ok: true};
     }
 
+    private getWorkflowRunCommitCommentStatus(
+        data: GitHubWorkflowRunEventPayload,
+    ): WorkflowRunCommitCommentStatus | null {
+        if (data.workflow_run.conclusion === "failure") {
+            return "failure";
+        }
+
+        switch (data.workflow_run.workflow_id) {
+            case deployGithubWorkflowId:
+                return data.workflow_run.conclusion === "success" ? "success" : null;
+            default:
+                return null;
+        }
+    }
+
     private async commentOnPostsWithCommitHash(
         commitHash: string,
-        status: "success" | "failure",
+        status: WorkflowRunCommitCommentStatus,
         workflowName: string,
         workflowUrl: string,
         buildsChannelPostId?: string,

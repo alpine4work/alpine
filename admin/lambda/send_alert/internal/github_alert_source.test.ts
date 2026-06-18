@@ -17,6 +17,9 @@ const mockEnv = {
 
 const originalEnv = process.env;
 
+const deployGithubWorkflowId = 111000643;
+const nonDeployGithubWorkflowId = 789;
+
 let mockFetchCalls: Array<{url: string; body: unknown}> = [];
 
 const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, options?: any) => {
@@ -1124,6 +1127,7 @@ describe("GitHubAlertSource", () => {
                     ...createGitHubFixture().workflow_run,
                     head_sha: commitHash,
                     conclusion: "success",
+                    workflow_id: deployGithubWorkflowId,
                 },
             });
 
@@ -1231,6 +1235,7 @@ describe("GitHubAlertSource", () => {
                     ...createGitHubFixture().workflow_run,
                     head_sha: commitHash,
                     conclusion: "failure",
+                    workflow_id: deployGithubWorkflowId,
                 },
             });
 
@@ -1301,12 +1306,135 @@ describe("GitHubAlertSource", () => {
                     ...createGitHubFixture().workflow_run,
                     head_sha: commitHash,
                     conclusion: "success",
+                    workflow_id: deployGithubWorkflowId,
                 },
             });
 
             await handleGitHubWorkflowRunPayload(payload);
 
             expect(mockFetchCalls.length).toBe(2);
+        });
+
+        test("comments on posts with commit hash when any workflow fails", async () => {
+            const commitHash = "abc123def456";
+            const spaceId = "test-space-id";
+            const postId = "test-post-id";
+
+            mockFetch.mockClear();
+            mockFetchCalls = [];
+
+            mockFetch
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({id: "builds-post-id"})),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    spaceId,
+                                    channel: {},
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    results: [
+                                        {
+                                            type: "Post",
+                                            id: postId,
+                                            bodyMatch: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            author: {botId: "paul-bot-id"},
+                                        },
+                                    ],
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({id: "comment-id"})),
+                    });
+                });
+
+            const payload = createGitHubFixture({
+                workflow_run: {
+                    ...createGitHubFixture().workflow_run,
+                    head_sha: commitHash,
+                    conclusion: "failure",
+                    workflow_id: nonDeployGithubWorkflowId,
+                },
+            });
+
+            await handleGitHubWorkflowRunPayload(payload);
+
+            expect(mockFetchCalls.length).toBe(4);
+
+            expect(mockFetchCalls[0]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
+
+            const commentCallIndex = 3;
+            expect(mockFetchCalls[commentCallIndex]?.url).toBe(
+                `https://api.test.cyberworlds.com/posts/${postId}/messages`,
+            );
+
+            const commentBody = mockFetchCalls[commentCallIndex]!.body as {
+                content: {elements: Array<{type: string; elements: Array<unknown>}>};
+            };
+            expect(commentBody.content.elements[0]?.type).toBe("Paragraph");
+            expect(commentBody.content.elements[0]?.elements).toEqual([
+                {
+                    type: "PostPreview",
+                    postId: "builds-post-id",
+                },
+            ]);
+        });
+
+        test("does not comment on posts with commit hash when a non-deploy workflow succeeds", async () => {
+            const payload = createGitHubFixture({
+                workflow_run: {
+                    ...createGitHubFixture().workflow_run,
+                    conclusion: "success",
+                    workflow_id: nonDeployGithubWorkflowId,
+                },
+            });
+
+            await handleGitHubWorkflowRunPayload(payload);
+
+            expect(mockFetchCalls).toHaveLength(0);
         });
     });
 });
