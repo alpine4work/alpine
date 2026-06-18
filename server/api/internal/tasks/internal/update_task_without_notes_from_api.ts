@@ -1,5 +1,6 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
 import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
+import {validateApiActor} from "~/server/api/internal/tasks/internal/validate_api_actor.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
@@ -16,6 +17,7 @@ import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {randomlyGenerateTaskTitleClientId} from "~/shared/tasks/title/task_title.js";
@@ -50,16 +52,23 @@ export async function updateTaskWithoutNotesFromApi(
     {
         spaceId,
         taskId,
+        actorId,
         patches,
     }: {
         spaceId: SpaceId;
         taskId: TaskId;
+        actorId?: AccountId;
         patches: ReadonlyArray<TaskPatch>;
     },
 ): Promise<TaskModel> {
     const consistency = "StrongWithinCache" as const;
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const botAccountId = context.actor.getBotAccountId();
+    await validateApiActor(context, {spaceId, actorId});
+    const actor: TaskActor = {
+        accountId: actorId ?? botAccountId,
+        from: {type: "Bot", accountId: botAccountId},
+    };
     const timeZone = defaultTimeZone;
 
     const initialTask = await context.tasks.getTaskWithoutDependencies(spaceId, taskId, {
@@ -86,6 +95,7 @@ export async function updateTaskWithoutNotesFromApi(
         finalState,
         clock,
         botAccountId,
+        actor,
         timeZone,
     });
 
@@ -191,6 +201,7 @@ function createTaskWithoutNotesPatchActions({
     finalState,
     clock,
     botAccountId,
+    actor,
     timeZone,
 }: {
     taskId: TaskId;
@@ -199,6 +210,7 @@ function createTaskWithoutNotesPatchActions({
     finalState: TaskPatchState;
     clock: HybridLogicalClock;
     botAccountId: AccountId;
+    actor: TaskActor;
     timeZone: typeof defaultTimeZone;
 }): Array<TaskAction> {
     const actions: Array<TaskAction> = [];
@@ -207,7 +219,7 @@ function createTaskWithoutNotesPatchActions({
         taskAction: Extract<TaskAction, {readonly type: "UpdateTask"}>["taskAction"],
         time = clock.now(),
     ) => {
-        actions.push({type: "UpdateTask", time, taskId, taskAction});
+        actions.push({type: "UpdateTask", time, actor, taskId, taskAction});
     };
 
     if (finalState.title !== initialState.title) {

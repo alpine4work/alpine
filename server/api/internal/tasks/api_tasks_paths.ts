@@ -54,6 +54,7 @@ import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {
     TaskNotesContentProsemirrorSchema,
     assertTaskNotesContent,
@@ -184,6 +185,7 @@ export const apiTasksPaths: Pick<
                 updateTaskWithoutNotesFromApi(context, {
                     spaceId,
                     taskId,
+                    actorId: requestBody.actor?.id,
                     patches: requestBody.patches,
                 }),
                 getApiTaskNotes(context, taskId, {consistency}),
@@ -538,6 +540,12 @@ export const apiTasksPaths: Pick<
             const {collection} = requestBody;
             const collectionId = generateId<TaskCollectionId>();
             const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+            const botAccountId = context.actor.getBotAccountId();
+            const creatorId = collection.creator?.id ?? botAccountId;
+            const actor: TaskActor = {
+                accountId: creatorId,
+                from: {type: "Bot", accountId: botAccountId},
+            };
 
             const accessPolicy = await createAccessPolicyForContentCreatedByBot(context, spaceId, {
                 consistency: "StrongWithinCache",
@@ -554,12 +562,8 @@ export const apiTasksPaths: Pick<
                         collectionAction: {
                             type: "Create",
                             creator: {
-                                accountId:
-                                    collection.creator?.id ?? context.actor.getBotAccountId(),
-                                from: {
-                                    type: "Bot",
-                                    accountId: context.actor.getBotAccountId(),
-                                },
+                                accountId: creatorId,
+                                from: {type: "Bot", accountId: botAccountId},
                             },
                             name: collection.name,
                             accessPolicy,
@@ -570,6 +574,7 @@ export const apiTasksPaths: Pick<
                               {
                                   type: "UpdateCollection" as const,
                                   time: clock.now(),
+                                  actor,
                                   collectionId,
                                   collectionAction: {
                                       type: "UpdateColor" as const,
@@ -590,7 +595,7 @@ export const apiTasksPaths: Pick<
                     collection: {
                         id: collectionId,
                         creator: {
-                            id: collection.creator?.id ?? context.actor.getBotAccountId(),
+                            id: creatorId,
                         },
                         name: collection.name,
                         color: collection.color ?? undefined,
@@ -606,6 +611,7 @@ export const apiTasksPaths: Pick<
             const collection = await updateTaskCollectionFromApi(context, {
                 spaceId,
                 collectionId: pathParameters.id,
+                actorId: requestBody.actor?.id,
                 patches: requestBody.patches,
             });
 

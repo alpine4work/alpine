@@ -5,6 +5,7 @@ import {createTestApiServer} from "~/server/api/internal/test_helpers/create_tes
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {backfillTaskActionTransactionHistory} from "~/server/tasks/data/backfill_task_action_transaction_history.js";
 import {getTaskNotesContentSteps} from "~/server/tasks/data/get_task_notes_content_steps.js";
 import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task_notes_content_without_references.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
@@ -457,6 +458,7 @@ test("can create a task with all fields", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.POST("/tasks", {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
@@ -512,6 +514,49 @@ test("can create a task with all fields", async () => {
             }),
         }),
     });
+
+    const actor = {
+        accountId: bot.id,
+        from: {type: "Bot", accountId: bot.id},
+    };
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "Create"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "UpdateAssignee"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "UpdateDueDate"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: response.body.task.id,
+                    taskAction: expect.objectContaining({type: "UpdatePriority"}),
+                }),
+            ],
+        }),
+    ]);
 });
 
 test("can create a task with creator", async () => {
@@ -654,9 +699,11 @@ test("can update a task title", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
+            actor: {id: session.account.id},
             patches: [{type: "SetTitle", title: "Updated Title"}],
         },
     });
@@ -667,6 +714,56 @@ test("can update a task title", async () => {
             task: expect.objectContaining({
                 id: task.id,
                 title: "Updated Title",
+            }),
+        }),
+    });
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    taskId: task.id,
+                    actor: {
+                        accountId: session.account.id,
+                        from: {type: "Bot", accountId: bot.id},
+                    },
+                    taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                }),
+            ],
+        }),
+    ]);
+});
+
+test("returns 403 when updating a task with an actor outside the space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const otherSession = await otherSpace.createSession({name: "Mallory Example"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const task = await TestTask.create(session, {title: "Original Title"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/tasks/${task.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            actor: {id: otherSession.account.id},
+            patches: [{type: "SetTitle", title: "Updated Title"}],
+        },
+    });
+
+    expect(response).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            error: expect.objectContaining({
+                message: "API actor must be a member of the space",
             }),
         }),
     });
@@ -811,9 +908,11 @@ test("can update multiple task fields at once", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/tasks/${task.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
+            actor: {id: session1.account.id},
             patches: [
                 {type: "SetTitle", title: "Updated Task"},
                 {type: "SetAssignee", assignee: session2.account.id},
@@ -837,6 +936,44 @@ test("can update multiple task fields at once", async () => {
             }),
         }),
     });
+
+    const actor = {
+        accountId: session1.account.id,
+        from: {type: "Bot", accountId: bot.id},
+    };
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({type: "UpdateTitle"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({type: "UpdateDueDate"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({type: "UpdatePriority"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateTask",
+                    actor,
+                    taskId: task.id,
+                    taskAction: expect.objectContaining({type: "UpdateAssignee"}),
+                }),
+            ],
+        }),
+    ]);
 });
 
 test("can clear nullable task fields with null", async () => {
@@ -1436,6 +1573,7 @@ test("can create a task collection", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.POST("/task-collections", {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
@@ -1460,6 +1598,29 @@ test("can create a task collection", async () => {
             }),
         }),
     });
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    collectionId: response.body.collection.id,
+                    collectionAction: expect.objectContaining({type: "Create"}),
+                }),
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    actor: {
+                        accountId: bot.id,
+                        from: {type: "Bot", accountId: bot.id},
+                    },
+                    collectionId: response.body.collection.id,
+                    collectionAction: {type: "UpdateColor", color: "blue"},
+                }),
+            ],
+        }),
+    ]);
 });
 
 test("can create a task collection with creator", async () => {
@@ -1513,9 +1674,11 @@ test("can update a task collection name", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/task-collections/${collection.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
+            actor: {id: session.account.id},
             patches: [{type: "SetName", name: "Updated Name"}],
         },
     });
@@ -1526,6 +1689,59 @@ test("can update a task collection name", async () => {
             collection: expect.objectContaining({
                 id: collection.id,
                 name: "Updated Name",
+            }),
+        }),
+    });
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    collectionId: collection.id,
+                    actor: {
+                        accountId: session.account.id,
+                        from: {type: "Bot", accountId: bot.id},
+                    },
+                    collectionAction: {type: "UpdateName", name: "Updated Name"},
+                }),
+            ],
+        }),
+    ]);
+});
+
+test("returns 403 when updating a task collection with an actor outside the space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+    const otherSession = await otherSpace.createSession({name: "Mallory Example"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const collection = await TestTaskCollection.create(session, {
+        name: "Original Name",
+        access: "Public",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const response = await server.PATCH(`/task-collections/${collection.id}`, {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            actor: {id: otherSession.account.id},
+            patches: [{type: "SetName", name: "Updated Name"}],
+        },
+    });
+
+    expect(response).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
+            error: expect.objectContaining({
+                message: "API actor must be a member of the space",
             }),
         }),
     });
@@ -1545,9 +1761,11 @@ test("can update multiple task collection fields at once", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
+    const startTime = new Date();
     const response = await server.PATCH(`/task-collections/${collection.id}`, {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
+            actor: {id: session.account.id},
             patches: [
                 {type: "SetName", name: "Updated Name"},
                 {type: "SetColor", color: "Purple"},
@@ -1565,6 +1783,32 @@ test("can update multiple task collection fields at once", async () => {
             }),
         }),
     });
+
+    const actor = {
+        accountId: session.account.id,
+        from: {type: "Bot", accountId: bot.id},
+    };
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        expect.objectContaining({
+            actions: [
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    actor,
+                    collectionId: collection.id,
+                    collectionAction: {type: "UpdateName", name: "Updated Name"},
+                }),
+                expect.objectContaining({
+                    type: "UpdateCollection",
+                    actor,
+                    collectionId: collection.id,
+                    collectionAction: {type: "UpdateColor", color: "purple"},
+                }),
+            ],
+        }),
+    ]);
 });
 
 test("can clear task collection color with null", async () => {

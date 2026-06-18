@@ -25,12 +25,16 @@ export function collectReferencedIdsFromTaskAction(
     siteIds: Set<SiteId>,
     action: TaskActionMaybeModel,
 ) {
+    if (action.type === "UpdateTask" || action.type === "UpdateCollection") {
+        collectReferencedAccountId(accountIds, action.actor?.accountId);
+        collectReferencedAccountId(accountIds, action.actor?.from?.accountId);
+    }
+
     switch (action.type) {
         case "UpdateTask": {
             switch (action.taskAction.type) {
                 case "Create": {
-                    if (action.taskAction.creator.accountId !== unknownAccountId)
-                        accountIds.add(action.taskAction.creator.accountId);
+                    collectReferencedAccountId(accountIds, action.taskAction.creator.accountId);
 
                     if (action.taskAction.accessPolicy?.type === "Site") {
                         siteIds.add(action.taskAction.accessPolicy.siteId);
@@ -40,17 +44,20 @@ export function collectReferencedIdsFromTaskAction(
                 }
                 case "UpdateStatus": {
                     if (action.taskAction.status.type === "Closed") {
-                        if (action.taskAction.status.closerId !== unknownAccountId)
-                            accountIds.add(action.taskAction.status.closerId);
+                        collectReferencedAccountId(accountIds, action.taskAction.status.closerId);
                     }
                     return;
                 }
                 case "UpdateAssignee": {
                     if (action.taskAction.assignee) {
-                        if (action.taskAction.assignee.assigneeId !== unknownAccountId)
-                            accountIds.add(action.taskAction.assignee.assigneeId);
-                        if (action.taskAction.assignee.assignerId !== unknownAccountId)
-                            accountIds.add(action.taskAction.assignee.assignerId);
+                        collectReferencedAccountId(
+                            accountIds,
+                            action.taskAction.assignee.assigneeId,
+                        );
+                        collectReferencedAccountId(
+                            accountIds,
+                            action.taskAction.assignee.assignerId,
+                        );
                     }
                     return;
                 }
@@ -109,7 +116,7 @@ export function collectReferencedIdsFromTaskAction(
         case "UpdateAccountName": {
             // We need to send an up-to-date `AccountModel` to the client with
             // `UpdateAccountName` actions.
-            if (action.accountId !== unknownAccountId) accountIds.add(action.accountId);
+            collectReferencedAccountId(accountIds, action.accountId);
             return;
         }
         case "UpdateNotepadPage": {
@@ -118,4 +125,9 @@ export function collectReferencedIdsFromTaskAction(
         default:
             throw exhaustive(action);
     }
+}
+
+function collectReferencedAccountId(accountIds: Set<AccountId>, accountId: AccountId | undefined) {
+    if (accountId === undefined || accountId === unknownAccountId) return;
+    accountIds.add(accountId);
 }

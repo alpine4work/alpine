@@ -8,6 +8,7 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskActor} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
@@ -55,6 +56,10 @@ export async function createTaskFromApi(
     const clock = new HybridLogicalClock(unsynchronizedSystemClock);
     const botAccountId = context.actor.getBotAccountId();
     creatorId ??= botAccountId;
+    const actor: TaskActor = {
+        accountId: creatorId,
+        from: {type: "Bot", accountId: botAccountId},
+    };
     const createdTimeZone = defaultTimeZone;
 
     const effectiveAssigneeId =
@@ -85,6 +90,7 @@ export async function createTaskFromApi(
         actions.push({
             type: "UpdateTask",
             time: clock.now(),
+            actor,
             taskId,
             taskAction: {
                 type: "UpdateTitle",
@@ -98,6 +104,7 @@ export async function createTaskFromApi(
         actions.push({
             type: "UpdateTask",
             time,
+            actor,
             taskId,
             taskAction: {
                 type: "UpdateAssignee",
@@ -119,6 +126,7 @@ export async function createTaskFromApi(
             actions.push({
                 type: "UpdateTask",
                 time,
+                actor,
                 taskId,
                 taskAction: {
                     type: "UpdateStatus",
@@ -140,6 +148,7 @@ export async function createTaskFromApi(
             actions.push({
                 type: "UpdateTask",
                 time: activeTime,
+                actor,
                 taskId,
                 taskAction: {
                     type: "UpdateAssigneeStatus",
@@ -159,6 +168,7 @@ export async function createTaskFromApi(
         actions.push({
             type: "UpdateTask",
             time: clock.now(),
+            actor,
             taskId,
             taskAction: {
                 type: "UpdateDueDate",
@@ -171,6 +181,7 @@ export async function createTaskFromApi(
         actions.push({
             type: "UpdateTask",
             time: clock.now(),
+            actor,
             taskId,
             taskAction: {
                 type: "UpdatePriority",

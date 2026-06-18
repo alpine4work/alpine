@@ -1732,6 +1732,9 @@ export namespace ApiSpecification {
                 readonly requestBody: {
                     readonly content: {
                         readonly "application/json": {
+                            readonly actor?: {
+                                readonly id: components["schemas"]["AccountId"];
+                            };
                             readonly patches: readonly components["schemas"]["TaskPatch"][];
                         };
                     };
@@ -2169,6 +2172,9 @@ export namespace ApiSpecification {
                 readonly requestBody: {
                     readonly content: {
                         readonly "application/json": {
+                            readonly actor?: {
+                                readonly id: components["schemas"]["AccountId"];
+                            };
                             readonly patches: readonly components["schemas"]["TaskCollectionPatch"][];
                         };
                     };

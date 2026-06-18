@@ -1371,6 +1371,9 @@ async function runSetupFlowScenario(session: TestSpaceSession, runner: Screensho
     await runner.services.waitForSqsProcessJobs();
     await ProcessContextModule.waitForTestTasks();
 
+    const dismissAlertButton = runner.getByRole("button", {name: "Dismiss alert"}).first();
+    if ((await dismissAlertButton.count()) > 0) await dismissAlertButton.click();
+
     await runner.getByText("Add", {exact: true}).first().waitFor();
     await runner.getByText("Add", {exact: true}).first().click();
     await runner.getByText("Document", {exact: true}).first().waitFor();
