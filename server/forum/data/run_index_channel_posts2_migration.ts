@@ -1,5 +1,5 @@
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
-import {ChannelPosts2Index} from "~/server/forum/data/internal/forum_realtime_table.js";
+import {ChannelPostsIndex} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export async function runIndexChannelPosts2Migration(
@@ -8,7 +8,7 @@ export async function runIndexChannelPosts2Migration(
 ) {
     assert(context.tracer.getRoot().serviceName === "MigrationService");
 
-    await ChannelPosts2Index.runMigration(context, {
+    await ChannelPostsIndex.runMigration(context, {
         segmentIndex,
         totalSegmentCount,
     });

@@ -194,10 +194,12 @@ function textSlice(text: string) {
 }
 
 function expectChannelPostsIndexes(channelPostsIndex: {partitionKey: unknown; cursor: unknown}) {
-    return new Map([
-        ["ChannelPosts", channelPostsIndex],
-        ["ChannelPosts2", {partitionKey: expect.any(String), cursor: expect.any(String)}],
+    const channelPostsIndexes = new Map([
+        ["ChannelPosts", {partitionKey: expect.any(String), cursor: expect.any(String)}],
+        ["ChannelPosts2", channelPostsIndex],
     ]);
+
+    return channelPostsIndexes;
 }
 
 beforeEach(() => {
@@ -1999,7 +2001,7 @@ test("can get channel posts when there are none", async () => {
             beforeCursor: null,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2030,7 +2032,7 @@ test("can get the first few posts in a channel", async () => {
             beforeCursor: null,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2078,7 +2080,7 @@ test("can get the first few posts in a channel", async () => {
             beforeCursor: null,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2151,7 +2153,7 @@ test("can get the first few posts in a channel", async () => {
             beforeCursor: null,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2266,7 +2268,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     });
 
     expect(channelPostsResult).toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2412,7 +2414,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             beforeCursor: null,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2508,7 +2510,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             beforeCursor: null,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2629,7 +2631,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             beforeCursor: null,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2775,7 +2777,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             beforeCursor: channelPostsResult.items[3]!.cursor,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2871,7 +2873,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             beforeCursor: channelPostsResult.items[3]!.cursor,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,
@@ -2942,7 +2944,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
             beforeCursor: channelPostsResult.items[2]!.cursor,
         }),
     ).resolves.toEqual({
-        indexName: "ChannelPosts",
+        indexName: "ChannelPosts2",
         partitionKey: expect.any(String),
         checkpoint: expect.any(Date),
         startCursorBound: null,

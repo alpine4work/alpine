@@ -3735,7 +3735,9 @@ export class RynamoTableSchema<
                             : undefined,
                     isStartSortKeyExclusive,
                     isEndSortKeyExclusive,
-                    afterItemKey,
+                    afterItemKey: afterItemKey
+                        ? {...afterItemKey, partitionType: config.name, sortRangeType: "Index"}
+                        : undefined,
                     limit,
                     pageLimit,
                     descending,

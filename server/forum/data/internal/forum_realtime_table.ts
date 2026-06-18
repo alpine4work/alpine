@@ -621,7 +621,7 @@ export {FilePostAuthorizer as InternalFilePostAuthorizer};
 // to `addExpensiveFullEventualConsistencyIndex()`) and the read performance
 // sacrifice isn't that bad since most of the time posts will be viewed through
 // home feed or inbox anyway (vs querying a channel).
-export const ChannelPostsIndex = ForumRealtimeTable.addEventualConsistencyIndexWithQueryJoin({
+ForumRealtimeTable.addEventualConsistencyIndexWithQueryJoin({
     name: "ChannelPosts",
     itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
     partitionKeyAttributes: {
@@ -640,7 +640,7 @@ export const ChannelPostsIndex = ForumRealtimeTable.addEventualConsistencyIndexW
 // We use a strong consistency index so we can query channel posts via the API with
 // strong read-after-write consistency. This increases the cost of writes but
 // that's fine, we don't create posts often.
-export const ChannelPosts2Index = ForumRealtimeTable.addStrongConsistencyIndexWithQueryJoin({
+export const ChannelPostsIndex = ForumRealtimeTable.addStrongConsistencyIndexWithQueryJoin({
     name: "ChannelPosts2",
     itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
     partitionKeyAttributes: {
