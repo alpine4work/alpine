@@ -83,6 +83,277 @@ const testCases: Array<{
         needle: "- [ ] bar",
         ranges: [],
     },
+    {
+        haystack: "",
+        needle: "foo",
+        ranges: [],
+    },
+    {
+        haystack: "foo",
+        needle: "",
+        ranges: [],
+    },
+    {
+        haystack: "foo",
+        needle: "foo",
+        ranges: [{from: 1, to: 4, slice: '<"foo">'}],
+    },
+    {
+        haystack: "foo bar foo",
+        needle: "foo",
+        ranges: [
+            {from: 1, to: 4, slice: '<"foo">'},
+            {from: 9, to: 12, slice: '<"foo">'},
+        ],
+    },
+    {
+        haystack: "foofoo",
+        needle: "foo",
+        ranges: [
+            {from: 1, to: 4, slice: '<"foo">'},
+            {from: 4, to: 7, slice: '<"foo">'},
+        ],
+    },
+    {
+        haystack: "foo bar",
+        needle: "baz",
+        ranges: [],
+    },
+    {
+        haystack: "abx abc",
+        needle: "abc",
+        ranges: [{from: 5, to: 8, slice: '<"abc">'}],
+    },
+    {
+        haystack: "foo\n\nbar",
+        needle: "bar",
+        ranges: [{from: 6, to: 9, slice: '<"bar">'}],
+    },
+    {
+        haystack: "foo\n\nbar",
+        needle: "foo\n\nbar",
+        ranges: [{from: 1, to: 9, slice: '<paragraph("foo"), paragraph("bar")>'}],
+    },
+    {
+        haystack: "foo\n\nbar",
+        needle: "foo bar",
+        ranges: [],
+    },
+    {
+        haystack: "foo bar",
+        needle: "foo\n\nbar",
+        ranges: [],
+    },
+    {
+        haystack: "foo bar",
+        needle: "foo bar baz",
+        ranges: [],
+    },
+    {
+        haystack: "foo<br/>bar",
+        needle: "<br/>",
+        ranges: [{from: 4, to: 5, slice: "<break>"}],
+    },
+    {
+        haystack: "foo<br/>bar",
+        needle: "foo<br/>bar",
+        ranges: [{from: 1, to: 8, slice: '<"foo", break, "bar">'}],
+    },
+    {
+        haystack: "foo**<br/>**bar",
+        needle: "**<br/>**",
+        ranges: [{from: 4, to: 5, slice: "<bold(break)>"}],
+    },
+    {
+        haystack: "foo**<br/>**bar",
+        needle: "<br/>",
+        ranges: [],
+    },
+    {
+        haystack: "foo<br/>bar",
+        needle: "**<br/>**",
+        ranges: [],
+    },
+    {
+        haystack: "**bold** plain **bold**",
+        needle: "**bold**",
+        ranges: [
+            {from: 1, to: 5, slice: '<bold("bold")>'},
+            {from: 12, to: 16, slice: '<bold("bold")>'},
+        ],
+    },
+    {
+        haystack: "**bold** plain",
+        needle: "bold",
+        ranges: [],
+    },
+    {
+        haystack: "bold plain",
+        needle: "**bold**",
+        ranges: [],
+    },
+    {
+        haystack: "**bold**",
+        needle: "<strong>bold</strong>",
+        ranges: [{from: 1, to: 5, slice: '<bold("bold")>'}],
+    },
+    {
+        haystack: "***both***",
+        needle: "**_both_**",
+        ranges: [{from: 1, to: 5, slice: '<bold(italic("both"))>'}],
+    },
+    {
+        haystack: "[link](https://example.com) [link](https://other.com)",
+        needle: "[link](https://example.com)",
+        ranges: [{from: 1, to: 5, slice: '<link("link")>'}],
+    },
+    {
+        haystack: "[link](https://example.com)",
+        needle: "[link](https://other.com)",
+        ranges: [],
+    },
+    {
+        haystack: "~~gone~~",
+        needle: "~~gone~~",
+        ranges: [{from: 1, to: 5, slice: '<strike("gone")>'}],
+    },
+    {
+        haystack: "`code`",
+        needle: "`code`",
+        ranges: [{from: 1, to: 5, slice: '<code("code")>'}],
+    },
+    {
+        haystack: "<mark>highlighted</mark>",
+        needle: "<mark>highlighted</mark>",
+        ranges: [{from: 1, to: 12, slice: '<highlight("highlighted")>'}],
+    },
+    {
+        haystack: '<mark class="highlight-red">highlighted</mark>',
+        needle: "<mark>highlighted</mark>",
+        ranges: [],
+    },
+    {
+        haystack: '<mark class="highlight-blue">highlighted</mark>',
+        needle: '<mark class="highlight-red">highlighted</mark>',
+        ranges: [],
+    },
+    {
+        haystack: "# foo bar",
+        needle: "bar",
+        ranges: [],
+    },
+    {
+        haystack: "# foo bar",
+        needle: "# bar",
+        ranges: [{from: 5, to: 8, slice: '<"bar">'}],
+    },
+    {
+        haystack: "# foo bar",
+        needle: "## bar",
+        ranges: [{from: 5, to: 8, slice: '<"bar">'}],
+    },
+    {
+        haystack: "foo bar",
+        needle: "# bar",
+        ranges: [],
+    },
+    {
+        haystack: "> foo bar",
+        needle: "> baz",
+        ranges: [],
+    },
+    {
+        haystack: "foo bar",
+        needle: "> bar",
+        ranges: [],
+    },
+    {
+        haystack: "7. foo bar qux",
+        needle: "1. bar",
+        ranges: [{from: 6, to: 9, slice: '<"bar">'}],
+    },
+    {
+        haystack: "- parent\n  - nested item",
+        needle: "nested",
+        ranges: [{from: 12, to: 18, slice: '<"nested">'}],
+    },
+    {
+        haystack: "- parent\n  - nested item",
+        needle: "- nested",
+        ranges: [{from: 12, to: 18, slice: '<"nested">'}],
+    },
+    {
+        haystack: "- parent\n  - nested item",
+        needle: "1. nested",
+        ranges: [],
+    },
+    {
+        haystack: "- parent\n  1. nested item",
+        needle: "1. nested",
+        ranges: [{from: 12, to: 18, slice: '<"nested">'}],
+    },
+    {
+        haystack: "- parent\n  1. nested item",
+        needle: "- nested",
+        ranges: [],
+    },
+    {
+        haystack: "1. parent\n   - nested item",
+        needle: "- nested",
+        ranges: [{from: 12, to: 18, slice: '<"nested">'}],
+    },
+    {
+        haystack: "1. parent\n   - nested item",
+        needle: "1. nested",
+        ranges: [],
+    },
+    {
+        haystack: "- [x] foo bar qux",
+        needle: "- [x] bar",
+        ranges: [{from: 6, to: 9, slice: '<"bar">'}],
+    },
+    {
+        haystack: "- [ ] foo bar qux",
+        needle: "bar",
+        ranges: [{from: 6, to: 9, slice: '<"bar">'}],
+    },
+    {
+        haystack: "- [ ] todo\n- [x] done",
+        needle: "todo\n\ndone",
+        ranges: [
+            {
+                from: 2,
+                to: 14,
+                slice: '<checkListItem(paragraph("todo")), checkListItem(paragraph("done"))>',
+            },
+        ],
+    },
+    {
+        haystack: "hello [@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
+        needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
+        ranges: [{from: 7, to: 8, slice: "<mention>"}],
+    },
+    {
+        haystack: "hello [@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
+        needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30)",
+        ranges: [],
+    },
+    {
+        haystack:
+            "[Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv30?mention) [Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv31?mention)",
+        needle: "[Doc](https://alpine.inc/doc/d93hre935d0yd7akahtrwcvv30?mention)",
+        ranges: [{from: 1, to: 2, slice: "<mention>"}],
+    },
+    {
+        haystack: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)**",
+        needle: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)**",
+        ranges: [{from: 1, to: 2, slice: "<bold(mention)>"}],
+    },
+    {
+        haystack: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)**",
+        needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
+        ranges: [],
+    },
 ];
 
 for (const testCase of testCases) {
