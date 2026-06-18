@@ -14,7 +14,6 @@ import {getCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hou
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {newTaskCollectionNamePlaceholder} from "~/client/web/styles/tasks_shared_styles.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
@@ -458,12 +457,11 @@ export default function TaskCollectionRoute() {
     const {collectionId} = useParams();
     assert(collectionId && isId<TaskCollectionId>(collectionId));
 
-    return useSiteChromeContainer(
-        {entityId: `TaskCollection:${collectionId}`},
+    return (
         <TaskCollectionRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
-        />,
+        />
     );
 }
 

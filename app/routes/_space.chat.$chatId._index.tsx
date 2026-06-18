@@ -15,7 +15,6 @@ import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_loa
 import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
@@ -347,7 +346,7 @@ function ChatRouteInner() {
         getChatOrAccountSearchAffinityEntityId(currentAccount?.id, chat),
     );
 
-    let node = (
+    const node = (
         <Box flexGrow="1" width="full" height="full" overflow="hidden">
             <ChatView
                 // Remount whenever we navigate to a different chat.
@@ -366,14 +365,11 @@ function ChatRouteInner() {
         </Box>
     );
 
-    node = useInboxBannerOutletContainer(
+    return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
             maxWidth: contentStyles.contentMaxWidth,
         },
         node,
     );
-
-    node = useSiteChromeContainer({entityId: `Chat:${chat.id}`}, node);
-    return node;
 }

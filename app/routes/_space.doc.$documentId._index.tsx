@@ -19,7 +19,6 @@ import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_updat
 import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/web/search/mark_search_affinity_low_intent_update_entity_interaction.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
@@ -320,7 +319,7 @@ function DocumentRouteInner() {
         setIsShareActivationHintVisible(false);
     }
 
-    let node = (
+    return (
         <DocumentContentEditor
             // Re-render when the document changes
             key={documentId}
@@ -384,7 +383,4 @@ function DocumentRouteInner() {
             }}
         />
     );
-
-    node = useSiteChromeContainer({entityId: `Document:${documentId}`}, node);
-    return node;
 }

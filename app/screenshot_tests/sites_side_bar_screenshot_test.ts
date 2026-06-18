@@ -52,6 +52,43 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runChromeAroundEntityScenarios(accounts.cassCade, runner, showcase);
     await runDragOverlayCollapsedSectionScenario(accounts.cassCade, runner, showcase);
     await runExpandedSectionsScenario(accounts.cassCade, runner, showcase);
+    await runShimmerWithSiteChromeScenario(accounts.cassCade, runner, showcase);
+}
+
+/**
+ * With the network paused, navigating to another entity in the site leaves the
+ * destination route's loader pending, so the route shimmer takes over the content
+ * area. Because `<SiteChromeContainer>` renders the sidebar _outside_ the
+ * `<Outlet>` (and the shimmer), the chrome stays mounted around the shimmer with
+ * the destination row highlighted — it doesn't tear down and remount on
+ * navigation. That stability is what preserves sidebar state (like scroll
+ * position) across navigations; pin it here.
+ */
+async function runShimmerWithSiteChromeScenario(
+    session: TestSpaceSession,
+    runner: ScreenshotTestRunner,
+    showcase: ShowcaseSite,
+) {
+    // Land on a site entity (network still live) so the chrome is mounted.
+    // `allowPauseNetwork: true` is required before calling `pauseNetwork()` below.
+    await runner.goto(session, `/doc/${showcase.betsDocument.id}`);
+    await runner
+        .getByText(showcase.expectedTexts.betsDocumentTitle, {exact: true})
+        .first()
+        .waitFor();
+    await runner.getByText("Tables GA Project", {exact: true}).first().waitFor();
+
+    await runner.evaluate("dev.shimmer.debug()");
+    // Click a different entity in the sidebar. The navigation starts but its loader
+    // hangs, so after the loading-indicator delay the route shimmer takes over the
+    // outlet — while the sidebar stays put around it, now highlighting the
+    // destination.
+    await runner.getByText("Tables GA Project", {exact: true}).first().click();
+    await runner.getByTestId("RouteShimmer").first().waitFor();
+    await runner.mouse.move(0, 0);
+
+    await runner.screenshot("aq", "shimmer-with-site-chrome");
+    await runner.evaluate("dev.shimmer.debug()");
 }
 
 type ShowcaseSite = {
@@ -77,6 +114,7 @@ type ShowcaseSite = {
         readonly tablesExpandedTask: string;
         readonly realtimeExpandedTask: string;
         readonly operationsChild: string;
+        readonly betsDocumentTitle: string;
     };
 };
 
@@ -104,6 +142,8 @@ async function createShowcaseSite({
     const realtimeLabel = "Realtime Reliability";
     const operationsLabel = "Operations";
     const longCustomerFeedbackLabel = "Customer feedback and launch readiness follow-ups";
+
+    const betsDocumentTitle = "Q4 Bets and Owners";
 
     const engineeringSectionId = await site.addSection(accounts.cassCade, {
         label: engineeringLabel,
@@ -160,7 +200,7 @@ Draft is ready for comments. I want the owner map to be boringly clear before th
     });
 
     const betsDocument = await TestDocument.create(accounts.cassCade, {
-        title: "Q4 Bets and Owners",
+        title: betsDocumentTitle,
         access: {type: "Site", siteId: site.id},
         body: markdown`
 Author: Cass Cade
@@ -761,6 +801,7 @@ examples from support, design partner interviews, and the customer launch room.
             tablesExpandedTask: tablesExpandedTaskTitle,
             realtimeExpandedTask: realtimeExpandedTaskTitle,
             operationsChild: operationsChildTitle,
+            betsDocumentTitle: betsDocumentTitle,
         },
     };
 }

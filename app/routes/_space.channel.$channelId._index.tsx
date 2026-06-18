@@ -13,7 +13,6 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {
     channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
@@ -358,7 +357,7 @@ function ChannelRouteInner() {
             : null,
     );
 
-    let node = (
+    return (
         <Box flexGrow="1" overflow="hidden" position="relative" zIndex="20" height="full">
             <ChannelView
                 // Remount when navigating to a different channel.
@@ -370,7 +369,4 @@ function ChannelRouteInner() {
             />
         </Box>
     );
-
-    node = useSiteChromeContainer({entityId: `Channel:${channelId}`}, node);
-    return node;
 }

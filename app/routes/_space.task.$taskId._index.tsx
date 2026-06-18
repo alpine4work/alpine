@@ -26,7 +26,6 @@ import {
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
-import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
@@ -492,12 +491,11 @@ export default function TaskRoute() {
     const {taskId} = useParams();
     assert(taskId && isId<TaskId>(taskId));
 
-    return useSiteChromeContainer(
-        {entityId: `Task:${taskId}`},
+    return (
         <TaskRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
-        />,
+        />
     );
 }
 

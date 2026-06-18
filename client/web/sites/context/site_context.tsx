@@ -8,9 +8,11 @@ import {
     useStateWithDependencies,
     useStateWithDependenciesWithoutDispatch,
 } from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
+import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
+import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
@@ -26,6 +28,7 @@ import {
 } from "~/shared/access/access_policy.js";
 import {RynamoEvent, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -88,13 +91,12 @@ export type SiteActiveState = {
 // - the `useRynamoQuery` hook tracking server state
 // - the `useStateWithOptimisticUpdates` state tracking pending-RPC overlays
 //
-// If we mounted `ActiveSiteDataProvider` _inside_ the entity route (e.g. from
-// `useSiteChromeContainer`), navigating from one entity to another in the same
-// site would unmount and remount it. That would: tear down and reopen the
-// WebSocket, reset the realtime query state, and, worst of all, drop any in-flight
-// optimistic updates. A user who just added an entity from the modal and navigated
-// to it would see the site tree briefly revert until the server round-trip
-// completes and the fresh state streams back.
+// If we mounted `ActiveSiteDataProvider` _inside_ the entity route, navigating
+// from one entity to another in the same site would unmount and remount it. That
+// would: tear down and reopen the WebSocket, reset the realtime query state, and,
+// worst of all, drop any in-flight optimistic updates. A user who just added an
+// entity from the modal and navigated to it would see the site tree briefly revert
+// until the server round-trip completes and the fresh state streams back.
 //
 // Keeping the provider above the entity routes means the same provider instance
 // services every entity within a site. Navigation just re-renders the child
@@ -120,14 +122,14 @@ export type SiteActiveState = {
 //    happens during the child's render, after the parent already rendered with
 //    `activation: null`. Still flickers.
 //
-// 3. Have `useSiteChromeContainer` build a fallback tree from the loader's
+// 3. Have `SiteChromeContainer` build a fallback tree from the loader's
 //    `initialQueryResult` for the first render, then switch to the provider's tree
 //    once it activates. Fails because chrome components need the full
 //    `SiteDataContext` (not just a tree) - they call `useSite`,
 //    `useCanManageSite`, `useSiteChildren`, etc., which throw when the context
 //    isn't provided.
 //
-// 4. Mount `ActiveSiteDataProvider` inside `useSiteChromeContainer` or the entity
+// 4. Mount `ActiveSiteDataProvider` inside `SiteChromeContainer` or the entity
 //    route. Renders chrome on first paint, but loses cross-navigation persistence
 //    as described above.
 //
@@ -148,33 +150,27 @@ export type SiteActiveState = {
 //   `useCanManageSite`, etc. all work in those children without extra wiring.
 //
 // - **Site chrome rendering** (actually wrapping content in sidebars/topbars) is
-//   opt-in: a route explicitly calls `useSiteChromeContainer` to render chrome.
+//   handled once by `<SiteChromeContainer>` in the space layout, which wraps the
+//   `<Outlet>` (and the loading-indicator shimmer). It reads the active entity
+//   from this context and renders the chrome around it, so the chrome — and its
+//   local state, like the sidebar's scroll position — stays mounted as you
+//   navigate between entities in the same site. Individual entity routes don't
+//   render their own chrome.
 //
-// This split is intentional. If you introduce a parent layout route (say
-// `s.$spaceId.documents.$documentId.tsx` with child routes for the document view,
-// comments, a print view, etc.) the layout author picks one of two patterns:
-//
-// 1. Wrap `<Outlet />` in `useSiteChromeContainer` inside the layout. Every child
-//    renders inside the chrome. Children _cannot_ escape. Good when chrome should
-//    be consistent across all child views of an entity (usual case).
-//
-// 2. Render `<Outlet />` raw. Each child route calls `useSiteChromeContainer`
-//    itself, or not. Good when some children (e.g. a full-screen print/present
-//    view) should render without chrome.
-//
-// In either case, child routes are inside an active site context, but they choose
-// whether to render the site chrome or not. That decoupling is a feature: a
-// presentation mode can still read the site tree for navigation without forcing
-// the chrome frame onto the screen.
+// This split is intentional. Activation rides on the loader data (any nested route
+// inherits it), while the chrome frame is owned by the layout, above the
+// `<Outlet>`. The tradeoff: a route can no longer opt out of chrome just by not
+// calling a hook. If we ever need a full-screen view of a site entity without the
+// frame (e.g. a present/print mode), it'll need an explicit signal — e.g. omitting
+// `activeEntityId` from its loader data, or a nested layout route that renders its
+// `<Outlet>` outside `<SiteChromeContainer>`.
 //
 // ## Downsides we accept
 //
-// - **Coupling of routes to the activation list.** Every entity route that should
-//   mount inside site chrome must return `siteLoaderDataKey` in its loader, and
-//   must be listed in `siteActivationRouteIds` below. This is decoupled from
-//   `useSiteChromeContainer` \u2014 a new route author has to remember to update
-//   both places. We mitigate this by keeping the list short and co-located with
-//   the provider.
+// - **Coupling of routes to the activation mechanism.** Every entity route that
+//   should mount inside site chrome must return `siteLoaderDataKey` in its loader
+//   (via `jsonWithSchema`'s `siteLoaderData` option) with the entity's
+//   `activeEntityId`.
 //
 // - **O(n) scan of matches on every `SiteProvider` render.** In practice n is ~3
 //   (root, space layout, leaf route), so this is cheap. If the list grows or a hot
@@ -211,19 +207,67 @@ export function useSiteActivation(): SiteActivationContextValue {
     return context;
 }
 
-function findSiteLoaderDataInMatches(
+type SiteLoaderDataSource = {
+    /**
+     * The `siteLoaderData` available synchronously. Derived from a matched route's
+     * deserialized loader data. While navigating within a site, we compute an
+     * "optimistic" `siteLoaderData` based on the in-site navigation header and the
+     * currently-loading entity id.
+     */
+    readonly immediate: SiteLoaderData | null;
+    /**
+     * Set when the matched route's data is a still-pending
+     * `LoadingIndicatorLoaderData` wrapper. Subscribe to it to re-derive the real
+     * `siteLoaderData` once it settles.
+     */
+    readonly pendingPromise: PromiseImmediate<unknown> | null;
+};
+
+/**
+ * Scans the matched routes for the one that carries `siteLoaderData`, returning
+ * the data available now plus (if that route is mid-navigation) the promise to
+ * await for its real data.
+ */
+function findSiteLoaderDataSourceInMatches(
     matches: ReadonlyArray<{readonly id: string; readonly data: unknown}>,
-): SiteLoaderData | null {
+): SiteLoaderDataSource {
     for (const match of matches) {
-        const loaderData = match.data as SchemaSerializedValue;
-        if (!isPlainObject(loaderData)) continue;
+        const loaderData = match.data;
 
-        const siteLoaderDataSerializedValue = loaderData[siteLoaderDataKey];
-        if (!siteLoaderDataSerializedValue) continue;
+        // A navigation slower than the loading-indicator delay completes with
+        // `LoadingIndicatorLoaderData` while the real loader data is still pending. Hand
+        // back its promise (so the caller re-derives once it settles) and, meanwhile, its
+        // synthesized `siteLoaderData` fallback (present for within-site navigations) so
+        // the site stays active — destination entity highlighted — under the route
+        // shimmer.
+        if (isLoadingIndicatorLoaderData(loaderData)) {
+            return {
+                immediate: loaderData.siteLoaderData ?? null,
+                pendingPromise: loaderData.promise,
+            };
+        }
 
-        return getLoaderDataWithSchema(SiteLoaderDataSchema, siteLoaderDataSerializedValue);
+        const siteLoaderData = parseSiteLoaderDataIfPossible(loaderData);
+        if (siteLoaderData) return {immediate: siteLoaderData, pendingPromise: null};
     }
-    return null;
+    return {immediate: null, pendingPromise: null};
+}
+
+/**
+ * Reads and deserializes a route's `siteLoaderData`, or `null` if the loader data
+ * isn't a plain object carrying the `siteLoaderDataKey`.
+ */
+function parseSiteLoaderDataIfPossible(loaderData: unknown): SiteLoaderData | null {
+    // Cast first, then narrow with `isPlainObject` — narrowing the
+    // `SchemaSerializedValue` union down to its object members is what makes indexing
+    // by `siteLoaderDataKey` typecheck.
+    const serializedValue = loaderData as SchemaSerializedValue;
+    if (!isPlainObject(serializedValue)) return null;
+
+    const siteLoaderDataSerializedValue = serializedValue[siteLoaderDataKey];
+    if (!siteLoaderDataSerializedValue) return null;
+
+    return getLoaderDataWithSchema(SiteLoaderDataSchema, siteLoaderDataSerializedValue);
 }
 
 /**
@@ -234,11 +278,13 @@ function findSiteLoaderDataInMatches(
  * - `UseNewSite`: server returned a query result; adopt it. If we already have an
  *   activation for the same site we keep the existing reference so
  *   `ActiveSiteDataProvider` doesn't reset its WebSocket / optimistic state.
- * - `UseActiveSite`: client signaled (via `?siteFromCache=...`) that it already
- *   has the site cached, so the loader skipped the fetch. Keep current activation
- *   when siteIds match. If they don't match (or there is no current activation)
- *   throw — the cache hint is only emitted by within-app navigation that already
- *   has the site loaded, so a mismatch indicates a programming error.
+ * - `UseActiveSite`: client signaled (via the `cyberworlds-active-site-id` header)
+ *   that it already has the site cached, so the loader skipped the fetch. This is
+ *   also the variant synthesized on the client for a pending within-site
+ *   navigation (see `getSiteLoaderDataForPendingNavigation`). Keep current
+ *   activation when siteIds match. If they don't match (or there is no current
+ *   activation) throw — the cache hint is only emitted by within-app navigation
+ *   that already has the site loaded, so a mismatch indicates a programming error.
  */
 function computeNextActivation(
     siteData: SiteLoaderData | null,
@@ -358,7 +404,27 @@ const SiteDataContext = createContext<SiteDataContextValue | null>(null);
  */
 export function SiteProvider({children}: {readonly children: ReactNode}) {
     const matches = useMatches();
-    const siteLoaderData = useMemo(() => findSiteLoaderDataInMatches(matches), [matches]);
+
+    const {immediate: immediateSiteLoaderData, pendingPromise} = useMemo(
+        () => findSiteLoaderDataSourceInMatches(matches),
+        [matches],
+    );
+
+    // A navigation slower than the loading-indicator delay resolves its real loader
+    // data after the router state has already settled. We subscribe to the wrapper's
+    // promise here so that we can re-render and read the real `siteLoaderData` once it
+    // arrives.
+    const pendingLoaderDataState = usePromise(pendingPromise);
+
+    const siteLoaderData = useMemo(
+        () =>
+            pendingPromise !== null && !pendingLoaderDataState.isPending
+                ? parseSiteLoaderDataIfPossible(pendingLoaderDataState.value)
+                : // If there is no pending promise, or if there is a pending promise that hasn't
+                  // settled yet, we use the immediately available `siteLoaderData`.
+                  immediateSiteLoaderData,
+        [pendingPromise, pendingLoaderDataState, immediateSiteLoaderData],
+    );
 
     const activation = useStateWithDependenciesWithoutDispatch<
         SiteActivationState | null,

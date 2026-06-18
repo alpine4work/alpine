@@ -139,32 +139,37 @@ export default function PeekLayout() {
             // Make sure we use a new navigation context provider in peeks so the promises
             // returned by `navigate()` will correspond to the peek `useLocation()`.
             >
-                <LoadingIndicatorSpaceOutletContainer routeId="routes/_space.peek">
-                    <GlobalLoadingIndicatorContextProvider>
-                        {globalLoadingIndicator => (
-                            <>
-                                <SiteProvider>
+                <SiteProvider
+                // The provider sits above `<LoadingIndicatorSpaceOutletContainer>` (mirroring
+                // `_space.tsx`) so the peek's site context — realtime subscription, tree, active
+                // entity — survives a pending within-site navigation while the container swaps its
+                // children for a route shimmer.
+                >
+                    <LoadingIndicatorSpaceOutletContainer routeId="routes/_space.peek">
+                        <GlobalLoadingIndicatorContextProvider>
+                            {globalLoadingIndicator => (
+                                <>
                                     <Outlet />
-                                </SiteProvider>
-                                {globalLoadingIndicator && (
-                                    <Box
-                                        pointerEvents="none"
-                                        position="absolute"
-                                        zIndex="10"
-                                        bottom="0"
-                                        right="0"
-                                        borderTopRightRadius="1"
-                                        backgroundColor="grey-0"
-                                    >
-                                        <GlobalLoadingIndicatorChip
-                                            indicator={globalLoadingIndicator}
-                                        />
-                                    </Box>
-                                )}
-                            </>
-                        )}
-                    </GlobalLoadingIndicatorContextProvider>
-                </LoadingIndicatorSpaceOutletContainer>
+                                    {globalLoadingIndicator && (
+                                        <Box
+                                            pointerEvents="none"
+                                            position="absolute"
+                                            zIndex="10"
+                                            bottom="0"
+                                            right="0"
+                                            borderTopRightRadius="1"
+                                            backgroundColor="grey-0"
+                                        >
+                                            <GlobalLoadingIndicatorChip
+                                                indicator={globalLoadingIndicator}
+                                            />
+                                        </Box>
+                                    )}
+                                </>
+                            )}
+                        </GlobalLoadingIndicatorContextProvider>
+                    </LoadingIndicatorSpaceOutletContainer>
+                </SiteProvider>
             </NavigationContextProvider>
         </AppContextProvider>
     );

@@ -1,28 +1,31 @@
-import {ReactElement, ReactNode} from "react";
+import {ReactElement} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {SiteChrome} from "~/client/web/sites/site_chrome.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
-import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**
- * Hook that wraps entity content with site chrome (sidebars/topbars) based on the
- * entity's position in the site tree hierarchy.
+ * Renders persistent site chrome (sidebars/topbars) around the route outlet for
+ * the active site entity.
  *
- * This recursively walks up the parent chain from the entity and wraps the content
- * in the appropriate chrome components. SideBarSections are passthrough - they
- * don't add visual chrome, only affect the sidebar's internal navigation display.
+ * Mounted once in the space layout _outside_ the route `<Outlet>` (and the
+ * loading-indicator shimmer) so the chrome — and its local state, like the
+ * sidebar's scroll position — survives navigation between entities in the same
+ * site. Navigating only re-renders the chrome with a new active entity; it does
+ * not remount the sidebar.
  *
- * Site activation is handled by `SiteProvider` via `useMatches` — this hook just
- * reads the already-active site context and renders chrome if the current entity
- * is in the site tree.
+ * The entity to render chrome around comes from the active site context
+ * (`activeState.activeEntityId`), which `SiteProvider` keeps pointed at the
+ * matched route — including the destination entity during a pending within-site
+ * navigation, so the chrome highlights where you're going while the shimmer shows.
+ *
+ * Renders `children` without chrome when there's no active site, the active entity
+ * isn't in the site tree, or the layout is narrow (mobile/peeks render a
+ * `SiteBreadcrumbChip` instead of persistent chrome).
  */
-export function useSiteChromeContainer<Children extends ReactNode>(
-    {entityId}: {entityId: SiteItemSearchEntityId},
-    children: Children,
-): ReactElement | Children {
+export function SiteChromeContainer({children}: {children: ReactElement}) {
     const siteContext = useSiteContextIfExists();
     const {space} = useSpaceContext();
     const routeLayout = useRouteLayout();
@@ -36,8 +39,9 @@ export function useSiteChromeContainer<Children extends ReactNode>(
         return children;
     }
 
-    const {tree} = siteContext;
-    const entityEntry = tree.entryById.get(entityId);
+    const {tree, activeState} = siteContext;
+    const {activeEntityId} = activeState;
+    const entityEntry = activeEntityId !== null ? tree.entryById.get(activeEntityId) : undefined;
 
     if (!entityEntry) {
         return children;

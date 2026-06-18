@@ -46,6 +46,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {SearchModal} from "~/client/web/search/search_modal.js";
 import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
 import {SiteProvider} from "~/client/web/sites/context/site_context.js";
+import {SiteChromeContainer} from "~/client/web/sites/site_chrome_container.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getGlobalSavingIndicatorPromise} from "~/client/web/spaces/get_global_saving_indicator_promise.js";
 import {
@@ -1192,9 +1193,11 @@ function SpaceLayoutRouteOutlet({
                                 paddingLeft={spaceLayoutStyles.sideBarWidth}
                                 paddingRight={spaceLayoutMargin}
                             >
-                                <LoadingIndicatorSpaceOutletContainer routeId="routes/_space">
-                                    <Outlet />
-                                </LoadingIndicatorSpaceOutletContainer>
+                                <SiteChromeContainer>
+                                    <LoadingIndicatorSpaceOutletContainer routeId="routes/_space">
+                                        <Outlet />
+                                    </LoadingIndicatorSpaceOutletContainer>
+                                </SiteChromeContainer>
                             </ContentBlockWidthContextProvider>
                         </div>
                         {globalLoadingIndicatorForMobile && (

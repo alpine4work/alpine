@@ -398,11 +398,11 @@ export function useSiteMutations() {
             //
             // If (2) wins out, then the site tree in context will be updated with the removal
             // of the current entity. This would cause a flicker on the screen, because when we
-            // look for the current entity in the tree in `useSiteChromeContainer`, we don't
-            // find it. Since we don't find it, we won't render the site chrome. What the user
-            // sees is a brief paint of the current entity without the site chrome, and then
-            // they see the site pop back onto the screen for the next entity after (1)
-            // resolves and navigation completes.
+            // look for the current entity in the tree in `SiteChromeContainer`, we don't find
+            // it. Since we don't find it, we won't render the site chrome. What the user sees
+            // is a brief paint of the current entity without the site chrome, and then they
+            // see the site pop back onto the screen for the next entity after (1) resolves and
+            // navigation completes.
             //
             // To avoid this, we pause the realtime subsription, so that even if (2) wins out,
             // the event will be queued and applied to the tree after (1) resolves.

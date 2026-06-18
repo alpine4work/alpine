@@ -341,7 +341,15 @@ function RouteShimmer({
 
     if (!withInboxBanner) {
         return (
-            <Box ref={containerRef} width="full" height="full" overflow="hidden">
+            <Box
+                ref={containerRef}
+                width="full"
+                height="full"
+                overflow="hidden"
+                // Lets screenshot tests wait for the route shimmer to take over the outlet (e.g.
+                // to capture the site chrome staying mounted around it during a pending nav).
+                data-testid={process.env.NODE_ENV !== "production" ? "RouteShimmer" : undefined}
+            >
                 <shimmerOptions.component
                     searchParams={searchParams}
                     withInboxBanner={withInboxBanner}
@@ -361,6 +369,9 @@ function RouteShimmer({
                     // like it.
                     "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${spacing[inboxBannerHeight]})`,
                 }}
+                // Lets screenshot tests wait for the route shimmer to take over the outlet (e.g.
+                // to capture the site chrome staying mounted around it during a pending nav).
+                data-testid={process.env.NODE_ENV !== "production" ? "RouteShimmer" : undefined}
             >
                 <Box
                     position="absolute"
