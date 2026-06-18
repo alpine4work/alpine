@@ -5,6 +5,7 @@ import {
     GitHubPushEventPayload,
     GitHubWorkflowRunEventPayload,
 } from "~/admin/lambda/send_alert/internal/github_alert_source_types.js";
+import {sendAlertAvailableChannels} from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 
@@ -19,18 +20,16 @@ const originalEnv = process.env;
 let mockFetchCalls: Array<{url: string; body: unknown}> = [];
 
 const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, options?: any) => {
-    if (options?.body) {
-        mockFetchCalls.push({
-            url: _url,
-            body: JSON.parse(options.body),
-        });
-    }
+    mockFetchCalls.push({
+        url: _url,
+        body: options?.body ? JSON.parse(options.body) : null,
+    });
 
     return Promise.resolve({
         ok: true,
         status: 200,
         statusText: "OK",
-        text: () => Promise.resolve(""),
+        text: () => Promise.resolve(JSON.stringify({id: "generated-post-id"})),
     });
 });
 
@@ -46,12 +45,19 @@ function restoreAlertSourceTestEnvironment(): void {
 }
 
 function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
-    const body = fetchCall.body as {channelId: string; content: ApiContent};
-    const markdown = printApiContentToMarkdown(body.content);
-    return `URL: ${fetchCall.url}
+    if (!fetchCall.body) {
+        return `URL: ${fetchCall.url}`;
+    }
+    const body = fetchCall.body as {channelId?: string; content?: ApiContent};
+    if (body.content) {
+        const markdown = printApiContentToMarkdown(body.content);
+        return `URL: ${fetchCall.url}
 Channel: ${body.channelId}
 
 ${markdown}`;
+    }
+    return `URL: ${fetchCall.url}
+Body: ${JSON.stringify(body)}`;
 }
 
 function createGitHubSignature(body: string, webhookSecret = "test-github-secret"): string {
@@ -767,8 +773,9 @@ describe("GitHubAlertSource", () => {
 
         await handleGitHubWorkflowRunPayload(payload);
 
-        expect(mockFetchCalls).toHaveLength(1);
-        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+        const postCalls = mockFetchCalls.filter(call => call.body !== null);
+        expect(postCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(postCalls[0]!)).toMatchSnapshot();
     });
 
     test("build failure with PR reference", async () => {
@@ -795,8 +802,9 @@ describe("GitHubAlertSource", () => {
 
         await handleGitHubWorkflowRunPayload(payload);
 
-        expect(mockFetchCalls).toHaveLength(1);
-        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+        const postCalls = mockFetchCalls.filter(call => call.body !== null);
+        expect(postCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(postCalls[0]!)).toMatchSnapshot();
     });
 
     test("build failure with multiple PR references", async () => {
@@ -823,8 +831,9 @@ describe("GitHubAlertSource", () => {
 
         await handleGitHubWorkflowRunPayload(payload);
 
-        expect(mockFetchCalls).toHaveLength(1);
-        expect(formatFetchCallForSnapshot(mockFetchCalls[0]!)).toMatchSnapshot();
+        const postCalls = mockFetchCalls.filter(call => call.body !== null);
+        expect(postCalls).toHaveLength(1);
+        expect(formatFetchCallForSnapshot(postCalls[0]!)).toMatchSnapshot();
     });
 
     test("ignores workflow run from another branch", async () => {
@@ -860,7 +869,8 @@ describe("GitHubAlertSource", () => {
 
         await handleGitHubWorkflowRunPayload(payload);
 
-        expect(mockFetchCalls).toHaveLength(0);
+        const postCalls = mockFetchCalls.filter(call => call.body !== null);
+        expect(postCalls).toHaveLength(0);
     });
 
     test("push to main with multiple commits", async () => {
@@ -1021,6 +1031,282 @@ describe("GitHubAlertSource", () => {
         expect({result, fetchCalls: mockFetchCalls.length}).toEqual({
             result: {ok: true},
             fetchCalls: 0,
+        });
+    });
+
+    describe("deploy notifications", () => {
+        test("comments on posts with commit hash when deploy succeeds", async () => {
+            const commitHash = "abc123def456";
+            const shortHash = commitHash.substring(0, 7);
+            const spaceId = "test-space-id";
+            const postId1 = "test-post-id-1";
+            const postId2 = "test-post-id-2";
+
+            mockFetch.mockClear();
+            mockFetchCalls = [];
+
+            mockFetch
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    spaceId,
+                                    channel: {},
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    results: [
+                                        {
+                                            type: "Post",
+                                            id: postId1,
+                                            bodyMatch: `commit ${shortHash} in GitHub`,
+                                            author: {botId: "paul-bot-id"},
+                                        },
+                                        {
+                                            type: "Post",
+                                            id: postId2,
+                                            bodyMatch: `commit ${shortHash} in GitHub`,
+                                            author: {botId: "paul-bot-id"},
+                                        },
+                                    ],
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({id: "post-id"})),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({id: "post-id"})),
+                    });
+                });
+
+            const payload = createGitHubFixture({
+                workflow_run: {
+                    ...createGitHubFixture().workflow_run,
+                    head_sha: commitHash,
+                    conclusion: "success",
+                },
+            });
+
+            await handleGitHubWorkflowRunPayload(payload);
+
+            expect(mockFetchCalls.length).toBe(4);
+
+            expect(mockFetchCalls[0]?.url).toBe(
+                `https://api.test.cyberworlds.com/channels/${sendAlertAvailableChannels.github}`,
+            );
+
+            const searchQuery = encodeURIComponent(`commit ${shortHash} in GitHub`);
+            expect(mockFetchCalls[1]?.url).toBe(
+                `https://api.test.cyberworlds.com/spaces/${spaceId}/search?query=${searchQuery}`,
+            );
+
+            expect(mockFetchCalls[2]?.url).toBe(
+                `https://api.test.cyberworlds.com/posts/${postId1}/messages`,
+            );
+            expect(formatFetchCallForSnapshot(mockFetchCalls[2]!)).toMatchSnapshot();
+
+            expect(mockFetchCalls[3]?.url).toBe(
+                `https://api.test.cyberworlds.com/posts/${postId2}/messages`,
+            );
+        });
+
+        test("comments on posts with commit hash when deploy fails", async () => {
+            const commitHash = "abc123def456";
+            const spaceId = "test-space-id";
+            const postId = "test-post-id";
+
+            mockFetch.mockClear();
+            mockFetchCalls = [];
+
+            mockFetch
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({id: "builds-post-id"})),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    spaceId,
+                                    channel: {},
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    results: [
+                                        {
+                                            type: "Post",
+                                            id: postId,
+                                            bodyMatch: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            author: {botId: "paul-bot-id"},
+                                        },
+                                    ],
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({id: "comment-id"})),
+                    });
+                });
+
+            const payload = createGitHubFixture({
+                workflow_run: {
+                    ...createGitHubFixture().workflow_run,
+                    head_sha: commitHash,
+                    conclusion: "failure",
+                },
+            });
+
+            await handleGitHubWorkflowRunPayload(payload);
+
+            expect(mockFetchCalls.length).toBe(4);
+
+            expect(mockFetchCalls[0]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
+
+            const commentCallIndex = 3;
+            expect(mockFetchCalls[commentCallIndex]?.url).toBe(
+                `https://api.test.cyberworlds.com/posts/${postId}/messages`,
+            );
+
+            const commentBody = mockFetchCalls[commentCallIndex]!.body as {
+                content: {elements: Array<{type: string; elements: Array<unknown>}>};
+            };
+            expect(commentBody.content.elements[0]?.type).toBe("Paragraph");
+            expect(commentBody.content.elements[0]?.elements).toMatchSnapshot();
+        });
+
+        test("handles case when no posts are found with commit hash", async () => {
+            const commitHash = "abc123def456";
+            const spaceId = "test-space-id";
+
+            mockFetch.mockClear();
+            mockFetchCalls = [];
+
+            mockFetch
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    spaceId,
+                                    channel: {},
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    results: [],
+                                }),
+                            ),
+                    });
+                });
+
+            const payload = createGitHubFixture({
+                workflow_run: {
+                    ...createGitHubFixture().workflow_run,
+                    head_sha: commitHash,
+                    conclusion: "success",
+                },
+            });
+
+            await handleGitHubWorkflowRunPayload(payload);
+
+            expect(mockFetchCalls.length).toBe(2);
         });
     });
 });
