@@ -218,7 +218,7 @@ export default function SpaceProfileSettingsRoute() {
                             Choose your preferred color scheme
                         </Box>
                     </Box>
-                    {colorScheme !== null && (
+                    {colorScheme !== null && isSystemPreference !== null && (
                         <Box>
                             <MenuButton
                                 placement="bottom-end"
