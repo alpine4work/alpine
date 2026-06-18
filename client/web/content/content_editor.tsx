@@ -1,6 +1,14 @@
 import classNames from "classnames";
+import {ListBullets, ListChecks, ListNumbers} from "phosphor-react";
 import {closeHistory, history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
-import {Fragment, Node, Schema as ProsemirrorSchema, ResolvedPos, Slice} from "prosemirror-model";
+import {
+    Fragment,
+    Node,
+    NodeType,
+    Schema as ProsemirrorSchema,
+    ResolvedPos,
+    Slice,
+} from "prosemirror-model";
 import {
     AllSelection,
     EditorState,
@@ -90,6 +98,7 @@ import {
 } from "~/client/web/content/internal/get_content_editor_file_drop_targets.js";
 import {getContentEditorInsertMenuActions} from "~/client/web/content/internal/get_content_editor_insert_menu_actions.js";
 import {isGiphyEnabled, preloadGiphyTrending} from "~/client/web/content/internal/giphy_fetch.js";
+import {createConvertListItemsAtIndentCommand} from "~/client/web/content/internal/helpers/create_convert_list_items_at_indent_command.js";
 import {
     FileInfo,
     FileInfoWithEntity,
@@ -129,7 +138,7 @@ import {AppContext, useAppContextIfExists} from "~/client/web/context/app_contex
 import {Box} from "~/client/web/design/box.js";
 import {addContextMenuActions} from "~/client/web/design/context_menu.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
-import {MenuActionsSection} from "~/client/web/design/menu.js";
+import {MenuAction, MenuActionsSection} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {
@@ -5210,47 +5219,108 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }
             }
 
-            return {
-                actions: [
-                    [
-                        {
-                            label: "Undo",
-                            isDisabled: !canUndo,
-                            keyboardShortcutHint: renderKeyboardShortcutHint(
-                                clientInfo,
-                                "mod",
-                                "z",
-                            ),
-                            onPress: () => {
-                                undo(view.state, view.dispatch, view);
-                            },
+            const menuActions: Array<MenuActionsSection> = [
+                [
+                    {
+                        label: "Undo",
+                        isDisabled: !canUndo,
+                        keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "z"),
+                        onPress: () => {
+                            undo(view.state, view.dispatch, view);
                         },
-                        {
-                            label: "Redo",
-                            isDisabled: !canRedo,
-                            keyboardShortcutHint: renderKeyboardShortcutHint(
-                                clientInfo,
-                                "mod",
-                                "y",
-                            ),
-                            onPress: () => {
-                                redo(view.state, view.dispatch, view);
-                            },
+                    },
+                    {
+                        label: "Redo",
+                        isDisabled: !canRedo,
+                        keyboardShortcutHint: renderKeyboardShortcutHint(clientInfo, "mod", "y"),
+                        onPress: () => {
+                            redo(view.state, view.dispatch, view);
                         },
-                    ],
-                    [
-                        {
-                            hasChildren: true,
-                            key: "insert",
-                            label: "Insert",
-                            actions: getContentEditorInsertMenuActions({
-                                schema,
-                                viewRef,
-                                onOpenGifPicker: isGifPickerEnabled ? openGifPicker : undefined,
-                            }),
-                        },
-                    ],
+                    },
                 ],
+            ];
+
+            const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+            let currentListItemNode: Node | null = null;
+
+            if (posResult) {
+                const $pos = state.doc.resolve(posResult.pos);
+
+                for (let depth = $pos.depth; depth > 0; depth--) {
+                    const node = $pos.node(depth);
+                    if (node.type.groups.includes("listItem")) {
+                        currentListItemNode = node;
+                        break;
+                    }
+                }
+            }
+
+            if (currentListItemNode && posResult) {
+                const listConversionActions: Array<MenuAction> = [];
+                const rightClickPos = posResult.pos;
+
+                const conversionTargets: Array<{
+                    icon: ReactElement;
+                    label: string;
+                    nodeType: NodeType | undefined;
+                }> = [
+                    {
+                        icon: <ListBullets />,
+                        label: "Turn into bullet list",
+                        nodeType: schema.nodes.unorderedListItem,
+                    },
+                    {
+                        icon: <ListNumbers />,
+                        label: "Turn into number list",
+                        nodeType: schema.nodes.orderedListItem,
+                    },
+                    {
+                        icon: <ListChecks />,
+                        label: "Turn into check list",
+                        nodeType: schema.nodes.checkListItem,
+                    },
+                ];
+
+                for (const target of conversionTargets) {
+                    if (!target.nodeType || target.nodeType === currentListItemNode.type) continue;
+
+                    listConversionActions.push({
+                        icon: target.icon,
+                        label: target.label,
+                        onPress: () => {
+                            // Move selection to the right-clicked position so the conversion command operates
+                            // on the correct list.
+                            view.dispatch(
+                                view.state.tr.setSelection(
+                                    TextSelection.near(view.state.doc.resolve(rightClickPos)),
+                                ),
+                            );
+                            const command = createConvertListItemsAtIndentCommand(target.nodeType!);
+                            command(view.state, view.dispatch, view);
+                        },
+                    });
+                }
+
+                if (listConversionActions.length > 0) {
+                    menuActions.push(listConversionActions);
+                }
+            }
+
+            menuActions.push([
+                {
+                    hasChildren: true,
+                    key: "insert",
+                    label: "Insert",
+                    actions: getContentEditorInsertMenuActions({
+                        schema,
+                        viewRef,
+                        onOpenGifPicker: isGifPickerEnabled ? openGifPicker : undefined,
+                    }),
+                },
+            ]);
+
+            return {
+                actions: menuActions,
             };
         },
         [
