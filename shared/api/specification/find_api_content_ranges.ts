@@ -33,35 +33,87 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list.js";
 
-// NOCOMMIT: Document!
+/**
+ * Finds instances of the `needle` content within `haystack`. If there are multiple
+ * instances of `needle` in the `haystack` then multiple ranges will be returned.
+ * The ranges returned can be passed to the API to reference a certain range of
+ * content.
+ *
+ * The structure of `needle` must exactly match `haystack`, so any elements or
+ * marks must be the same in addition to the text matching.
+ *
+ * Matches will never overlap.
+ *
+ * This is an iterator so if you break early then we'll stop iterating through the
+ * content tree at that point. Which is a useful optimization if you only care
+ * about the first match, for instance.
+ */
 export function* findApiContentRanges(
     haystack: ApiContentResponse,
     needle: ApiContent,
 ): IterableIterator<ApiContentRange, undefined> {
     let needleIterator = iterateApiContent(null, needle);
     let needleStep = needleIterator.next();
-    let rangeStart: ApiContentPosition | null = null;
+
+    let rangeState: {
+        start: ApiContentPosition;
+        previousHaystackParents: NonEmptyLinkedList<TokenParent>;
+        previousNeedleParents: NonEmptyLinkedList<TokenParent>;
+    } | null = null;
 
     // We report no matches for an empty needle.
     if (needleStep.value === undefined) return;
 
     for (const haystackToken of iterateApiContent(null, haystack)) {
-        if (!areTokensMatch(haystackToken, needleStep.value)) {
+        const needleToken = needleStep.value;
+
+        let match: boolean;
+
+        // Tokens must be in elements with matching structure.
+        // `<paragraph("a"), paragraph("b")>` shouldn't match `<paragraph("ab")>`. We
+        // detect if tokens are in elements with matching structure by comparing
+        // referential identity of `parents`.
+        if (!areTokensMatch(haystackToken, needleToken)) {
+            match = false;
+        } else if (rangeState === null) {
+            match = true;
+        } else {
+            const hasPreviousHaystackParents =
+                rangeState.previousHaystackParents === haystackToken.parents;
+            const hasPreviousNeedleParents =
+                rangeState.previousNeedleParents === needleToken.parents;
+
+            if (hasPreviousHaystackParents && hasPreviousNeedleParents) {
+                match = true;
+            } else if (hasPreviousHaystackParents || hasPreviousNeedleParents) {
+                match = false;
+            } else {
+                match = true;
+                rangeState.previousHaystackParents = haystackToken.parents;
+                rangeState.previousNeedleParents = needleToken.parents;
+            }
+        }
+
+        if (!match) {
             // This match failed! Reset our state.
-            if (rangeStart !== null) {
+            if (rangeState !== null) {
                 needleIterator = iterateApiContent(null, needle);
                 needleStep = needleIterator.next();
-                rangeStart = null;
+                rangeState = null;
 
                 // We report no matches for an empty needle.
                 if (needleStep.value === undefined) return;
             }
         } else {
             // Ooh! The token is a match, let's see start a new range.
-            if (rangeStart === null) {
+            if (rangeState === null) {
                 // We use the non-null assertion operator (`!`) because `haystack` is
                 // `ApiContentResponse` and so it must always include keys.
-                rangeStart = {key: haystackToken.key!, index: haystackToken.index};
+                rangeState = {
+                    start: {key: haystackToken.key!, index: haystackToken.index},
+                    previousHaystackParents: haystackToken.parents,
+                    previousNeedleParents: needleToken.parents,
+                };
             }
 
             needleStep = needleIterator.next();
@@ -70,7 +122,7 @@ export function* findApiContentRanges(
             // reset our state.
             if (needleStep.value === undefined) {
                 yield {
-                    start: rangeStart,
+                    start: rangeState.start,
                     // We use the non-null assertion operator (`!`) because `haystack` is
                     // `ApiContentResponse` and so it must always include keys.
                     end: {key: haystackToken.key!, index: haystackToken.index + 1},
@@ -78,7 +130,7 @@ export function* findApiContentRanges(
 
                 needleIterator = iterateApiContent(null, needle);
                 needleStep = needleIterator.next();
-                rangeStart = null;
+                rangeState = null;
 
                 // We report no matches for an empty needle.
                 if (needleStep.value === undefined) return;

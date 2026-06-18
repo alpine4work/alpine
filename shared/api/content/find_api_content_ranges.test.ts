@@ -135,6 +135,43 @@ const testCases: Array<{
         ranges: [{from: 1, to: 9, slice: '<paragraph("foo"), paragraph("bar")>'}],
     },
     {
+        haystack: "qux\n\nfoo\n\nbar",
+        needle: "foo\n\nbar",
+        ranges: [{from: 6, to: 14, slice: '<paragraph("foo"), paragraph("bar")>'}],
+    },
+    {
+        haystack: "qux\n\nfoo\n\nbar",
+        needle: "qux\n\nfoo\n\nbar",
+        ranges: [
+            {from: 1, to: 14, slice: '<paragraph("qux"), paragraph("foo"), paragraph("bar")>'},
+        ],
+    },
+    {
+        haystack: "qux\n\nfoo\n\nbar",
+        needle: "qux\n\nfoo",
+        ranges: [{from: 1, to: 9, slice: '<paragraph("qux"), paragraph("foo")>'}],
+    },
+    {
+        haystack: "foobar",
+        needle: "foo\n\nbar",
+        ranges: [],
+    },
+    {
+        haystack: "foo\n\nbar",
+        needle: "foobar",
+        ranges: [],
+    },
+    {
+        haystack: "qux\n\nfoobar",
+        needle: "qux\n\nfoo\n\nbar",
+        ranges: [],
+    },
+    {
+        haystack: "qux\n\nfoo\n\nbar",
+        needle: "qux\n\nfoobar",
+        ranges: [],
+    },
+    {
         haystack: "foo\n\nbar",
         needle: "foo bar",
         ranges: [],
@@ -354,13 +391,20 @@ const testCases: Array<{
         needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
         ranges: [],
     },
+    {
+        haystack: "aaaaa",
+        needle: "aa",
+        ranges: [
+            {from: 1, to: 3, slice: '<"aa">'},
+            {from: 3, to: 5, slice: '<"aa">'},
+        ],
+    },
 ];
 
 for (const testCase of testCases) {
     const formatForTestTitle = (string: string) => {
         string = string.trim();
         if (string.length > 25) string = string.slice(0, 25) + "…";
-        string = string.replaceAll("\n", "\\n");
         return quote(string);
     };
 
