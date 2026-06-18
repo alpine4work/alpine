@@ -1,4 +1,6 @@
 import {
+    ApiContent,
+    ApiContentBlockElement,
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
     ApiContentListBlockElementItemResponse,
@@ -46,55 +48,60 @@ import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
 // of using this keyless shape. The conditional type preserves primitives, walks
 // arrays and objects, and strips `key` wherever the generated response type
 // declares one.
-type ApiContentWithoutKeys<Value> = Value extends JsonScalarValue | undefined
+type MakeApiContentWithoutKeys<Value> = Value extends JsonScalarValue | undefined
     ? Value
     : Value extends ReadonlyArray<infer Item>
-      ? ReadonlyArray<ApiContentWithoutKeys<Item>>
+      ? ReadonlyArray<MakeApiContentWithoutKeys<Item>>
       : Value extends {readonly key?: string}
-        ? Omit<{readonly [Key in keyof Value]: ApiContentWithoutKeys<Value[Key]>}, "key">
+        ? Omit<{readonly [Key in keyof Value]: MakeApiContentWithoutKeys<Value[Key]>}, "key">
         : Value extends object
-          ? {readonly [Key in keyof Value]: ApiContentWithoutKeys<Value[Key]>}
+          ? {readonly [Key in keyof Value]: MakeApiContentWithoutKeys<Value[Key]>}
           : Value;
 
-export type ApiContentResponseWithoutKeys = ApiContentWithoutKeys<ApiContentResponse>;
+export type ApiContentResponseWithoutKeys = MakeApiContentWithoutKeys<ApiContentResponse>;
 
 export type ApiContentBlockElementResponseWithoutKeys =
-    ApiContentWithoutKeys<ApiContentBlockElementResponse>;
+    MakeApiContentWithoutKeys<ApiContentBlockElementResponse>;
 
 export type ApiContentParagraphBlockElementResponseWithoutKeys =
-    ApiContentWithoutKeys<ApiContentParagraphBlockElementResponse>;
+    MakeApiContentWithoutKeys<ApiContentParagraphBlockElementResponse>;
 
-type ApiContentWithOptionalKeys<Value> = Value extends JsonScalarValue | undefined
+type MakeApiContentWithOptionalKeys<Value> = Value extends JsonScalarValue | undefined
     ? Value
     : Value extends ReadonlyArray<infer Item>
-      ? ReadonlyArray<ApiContentWithOptionalKeys<Item>>
+      ? ReadonlyArray<MakeApiContentWithOptionalKeys<Item>>
       : Value extends {readonly key: infer Key}
-        ? Omit<{readonly [K in keyof Value]: ApiContentWithOptionalKeys<Value[K]>}, "key"> & {
+        ? Omit<{readonly [K in keyof Value]: MakeApiContentWithOptionalKeys<Value[K]>}, "key"> & {
               readonly key?: Key;
           }
         : Value extends object
-          ? {readonly [K in keyof Value]: ApiContentWithOptionalKeys<Value[K]>}
+          ? {readonly [K in keyof Value]: MakeApiContentWithOptionalKeys<Value[K]>}
           : Value;
 
-export type ApiContentResponseWithOptionalKeys = ApiContentWithOptionalKeys<ApiContentResponse>;
+export type ApiContentWithOptionalKeys = MakeApiContentWithOptionalKeys<ApiContent>;
+
+export type ApiContentBlockElementWithOptionalKeys =
+    MakeApiContentWithOptionalKeys<ApiContentBlockElement>;
+
+export type ApiContentResponseWithOptionalKeys = MakeApiContentWithOptionalKeys<ApiContentResponse>;
 
 export type ApiContentBlockElementResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentBlockElementResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentBlockElementResponse>;
 
 export type ApiContentParagraphBlockElementResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentParagraphBlockElementResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentParagraphBlockElementResponse>;
 
 export type ApiContentListBlockElementResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentListBlockElementResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentListBlockElementResponse>;
 
 export type ApiContentListBlockElementItemResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentListBlockElementItemResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentListBlockElementItemResponse>;
 
 export type ApiContentCheckListBlockElementItemResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentCheckListBlockElementItemResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentCheckListBlockElementItemResponse>;
 
 export type ApiContentTableBlockElementCellResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentTableBlockElementCellResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentTableBlockElementCellResponse>;
 
 export type ApiContentTableBlockElementRowResponseWithOptionalKeys =
-    ApiContentWithOptionalKeys<ApiContentTableBlockElementRowResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentTableBlockElementRowResponse>;

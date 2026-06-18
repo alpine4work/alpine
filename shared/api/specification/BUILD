@@ -7,7 +7,7 @@ GENERATE_SRCS = [
 ]
 
 ts_project(
-    name = "api",
+    name = "specification",
     srcs = glob(
         ["**/*.ts"],
         exclude = GENERATE_SRCS + ["**/*.test.ts"],
@@ -30,12 +30,6 @@ ts_project(
         "//shared/id",
         "//shared/schema",
     ],
-)
-
-alias(
-    name = "specification",
-    actual = ":api",
-    visibility = ["//visibility:public"],
 )
 
 ts_project(

@@ -216,7 +216,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/api/content:content",
     "//shared/api/markdown:markdown",
     "//shared/api/markdown/test_helpers:test_helpers",
-    "//shared/api/specification:api",
+    "//shared/api/specification:specification",
     "//shared/api/specification:specification_generate_lib",
     "//shared/auth:auth",
     "//shared/avatar:avatar",
