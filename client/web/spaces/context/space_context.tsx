@@ -2,8 +2,8 @@ import {Memo, useContext} from "react";
 import {
     MyAccountWebSocketContext,
     SpaceContextDefinition,
-} from "~/client/web/spaces/internal/space_context_definition.js";
-import {SpaceContext} from "~/client/web/spaces/space_context_types.js";
+} from "~/client/web/spaces/context/space_context_definition.js";
+import {SpaceContext} from "~/client/web/spaces/context/space_context_types.js";
 import {unauthenticatedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
 import {InternalError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
 import {Replace} from "~/shared/helpers/types/replace.js";

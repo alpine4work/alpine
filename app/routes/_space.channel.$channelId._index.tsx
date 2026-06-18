@@ -132,7 +132,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     if (createSearchParam !== null) {
         const {spaceId, channelName} = parseChannelCreateSearchParam(createSearchParam);
-        context.discovery.discoverSpaceId(spaceId);
+        context.discovery.discoverSpaceId(spaceId, "CreateSearchParam");
 
         try {
             const checkpoint = generateServerSynchronizationCheckpoint();

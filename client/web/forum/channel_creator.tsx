@@ -27,7 +27,7 @@ import {
     useCurrentTimeRoundedToHour,
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     channelCreatorDescriptionFieldMinHeightPx,
     channelCreatorDescriptionFieldPaddingX,

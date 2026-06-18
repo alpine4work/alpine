@@ -55,7 +55,7 @@ import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hou
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContextIfExists} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";

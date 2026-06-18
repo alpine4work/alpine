@@ -22,7 +22,7 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {searchWordTypingDebounceMs} from "~/client/web/search/core/search_word_typing_debounce_ms.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";

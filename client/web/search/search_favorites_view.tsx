@@ -56,8 +56,8 @@ import {
     updateSearchFavoriteEntityMenuAction,
 } from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {
     searchAffinityEntityViewMinHeightPx,

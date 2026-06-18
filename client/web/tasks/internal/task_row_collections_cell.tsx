@@ -21,7 +21,7 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/web/helpers/use_hover_with_overlay_support.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/client/web/styles/styles.js";
 import {
     maxTaskRowViewCollectionsColumnWidth,

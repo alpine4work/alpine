@@ -7,7 +7,7 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {generateId} from "~/shared/id/id.js";

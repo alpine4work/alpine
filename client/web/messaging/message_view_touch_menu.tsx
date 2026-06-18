@@ -15,7 +15,7 @@ import {
     OnUpdateMessagesOptimisticallyFunction,
 } from "~/client/web/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {assert} from "~/shared/helpers/control/assert.js";

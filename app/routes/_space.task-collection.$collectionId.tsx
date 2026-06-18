@@ -15,7 +15,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {newTaskCollectionNamePlaceholder} from "~/client/web/styles/tasks_shared_styles.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/web/tasks/get_task_grid_view_load_query_limit.js";
@@ -130,7 +130,9 @@ export async function loader({request, params, context: unauthenticatedContext}:
         createSearchParamString !== null && createSearchParamString.length > 0
             ? parseTaskCollectionCreateSearchParam(createSearchParamString)
             : null;
-    if (createSearchParam !== null) context.discovery.discoverSpaceId(createSearchParam.spaceId);
+    if (createSearchParam !== null) {
+        context.discovery.discoverSpaceId(createSearchParam.spaceId, "CreateSearchParam");
+    }
 
     if (createSearchParam?.name === "") {
         return jsonWithSchema(LoaderSchema, {

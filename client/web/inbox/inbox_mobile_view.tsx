@@ -13,7 +13,7 @@ import {useInboxState} from "~/client/web/inbox/use_inbox_state.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {

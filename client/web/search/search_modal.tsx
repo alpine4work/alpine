@@ -56,7 +56,7 @@ import {SearchInstructionalPlaceholder} from "~/client/web/search/internal/searc
 import {SearchEntityView} from "~/client/web/search/search_entity_view.js";
 import {SearchStateExecutionOutput, useSearchState} from "~/client/web/search/use_search_state.js";
 import {SearchEntityShimmer} from "~/client/web/shimmer/search_entity_shimmer.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {
     searchEntityHeaderFontSize,

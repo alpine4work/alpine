@@ -13,7 +13,7 @@ import {ShareSwitch} from "~/client/web/navigation/internal/share_switch.js";
 import {useShareState} from "~/client/web/navigation/internal/use_share_state.js";
 import {shareSwitchWidth} from "~/client/web/navigation/share_switch_base.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {pingAnimationClassName} from "~/client/web/styles/styles.js";
 import {
     AccessLevel,

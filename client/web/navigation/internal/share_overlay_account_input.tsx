@@ -38,7 +38,7 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {InviteAccountsModal} from "~/client/web/navigation/invite_accounts_modal.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     colorSchemeVars,
     overlayFadeOutAnimationDurationMs,

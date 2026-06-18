@@ -30,7 +30,7 @@ import {Spacer} from "~/client/web/design/spacer.js";
 import {ErrorBoundary} from "~/client/web/helpers/error_boundary.js";
 import {useLifecycleRef} from "~/client/web/helpers/refs/use_lifecycle_ref.js";
 import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     spaceLayoutErrorRendererPaddingX,
     spaceLayoutErrorRendererPaddingY,

@@ -4,8 +4,8 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {ShareSwitchBase} from "~/client/web/navigation/share_switch_base.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     EffectiveAccessPolicy,

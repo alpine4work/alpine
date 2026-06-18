@@ -15,7 +15,7 @@ import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_s
 import {unwrapLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable} from "~/client/web/tasks/core/subscribe_to_task_client_store_subscriptions_if_realtime_unavailable.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";

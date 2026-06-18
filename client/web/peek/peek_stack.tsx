@@ -75,9 +75,9 @@ import {
     getSpacingScaleWithoutListening,
 } from "~/client/web/remix/spacing_scale_context.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {GlobalLoadingIndicatorChip} from "~/client/web/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     peekControlsHeight,
     peekMaxHeight,

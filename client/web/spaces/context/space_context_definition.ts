@@ -1,5 +1,5 @@
 import {Memo, createContext} from "react";
-import {type SpaceContext} from "~/client/web/spaces/space_context_types.js";
+import {type SpaceContext} from "~/client/web/spaces/context/space_context_types.js";
 import {MyAccountEvent} from "~/shared/notifications/my_account_protocol.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 

@@ -82,7 +82,7 @@ import {
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {PostShimmer} from "~/client/web/shimmer/post_shimmer.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {feedCreateSectionMinHeight} from "~/client/web/styles/feed_shared_styles.js";
 import {
     feedEntryHeight,

@@ -30,7 +30,7 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
 import {selectChatForAccounts} from "~/server/chat/data/select_chat_for_accounts.js";

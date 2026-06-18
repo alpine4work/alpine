@@ -22,7 +22,7 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {getChannel} from "~/server/forum/data/get_channel.js";
 import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";

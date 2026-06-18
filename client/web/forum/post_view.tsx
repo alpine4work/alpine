@@ -7,7 +7,7 @@ import {PostListView, PostListViewRef} from "~/client/web/forum/post_list_view.j
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";

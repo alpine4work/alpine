@@ -3,7 +3,7 @@ import {useEffect, useRef} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {exchangeShortLivedOAuthCodeForAccessTokenAndConnectSlackWorkspaceAndAccount} from "~/server/integrations/slack/exchange_oauth_code_for_token_and_connect_slack_workspace_and_account.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

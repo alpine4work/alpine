@@ -3,7 +3,7 @@ import {useAccountRegistry} from "~/client/web/accounts/account_registry_context
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {InheritedAccessPolicyExplanations} from "~/client/web/navigation/inherited_access_policy_explanations.js";
 import {useRevalidateOnAccessPolicySiteChange} from "~/client/web/sites/helpers/use_revalidate_on_access_policy_site_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     AccessLevel,
     EffectiveAccessPolicy,

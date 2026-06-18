@@ -20,7 +20,7 @@ import {ThumbsUpFill2Icon} from "~/client/web/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
 import {ReactionPickerRef} from "~/client/web/reactions/internal/reaction_picker_base.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/web/styles/reaction_shared_styles.js";
 import {
     colorSchemeVars,

@@ -89,8 +89,8 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     messageInputBottomBarBackgroundSlopBottom,
     messageInputEditorBorderRadiusPx,

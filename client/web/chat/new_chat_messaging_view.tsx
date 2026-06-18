@@ -6,7 +6,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
 import {useCurrentlyViewingSearchEntityId} from "~/client/web/remix/use_currently_viewing_search_entity_id.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";

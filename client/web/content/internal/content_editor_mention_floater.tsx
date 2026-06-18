@@ -55,7 +55,7 @@ import {
     useSearchEntityRegistry,
 } from "~/client/web/search/core/search_entity_registry_context.js";
 import {SearchEntityViewTitlePrefix} from "~/client/web/search/core/search_entity_view_title.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {searchEntityViewTitleLineHeightPx} from "~/client/web/styles/search_shared_styles.js";
 import {
     colorSchemeVars,

@@ -14,7 +14,7 @@ import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_in
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
 import {sortReactionCharactersAroundOurCharacter} from "~/client/web/reactions/internal/sort_reaction_characters_around_our_character.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     backgroundColorVar,
     colorSchemeVars,

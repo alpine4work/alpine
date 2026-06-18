@@ -32,7 +32,7 @@ import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_conte
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     messageInputBottomBarBackgroundSlopBottom,
     messageInputEditorBorderRadiusPx,

@@ -83,6 +83,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web/sites/context:context",
     "//client/web/sites/helpers:helpers",
     "//client/web/spaces:spaces",
+    "//client/web/spaces/context:context",
     "//client/web/spaces/layout:layout",
     "//client/web/styles:styles",
     "//client/web/styles:styles_core_internal",

@@ -81,7 +81,7 @@ import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
 import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";

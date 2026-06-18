@@ -7,7 +7,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {
     MyAccountWebSocketContext,
     SpaceContextDefinition,
-} from "~/client/web/spaces/internal/space_context_definition.js";
+} from "~/client/web/spaces/context/space_context_definition.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {

@@ -13,7 +13,7 @@ import {LocalNotionImportItem} from "~/client/web/importers/notion/notion_import
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {fontSizes} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";

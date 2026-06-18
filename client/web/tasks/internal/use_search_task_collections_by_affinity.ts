@@ -1,5 +1,5 @@
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {searchTaskCollectionsByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {taskCollectionSearchResultLimit} from "~/shared/tasks/model/task_collection_model_search_result.js";
 

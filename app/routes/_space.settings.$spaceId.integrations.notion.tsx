@@ -12,7 +12,7 @@ import {LocalNotionImportItemSchema} from "~/client/web/importers/notion/notion_
 import {NotionImportUploadSection} from "~/client/web/importers/notion/notion_import_upload_section.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     spaceBotSettingsHeadingGap,
     spaceBotSettingsHeadingHeight,

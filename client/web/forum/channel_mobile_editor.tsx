@@ -23,7 +23,7 @@ import {
     useCurrentDate,
     useCurrentTimeRoundedToHour,
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/web/styles/peek_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {

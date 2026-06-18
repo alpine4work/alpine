@@ -31,7 +31,7 @@ import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_se
 import {useSiteNavigationBarTitleBreadcrumb} from "~/client/web/sites/breadcrumb/use_site_navigation_bar_title_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {getTaskCollectionColor} from "~/client/web/styles/get_task_collection_color.js";
 import {TaskClientCollectionSubscription} from "~/client/web/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";

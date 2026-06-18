@@ -38,6 +38,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {preloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     CreateWidgetExampleContentRoleSchema,
     allCreateWidgetExampleContentRoles,
@@ -57,7 +58,6 @@ import {
     CreateWidgetTaskQueryExample,
     createWidgetExampleHeight,
 } from "~/client/web/spaces/layout/internal/create_widget_examples.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {
     accentThemeBackgroundColor,
     accentThemeForegroundColor,

@@ -22,7 +22,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {PostShimmer} from "~/client/web/shimmer/post_shimmer.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     channelViewHeaderNarrowRouteLayoutMarginTop,
     channelViewHeaderSectionGap,

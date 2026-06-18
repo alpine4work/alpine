@@ -14,8 +14,8 @@ import {
     InlineEditorToolbar,
     InlineEditorToolbarRef,
 } from "~/client/web/messaging/inline_editor_toolbar.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {SpaceAvatarWithThemeOverride} from "~/client/web/spaces/space_avatar_with_theme_avatar_override.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";

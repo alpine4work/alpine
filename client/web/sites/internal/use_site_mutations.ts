@@ -8,7 +8,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSiteActivation, useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

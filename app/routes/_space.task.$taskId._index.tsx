@@ -27,7 +27,7 @@ import {
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
 import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {
@@ -182,7 +182,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
         createSearchParamString !== null
             ? parseTaskCreateSearchParam(createSearchParamString)
             : null;
-    if (createSearchParam !== null) context.discovery.discoverSpaceId(createSearchParam.spaceId);
+    if (createSearchParam !== null) {
+        context.discovery.discoverSpaceId(createSearchParam.spaceId, "CreateSearchParam");
+    }
     const isCreatingTask = createSearchParamString !== null;
     const showInboxEntry = url.searchParams.get("inbox") === "show";
 

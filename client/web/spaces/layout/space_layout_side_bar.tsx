@@ -15,11 +15,11 @@ import {
     searchFavoriteEntityIconPressedColor,
 } from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {usePreloadSearchByAffinity} from "~/client/web/search/use_search_state.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSearchEducationHint} from "~/client/web/spaces/layout/internal/space_layout_side_bar_search_education_hint.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_space_button.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceLayoutStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

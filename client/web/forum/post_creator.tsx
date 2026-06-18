@@ -30,7 +30,7 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/web/rpc/send_rpc_navigator_beacon.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {
     postContentViewInnerMarginY,
     postViewContentPaddingTop,

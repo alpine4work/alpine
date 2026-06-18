@@ -161,8 +161,8 @@ import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContextIfExists} from "~/client/web/spaces/space_context.js";
 import {
     contentEditorStyles,
     contentStyles,

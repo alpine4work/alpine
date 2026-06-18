@@ -19,7 +19,7 @@ import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles, tasksStyles} from "~/client/web/styles/styles.js";
 import {
     taskDetailViewTitleFontSize,

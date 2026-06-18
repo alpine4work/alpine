@@ -20,7 +20,7 @@ import {
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/web/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";

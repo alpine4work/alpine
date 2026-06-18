@@ -21,7 +21,7 @@ import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site
 import {useSiteMenuActions} from "~/client/web/sites/site_menu_actions.js";
 import {SiteNameHeader} from "~/client/web/sites/site_name_header.js";
 import {SiteSideBarContent} from "~/client/web/sites/site_side_bar_content.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {peekControlsHeight} from "~/client/web/styles/peek_shared_styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

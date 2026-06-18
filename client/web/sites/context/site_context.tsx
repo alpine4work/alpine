@@ -18,7 +18,7 @@ import {
     CollapsedSectionsState,
     isSectionCollapsed,
 } from "~/client/web/sites/helpers/site_side_bar_collapsed_section_state.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {
     getAccountAccessLevelAssumingSpaceAccess,

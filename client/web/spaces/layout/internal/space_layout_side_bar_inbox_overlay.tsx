@@ -27,7 +27,7 @@ import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {InboxEntryShimmer} from "~/client/web/shimmer/inbox_entry_shimmer.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {colorSchemeVars, inboxStyles, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {

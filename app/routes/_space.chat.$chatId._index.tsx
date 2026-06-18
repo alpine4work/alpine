@@ -16,7 +16,7 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
 import {createRoomChat} from "~/server/chat/data/create_room_chat.js";
@@ -88,7 +88,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
 
     if (createSearchParam !== null) {
         const {spaceId, chatName} = parseChatCreateSearchParam(createSearchParam);
-        context.discovery.discoverSpaceId(spaceId);
+        context.discovery.discoverSpaceId(spaceId, "CreateSearchParam");
 
         try {
             const sessionContext = context.actor.authorizeSession();

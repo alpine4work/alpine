@@ -45,7 +45,7 @@ import {SiteBreadcrumbChip} from "~/client/web/sites/breadcrumb/site_breadcrumb_
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/web/styles/chat_shared_styles.js";
 import {postFauxInputCreateButtonInnerButtonHeight} from "~/client/web/styles/forum_shared_styles.js";
 import {

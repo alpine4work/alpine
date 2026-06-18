@@ -14,7 +14,7 @@ import {useStore} from "~/client/web/helpers/use_store.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";

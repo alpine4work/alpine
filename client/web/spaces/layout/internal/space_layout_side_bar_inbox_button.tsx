@@ -16,12 +16,12 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/web/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {
     SpaceLayoutSideBarInboxOverlay,
     spaceLayoutSideBarInboxOverlayHeight,
 } from "~/client/web/spaces/layout/internal/space_layout_side_bar_inbox_overlay.js";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/web/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/web/virtualized/virtualized_scroll_view_state.js";

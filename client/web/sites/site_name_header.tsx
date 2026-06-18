@@ -5,7 +5,7 @@ import {LockBoldFillIcon} from "~/client/web/icons/lock_bold_fill_icon.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSiteContext} from "~/client/web/sites/context/site_context.js";
 import {SiteNameEditor} from "~/client/web/sites/internal/site_name_editor.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     getAccountAccessLevelAssumingSpaceAccess,

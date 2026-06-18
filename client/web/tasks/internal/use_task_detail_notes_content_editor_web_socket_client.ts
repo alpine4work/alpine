@@ -5,8 +5,8 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {MemoObject} from "~/client/web/helpers/types/memo_object.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,

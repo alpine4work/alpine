@@ -49,7 +49,7 @@ import {
     getSpacingScaleWithoutListening,
     useSpacingScale,
 } from "~/client/web/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     contentStyles,
     inputPlaceholderStyles,

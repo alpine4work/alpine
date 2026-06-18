@@ -3,7 +3,7 @@ import {Box} from "~/client/web/design/box.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {SiteChrome} from "~/client/web/sites/site_chrome.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 

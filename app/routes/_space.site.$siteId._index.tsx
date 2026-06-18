@@ -62,7 +62,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
     }
     const createSpaceId =
         createSearchParam !== null ? deserializeSpaceIdForLoader(createSearchParam) : null;
-    if (createSpaceId !== null) context.discovery.discoverSpaceId(createSpaceId);
+    if (createSpaceId !== null) {
+        context.discovery.discoverSpaceId(createSpaceId, "CreateSearchParam");
+    }
 
     // The "create site" flow generates the `siteId` on the client and navigates here
     // with `?create={spaceId}` (mirroring the document and task-collection create

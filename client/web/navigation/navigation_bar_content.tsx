@@ -52,7 +52,7 @@ import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContextIfExists} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/web/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";

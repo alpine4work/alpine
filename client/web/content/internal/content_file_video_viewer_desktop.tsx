@@ -11,7 +11,7 @@ import {ContentFileViewerLoaderData} from "~/client/web/content/internal/load_co
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     contentFileVideoAndAudioPlayerControlsStyles,
     contentFileVideoPlayerStyles,

@@ -16,8 +16,8 @@ import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSearchEntityModel} from "~/client/web/search/core/search_entity_registry_context.js";
 import {SearchAffinityEntityView} from "~/client/web/search/search_affinity_entity_view.js";
 import {useSetSearchQueryText} from "~/client/web/search/use_set_search_query_text.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {CreateWidgetPrimaryMenuBar} from "~/client/web/spaces/layout/create_widget_primary_menu_bar.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     createWidgetPrimaryMenuBarItemBackgroundInsetY,
     createWidgetPrimaryMenuBarItemDesktopPaddingX,

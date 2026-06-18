@@ -20,7 +20,7 @@ import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/web/s
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSiteActivation} from "~/client/web/sites/context/site_context.js";
 import {useSiteChromeContainer} from "~/client/web/sites/use_site_chrome_container.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
     getDocumentWithOptionalCommentsIfExists,
@@ -106,7 +106,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                         }
 
                         const spaceId = deserializeSpaceIdForLoader(createSearchParam);
-                        context.discovery.discoverSpaceId(spaceId);
+                        context.discovery.discoverSpaceId(spaceId, "CreateSearchParam");
 
                         // We don't have a document yet, so we can't fetch spell check ignored lints.
                         spellCheckIgnoredLints = createEmptySpellCheckIgnoredLintsForNewEntity(

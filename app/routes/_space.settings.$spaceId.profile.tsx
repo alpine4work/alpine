@@ -22,7 +22,7 @@ import {
 import {ReactionCharacterCarouselSelector} from "~/client/web/reactions/reaction_character_carousel_selector.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {searchFavoriteEntityIconColor} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {InternalError} from "~/shared/error/error.js";

@@ -69,7 +69,7 @@ import {
     indentWidthPx,
     useSiteSideBarDnd,
 } from "~/client/web/sites/use_site_side_bar_dnd.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {
     getAccountAccessLevelAssumingSpaceAccess,

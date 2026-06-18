@@ -1,7 +1,7 @@
 import {Box} from "~/client/web/design/box.js";
 import {InboxViewTopBarModeToggleButton} from "~/client/web/inbox/inbox_view_top_bar_mode_toggle_button.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {inboxBannerHeight} from "~/client/web/styles/inbox_shared_styles.js";
 import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 

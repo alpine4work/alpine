@@ -46,7 +46,7 @@ export async function authorizeSpaceAccess(
     options?: {allowInvitePending?: boolean},
 ): Promise<void> {
     // Inform any calling code the `SpaceId` we're working with.
-    context.discovery?.discoverSpaceId(spaceId);
+    context.discovery?.discoverSpaceId(spaceId, "AuthorizeAccess");
 
     switch (context.actor.type) {
         case "Session":
@@ -110,7 +110,7 @@ export async function authorizeSpaceAccessIfPossible(
     options?: {allowInvitePending?: boolean},
 ): Promise<Result<void, ErrorBase>> {
     // Inform any calling code the `SpaceId` we're working with.
-    context.discovery?.discoverSpaceId(spaceId);
+    context.discovery?.discoverSpaceId(spaceId, "AuthorizeAccess");
 
     switch (context.actor.type) {
         case "Session":

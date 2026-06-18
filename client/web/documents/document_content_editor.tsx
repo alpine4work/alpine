@@ -114,7 +114,7 @@ import {SiteBreadcrumbChip} from "~/client/web/sites/breadcrumb/site_breadcrumb_
 import {useSiteNavigationBarTitleBreadcrumb} from "~/client/web/sites/breadcrumb/use_site_navigation_bar_title_breadcrumb.js";
 import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js";
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     documentContentEditorSidebarMaxWidth,
     documentContentEditorSidebarWidth,

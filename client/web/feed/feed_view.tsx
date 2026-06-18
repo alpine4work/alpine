@@ -11,7 +11,7 @@ import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {
     feedViewSideBarLeftFlex,
     feedViewSideBarRightFlex,

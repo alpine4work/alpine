@@ -35,7 +35,7 @@ import {
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {documentCommentThreadCountAgainstLimit} from "~/client/web/styles/document_shared_styles.js";
 import {messageViewMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
