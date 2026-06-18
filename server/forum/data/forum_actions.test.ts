@@ -193,6 +193,13 @@ function textSlice(text: string) {
     return new Slice(Fragment.from(PostContentProsemirrorSchema.text(text)), 0, 0);
 }
 
+function expectChannelPostsIndexes(channelPostsIndex: {partitionKey: unknown; cursor: unknown}) {
+    return new Map([
+        ["ChannelPosts", channelPostsIndex],
+        ["ChannelPosts2", {partitionKey: expect.any(String), cursor: expect.any(String)}],
+    ]);
+}
+
 beforeEach(() => {
     siteAccessPolicies.clear();
 });
@@ -3058,15 +3065,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
                     version: 0,
@@ -3075,15 +3077,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[1]!.key,
                     version: 0,
@@ -3104,15 +3101,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[0]!.key,
                     version: 0,
@@ -3121,15 +3113,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
                     version: 0,
@@ -3180,15 +3167,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
                     version: 1,
@@ -3197,15 +3179,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[1]!.key,
                     version: 0,
@@ -3226,15 +3203,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[0]!.key,
                     version: 0,
@@ -3243,15 +3215,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
                     version: 0,
@@ -3272,15 +3239,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
                     version: 1,
@@ -3320,15 +3282,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
                     version: 1,
@@ -3337,15 +3294,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[1]!.key,
                     version: 0,
@@ -3366,15 +3318,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[0]!.key,
                     version: 0,
@@ -3383,15 +3330,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
                     version: 1,
@@ -3412,15 +3354,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
                     version: 1,
@@ -3441,15 +3378,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
                     version: 1,
@@ -3474,15 +3406,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
                     version: 1,
@@ -3491,15 +3418,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[1]!.key,
                     version: 0,
@@ -3508,12 +3430,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {partitionKey: expect.any(String), cursor: expect.any(String)},
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: expect.any(String),
+                    cursor: expect.any(String),
+                }),
                 item: {
                     key: expect.any(String),
                     version: 0,
@@ -3534,15 +3454,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[0]!.key,
                     version: 0,
@@ -3551,15 +3466,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
                     version: 1,
@@ -3580,15 +3490,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel1PostsResult.partitionKey,
-                            cursor: channel1PostsResult.items[0]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel1PostsResult.partitionKey,
+                    cursor: channel1PostsResult.items[0]!.cursor,
+                }),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
                     version: 1,
@@ -3597,12 +3502,10 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {partitionKey: expect.any(String), cursor: expect.any(String)},
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: expect.any(String),
+                    cursor: expect.any(String),
+                }),
                 item: {
                     key: expect.any(String),
                     version: 0,
@@ -3623,15 +3526,10 @@ test("can backfill realtime updates in a channel", async () => {
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {
-                            partitionKey: channel2PostsResult.partitionKey,
-                            cursor: channel2PostsResult.items[1]!.cursor,
-                        },
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: channel2PostsResult.partitionKey,
+                    cursor: channel2PostsResult.items[1]!.cursor,
+                }),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
                     version: 1,
@@ -3671,12 +3569,10 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {partitionKey: expect.any(String), cursor: expect.any(String)},
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: expect.any(String),
+                    cursor: expect.any(String),
+                }),
                 item: {
                     key: expect.any(String),
                     version: 0,
@@ -3715,12 +3611,10 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {partitionKey: expect.any(String), cursor: expect.any(String)},
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: expect.any(String),
+                    cursor: expect.any(String),
+                }),
                 item: {
                     key: expect.any(String),
                     version: 1,
@@ -3845,12 +3739,10 @@ test("won\u2019t backfill realtime updates when comment count changes", async ()
         events: [
             {
                 type: "PutItem",
-                indexes: new Map([
-                    [
-                        "ChannelPosts",
-                        {partitionKey: expect.any(String), cursor: expect.any(String)},
-                    ],
-                ]),
+                indexes: expectChannelPostsIndexes({
+                    partitionKey: expect.any(String),
+                    cursor: expect.any(String),
+                }),
                 item: {
                     key: expect.any(String),
                     version: 6,

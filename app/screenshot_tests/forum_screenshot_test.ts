@@ -116,6 +116,20 @@ incorporate into our brand.
         },
     );
 
+    await channel.createPost(
+        accounts.roseCompas,
+        markdown`
+Small thing: our empty states are pretty boring right now. Instead we should use the space for
+education. e.g. prompt the user to create something.
+        `,
+        {
+            // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
+            // makes sure the reaction party on any messages is stable across renders.
+            id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "emptyStatesPost"),
+            overrideCreatedTime: new Date("2025-09-24T14:18:00.000Z"),
+        },
+    );
+
     const codeBlockPost = await channel.createPost(
         accounts.masonClay,
         markdown`
@@ -143,20 +157,6 @@ without making the UI overly busy in the dense table edge case.
             // makes sure the reaction party on any messages is stable across renders.
             id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "codeBlockPost"),
             overrideCreatedTime: new Date("2025-10-03T14:12:00.000Z"),
-        },
-    );
-
-    await channel.createPost(
-        accounts.roseCompas,
-        markdown`
-Small thing: our empty states are pretty boring right now. Instead we should use the space for
-education. e.g. prompt the user to create something.
-        `,
-        {
-            // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
-            // makes sure the reaction party on any messages is stable across renders.
-            id: unsafelyGenerateStableId<PostId>(runner.stableRandom, "emptyStatesPost"),
-            overrideCreatedTime: new Date("2025-09-24T14:18:00.000Z"),
         },
     );
 

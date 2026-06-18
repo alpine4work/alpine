@@ -1358,6 +1358,10 @@ async function runSetupFlowScenario(session: TestSpaceSession, runner: Screensho
     await runner.getByText("Make this site private?").first().waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("a4", "make-site-private-modal");
+    await runner
+        .getByText("Shared the site with everyone", {exact: false})
+        .first()
+        .waitFor({state: "hidden"});
 
     await runner.getByRole("button", {name: "Confirm"}).first().click();
     await runner

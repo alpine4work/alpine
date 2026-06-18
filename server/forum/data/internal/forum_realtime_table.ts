@@ -632,6 +632,26 @@ export const ChannelPostsIndex = ForumRealtimeTable.addEventualConsistencyIndexW
     },
 });
 
+// We use an index with join queries since it reduces write/storage costs (compared
+// to `addExpensiveFullEventualConsistencyIndex()`) and the read performance
+// sacrifice isn't that bad since most of the time posts will be viewed through
+// home feed or inbox anyway (vs querying a channel).
+//
+// We use a strong consistency index so we can query channel posts via the API with
+// strong read-after-write consistency. This increases the cost of writes but
+// that's fine, we don't create posts often.
+export const ChannelPosts2Index = ForumRealtimeTable.addStrongConsistencyIndexWithQueryJoin({
+    name: "ChannelPosts2",
+    itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+    },
+    sortKeyAttributes: {
+        createdTime: DynamoKeyAttributeSchema.date,
+        postId: DynamoKeyAttributeSchema.id<PostId>(),
+    },
+});
+
 async function createChannelModelFromItem(
     context: ServerActionContext,
     item: {

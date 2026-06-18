@@ -44,8 +44,11 @@ import {
     NotFoundError,
     UnimplementedError,
 } from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -3555,7 +3558,7 @@ export class RynamoTableSchema<
             >,
             "includePrimaryKeyInSortKey"
         >,
-    ): RynamoTableSchemaIndex<
+    ): RynamoTableSchemaStrongConsistencyIndex<
         ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
@@ -3948,6 +3951,51 @@ export class RynamoTableSchema<
                         partitionKey: partitionKeyString,
                     },
                 });
+            },
+
+            runMigration: async (
+                context: DynamoContext,
+                {
+                    segmentIndex,
+                    totalSegmentCount,
+                }: {
+                    segmentIndex: number;
+                    totalSegmentCount: number;
+                },
+            ) => {
+                let i = 0;
+                const promiseWaiter = new PromiseWaiter();
+                const mutexes = createArrayWithLength(5, () => new Mutex());
+
+                for await (const item of this.expensiveScan(context, {
+                    segmentIndex,
+                    totalSegmentCount,
+                    filter: [...config.itemTypes],
+                })) {
+                    const itemType = `${item.partitionType}#${item.sortRangeType}`;
+                    const index = assertExists(
+                        this.#indexByNameByItemType.get(itemType)?.get(config.name),
+                    );
+
+                    promiseWaiter.waitUntil(
+                        mutexes[i++ % mutexes.length]!.withLock(() =>
+                            DynamoTableSchema.executeTransaction(context, [
+                                this.#table.transactionExistsConditionCheck(
+                                    item as unknown as Types["ItemKey"],
+                                ),
+                                this.#table.transactionCreateOrReplaceItem({
+                                    ...pickObject(item, index.keyAttributeNames),
+                                    partitionType: config.name,
+                                    sortRangeType: "Index",
+                                    actualPartitionType: item.partitionType,
+                                    actualSortRangeType: item.sortRangeType,
+                                }),
+                            ]),
+                        ),
+                    );
+                }
+
+                await promiseWaiter.wait();
             },
 
             getPartitionKeyAttributeFromEvent: (attributeName, event) => {
@@ -4402,6 +4450,20 @@ export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> 
         oldValue: IndexPartitionKey[AttributeName] | undefined;
         newValue: IndexPartitionKey[AttributeName] | undefined;
     };
+}
+
+export interface RynamoTableSchemaStrongConsistencyIndex<
+    Model,
+    IndexPartitionKey,
+    IndexSortKey,
+> extends RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
+    /**
+     * Backfills the table items which power this strong consistency index.
+     */
+    runMigration(
+        context: DynamoContext,
+        options: {segmentIndex: number; totalSegmentCount: number},
+    ): Promise<void>;
 }
 
 type RynamoTransactionEntryInternal = InstanceType<typeof RynamoTransactionEntryInternal>;

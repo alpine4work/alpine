@@ -9,6 +9,7 @@ import {
 } from "~/server/context/injection_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {runMigrateFilesToGlobalPartitionMigration} from "~/server/files/data/migrate_files_to_global_id.js";
+import {runIndexChannelPosts2Migration} from "~/server/forum/data/run_index_channel_posts2_migration.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     runIndexChatAndChatMessageSearchEntitiesMigration,
@@ -61,4 +62,5 @@ export const allMigrations: {
         runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries,
     UpdateKnownBotSettings: runUpdateKnownBotSettingsMigration,
     MigrateFilesToGlobalPartition: runMigrateFilesToGlobalPartitionMigration,
+    IndexChannelPosts2: runIndexChannelPosts2Migration,
 };

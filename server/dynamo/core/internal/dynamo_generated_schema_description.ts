@@ -9086,6 +9086,29 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     },
                     "sortRangeByType": {
+                        "Posts": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "lastPostCreatedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
                         "Subscription": {
                             "id": 1,
                             "orderKey": "a1",
@@ -10415,6 +10438,58 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "ChannelPosts2": {
+                    "id": 4,
+                    "partitionKeyAttributeByKey": {
+                        "channelId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Index": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "createdTime": {
+                                    "type": "Date"
+                                },
+                                "postId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "actualPartitionType": {
+                                        "valueSchema": {
+                                            "type": "Enum",
+                                            "values": [
+                                                "Post"
+                                            ]
+                                        },
+                                        "optional": false
+                                    },
+                                    "actualSortRangeType": {
+                                        "valueSchema": {
+                                            "type": "Enum",
+                                            "values": [
+                                                "Attributes"
+                                            ]
+                                        },
+                                        "optional": false
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

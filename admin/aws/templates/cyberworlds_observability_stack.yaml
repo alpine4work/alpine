@@ -1168,6 +1168,8 @@ Resources:
                           Type: string
                         - Name: dynamodb__table__forum_realtime__partition__graveyard__sort_range_type
                           Type: string
+                        - Name: dynamodb__table__forum_realtime__partition__channel_posts2__sort_range_type
+                          Type: string
                         - Name: dynamodb__table__inbox__partition_type
                           Type: string
                         - Name: dynamodb__table__inbox__partition__account__sort_range_type

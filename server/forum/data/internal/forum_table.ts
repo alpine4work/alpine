@@ -22,6 +22,14 @@ export const ForumTable = DynamoTableSchema.new({
                 channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
             },
             sortRanges: [
+                {
+                    name: "Posts",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        lastPostCreatedTime: Schema.date,
+                    }),
+                },
+
                 /**
                  * Accounts who are subscribed to get notifications in their inbox whenever a post
                  * is created in this channel.
