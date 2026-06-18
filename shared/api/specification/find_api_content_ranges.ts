@@ -18,6 +18,7 @@ import {
     ApiContent,
     ApiContentBreakInlineElement,
     ApiContentCheckListBlockElement,
+    ApiContentCodeBlockElement,
     ApiContentHeadingBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
@@ -38,6 +39,14 @@ import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_
  * instances of `needle` in the `haystack` then multiple ranges will be returned.
  * The ranges returned can be passed to the API to reference a certain range of
  * content.
+ *
+ * This function isn't perfect. From the agent's perspective it's trying to match
+ * markdown strings but in reality we're trying to perform a semantic structured
+ * content match. So there's some heuristics in here to match markdown strings that
+ * look similar even when the structure is semantically different (for example the
+ * markdown `bar` matches the markdown `<pre><code>foo bar</code></pre>` even
+ * though the former's markdown is parsed as a `Paragraph` and the latter's
+ * markdown is parsed as `Code`).
  *
  * The structure of `needle` must exactly match `haystack`, so any elements or
  * marks must be the same in addition to the text matching.
@@ -149,7 +158,8 @@ type TokenParent =
           readonly type: "CheckListItem";
           readonly itemIndex: number;
           readonly listElement: ApiContentCheckListBlockElement;
-      };
+      }
+    | ApiContentCodeBlockElement;
 
 type Token = {
     parents: NonEmptyLinkedList<TokenParent>;
@@ -162,18 +172,29 @@ type Token = {
 type TokenValue = string | ApiContentBreakInlineElement | ApiContentMentionInlineElement;
 
 function areTokensMatch(haystackToken: Token, needleTokens: Token): boolean {
-    return (
-        // This is most likely to be different, put it first to short circuit early.
-        areTokenValuesEqual(haystackToken.value, needleTokens.value) &&
-        // This is unlikely to be different but is cheap to compute, put it second.
-        areTokenParentListsMatch(haystackToken.parents, needleTokens.parents) &&
-        // This is least likely to be different and also the most expensive to compute, put
-        // it last.
+    // This is most likely to be different, put it first to short circuit early.
+    if (!areTokenValuesEqual(haystackToken.value, needleTokens.value)) return false;
+
+    // This is unlikely to be different but is cheap to compute, put it second.
+    if (!areTokenParentListsMatch(haystackToken.parents, needleTokens.parents)) return false;
+
+    // This is least likely to be different and also the most expensive to compute, put
+    // it last.
+    if (
         isDeepEqual(
             normalizeApiContentInlineElementMarks(haystackToken.marks),
             normalizeApiContentInlineElementMarks(needleTokens.marks),
         )
-    );
+    ) {
+        return true;
+    }
+
+    // The marks on a break don't matter. Breaks are never rendered. Ignore mark
+    // equality for breaks.
+    if (typeof haystackToken.value !== "string" && haystackToken.value.type === "Break")
+        return true;
+
+    return false;
 }
 
 function areTokenParentListsMatch(
@@ -202,33 +223,54 @@ function areTokenParentListsMatch(
     return areTokenParentListsMatch(haystackParents.next, needleParents.next);
 }
 
-function areTokenParentsMatch(parent1: TokenParent, parent2: TokenParent): boolean {
-    switch (parent1.type) {
+function areTokenParentsMatch(haystackParent: TokenParent, needleParent: TokenParent): boolean {
+    switch (haystackParent.type) {
         case "Paragraph": {
-            return parent2.type === "Paragraph";
+            return needleParent.type === "Paragraph";
         }
         case "Heading": {
-            return parent2.type === "Heading";
+            return (
+                needleParent.type === "Heading" ||
+                // Allow plain paragraph text to match text within a heading. That way if the
+                // haystack is the markdown `# Hello, world!` (parsed as a heading) then the
+                // markdown `world!` (parsed as a paragraph) will match.
+                needleParent.type === "Paragraph"
+            );
         }
         case "Quote": {
-            return parent2.type === "Quote";
+            return needleParent.type === "Quote";
         }
         case "UnorderedList": {
-            return parent2.type === "UnorderedList";
+            return needleParent.type === "UnorderedList";
         }
         case "OrderedList": {
-            // NOCOMMIT: Ordered list item `orderStart` situation?
-            return parent2.type === "OrderedList";
+            return needleParent.type === "OrderedList";
         }
         case "CheckListItem": {
             return (
-                parent2.type === "CheckListItem" &&
-                parent1.listElement.items[parent1.itemIndex]!.checked ===
-                    parent2.listElement.items[parent2.itemIndex]!.checked
+                needleParent.type === "CheckListItem" &&
+                haystackParent.listElement.items[haystackParent.itemIndex]!.checked ===
+                    needleParent.listElement.items[needleParent.itemIndex]!.checked
+            );
+        }
+        case "Code": {
+            return (
+                (needleParent.type === "Code" &&
+                    haystackParent.language === needleParent.language) ||
+                // Allow plain paragraph text to match text within a code block. That way if the
+                // haystack is the markdown `<pre><code>Hello, world!</code></pre>` (parsed as a
+                // code block) then the markdown `world!` (parsed as a paragraph) will match.
+                //
+                // This won't be perfect, for example `*world!*` will be parsed as the text
+                // "world!" with an italic mark whereas `<pre><code>Hello, *world!*</code></pre>`
+                // doesn't parse its content as markdown and so we just have the literal text
+                // `*world!*`. But we think it's still a useful heuristic that'll be applied some
+                // of the time to help out agents.
+                needleParent.type === "Paragraph"
             );
         }
         default:
-            throw exhaustive(parent1);
+            throw exhaustive(haystackParent);
     }
 }
 
@@ -341,6 +383,31 @@ function* iterateApiContentBlockElement(
                         yield* iterateApiContentBlockElement(childParents, nestedElement);
                     }
                 }
+            }
+            break;
+        }
+        case "Code": {
+            let isFirstLine = true;
+
+            const childParents = {value: element, next: parents};
+
+            for (const line of element.lines) {
+                // Add a break element as a token between lines. That way we can observe multiple
+                // empty lines within a code block. Otherwise we'd only observe text and skip over
+                // empty lines.
+                if (isFirstLine) {
+                    isFirstLine = false;
+                } else {
+                    yield {
+                        parents: childParents,
+                        key: line.key,
+                        index: 0,
+                        value: {type: "Break"},
+                        marks: undefined,
+                    };
+                }
+
+                yield* iterateApiContentInlineElements(childParents, line.key, line.elements);
             }
             break;
         }

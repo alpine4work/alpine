@@ -204,12 +204,12 @@ const testCases: Array<{
     {
         haystack: "foo**<br/>**bar",
         needle: "<br/>",
-        ranges: [],
+        ranges: [{from: 4, to: 5, slice: "<bold(break)>"}],
     },
     {
         haystack: "foo<br/>bar",
         needle: "**<br/>**",
-        ranges: [],
+        ranges: [{from: 4, to: 5, slice: "<break>"}],
     },
     {
         haystack: "**bold** plain **bold**",
@@ -277,7 +277,12 @@ const testCases: Array<{
     {
         haystack: "# foo bar",
         needle: "bar",
-        ranges: [],
+        ranges: [{from: 5, to: 8, slice: '<"bar">'}],
+    },
+    {
+        haystack: "# foo bar\n\nqux",
+        needle: "bar\n\nqux",
+        ranges: [{from: 5, to: 13, slice: '<heading("bar"), paragraph("qux")>'}],
     },
     {
         haystack: "# foo bar",
@@ -390,6 +395,187 @@ const testCases: Array<{
         haystack: "**[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)**",
         needle: "[@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
         ranges: [],
+    },
+    {
+        haystack: "<pre><code>foo bar qux</code></pre>",
+        needle: "<pre><code>bar</code></pre>",
+        ranges: [{from: 6, to: 9, slice: '<"bar">'}],
+    },
+    {
+        haystack: "<pre><code>bar bar</code></pre>",
+        needle: "<pre><code>bar</code></pre>",
+        ranges: [
+            {from: 2, to: 5, slice: '<"bar">'},
+            {from: 6, to: 9, slice: '<"bar">'},
+        ],
+    },
+    {
+        haystack: "<pre><code>foo bar qux</code></pre>",
+        needle: "bar",
+        ranges: [{from: 6, to: 9, slice: '<"bar">'}],
+    },
+    {
+        haystack: "<pre><code>\n\nfoo bar qux\n\n</code></pre>",
+        needle: "bar",
+        ranges: [{from: 8, to: 11, slice: '<"bar">'}],
+    },
+    {
+        haystack: "<pre><code>\n\nfoo *bar* qux\n\n</code></pre>",
+        needle: "*bar*",
+        // Our heuristic that tries to treat `Paragraph` block as valid text for a `Code`
+        // block unfortunately doesn't work in all cases.
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>\n\nfoo <em>bar</em> qux\n\n</code></pre>",
+        needle: "<em>bar</em>",
+        ranges: [{from: 8, to: 11, slice: '<italic("bar")>'}],
+    },
+    {
+        haystack: "foo bar qux",
+        needle: "<pre><code>bar</code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>bar</code></pre>",
+        needle: "`bar`",
+        ranges: [],
+    },
+    {
+        haystack: "`bar`",
+        needle: "<pre><code>bar</code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: '<pre><code class="language-python">bar</code></pre>',
+        needle: '<pre><code class="language-python">bar</code></pre>',
+        ranges: [{from: 2, to: 5, slice: '<"bar">'}],
+    },
+    {
+        haystack: '<pre><code class="language-javascript">bar</code></pre>',
+        needle: '<pre><code class="language-python">bar</code></pre>',
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>foo\nbar\nqux</code></pre>",
+        needle: "<pre><code>bar\nqux</code></pre>",
+        ranges: [{from: 7, to: 15, slice: '<codeBlockLine("bar"), codeBlockLine("qux")>'}],
+    },
+    {
+        haystack: "<pre><code>foo\nbar\nqux</code></pre>",
+        needle: "<pre><code>foo\nbar</code></pre>",
+        ranges: [{from: 2, to: 10, slice: '<codeBlockLine("foo"), codeBlockLine("bar")>'}],
+    },
+    {
+        haystack: "<pre><code>foo\nbar</code></pre>",
+        needle: "<pre><code>foobar</code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>foobar</code></pre>",
+        needle: "<pre><code>foo\nbar</code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>foo\n\nbar</code></pre>",
+        needle: "<pre><code>foo\n\nbar</code></pre>",
+        ranges: [
+            {
+                from: 2,
+                to: 12,
+                slice: '<codeBlockLine("foo"), codeBlockLine, codeBlockLine("bar")>',
+            },
+        ],
+    },
+    {
+        haystack: "<pre><code>foo\n\nbar</code></pre>",
+        needle: "<pre><code>foo\nbar</code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>foo\nbar</code></pre>",
+        needle: "<pre><code>foo\n\nbar</code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>foo</code></pre>",
+        needle: "<pre><code></code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code></code></pre>",
+        needle: "<pre><code>foo</code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code><strong>bar</strong></code></pre>",
+        needle: "<pre><code><strong>bar</strong></code></pre>",
+        ranges: [{from: 2, to: 5, slice: '<bold("bar")>'}],
+    },
+    {
+        haystack: "<pre><code><strong>bar</strong></code></pre>",
+        needle: "<pre><code>bar</code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>bar</code></pre>",
+        needle: "<pre><code><strong>bar</strong></code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code><strong><em>both</em></strong></code></pre>",
+        needle: "<pre><code><em><strong>both</strong></em></code></pre>",
+        ranges: [{from: 2, to: 6, slice: '<bold(italic("both"))>'}],
+    },
+    {
+        haystack: '<pre><code><a href="https://example.com">link</a></code></pre>',
+        needle: '<pre><code><a href="https://example.com">link</a></code></pre>',
+        ranges: [{from: 2, to: 6, slice: '<link("link")>'}],
+    },
+    {
+        haystack: '<pre><code><a href="https://example.com">link</a></code></pre>',
+        needle: '<pre><code><a href="https://other.com">link</a></code></pre>',
+        ranges: [],
+    },
+    {
+        haystack: '<pre><code><mark class="highlight-red">hot</mark></code></pre>',
+        needle: '<pre><code><mark class="highlight-red">hot</mark></code></pre>',
+        ranges: [{from: 2, to: 5, slice: '<highlight("hot")>'}],
+    },
+    {
+        haystack: '<pre><code><mark class="highlight-red">hot</mark></code></pre>',
+        needle: "<pre><code><mark>hot</mark></code></pre>",
+        ranges: [],
+    },
+    {
+        haystack: "<pre><code>bar</code></pre>\n\n<pre><code>bar</code></pre>",
+        needle: "<pre><code>bar</code></pre>",
+        ranges: [
+            {from: 2, to: 5, slice: '<"bar">'},
+            {from: 9, to: 12, slice: '<"bar">'},
+        ],
+    },
+    {
+        haystack: "foo\n\n<pre><code>bar</code></pre>\n\nqux",
+        needle: "foo\n\n<pre><code>bar</code></pre>",
+        ranges: [
+            {
+                from: 1,
+                to: 10,
+                slice: '<paragraph("foo"), codeBlock(codeBlockLine("bar"))>',
+            },
+        ],
+    },
+    {
+        haystack: "foo\n\n<pre><code>bar</code></pre>\n\nqux",
+        needle: "<pre><code>bar</code></pre>\n\nqux",
+        ranges: [
+            {
+                from: 7,
+                to: 16,
+                slice: '<codeBlock(codeBlockLine("bar")), paragraph("qux")>',
+            },
+        ],
     },
     {
         haystack: "aaaaa",
