@@ -5286,6 +5286,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                     listConversionActions.push({
                         icon: target.icon,
+                        iconPlacement: "end",
                         label: target.label,
                         onPress: () => {
                             // Move selection to the right-clicked position so the conversion command operates
