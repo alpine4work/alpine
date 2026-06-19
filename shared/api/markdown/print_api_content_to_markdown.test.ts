@@ -1,19 +1,14 @@
 /* eslint-disable cyberworlds/string-quotes */
 
-import {
-    decode as decodeO200kBase,
-    encode as encodeO200kBase,
-} from "gpt-tokenizer/esm/encoding/o200k_base";
 import {normalizeApiContent} from "~/shared/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {
-    ApiContent,
-    ApiContentBlockElement,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
+import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {assertId, generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -21,12 +16,12 @@ import {
     DocumentId,
     FileId,
     PostId,
-    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
 type PrintMarkdownFixtureTestCase = {
+    only?: CommitBlocker;
     description: string;
     content: ApiContent;
     expectedMarkdown: string;
@@ -39,49 +34,20 @@ type PrintMarkdownTestCaseGroup = {
 
 const printTestCommentMarkMixedThreadId = generateId<DocumentCommentThreadId>();
 
-const [
-    printTestCommentNestedLessParentOuterThreadId,
-    printTestCommentNestedLessParentInnerThreadId,
-] = (() => {
-    const threadAId = generateId<DocumentCommentThreadId>();
-    const threadBId = generateId<DocumentCommentThreadId>();
-    return threadAId > threadBId ? [threadAId, threadBId] : [threadBId, threadAId];
+const accountId = generateId<AccountId>();
+const accountId2 = generateId<AccountId>();
+const documentId = generateId<DocumentId>();
+const taskId = generateId<TaskId>();
+const taskCollectionId = generateId<TaskCollectionId>();
+const postId = generateId<PostId>();
+const fileId = generateChronologicalId<FileId>();
+const fileId2 = generateChronologicalId<FileId>();
+const channelId = generateId<ChannelId>();
+
+const [threadId, threadId2, threadId3, threadId4] = (() => {
+    const threadIds = createArrayWithLength(4, () => generateId<DocumentCommentThreadId>());
+    return threadIds.sort() as Tuple<DocumentCommentThreadId, 4>;
 })();
-
-const [
-    printTestCommentNestedGreaterParentOuterThreadId,
-    printTestCommentNestedGreaterParentInnerThreadId,
-] = (() => {
-    const threadAId = generateId<DocumentCommentThreadId>();
-    const threadBId = generateId<DocumentCommentThreadId>();
-    return threadAId < threadBId ? [threadAId, threadBId] : [threadBId, threadAId];
-})();
-
-// Shared fixture ids; two accounts only for cases with two mentions in one
-// paragraph.
-const printTestFixtureAccountId1 = generateId<AccountId>();
-const printTestFixtureAccountId2 = generateId<AccountId>();
-const printTestFixtureTaskId = generateId<TaskId>();
-const printTestFixtureDocumentId = generateId<DocumentId>();
-const printTestFixtureTaskCollectionId = generateId<TaskCollectionId>();
-const printTestFixturePostId = generateId<PostId>();
-const printTestFixtureFileId = generateChronologicalId<FileId>();
-const printTestFixtureChannelId = generateId<ChannelId>();
-
-const printTestCommentMarkTextThreadId = generateId<DocumentCommentThreadId>();
-const printTestCommentMarkHighlightThreadId = generateId<DocumentCommentThreadId>();
-const printTestMultiCommentThreadId1 = assertId<DocumentCommentThreadId>(
-    "89z0rd2c0wh8fkdb1jc71mj5a4",
-);
-const printTestMultiCommentThreadId2 = assertId<DocumentCommentThreadId>(
-    "ynd1e11m2grtkxtr58qek5mktr",
-);
-const printTestMultiCommentThreadId3 = assertId<DocumentCommentThreadId>(
-    "3xqx9qc10mk0wq0nqke1vjqea8",
-);
-const printTestCommentMarkCodeBlockThreadId = assertId<DocumentCommentThreadId>(
-    "00000000000000000000000000",
-);
 
 describe("printApiContentToMarkdown", () => {
     describe.each([
@@ -3913,9 +3879,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                         ],
                                     },
@@ -3925,9 +3889,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                             {type: "Link", url: "https://example.com"},
                                         ],
@@ -3938,9 +3900,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                         ],
                                     },
@@ -3950,9 +3910,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                             {type: "Italic"},
                                         ],
@@ -3963,9 +3921,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                         ],
                                     },
@@ -3975,9 +3931,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                             {type: "Bold"},
                                         ],
@@ -3988,9 +3942,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                         ],
                                     },
@@ -4000,9 +3952,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                             {type: "Strike"},
                                         ],
@@ -4013,9 +3963,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                         ],
                                     },
@@ -4025,9 +3973,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                             {type: "Highlight", color: "Red"},
                                         ],
@@ -4038,9 +3984,7 @@ In progress
                                         marks: [
                                             {
                                                 type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkMixedThreadId,
-                                                },
+                                                thread: {id: printTestCommentMarkMixedThreadId},
                                             },
                                         ],
                                     },
@@ -4056,167 +4000,6 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentMarkM
                 },
                 {
                     description:
-                        "comment mark mixed with nested comment marks (nested comment mark is less than parent)",
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [
-                                    {type: "Text", text: "Next, something outrageous happened. "},
-                                    {
-                                        type: "Text",
-                                        text: "The Eagles sought to defend ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: "their title",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                            {type: "Link", url: "https://example.com"},
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: " (and honor) in the 2025-2026 season. They promoted a ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: "mere",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                            {type: "Italic"},
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: " ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: "squire",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                            {type: "Bold"},
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: " to the ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: "captain",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                            {type: "Strike"},
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: " of their ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: "army",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentInnerThreadId,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                    {
-                                        type: "Text",
-                                        text: ".",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedLessParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    expectedMarkdown: `\
-Next, something outrageous happened. <mark data-comment="${printTestCommentNestedLessParentOuterThreadId}">The Eagles sought to defend \
-[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
-**squire** to the ~~captain~~ of their </mark><mark data-comment="${printTestCommentNestedLessParentInnerThreadId}"><mark data-comment="${printTestCommentNestedLessParentOuterThreadId}">army</mark></mark><mark data-comment="${printTestCommentNestedLessParentOuterThreadId}">.</mark>
-`,
-                },
-                {
-                    description:
                         "comment mark mixed with nested comment marks (nested comment mark is greater than parent)",
                     content: {
                         elements: [
@@ -4227,153 +4010,170 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                     {
                                         type: "Text",
                                         text: "The Eagles sought to defend ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
                                     },
                                     {
                                         type: "Text",
                                         text: "their title",
                                         marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
+                                            {type: "Comment", thread: {id: threadId}},
                                             {type: "Link", url: "https://example.com"},
                                         ],
                                     },
                                     {
                                         type: "Text",
                                         text: " (and honor) in the 2025-2026 season. They promoted a ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
                                     },
                                     {
                                         type: "Text",
                                         text: "mere",
                                         marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
+                                            {type: "Comment", thread: {id: threadId}},
                                             {type: "Italic"},
                                         ],
                                     },
                                     {
                                         type: "Text",
                                         text: " ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
                                     },
                                     {
                                         type: "Text",
                                         text: "squire",
                                         marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
+                                            {type: "Comment", thread: {id: threadId}},
                                             {type: "Bold"},
                                         ],
                                     },
                                     {
                                         type: "Text",
                                         text: " to the ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
                                     },
                                     {
                                         type: "Text",
                                         text: "captain",
                                         marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
+                                            {type: "Comment", thread: {id: threadId}},
                                             {type: "Strike"},
                                         ],
                                     },
                                     {
                                         type: "Text",
                                         text: " of their ",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
                                     },
                                     {
                                         type: "Text",
                                         text: "army",
                                         marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentInnerThreadId,
-                                                },
-                                            },
+                                            {type: "Comment", thread: {id: threadId}},
+                                            {type: "Comment", thread: {id: threadId2}},
                                         ],
                                     },
                                     {
                                         type: "Text",
                                         text: ".",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentNestedGreaterParentOuterThreadId,
-                                                },
-                                            },
-                                        ],
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
                                     },
                                 ],
                             },
                         ],
                     },
                     expectedMarkdown: `\
-Next, something outrageous happened. <mark data-comment="${printTestCommentNestedGreaterParentOuterThreadId}">The Eagles sought to defend \
+Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles sought to defend \
 [their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
-**squire** to the ~~captain~~ of their <mark data-comment="${printTestCommentNestedGreaterParentInnerThreadId}">army</mark>.</mark>
+**squire** to the ~~captain~~ of their <mark data-comment="${threadId2}">army</mark>.</mark>
+`,
+                },
+                {
+                    description:
+                        "comment mark mixed with nested comment marks (nested comment mark is less than parent)",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "Next, something outrageous happened. "},
+                                    {
+                                        type: "Text",
+                                        text: "The Eagles sought to defend ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "their title",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Link", url: "https://example.com"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " (and honor) in the 2025-2026 season. They promoted a ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "mere",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Italic"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "squire",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Bold"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " to the ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "captain",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Strike"},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: " of their ",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: "army",
+                                        marks: [
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Comment", thread: {id: threadId}},
+                                        ],
+                                    },
+                                    {
+                                        type: "Text",
+                                        text: ".",
+                                        marks: [{type: "Comment", thread: {id: threadId2}}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+Next, something outrageous happened. <mark data-comment="${threadId2}">The Eagles sought to defend \
+[their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
+**squire** to the ~~captain~~ of their </mark><mark data-comment="${threadId}"><mark data-comment="${threadId2}">army</mark></mark><mark data-comment="${threadId2}">.</mark>
 `,
                 },
                 {
@@ -4387,14 +4187,7 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                                     {
                                         type: "Text",
                                         text: "commented",
-                                        marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkTextThreadId,
-                                                },
-                                            },
-                                        ],
+                                        marks: [{type: "Comment", thread: {id: threadId}}],
                                     },
                                     {type: "Text", text: " text"},
                                 ],
@@ -4402,7 +4195,7 @@ Next, something outrageous happened. <mark data-comment="${printTestCommentNeste
                         ],
                     },
                     expectedMarkdown: `\
-This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark> text
+This is <mark data-comment="${threadId}">commented</mark> text
 `,
                 },
                 {
@@ -4417,12 +4210,7 @@ This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark
                                         text: "highlighted and commented",
                                         marks: [
                                             {type: "Highlight", color: "Green"},
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestCommentMarkHighlightThreadId,
-                                                },
-                                            },
+                                            {type: "Comment", thread: {id: threadId}},
                                         ],
                                     },
                                 ],
@@ -4430,7 +4218,7 @@ This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark
                         ],
                     },
                     expectedMarkdown: `\
-<mark data-comment="${printTestCommentMarkHighlightThreadId}"><mark class="highlight-green">highlighted and commented</mark></mark>
+<mark data-comment="${threadId}"><mark class="highlight-green">highlighted and commented</mark></mark>
 `,
                 },
                 {
@@ -4445,24 +4233,9 @@ This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark
                                         type: "Text",
                                         text: "multiple comments",
                                         marks: [
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestMultiCommentThreadId1,
-                                                },
-                                            },
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestMultiCommentThreadId2,
-                                                },
-                                            },
-                                            {
-                                                type: "Comment",
-                                                thread: {
-                                                    id: printTestMultiCommentThreadId3,
-                                                },
-                                            },
+                                            {type: "Comment", thread: {id: threadId2}},
+                                            {type: "Comment", thread: {id: threadId3}},
+                                            {type: "Comment", thread: {id: threadId4}},
                                         ],
                                     },
                                     {type: "Text", text: " on it"},
@@ -4471,7 +4244,7 @@ This is <mark data-comment="${printTestCommentMarkTextThreadId}">commented</mark
                         ],
                     },
                     expectedMarkdown: `\
-This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-comment="${printTestMultiCommentThreadId1}"><mark data-comment="${printTestMultiCommentThreadId2}">multiple comments</mark></mark></mark> on it
+This text has <mark data-comment="${threadId2}"><mark data-comment="${threadId3}"><mark data-comment="${threadId4}">multiple comments</mark></mark></mark> on it
 `,
                 },
                 {
@@ -4491,7 +4264,7 @@ This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-
                                                     {
                                                         type: "Comment",
                                                         thread: {
-                                                            id: printTestCommentMarkCodeBlockThreadId,
+                                                            id: threadId,
                                                         },
                                                     },
                                                 ],
@@ -4505,7 +4278,7 @@ This text has <mark data-comment="${printTestMultiCommentThreadId3}"><mark data-
                     expectedMarkdown: `\
 <pre>
 <code class="language-javascript">
-<mark data-comment="${printTestCommentMarkCodeBlockThreadId}"> </mark>
+<mark data-comment="${threadId}"> </mark>
 </code>
 </pre>
 `,
@@ -5809,8 +5582,8 @@ Value
                                             {elements: []},
                                             {
                                                 elements: [
-                                                    {type: "File", id: printTestFixtureFileId},
-                                                    {type: "File", id: printTestFixtureFileId},
+                                                    {type: "File", id: fileId},
+                                                    {type: "File", id: fileId},
                                                 ],
                                             },
                                         ],
@@ -5828,9 +5601,9 @@ Value
 </td>
 <td>
 
-![](https://alpine.inc/files/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 
-![](https://alpine.inc/files/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 
 </td>
 </tr>
@@ -6711,7 +6484,7 @@ Normal<code><br /></code>Also normal
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                             title: "@alice",
                                         },
                                         marks: [{type: "Code"}],
@@ -6721,7 +6494,7 @@ Normal<code><br /></code>Also normal
                         ],
                     },
                     expectedMarkdown: `\
-<code>[@alice](https://alpine.inc/mention/${printTestFixtureAccountId1})</code>
+<code>[@alice](https://alpine.inc/mention/${accountId})</code>
 `,
                 },
                 {
@@ -6736,7 +6509,7 @@ Normal<code><br /></code>Also normal
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                             title: "@bob",
                                         },
                                         marks: [{type: "Code"}],
@@ -6747,7 +6520,7 @@ Normal<code><br /></code>Also normal
                         ],
                     },
                     expectedMarkdown: `\
-Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code> about it
+Ask <code>[@bob](https://alpine.inc/mention/${accountId})</code> about it
 `,
                 },
                 {
@@ -6762,7 +6535,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                             title: "@charlie",
                                         },
                                         marks: [{type: "Code"}],
@@ -6773,7 +6546,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                         ],
                     },
                     expectedMarkdown: `\
-\`The user \`<code>[@charlie](https://alpine.inc/mention/${printTestFixtureAccountId1})</code>\` is mentioned\`
+\`The user \`<code>[@charlie](https://alpine.inc/mention/${accountId})</code>\` is mentioned\`
 `,
                 },
                 {
@@ -6788,7 +6561,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                             title: "@eve",
                                         },
                                         marks: [{type: "Code"}],
@@ -6798,7 +6571,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId2,
+                                            id: accountId2,
                                             title: "@frank",
                                         },
                                         marks: [{type: "Code"}],
@@ -6808,7 +6581,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                         ],
                     },
                     expectedMarkdown: `\
-\`CC: \`<code>[@eve](https://alpine.inc/mention/${printTestFixtureAccountId1})</code>\`  and  \`<code>[@frank](https://alpine.inc/mention/${printTestFixtureAccountId2})</code>
+\`CC: \`<code>[@eve](https://alpine.inc/mention/${accountId})</code>\`  and  \`<code>[@frank](https://alpine.inc/mention/${accountId2})</code>
 `,
                 },
             ],
@@ -6828,7 +6601,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                             title: "@grace",
                                         },
                                         marks: [{type: "Code"}],
@@ -6840,7 +6613,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                         ],
                     },
                     expectedMarkdown: `\
-\`User: \`<code>[@grace](https://alpine.inc/mention/${printTestFixtureAccountId1})</code><code><br /></code>\`Status: active\`
+\`User: \`<code>[@grace](https://alpine.inc/mention/${accountId})</code><code><br /></code>\`Status: active\`
 `,
                 },
                 {
@@ -6855,7 +6628,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                             title: "@henry",
                                         },
                                     },
@@ -6865,7 +6638,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                         ],
                     },
                     expectedMarkdown: `\
-\`Code before \`[@henry](https://alpine.inc/mention/${printTestFixtureAccountId1})\` code after\`
+\`Code before \`[@henry](https://alpine.inc/mention/${accountId})\` code after\`
 `,
                 },
                 {
@@ -6879,7 +6652,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                             title: "iris",
                                         },
                                         isAccountShortName: true,
@@ -6890,7 +6663,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                         ],
                     },
                     expectedMarkdown: `\
-<code>[iris](https://alpine.inc/mention/${printTestFixtureAccountId1}?short)</code>
+<code>[iris](https://alpine.inc/mention/${accountId}?short)</code>
 `,
                 },
                 {
@@ -6902,7 +6675,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                 elements: [
                                     {
                                         type: "Mention",
-                                        reference: {type: "Task", id: printTestFixtureTaskId},
+                                        reference: {type: "Task", id: taskId},
                                         marks: [{type: "Code"}],
                                     },
                                 ],
@@ -6910,7 +6683,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                         ],
                     },
                     expectedMarkdown: `\
-<code>[Unknown task](https://alpine.inc/task/${printTestFixtureTaskId}?mention)</code>
+<code>[Unknown task](https://alpine.inc/task/${taskId}?mention)</code>
 `,
                 },
                 {
@@ -6926,7 +6699,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                             title: "@jack",
                                         },
                                         marks: [{type: "Code"}],
@@ -6944,7 +6717,7 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId2,
+                                            id: accountId2,
                                             title: "@kate",
                                         },
                                     },
@@ -6953,8 +6726,8 @@ Ask <code>[@bob](https://alpine.inc/mention/${printTestFixtureAccountId1})</code
                         ],
                     },
                     expectedMarkdown: `\
-\`Function: getUserData(\`<code>[@jack](https://alpine.inc/mention/${printTestFixtureAccountId1})</code>\`)\`<code><br /></code>\`Returns: user object\`\\
-Author: [@kate](https://alpine.inc/mention/${printTestFixtureAccountId2})
+\`Function: getUserData(\`<code>[@jack](https://alpine.inc/mention/${accountId})</code>\`)\`<code><br /></code>\`Returns: user object\`\\
+Author: [@kate](https://alpine.inc/mention/${accountId2})
 `,
                 },
             ],
@@ -7710,7 +7483,7 @@ Text\\[^1] with footnote
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                         },
                                         isAccountShortName: false,
                                         marks: [],
@@ -7720,7 +7493,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-[Unknown](https://alpine.inc/mention/${printTestFixtureAccountId1})
+[Unknown](https://alpine.inc/mention/${accountId})
 `,
                 },
                 {
@@ -7734,7 +7507,7 @@ Text\\[^1] with footnote
                                         type: "Mention",
                                         reference: {
                                             type: "Task",
-                                            id: printTestFixtureTaskId,
+                                            id: taskId,
                                             title: "",
                                         },
                                         isAccountShortName: false,
@@ -7745,7 +7518,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-[](https://alpine.inc/task/${printTestFixtureTaskId}?mention)
+[](https://alpine.inc/task/${taskId}?mention)
 `,
                 },
                 {
@@ -7797,7 +7570,7 @@ Text\\[^1] with footnote
                                 elements: [
                                     {
                                         type: "Mention",
-                                        reference: {type: "Task", id: printTestFixtureTaskId},
+                                        reference: {type: "Task", id: taskId},
                                         title: undefined,
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa"}],
@@ -7808,7 +7581,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-<a href="http://a.aa">[Unknown task](https://alpine.inc/task/${printTestFixtureTaskId}?mention)</a>
+<a href="http://a.aa">[Unknown task](https://alpine.inc/task/${taskId}?mention)</a>
 
 <p></p>
 `,
@@ -7824,7 +7597,7 @@ Text\\[^1] with footnote
                                         type: "Mention",
                                         reference: {
                                             type: "Document",
-                                            id: printTestFixtureDocumentId,
+                                            id: documentId,
                                         },
                                         title: undefined,
                                         isAccountShortName: false,
@@ -7837,7 +7610,7 @@ Text\\[^1] with footnote
                         ],
                     },
                     expectedMarkdown: `\
-~~[Unknown document](https://alpine.inc/doc/${printTestFixtureDocumentId}?mention)~~&#x30;
+~~[Unknown document](https://alpine.inc/doc/${documentId}?mention)~~&#x30;
 
 <p></p>
 `,
@@ -8080,7 +7853,7 @@ $\\*$&#x20;
                                         type: "Mention",
                                         reference: {
                                             type: "TaskCollection",
-                                            id: printTestFixtureTaskCollectionId,
+                                            id: taskCollectionId,
                                             title: "",
                                         },
                                         isAccountShortName: false,
@@ -8091,7 +7864,7 @@ $\\*$&#x20;
                         ],
                     },
                     expectedMarkdown: `\
-<a href="http://a.aa/&amp;">[](https://alpine.inc/task-collection/${printTestFixtureTaskCollectionId}?mention)</a>
+<a href="http://a.aa/&amp;">[](https://alpine.inc/task-collection/${taskCollectionId}?mention)</a>
 `,
                 },
                 {
@@ -8106,7 +7879,7 @@ $\\*$&#x20;
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                         },
                                         title: undefined,
                                         isAccountShortName: false,
@@ -8117,7 +7890,7 @@ $\\*$&#x20;
                         ],
                     },
                     expectedMarkdown: `\
-<br /><a href="http://a.aa">[Unknown](https://alpine.inc/mention/${printTestFixtureAccountId1})</a>
+<br /><a href="http://a.aa">[Unknown](https://alpine.inc/mention/${accountId})</a>
 `,
                 },
                 {
@@ -8132,7 +7905,7 @@ $\\*$&#x20;
                                         type: "Mention",
                                         reference: {
                                             type: "Account",
-                                            id: printTestFixtureAccountId1,
+                                            id: accountId,
                                         },
                                         title: undefined,
                                         isAccountShortName: false,
@@ -8143,7 +7916,7 @@ $\\*$&#x20;
                         ],
                     },
                     expectedMarkdown: `\
-**<br />**<a href="http://a.aa">[Unknown](https://alpine.inc/mention/${printTestFixtureAccountId1})</a>
+**<br />**<a href="http://a.aa">[Unknown](https://alpine.inc/mention/${accountId})</a>
 `,
                 },
                 {
@@ -8158,7 +7931,7 @@ $\\*$&#x20;
                                         type: "Mention",
                                         reference: {
                                             type: "Document",
-                                            id: printTestFixtureDocumentId,
+                                            id: documentId,
                                         },
                                         title: undefined,
                                         isAccountShortName: false,
@@ -8170,7 +7943,7 @@ $\\*$&#x20;
                         ],
                     },
                     expectedMarkdown: `\
-\\$\\_[Unknown document](https://alpine.inc/doc/${printTestFixtureDocumentId}?mention)\\$
+$\\_[Unknown document](https://alpine.inc/doc/${documentId}?mention)$
 `,
                 },
                 {
@@ -8346,7 +8119,7 @@ $(ab)$
                                         type: "Mention",
                                         reference: {
                                             type: "Post",
-                                            id: printTestFixturePostId,
+                                            id: postId,
                                             title: "",
                                         },
                                         isAccountShortName: false,
@@ -8357,7 +8130,7 @@ $(ab)$
                         ],
                     },
                     expectedMarkdown: `\
-<br /><br /><a href="http://a.aa">[](https://alpine.inc/post/${printTestFixturePostId}?mention)</a>
+<br /><br /><a href="http://a.aa">[](https://alpine.inc/post/${postId}?mention)</a>
 `,
                 },
                 {
@@ -9513,7 +9286,7 @@ _-X_**[~~-y/@\\\`/$bz1~~](https://63o.kry)G**
                                         marks: [
                                             {
                                                 type: "Link",
-                                                url: `https://alpine.inc/doc/${printTestFixtureDocumentId}?mention`,
+                                                url: `https://alpine.inc/doc/${documentId}?mention`,
                                             },
                                         ],
                                     },
@@ -9523,7 +9296,7 @@ _-X_**[~~-y/@\\\`/$bz1~~](https://63o.kry)G**
                         ],
                     },
                     expectedMarkdown: `\
-Click <a href="https://alpine.inc/doc/${printTestFixtureDocumentId}?mention">here</a> to visit
+Click <a href="https://alpine.inc/doc/${documentId}?mention">here</a> to visit
 `,
                 },
                 {
@@ -9540,7 +9313,7 @@ Click <a href="https://alpine.inc/doc/${printTestFixtureDocumentId}?mention">her
                                         marks: [
                                             {
                                                 type: "Link",
-                                                url: `https://alpine.inc/mention/${printTestFixtureAccountId1}?short`,
+                                                url: `https://alpine.inc/mention/${accountId}?short`,
                                             },
                                         ],
                                     },
@@ -9550,7 +9323,7 @@ Click <a href="https://alpine.inc/doc/${printTestFixtureDocumentId}?mention">her
                         ],
                     },
                     expectedMarkdown: `\
-Click <a href="https://alpine.inc/mention/${printTestFixtureAccountId1}?short">here</a> to visit
+Click <a href="https://alpine.inc/mention/${accountId}?short">here</a> to visit
 `,
                 },
                 {
@@ -10113,7 +9886,7 @@ The quick brown fox jumps over the lazy dog.
                         ],
                     },
                     expectedMarkdown: `\
-<hr/>
+<hr />
 
 - [ ] <span></span>
 `,
@@ -10152,10 +9925,10 @@ a
                 {
                     description: "standalone image file",
                     content: {
-                        elements: [{type: "File", id: printTestFixtureFileId}],
+                        elements: [{type: "File", id: fileId}],
                     },
                     expectedMarkdown: `\
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 `,
                 },
                 {
@@ -10165,13 +9938,13 @@ a
                         elements: [
                             {
                                 type: "File",
-                                id: printTestFixtureFileId,
+                                id: fileId,
                                 contentType: "image/png",
                             },
                         ],
                     },
                     expectedMarkdown: `\
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 `,
                 },
                 {
@@ -10181,13 +9954,13 @@ a
                         elements: [
                             {
                                 type: "File",
-                                id: printTestFixtureFileId,
+                                id: fileId,
                                 contentType: "video/mp4",
                             },
                         ],
                     },
                     expectedMarkdown: `\
-<video controls><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></video>
+<video type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls></video>
 `,
                 },
                 {
@@ -10197,13 +9970,13 @@ a
                         elements: [
                             {
                                 type: "File",
-                                id: printTestFixtureFileId,
+                                id: fileId,
                                 contentType: "audio/mpeg",
                             },
                         ],
                     },
                     expectedMarkdown: `\
-<audio controls><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></audio>
+<audio type="audio/mpeg" src="https://alpine.inc/file/${fileId}/content" controls></audio>
 `,
                 },
                 {
@@ -10213,13 +9986,13 @@ a
                         elements: [
                             {
                                 type: "File",
-                                id: printTestFixtureFileId,
+                                id: fileId,
                                 contentType: "application/pdf",
                             },
                         ],
                     },
                     expectedMarkdown: `\
-<object type="application/pdf" data="https://alpine.inc/file/${printTestFixtureFileId}/content" />
+<object type="application/pdf" data="https://alpine.inc/file/${fileId}/content"></object>
 `,
                 },
                 {
@@ -10230,14 +10003,14 @@ a
                                 type: "Preview",
                                 reference: {
                                     type: "Document",
-                                    id: printTestFixtureDocumentId,
+                                    id: documentId,
                                     title: "My Document",
                                 },
                             },
                         ],
                     },
                     expectedMarkdown: `\
-![My Document](https://alpine.inc/doc/${printTestFixtureDocumentId}/preview)
+![My Document](https://alpine.inc/doc/${documentId}/preview)
 `,
                 },
                 {
@@ -10248,14 +10021,14 @@ a
                                 type: "Preview",
                                 reference: {
                                     type: "Channel",
-                                    id: printTestFixtureChannelId,
+                                    id: channelId,
                                     title: "General",
                                 },
                             },
                         ],
                     },
                     expectedMarkdown: `\
-![General](https://alpine.inc/channel/${printTestFixtureChannelId}/preview)
+![General](https://alpine.inc/channel/${channelId}/preview)
 `,
                 },
                 {
@@ -10271,14 +10044,14 @@ a
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                 },
                                             },
                                             {
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                 },
                                             },
                                         ],
@@ -10289,8 +10062,8 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10305,18 +10078,16 @@ a
                                         items: [
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
                                     {
-                                        items: [
-                                            {element: {type: "File", id: printTestFixtureFileId}},
-                                        ],
+                                        items: [{element: {type: "File", id: fileId}}],
                                     },
                                 ],
                             },
@@ -10324,11 +10095,11 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 </div>
 
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 `,
                 },
                 {
@@ -10339,16 +10110,14 @@ a
                                 type: "FileGallery",
                                 rows: [
                                     {
-                                        items: [
-                                            {element: {type: "File", id: printTestFixtureFileId}},
-                                        ],
+                                        items: [{element: {type: "File", id: fileId}}],
                                     },
                                 ],
                             },
                         ],
                     },
                     expectedMarkdown: `\
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 `,
                 },
                 {
@@ -10360,13 +10129,15 @@ a
                                 side: "Left",
                                 element: {
                                     type: "File",
-                                    id: printTestFixtureFileId,
+                                    id: fileId,
                                 },
                             },
                         ],
                     },
                     expectedMarkdown: `\
-<div style="float: left; clear: both"><img src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></div>
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/file/${fileId}/content" />
+</div>
 `,
                 },
                 {
@@ -10378,13 +10149,15 @@ a
                                 side: "Right",
                                 element: {
                                     type: "File",
-                                    id: printTestFixtureFileId,
+                                    id: fileId,
                                 },
                             },
                         ],
                     },
                     expectedMarkdown: `\
-<div style="float: right; clear: both"><img src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></div>
+<div style="float: right; clear: both">
+<img src="https://alpine.inc/file/${fileId}/content" />
+</div>
 `,
                 },
                 {
@@ -10401,7 +10174,7 @@ a
                                                     type: "Preview",
                                                     reference: {
                                                         type: "Document",
-                                                        id: printTestFixtureDocumentId,
+                                                        id: documentId,
                                                         title: "My Document",
                                                     },
                                                 },
@@ -10413,7 +10186,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-![My Document](https://alpine.inc/doc/${printTestFixtureDocumentId}/preview)
+![My Document](https://alpine.inc/doc/${documentId}/preview)
 `,
                 },
                 {
@@ -10427,11 +10200,11 @@ a
                                         items: [
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
@@ -10439,22 +10212,20 @@ a
                                         items: [
                                             {
                                                 width: 0.33,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                             {
                                                 width: 0.33,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                             {
                                                 width: 0.34,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
                                     {
-                                        items: [
-                                            {element: {type: "File", id: printTestFixtureFileId}},
-                                        ],
+                                        items: [{element: {type: "File", id: fileId}}],
                                     },
                                 ],
                             },
@@ -10462,17 +10233,17 @@ a
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 </div>
 
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 34%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 33%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 33%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 34%" />
 </div>
 
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 `,
                 },
                 {
@@ -10489,7 +10260,7 @@ a
                                                     type: "Preview",
                                                     reference: {
                                                         type: "Document",
-                                                        id: printTestFixtureDocumentId,
+                                                        id: documentId,
                                                         title: "Design Spec",
                                                     },
                                                 },
@@ -10501,7 +10272,7 @@ a
                         ],
                     },
                     expectedMarkdown: `\
-![Design Spec](https://alpine.inc/doc/${printTestFixtureDocumentId}/preview)
+![Design Spec](https://alpine.inc/doc/${documentId}/preview)
 `,
                 },
                 {
@@ -10516,9 +10287,7 @@ a
                                     {
                                         cells: [
                                             {
-                                                elements: [
-                                                    {type: "File", id: printTestFixtureFileId},
-                                                ],
+                                                elements: [{type: "File", id: fileId}],
                                             },
                                             {
                                                 elements: [
@@ -10542,7 +10311,7 @@ a
 <tr>
 <td>
 
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 
 </td>
 <td>
@@ -10568,8 +10337,8 @@ description
                                         cells: [
                                             {
                                                 elements: [
-                                                    {type: "File", id: printTestFixtureFileId},
-                                                    {type: "File", id: printTestFixtureFileId},
+                                                    {type: "File", id: fileId},
+                                                    {type: "File", id: fileId},
                                                 ],
                                             },
                                             {elements: []},
@@ -10585,9 +10354,9 @@ description
 <tr>
 <td>
 
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 
 </td>
 <td>
@@ -10615,7 +10384,7 @@ description
                                                         type: "Paragraph",
                                                         elements: [{type: "Text", text: "caption"}],
                                                     },
-                                                    {type: "File", id: printTestFixtureFileId},
+                                                    {type: "File", id: fileId},
                                                 ],
                                             },
                                             {elements: []},
@@ -10633,7 +10402,7 @@ description
 
 caption
 
-![](https://alpine.inc/file/${printTestFixtureFileId}/content)
+![](https://alpine.inc/file/${fileId}/content)
 
 </td>
 <td>
@@ -10661,7 +10430,7 @@ caption
                                                         type: "Preview",
                                                         reference: {
                                                             type: "Document",
-                                                            id: printTestFixtureDocumentId,
+                                                            id: documentId,
                                                             title: "My Document",
                                                         },
                                                     },
@@ -10680,7 +10449,7 @@ caption
 <tr>
 <td>
 
-![My Document](https://alpine.inc/doc/${printTestFixtureDocumentId}/preview)
+![My Document](https://alpine.inc/doc/${documentId}/preview)
 
 </td>
 <td>
@@ -10706,7 +10475,7 @@ caption
                                                     type: "Preview",
                                                     reference: {
                                                         type: "Document",
-                                                        id: printTestFixtureDocumentId,
+                                                        id: documentId,
                                                         title: "My Document",
                                                     },
                                                 },
@@ -10715,7 +10484,7 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                 },
                                             },
                                         ],
@@ -10726,8 +10495,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img alt="My Document" src="https://alpine.inc/doc/${printTestFixtureDocumentId}/preview" style="flex: 0 0 50%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<img alt="My Document" src="https://alpine.inc/doc/${documentId}/preview" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10742,11 +10511,11 @@ caption
                                         items: [
                                             {
                                                 width: 0.67,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                             {
                                                 width: 0.33,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
@@ -10756,8 +10525,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 67%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 33%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 67%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 33%" />
 </div>
 `,
                 },
@@ -10774,13 +10543,13 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                     contentType: "video/mp4",
                                                 },
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
@@ -10790,8 +10559,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<video controls style="flex: 0 0 50%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></video>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<video type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls style="flex: 0 0 50%"></video>
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10808,13 +10577,13 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                     contentType: "audio/mpeg",
                                                 },
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
@@ -10824,8 +10593,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<audio controls style="flex: 0 0 50%"><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></audio>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<audio type="audio/mpeg" src="https://alpine.inc/file/${fileId}/content" controls style="flex: 0 0 50%"></audio>
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10842,13 +10611,13 @@ caption
                                                 width: 0.5,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                     contentType: "application/pdf",
                                                 },
                                             },
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
@@ -10858,8 +10627,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<object type="application/pdf" data="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
+<object type="application/pdf" data="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%"></object>
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },
@@ -10878,7 +10647,7 @@ caption
                                                     type: "Preview",
                                                     reference: {
                                                         type: "Document",
-                                                        id: printTestFixtureDocumentId,
+                                                        id: documentId,
                                                         title: "My Document",
                                                     },
                                                 },
@@ -10887,7 +10656,7 @@ caption
                                                 width: 0.6,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                     contentType: "video/mp4",
                                                 },
                                             },
@@ -10899,8 +10668,8 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img alt="My Document" src="https://alpine.inc/doc/${printTestFixtureDocumentId}/preview" style="flex: 0 0 40%" />
-<video controls style="flex: 0 0 60%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></video>
+<img alt="My Document" src="https://alpine.inc/doc/${documentId}/preview" style="flex: 0 0 40%" />
+<video type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls style="flex: 0 0 60%"></video>
 </div>
 `,
                 },
@@ -10915,15 +10684,15 @@ caption
                                         items: [
                                             {
                                                 width: 0.5,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                             {
                                                 width: 0.3,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                             {
                                                 width: 0.2,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
@@ -10933,9 +10702,9 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 50%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 30%" />
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 20%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 30%" />
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 20%" />
 </div>
 `,
                 },
@@ -10952,7 +10721,7 @@ caption
                                                 width: 0.33,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                     contentType: "audio/mpeg",
                                                 },
                                             },
@@ -10960,13 +10729,13 @@ caption
                                                 width: 0.33,
                                                 element: {
                                                     type: "File",
-                                                    id: printTestFixtureFileId,
+                                                    id: fileId,
                                                     contentType: "video/mp4",
                                                 },
                                             },
                                             {
                                                 width: 0.34,
-                                                element: {type: "File", id: printTestFixtureFileId},
+                                                element: {type: "File", id: fileId},
                                             },
                                         ],
                                     },
@@ -10976,9 +10745,264 @@ caption
                     },
                     expectedMarkdown: `\
 <div style="display: flex; align-items: stretch">
-<audio controls style="flex: 0 0 33%"><source type="audio/mpeg" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></audio>
-<video controls style="flex: 0 0 33%"><source type="video/mp4" src="https://alpine.inc/file/${printTestFixtureFileId}/content" /></video>
-<img src="https://alpine.inc/file/${printTestFixtureFileId}/content" style="flex: 0 0 34%" a/>
+<audio type="audio/mpeg" src="https://alpine.inc/file/${fileId}/content" controls style="flex: 0 0 33%"></audio>
+<video type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls style="flex: 0 0 33%"></video>
+<img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 34%" />
+</div>
+`,
+                },
+                {
+                    description: "file with comment",
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                id: fileId,
+                                marks: [
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId},
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<mark data-comment="${threadId}">![](https://alpine.inc/file/${fileId}/content)</mark>
+`,
+                },
+                {
+                    description: "preview with comment",
+                    content: {
+                        elements: [
+                            {
+                                type: "Preview",
+                                reference: {
+                                    type: "Document",
+                                    id: documentId,
+                                    title: "My Document",
+                                },
+                                marks: [
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId},
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<mark data-comment="${threadId}">![My Document](https://alpine.inc/doc/${documentId}/preview)</mark>
+`,
+                },
+                {
+                    description: "video file with comment",
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                id: fileId,
+                                contentType: "video/mp4",
+                                marks: [
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId},
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<mark data-comment="${threadId}"><video type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls></video></mark>
+`,
+                },
+                {
+                    description: "file with comments",
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                id: fileId,
+                                marks: [
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId},
+                                    },
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId2},
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<mark data-comment="${threadId}"><mark data-comment="${threadId2}">![](https://alpine.inc/file/${fileId}/content)</mark></mark>
+`,
+                },
+                {
+                    description: "preview with comments",
+                    content: {
+                        elements: [
+                            {
+                                type: "Preview",
+                                reference: {
+                                    type: "Document",
+                                    id: documentId,
+                                    title: "My Document",
+                                },
+                                marks: [
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId},
+                                    },
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId2},
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<mark data-comment="${threadId}"><mark data-comment="${threadId2}">![My Document](https://alpine.inc/doc/${documentId}/preview)</mark></mark>
+`,
+                },
+                {
+                    description: "video file with comments",
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                id: fileId,
+                                contentType: "video/mp4",
+                                marks: [
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId},
+                                    },
+                                    {
+                                        type: "Comment",
+                                        thread: {id: threadId2},
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<mark data-comment="${threadId}"><mark data-comment="${threadId2}"><video type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls></video></mark></mark>
+`,
+                },
+                {
+                    description: "file row with comments",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                element: {
+                                                    type: "File",
+                                                    id: fileId,
+                                                    marks: [
+                                                        {type: "Comment", thread: {id: threadId}},
+                                                    ],
+                                                },
+                                            },
+                                            {
+                                                element: {
+                                                    type: "Preview",
+                                                    reference: {
+                                                        type: "Document",
+                                                        id: documentId,
+                                                        title: "My Document",
+                                                    },
+                                                    marks: [
+                                                        {type: "Comment", thread: {id: threadId2}},
+                                                    ],
+                                                },
+                                            },
+                                            {
+                                                element: {
+                                                    type: "File",
+                                                    id: fileId2,
+                                                    contentType: "video/mp4",
+                                                    marks: [
+                                                        {type: "Comment", thread: {id: threadId3}},
+                                                    ],
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<mark data-comment="${threadId}"><img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 33%" /></mark>
+<mark data-comment="${threadId2}"><img alt="My Document" src="https://alpine.inc/doc/${documentId}/preview" style="flex: 0 0 33%" /></mark>
+<mark data-comment="${threadId3}"><video type="video/mp4" src="https://alpine.inc/file/${fileId2}/content" controls style="flex: 0 0 34%"></video></mark>
+</div>
+`,
+                },
+                {
+                    description: "file row with multiple comments per file",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                element: {
+                                                    type: "File",
+                                                    id: fileId,
+                                                    marks: [
+                                                        {type: "Comment", thread: {id: threadId}},
+                                                        {type: "Comment", thread: {id: threadId2}},
+                                                    ],
+                                                },
+                                            },
+                                            {
+                                                element: {
+                                                    type: "Preview",
+                                                    reference: {
+                                                        type: "Document",
+                                                        id: documentId,
+                                                        title: "My Document",
+                                                    },
+                                                    marks: [
+                                                        {type: "Comment", thread: {id: threadId}},
+                                                        {type: "Comment", thread: {id: threadId2}},
+                                                    ],
+                                                },
+                                            },
+                                            {
+                                                element: {
+                                                    type: "File",
+                                                    id: fileId2,
+                                                    contentType: "video/mp4",
+                                                    marks: [
+                                                        {type: "Comment", thread: {id: threadId}},
+                                                        {type: "Comment", thread: {id: threadId2}},
+                                                    ],
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<mark data-comment="${threadId}"><mark data-comment="${threadId2}"><img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 33%" /></mark></mark>
+<mark data-comment="${threadId}"><mark data-comment="${threadId2}"><img alt="My Document" src="https://alpine.inc/doc/${documentId}/preview" style="flex: 0 0 33%" /></mark></mark>
+<mark data-comment="${threadId}"><mark data-comment="${threadId2}"><video type="video/mp4" src="https://alpine.inc/file/${fileId2}/content" controls style="flex: 0 0 34%"></video></mark></mark>
 </div>
 `,
                 },
@@ -11020,7 +11044,9 @@ Use \`\` \`backticks\` \`\` for inline code
         // using ApiContentResponse instead of ApiContent as an argument to
         // `printApiContentToMarkdown()`)
     ] as ReadonlyArray<PrintMarkdownTestCaseGroup>)("$contentType", ({cases}) => {
-        describe.each(cases)("$description", ({content, expectedMarkdown}) => {
+        describe.each(cases)("$description", ({only, content, expectedMarkdown}) => {
+            const test = only ? globalThis.test.only : globalThis.test;
+
             test(`has expected markdown`, () => {
                 const actualMarkdown = printApiContentToMarkdown(content, {});
                 expect(actualMarkdown).toEqual(expectedMarkdown);
@@ -11036,86 +11062,8 @@ Use \`\` \`backticks\` \`\` for inline code
                 );
             });
 
-            // Test that `AgentWebMarkdownStreamParser` can parse all the content we test in
-            // this file exactly the same as the test expects.
-            //
-            // NOCOMMIT: Maybe move this to
-            // `server/agents/web/print_api_content_to_agent_web_markdown_generative.test.ts`
-            // or `server/agents/bots/internal/print_api_content_to_agent_markdown.test.ts`?
-            // The key thing we want to test here is that Markdown pushed in a random order via
-            // the stream parser will ultimately produce correct results.
-            test.skip(`can be parsed by AgentWebMarkdownStreamParser`, async () => {
-                const actualMarkdown = printApiContentToMarkdown(content, {});
-
-                // Test that `AgentMessageStream` can parse all the content we test in this file
-                // exactly the same as the test expects.
-                await testTracer.withSpan("Test `AgentMessageStream`", async span => {
-                    const message = new AgentMessageStream({
-                        spaceId: generateId<SpaceId>(),
-                        getTargetPathIfExists: async () => null,
-                    });
-                    const markdownTokens = encodeO200kBase(actualMarkdown);
-
-                    let nextUpdate = randomInteger(1, 5);
-
-                    for (const markdownToken of markdownTokens) {
-                        message.pushText(span, decodeO200kBase([markdownToken]));
-
-                        // Update randomly within the message to exercise parse throttling choosing to
-                        // update at arbitrary times.
-                        nextUpdate--;
-                        if (nextUpdate === 0) {
-                            await message.update(span);
-                            nextUpdate = randomInteger(1, 5);
-                        }
-                    }
-
-                    // Always perform one last update.
-                    await message.update(span);
-
-                    const elements: Array<ApiContentBlockElement> = [];
-
-                    for (const part of message.getParts()) {
-                        if (part.payload.type === "Content") {
-                            for (const element of part.payload.content.elements) {
-                                elements.push(element);
-                            }
-                        }
-                    }
-
-                    expect(normalizeApiContent({elements})).toEqual(normalizeApiContent(content));
-                });
-                const markdownTokens = encodeO200kBase(actualMarkdown);
-
-                let nextUpdate = randomInteger(1, 5);
-
-                for (const markdownToken of markdownTokens) {
-                    message.pushText(null, decodeO200kBase([markdownToken]));
-
-                    // Update randomly within the message to exercise parse throttling choosing to
-                    // update at arbitrary times.
-                    nextUpdate--;
-                    if (nextUpdate === 0) {
-                        await message.update(null);
-                        nextUpdate = randomInteger(1, 5);
-                    }
-                }
-
-                // Always perform one last update.
-                await message.update(null);
-
-                const elements: Array<ApiContentBlockElement> = [];
-
-                for (const part of message.getParts()) {
-                    if (part.payload.type === "Content") {
-                        for (const element of part.payload.content.elements) {
-                            elements.push(element);
-                        }
-                    }
-                }
-
-                expect(normalizeApiContent({elements})).toEqual(normalizeApiContent(content));
-            });
+            // NOCOMMIT: We removed `AgentWebMarkdownStreamParser` from here, should it come
+            // back?
         });
     });
 

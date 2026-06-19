@@ -41,3 +41,20 @@ export type JsonStringifiableValue =
     | {readonly [key: string]: JsonStringifiableValue | undefined}
     | ReadonlyArray<JsonStringifiableValue>
     | {toJSON(): string};
+
+/**
+ * Same as `JsonValue` but not read-only.
+ */
+export type JsonWritableValue = JsonScalarValue | JsonObjectWritableValue | JsonArrayWritableValue;
+
+/**
+ * Same as `JsonObjectValue` but not read-only.
+ */
+export type JsonObjectWritableValue = {
+    readonly [key: string]: JsonWritableValue | undefined;
+};
+
+/**
+ * Same as `JsonArrayValue` but not read-only.
+ */
+export type JsonArrayWritableValue = ReadonlyArray<JsonWritableValue>;

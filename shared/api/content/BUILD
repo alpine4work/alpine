@@ -2,7 +2,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "content",
-    test_deps = ["//shared/documents"],
+    test_deps = [
+        "//:node_modules/fast-check",
+        "//shared/documents",
+        "//shared/prosemirror/test_helpers",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/immer",

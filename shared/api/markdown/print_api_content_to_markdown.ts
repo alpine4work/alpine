@@ -1,6 +1,7 @@
 import escapeHtml from "escape-html";
 import {
     BlockContent,
+    Html,
     List,
     ListItem,
     Paragraph,
@@ -24,13 +25,13 @@ import {
     ApiContentBlockElement,
     ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElementMark,
+    ApiContentCodeMark,
     ApiContentFileBlockElement,
     ApiContentFileGalleryBlockElementRow,
+    ApiContentHighlightMarkColor,
     ApiContentInlineElement,
-    ApiContentInlineElementCodeMark,
-    ApiContentInlineElementHighlightMarkColor,
-    ApiContentInlineElementLinkMark,
     ApiContentInlineElementMark,
+    ApiContentLinkMark,
     ApiContentMentionInlineElement,
     ApiContentParagraphBlockElement,
     ApiContentPreviewBlockElement,
@@ -45,6 +46,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 
 declare module "mdast" {
     export interface EmphasisData {
@@ -377,39 +379,86 @@ function* printApiContentBlockElementToMarkdown(
         case "File": {
             const fileUrl = printApiFileContentUrl(element.id);
             if (!element.contentType || isWebSafeImageContentType(element.contentType)) {
-                // Web safe images (and files with unknown content type) use markdown image syntax.
-                yield {
-                    type: "paragraph",
-                    children: [
-                        {type: "image", url: fileUrl, alt: null, data: {fileElement: element}},
-                    ],
-                };
+                const children: Array<PhrasingContent> = [
+                    // Web safe images (and files with unknown content type) use markdown image syntax.
+                    {type: "image", url: fileUrl, alt: null, data: {fileElement: element}},
+                ];
+
+                if (element.marks) {
+                    for (const mark of reverseIterable(element.marks)) {
+                        children.unshift({
+                            type: "html",
+                            value: options.withCommentTagHtml
+                                ? `<comment id="${mark.thread.id}">`
+                                : `<mark data-comment="${mark.thread.id}">`,
+                        });
+
+                        children.push({
+                            type: "html",
+                            value: options.withCommentTagHtml ? "</comment>" : "</mark>",
+                        });
+                    }
+                }
+
+                yield {type: "paragraph", children};
             } else {
-                // Video, audio, PDF, etc. use their HTML representations so they render correctly
-                // when exported to HTML. CommonMark treats `<video>`, `<audio>`, and `<object>` as
-                // inline HTML (not block-level), so the parser handles extracting them from
-                // paragraphs into block-level file elements.
-                yield {
+                const htmlNode: Html = {
                     type: "html",
                     value: printApiContentFileBlockElementToMarkdown(fileUrl, element.contentType),
                     data: {fileElement: element},
                 };
-            }
 
+                let children: Array<PhrasingContent> | undefined;
+
+                if (element.marks) {
+                    for (const mark of reverseIterable(element.marks)) {
+                        children ??= [htmlNode];
+
+                        children.unshift({
+                            type: "html",
+                            value: options.withCommentTagHtml
+                                ? `<comment id="${mark.thread.id}">`
+                                : `<mark data-comment="${mark.thread.id}">`,
+                        });
+
+                        children.push({
+                            type: "html",
+                            value: options.withCommentTagHtml ? "</comment>" : "</mark>",
+                        });
+                    }
+                }
+
+                yield children ? {type: "paragraph", children} : htmlNode;
+            }
             break;
         }
         case "Preview": {
-            yield {
-                type: "paragraph",
-                children: [
-                    {
-                        type: "image",
-                        url: printApiPreviewReferenceToPreviewUrl(element.reference),
-                        alt: printApiMentionReferenceToMentionLinkLabel(element.reference),
-                        data: {previewElement: element},
-                    },
-                ],
-            };
+            const children: Array<PhrasingContent> = [
+                {
+                    type: "image",
+                    url: printApiPreviewReferenceToPreviewUrl(element.reference),
+                    alt: printApiMentionReferenceToMentionLinkLabel(element.reference),
+                    data: {previewElement: element},
+                },
+            ];
+
+            if (element.marks) {
+                for (const mark of reverseIterable(element.marks)) {
+                    children.unshift({
+                        type: "html",
+                        value: options.withCommentTagHtml
+                            ? `<comment id="${mark.thread.id}">`
+                            : `<mark data-comment="${mark.thread.id}">`,
+                    });
+
+                    children.push({
+                        type: "html",
+                        value: options.withCommentTagHtml ? "</comment>" : "</mark>",
+                    });
+                }
+            }
+
+            yield {type: "paragraph", children};
             break;
         }
         case "FileGallery": {
@@ -452,15 +501,23 @@ function* printApiContentBlockElementToMarkdown(
                 }
 
                 for (let i = 0; i < row.items.length; i++) {
-                    const item = assertExists(row.items[i]);
+                    const item = row.items[i]!;
                     const widthPercent = assertExists(widthPercents[i]);
 
-                    lines.push(
-                        printApiContentFileOrPreviewBlockElementToMarkdown(
-                            item.element,
-                            `flex: 0 0 ${widthPercent}%`,
-                        ),
+                    let html = printApiContentFileOrPreviewBlockElementToMarkdown(
+                        item.element,
+                        `flex: 0 0 ${widthPercent}%`,
                     );
+
+                    if (item.element.marks) {
+                        for (const mark of reverseIterable(item.element.marks)) {
+                            html = options.withCommentTagHtml
+                                ? `<comment id="${mark.thread.id}">${html}</comment>`
+                                : `<mark data-comment="${mark.thread.id}">${html}</mark>`;
+                        }
+                    }
+
+                    lines.push(html);
                 }
                 lines.push(`</div>`);
                 yield {type: "html", value: lines.join("\n"), data: {fileGalleryElementRow: row}};
@@ -1175,9 +1232,7 @@ function* printApiContentInlineElementToMarkdown(
     switch (element.type) {
         case "Text": {
             let hasCodeMark = false;
-            let marks:
-                | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
-                | undefined;
+            let marks: Array<Exclude<ApiContentInlineElementMark, ApiContentCodeMark>> | undefined;
 
             const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
@@ -1227,9 +1282,7 @@ function* printApiContentInlineElementToMarkdown(
         }
         case "Break": {
             let hasCodeMark = false;
-            let marks:
-                | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
-                | undefined;
+            let marks: Array<Exclude<ApiContentInlineElementMark, ApiContentCodeMark>> | undefined;
 
             const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
@@ -1264,10 +1317,8 @@ function* printApiContentInlineElementToMarkdown(
         }
         case "Mention": {
             let hasCodeMark = false;
-            let linkMark: ApiContentInlineElementLinkMark | undefined;
-            let marks:
-                | Array<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
-                | undefined;
+            let linkMark: ApiContentLinkMark | undefined;
+            let marks: Array<Exclude<ApiContentInlineElementMark, ApiContentCodeMark>> | undefined;
 
             const actualMarks = normalizeApiContentInlineElementMarks(element.marks);
             if (actualMarks !== undefined) {
@@ -1471,9 +1522,7 @@ function isWebSafeVideoContentType(contentType: string): boolean {
 }
 
 function* printApiContentInlineElementMarksToMarkdown(
-    marks:
-        | ReadonlyArray<Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>>
-        | undefined,
+    marks: ReadonlyArray<Exclude<ApiContentInlineElementMark, ApiContentCodeMark>> | undefined,
     content: PhrasingContent | Array<PhrasingContent>,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<PhrasingContent> {
@@ -1485,7 +1534,7 @@ function* printApiContentInlineElementMarksToMarkdown(
         return;
     }
 
-    let mentionishMark: ApiContentInlineElementLinkMark | undefined;
+    let mentionishMark: ApiContentLinkMark | undefined;
 
     for (const mark of marks) {
         if (mark.type !== "Link") continue;
@@ -1529,7 +1578,7 @@ function* printApiContentInlineElementMarksToMarkdown(
 
     function* wrappedPrintApiContentInlineElementMarkToMarkdown(
         content: Iterable<PhrasingContent>,
-        mark: Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>,
+        mark: Exclude<ApiContentInlineElementMark, ApiContentCodeMark>,
     ): IterableIterator<PhrasingContent> {
         yield* printApiContentInlineElementMarkToMarkdown(content, mark, options);
     }
@@ -1537,7 +1586,7 @@ function* printApiContentInlineElementMarksToMarkdown(
 
 function* printApiContentInlineElementMarkToMarkdown(
     content: Iterable<PhrasingContent>,
-    mark: Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>,
+    mark: Exclude<ApiContentInlineElementMark, ApiContentCodeMark>,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<PhrasingContent> {
     switch (mark.type) {
@@ -1588,9 +1637,7 @@ function* printApiContentInlineElementMarkToMarkdown(
     }
 }
 
-function printApiContentInlineElementHighlightMarkColor(
-    color: ApiContentInlineElementHighlightMarkColor,
-) {
+function printApiContentInlineElementHighlightMarkColor(color: ApiContentHighlightMarkColor) {
     switch (color) {
         case "Red":
             return "red";

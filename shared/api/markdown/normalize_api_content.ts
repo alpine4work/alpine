@@ -415,6 +415,8 @@ export class ApiContentNormalizer {
                 break;
             }
             case "File": {
+                element.marks = normalizeApiContentInlineElementMarks(element.marks);
+
                 if (!this.#response) {
                     // `contentType` and `contentLength` are response-only metadata that don't survive
                     // the markdown round trip. Strip them so that content with and without metadata
@@ -448,6 +450,8 @@ export class ApiContentNormalizer {
                 break;
             }
             case "Preview": {
+                element.marks = normalizeApiContentInlineElementMarks(element.marks);
+
                 this.normalizeReference(element.reference);
                 break;
             }

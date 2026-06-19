@@ -2999,6 +2999,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "File";
                 readonly id: components["schemas"]["FileId"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
                 readonly contentType?: components["schemas"]["FileContentType"];
                 readonly contentLength?: number;
             };
@@ -3011,6 +3012,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["FileId"];
                 readonly contentType: components["schemas"]["FileContentType"];
                 readonly contentLength: number;
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly ContentPreviewBlockElement: {
                 /**
@@ -3019,6 +3021,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Preview";
                 readonly reference: components["schemas"]["PreviewReference"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly ContentFileGalleryBlockElement: {
                 /**
@@ -3027,6 +3030,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "FileGallery";
                 readonly rows: readonly components["schemas"]["ContentFileGalleryBlockElementRow"][];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly ContentFileGalleryBlockElementRow: {
                 readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem"][];
@@ -3087,35 +3091,35 @@ export namespace ApiSpecification {
                 readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
             };
             readonly ContentInlineElementMark:
-                | components["schemas"]["ContentInlineElementBoldMark"]
-                | components["schemas"]["ContentInlineElementItalicMark"]
-                | components["schemas"]["ContentInlineElementStrikeMark"]
-                | components["schemas"]["ContentInlineElementLinkMark"]
-                | components["schemas"]["ContentInlineElementCodeMark"]
-                | components["schemas"]["ContentInlineElementHighlightMark"]
-                | components["schemas"]["ContentInlineElementCommentMark"];
-            readonly ContentInlineElementBoldMark: {
+                | components["schemas"]["ContentBoldMark"]
+                | components["schemas"]["ContentItalicMark"]
+                | components["schemas"]["ContentStrikeMark"]
+                | components["schemas"]["ContentLinkMark"]
+                | components["schemas"]["ContentCodeMark"]
+                | components["schemas"]["ContentHighlightMark"]
+                | components["schemas"]["ContentCommentMark"];
+            readonly ContentBoldMark: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Bold";
             };
-            readonly ContentInlineElementItalicMark: {
+            readonly ContentItalicMark: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Italic";
             };
-            readonly ContentInlineElementStrikeMark: {
+            readonly ContentStrikeMark: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Strike";
             };
-            readonly ContentInlineElementLinkMark: {
+            readonly ContentLinkMark: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -3123,29 +3127,24 @@ export namespace ApiSpecification {
                 readonly type: "Link";
                 readonly url: string;
             };
-            readonly ContentInlineElementCodeMark: {
+            readonly ContentCodeMark: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Code";
             };
-            readonly ContentInlineElementHighlightMark: {
+            readonly ContentHighlightMark: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
                  */
                 readonly type: "Highlight";
-                readonly color: components["schemas"]["ContentInlineElementHighlightMarkColor"];
+                readonly color: components["schemas"]["ContentHighlightMarkColor"];
             };
             /** @enum {string} */
-            readonly ContentInlineElementHighlightMarkColor:
-                | "Red"
-                | "Orange"
-                | "Green"
-                | "Blue"
-                | "Purple";
-            readonly ContentInlineElementCommentMark: {
+            readonly ContentHighlightMarkColor: "Red" | "Orange" | "Green" | "Blue" | "Purple";
+            readonly ContentCommentMark: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
                  * {string}
@@ -3162,12 +3161,12 @@ export namespace ApiSpecification {
                 readonly marks?: readonly components["schemas"]["ContentCodeBlockElementTextInlineElementMark"][];
             };
             readonly ContentCodeBlockElementTextInlineElementMark:
-                | components["schemas"]["ContentInlineElementBoldMark"]
-                | components["schemas"]["ContentInlineElementItalicMark"]
-                | components["schemas"]["ContentInlineElementStrikeMark"]
-                | components["schemas"]["ContentInlineElementLinkMark"]
-                | components["schemas"]["ContentInlineElementHighlightMark"]
-                | components["schemas"]["ContentInlineElementCommentMark"];
+                | components["schemas"]["ContentBoldMark"]
+                | components["schemas"]["ContentItalicMark"]
+                | components["schemas"]["ContentStrikeMark"]
+                | components["schemas"]["ContentLinkMark"]
+                | components["schemas"]["ContentHighlightMark"]
+                | components["schemas"]["ContentCommentMark"];
             readonly AccountWithoutSpace: {
                 readonly id: components["schemas"]["AccountId"];
                 readonly name: components["schemas"]["LabelString"];
@@ -3877,8 +3876,8 @@ export namespace ApiSpecification {
                 readonly marks?: readonly components["schemas"]["MessageContentPayloadParentContentSnippetInlineElementMark"][];
             };
             readonly MessageContentPayloadParentContentSnippetInlineElementMark:
-                | components["schemas"]["ContentInlineElementStrikeMark"]
-                | components["schemas"]["ContentInlineElementCodeMark"];
+                | components["schemas"]["ContentStrikeMark"]
+                | components["schemas"]["ContentCodeMark"];
             readonly MessageRoomReference:
                 | components["schemas"]["ChatMessageRoomReference"]
                 | components["schemas"]["DocumentThreadMessageRoomReference"]
@@ -4219,6 +4218,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Preview";
                 readonly reference: components["schemas"]["PreviewReference_Response"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly ContentFileGalleryBlockElement_Response: {
                 /**
@@ -4227,6 +4227,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "FileGallery";
                 readonly rows: readonly components["schemas"]["ContentFileGalleryBlockElementRow_Response"][];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly ContentMentionInlineElement_Response: {
                 /**

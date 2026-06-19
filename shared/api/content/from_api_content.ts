@@ -6,8 +6,8 @@ import {
     ApiContentBlockElement,
     ApiContentCheckListBlockElementItem,
     ApiContentFileBlockElement,
+    ApiContentHighlightMarkColor,
     ApiContentInlineElement,
-    ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
     ApiContentListBlockElementItem,
@@ -20,7 +20,6 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {maxContentListItemIndentation} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -289,14 +288,24 @@ function fromApiContentFileOrPreviewElement(
     element: ApiContentFileBlockElement | ApiContentPreviewBlockElement,
 ): Node {
     switch (element.type) {
-        case "File":
-            return schema.nodes.file!.create({
-                fileId: element.id === unknownFileId ? null : element.id,
-            });
-        case "Preview":
-            return schema.nodes.file!.create({
-                fileId: previewReferenceToFileEntityId(element.reference),
-            });
+        case "File": {
+            return schema.nodes.file!.create(
+                {fileId: element.id === unknownFileId ? null : element.id},
+                undefined,
+                element.marks?.map(mark =>
+                    schema.marks.comment!.create({commentThreadId: mark.thread.id}),
+                ),
+            );
+        }
+        case "Preview": {
+            return schema.nodes.file!.create(
+                {fileId: previewReferenceToFileEntityId(element.reference)},
+                undefined,
+                element.marks?.map(mark =>
+                    schema.marks.comment!.create({commentThreadId: mark.thread.id}),
+                ),
+            );
+        }
         default:
             throw exhaustive(element);
     }
@@ -449,7 +458,7 @@ function fromApiContentInlineElementMark(
 }
 
 export function fromApiContentInlineElementHighlightMarkColor(
-    color: ApiContentInlineElementHighlightMarkColor,
+    color: ApiContentHighlightMarkColor,
 ): HighlightColor {
     switch (color) {
         case "Red":

@@ -19,8 +19,9 @@ import {
 import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
+    ApiContentCommentMark,
     ApiContentFileBlockElementResponse,
-    ApiContentInlineElementHighlightMarkColor,
+    ApiContentHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
     ApiContentListBlockElementItemResponse,
@@ -767,6 +768,18 @@ function intoApiContentFileOrPreviewElement(
     fileNode: Node,
     options: ApiContentMarkdownIntoOptionsForConversion,
 ): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse {
+    const marks =
+        fileNode.marks.length > 0
+            ? fileNode.marks.map((mark): ApiContentCommentMark => {
+                  assert(mark.type.name === "comment");
+
+                  return {
+                      type: "Comment",
+                      thread: {id: mark.attrs.commentThreadId},
+                  };
+              })
+            : undefined;
+
     const fileId: string | null = fileNode.attrs.fileId;
     if (fileId === null) {
         return {
@@ -774,6 +787,7 @@ function intoApiContentFileOrPreviewElement(
             id: unknownFileId,
             contentType: "application/octet-stream",
             contentLength: 0,
+            marks,
         };
     }
 
@@ -851,7 +865,11 @@ function intoApiContentFileOrPreviewElement(
                 throw exhaustive(entityIdObject);
         }
 
-        return {type: "Preview", reference};
+        return {
+            type: "Preview",
+            reference,
+            marks,
+        };
     }
 
     assert(isId<FileId>(fileId));
@@ -861,6 +879,7 @@ function intoApiContentFileOrPreviewElement(
         id: fileId,
         contentType: file?.contentType ?? "application/octet-stream",
         contentLength: file?.contentLength ?? 0,
+        marks,
     };
 }
 
@@ -1074,7 +1093,7 @@ function intoApiContentSnippetInlineElementMark(
 
 export function intoApiContentInlineElementHighlightMarkColor(
     color: HighlightColor,
-): ApiContentInlineElementHighlightMarkColor {
+): ApiContentHighlightMarkColor {
     switch (color) {
         case HighlightColor.Red:
             return "Red";

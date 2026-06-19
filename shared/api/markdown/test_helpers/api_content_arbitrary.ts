@@ -20,16 +20,16 @@ import {
     ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
+    ApiContentCommentMark,
     ApiContentDividerBlockElement,
     ApiContentFileBlockElementResponse,
     ApiContentFileFloatBlockElementResponse,
     ApiContentFileGalleryBlockElementResponse,
     ApiContentHeadingBlockElementResponse,
-    ApiContentInlineElementCommentMark,
-    ApiContentInlineElementHighlightMark,
-    ApiContentInlineElementLinkMark,
+    ApiContentHighlightMark,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
+    ApiContentLinkMark,
     ApiContentListBlockElementItemResponse,
     ApiContentListBlockElementResponse,
     ApiContentMentionInlineElementResponse,
@@ -171,56 +171,53 @@ export const ApiMentionReferenceArbitrary = createUnionArbitrary<ApiMentionRefer
     Account: ApiAccountReferenceArbitrary,
 });
 
-const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElementLinkMark> =
-    fc.record({
-        type: fc.constant("Link"),
-        url: fc.oneof(
-            {weight: 50, arbitrary: fc.webUrl()},
-            {weight: 1, arbitrary: fc.string({unit: "grapheme"})},
+const ApiContentLinkMarkArbitrary: Arbitrary<ApiContentLinkMark> = fc.record({
+    type: fc.constant("Link"),
+    url: fc.oneof(
+        {weight: 50, arbitrary: fc.webUrl()},
+        {weight: 1, arbitrary: fc.string({unit: "grapheme"})},
 
-            // We have special handling for link marks that look like mentions so they're not
-            // parsed as mention nodes. Make sure we generate mention-looking URLs.
-            {
-                weight: 1,
-                arbitrary: fc
-                    .tuple(ApiMentionReferenceArbitrary, fc.boolean())
-                    .map(([referencePathObject, isAccountShortName]) =>
-                        printApiMentionReferenceToMentionUrl(referencePathObject, {
-                            isAccountShortName,
-                        }),
-                    ),
-            },
-        ),
-    });
+        // We have special handling for link marks that look like mentions so they're not
+        // parsed as mention nodes. Make sure we generate mention-looking URLs.
+        {
+            weight: 1,
+            arbitrary: fc
+                .tuple(ApiMentionReferenceArbitrary, fc.boolean())
+                .map(([referencePathObject, isAccountShortName]) =>
+                    printApiMentionReferenceToMentionUrl(referencePathObject, {
+                        isAccountShortName,
+                    }),
+                ),
+        },
+    ),
+});
 
-const ApiContentInlineElementHighlightMarkArbitrary: Arbitrary<ApiContentInlineElementHighlightMark> =
-    fc.record({
-        type: fc.constant("Highlight"),
-        color: fc.oneof(
-            fc.constant("Red"),
-            fc.constant("Orange"),
-            fc.constant("Green"),
-            fc.constant("Blue"),
-            fc.constant("Purple"),
-        ),
-    });
+const ApiContentHighlightMarkArbitrary: Arbitrary<ApiContentHighlightMark> = fc.record({
+    type: fc.constant("Highlight"),
+    color: fc.oneof(
+        fc.constant("Red"),
+        fc.constant("Orange"),
+        fc.constant("Green"),
+        fc.constant("Blue"),
+        fc.constant("Purple"),
+    ),
+});
 
-const ApiContentInlineElementCommentMarkArbitrary: Arbitrary<ApiContentInlineElementCommentMark> =
-    fc.record({
-        type: fc.constant("Comment"),
-        thread: fc.record({
-            id: createIdArbitrary<DocumentCommentThreadId>(),
-        }),
-    });
+const ApiContentCommentMarkArbitrary: Arbitrary<ApiContentCommentMark> = fc.record({
+    type: fc.constant("Comment"),
+    thread: fc.record({
+        id: createIdArbitrary<DocumentCommentThreadId>(),
+    }),
+});
 
 const ApiContentInlineElementMarkArbitrary = createUnionArbitrary<ApiContentInlineElementMark>({
     Bold: fc.constant({type: "Bold"}),
     Italic: fc.constant({type: "Italic"}),
     Strike: fc.constant({type: "Strike"}),
     Code: fc.constant({type: "Code"}),
-    Link: ApiContentInlineElementLinkMarkArbitrary,
-    Highlight: ApiContentInlineElementHighlightMarkArbitrary,
-    Comment: ApiContentInlineElementCommentMarkArbitrary,
+    Link: ApiContentLinkMarkArbitrary,
+    Highlight: ApiContentHighlightMarkArbitrary,
+    Comment: ApiContentCommentMarkArbitrary,
 });
 
 const ApiContentTextInlineElementArbitrary: Arbitrary<ApiContentTextInlineElement> = fc.record({
@@ -261,6 +258,10 @@ const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementR
             fc.constant("application/octet-stream"),
         ),
         contentLength: fc.integer({min: 0}),
+        marks: fc.oneof(
+            {arbitrary: fc.constant([]), weight: 20},
+            fc.array(ApiContentCommentMarkArbitrary, {maxLength: 3}),
+        ),
     });
 
 const ApiPreviewReferenceArbitrary = createUnionArbitrary<ApiPreviewReferenceResponse>(
@@ -271,6 +272,10 @@ const ApiContentPreviewBlockElementArbitrary: Arbitrary<ApiContentPreviewBlockEl
     fc.record({
         type: fc.constant("Preview"),
         reference: ApiPreviewReferenceArbitrary,
+        marks: fc.oneof(
+            {arbitrary: fc.constant([]), weight: 20},
+            fc.array(ApiContentCommentMarkArbitrary, {maxLength: 3}),
+        ),
     });
 
 const ApiContentFileGalleryBlockElementArbitrary: Arbitrary<ApiContentFileGalleryBlockElementResponse> =
@@ -518,9 +523,9 @@ const ApiContentCodeBlockElementTextInlineElementMarkArbitrary =
         Bold: fc.constant({type: "Bold"}),
         Italic: fc.constant({type: "Italic"}),
         Strike: fc.constant({type: "Strike"}),
-        Link: ApiContentInlineElementLinkMarkArbitrary,
-        Highlight: ApiContentInlineElementHighlightMarkArbitrary,
-        Comment: ApiContentInlineElementCommentMarkArbitrary,
+        Link: ApiContentLinkMarkArbitrary,
+        Highlight: ApiContentHighlightMarkArbitrary,
+        Comment: ApiContentCommentMarkArbitrary,
     });
 
 const ApiContentCodeBlockElementTextInlineElementArbitrary: Arbitrary<ApiContentCodeBlockElementTextInlineElement> =

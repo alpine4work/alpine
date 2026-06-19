@@ -202,20 +202,17 @@ export type ApiContentMentionInlineElementResponse =
 export type ApiContentInlineElementMark =
     ApiSpecification.components["schemas"]["ContentInlineElementMark"];
 
-export type ApiContentInlineElementCodeMark =
-    ApiSpecification.components["schemas"]["ContentInlineElementCodeMark"];
+export type ApiContentCodeMark = ApiSpecification.components["schemas"]["ContentCodeMark"];
 
-export type ApiContentInlineElementLinkMark =
-    ApiSpecification.components["schemas"]["ContentInlineElementLinkMark"];
+export type ApiContentLinkMark = ApiSpecification.components["schemas"]["ContentLinkMark"];
 
-export type ApiContentInlineElementHighlightMark =
-    ApiSpecification.components["schemas"]["ContentInlineElementHighlightMark"];
+export type ApiContentHighlightMark =
+    ApiSpecification.components["schemas"]["ContentHighlightMark"];
 
-export type ApiContentInlineElementHighlightMarkColor =
-    ApiSpecification.components["schemas"]["ContentInlineElementHighlightMarkColor"];
+export type ApiContentHighlightMarkColor =
+    ApiSpecification.components["schemas"]["ContentHighlightMarkColor"];
 
-export type ApiContentInlineElementCommentMark =
-    ApiSpecification.components["schemas"]["ContentInlineElementCommentMark"];
+export type ApiContentCommentMark = ApiSpecification.components["schemas"]["ContentCommentMark"];
 
 export type ApiAccount = ApiSpecification.components["schemas"]["Account"];
 

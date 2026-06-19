@@ -7,7 +7,12 @@ import {
 } from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {
+    ChannelId,
+    DocumentCommentThreadId,
+    DocumentId,
+    FileId,
+} from "~/shared/id/types/id_types.js";
 
 // Inline HTML elements tests
 test("inline HTML <strong> tag", () => {
@@ -1804,7 +1809,7 @@ test("link with invalid mention ID", () => {
 });
 
 // GFM table with span attributes
-test("GFM table with span data-width", () => {
+test("GFM table with span data-width isn't supported anymore", () => {
     expect(
         parseApiContentFromMarkdown(
             `| Col 1 | Col 2 |
@@ -1815,7 +1820,7 @@ test("GFM table with span data-width", () => {
         elements: [
             {
                 type: "Table",
-                width: 2.5,
+                width: 1,
                 columns: [{width: 1}, {width: 1}],
                 hasHeaderRow: true,
                 rows: [
@@ -1853,7 +1858,7 @@ test("GFM table with span data-width", () => {
     });
 });
 
-test("GFM table with span data-column-widths", () => {
+test("GFM table with span data-column-widths isn't supported anymore", () => {
     expect(
         parseApiContentFromMarkdown(
             `| A | B | C |
@@ -1865,7 +1870,7 @@ test("GFM table with span data-column-widths", () => {
             {
                 type: "Table",
                 width: 1,
-                columns: [{width: 2}, {width: 1}, {width: 3}],
+                columns: [{width: 1}, {width: 1}, {width: 1}],
                 hasHeaderRow: true,
                 rows: [
                     {
@@ -3620,7 +3625,7 @@ describe("inline HTML media elements", () => {
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: "Here is a video: "}],
+                    elements: [{type: "Text", text: "Here is a video:"}],
                 },
                 {type: "File", id: fileId},
             ],
@@ -3635,7 +3640,7 @@ describe("inline HTML media elements", () => {
                 {type: "File", id: fileId},
                 {
                     type: "Paragraph",
-                    elements: [{type: "Text", text: " and some text"}],
+                    elements: [{type: "Text", text: "and some text"}],
                 },
             ],
         });
@@ -3941,6 +3946,7 @@ test("link to document preview URL parses as Preview", () => {
 
 test("link to channel preview URL parses as Preview", () => {
     const channelId = generateId<ChannelId>();
+
     expect(
         parseApiContentFromMarkdown(`[General](https://alpine.inc/channel/${channelId}/preview)`),
     ).toEqual({
@@ -3948,6 +3954,52 @@ test("link to channel preview URL parses as Preview", () => {
             {
                 type: "Preview",
                 reference: {type: "Channel", id: channelId},
+            },
+        ],
+    });
+});
+
+test("link to channel preview URL with comment mark parses as Preview", () => {
+    const channelId = generateId<ChannelId>();
+    const threadId = generateId<DocumentCommentThreadId>();
+
+    expect(
+        parseApiContentFromMarkdown(
+            `<mark data-comment="${threadId}">[General](https://alpine.inc/channel/${channelId}/preview)</mark>`,
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Preview",
+                reference: {type: "Channel", id: channelId},
+                marks: [{type: "Comment", thread: {id: threadId}}],
+            },
+        ],
+    });
+});
+
+test("link to channel preview URL with comment marks parses as Preview", () => {
+    const channelId = generateId<ChannelId>();
+
+    const [threadId1, threadId2] = (() => {
+        const threadAId = generateId<DocumentCommentThreadId>();
+        const threadBId = generateId<DocumentCommentThreadId>();
+        return threadAId < threadBId ? [threadAId, threadBId] : [threadBId, threadAId];
+    })();
+
+    expect(
+        parseApiContentFromMarkdown(
+            `<mark data-comment="${threadId1}"><mark data-comment="${threadId2}">[General](https://alpine.inc/channel/${channelId}/preview)</mark></mark>`,
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Preview",
+                reference: {type: "Channel", id: channelId},
+                marks: [
+                    {type: "Comment", thread: {id: threadId1}},
+                    {type: "Comment", thread: {id: threadId2}},
+                ],
             },
         ],
     });

@@ -1339,8 +1339,12 @@ test("converts account mention into API content", () => {
                     {type: "Text", text: "Hello "},
                     {
                         type: "Mention",
-                        reference: {type: "Account", id: accountId},
-                        title: "Unknown",
+                        reference: {
+                            type: "Account",
+                            id: accountId,
+                            title: "Unknown",
+                            shortName: "Unknown",
+                        },
                         isAccountShortName: false,
                     },
                     {type: "Text", text: "!"},
@@ -1366,8 +1370,12 @@ test("converts account mention with short name into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        reference: {type: "Account", id: accountId},
-                        title: "Unknown",
+                        reference: {
+                            type: "Account",
+                            id: accountId,
+                            title: "Unknown",
+                            shortName: "Unknown",
+                        },
                         isAccountShortName: true,
                     },
                 ],
@@ -1392,8 +1400,7 @@ test("converts document mention into API content", () => {
                     {type: "Text", text: "See "},
                     {
                         type: "Mention",
-                        reference: {type: "Document", id: documentId},
-                        title: "Unknown document",
+                        reference: {type: "Document", id: documentId, title: "Unknown document"},
                     },
                 ],
             },
@@ -1416,8 +1423,7 @@ test("converts channel mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        reference: {type: "Channel", id: channelId},
-                        title: "Unknown channel",
+                        reference: {type: "Channel", id: channelId, title: "Unknown channel"},
                     },
                 ],
             },
@@ -1440,8 +1446,12 @@ test("converts task mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        reference: {type: "Task", id: taskId, status: {type: "Closed"}},
-                        title: "Unknown task",
+                        reference: {
+                            type: "Task",
+                            id: taskId,
+                            title: "Unknown task",
+                            status: {type: "Closed"},
+                        },
                     },
                 ],
             },
@@ -1464,8 +1474,11 @@ test("converts task collection mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        reference: {type: "TaskCollection", id: taskCollectionId},
-                        title: "Unknown task collection",
+                        reference: {
+                            type: "TaskCollection",
+                            id: taskCollectionId,
+                            title: "Unknown task collection",
+                        },
                     },
                 ],
             },
@@ -1488,8 +1501,7 @@ test("converts post mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        reference: {type: "Post", id: postId},
-                        title: "Unknown post",
+                        reference: {type: "Post", id: postId, title: "Unknown post"},
                     },
                 ],
             },
@@ -1652,8 +1664,12 @@ test("converts marked mention into API content", () => {
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            reference: {type: "Account", id: accountId},
-                            title: "Unknown",
+                            reference: {
+                                type: "Account",
+                                id: accountId,
+                                title: "Unknown",
+                                shortName: "Unknown",
+                            },
                             isAccountShortName: false,
                             marks: [{type: "Bold"}, {type: "Italic"}],
                         },
@@ -4222,10 +4238,6 @@ describe("file block elements", () => {
         expect(intoApiContent(node, fileOptions)).toEqual(content);
     }
 
-    function testFileIntoApiContentOnly(node: Node, content: ApiContentResponseWithoutKeys) {
-        expect(intoApiContent(node, fileOptions)).toEqual(content);
-    }
-
     test("single file in a fileRow converts to File element", () => {
         testFileIntoApiContent(doc(fileRow(file({fileId: fileId1}))), {
             elements: [
@@ -4308,19 +4320,18 @@ describe("file block elements", () => {
     });
 
     test("fileRow with entity preview converts to Preview element", () => {
-        testFileIntoApiContentOnly(doc(fileRow(file({fileId: documentEntityId}))), {
+        testFileIntoApiContent(doc(fileRow(file({fileId: documentEntityId}))), {
             elements: [
                 {
                     type: "Preview",
-                    reference: {type: "Document", id: testDocumentId},
-                    title: "My Document",
+                    reference: {type: "Document", id: testDocumentId, title: "My Document"},
                 },
             ],
         });
     });
 
     test("fileFloat with entity preview converts to FileFloat with Preview", () => {
-        testFileIntoApiContentOnly(
+        testFileIntoApiContent(
             doc(fileFloat({direction: "left"}, file({fileId: channelEntityId}))),
             {
                 elements: [
@@ -4329,8 +4340,7 @@ describe("file block elements", () => {
                         side: "Left",
                         element: {
                             type: "Preview",
-                            reference: {type: "Channel", id: testChannelId},
-                            title: "General",
+                            reference: {type: "Channel", id: testChannelId, title: "General"},
                         },
                     },
                 ],
@@ -4339,7 +4349,7 @@ describe("file block elements", () => {
     });
 
     test("fileRow with mixed files and previews converts to FileGallery", () => {
-        testFileIntoApiContentOnly(
+        testFileIntoApiContent(
             doc(fileRow(file({fileId: fileId1}), file({fileId: documentEntityId}))),
             {
                 elements: [
@@ -4364,8 +4374,8 @@ describe("file block elements", () => {
                                             reference: {
                                                 type: "Document",
                                                 id: testDocumentId,
+                                                title: "My Document",
                                             },
-                                            title: "My Document",
                                         },
                                     },
                                 ],
@@ -4452,6 +4462,43 @@ describe("file block elements", () => {
                 },
             ],
         });
+    });
+
+    test("file with comments", () => {
+        const thread1 = generateId<DocumentCommentThreadId>();
+
+        testFileIntoApiContent(doc(fileRow(file({fileId: fileId1}).mark([comment(thread1)]))), {
+            elements: [
+                {
+                    type: "File",
+                    id: fileId1,
+                    contentType: "image/png",
+                    contentLength: 1024,
+                    marks: [{type: "Comment", thread: {id: thread1}}],
+                },
+            ],
+        });
+    });
+
+    test("preview with comments", () => {
+        const thread1 = generateId<DocumentCommentThreadId>();
+
+        testFileIntoApiContent(
+            doc(fileRow(file({fileId: documentEntityId}).mark([comment(thread1)]))),
+            {
+                elements: [
+                    {
+                        type: "Preview",
+                        reference: {
+                            type: "Document",
+                            id: testDocumentId,
+                            title: "My Document",
+                        },
+                        marks: [{type: "Comment", thread: {id: thread1}}],
+                    },
+                ],
+            },
+        );
     });
 
     describe("gallery row width computation", () => {

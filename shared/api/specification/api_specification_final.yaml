@@ -2848,6 +2848,10 @@ components:
                     const: File
                 id:
                     $ref: "#/components/schemas/FileId"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
                 contentType:
                     $ref: "#/components/schemas/FileContentType"
                 contentLength:
@@ -2871,6 +2875,10 @@ components:
                 contentLength:
                     type: integer
                     minimum: 0
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
         ContentPreviewBlockElement:
             type: object
             required:
@@ -2882,6 +2890,10 @@ components:
                     const: Preview
                 reference:
                     $ref: "#/components/schemas/PreviewReference"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
         ContentFileGalleryBlockElement:
             type: object
             required:
@@ -2896,6 +2908,10 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentFileGalleryBlockElementRow"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
         ContentFileGalleryBlockElementRow:
             type: object
             required:
@@ -2994,6 +3010,7 @@ components:
                 text:
                     type: string
                     minLength: 1
+                    pattern: ^[^\n\r]*$
                 marks:
                     type: array
                     items:
@@ -3029,24 +3046,24 @@ components:
                         $ref: "#/components/schemas/ContentInlineElementMark"
         ContentInlineElementMark:
             oneOf:
-                - $ref: "#/components/schemas/ContentInlineElementBoldMark"
-                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
-                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
-                - $ref: "#/components/schemas/ContentInlineElementLinkMark"
-                - $ref: "#/components/schemas/ContentInlineElementCodeMark"
-                - $ref: "#/components/schemas/ContentInlineElementHighlightMark"
-                - $ref: "#/components/schemas/ContentInlineElementCommentMark"
+                - $ref: "#/components/schemas/ContentBoldMark"
+                - $ref: "#/components/schemas/ContentItalicMark"
+                - $ref: "#/components/schemas/ContentStrikeMark"
+                - $ref: "#/components/schemas/ContentLinkMark"
+                - $ref: "#/components/schemas/ContentCodeMark"
+                - $ref: "#/components/schemas/ContentHighlightMark"
+                - $ref: "#/components/schemas/ContentCommentMark"
             discriminator:
                 propertyName: type
                 mapping:
-                    Bold: "#/components/schemas/ContentInlineElementBoldMark"
-                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
-                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
-                    Link: "#/components/schemas/ContentInlineElementLinkMark"
-                    Code: "#/components/schemas/ContentInlineElementCodeMark"
-                    Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
-                    Comment: "#/components/schemas/ContentInlineElementCommentMark"
-        ContentInlineElementBoldMark:
+                    Bold: "#/components/schemas/ContentBoldMark"
+                    Italic: "#/components/schemas/ContentItalicMark"
+                    Strike: "#/components/schemas/ContentStrikeMark"
+                    Link: "#/components/schemas/ContentLinkMark"
+                    Code: "#/components/schemas/ContentCodeMark"
+                    Highlight: "#/components/schemas/ContentHighlightMark"
+                    Comment: "#/components/schemas/ContentCommentMark"
+        ContentBoldMark:
             type: object
             required:
                 - type
@@ -3054,7 +3071,7 @@ components:
             properties:
                 type:
                     const: Bold
-        ContentInlineElementItalicMark:
+        ContentItalicMark:
             type: object
             required:
                 - type
@@ -3062,7 +3079,7 @@ components:
             properties:
                 type:
                     const: Italic
-        ContentInlineElementStrikeMark:
+        ContentStrikeMark:
             type: object
             required:
                 - type
@@ -3070,7 +3087,7 @@ components:
             properties:
                 type:
                     const: Strike
-        ContentInlineElementLinkMark:
+        ContentLinkMark:
             type: object
             required:
                 - type
@@ -3081,7 +3098,7 @@ components:
                     const: Link
                 url:
                     type: string
-        ContentInlineElementCodeMark:
+        ContentCodeMark:
             type: object
             required:
                 - type
@@ -3089,7 +3106,7 @@ components:
             properties:
                 type:
                     const: Code
-        ContentInlineElementHighlightMark:
+        ContentHighlightMark:
             type: object
             required:
                 - type
@@ -3099,8 +3116,8 @@ components:
                 type:
                     const: Highlight
                 color:
-                    $ref: "#/components/schemas/ContentInlineElementHighlightMarkColor"
-        ContentInlineElementHighlightMarkColor:
+                    $ref: "#/components/schemas/ContentHighlightMarkColor"
+        ContentHighlightMarkColor:
             type: string
             enum:
                 - Red
@@ -3108,7 +3125,7 @@ components:
                 - Green
                 - Blue
                 - Purple
-        ContentInlineElementCommentMark:
+        ContentCommentMark:
             type: object
             required:
                 - type
@@ -3144,21 +3161,21 @@ components:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElementMark"
         ContentCodeBlockElementTextInlineElementMark:
             oneOf:
-                - $ref: "#/components/schemas/ContentInlineElementBoldMark"
-                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
-                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
-                - $ref: "#/components/schemas/ContentInlineElementLinkMark"
-                - $ref: "#/components/schemas/ContentInlineElementHighlightMark"
-                - $ref: "#/components/schemas/ContentInlineElementCommentMark"
+                - $ref: "#/components/schemas/ContentBoldMark"
+                - $ref: "#/components/schemas/ContentItalicMark"
+                - $ref: "#/components/schemas/ContentStrikeMark"
+                - $ref: "#/components/schemas/ContentLinkMark"
+                - $ref: "#/components/schemas/ContentHighlightMark"
+                - $ref: "#/components/schemas/ContentCommentMark"
             discriminator:
                 propertyName: type
                 mapping:
-                    Bold: "#/components/schemas/ContentInlineElementBoldMark"
-                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
-                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
-                    Link: "#/components/schemas/ContentInlineElementLinkMark"
-                    Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
-                    Comment: "#/components/schemas/ContentInlineElementCommentMark"
+                    Bold: "#/components/schemas/ContentBoldMark"
+                    Italic: "#/components/schemas/ContentItalicMark"
+                    Strike: "#/components/schemas/ContentStrikeMark"
+                    Link: "#/components/schemas/ContentLinkMark"
+                    Highlight: "#/components/schemas/ContentHighlightMark"
+                    Comment: "#/components/schemas/ContentCommentMark"
         AccountWithoutSpace:
             type: object
             required:
@@ -4783,13 +4800,13 @@ components:
                             entMark"
         MessageContentPayloadParentContentSnippetInlineElementMark:
             oneOf:
-                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
-                - $ref: "#/components/schemas/ContentInlineElementCodeMark"
+                - $ref: "#/components/schemas/ContentStrikeMark"
+                - $ref: "#/components/schemas/ContentCodeMark"
             discriminator:
                 propertyName: type
                 mapping:
-                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
-                    Code: "#/components/schemas/ContentInlineElementCodeMark"
+                    Strike: "#/components/schemas/ContentStrikeMark"
+                    Code: "#/components/schemas/ContentCodeMark"
         MessageRoomReference:
             oneOf:
                 - $ref: "#/components/schemas/ChatMessageRoomReference"
@@ -5476,6 +5493,10 @@ components:
                     const: Preview
                 reference:
                     $ref: "#/components/schemas/PreviewReference_Response"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
         ContentFileGalleryBlockElement_Response:
             type: object
             required:
@@ -5490,6 +5511,10 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentFileGalleryBlockElementRow_Response"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
         ContentMentionInlineElement_Response:
             type: object
             required:
