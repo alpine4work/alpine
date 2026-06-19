@@ -184,7 +184,8 @@ export function FeedView({
                     sideBarLeftSize &&
                     sideBarRightSize && (
                         <Box
-                            zIndex="10"
+                            pointerEvents="none"
+                            zIndex="40"
                             position="sticky"
                             top="0"
                             width="full"
