@@ -325,9 +325,14 @@ export function ContentEditorMentionFloater({
             const isShortNameAmbiguous = allAccountsFuse
                 ? allAccountsFuse
                       .search(getAccountShortNameWithoutFullNameTooltip(accountData))
-                      .filter(result => typeof result.score !== "number" || result.score < 0.25)
-                      .length > 1
+                      .filter(
+                          result =>
+                              !result.item.botId &&
+                              (typeof result.score !== "number" || result.score < 0.25),
+                      ).length > 1
                 : true;
+
+            const isBot = !!accountData.botId;
 
             const mention: ContentMention = {
                 type: "Account",
@@ -335,7 +340,7 @@ export function ContentEditorMentionFloater({
                 // Only use short name for a non-ambiguous name on desktop. Since on mobile the
                 // quick undo capability doesn't really exist. Instead the user may tap delete to
                 // get a short name.
-                isShort: platform !== "mobile" && !isShortNameAmbiguous,
+                isShort: !isBot && platform !== "mobile" && !isShortNameAmbiguous,
             };
 
             let transaction = updateContentEditorReferences(
