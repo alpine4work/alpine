@@ -27,6 +27,7 @@ const https = require("https");
 process.title = `node ${path.basename(__filename)}`;
 
 const keepAliveAgent = new https.Agent({keepAlive: true});
+const upstreamResponseBodySampleMaxBytes = 4096;
 let nextRequestId = 0;
 let summaryLogged = false;
 const stats = {
@@ -314,6 +315,53 @@ async function main() {
 
             req2.on("response", res2 => {
                 upstreamStatusCode = res2.statusCode;
+                let unexpectedUpstreamResponse = false;
+                const upstreamResponseBodySampleChunks = [];
+                let upstreamResponseBodySampleBytes = 0;
+
+                function appendUpstreamResponseBodySample(chunk) {
+                    if (!unexpectedUpstreamResponse) return;
+                    if (upstreamResponseBodySampleBytes >= upstreamResponseBodySampleMaxBytes) {
+                        return;
+                    }
+
+                    const chunkBuffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+                    const remainingBytes =
+                        upstreamResponseBodySampleMaxBytes - upstreamResponseBodySampleBytes;
+                    const sampleChunk =
+                        chunkBuffer.length > remainingBytes
+                            ? chunkBuffer.slice(0, remainingBytes)
+                            : chunkBuffer;
+
+                    upstreamResponseBodySampleChunks.push(sampleChunk);
+                    upstreamResponseBodySampleBytes += sampleChunk.length;
+                }
+
+                function upstreamResponseBodySample() {
+                    if (upstreamResponseBodySampleBytes === 0) return undefined;
+
+                    return Buffer.concat(
+                        upstreamResponseBodySampleChunks,
+                        upstreamResponseBodySampleBytes,
+                    ).toString("utf8");
+                }
+
+                function upstreamResponseLogDetails(details) {
+                    return Object.assign(
+                        {
+                            statusCode: res2.statusCode,
+                            s3RequestId: res2.headers["x-amz-request-id"],
+                            s3ExtendedRequestId: res2.headers["x-amz-id-2"],
+                            upstreamContentLength: res2.headers["content-length"],
+                            upstreamContentType: res2.headers["content-type"],
+                            upstreamResponseBodySample: upstreamResponseBodySample(),
+                            upstreamResponseBodySampleBytes,
+                        },
+                        requestLogDetails(),
+                        details || {},
+                    );
+                }
+
                 if (
                     res2.statusCode >= 500 ||
                     res2.statusCode === 401 ||
@@ -322,37 +370,36 @@ async function main() {
                 ) {
                     stats.unexpectedResponses += 1;
                     incrementUnexpectedResponseStatus(res2.statusCode);
-                    log("warn", "Remote cache upstream response returned unexpected status", {
-                        statusCode: res2.statusCode,
-                        s3RequestId: res2.headers["x-amz-request-id"],
-                        s3ExtendedRequestId: res2.headers["x-amz-id-2"],
-                        ...requestLogDetails(),
-                    });
+                    unexpectedUpstreamResponse = true;
                 }
 
                 res2.on("data", chunk => {
                     upstreamResponseBytes += chunk.length;
+                    appendUpstreamResponseBodySample(chunk);
                 });
 
                 res2.on("end", () => {
                     upstreamResponseComplete = true;
+                    if (unexpectedUpstreamResponse) {
+                        log(
+                            "warn",
+                            "Remote cache upstream response returned unexpected status",
+                            upstreamResponseLogDetails({responseComplete: true}),
+                        );
+                    }
                 });
 
                 res2.on("aborted", () => {
                     stats.upstreamResponseAborts += 1;
                     log("warn", "Remote cache upstream response was aborted", {
-                        ...requestLogDetails(),
-                        s3RequestId: res2.headers["x-amz-request-id"],
-                        s3ExtendedRequestId: res2.headers["x-amz-id-2"],
+                        ...upstreamResponseLogDetails(),
                     });
                 });
 
                 res2.on("error", error => {
                     stats.upstreamResponseErrors += 1;
                     logError("Remote cache upstream response stream failed", error, {
-                        ...requestLogDetails(),
-                        s3RequestId: res2.headers["x-amz-request-id"],
-                        s3ExtendedRequestId: res2.headers["x-amz-id-2"],
+                        ...upstreamResponseLogDetails(),
                     });
 
                     if (!res1.writableEnded) res1.destroy(error);
@@ -363,9 +410,7 @@ async function main() {
 
                     stats.upstreamResponseIncompleteCloses += 1;
                     log("warn", "Remote cache upstream response closed before completion", {
-                        ...requestLogDetails(),
-                        s3RequestId: res2.headers["x-amz-request-id"],
-                        s3ExtendedRequestId: res2.headers["x-amz-id-2"],
+                        ...upstreamResponseLogDetails(),
                         responseComplete: res2.complete,
                     });
                 });
