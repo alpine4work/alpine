@@ -415,7 +415,9 @@ export class ApiContentNormalizer {
                 break;
             }
             case "File": {
-                element.marks = normalizeApiContentInlineElementMarks(element.marks);
+                const marks = normalizeApiContentInlineElementMarks(element.marks);
+                if (marks !== undefined) element.marks = marks;
+                else delete element.marks;
 
                 if (!this.#response) {
                     // `contentType` and `contentLength` are response-only metadata that don't survive
@@ -434,7 +436,7 @@ export class ApiContentNormalizer {
                     // the file is referenced (this matches the behavior of
                     // `printApiContentToAgentWebMarkdown()` which ends up with the last seen response
                     // data in storage.)
-                    const actualElement = element as ApiContentFileBlockElementResponse;
+                    const actualElement = element as Draft<ApiContentFileBlockElementResponse>;
 
                     const otherFileElements = this.#response.fileElementsById.getOrSetDefault(
                         actualElement.id,
@@ -450,7 +452,9 @@ export class ApiContentNormalizer {
                 break;
             }
             case "Preview": {
-                element.marks = normalizeApiContentInlineElementMarks(element.marks);
+                const marks = normalizeApiContentInlineElementMarks(element.marks);
+                if (marks !== undefined) element.marks = marks;
+                else delete element.marks;
 
                 this.normalizeReference(element.reference);
                 break;
@@ -523,8 +527,10 @@ export class ApiContentNormalizer {
             }
 
             const normalizedMarks = normalizeApiContentInlineElementMarks(element.marks);
-            if (!isDeepEqual(normalizedMarks, element.marks))
-                element.marks = castDraft(normalizedMarks);
+            if (!isDeepEqual(normalizedMarks, element.marks)) {
+                if (normalizedMarks !== undefined) element.marks = normalizedMarks;
+                else delete element.marks;
+            }
 
             // Merge any adjacent text elements with the same marks.
             if (

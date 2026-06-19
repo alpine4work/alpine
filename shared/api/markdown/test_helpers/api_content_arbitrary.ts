@@ -649,6 +649,14 @@ export const ApiContentWithoutCommentMarkArbitrary: Arbitrary<ApiContentResponse
                         element.marks = element.marks.filter(mark => mark.type !== "Comment");
                     }
                 },
+                visitBlockElement: element => {
+                    if (
+                        "marks" in element &&
+                        element.marks?.some(mark => mark.type === "Comment")
+                    ) {
+                        element.marks = element.marks.filter(mark => mark.type !== "Comment");
+                    }
+                },
             });
         });
     });

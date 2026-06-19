@@ -6,8 +6,8 @@ import {
 } from "~/shared/api/content/api_content_key_encoder.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
+import {findApiContentRanges} from "~/shared/api/markdown/find_api_content_ranges.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
-import {findApiContentRanges} from "~/shared/api/specification/find_api_content_ranges.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";

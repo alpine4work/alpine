@@ -412,6 +412,7 @@ function* iterateApiContentBlockElement(
             break;
         }
         default:
+            // @ts-expect-error: NOCOMMIT
             throw exhaustive(element);
     }
 }
