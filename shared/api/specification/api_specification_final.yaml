@@ -165,7 +165,7 @@ paths:
                       type: integer
                       minimum: 1
                       maximum: 100
-                      default: 20
+                      default: 10
                 - name: cursor
                   in: query
                   schema:
@@ -835,6 +835,50 @@ paths:
                                         $ref: "#/components/schemas/SpaceId"
                                     channel:
                                         $ref: "#/components/schemas/Channel_Response"
+                default:
+                    $ref: "#/components/responses/Error"
+    /channels/{id}/posts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/ChannelId"
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      $ref: "#/components/schemas/DateTime"
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - nextCursor
+                                    - posts
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    nextCursor:
+                                        oneOf:
+                                            - $ref: "#/components/schemas/DateTime"
+                                            - type: "null"
+                                    posts:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/PostPreview"
                 default:
                     $ref: "#/components/responses/Error"
     /channels/{id}/mention:
@@ -1658,8 +1702,8 @@ paths:
                                 type: object
                                 required:
                                     - spaceId
-                                    - tasks
                                     - nextCursor
+                                    - tasks
                                 additionalProperties: false
                                 properties:
                                     spaceId:
@@ -3812,17 +3856,20 @@ components:
             required:
                 - id
                 - author
-                - contentPreview
+                - createdTime
+                - createdTimeZone
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/PostId"
                 author:
                     $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
-                contentPreview:
-                    type: string
         Task:
             type: object
             required:

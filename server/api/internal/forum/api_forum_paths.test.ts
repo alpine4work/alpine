@@ -223,6 +223,128 @@ describe("/channels/{id}/mention", () => {
     });
 });
 
+describe("/channels/{id}/posts", () => {
+    test("can read channel post previews with pagination", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Post Author", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel",
+            access: "Public",
+        });
+        const post1 = await channel.createPost(session, "First post content.");
+        const post2 = await channel.createPost(session, "Second post content.");
+        const post3 = await channel.createPost(session, "Third post content.");
+
+        const firstResponse = await server.GET(`/channels/${channel.id}/posts?limit=2`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(firstResponse).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                posts: [
+                    {
+                        id: post3.id,
+                        author: expect.objectContaining({
+                            id: session.account.id,
+                            name: "Post Author",
+                        }),
+                        createdTime: expect.any(String),
+                        createdTimeZone: defaultTimeZone,
+                        channel: {
+                            id: channel.id,
+                            name: "Test Channel",
+                        },
+                    },
+                    {
+                        id: post2.id,
+                        author: expect.objectContaining({
+                            id: session.account.id,
+                            name: "Post Author",
+                        }),
+                        createdTime: expect.any(String),
+                        createdTimeZone: defaultTimeZone,
+                        channel: {
+                            id: channel.id,
+                            name: "Test Channel",
+                        },
+                    },
+                ],
+                nextCursor: expect.any(String),
+            },
+        });
+
+        expect(firstResponse.body.posts[0]).not.toHaveProperty("content");
+        const firstPageLastPost = firstResponse.body.posts[1];
+        assert(firstPageLastPost !== undefined);
+        expect(firstResponse.body.nextCursor).toBe(firstPageLastPost.createdTime);
+
+        const nextCursor = firstResponse.body.nextCursor;
+        assert(nextCursor !== null);
+
+        const secondResponse = await server.GET(
+            `/channels/${channel.id}/posts?limit=2&cursor=${encodeURIComponent(nextCursor)}`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        );
+
+        expect(secondResponse).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                posts: [
+                    {
+                        id: post1.id,
+                        author: expect.objectContaining({
+                            id: session.account.id,
+                            name: "Post Author",
+                        }),
+                        createdTime: expect.any(String),
+                        createdTimeZone: defaultTimeZone,
+                        channel: {
+                            id: channel.id,
+                            name: "Test Channel",
+                        },
+                    },
+                ],
+                nextCursor: null,
+            },
+        });
+    });
+
+    test("can\u2019t read channel post previews without access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const channel = await TestChannel.create(session2, {access: "Private"});
+        await channel.createPost(session2, "Private post content");
+
+        expect(
+            await server.GET(`/channels/${channel.id}/posts`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 403,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("You aren\u2019t allowed"),
+                }),
+            },
+        });
+    });
+});
+
 test("can read post information", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Post Author", role: "Admin"});

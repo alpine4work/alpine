@@ -15,6 +15,7 @@ import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target
 import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
+import {getChannelPostContents} from "~/server/forum/data/get_channel_posts.js";
 import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
 import {
     completePostCommentStream,
@@ -39,7 +40,7 @@ import {
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId, isId} from "~/shared/id/id.js";
@@ -74,6 +75,51 @@ export const apiForumPaths: Pick<
                             }),
                         }),
                     },
+                },
+            };
+        },
+    },
+
+    "/channels/{id}/posts": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const postsResult = await getChannelPostContents(context, {
+                consistency: "StrongWithinCache",
+                channelId: pathParameters.id,
+                limit: queryParameters.limit ?? 10,
+                beforeCreatedTime:
+                    queryParameters.cursor !== undefined
+                        ? deserializeDateString(queryParameters.cursor)
+                        : null,
+            });
+
+            const lastPost = postsResult.posts[postsResult.posts.length - 1];
+
+            const nextCursor =
+                postsResult.hasNextPage && lastPost
+                    ? serializeDateString(lastPost.createdTime)
+                    : null;
+
+            return {
+                content: {
+                    spaceId: postsResult.spaceId,
+                    nextCursor,
+                    posts: await runAllPromises(
+                        postsResult.posts.map(async post => ({
+                            id: post.postId,
+                            author: await getApiAccount(
+                                context,
+                                postsResult.spaceId,
+                                post.authorId,
+                                {consistency: "StrongWithinCache"},
+                            ),
+                            createdTime: serializeDateString(post.createdTime),
+                            createdTimeZone: post.createdTimeZone,
+                            channel: {
+                                id: pathParameters.id,
+                                name: postsResult.channelName,
+                            },
+                        })),
+                    ),
                 },
             };
         },

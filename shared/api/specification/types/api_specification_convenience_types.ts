@@ -206,6 +206,8 @@ export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message
 
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
 
+export type ApiPostPreview = ApiSpecification.components["schemas"]["PostPreview"];
+
 export type ApiMessagePayloadResponse =
     ApiSpecification.components["schemas"]["MessagePayload_Response"];
 

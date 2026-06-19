@@ -2816,6 +2816,8 @@ export class RynamoTableSchema<
         >,
     ): RynamoTableSchemaIndex<
         ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
+        Types["Item"] & ItemTypes,
+        Types["ItemKey"] & ItemTypes,
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
@@ -2911,9 +2913,9 @@ export class RynamoTableSchema<
             partitionKeyAttributes: Index.partitionKeyAttributes,
             sortKeyAttributes: Index.sortKeyAttributes,
 
-            getRealtimeQueryPartitionKey: partitionKey => {
-                return Index.serializeOpaquePartitionKey(partitionKey);
-            },
+            getRealtimeQueryPartitionKey: Index.serializeOpaquePartitionKey,
+            serializeOpaqueCursor: Index.serializeOpaqueCursor,
+            deserializeOpaqueCursor: Index.deserializeOpaqueCursor,
 
             realtimeQuery: async (
                 context,
@@ -3171,6 +3173,8 @@ export class RynamoTableSchema<
         >,
     ): RynamoTableSchemaIndex<
         ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
+        Types["Item"] & ItemTypes,
+        Types["ItemKey"] & ItemTypes,
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
@@ -3266,9 +3270,9 @@ export class RynamoTableSchema<
             partitionKeyAttributes: Index.partitionKeyAttributes,
             sortKeyAttributes: Index.sortKeyAttributes,
 
-            getRealtimeQueryPartitionKey: partitionKey => {
-                return Index.serializeOpaquePartitionKey(partitionKey);
-            },
+            getRealtimeQueryPartitionKey: Index.serializeOpaquePartitionKey,
+            serializeOpaqueCursor: Index.serializeOpaqueCursor,
+            deserializeOpaqueCursor: Index.deserializeOpaqueCursor,
 
             realtimeQuery: async (
                 context,
@@ -3560,6 +3564,8 @@ export class RynamoTableSchema<
         >,
     ): RynamoTableSchemaStrongConsistencyIndex<
         ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
+        Types["Item"] & ItemTypes,
+        Types["ItemKey"] & ItemTypes,
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
@@ -3760,6 +3766,14 @@ export class RynamoTableSchema<
 
             getRealtimeQueryPartitionKey: partitionKey => {
                 return this.#table._serializeOpaqueIndexPartitionKey(indexConfig, partitionKey);
+            },
+
+            serializeOpaqueCursor: itemKey => {
+                return this.#table._serializeOpaqueIndexCursor(indexConfig, itemKey);
+            },
+
+            deserializeOpaqueCursor: (partitionKey, cursor) => {
+                return this.#table._deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor);
             },
 
             realtimeQuery: async (
@@ -4365,7 +4379,13 @@ export class RynamoTableSchema<
 /**
  * The type to use for accessing an index on our DynamoDB table.
  */
-export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
+export interface RynamoTableSchemaIndex<
+    Model,
+    QueryItem,
+    ItemKey,
+    IndexPartitionKey,
+    IndexSortKey,
+> {
     readonly name: string;
 
     readonly partitionKeyAttributes: {
@@ -4423,7 +4443,7 @@ export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> 
             descending?: boolean;
             consistency?: DynamoCacheReadConsistency;
         },
-    ): Promise<Array<MergeObjectIntersection<IndexPartitionKey & IndexSortKey>>>;
+    ): Promise<Array<MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>>>;
 
     /**
      * Backfill any updates that happened since the query was read and now. Useful when
@@ -4452,13 +4472,43 @@ export interface RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> 
         oldValue: IndexPartitionKey[AttributeName] | undefined;
         newValue: IndexPartitionKey[AttributeName] | undefined;
     };
+
+    /**
+     * Serialize the item key into an opaque string that can be conveniently shared
+     * with clients. This item key can be used for resuming pagination with the
+     * `afterItemKey` option on `query()`.
+     *
+     * Remember this data is not secured in any way! If you share this with a client
+     * then the client should be able to see all data in the item's index key AND
+     * primary key.
+     */
+    serializeOpaqueCursor(
+        // Allow method to be dereferenced without binding `this`.
+        this: void,
+        itemKey:
+            | MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>
+            | MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>,
+    ): DynamoIndexCursor;
+
+    /**
+     * Deserialize the cursor from our opaque string format that is shared with
+     * clients.
+     */
+    deserializeOpaqueCursor(
+        // Allow method to be dereferenced without binding `this`.
+        this: void,
+        partitionKey: IndexPartitionKey,
+        cursor: DynamoIndexCursor,
+    ): MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
 }
 
 export interface RynamoTableSchemaStrongConsistencyIndex<
     Model,
+    QueryItem,
+    ItemKey,
     IndexPartitionKey,
     IndexSortKey,
-> extends RynamoTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
+> extends RynamoTableSchemaIndex<Model, QueryItem, ItemKey, IndexPartitionKey, IndexSortKey> {
     /**
      * Backfills the table items which power this strong consistency index.
      */

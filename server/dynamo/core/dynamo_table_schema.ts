@@ -5679,6 +5679,8 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
      * clients.
      */
     deserializeOpaqueCursor(
+        // Allow method to be dereferenced without binding `this`.
+        this: void,
         partitionKey: IndexPartitionKey,
         cursor: DynamoIndexCursor,
     ): MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
