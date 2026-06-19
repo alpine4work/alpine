@@ -22,6 +22,7 @@ import {
 import {
     ApiContent,
     ApiContentParagraphBlockElement,
+    ApiSearchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
 
@@ -248,12 +249,7 @@ export class GitHubAlertSource extends AlertSource {
 
             const searchQuery = `${shortHash} in GitHub`;
             const searchResult = await this.fetchAlpineApi<{
-                results: Array<{
-                    type: string;
-                    id: string;
-                    bodyMatch: string | null;
-                    author?: {botId?: string};
-                }>;
+                results: ReadonlyArray<ApiSearchResult>;
             }>(`/spaces/${spaceId}/search?query=${encodeURIComponent(searchQuery)}`, {
                 method: "GET",
             });
@@ -267,7 +263,7 @@ export class GitHubAlertSource extends AlertSource {
                 result =>
                     result.type === "Post" &&
                     result.bodyMatch &&
-                    result.bodyMatch.includes(shortHash) &&
+                    (JSON.stringify(result.bodyMatch) ?? "").includes(shortHash) &&
                     result.author?.botId,
             );
 
