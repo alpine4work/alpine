@@ -1229,6 +1229,9 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly channel: {
+                                    readonly name: components["schemas"]["LabelString"];
+                                };
                                 readonly nextCursor: components["schemas"]["DateTime"] | null;
                                 readonly posts: readonly components["schemas"]["PostPreview"][];
                             };

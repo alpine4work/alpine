@@ -102,6 +102,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId: postsResult.spaceId,
+                    channel: {
+                        name: postsResult.channelName,
+                    },
                     nextCursor,
                     posts: await runAllPromises(
                         postsResult.posts.map(async post => ({

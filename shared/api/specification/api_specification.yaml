@@ -787,11 +787,17 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, nextCursor, posts]
+                                required: [spaceId, channel, nextCursor, posts]
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
+                                    channel:
+                                        type: object
+                                        required: [name]
+                                        properties:
+                                            name:
+                                                $ref: "#/components/schemas/LabelString"
                                     nextCursor:
                                         oneOf:
                                             - $ref: "#/components/schemas/DateTime"
