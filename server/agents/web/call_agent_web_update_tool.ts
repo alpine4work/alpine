@@ -29,6 +29,7 @@ import {
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
+    UnimplementedError,
     getErrorCode,
 } from "~/shared/error/error.js";
 import {
@@ -295,6 +296,10 @@ async function updateAgentWebPageLink(
                 oldPage,
                 newPage,
             );
+        }
+        case "Channel": {
+            // NOCOMMIT
+            throw new UnimplementedError("Channel updates are not implemented yet");
         }
         case "Chat": {
             const oldResponse = oldResponseLazy.get();

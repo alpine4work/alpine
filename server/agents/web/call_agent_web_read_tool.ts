@@ -15,6 +15,12 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
 import {
+    normalizeAgentWebChannelPage,
+    parseAgentWebChannelPage,
+    printAgentWebChannelPage,
+    readAgentWebChannelPage,
+} from "~/server/agents/web/pages/agent_web_channel_page.js";
+import {
     normalizeAgentWebChatPage,
     parseAgentWebChatPage,
     printAgentWebChatPage,
@@ -258,7 +264,7 @@ function readAgentWebPageLink(
             throw new UnimplementedError("NOCOMMIT");
         }
         case "Channel": {
-            throw new UnimplementedError("NOCOMMIT");
+            return readAgentWebChannelPage(context, pageLink.id, options);
         }
         case "Chat": {
             return readAgentWebChatPage(context, pageLink.id, options);
@@ -305,6 +311,9 @@ function normalizeAgentWebPage(page: AgentWebPageWithMetadata): AgentWebPageWith
         case "DocumentThread": {
             return normalizeAgentWebDocumentThreadPage(page);
         }
+        case "Channel": {
+            return normalizeAgentWebChannelPage(page);
+        }
         case "Chat": {
             return normalizeAgentWebChatPage(page);
         }
@@ -333,6 +342,9 @@ function printAgentWebPage(
                 {document: page.preamble.document, threadId: page.metadata.threadId},
                 page,
             );
+        }
+        case "Channel": {
+            return printAgentWebChannelPage(storage, page.metadata.id, page);
         }
         case "Chat": {
             return printAgentWebChatPage(storage, page.metadata.id, page);
@@ -365,6 +377,9 @@ async function parseAgentWebPageForTest(
                 {document: {id: pageMetadata.id}, threadId: pageMetadata.threadId},
                 response,
             );
+        }
+        case "Channel": {
+            return await parseAgentWebChannelPage(storage, pageMetadata.id, response);
         }
         case "Chat": {
             return await parseAgentWebChatPage(storage, pageMetadata.id, response);
