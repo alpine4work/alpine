@@ -477,5 +477,23 @@ Launch notes
                 "[John](/human/john-doe)\u201D. Instead we found \u201CAlice\u201D. Try again with a " +
                 "valid link to a human or bot.",
         },
+        {
+            name: "empty",
+            pageLink: channelId,
+            markdown: `\
+#
+
+---
+`,
+            page: {
+                type: "Channel",
+                subType: "Head",
+                name: "",
+                description: {elements: []},
+                pagination: null,
+                posts: [],
+                isEndOfPosts: false,
+            },
+        },
     ],
 });
