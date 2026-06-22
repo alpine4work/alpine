@@ -32,6 +32,9 @@ import {
     ApiContentPreviewBlockElement,
     ApiContentQuoteBlockElement,
     ApiContentResponse,
+    ApiContentTableBlockElement,
+    ApiContentTableBlockElementCell,
+    ApiContentTableBlockElementRow,
     ApiContentUnorderedListBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -93,14 +96,45 @@ export function* findApiContentRanges(
         } else if (rangeState === null) {
             match = true;
         } else {
-            const hasPreviousHaystackParents =
-                rangeState.previousHaystackParents === haystackToken.parents;
-            const hasPreviousNeedleParents =
-                rangeState.previousNeedleParents === needleToken.parents;
+            const hasParents = (
+                depth: number,
+                previousParents: LinkedList<TokenParent>,
+                parents: LinkedList<TokenParent>,
+            ): [boolean, number] => {
+                if (previousParents === null) {
+                    if (parents === null) return [true, depth];
+                    return [false, depth];
+                }
 
-            if (hasPreviousHaystackParents && hasPreviousNeedleParents) {
+                if (parents === null) return [false, depth];
+
+                const result = hasParents(depth + 1, previousParents.next, parents.next);
+                if (result[0] === false) return result;
+
+                if (previousParents.value !== parents.value) {
+                    result[0] = false;
+                    return result;
+                } else {
+                    result[1] -= 1;
+                    return result;
+                }
+            };
+
+            const hasPreviousHaystackParents = hasParents(
+                0,
+                rangeState.previousHaystackParents,
+                haystackToken.parents,
+            );
+
+            const hasPreviousNeedleParents = hasParents(
+                0,
+                rangeState.previousNeedleParents,
+                needleToken.parents,
+            );
+
+            if (hasPreviousHaystackParents[0] && hasPreviousNeedleParents[0]) {
                 match = true;
-            } else if (hasPreviousHaystackParents || hasPreviousNeedleParents) {
+            } else if (hasPreviousHaystackParents[1] !== hasPreviousNeedleParents[1]) {
                 match = false;
             } else {
                 match = true;
@@ -208,8 +242,11 @@ type TokenParent =
     | ApiContentOrderedListBlockElement
     | ApiContentCodeBlockElement
     | ApiContentFileFloatBlockElement
+    | ApiContentTableBlockElement
     | TokenCheckListItemParent
-    | TokenFileGalleryRowParent;
+    | TokenFileGalleryRowParent
+    | TokenTableCellParent
+    | TokenTableRowParent;
 
 type TokenCheckListItemParent = {
     readonly type: "CheckListItem";
@@ -220,6 +257,16 @@ type TokenCheckListItemParent = {
 type TokenFileGalleryRowParent = {
     readonly type: "FileGalleryRow";
     readonly row: ApiContentFileGalleryBlockElementRow | null;
+};
+
+type TokenTableCellParent = {
+    readonly type: "TableCell";
+    readonly cell: ApiContentTableBlockElementCell;
+};
+
+type TokenTableRowParent = {
+    readonly type: "TableRow";
+    readonly row: ApiContentTableBlockElementRow;
 };
 
 type Token = {
@@ -349,6 +396,15 @@ function areTokenParentsMatch(haystackParent: TokenParent, needleParent: TokenPa
         }
         case "FileGalleryRow": {
             return needleParent.type === "FileGalleryRow";
+        }
+        case "Table": {
+            return needleParent.type === "Table";
+        }
+        case "TableRow": {
+            return needleParent.type === "TableRow";
+        }
+        case "TableCell": {
+            return needleParent.type === "TableCell";
         }
         default:
             throw exhaustive(haystackParent);
@@ -566,8 +622,32 @@ function* iterateApiContentBlockElement(
             };
             break;
         }
+        case "Table": {
+            const tableParents: NonEmptyLinkedList<TokenParent> = {
+                value: element,
+                next: parents,
+            };
+
+            for (const row of element.rows) {
+                const rowParents: NonEmptyLinkedList<TokenParent> = {
+                    value: {type: "TableRow", row},
+                    next: tableParents,
+                };
+
+                for (const cell of row.cells) {
+                    const cellParents: NonEmptyLinkedList<TokenParent> = {
+                        value: {type: "TableCell", cell},
+                        next: rowParents,
+                    };
+
+                    for (const childElement of cell.elements) {
+                        yield* iterateApiContentBlockElement(cellParents, childElement);
+                    }
+                }
+            }
+            break;
+        }
         default:
-            // @ts-expect-error: NOCOMMIT
             throw exhaustive(element);
     }
 }

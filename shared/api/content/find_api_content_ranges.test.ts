@@ -369,13 +369,7 @@ const testCases: Array<{
     {
         haystack: "- [ ] todo\n- [x] done",
         needle: "todo\n\ndone",
-        ranges: [
-            {
-                from: 2,
-                to: 14,
-                slice: '<checkListItem(paragraph("todo")), checkListItem(paragraph("done"))>',
-            },
-        ],
+        ranges: [],
     },
     {
         haystack: "hello [@alice](https://alpine.inc/mention/n93hre935d0yd7akahtrwcvv30?short)",
@@ -863,6 +857,306 @@ some more text`,
         ranges: [
             {from: 1, to: 2, slice: "<file>"},
             {from: 4, to: 5, slice: "<file>"},
+        ],
+    },
+    {
+        haystack: `\
+| First | Second |
+| --- | --- |
+| Alpha target | Beta |`,
+        needle: "target",
+        ranges: [{from: 31, to: 37, slice: '<"target">'}],
+    },
+    {
+        haystack: `\
+Before
+
+| Name | Status |
+| --- | --- |
+| Alpha | Done |
+| Beta | Todo |
+
+After`,
+        needle: `\
+| Name | Status |
+| --- | --- |
+| Alpha | Done |
+| Beta | Todo |`,
+        ranges: [
+            {
+                from: 12,
+                to: 63,
+                slice: '<tableRow(tableCell(paragraph("Name")), tableCell(paragraph("Status"))), tableRow(tableCell(paragraph("Alpha")), tableCell(paragraph("Done"))), tableRow(tableCell(paragraph("Beta")), tableCell(paragraph("Todo")))>',
+            },
+        ],
+    },
+    {
+        haystack: `\
+| Name | Status |
+| --- | --- |
+| Alpha | Done |
+| Beta | Todo |`,
+        needle: `\
+| Name | Status |
+| --- | --- |
+| Alpha | Done |`,
+        ranges: [
+            {
+                from: 4,
+                to: 37,
+                slice: '<tableRow(tableCell(paragraph("Name")), tableCell(paragraph("Status"))), tableRow(tableCell(paragraph("Alpha")), tableCell(paragraph("Done")))>',
+            },
+        ],
+    },
+    {
+        haystack: `\
+| First | Second |
+| --- | --- |
+| Alpha | Beta |`,
+        needle: `\
+Alpha
+
+Beta`,
+        ranges: [],
+    },
+    {
+        haystack: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+First paragraph
+
+Second paragraph
+
+</td>
+<td>
+
+Other cell
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        needle: `\
+First paragraph
+
+Second paragraph`,
+        ranges: [
+            {
+                from: 4,
+                to: 37,
+                slice: '<paragraph("First paragraph"), paragraph("Second paragraph")>',
+            },
+        ],
+    },
+    {
+        haystack: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+> quoted target
+
+</td>
+<td>
+
+Other cell
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        needle: "> quoted target",
+        ranges: [{from: 5, to: 18, slice: '<"quoted target">'}],
+    },
+    {
+        haystack: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+- first item
+- second item
+
+</td>
+<td>
+
+Other cell
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        needle: "- second item",
+        ranges: [{from: 19, to: 30, slice: '<"second item">'}],
+    },
+    {
+        haystack: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+- [ ] open task
+- [x] done task
+
+</td>
+<td>
+
+Other cell
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        needle: "- [x] done task",
+        ranges: [{from: 18, to: 27, slice: '<"done task">'}],
+    },
+    {
+        haystack: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+- [ ] open task
+- [x] done task
+
+</td>
+<td>
+
+Other cell
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        needle: "- [ ] done task",
+        ranges: [],
+    },
+    {
+        haystack: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+![](https://alpine.inc/file/${fileId1}/content)
+
+</td>
+<td>
+
+Other cell
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        needle: `![](https://alpine.inc/file/${fileId1}/content)`,
+        ranges: [{from: 4, to: 5, slice: "<file>"}],
+    },
+    {
+        haystack: `\
+<table>
+<tbody>
+<tr>
+<td>
+
+<pre><code>alpha
+target
+omega</code></pre>
+
+</td>
+<td>
+
+Other cell
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        needle: "<pre><code>target</code></pre>",
+        ranges: [{from: 12, to: 18, slice: '<"target">'}],
+    },
+    {
+        haystack: `\
+<table>
+<thead>
+<tr>
+<th>
+
+Name
+
+</th>
+<th>
+
+Details
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+Alpha
+
+More alpha
+
+</td>
+<td>
+
+- first detail
+- second detail
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        needle: `\
+<table>
+<thead>
+<tr>
+<th>
+
+Name
+
+</th>
+<th>
+
+Details
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+Alpha
+
+More alpha
+
+</td>
+<td>
+
+- first detail
+- second detail
+
+</td>
+</tr>
+</tbody>
+</table>`,
+        ranges: [
+            {
+                from: 4,
+                to: 76,
+                slice: '<tableRow(tableCell(paragraph("Name")), tableCell(paragraph("Details"))), tableRow(tableCell(paragraph("Alpha"), paragraph("More alpha")), tableCell(unorderedListItem(paragraph("first detail")), unorderedListItem(paragraph("second detail"))))>',
+            },
         ],
     },
     {

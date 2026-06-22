@@ -116,6 +116,9 @@ export type ApiContentTableBlockElement =
 export type ApiContentTableBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElement_Response"];
 
+export type ApiContentTableBlockElementRow =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementRow"];
+
 export type ApiContentTableBlockElementRowResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElementRow_Response"];
 
