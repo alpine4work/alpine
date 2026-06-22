@@ -5,13 +5,20 @@ import {
     ApiContentKeyEncoder,
 } from "~/shared/api/content/api_content_key_encoder.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {getApiContentPositionPos} from "~/shared/api/content/get_api_content_position_pos.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {findApiContentRanges} from "~/shared/api/markdown/find_api_content_ranges.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
+
+const fileId1 = generateChronologicalId<FileId>();
+const fileId2 = generateChronologicalId<FileId>();
+const fileId3 = generateChronologicalId<FileId>();
 
 const testCases: Array<{
     only?: CommitBlocker;
@@ -578,6 +585,287 @@ const testCases: Array<{
         ],
     },
     {
+        haystack: "---",
+        needle: "---",
+        ranges: [{from: 0, to: 1, slice: "<divider>"}],
+    },
+    {
+        haystack: "before\n\n---\n\nafter",
+        needle: "---",
+        ranges: [{from: 8, to: 9, slice: "<divider>"}],
+    },
+    {
+        haystack: "before\n\n---\n\nafter",
+        needle: "before\n\n---\n\nafter",
+        ranges: [
+            {
+                from: 1,
+                to: 15,
+                slice: '<paragraph("before"), divider, paragraph("after")>',
+            },
+        ],
+    },
+    {
+        haystack: "before\n\n---\n\nmiddle\n\n---\n\nafter",
+        needle: "---",
+        ranges: [
+            {from: 8, to: 9, slice: "<divider>"},
+            {from: 17, to: 18, slice: "<divider>"},
+        ],
+    },
+    {
+        haystack: `![](https://alpine.inc/file/${fileId1}/content)`,
+        needle: `![](https://alpine.inc/file/${fileId1}/content)`,
+        ranges: [{from: 1, to: 2, slice: "<file>"}],
+    },
+    {
+        haystack: `![](https://alpine.inc/file/${fileId1}/content)`,
+        needle: `![](https://alpine.inc/file/${fileId2}/content)`,
+        ranges: [],
+    },
+    {
+        haystack: `before\n\n![](https://alpine.inc/file/${fileId1}/content)\n\nafter`,
+        needle: `![](https://alpine.inc/file/${fileId1}/content)`,
+        ranges: [{from: 9, to: 10, slice: "<file>"}],
+    },
+    {
+        haystack: `before text\n\n![](https://alpine.inc/file/${fileId1}/content)\n\nafter text`,
+        needle: `before text\n\n![](https://alpine.inc/file/${fileId1}/content)\n\nafter text`,
+        ranges: [
+            {
+                from: 1,
+                to: 27,
+                slice: '<paragraph("before text"), fileRow(file), paragraph("after text")>',
+            },
+        ],
+    },
+    {
+        haystack: `![](https://alpine.inc/file/${fileId1}/content)\n\nmiddle text\n\n![](https://alpine.inc/file/${fileId2}/content)`,
+        needle: `![](https://alpine.inc/file/${fileId1}/content)\n\nmiddle text\n\n![](https://alpine.inc/file/${fileId2}/content)`,
+        ranges: [
+            {
+                from: 1,
+                to: 18,
+                slice: '<fileRow(file), paragraph("middle text"), fileRow(file)>',
+            },
+        ],
+    },
+    {
+        haystack: `\
+before text
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>
+
+after text`,
+        needle: `\
+before text
+
+![](https://alpine.inc/file/${fileId1}/content)
+
+![](https://alpine.inc/file/${fileId2}/content)
+
+after text`,
+        ranges: [],
+    },
+    {
+        haystack: `![](https://alpine.inc/file/${fileId1}/content)\n\n---\n\n![](https://alpine.inc/file/${fileId2}/content)`,
+        needle: `![](https://alpine.inc/file/${fileId1}/content)\n\n---`,
+        ranges: [{from: 1, to: 4, slice: "<fileRow(file), divider>"}],
+    },
+    {
+        haystack: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>`,
+        needle: `![](https://alpine.inc/file/${fileId2}/content)`,
+        ranges: [{from: 2, to: 3, slice: "<file>"}],
+    },
+    {
+        haystack: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>`,
+        needle: `<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>`,
+        ranges: [{from: 2, to: 3, slice: "<file>"}],
+    },
+    {
+        haystack: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>`,
+        needle: `<img src="https://alpine.inc/file/${fileId2}/content"/>`,
+        ranges: [{from: 2, to: 3, slice: "<file>"}],
+    },
+    {
+        haystack: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 33%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 33%"/>
+<img src="https://alpine.inc/file/${fileId3}/content" style="flex: 0 0 34%"/>
+</div>`,
+        needle: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId3}/content" style="flex: 0 0 50%"/>
+</div>`,
+        ranges: [{from: 2, to: 4, slice: "<file, file>"}],
+    },
+    {
+        haystack: `![](https://alpine.inc/file/${fileId1}/content)\n\n![](https://alpine.inc/file/${fileId2}/content)`,
+        needle: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>`,
+        ranges: [],
+    },
+    {
+        haystack: `![](https://alpine.inc/file/${fileId1}/content)\n\n![](https://alpine.inc/file/${fileId2}/content)`,
+        needle: `![](https://alpine.inc/file/${fileId2}/content)`,
+        ranges: [{from: 4, to: 5, slice: "<file>"}],
+    },
+    {
+        haystack: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>`,
+        needle: `![](https://alpine.inc/file/${fileId1}/content)\n\n![](https://alpine.inc/file/${fileId2}/content)`,
+        ranges: [],
+    },
+    {
+        haystack: `\
+some text
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId3}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+</div>
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId3}/content" style="flex: 0 0 50%"/>
+</div>
+
+some more text`,
+        needle: `\
+some text
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId3}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+</div>
+
+some more text`,
+        ranges: [],
+    },
+    {
+        haystack: `\
+some text
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 33%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 33%"/>
+<img src="https://alpine.inc/file/${fileId3}/content" style="flex: 0 0 34%"/>
+</div>
+
+some more text`,
+        needle: `\
+some text
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>
+
+![](https://alpine.inc/file/${fileId3}/content)
+
+some more text`,
+        ranges: [],
+    },
+    {
+        haystack: `\
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/file/${fileId1}/content"/>
+</div>`,
+        needle: `![](https://alpine.inc/file/${fileId1}/content)`,
+        ranges: [{from: 1, to: 2, slice: "<file>"}],
+    },
+    {
+        haystack: `\
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/file/${fileId1}/content"/>
+</div>`,
+        needle: `<img src="https://alpine.inc/file/${fileId1}/content"/>`,
+        ranges: [{from: 1, to: 2, slice: "<file>"}],
+    },
+    {
+        haystack: `\
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/file/${fileId1}/content"/>
+</div>`,
+        needle: `\
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/file/${fileId1}/content"/>
+</div>`,
+        ranges: [{from: 1, to: 2, slice: "<file>"}],
+    },
+    {
+        haystack: `\
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/file/${fileId1}/content"/>
+</div>`,
+        needle: `\
+<div style="float: right; clear: both">
+<img src="https://alpine.inc/file/${fileId1}/content"/>
+</div>`,
+        ranges: [],
+    },
+    {
+        haystack: `\
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>`,
+        needle: `\
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/file/${fileId1}/content"/>
+</div>`,
+        ranges: [],
+    },
+    {
+        haystack: `\
+<div style="float: left; clear: both">
+<img src="https://alpine.inc/file/${fileId1}/content"/>
+</div>
+
+<div style="display: flex; align-items: stretch">
+<img src="https://alpine.inc/file/${fileId1}/content" style="flex: 0 0 50%"/>
+<img src="https://alpine.inc/file/${fileId2}/content" style="flex: 0 0 50%"/>
+</div>`,
+        needle: `![](https://alpine.inc/file/${fileId1}/content)`,
+        ranges: [
+            {from: 1, to: 2, slice: "<file>"},
+            {from: 4, to: 5, slice: "<file>"},
+        ],
+    },
+    {
         haystack: "aaaaa",
         needle: "aa",
         ranges: [
@@ -588,6 +876,8 @@ const testCases: Array<{
 ];
 
 for (const testCase of testCases) {
+    const test = testCase.only ? globalThis.test.only : globalThis.test;
+
     const formatForTestTitle = (string: string) => {
         string = string.trim();
         if (string.length > 25) string = string.slice(0, 25) + "…";
@@ -621,8 +911,8 @@ for (const testCase of testCases) {
 
         expect(
             Array.from(findApiContentRanges(haystack, needle), range => {
-                const from = decoder.decode(range.start.key).pos + 1 + range.start.index;
-                const to = decoder.decode(range.end.key).pos + 1 + range.end.index;
+                const from = getApiContentPositionPos(decoder, range.start);
+                const to = getApiContentPositionPos(decoder, range.end);
 
                 const slice = haystackNode.slice(from, to);
 

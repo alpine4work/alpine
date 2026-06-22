@@ -3,9 +3,11 @@ import {
     ApiContentBlockElement,
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
+    ApiContentFileBlockElementResponse,
     ApiContentListBlockElementItemResponse,
     ApiContentListBlockElementResponse,
     ApiContentParagraphBlockElementResponse,
+    ApiContentPreviewBlockElementResponse,
     ApiContentResponse,
     ApiContentTableBlockElementCellResponse,
     ApiContentTableBlockElementRowResponse,
@@ -105,3 +107,9 @@ export type ApiContentTableBlockElementCellResponseWithOptionalKeys =
 
 export type ApiContentTableBlockElementRowResponseWithOptionalKeys =
     MakeApiContentWithOptionalKeys<ApiContentTableBlockElementRowResponse>;
+
+export type ApiContentFileBlockElementResponseWithOptionalKeys =
+    MakeApiContentWithOptionalKeys<ApiContentFileBlockElementResponse>;
+
+export type ApiContentPreviewBlockElementResponseWithOptionalKeys =
+    MakeApiContentWithOptionalKeys<ApiContentPreviewBlockElementResponse>;

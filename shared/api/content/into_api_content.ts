@@ -8,9 +8,11 @@ import type {ApiContentKey} from "~/shared/api/specification/types/api_content_k
 import {
     ApiContentBlockElementResponseWithOptionalKeys,
     ApiContentCheckListBlockElementItemResponseWithOptionalKeys,
+    ApiContentFileBlockElementResponseWithOptionalKeys,
     ApiContentListBlockElementItemResponseWithOptionalKeys,
     ApiContentListBlockElementResponseWithOptionalKeys,
     ApiContentParagraphBlockElementResponseWithOptionalKeys,
+    ApiContentPreviewBlockElementResponseWithOptionalKeys,
     ApiContentResponseWithOptionalKeys,
     ApiContentResponseWithoutKeys,
     ApiContentTableBlockElementCellResponseWithOptionalKeys,
@@ -20,12 +22,10 @@ import {
     ApiContentBlockElementResponse,
     ApiContentCheckListBlockElementItemResponse,
     ApiContentCommentMark,
-    ApiContentFileBlockElementResponse,
     ApiContentHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
     ApiContentListBlockElementItemResponse,
-    ApiContentPreviewBlockElementResponse,
     ApiContentResponse,
     ApiMentionReferenceResponse,
     ApiMessageContentPayloadParentContentSnippetInlineElementMark,
@@ -87,15 +87,14 @@ export type ApiContentMarkdownIntoOptionsWithoutKeys = Replace<
     }
 >;
 
-type ApiContentMarkdownIntoOptionsForConversion =
-    | ApiContentMarkdownIntoOptions
-    | ApiContentMarkdownIntoOptionsWithoutKeys;
-
-type ApiContentMarkdownIntoContext = {
-    readonly rootNode: Node;
-    readonly posOffset: number;
-    readonly encoder: ApiContentKeyEncoder | undefined;
-};
+type ApiContentMarkdownIntoContext = Replace<
+    ApiContentMarkdownIntoOptions,
+    {
+        readonly rootNode: Node;
+        readonly posOffset: number;
+        readonly encoder: ApiContentKeyEncoder | undefined;
+    }
+>;
 
 /**
  * Converts content with required entity context and guarantees content keys on
@@ -115,21 +114,21 @@ export function intoApiContent(
 ): ApiContentResponseWithoutKeys;
 export function intoApiContent(
     node: Node,
-    options: ApiContentMarkdownIntoOptionsForConversion,
+    options: ApiContentMarkdownIntoOptions | ApiContentMarkdownIntoOptionsWithoutKeys,
 ): ApiContentResponseWithoutKeys | ApiContentResponse {
     assert(node.type.name === "doc");
     const posOffset = options.posOffset ?? 0;
     assert(posOffset >= 0);
+
     const context: ApiContentMarkdownIntoContext = {
+        ...options,
         rootNode: node,
         posOffset,
         encoder: options.encoder,
     };
 
     const apiContent: ApiContentResponseWithOptionalKeys = {
-        elements: Array.from(
-            intoApiContentBlockElements(node.content.content, options, context, posOffset),
-        ),
+        elements: Array.from(intoApiContentBlockElements(context, node.content.content, posOffset)),
     };
 
     if (context.encoder !== undefined) {
@@ -173,9 +172,8 @@ type ApiContentListBlockElementPhantomWorkingItem = {
  * absolute positions for keyed text containers.
  */
 function* intoApiContentBlockElements(
-    nodes: ReadonlyArray<Node>,
-    options: ApiContentMarkdownIntoOptionsForConversion,
     context: ApiContentMarkdownIntoContext,
+    nodes: ReadonlyArray<Node>,
     startPos: number,
 ): IterableIterator<ApiContentBlockElementResponseWithOptionalKeys> {
     let nodeIndex = 0;
@@ -238,7 +236,7 @@ function* intoApiContentBlockElements(
                     });
                 }
 
-                yield* intoApiContentListBlockElements(items, options, context);
+                yield* intoApiContentListBlockElements(context, items);
                 break;
             }
             case "fileRow": {
@@ -247,8 +245,8 @@ function* intoApiContentBlockElements(
                     items: Array<{
                         width: number;
                         element:
-                            | ApiContentFileBlockElementResponse
-                            | ApiContentPreviewBlockElementResponse;
+                            | ApiContentFileBlockElementResponseWithOptionalKeys
+                            | ApiContentPreviewBlockElementResponseWithOptionalKeys;
                     }>;
                 }> = [];
 
@@ -260,14 +258,18 @@ function* intoApiContentBlockElements(
                     const fileRowNode = nodes[nodeIndex]!;
                     if (fileRowNode.type.name !== "fileRow") break;
                     nodeIndex++;
-                    nodePos += fileRowNode.nodeSize;
+                    nodePos++;
 
-                    const rowElements = fileRowNode.content.content.map(child =>
-                        intoApiContentFileOrPreviewElement(child, options),
-                    );
+                    const rowElements = fileRowNode.content.content.map(child => {
+                        const element = intoApiContentFileOrPreviewElement(context, child, nodePos);
+                        nodePos += child.nodeSize;
+                        return element;
+                    });
+
+                    nodePos++;
 
                     if (rowElements.length > 0) {
-                        const widths = computeApiContentFileRowWidths(rowElements, options);
+                        const widths = computeApiContentFileRowWidths(rowElements, context);
                         rows.push({
                             items: rowElements.map((element, i) => ({
                                 width: widths[i]!,
@@ -293,7 +295,7 @@ function* intoApiContentBlockElements(
                 break;
             }
             default:
-                yield intoApiContentBlockElement(typeName, node, currentNodePos, options, context);
+                yield intoApiContentBlockElement(context, typeName, node, currentNodePos);
                 break;
         }
     }
@@ -303,9 +305,8 @@ function* intoApiContentBlockElements(
  * Converts the normalized list item tree into API list block elements.
  */
 function* intoApiContentListBlockElements(
-    items: Array<ApiContentListBlockElementWorkingItem>,
-    options: ApiContentMarkdownIntoOptionsForConversion,
     context: ApiContentMarkdownIntoContext,
+    items: Array<ApiContentListBlockElementWorkingItem>,
 ): IterableIterator<ApiContentListBlockElementResponseWithOptionalKeys> {
     let lastElement:
         | {
@@ -331,12 +332,7 @@ function* intoApiContentListBlockElements(
         const elements: Array<ApiContentParagraphBlockElementResponseWithOptionalKeys> =
             item.node !== null
                 ? Array.from(
-                      intoApiContentBlockElements(
-                          item.node.content.content,
-                          options,
-                          context,
-                          item.pos + 1,
-                      ),
+                      intoApiContentBlockElements(context, item.node.content.content, item.pos + 1),
                       element => {
                           if (element.type !== "Paragraph") {
                               throw new InternalError(
@@ -363,7 +359,7 @@ function* intoApiContentListBlockElements(
 
         const nestedListElements =
             item.items.length > 0
-                ? Array.from(intoApiContentListBlockElements(item.items, options, context))
+                ? Array.from(intoApiContentListBlockElements(context, item.items))
                 : undefined;
 
         switch (typeName) {
@@ -439,18 +435,17 @@ function* intoApiContentListBlockElements(
 }
 
 function intoApiContentBlockElement(
+    context: ApiContentMarkdownIntoContext,
     typeName: Exclude<
         ContentBlockNodeTypeName,
         "unorderedListItem" | "orderedListItem" | "checkListItem" | "fileRow"
     >,
     node: Node,
     nodePos: number,
-    options: ApiContentMarkdownIntoOptionsForConversion,
-    context: ApiContentMarkdownIntoContext,
 ): ApiContentBlockElementResponseWithOptionalKeys {
     switch (typeName) {
         case "paragraph": {
-            const elements = intoApiContentInlineElements(node.content.content, options);
+            const elements = intoApiContentInlineElements(context, node.content.content);
             const key = maybeEncodeApiContentKey(context, nodePos, node);
 
             return {
@@ -463,12 +458,7 @@ function intoApiContentBlockElement(
             return {
                 type: "Quote",
                 elements: Array.from(
-                    intoApiContentBlockElements(
-                        node.content.content,
-                        options,
-                        context,
-                        nodePos + 1,
-                    ),
+                    intoApiContentBlockElements(context, node.content.content, nodePos + 1),
                     element => {
                         switch (element.type) {
                             case "Paragraph":
@@ -498,7 +488,7 @@ function intoApiContentBlockElement(
             };
         }
         case "heading": {
-            const elements = intoApiContentInlineElements(node.content.content, options);
+            const elements = intoApiContentInlineElements(context, node.content.content);
             const key = maybeEncodeApiContentKey(context, nodePos, node);
 
             return {
@@ -509,7 +499,12 @@ function intoApiContentBlockElement(
             };
         }
         case "divider": {
-            return {type: "Divider"};
+            const key = maybeEncodeApiContentKey(context, nodePos, node);
+
+            return {
+                type: "Divider",
+                ...(key !== undefined ? {key} : {}),
+            };
         }
         case "table": {
             let columnWidth = 2;
@@ -536,9 +531,8 @@ function intoApiContentBlockElement(
                                 return {
                                     elements: Array.from(
                                         intoApiContentBlockElements(
-                                            cellNode.content.content,
-                                            options,
                                             context,
+                                            cellNode.content.content,
                                             currentCellPos + 1,
                                         ),
                                         element => {
@@ -632,7 +626,8 @@ function intoApiContentBlockElement(
         }
         case "fileFloat": {
             const fileChild = assertExists(node.content.content[0]);
-            const element = intoApiContentFileOrPreviewElement(fileChild, options);
+            // NOCOMMIT: Test `findApiContentRanges()` with this
+            const element = intoApiContentFileOrPreviewElement(context, fileChild, nodePos + 1);
             const direction = node.attrs.direction;
             assert(typeof direction === "string");
             return {
@@ -643,7 +638,8 @@ function intoApiContentBlockElement(
         }
         case "fileRowTable": {
             const fileChild = assertExists(node.content.content[0]);
-            return intoApiContentFileOrPreviewElement(fileChild, options);
+            // NOCOMMIT: Test `findApiContentRanges()` with this
+            return intoApiContentFileOrPreviewElement(context, fileChild, nodePos + 1);
         }
         default:
             throw exhaustive(typeName);
@@ -660,6 +656,8 @@ function maybeEncodeApiContentKey(
     pos: number,
     node: Node,
 ): ApiContentKey | undefined {
+    // Dev + test only validation: make sure `pos` correctly points to `node` in
+    // `rootNode`. Defends against accidental blunders where we pass in the wrong pos.
     if (process.env.NODE_ENV !== "production") {
         // Stream content may encode an offset position, but the ProseMirror node still
         // lives at the local position inside this root node.
@@ -765,12 +763,17 @@ function assertApiContentCheckListBlockElementItemHasKeys(
 }
 
 function intoApiContentFileOrPreviewElement(
-    fileNode: Node,
-    options: ApiContentMarkdownIntoOptionsForConversion,
-): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse {
+    context: ApiContentMarkdownIntoContext,
+    node: Node,
+    nodePos: number,
+):
+    | ApiContentFileBlockElementResponseWithOptionalKeys
+    | ApiContentPreviewBlockElementResponseWithOptionalKeys {
+    const key = maybeEncodeApiContentKey(context, nodePos, node);
+
     const marks =
-        fileNode.marks.length > 0
-            ? fileNode.marks.map((mark): ApiContentCommentMark => {
+        node.marks.length > 0
+            ? node.marks.map((mark): ApiContentCommentMark => {
                   assert(mark.type.name === "comment");
 
                   return {
@@ -780,10 +783,12 @@ function intoApiContentFileOrPreviewElement(
               })
             : undefined;
 
-    const fileId: string | null = fileNode.attrs.fileId;
+    const fileId: string | null = node.attrs.fileId;
     if (fileId === null) {
         return {
             type: "File",
+            // NOCOMMIT: Test with unknown file id?
+            ...(key !== undefined ? {key} : {}),
             id: unknownFileId,
             contentType: "application/octet-stream",
             contentLength: 0,
@@ -795,7 +800,7 @@ function intoApiContentFileOrPreviewElement(
         const entityIdObject = parseFileEntityId(fileId);
 
         const title =
-            options.getSearchEntityMentionTitleIfExists(fileId) ??
+            context.getSearchEntityMentionTitleIfExists(fileId) ??
             `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
 
         let reference: ApiPreviewReferenceResponse;
@@ -839,7 +844,7 @@ function intoApiContentFileOrPreviewElement(
                     id: entityIdObject.taskId,
                     title,
                     status: intoApiTaskStatus(
-                        options.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
+                        context.getSearchTaskEntityDisplayStatusIfExists(entityIdObject.taskId) ??
                             "Closed",
                     ),
                 };
@@ -867,15 +872,17 @@ function intoApiContentFileOrPreviewElement(
 
         return {
             type: "Preview",
+            ...(key !== undefined ? {key} : {}),
             reference,
             marks,
         };
     }
 
     assert(isId<FileId>(fileId));
-    const file = options.getFileIfExists(fileId);
+    const file = context.getFileIfExists(fileId);
     return {
         type: "File",
+        ...(key !== undefined ? {key} : {}),
         id: fileId,
         contentType: file?.contentType ?? "application/octet-stream",
         contentLength: file?.contentLength ?? 0,
@@ -884,15 +891,15 @@ function intoApiContentFileOrPreviewElement(
 }
 
 function intoApiContentInlineElements(
+    context: ApiContentMarkdownIntoContext,
     nodes: ReadonlyArray<Node>,
-    options: ApiContentMarkdownIntoOptionsForConversion,
 ): ReadonlyArray<ApiContentInlineElementResponse> {
-    return nodes.map(node => intoApiContentInlineElement(node, options));
+    return nodes.map(node => intoApiContentInlineElement(context, node));
 }
 
 function intoApiContentInlineElement(
+    context: ApiContentMarkdownIntoContext,
     node: Node,
-    options: ApiContentMarkdownIntoOptionsForConversion,
 ): ApiContentInlineElementResponse {
     const typeName = node.type.name as ContentInlineNodeTypeName;
 
@@ -921,10 +928,10 @@ function intoApiContentInlineElement(
 
             if (mention.type === "Account") {
                 const title =
-                    options.getAccountMentionTitleIfExists(mention.accountId, {isShort: false}) ??
+                    context.getAccountMentionTitleIfExists(mention.accountId, {isShort: false}) ??
                     "Unknown";
                 const shortName =
-                    options.getAccountMentionTitleIfExists(mention.accountId, {isShort: true}) ??
+                    context.getAccountMentionTitleIfExists(mention.accountId, {isShort: true}) ??
                     title;
 
                 return {
@@ -945,7 +952,7 @@ function intoApiContentInlineElement(
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
 
                 const title =
-                    options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
+                    context.getSearchEntityMentionTitleIfExists(mention.entityId) ??
                     `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
 
                 let reference: ApiMentionReferenceResponse;
@@ -981,7 +988,7 @@ function intoApiContentInlineElement(
                             id: entityIdObject.taskId,
                             title,
                             status: intoApiTaskStatus(
-                                options.getSearchTaskEntityDisplayStatusIfExists(
+                                context.getSearchTaskEntityDisplayStatusIfExists(
                                     entityIdObject.taskId,
                                     // Default deleted tasks and private tasks to `Closed`.
                                 ) ?? "Closed",

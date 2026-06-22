@@ -2428,6 +2428,16 @@ components:
                 type:
                     const: Divider
 
+        ContentDividerBlockElement_Response:
+            type: object
+            required: [type, key]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Divider
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+
         ContentTableBlockElement:
             type: object
             required: [type, width, columns, rows]
@@ -2544,11 +2554,13 @@ components:
 
         ContentFileBlockElement_Response:
             type: object
-            required: [type, id, contentType, contentLength]
+            required: [type, key, id, contentType, contentLength]
             additionalProperties: false
             properties:
                 type:
                     const: File
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
@@ -2568,6 +2580,22 @@ components:
             properties:
                 type:
                     const: Preview
+                reference:
+                    $ref: "#/components/schemas/PreviewReference"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+
+        ContentPreviewBlockElement_Response:
+            type: object
+            required: [type, key, reference]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 reference:
                     $ref: "#/components/schemas/PreviewReference"
                 marks:

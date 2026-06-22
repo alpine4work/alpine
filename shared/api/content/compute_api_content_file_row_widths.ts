@@ -1,7 +1,7 @@
 import {
-    ApiContentFileBlockElementResponse,
-    ApiContentPreviewBlockElementResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    ApiContentFileBlockElementResponseWithOptionalKeys,
+    ApiContentPreviewBlockElementResponseWithOptionalKeys,
+} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     computeFileRowWidths,
     fileRowBlockWidthPxForServerAndClipboard,
@@ -15,7 +15,8 @@ import {FileId} from "~/shared/id/types/id_types.js";
 
 export function computeApiContentFileRowWidths(
     elements: ReadonlyArray<
-        ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse
+        | ApiContentFileBlockElementResponseWithOptionalKeys
+        | ApiContentPreviewBlockElementResponseWithOptionalKeys
     >,
     options: {
         readonly getFileIfExists: (fileId: FileId) =>

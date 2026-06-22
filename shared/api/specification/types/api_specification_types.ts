@@ -2911,6 +2911,15 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "Divider";
+                readonly key?: components["schemas"]["ContentKey"];
+            };
+            readonly ContentDividerBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Divider";
+                readonly key: components["schemas"]["ContentKey"];
             };
             readonly ContentTableBlockElement: {
                 /**
@@ -3000,6 +3009,7 @@ export namespace ApiSpecification {
                 readonly type: "File";
                 readonly id: components["schemas"]["FileId"];
                 readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+                readonly key?: components["schemas"]["ContentKey"];
                 readonly contentType?: components["schemas"]["FileContentType"];
                 readonly contentLength?: number;
             };
@@ -3009,6 +3019,7 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "File";
+                readonly key: components["schemas"]["ContentKey"];
                 readonly id: components["schemas"]["FileId"];
                 readonly contentType: components["schemas"]["FileContentType"];
                 readonly contentLength: number;
@@ -3021,6 +3032,17 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Preview";
                 readonly reference: components["schemas"]["PreviewReference"];
+                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
+                readonly key?: components["schemas"]["ContentKey"];
+            };
+            readonly ContentPreviewBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Preview";
+                readonly key: components["schemas"]["ContentKey"];
+                readonly reference: components["schemas"]["PreviewReference_Response"];
                 readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly ContentFileGalleryBlockElement: {
@@ -4116,7 +4138,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentCheckListBlockElement_Response"]
                 | components["schemas"]["ContentQuoteBlockElement_Response"]
                 | components["schemas"]["ContentHeadingBlockElement_Response"]
-                | components["schemas"]["ContentDividerBlockElement"]
+                | components["schemas"]["ContentDividerBlockElement_Response"]
                 | components["schemas"]["ContentTableBlockElement_Response"]
                 | components["schemas"]["ContentCodeBlockElement"]
                 | components["schemas"]["ContentFileBlockElement_Response"]
@@ -4210,15 +4232,6 @@ export namespace ApiSpecification {
             };
             readonly ContentTableBlockElementCell_Response: {
                 readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
-            };
-            readonly ContentPreviewBlockElement_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Preview";
-                readonly reference: components["schemas"]["PreviewReference_Response"];
-                readonly marks?: readonly components["schemas"]["ContentCommentMark"][];
             };
             readonly ContentFileGalleryBlockElement_Response: {
                 /**

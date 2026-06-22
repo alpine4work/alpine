@@ -2695,6 +2695,19 @@ components:
             properties:
                 type:
                     const: Divider
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+        ContentDividerBlockElement_Response:
+            type: object
+            required:
+                - type
+                - key
+            additionalProperties: false
+            properties:
+                type:
+                    const: Divider
+                key:
+                    $ref: "#/components/schemas/ContentKey"
         ContentTableBlockElement:
             type: object
             required:
@@ -2852,6 +2865,8 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 contentType:
                     $ref: "#/components/schemas/FileContentType"
                 contentLength:
@@ -2861,6 +2876,7 @@ components:
             type: object
             required:
                 - type
+                - key
                 - id
                 - contentType
                 - contentLength
@@ -2868,6 +2884,8 @@ components:
             properties:
                 type:
                     const: File
+                key:
+                    $ref: "#/components/schemas/ContentKey"
                 id:
                     $ref: "#/components/schemas/FileId"
                 contentType:
@@ -2890,6 +2908,26 @@ components:
                     const: Preview
                 reference:
                     $ref: "#/components/schemas/PreviewReference"
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCommentMark"
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+        ContentPreviewBlockElement_Response:
+            type: object
+            required:
+                - type
+                - key
+                - reference
+            additionalProperties: false
+            properties:
+                type:
+                    const: Preview
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+                reference:
+                    $ref: "#/components/schemas/PreviewReference_Response"
                 marks:
                     type: array
                     items:
@@ -5248,7 +5286,7 @@ components:
                 - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
                 - $ref: "#/components/schemas/ContentHeadingBlockElement_Response"
-                - $ref: "#/components/schemas/ContentDividerBlockElement"
+                - $ref: "#/components/schemas/ContentDividerBlockElement_Response"
                 - $ref: "#/components/schemas/ContentTableBlockElement_Response"
                 - $ref: "#/components/schemas/ContentCodeBlockElement"
                 - $ref: "#/components/schemas/ContentFileBlockElement_Response"
@@ -5264,7 +5302,7 @@ components:
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
                     Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
                     Heading: "#/components/schemas/ContentHeadingBlockElement_Response"
-                    Divider: "#/components/schemas/ContentDividerBlockElement"
+                    Divider: "#/components/schemas/ContentDividerBlockElement_Response"
                     Table: "#/components/schemas/ContentTableBlockElement_Response"
                     Code: "#/components/schemas/ContentCodeBlockElement"
                     File: "#/components/schemas/ContentFileBlockElement_Response"
@@ -5482,21 +5520,6 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
-        ContentPreviewBlockElement_Response:
-            type: object
-            required:
-                - type
-                - reference
-            additionalProperties: false
-            properties:
-                type:
-                    const: Preview
-                reference:
-                    $ref: "#/components/schemas/PreviewReference_Response"
-                marks:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/ContentCommentMark"
         ContentFileGalleryBlockElement_Response:
             type: object
             required:

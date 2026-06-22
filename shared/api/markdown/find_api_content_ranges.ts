@@ -19,12 +19,17 @@ import {
     ApiContentBreakInlineElement,
     ApiContentCheckListBlockElement,
     ApiContentCodeBlockElement,
+    ApiContentDividerBlockElement,
+    ApiContentFileBlockElement,
+    ApiContentFileFloatBlockElement,
+    ApiContentFileGalleryBlockElementRow,
     ApiContentHeadingBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
     ApiContentMentionInlineElement,
     ApiContentOrderedListBlockElement,
     ApiContentParagraphBlockElement,
+    ApiContentPreviewBlockElement,
     ApiContentQuoteBlockElement,
     ApiContentResponse,
     ApiContentUnorderedListBlockElement,
@@ -33,6 +38,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 
 /**
  * Finds instances of the `needle` content within `haystack`. If there are multiple
@@ -66,8 +72,8 @@ export function* findApiContentRanges(
 
     let rangeState: {
         start: ApiContentPosition;
-        previousHaystackParents: NonEmptyLinkedList<TokenParent>;
-        previousNeedleParents: NonEmptyLinkedList<TokenParent>;
+        previousHaystackParents: LinkedList<TokenParent>;
+        previousNeedleParents: LinkedList<TokenParent>;
     } | null = null;
 
     // We report no matches for an empty needle.
@@ -116,10 +122,33 @@ export function* findApiContentRanges(
         } else {
             // Ooh! The token is a match, let's see start a new range.
             if (rangeState === null) {
-                // We use the non-null assertion operator (`!`) because `haystack` is
-                // `ApiContentResponse` and so it must always include keys.
+                let start: ApiContentPosition;
+                switch (haystackToken.position.type) {
+                    case "Inline": {
+                        start = {
+                            type: "Inline",
+                            // We use the non-null assertion operator (`!`) because `haystack` is
+                            // `ApiContentResponse` and so it must always include keys.
+                            key: haystackToken.position.key!,
+                            index: haystackToken.position.index,
+                        };
+                        break;
+                    }
+                    case "Before": {
+                        start = {
+                            type: "Before",
+                            // We use the non-null assertion operator (`!`) because `haystack` is
+                            // `ApiContentResponse` and so it must always include keys.
+                            key: haystackToken.position.key!,
+                        };
+                        break;
+                    }
+                    default:
+                        throw exhaustive(haystackToken.position);
+                }
+
                 rangeState = {
-                    start: {key: haystackToken.key!, index: haystackToken.index},
+                    start,
                     previousHaystackParents: haystackToken.parents,
                     previousNeedleParents: needleToken.parents,
                 };
@@ -130,11 +159,34 @@ export function* findApiContentRanges(
             // Hooray! We've reached the last token in our needle. Yield the matched range and
             // reset our state.
             if (needleStep.value === undefined) {
+                let end: ApiContentPosition;
+                switch (haystackToken.position.type) {
+                    case "Inline": {
+                        end = {
+                            type: "Inline",
+                            // We use the non-null assertion operator (`!`) because `haystack` is
+                            // `ApiContentResponse` and so it must always include keys.
+                            key: haystackToken.position.key!,
+                            index: haystackToken.position.index + 1,
+                        };
+                        break;
+                    }
+                    case "Before": {
+                        end = {
+                            type: "After",
+                            // We use the non-null assertion operator (`!`) because `haystack` is
+                            // `ApiContentResponse` and so it must always include keys.
+                            key: haystackToken.position.key!,
+                        };
+                        break;
+                    }
+                    default:
+                        throw exhaustive(haystackToken.position);
+                }
+
                 yield {
                     start: rangeState.start,
-                    // We use the non-null assertion operator (`!`) because `haystack` is
-                    // `ApiContentResponse` and so it must always include keys.
-                    end: {key: haystackToken.key!, index: haystackToken.index + 1},
+                    end,
                 };
 
                 needleIterator = iterateApiContent(null, needle);
@@ -154,22 +206,38 @@ type TokenParent =
     | ApiContentQuoteBlockElement
     | ApiContentUnorderedListBlockElement
     | ApiContentOrderedListBlockElement
-    | {
-          readonly type: "CheckListItem";
-          readonly itemIndex: number;
-          readonly listElement: ApiContentCheckListBlockElement;
-      }
-    | ApiContentCodeBlockElement;
+    | ApiContentCodeBlockElement
+    | ApiContentFileFloatBlockElement
+    | TokenCheckListItemParent
+    | TokenFileGalleryRowParent;
+
+type TokenCheckListItemParent = {
+    readonly type: "CheckListItem";
+    readonly itemIndex: number;
+    readonly listElement: ApiContentCheckListBlockElement;
+};
+
+type TokenFileGalleryRowParent = {
+    readonly type: "FileGalleryRow";
+    readonly row: ApiContentFileGalleryBlockElementRow | null;
+};
 
 type Token = {
-    parents: NonEmptyLinkedList<TokenParent>;
-    key: ApiContentKey | undefined;
-    index: number;
+    parents: LinkedList<TokenParent>;
+    position:
+        | {type: "Inline"; key: ApiContentKey | undefined; index: number}
+        | {type: "Before"; key: ApiContentKey | undefined};
     value: TokenValue;
     marks: ReadonlyArray<ApiContentInlineElementMark> | undefined;
 };
 
-type TokenValue = string | ApiContentBreakInlineElement | ApiContentMentionInlineElement;
+type TokenValue =
+    | string
+    | ApiContentBreakInlineElement
+    | ApiContentMentionInlineElement
+    | ApiContentDividerBlockElement
+    | ApiContentFileBlockElement
+    | ApiContentPreviewBlockElement;
 
 function areTokensMatch(haystackToken: Token, needleTokens: Token): boolean {
     // This is most likely to be different, put it first to short circuit early.
@@ -269,6 +337,19 @@ function areTokenParentsMatch(haystackParent: TokenParent, needleParent: TokenPa
                 needleParent.type === "Paragraph"
             );
         }
+        case "FileFloat": {
+            return (
+                (needleParent.type === "FileFloat" && haystackParent.side === needleParent.side) ||
+                // Allow a file in a file gallery row with one item to match a file float. This
+                // allows `<img src="..."/>` to match
+                // `<div style="float: left"><img src="..."/></div>`.
+                (needleParent.type === "FileGalleryRow" &&
+                    (needleParent.row === null || needleParent.row.items.length === 1))
+            );
+        }
+        case "FileGalleryRow": {
+            return needleParent.type === "FileGalleryRow";
+        }
         default:
             throw exhaustive(haystackParent);
     }
@@ -301,6 +382,20 @@ function areTokenValuesEqual(value1: TokenValue, value2: TokenValue): boolean {
             return (
                 printApiReferenceKey(value1.reference) === printApiReferenceKey(value2.reference) &&
                 !!value1.isAccountShortName === !!value2.isAccountShortName
+            );
+        }
+        case "Divider": {
+            if (value2.type !== "Divider") return false;
+            return true;
+        }
+        case "File": {
+            if (value2.type !== "File") return false;
+            return value1.id === value2.id;
+        }
+        case "Preview": {
+            if (value2.type !== "Preview") return false;
+            return (
+                printApiReferenceKey(value1.reference) === printApiReferenceKey(value2.reference)
             );
         }
         default:
@@ -400,8 +495,7 @@ function* iterateApiContentBlockElement(
                 } else {
                     yield {
                         parents: childParents,
-                        key: line.key,
-                        index: 0,
+                        position: {type: "Inline", key: line.key, index: 0},
                         value: {type: "Break"},
                         marks: undefined,
                     };
@@ -409,6 +503,67 @@ function* iterateApiContentBlockElement(
 
                 yield* iterateApiContentInlineElements(childParents, line.key, line.elements);
             }
+            break;
+        }
+        case "Divider": {
+            yield {
+                parents: parents,
+                position: {type: "Before", key: element.key},
+                value: element,
+                marks: undefined,
+            };
+            break;
+        }
+        case "File":
+        case "Preview": {
+            yield {
+                // A file directly inlined in content is the same as a file in a one item file
+                // gallery row.
+                parents: {value: {type: "FileGalleryRow", row: null}, next: parents},
+                position: {type: "Before", key: element.key},
+                value: element,
+                marks: element.marks,
+            };
+            break;
+        }
+        case "FileGallery": {
+            for (const row of element.rows) {
+                const childParents: LinkedList<TokenParent> = {
+                    value: {type: "FileGalleryRow", row},
+                    next: parents,
+                };
+
+                if (row.items.length === 1) {
+                    const childElement = row.items[0]!.element;
+
+                    yield {
+                        parents: {value: {type: "FileGalleryRow", row}, next: parents},
+                        position: {type: "Before", key: childElement.key},
+                        value: childElement,
+                        marks: childElement.marks,
+                    };
+                } else {
+                    for (const {element: childElement} of row.items) {
+                        yield {
+                            parents: childParents,
+                            position: {type: "Before", key: childElement.key},
+                            value: childElement,
+                            marks: childElement.marks,
+                        };
+                    }
+                }
+            }
+            break;
+        }
+        case "FileFloat": {
+            const childParents = {value: element, next: parents};
+
+            yield {
+                parents: childParents,
+                position: {type: "Before", key: element.element.key},
+                value: element.element,
+                marks: undefined,
+            };
             break;
         }
         default:
@@ -426,10 +581,9 @@ function* iterateApiContentInlineElements(
 
     // We reuse the same `token` object for every character to avoid creating a lot of
     // garbage collector pressure from tiny objects.
-    const token: Token = {
+    const token: Replace<Token, {position: Extract<Token["position"], {type: "Inline"}>}> = {
         parents,
-        key,
-        index,
+        position: {type: "Inline", key, index},
         value: "",
         marks: undefined,
     };
@@ -438,7 +592,7 @@ function* iterateApiContentInlineElements(
         switch (element.type) {
             case "Text": {
                 for (let i = 0; i < element.text.length; i++) {
-                    token.index = index;
+                    token.position.index = index;
                     token.value = element.text[i]!;
                     token.marks = element.marks;
                     yield token;
@@ -448,7 +602,7 @@ function* iterateApiContentInlineElements(
             }
             case "Break":
             case "Mention": {
-                token.index = index;
+                token.position.index = index;
                 token.value = element;
                 token.marks = element.marks;
                 yield token;
