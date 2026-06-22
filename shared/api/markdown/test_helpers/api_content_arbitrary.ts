@@ -241,9 +241,18 @@ const ApiContentBreakInlineElementArbitrary: Arbitrary<ApiContentBreakInlineElem
     ),
 });
 
+// We don't really need to exercise content keys in the generative test.
+const ApiContentKeyArbitrary = fc.constant(
+    new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
+        pos: 0,
+        nodeSize: 0,
+    }),
+);
+
 const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementResponse> =
     fc.record({
         type: fc.constant("File"),
+        key: ApiContentKeyArbitrary,
         id: fc.oneof(
             {weight: 100, arbitrary: createIdArbitrary<FileId>()},
             {weight: 1, arbitrary: fc.constant(unknownFileId)},
@@ -271,6 +280,7 @@ const ApiPreviewReferenceArbitrary = createUnionArbitrary<ApiPreviewReferenceRes
 const ApiContentPreviewBlockElementArbitrary: Arbitrary<ApiContentPreviewBlockElementResponse> =
     fc.record({
         type: fc.constant("Preview"),
+        key: ApiContentKeyArbitrary,
         reference: ApiPreviewReferenceArbitrary,
         marks: fc.oneof(
             {arbitrary: fc.constant([]), weight: 20},
@@ -366,14 +376,6 @@ const ApiContentInlineElementArbitraryForSimpleTable =
         Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
         Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
     });
-
-// We don't really need to exercise content keys in the generative test.
-const ApiContentKeyArbitrary = fc.constant(
-    new ApiContentKeyEncoder({entityId: `Test`, version: 0}).encode({
-        pos: 0,
-        nodeSize: 0,
-    }),
-);
 
 const ApiContentParagraphBlockElementArbitrary: Arbitrary<ApiContentParagraphBlockElementResponse> =
     fc.record({
@@ -516,6 +518,7 @@ const ApiContentHeadingBlockElementArbitrary: Arbitrary<ApiContentHeadingBlockEl
 
 const ApiContentDividerBlockElementArbitrary: Arbitrary<ApiContentDividerBlockElement> = fc.record({
     type: fc.constant("Divider"),
+    key: ApiContentKeyArbitrary,
 });
 
 const ApiContentCodeBlockElementTextInlineElementMarkArbitrary =
