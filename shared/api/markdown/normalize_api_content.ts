@@ -4,6 +4,7 @@ import {
     ApiReferenceKey,
     printApiReferenceKey,
 } from "~/shared/api/specification/api_reference_key.js";
+import {ApiContentFileBlockElementResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {ApiReference} from "~/shared/api/specification/types/api_reference.js";
 import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.js";
 import {
@@ -73,7 +74,10 @@ export class ApiContentNormalizer {
 
     #response: {
         referencesByKey: DefaultMap<ApiReferenceKey, Array<Draft<ApiReferenceResponse>>>;
-        fileElementsById: DefaultMap<FileId, Array<Draft<ApiContentFileBlockElementResponse>>>;
+        fileElementsById: DefaultMap<
+            FileId,
+            Array<Draft<ApiContentFileBlockElementResponseWithOptionalKeys>>
+        >;
     } | null;
 
     #withinTableElement = false;
@@ -349,6 +353,8 @@ export class ApiContentNormalizer {
                 break;
             }
             case "Divider": {
+                if (hasOwnProperty(element, "key")) delete element.key;
+
                 // Already normalized.
                 break;
             }
@@ -415,6 +421,8 @@ export class ApiContentNormalizer {
                 break;
             }
             case "File": {
+                if (hasOwnProperty(element, "key")) delete element.key;
+
                 const marks = normalizeApiContentInlineElementMarks(element.marks);
                 if (marks !== undefined) element.marks = marks;
                 else delete element.marks;
@@ -452,6 +460,8 @@ export class ApiContentNormalizer {
                 break;
             }
             case "Preview": {
+                if (hasOwnProperty(element, "key")) delete element.key;
+
                 const marks = normalizeApiContentInlineElementMarks(element.marks);
                 if (marks !== undefined) element.marks = marks;
                 else delete element.marks;
