@@ -52,6 +52,29 @@ export async function isOneOnOneChat(
         return chat;
     });
 
+    // NOTE(ifitzsimmons, 2026-06-22): There's no guarantee that our agents clear the
+    // local durable object storage, which is used to support the `ApiChatCollection`
+    // "cache" above.
+    //
+    // The issue is that chats didn't always have a `type` property (they were added
+    // when we added chat rooms). So for one-on-one chats with agents that have state
+    // that predates chat rooms, this function will always return false:
+    //
+    // ```
+    // return (
+    //   chat.type === "Direct" && // <-- Always false!
+    //   chat.members.length === 2 &&
+    //   chat.members.some(member => member.account.id === request.botAccountId)
+    // )
+    // ```
+    //
+    // To fix this, we delete the chat from the local storage "cache" and call the
+    // function again, which will force a fresh fetch from the API.
+    if (chat.type === undefined) {
+        await ApiChatCollection.delete(request.storage, chatId);
+        return await isOneOnOneChat(tracer, request);
+    }
+
     // If this is a 1:1 chat between the agent and another user, then the agent will
     // always respond.
     return (
