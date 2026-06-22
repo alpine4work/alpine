@@ -1,0 +1,961 @@
+import {fromDate, toCalendarDate} from "@internationalized/date";
+import escapeHtml from "escape-html";
+import {Tokenizer as HtmlTokenizer} from "htmlparser2";
+import {produce} from "immer";
+import {Html, Link, Parent, PhrasingContent, Root, RootContent} from "mdast";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.js";
+import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.js";
+import {quoteMarkdown} from "~/server/agents/web/internal/quote_markdown.js";
+import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.js";
+import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
+import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
+import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
+import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.js";
+import {parseMarkdownTree} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {printMarkdownTree} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.js";
+import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
+import {
+    ApiAccountReferenceResponse,
+    ApiPostReferenceResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {
+    DateString,
+    deserializeDateString,
+    isDateString,
+} from "~/shared/helpers/date/date_string.js";
+import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
+import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
+import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
+
+export const agentWebChannelPageApiPostsBatchCount = 15;
+export const agentWebChannelPageNextPageLinkText = "Next page »";
+
+export type AgentWebChannelPage = {
+    readonly type: "Channel";
+    readonly name: string;
+    readonly pagination: AgentWebChannelPagePagination | null;
+    readonly posts: ReadonlyArray<AgentWebChannelPagePostBlock>;
+    readonly isEndOfPosts: boolean;
+} & (
+    | {
+          readonly subType: "Head";
+          readonly description: ApiContentResponseWithoutKeys;
+      }
+    | {
+          readonly subType: "Tail";
+      }
+);
+
+export type AgentWebChannelPagePagination = {
+    readonly nextCursor: string;
+};
+
+export type AgentWebChannelPagePostBlock = {
+    readonly type: "Post";
+    readonly author: ApiAccountReferenceResponse | null;
+    readonly timeAttribute: string | null;
+    readonly reference: ApiPostReferenceResponse;
+};
+
+export type AgentWebChannelPageWithMetadata = AgentWebChannelPage & {
+    readonly metadata: AgentWebChannelPageMetadata;
+};
+
+export type AgentWebChannelPageMetadata = {
+    readonly type: "Channel";
+    readonly id: ChannelId;
+    readonly isEndOfPosts: boolean;
+    readonly posts: ReadonlyArray<{
+        readonly id: PostId;
+    }>;
+};
+
+export async function readAgentWebChannelPage(
+    context: AgentWebContext,
+    id: ChannelId,
+    {
+        searchParams,
+        limitLength,
+        printPage,
+    }: {
+        searchParams: URLSearchParams;
+        limitLength: number;
+        printPage: (page: AgentWebChannelPageWithMetadata) => Promise<string>;
+    },
+): Promise<{response: string; metadata: AgentWebChannelPageMetadata}> {
+    const afterCursor = parseAgentWebChannelPageSearchParams(searchParams);
+
+    const posts: Array<AgentWebChannelPagePostBlock> = [];
+    const postCursors: Array<DateString> = [];
+
+    const [
+        channelDescriptionResult,
+        {
+            data: {channel, posts: currentPosts, nextCursor},
+        },
+    ] = await runAllPromises([
+        afterCursor === null
+            ? context.api.get(context.span, "/channels/{id}", {
+                  params: {path: {id}},
+              })
+            : null,
+        context.api.get(context.span, "/channels/{id}/posts", {
+            params: {
+                path: {id},
+                query: {
+                    // NOCOMMIT: Doesn't load more posts!
+                    limit: agentWebChannelPageApiPostsBatchCount,
+                    cursor: afterCursor ?? undefined,
+                },
+            },
+        }),
+    ]);
+
+    const contextTime = new Date();
+
+    for (const post of currentPosts) {
+        const createdTime = deserializeDateString(post.createdTime);
+        const contextDate = toCalendarDate(fromDate(contextTime, post.createdTimeZone));
+        const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+            defaultLocale,
+            post.createdTimeZone,
+            contextDate,
+            createdTime,
+            {withLongMonth: true},
+        );
+        const formattedTimeZone = formatTimeZoneAbbreviation(post.createdTimeZone, contextTime);
+
+        posts.push({
+            type: "Post",
+            author: intoApiAccountReference(post.author),
+            timeAttribute: `${formattedTime} ${formattedTimeZone}`,
+            reference: {
+                type: "Post",
+                id: post.id,
+                title: post.reference.title,
+            },
+        });
+        postCursors.push(post.createdTime);
+    }
+
+    const metadata: AgentWebChannelPageMetadata = {
+        type: "Channel",
+        id,
+        isEndOfPosts: nextCursor === null,
+        posts: posts.map(post => ({
+            id: post.reference.id,
+        })),
+    };
+
+    let page: AgentWebChannelPageWithMetadata;
+
+    if (afterCursor === null) {
+        page = {
+            type: "Channel",
+            subType: "Head",
+            name: channel.name,
+            description: assertExists(channelDescriptionResult).data.channel.description,
+            pagination: nextCursor !== null ? {nextCursor} : null,
+            posts,
+            isEndOfPosts: nextCursor === null,
+            metadata,
+        };
+    } else {
+        page = {
+            type: "Channel",
+            subType: "Tail",
+            name: channel.name,
+            pagination: nextCursor !== null ? {nextCursor} : null,
+            posts,
+            isEndOfPosts: nextCursor === null,
+            metadata,
+        };
+    }
+
+    const response = await printPage(page);
+
+    if (response.length <= limitLength) {
+        return {response, metadata: page.metadata};
+    }
+
+    const truncatedPage = await truncateAgentWebChannelPage({
+        page,
+        postCursors,
+        limitLength,
+        printPage,
+    });
+
+    if (truncatedPage === null) return {response, metadata: page.metadata};
+
+    return {
+        response: truncatedPage.response,
+        metadata: truncatedPage.page.metadata,
+    };
+}
+
+function parseAgentWebChannelPageSearchParams(searchParams: URLSearchParams): DateString | null {
+    const afterCursor = searchParams.get("after");
+
+    for (const key of searchParams.keys()) {
+        if (key !== "after") {
+            throw new InvalidArgumentError("Unsupported channel page search param", {
+                displayMessage: errorDisplayMessage`Expected only the \`?after\` URL search param for channel pages. Try again with \`?after\` or omit pagination search params.`,
+            });
+        }
+    }
+
+    if (afterCursor !== null && !isDateString(afterCursor)) {
+        throw new InvalidArgumentError("Expected `after` search param to be a cursor", {
+            displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be a full ISO 8601 cursor. Try again with a cursor from a channel page \u201cNext page »\u201d link or omit \`?after\`.`,
+        });
+    }
+
+    return afterCursor;
+}
+
+async function truncateAgentWebChannelPage({
+    page,
+    postCursors,
+    limitLength,
+    printPage,
+}: {
+    page: AgentWebChannelPageWithMetadata;
+    postCursors: ReadonlyArray<DateString>;
+    limitLength: number;
+    printPage: (page: AgentWebChannelPageWithMetadata) => Promise<string>;
+}): Promise<{
+    page: AgentWebChannelPageWithMetadata;
+    response: string;
+} | null> {
+    if (page.posts.length <= 1) return null;
+    assert(page.posts.length === postCursors.length);
+
+    let truncatedPage = page;
+
+    for (let postCount = page.posts.length - 1; postCount >= 1; postCount--) {
+        const posts = page.posts.slice(0, postCount);
+        const nextCursor = postCursors[postCount - 1]!;
+        const metadata = {
+            ...page.metadata,
+            isEndOfPosts: false,
+            posts: page.metadata.posts.slice(0, postCount),
+        };
+
+        truncatedPage = {
+            ...page,
+            posts,
+            pagination: {nextCursor},
+            isEndOfPosts: false,
+            metadata,
+        };
+
+        // NOCOMMIT: Should use string manipulation, shouldn't call `printPage()` again.
+        const response = await printPage(truncatedPage);
+        if (response.length <= limitLength) {
+            return {page: truncatedPage, response};
+        }
+    }
+
+    return null;
+}
+
+export function normalizeAgentWebChannelPage<Page extends AgentWebChannelPage>(page: Page): Page {
+    return produce(page, page => {
+        withApiContentNormalizerForAgentWebMarkdown(normalizer => {
+            if (page.subType === "Head") {
+                if (page.description.elements.length === 0) {
+                    page.description.elements.push({type: "Paragraph", elements: []});
+                } else {
+                    normalizer.normalize(page.description);
+                }
+            }
+
+            for (const post of page.posts) {
+                if (post.author) normalizer.normalizeReference(post.author);
+                normalizer.normalizeReference(post.reference);
+            }
+        });
+    });
+}
+
+export async function printAgentWebChannelPage(
+    storage: AgentWebSessionStorage,
+    id: ChannelId,
+    page: AgentWebChannelPage,
+): Promise<Root> {
+    const children: Array<RootContent> = [];
+
+    switch (page.subType) {
+        case "Head": {
+            children.push({
+                type: "heading",
+                depth: 1,
+                children: [{type: "text", value: page.name}],
+            });
+
+            const isEmptyDescription =
+                page.description.elements.length === 0 ||
+                (page.description.elements.length === 1 &&
+                    page.description.elements[0]!.type === "Paragraph" &&
+                    page.description.elements[0].elements.length === 0);
+
+            if (!isEmptyDescription) {
+                const descriptionTree = await printApiContentToAgentWebMarkdownTree(
+                    storage,
+                    page.description,
+                );
+
+                // We are going to use a thematic break (`---`) to separate our channel description
+                // from the channel posts. So we can't include thematic breaks in the description
+                // markdown or else they'll mess up parsing. To solve this we convert thematic
+                // breaks to the equivalent HTML `<hr />`.
+                replaceThematicBreaksWithHtml(descriptionTree);
+
+                for (const childNode of descriptionTree.children) children.push(childNode);
+            }
+
+            children.push({type: "thematicBreak"});
+
+            if (page.pagination) {
+                children.push(
+                    await printAgentWebChannelHeadPagePaginationParagraph(
+                        storage,
+                        id,
+                        page,
+                        page.pagination,
+                    ),
+                );
+            }
+            break;
+        }
+        case "Tail": {
+            children.push(await printAgentWebChannelTailPagePreamble(storage, id, page));
+            break;
+        }
+    }
+
+    for (const post of page.posts) {
+        for (const childNode of await printAgentWebChannelPagePostBlock(storage, post)) {
+            children.push(childNode);
+        }
+    }
+
+    if (page.isEndOfPosts) {
+        children.push({
+            type: "paragraph",
+            children: [{type: "text", value: "End of posts."}],
+        });
+    }
+
+    return {type: "root", children};
+}
+
+function replaceThematicBreaksWithHtml(root: Root): void {
+    const traverse = (node: Parent): void => {
+        for (let index = 0; index < node.children.length; index++) {
+            const child = node.children[index]!;
+
+            if (child.type === "thematicBreak") {
+                node.children[index] = {type: "html", value: "<hr />"} as RootContent;
+                continue;
+            }
+
+            if ("children" in child) {
+                traverse(child);
+            }
+        }
+    };
+
+    traverse(root);
+}
+
+async function printAgentWebChannelHeadPagePaginationParagraph(
+    storage: AgentWebSessionStorage,
+    id: ChannelId,
+    page: AgentWebChannelPage,
+    pagination: AgentWebChannelPagePagination,
+): Promise<RootContent> {
+    const pathname = await createAgentWebPageStoredLinkPathname(storage, {
+        type: "Channel",
+        id,
+        title: page.name,
+    });
+
+    return {
+        type: "paragraph",
+        children: [
+            {
+                type: "link",
+                url: `${pathname}?after=${encodeURIComponent(pagination.nextCursor)}`,
+                children: [{type: "text", value: agentWebChannelPageNextPageLinkText}],
+            },
+        ],
+    };
+}
+
+async function printAgentWebChannelTailPagePreamble(
+    storage: AgentWebSessionStorage,
+    id: ChannelId,
+    page: Extract<AgentWebChannelPage, {subType: "Tail"}>,
+): Promise<RootContent> {
+    const children: Array<PhrasingContent> = [{type: "text", value: `Posts in ${page.name}.`}];
+
+    if (page.pagination) {
+        const pathname = await createAgentWebPageStoredLinkPathname(storage, {
+            type: "Channel",
+            id,
+            title: page.name,
+        });
+
+        children.push(
+            {type: "text", value: " "},
+            {
+                type: "link",
+                url: `${pathname}?after=${encodeURIComponent(page.pagination.nextCursor)}`,
+                children: [{type: "text", value: agentWebChannelPageNextPageLinkText}],
+            },
+        );
+    }
+
+    return {type: "paragraph", children};
+}
+
+async function printAgentWebChannelPagePostBlock(
+    storage: AgentWebSessionStorage,
+    post: AgentWebChannelPagePostBlock,
+): Promise<Array<RootContent>> {
+    const [authorPathname, postPathname, titleTree] = await runAllPromises([
+        post.author ? createAgentWebPageStoredLinkPathname(storage, post.author) : null,
+        createAgentWebPageStoredLinkPathname(storage, post.reference),
+        // NOCOMMIT: Need a better post content snippet!
+        printApiContentToAgentWebMarkdownTree(storage, {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: post.reference.title}],
+                },
+            ],
+        }),
+    ]);
+
+    let openTag = "<post";
+
+    if (post.author !== null) {
+        const authorLink: Link = {
+            type: "link",
+            url: assertExists(authorPathname),
+            children: [{type: "text", value: post.author.shortName}],
+        };
+
+        openTag += ` from="${escapeHtml(printMarkdownTree(authorLink).trim())}"`;
+    }
+
+    if (post.timeAttribute !== null) {
+        openTag += ` time="${escapeHtml(post.timeAttribute)}"`;
+    }
+
+    openTag += ">";
+
+    return [
+        {type: "html", value: openTag},
+        ...titleTree.children,
+        {
+            type: "paragraph",
+            children: [
+                {
+                    type: "link",
+                    url: postPathname,
+                    children: [{type: "text", value: "See more »"}],
+                },
+            ],
+        },
+        {type: "html", value: "</post>"},
+    ];
+}
+
+export async function parseAgentWebChannelPage(
+    storage: AgentWebSessionStorage,
+    id: ChannelId | null,
+    root: Root,
+): Promise<AgentWebChannelPage> {
+    const firstChild = root.children[0];
+
+    if (firstChild?.type === "heading" && firstChild.depth === 1) {
+        return await parseAgentWebChannelHeadPage(storage, root);
+    }
+
+    return await parseAgentWebChannelTailPage(storage, root);
+}
+
+async function parseAgentWebChannelHeadPage(
+    storage: AgentWebSessionStorage,
+    root: Root,
+): Promise<AgentWebChannelPage> {
+    const heading = root.children[0]!;
+    assert(heading.type === "heading" && heading.depth === 1);
+
+    const name = printMarkdownPhrasingContentText(heading.children);
+    const dividerIndex = root.children.findIndex(
+        (child, index) => index > 0 && child.type === "thematicBreak",
+    );
+
+    const descriptionChildren =
+        dividerIndex === -1 ? root.children.slice(1) : root.children.slice(1, dividerIndex);
+
+    if (
+        dividerIndex === -1 &&
+        descriptionChildren.some(isAgentWebChannelPagePostSectionStartNode)
+    ) {
+        throw new InvalidArgumentError("Missing channel posts divider", {
+            displayMessage: errorDisplayMessage`Channel posts must be separated from the channel description with a divider (e.g. \`---\`). Try again but add a divider before the posts section.`,
+        });
+    }
+
+    if (dividerIndex === -1) {
+        const description = await parseApiContentFromAgentWebMarkdownTree(storage, {
+            type: "root",
+            children: descriptionChildren,
+        });
+
+        return {
+            type: "Channel",
+            subType: "Head",
+            name,
+            description:
+                description.elements.length === 0
+                    ? {elements: [{type: "Paragraph", elements: []}]}
+                    : description,
+            pagination: null,
+            posts: [],
+            isEndOfPosts: false,
+        };
+    }
+
+    const [description, {pagination, posts, isEndOfPosts}] = await runAllPromises([
+        parseApiContentFromAgentWebMarkdownTree(storage, {
+            type: "root",
+            children: descriptionChildren,
+        }),
+        parseAgentWebChannelPagePostSection(storage, {
+            section: {type: "root", children: root.children.slice(dividerIndex + 1)},
+            withLeadingPagination: true,
+        }),
+    ]);
+
+    return {
+        type: "Channel",
+        subType: "Head",
+        name,
+        description:
+            description.elements.length === 0
+                ? {elements: [{type: "Paragraph", elements: []}]}
+                : description,
+        pagination,
+        posts,
+        isEndOfPosts,
+    };
+}
+
+async function parseAgentWebChannelTailPage(
+    storage: AgentWebSessionStorage,
+    root: Root,
+): Promise<AgentWebChannelPage> {
+    const firstChild = root.children[0];
+
+    if (firstChild?.type !== "paragraph") {
+        throw new InvalidArgumentError("Invalid channel posts preamble", {
+            displayMessage: errorDisplayMessage`Channel posts markdown must start with the channel name in a heading (e.g. \`# General\`) or \u201CPosts in General\u201D. Try again with a proper start to channel markdown on line 1.`,
+        });
+    }
+
+    const [{name, pagination}, postSection] = await runAllPromises([
+        parseAgentWebChannelTailPreamble(storage, firstChild),
+        parseAgentWebChannelPagePostSection(storage, {
+            section: {type: "root", children: root.children.slice(1)},
+            withLeadingPagination: false,
+        }),
+    ]);
+
+    return {
+        type: "Channel",
+        subType: "Tail",
+        name,
+        pagination: pagination ?? postSection.pagination,
+        posts: postSection.posts,
+        isEndOfPosts: postSection.isEndOfPosts,
+    };
+}
+
+async function parseAgentWebChannelTailPreamble(
+    storage: AgentWebSessionStorage,
+    paragraph: Extract<RootContent, {type: "paragraph"}>,
+): Promise<{
+    name: string;
+    pagination: AgentWebChannelPagePagination | null;
+}> {
+    let children = paragraph.children;
+    let pagination: AgentWebChannelPagePagination | null = null;
+
+    const lastChild = children[children.length - 1];
+    if (
+        lastChild?.type === "link" &&
+        printMarkdownPhrasingContentText(lastChild.children) === agentWebChannelPageNextPageLinkText
+    ) {
+        pagination = await parseAgentWebChannelPagePaginationLink(storage, lastChild);
+        children = children.slice(0, -1);
+
+        const lastText = children[children.length - 1];
+        if (lastText?.type === "text" && lastText.value.endsWith(" ")) {
+            children = [
+                ...children.slice(0, -1),
+                {...lastText, value: lastText.value.slice(0, -1)},
+            ];
+        }
+    }
+
+    const text = printMarkdownPhrasingContentText(children);
+    const match = text.match(/^Posts in (.*?)(?:\.)?$/);
+
+    if (!match) {
+        throw new InvalidArgumentError("Invalid channel posts preamble", {
+            displayMessage: errorDisplayMessage`Channel posts markdown must start with \u201CPosts in My Channel\u201D (where \u201CMy Channel\u201D is the actual name of the channel) when reading an earlier channel posts page. Try again with a proper channel posts preamble on line 1.`,
+        });
+    }
+
+    return {name: match[1]!, pagination};
+}
+
+async function parseAgentWebChannelPagePostSection(
+    storage: AgentWebSessionStorage,
+    {
+        section,
+        withLeadingPagination,
+    }: {
+        section: Root;
+        withLeadingPagination: boolean;
+    },
+): Promise<{
+    pagination: AgentWebChannelPagePagination | null;
+    posts: ReadonlyArray<AgentWebChannelPagePostBlock>;
+    isEndOfPosts: boolean;
+}> {
+    let children = section.children;
+    let pagination: AgentWebChannelPagePagination | null = null;
+
+    if (withLeadingPagination && children[0]?.type === "paragraph") {
+        pagination = await parseAgentWebChannelPagePaginationParagraphIfPossible(
+            storage,
+            children[0],
+        );
+
+        if (pagination) children = children.slice(1);
+    }
+
+    const postPromises: Array<Promise<AgentWebChannelPagePostBlock>> = [];
+    let isEndOfPosts = false;
+
+    for (let index = 0; index < children.length; index++) {
+        const child = children[index]!;
+
+        if (isAgentWebChannelPageEndOfPostsParagraph(child)) {
+            isEndOfPosts = true;
+
+            if (index !== children.length - 1) {
+                throw new InvalidArgumentError("Content after end of channel posts", {
+                    displayMessage: errorDisplayMessage`Nothing may appear after \u201CEnd of posts\u201D in channel markdown. Try again after removing the extra content after \u201CEnd of posts\u201D on line ${children[index + 1]!.position?.start.line ?? "unknown"}.`,
+                });
+            }
+            break;
+        }
+
+        if (child.type !== "html" || !hasHtmlOpenTag(child.value, tagName => tagName === "post")) {
+            throw new InvalidArgumentError("Expected channel post block", {
+                displayMessage: errorDisplayMessage`Expected \`<post>\` blocks in the channel posts section. Try again with valid channel posts markdown on line ${child.position?.start.line ?? "unknown"}.`,
+            });
+        }
+
+        const postChildren: Array<RootContent> = [];
+        const openTag = child.value;
+        const openTagPosition = child.position;
+        let didFindCloseTag = false;
+
+        for (index++; index < children.length; index++) {
+            const postChild = children[index]!;
+
+            if (
+                postChild.type === "html" &&
+                hasHtmlCloseTag(postChild.value, tagName => tagName === "post")
+            ) {
+                didFindCloseTag = true;
+                break;
+            }
+
+            postChildren.push(postChild);
+        }
+
+        if (!didFindCloseTag) {
+            throw new InvalidArgumentError("Unclosed channel post block", {
+                displayMessage: errorDisplayMessage`\`<post>\` on line ${openTagPosition?.start.line ?? "unknown"} is missing a closing tag. Add a \`</post>\` closing tag and try again.`,
+            });
+        }
+
+        postPromises.push(
+            parseAgentWebChannelPagePostBlock(storage, {
+                root: {type: "root", children: postChildren},
+                openTag,
+                openTagPosition,
+            }),
+        );
+    }
+
+    return {
+        pagination,
+        posts: await runAllPromises(postPromises),
+        isEndOfPosts,
+    };
+}
+
+async function parseAgentWebChannelPagePaginationParagraphIfPossible(
+    storage: AgentWebSessionStorage,
+    paragraph: Extract<RootContent, {type: "paragraph"}>,
+): Promise<AgentWebChannelPagePagination | null> {
+    if (paragraph.children.length !== 1) return null;
+
+    const child = paragraph.children[0]!;
+    if (
+        child.type !== "link" ||
+        printMarkdownPhrasingContentText(child.children) !== agentWebChannelPageNextPageLinkText
+    ) {
+        return null;
+    }
+
+    return await parseAgentWebChannelPagePaginationLink(storage, child);
+}
+
+async function parseAgentWebChannelPagePaginationLink(
+    storage: AgentWebSessionStorage,
+    link: Link,
+): Promise<AgentWebChannelPagePagination> {
+    const {pathname, searchParams} = normalizeAgentWebPath(link.url);
+    const afterCursor = searchParams.get("after");
+
+    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, pathname);
+
+    if (!pageLinkResult || pageLinkResult.pageLink.type !== "Channel" || afterCursor === null) {
+        throw new InvalidArgumentError("Invalid channel page pagination link", {
+            displayMessage: errorDisplayMessage`Expected \u201cNext page »\u201d to link to a channel page with an \`?after\` cursor. Try again with a valid channel pagination link.`,
+        });
+    }
+
+    return {nextCursor: afterCursor};
+}
+
+function isAgentWebChannelPageEndOfPostsParagraph(node: RootContent): boolean {
+    return (
+        node.type === "paragraph" &&
+        /^End of posts\.?$/.test(printMarkdownPhrasingContentText(node.children))
+    );
+}
+
+function isAgentWebChannelPagePostSectionStartNode(node: RootContent): boolean {
+    if (isAgentWebChannelPageEndOfPostsParagraph(node)) return true;
+
+    if (node.type === "html" && hasHtmlOpenTag(node.value, tagName => tagName === "post")) {
+        return true;
+    }
+
+    return (
+        node.type === "paragraph" &&
+        node.children.length === 1 &&
+        node.children[0]?.type === "link" &&
+        printMarkdownPhrasingContentText(node.children[0].children) ===
+            agentWebChannelPageNextPageLinkText
+    );
+}
+
+async function parseAgentWebChannelPagePostBlock(
+    storage: AgentWebSessionStorage,
+    {
+        root,
+        openTag,
+        openTagPosition,
+    }: {
+        root: Root;
+        openTag: string;
+        openTagPosition: Html["position"];
+    },
+): Promise<AgentWebChannelPagePostBlock> {
+    const {fromAttribute, timeAttribute} = parseAgentWebChannelPagePostOpenTag(openTag);
+    const author =
+        fromAttribute === null
+            ? null
+            : await parseAgentWebChannelPageAccountLink(storage, openTagPosition, fromAttribute);
+
+    const seeMore = root.children[root.children.length - 1];
+
+    if (seeMore?.type !== "paragraph" || seeMore.children.length !== 1) {
+        throw new InvalidArgumentError("Missing channel post link", {
+            displayMessage: errorDisplayMessage`Every channel \`<post>\` must end with a \`[See more »](/post/...)\` link. Try again with the post link at the end of the \`<post>\` on line ${openTagPosition?.start.line ?? "unknown"}.`,
+        });
+    }
+
+    const seeMoreLink = seeMore.children[0]!;
+
+    if (
+        seeMoreLink.type !== "link" ||
+        printMarkdownPhrasingContentText(seeMoreLink.children) !== "See more »"
+    ) {
+        throw new InvalidArgumentError("Invalid channel post link", {
+            displayMessage: errorDisplayMessage`Every channel \`<post>\` must end with a \`[See more »](/post/...)\` link. Try again with the post link at the end of the \`<post>\` on line ${openTagPosition?.start.line ?? "unknown"}.`,
+        });
+    }
+
+    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, seeMoreLink.url);
+
+    if (!pageLinkResult || pageLinkResult.pageLink.type !== "Post") {
+        throw new InvalidArgumentError("Invalid channel post link", {
+            displayMessage: errorDisplayMessage`Expected \`See more »\` to link to a post. Try again with a valid post link at the end of the \`<post>\` on line ${openTagPosition?.start.line ?? "unknown"}.`,
+        });
+    }
+
+    const titleNodes = root.children.slice(0, -1);
+    let title = pageLinkResult.pageLink.title;
+
+    if (titleNodes.length === 1 && titleNodes[0]?.type === "paragraph") {
+        title = printMarkdownPhrasingContentText(titleNodes[0].children);
+    }
+
+    return {
+        type: "Post",
+        author,
+        timeAttribute,
+        reference: {...pageLinkResult.pageLink, title},
+    };
+}
+
+function parseAgentWebChannelPagePostOpenTag(openTag: string): {
+    fromAttribute: string | null;
+    timeAttribute: string | null;
+} {
+    let hasPostOpenTag = false;
+    let hasEndedPostOpenTag = false;
+    let startedAttribute: "from" | "time" | null = null;
+    let fromAttribute: string | null = null;
+    let timeAttribute: string | null = null;
+
+    const tokenizer = new HtmlTokenizer(
+        {},
+        {
+            onopentagname: (start, end) => {
+                const tagName = openTag.slice(start, end).toLowerCase();
+                if (tagName !== "post") return;
+
+                hasPostOpenTag = true;
+            },
+            onopentagend: () => {
+                if (hasPostOpenTag) {
+                    assert(!startedAttribute);
+                    hasEndedPostOpenTag = true;
+                }
+            },
+            onattribname: (start, end) => {
+                if (!hasPostOpenTag || hasEndedPostOpenTag) return;
+
+                const attributeName = openTag.slice(start, end).toLowerCase();
+                if (attributeName === "from") {
+                    startedAttribute = "from";
+                    fromAttribute = "";
+                } else if (attributeName === "time") {
+                    startedAttribute = "time";
+                    timeAttribute = "";
+                }
+            },
+            onattribdata: (start, end) => {
+                const attributeData = openTag.slice(start, end);
+
+                switch (startedAttribute) {
+                    case "from":
+                        fromAttribute += attributeData;
+                        break;
+                    case "time":
+                        timeAttribute += attributeData;
+                        break;
+                }
+            },
+            onattribentity: codepoint => {
+                const attributeData = String.fromCodePoint(codepoint);
+
+                switch (startedAttribute) {
+                    case "from":
+                        fromAttribute += attributeData;
+                        break;
+                    case "time":
+                        timeAttribute += attributeData;
+                        break;
+                }
+            },
+            onattribend: () => {
+                startedAttribute = null;
+            },
+            onclosetag: () => {},
+            onselfclosingtag: () => {},
+            ontext: () => {},
+            ontextentity: () => {},
+            oncdata: () => {},
+            oncomment: () => {},
+            ondeclaration: () => {},
+            onprocessinginstruction: () => {},
+            onend: () => {},
+        },
+    );
+
+    tokenizer.write(openTag);
+    tokenizer.end();
+
+    assert(hasPostOpenTag);
+
+    return {fromAttribute, timeAttribute};
+}
+
+async function parseAgentWebChannelPageAccountLink(
+    storage: AgentWebSessionStorage,
+    position: Html["position"],
+    string: string,
+): Promise<ApiAccountReferenceResponse> {
+    const createError = () => {
+        const quotedString = quoteMarkdown([{type: "text", value: string}]);
+
+        return new InvalidArgumentError("Invalid account link", {
+            displayMessage: errorDisplayMessage`Expected a link to a human or bot on line ${position?.start.line ?? "unknown"}. For example: \u201C[John](/human/john-doe)\u201D. Instead we found ${quotedString}. Try again with a valid link to a human or bot.`,
+        });
+    };
+
+    const root = parseMarkdownTree(string);
+    if (root.children.length !== 1) throw createError();
+
+    const firstChild = root.children[0]!;
+    if (firstChild.type !== "paragraph") throw createError();
+    if (firstChild.children.length !== 1) throw createError();
+
+    const firstGrandchild = firstChild.children[0]!;
+    if (firstGrandchild.type !== "link") throw createError();
+
+    const pageLinkResult = await routeAgentWebPageLinkPathname(storage, firstGrandchild.url);
+    if (!pageLinkResult) throw createError();
+
+    const {pageLink} = pageLinkResult;
+    if (pageLink.type !== "Account") throw createError();
+
+    return pageLink;
+}
