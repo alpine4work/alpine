@@ -783,11 +783,7 @@ paths:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     channel:
-                                        type: object
-                                        required: [name]
-                                        properties:
-                                            name:
-                                                $ref: "#/components/schemas/LabelString"
+                                        $ref: "#/components/schemas/ChannelPreview"
                                     nextCursor:
                                         oneOf:
                                             - $ref: "#/components/schemas/DateTime"

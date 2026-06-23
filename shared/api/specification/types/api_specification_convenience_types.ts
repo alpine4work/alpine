@@ -244,6 +244,8 @@ export type ApiTaskNotesResponse = ApiSpecification.components["schemas"]["TaskN
 
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
+export type ApiChannelPreview = ApiSpecification.components["schemas"]["ChannelPreview"];
+
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
 
 export type ApiPostPreview = ApiSpecification.components["schemas"]["PostPreview"];

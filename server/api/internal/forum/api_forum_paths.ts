@@ -30,6 +30,7 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder
 import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {ApiChannelPreview} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -99,12 +100,15 @@ export const apiForumPaths: Pick<
                     ? serializeDateString(lastPost.createdTime)
                     : null;
 
+            const channel: ApiChannelPreview = {
+                id: pathParameters.id,
+                name: postsResult.channelName,
+            };
+
             return {
                 content: {
                     spaceId: postsResult.spaceId,
-                    channel: {
-                        name: postsResult.channelName,
-                    },
+                    channel,
                     nextCursor,
                     posts: await runAllPromises(
                         postsResult.posts.map(async post => ({
@@ -117,10 +121,7 @@ export const apiForumPaths: Pick<
                             ),
                             createdTime: serializeDateString(post.createdTime),
                             createdTimeZone: post.createdTimeZone,
-                            channel: {
-                                id: pathParameters.id,
-                                name: postsResult.channelName,
-                            },
+                            channel,
                         })),
                     ),
                 },
