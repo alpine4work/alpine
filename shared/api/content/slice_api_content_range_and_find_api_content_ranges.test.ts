@@ -25,6 +25,28 @@ const testCases: Array<{
         range: {from: 0, to: 0},
     },
     {
+        name: "single character followed by empty paragraph",
+        content: {
+            type: "doc",
+            content: [
+                {type: "paragraph", content: [{type: "text", text: "a"}]},
+                {type: "paragraph"},
+            ],
+        },
+        range: {from: 0, to: 1},
+    },
+    {
+        name: "single character preceded by empty paragraph",
+        content: {
+            type: "doc",
+            content: [
+                {type: "paragraph"},
+                {type: "paragraph", content: [{type: "text", text: "a"}]},
+            ],
+        },
+        range: {from: 0, to: 1},
+    },
+    {
         name: "multiple characters",
         content: {
             type: "doc",
@@ -800,6 +822,116 @@ const testCases: Array<{
         },
         range: {from: 0.25, to: 0.25},
     },
+    {
+        name: "range starts at empty unordered list paragraph before repeated list text",
+        content: {
+            type: "doc",
+            content: [
+                {
+                    type: "unorderedListItem",
+                    attrs: {indent: 1},
+                    content: [
+                        {type: "paragraph"},
+                        {type: "paragraph", content: [{type: "text", text: "f"}]},
+                        {type: "paragraph"},
+                    ],
+                },
+                {
+                    type: "orderedListItem",
+                    attrs: {indent: 2, orderStart: null},
+                    content: [
+                        {type: "paragraph", content: [{type: "text", text: "4"}]},
+                        {type: "paragraph", content: [{type: "text", text: "f"}]},
+                    ],
+                },
+                {type: "paragraph", content: [{type: "text", text: "q"}]},
+            ],
+        },
+        range: {from: 0, to: 0},
+    },
+    {
+        name: "range starts after checklist paragraph text in quote",
+        content: {
+            type: "doc",
+            content: [
+                {
+                    type: "quoteBlock",
+                    content: [
+                        {
+                            type: "checkListItem",
+                            attrs: {indent: 2, checked: false},
+                            content: [
+                                {type: "paragraph", content: [{type: "text", text: "y"}]},
+                                {type: "paragraph", content: [{type: "text", text: "m"}]},
+                            ],
+                        },
+                        {
+                            type: "unorderedListItem",
+                            attrs: {indent: 1},
+                            content: [
+                                {type: "paragraph", content: [{type: "text", text: "2"}]},
+                                {type: "paragraph", content: [{type: "text", text: "2 w t b e a"}]},
+                                {
+                                    type: "paragraph",
+                                    content: [{type: "text", text: "p x 9 2 y h j"}],
+                                },
+                                {
+                                    type: "paragraph",
+                                    content: [{type: "text", text: "8 3 j 0 c 3 x p c 4 8 7"}],
+                                },
+                                {type: "paragraph", content: [{type: "text", text: "w g b"}]},
+                            ],
+                        },
+                        {type: "paragraph"},
+                    ],
+                },
+            ],
+        },
+        range: {from: 0.04545454680919647, to: 0.04545454680919647},
+    },
+    {
+        name: "overlapping repeated text in quoted ordered list",
+        content: {
+            type: "doc",
+            content: [
+                {
+                    type: "quoteBlock",
+                    content: [
+                        {type: "paragraph", content: [{type: "text", text: "q l 6"}]},
+                        {type: "paragraph", content: [{type: "text", text: "f i i a"}]},
+                        {
+                            type: "orderedListItem",
+                            attrs: {indent: 1, orderStart: null},
+                            content: [
+                                {
+                                    type: "paragraph",
+                                    content: [{type: "text", text: "n b w a o h w o i l"}],
+                                },
+                                {
+                                    type: "paragraph",
+                                    content: [{type: "text", text: "n i c 0 g g p"}],
+                                },
+                                {type: "paragraph"},
+                                {
+                                    type: "paragraph",
+                                    content: [{type: "text", text: "b y z z 3 9 q"}],
+                                },
+                            ],
+                        },
+                        {
+                            type: "checkListItem",
+                            attrs: {indent: 1, checked: false},
+                            content: [
+                                {type: "paragraph", content: [{type: "text", text: "f w v l r"}]},
+                                {type: "paragraph", content: [{type: "text", text: "i p f 1 w"}]},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        range: {from: 0.5, to: 0.530927836894989},
+    },
 ];
 
 const encoder = new ApiContentKeyEncoder({
@@ -816,29 +948,90 @@ for (const {only, name, content: contentJson, range} of testCases) {
         let from = Math.round(range.from * content.content.size);
         let to = Math.round(range.to * content.content.size);
 
-        while (true) {
-            if (from > content.content.size) break;
-
+        const isFromValid = (): boolean => {
             const $from = content.resolve(from);
-            if ($from.nodeAfter?.type.name === "file") break;
-            if ($from.parent.isTextblock) break;
-            from++;
-        }
 
-        while (true) {
-            if (to < 0) break;
+            if ($from.nodeAfter?.type.name === "file") {
+                return true;
+            }
 
+            if ($from.parent.isTextblock && $from.parentOffset < $from.parent.content.size) {
+                return true;
+            }
+
+            return false;
+        };
+
+        const isToValid = (): boolean => {
             const $to = content.resolve(to);
-            if ($to.nodeBefore?.type.name === "file") break;
-            if ($to.parent.isTextblock) break;
-            to--;
+
+            if ($to.nodeBefore?.type.name === "file") {
+                return true;
+            }
+
+            if ($to.parent.isTextblock && $to.parentOffset > 0) {
+                return true;
+            }
+
+            return false;
+        };
+
+        // Try searching backwards/forwards for a valid `from` and `to` position.
+        {
+            const originalFrom = from;
+            const originalTo = to;
+
+            while (true) {
+                if (from < content.content.size) {
+                    // 1. Try searching forwards for a valid `from` position.
+                    if (isFromValid()) break;
+                    from++;
+                    continue;
+                } else {
+                    // 2. Try searching backwards for a valid `from` position.
+                    from = originalFrom;
+
+                    while (true) {
+                        if (from > 0) {
+                            if (isFromValid()) break;
+                            from--;
+                            continue;
+                        }
+
+                        from = originalFrom;
+                        break;
+                    }
+                    break;
+                }
+            }
+
+            while (true) {
+                if (to > 0) {
+                    // 1. Try searching backwards for a valid `to` position.
+                    if (isToValid()) break;
+                    to--;
+                    continue;
+                } else {
+                    // 2. Try searching forwards for a valid `to` position.
+                    to = originalTo;
+
+                    while (true) {
+                        if (to < content.content.size) {
+                            if (isToValid()) break;
+                            to++;
+                            continue;
+                        }
+
+                        to = originalTo;
+                        break;
+                    }
+                    break;
+                }
+            }
         }
 
         if ((from > to && to >= 0) || from > content.content.size) from = to;
         if ((to < from && from <= content.content.size) || to < 0) to = from;
-
-        const originalFrom = from;
-        const originalTo = to;
 
         const hasCommentableContent = () => {
             let hasCommentableContent = false;
@@ -852,38 +1045,41 @@ for (const {only, name, content: contentJson, range} of testCases) {
             return hasCommentableContent;
         };
 
-        if (from === to || !hasCommentableContent()) {
-            while (true) {
-                if (to >= content.content.size - 1) {
-                    to = originalTo;
-                    break;
-                }
+        // Expand the range from a single character to include at least one character of
+        // commentable content.
+        {
+            const originalFrom = from;
+            const originalTo = to;
 
-                to++;
-                const $to = content.resolve(to);
-                if ($to.nodeBefore?.type.name === "file" && hasCommentableContent()) break;
-                if ($to.parent.isTextblock && hasCommentableContent()) break;
+            if (!hasCommentableContent()) {
+                while (true) {
+                    if (to >= content.content.size - 1) {
+                        to = originalTo;
+                        break;
+                    }
+
+                    to++;
+                    if (isToValid()) break;
+                }
+            }
+
+            if (!hasCommentableContent()) {
+                while (true) {
+                    if (from <= 0) {
+                        from = originalFrom;
+                        break;
+                    }
+
+                    from--;
+                    if (isFromValid()) break;
+                }
             }
         }
 
-        if (from === to || !hasCommentableContent()) {
-            while (true) {
-                if (from <= 0) {
-                    from = originalFrom;
-                    break;
-                }
-
-                from--;
-                const $from = content.resolve(from);
-                if ($from.nodeAfter?.type.name === "file" && hasCommentableContent()) break;
-                if ($from.parent.isTextblock && hasCommentableContent()) break;
-            }
-        }
-
-        // There are no valid ranges in this content for comments. This will basically only
-        // really happen if the content is all dividers.
-        if (to < 0 || from === to || !hasCommentableContent()) {
-            throw new InternalError("Invalid range, range must contain some commentable content");
+        // There are no valid ranges in this content for comments. This will only really
+        // happen if the content is all dividers.
+        if (!hasCommentableContent()) {
+            throw new InternalError("Range must contain some commentable content");
         }
 
         const $from = content.resolve(from);
@@ -908,7 +1104,10 @@ for (const {only, name, content: contentJson, range} of testCases) {
             $to.nodeBefore?.type.name === "file"
                 ? {
                       type: "After",
-                      key: encoder.encode({pos: to, nodeSize: $to.nodeBefore.nodeSize}),
+                      key: encoder.encode({
+                          pos: to - 1,
+                          nodeSize: $to.nodeBefore.nodeSize,
+                      }),
                   }
                 : {
                       type: "Inline",
