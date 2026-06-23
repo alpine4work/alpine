@@ -166,11 +166,13 @@ export async function readAgentWebChannelPage(
             postCursors.push(post.createdTime);
         }
 
+        const pagePosts = posts.slice();
+
         const metadata: AgentWebChannelPageMetadata = {
             type: "Channel",
             id,
             isEndOfPosts: nextCursor === null,
-            posts: posts.map(post => ({
+            posts: pagePosts.map(post => ({
                 id: post.reference.id,
             })),
         };
@@ -184,7 +186,7 @@ export async function readAgentWebChannelPage(
                 name: channel.name,
                 description: assertExists(channelDescriptionResult).data.channel.description,
                 pagination: pageNextCursor !== null ? {nextCursor: pageNextCursor} : null,
-                posts,
+                posts: pagePosts,
                 isEndOfPosts: nextCursor === null,
                 metadata,
             };
@@ -194,7 +196,7 @@ export async function readAgentWebChannelPage(
                 subType: "Tail",
                 name: channel.name,
                 pagination: pageNextCursor !== null ? {nextCursor: pageNextCursor} : null,
-                posts,
+                posts: pagePosts,
                 isEndOfPosts: nextCursor === null,
                 metadata,
             };
