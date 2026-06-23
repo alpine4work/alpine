@@ -106,14 +106,14 @@ export const apiForumPaths: Pick<
                 name: postsResult.channelName,
             };
 
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
             const posts = await runAllPromises(
                 postsResult.posts.map(async post => {
                     const [author, {content: contentSnippet, references}] = await runAllPromises([
-                        getApiAccount(context, postsResult.spaceId, post.authorId, {
-                            consistency: "StrongWithinCache",
-                        }),
+                        getApiAccount(referencesContext, postsResult.spaceId, post.authorId),
                         intoApiContentWithReferencesAndReturnReferences(
-                            context,
+                            referencesContext,
                             postsResult.spaceId,
                             FilePostAuthorizer.bind({
                                 type: "Post",
@@ -188,16 +188,16 @@ export const apiForumPaths: Pick<
 
     "/posts": {
         post: async (context, {requestBody}) => {
-            const channelId = requestBody.channelId;
+            const channelId = requestBody.post.channel.id;
             const postId = generateId<PostId>();
 
             const content = assertPostContent(
-                fromApiContent(PostContentProsemirrorSchema, requestBody.content),
+                fromApiContent(PostContentProsemirrorSchema, requestBody.post.content),
             );
 
             // Attach files referenced in the content to the post before creating the post so
             // there's no race where a reader sees the post before its files are attached.
-            const fileIds = extractFileIdsFromApiContent(requestBody.content);
+            const fileIds = extractFileIdsFromApiContent(requestBody.post.content);
             fileIds.delete(unknownFileId);
             if (fileIds.size > 0) {
                 await runAllPromises(
@@ -216,9 +216,9 @@ export const apiForumPaths: Pick<
                 createPost(context, {
                     id: postId,
                     channelId,
-                    createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
+                    createdTimeZone: requestBody.post.createdTimeZone ?? defaultTimeZone,
                     content,
-                    consistency: "Strong",
+                    consistency: "StrongWithinCache",
                 }),
                 getApiAccount(
                     referencesContext,
@@ -272,16 +272,16 @@ export const apiForumPaths: Pick<
 
     "/posts/{id}": {
         get: async (context, {pathParameters}) => {
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
             const post = await getPostContentWithCustomReferencesAndChannelPreview(
                 context,
                 pathParameters.id,
                 async (context, spaceId, post) => {
                     const [author, {content, references}] = await runAllPromises([
-                        getApiAccount(context, spaceId, post.authorId, {
-                            consistency: "StrongWithinCache",
-                        }),
+                        getApiAccount(referencesContext, spaceId, post.authorId),
                         intoApiContentWithReferencesAndReturnReferences(
-                            context,
+                            referencesContext,
                             spaceId,
                             FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
                             post.content,
@@ -336,16 +336,16 @@ export const apiForumPaths: Pick<
     // NOCOMMIT: Test!
     "/posts/{id}/preview": {
         get: async (context, {pathParameters}) => {
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
             const post = await getPostContentWithCustomReferencesAndChannelPreview(
                 context,
                 pathParameters.id,
                 async (context, spaceId, post) => {
                     const [author, {content: contentSnippet, references}] = await runAllPromises([
-                        getApiAccount(context, spaceId, post.authorId, {
-                            consistency: "StrongWithinCache",
-                        }),
+                        getApiAccount(referencesContext, spaceId, post.authorId),
                         intoApiContentWithReferencesAndReturnReferences(
-                            context,
+                            referencesContext,
                             spaceId,
                             FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
                             // NOCOMMIT: Test that we snip correctly
