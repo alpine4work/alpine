@@ -49,12 +49,13 @@ Author: [developer123](https://github.com/developer123) • Triggered by: [devel
 `;
 
 exports[`GitHubAlertSource deploy notifications comments on posts with commit hash when deploy fails 1`] = `
-[
-  {
-    "postId": "builds-post-id",
-    "type": "PostPreview",
+{
+  "target": {
+    "id": "builds-post-id",
+    "type": "Post",
   },
-]
+  "type": "Preview",
+}
 `;
 
 exports[`GitHubAlertSource deploy notifications comments on posts with commit hash when deploy succeeds 1`] = `

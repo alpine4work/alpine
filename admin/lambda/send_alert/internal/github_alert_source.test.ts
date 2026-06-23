@@ -1148,6 +1148,7 @@ describe("GitHubAlertSource", () => {
             const spaceId = "test-space-id";
             const postId1 = "test-post-id-1";
             const postId2 = "test-post-id-2";
+            const humanPostId = "non-bot-post-id";
 
             mockFetch.mockClear();
             mockFetchCalls = [];
@@ -1187,6 +1188,7 @@ describe("GitHubAlertSource", () => {
                                         {
                                             type: "Post",
                                             id: postId1,
+                                            title: `in GitHub: cursor pushed a commit (${shortHash})`,
                                             bodyMatch: [
                                                 {isMatch: true, text: "in"},
                                                 {text: " "},
@@ -1200,6 +1202,7 @@ describe("GitHubAlertSource", () => {
                                         {
                                             type: "Post",
                                             id: postId2,
+                                            title: `in GitHub: another post with ${shortHash}`,
                                             bodyMatch: [
                                                 {isMatch: true, text: "in"},
                                                 {text: " "},
@@ -1211,6 +1214,7 @@ describe("GitHubAlertSource", () => {
                                         {
                                             type: "Post",
                                             id: "post-without-commit-hash",
+                                            title: "in GitHub: unrelated post",
                                             bodyMatch: [
                                                 {isMatch: true, text: "in"},
                                                 {text: " "},
@@ -1221,13 +1225,26 @@ describe("GitHubAlertSource", () => {
                                         },
                                         {
                                             type: "Post",
-                                            id: "non-bot-post-id",
+                                            id: humanPostId,
+                                            title: `in GitHub: manual mention of ${shortHash}`,
                                             bodyMatch: [{text: `manual mention of ${shortHash}`}],
                                             author: {},
                                         },
                                     ],
                                 }),
                             ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({id: "post-id"})),
                     });
                 })
                 .mockImplementationOnce((_url: string, options?: any) => {
@@ -1266,13 +1283,13 @@ describe("GitHubAlertSource", () => {
 
             await handleGitHubWorkflowRunPayload(payload);
 
-            expect(mockFetchCalls.length).toBe(4);
+            expect(mockFetchCalls.length).toBe(5);
 
             expect(mockFetchCalls[0]?.url).toBe(
                 `https://api.test.cyberworlds.com/channels/${sendAlertAvailableChannels.github}`,
             );
 
-            const searchQuery = encodeURIComponent(`${shortHash} in GitHub`);
+            const searchQuery = encodeURIComponent(shortHash);
             expect(mockFetchCalls[1]?.url).toBe(
                 `https://api.test.cyberworlds.com/spaces/${spaceId}/search?query=${searchQuery}`,
             );
@@ -1284,6 +1301,9 @@ describe("GitHubAlertSource", () => {
 
             expect(mockFetchCalls[3]?.url).toBe(
                 `https://api.test.cyberworlds.com/posts/${postId2}/messages`,
+            );
+            expect(mockFetchCalls[4]?.url).toBe(
+                `https://api.test.cyberworlds.com/posts/${humanPostId}/messages`,
             );
         });
 
@@ -1342,7 +1362,15 @@ describe("GitHubAlertSource", () => {
                                         {
                                             type: "Post",
                                             id: postId,
+                                            title: `in GitHub: commit ${commitHash.substring(0, 7)}`,
                                             bodyMatch: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            author: {botId: "paul-bot-id"},
+                                        },
+                                        {
+                                            type: "Post",
+                                            id: "builds-post-id",
+                                            title: `in Builds: Build failed for ${commitHash.substring(0, 7)}`,
+                                            bodyMatch: `Build failed for ${commitHash.substring(0, 7)}`,
                                             author: {botId: "paul-bot-id"},
                                         },
                                     ],
@@ -1374,7 +1402,7 @@ describe("GitHubAlertSource", () => {
 
             await handleGitHubWorkflowRunPayload(payload);
 
-            expect(mockFetchCalls.length).toBe(4);
+            expect(mockFetchCalls.length).toBe(5);
 
             expect(mockFetchCalls[0]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
 
@@ -1382,12 +1410,14 @@ describe("GitHubAlertSource", () => {
             expect(mockFetchCalls[commentCallIndex]?.url).toBe(
                 `https://api.test.cyberworlds.com/posts/${postId}/messages`,
             );
+            expect(mockFetchCalls[4]?.url).toBe(
+                "https://api.test.cyberworlds.com/posts/builds-post-id/messages",
+            );
 
             const commentBody = mockFetchCalls[commentCallIndex]!.body as {
-                content: {elements: Array<{type: string; elements: Array<unknown>}>};
+                content: {elements: Array<unknown>};
             };
-            expect(commentBody.content.elements[0]?.type).toBe("Paragraph");
-            expect(commentBody.content.elements[0]?.elements).toMatchSnapshot();
+            expect(commentBody.content.elements[0]).toMatchSnapshot();
         });
 
         test("handles case when no posts are found with commit hash", async () => {
@@ -1503,7 +1533,15 @@ describe("GitHubAlertSource", () => {
                                         {
                                             type: "Post",
                                             id: postId,
+                                            title: `in GitHub: commit ${commitHash.substring(0, 7)}`,
                                             bodyMatch: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            author: {botId: "paul-bot-id"},
+                                        },
+                                        {
+                                            type: "Post",
+                                            id: "builds-post-id",
+                                            title: `in Builds: Build failed for ${commitHash.substring(0, 7)}`,
+                                            bodyMatch: `Build failed for ${commitHash.substring(0, 7)}`,
                                             author: {botId: "paul-bot-id"},
                                         },
                                     ],
@@ -1535,7 +1573,7 @@ describe("GitHubAlertSource", () => {
 
             await handleGitHubWorkflowRunPayload(payload);
 
-            expect(mockFetchCalls.length).toBe(4);
+            expect(mockFetchCalls.length).toBe(5);
 
             expect(mockFetchCalls[0]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
 
@@ -1543,17 +1581,20 @@ describe("GitHubAlertSource", () => {
             expect(mockFetchCalls[commentCallIndex]?.url).toBe(
                 `https://api.test.cyberworlds.com/posts/${postId}/messages`,
             );
+            expect(mockFetchCalls[4]?.url).toBe(
+                "https://api.test.cyberworlds.com/posts/builds-post-id/messages",
+            );
 
             const commentBody = mockFetchCalls[commentCallIndex]!.body as {
-                content: {elements: Array<{type: string; elements: Array<unknown>}>};
+                content: {elements: Array<unknown>};
             };
-            expect(commentBody.content.elements[0]?.type).toBe("Paragraph");
-            expect(commentBody.content.elements[0]?.elements).toEqual([
-                {
-                    type: "PostPreview",
-                    postId: "builds-post-id",
+            expect(commentBody.content.elements[0]).toEqual({
+                type: "Preview",
+                target: {
+                    type: "Post",
+                    id: "builds-post-id",
                 },
-            ]);
+            });
         });
 
         test("does not comment on posts with commit hash when a non-deploy workflow succeeds", async () => {

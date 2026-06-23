@@ -247,7 +247,7 @@ export class GitHubAlertSource extends AlertSource {
                 return;
             }
 
-            const searchQuery = `${shortHash} in GitHub`;
+            const searchQuery = shortHash;
             const searchResult = await this.fetchAlpineApi<{
                 results: ReadonlyArray<ApiSearchResult>;
             }>(`/spaces/${spaceId}/search?query=${encodeURIComponent(searchQuery)}`, {
@@ -259,12 +259,13 @@ export class GitHubAlertSource extends AlertSource {
                 return;
             }
 
+            // Searching only for the hash intentionally finds every post that mentions the
+            // commit, including any Builds failure posts created for it.
             const posts = searchResult.value.results.filter(
                 result =>
                     result.type === "Post" &&
                     result.bodyMatch &&
-                    (JSON.stringify(result.bodyMatch) ?? "").includes(shortHash) &&
-                    result.author?.botId,
+                    (JSON.stringify(result.bodyMatch) ?? "").includes(shortHash),
             );
 
             if (posts.length === 0) {
@@ -318,13 +319,11 @@ export class GitHubAlertSource extends AlertSource {
                         content: {
                             elements: [
                                 {
-                                    type: "Paragraph",
-                                    elements: [
-                                        {
-                                            type: "PostPreview",
-                                            postId: buildsChannelPostId,
-                                        },
-                                    ],
+                                    type: "Preview",
+                                    target: {
+                                        type: "Post",
+                                        id: buildsChannelPostId,
+                                    },
                                 },
                             ],
                         },
