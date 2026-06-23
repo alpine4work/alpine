@@ -2537,6 +2537,16 @@ components:
             required: [elements]
             additionalProperties: false
             properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+
+        ContentCodeBlockElementLine_Response:
+            type: object
+            required: [key, elements]
+            additionalProperties: false
+            properties:
                 key:
                     $ref: "#/components/schemas/ContentKey"
                 elements:

@@ -1,5 +1,6 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import {intoApiContentParagraphBlockElement} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
 import {
     ApiContent,
@@ -118,20 +119,34 @@ export function* fromApiContentBlockElements(
                         // Clamp indent to max allowed value
                         const clampedIndent = Math.min(indent, maxContentListItemIndentation);
 
-                        if (item.elements.length > 0) {
-                            const attrs: {indent: number; checked?: boolean; orderStart?: number} =
-                                {indent: clampedIndent};
+                        const attrs: {indent: number; checked?: boolean; orderStart?: number} = {
+                            indent: clampedIndent,
+                        };
 
-                            if (typeName === "checkListItem") {
-                                attrs.checked = assertCheckListItem(item).checked;
+                        if (typeName === "checkListItem") {
+                            attrs.checked = assertCheckListItem(item).checked;
+                        }
+
+                        // Only set orderStart for the first ordered list item. Subsequent items
+                        // auto-increment naturally.
+                        if (element.type === "OrderedList" && itemIndex === 0) {
+                            attrs.orderStart = element.orderStart;
+                        }
+
+                        if (item.elements.length === 0) {
+                            if (
+                                element.type !== "UnorderedList" ||
+                                item.nestedListElements === undefined ||
+                                item.nestedListElements.every(
+                                    nestedElement => nestedElement.items.length === 0,
+                                )
+                            ) {
+                                yield schema.nodes[typeName]!.create(
+                                    attrs,
+                                    schema.nodes.paragraph!.create(),
+                                );
                             }
-
-                            // Only set orderStart for the first ordered list item. Subsequent items
-                            // auto-increment naturally.
-                            if (element.type === "OrderedList" && itemIndex === 0) {
-                                attrs.orderStart = element.orderStart;
-                            }
-
+                        } else {
                             yield schema.nodes[typeName]!.create(
                                 attrs,
                                 Array.from(fromApiContentBlockElements(schema, item.elements)),
@@ -188,6 +203,39 @@ export function* fromApiContentBlockElements(
                 break;
             }
             case "Table": {
+                const rows = element.rows.map(row => {
+                    const cells = row.cells.map(cell => {
+                        const cellContent = Array.from(
+                            fromApiContentTableCellBlockElements(schema, cell.elements),
+                        );
+
+                        // Table cells require at least one block element (tableBlock+) If the cell is
+                        // empty, create an empty paragraph
+                        if (cellContent.length === 0) {
+                            cellContent.push(schema.nodes.paragraph!.create());
+                        }
+
+                        return schema.nodes.tableCell!.create(null, cellContent);
+                    });
+
+                    while (cells.length < 2) {
+                        cells.push(
+                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
+                        );
+                    }
+
+                    return schema.nodes.tableRow!.create(null, cells);
+                });
+
+                if (rows.length < 1) {
+                    rows.push(
+                        schema.nodes.tableRow!.create(null, [
+                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
+                            schema.nodes.tableCell!.create(null, schema.nodes.paragraph!.create()),
+                        ]),
+                    );
+                }
+
                 yield schema.nodes.table!.create(
                     {
                         tableWidth: element.width,
@@ -195,37 +243,23 @@ export function* fromApiContentBlockElements(
                         hasHeaderRow: element.hasHeaderRow,
                         hasHeaderColumn: element.hasHeaderColumn,
                     },
-                    element.rows.map(row => {
-                        return schema.nodes.tableRow!.create(
-                            null,
-                            row.cells.map(cell => {
-                                const cellContent = Array.from(
-                                    fromApiContentTableCellBlockElements(schema, cell.elements),
-                                );
-
-                                // Table cells require at least one block element (tableBlock+) If the cell is
-                                // empty, create an empty paragraph
-                                if (cellContent.length === 0) {
-                                    cellContent.push(schema.nodes.paragraph!.create());
-                                }
-
-                                return schema.nodes.tableCell!.create(null, cellContent);
-                            }),
-                        );
-                    }),
+                    rows,
                 );
                 break;
             }
             case "Code": {
-                yield schema.nodes.codeBlock!.create(
-                    {language: element.language},
-                    element.lines.map(line => {
-                        return schema.nodes.codeBlockLine!.create(
-                            null,
-                            fromApiContentInlineElements(schema, line.elements),
-                        );
-                    }),
-                );
+                const lines = element.lines.map(line => {
+                    return schema.nodes.codeBlockLine!.create(
+                        null,
+                        fromApiContentInlineElements(schema, line.elements),
+                    );
+                });
+
+                if (lines.length < 1) {
+                    lines.push(schema.nodes.codeBlockLine!.create());
+                }
+
+                yield schema.nodes.codeBlock!.create({language: element.language}, lines);
                 break;
             }
             case "File":
@@ -289,21 +323,21 @@ function fromApiContentFileOrPreviewElement(
 ): Node {
     switch (element.type) {
         case "File": {
+            const marks = normalizeApiContentInlineElementMarks(element.marks);
+
             return schema.nodes.file!.create(
                 {fileId: element.id === unknownFileId ? null : element.id},
                 undefined,
-                element.marks?.map(mark =>
-                    schema.marks.comment!.create({commentThreadId: mark.thread.id}),
-                ),
+                marks?.map(mark => schema.marks.comment!.create({commentThreadId: mark.thread.id})),
             );
         }
         case "Preview": {
+            const marks = normalizeApiContentInlineElementMarks(element.marks);
+
             return schema.nodes.file!.create(
                 {fileId: previewReferenceToFileEntityId(element.reference)},
                 undefined,
-                element.marks?.map(mark =>
-                    schema.marks.comment!.create({commentThreadId: mark.thread.id}),
-                ),
+                marks?.map(mark => schema.marks.comment!.create({commentThreadId: mark.thread.id})),
             );
         }
         default:
@@ -331,17 +365,17 @@ function fromApiContentInlineElements(
     schema: ProsemirrorSchema,
     elements: ReadonlyArray<ApiContentInlineElement>,
 ): ReadonlyArray<Node> {
-    return elements.map(element => fromApiContentInlineElement(schema, element));
+    return filterMapArray(elements, element => {
+        if (element.type === "Text" && element.text === "") return;
+        return fromApiContentInlineElement(schema, element);
+    });
 }
 
 function fromApiContentInlineElement(
     schema: ProsemirrorSchema,
     element: ApiContentInlineElement,
 ): Node {
-    const marks =
-        element.marks !== undefined
-            ? fromApiContentInlineElementMarks(schema, element.marks)
-            : undefined;
+    const marks = fromApiContentInlineElementMarks(schema, element.marks);
 
     switch (element.type) {
         case "Text": {
@@ -419,8 +453,10 @@ function fromApiContentMentionInlineElement(
 
 function fromApiContentInlineElementMarks(
     schema: ProsemirrorSchema,
-    marks: ReadonlyArray<ApiContentInlineElementMark>,
-): ReadonlyArray<Mark> {
+    marks: ReadonlyArray<ApiContentInlineElementMark> | undefined,
+): ReadonlyArray<Mark> | undefined {
+    marks = normalizeApiContentInlineElementMarks(marks);
+    if (marks === undefined) return undefined;
     return filterMapArray(marks, mark => fromApiContentInlineElementMark(schema, mark));
 }
 

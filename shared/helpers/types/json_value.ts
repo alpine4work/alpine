@@ -51,10 +51,10 @@ export type JsonWritableValue = JsonScalarValue | JsonObjectWritableValue | Json
  * Same as `JsonObjectValue` but not read-only.
  */
 export type JsonObjectWritableValue = {
-    readonly [key: string]: JsonWritableValue | undefined;
+    [key: string]: JsonWritableValue | undefined;
 };
 
 /**
  * Same as `JsonArrayValue` but not read-only.
  */
-export type JsonArrayWritableValue = ReadonlyArray<JsonWritableValue>;
+export type JsonArrayWritableValue = Array<JsonWritableValue>;

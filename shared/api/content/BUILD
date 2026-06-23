@@ -4,6 +4,7 @@ ts_project(
     name = "content",
     test_deps = [
         "//:node_modules/fast-check",
+        "//shared/api/markdown/test_helpers",
         "//shared/documents",
         "//shared/prosemirror/test_helpers",
     ],

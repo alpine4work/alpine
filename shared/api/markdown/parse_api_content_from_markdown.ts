@@ -3,7 +3,6 @@ import parseInlineStyle from "inline-style-parser";
 import {
     BlockContent,
     DefinitionContent,
-    HtmlData,
     List,
     ListItem,
     PhrasingContent,
@@ -39,6 +38,8 @@ import {
     ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
+    ApiContentCommentMark,
+    ApiContentHeadingBlockElement,
     ApiContentHighlightMarkColor,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
@@ -49,8 +50,6 @@ import {
     ApiContentTableBlockElement,
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementCellBlockElement,
-    ApiContentCommentMark,
-    ApiContentHeadingBlockElement,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -198,15 +197,17 @@ function parseApiContentFromMarkdown(
 
     loop(root);
 
-    return {
-        elements: Array.from(
-            parseApiContentBlockElementsFromMarkdown(
-                root.children as Array<BlockContent | DefinitionContent>,
-                options,
-                definitions,
-                {withTableHtml: true},
-            ),
+    const elements = Array.from(
+        parseApiContentBlockElementsFromMarkdown(
+            root.children as Array<BlockContent | DefinitionContent>,
+            options,
+            definitions,
+            {withTableHtml: true},
         ),
+    );
+
+    return {
+        elements: elements.length === 0 ? [{type: "Paragraph", elements: []}] : elements,
     };
 }
 
@@ -437,21 +438,23 @@ function* parseApiContentBlockElementFromMarkdown(
             break;
         }
         case "blockquote": {
+            const elements = Array.from(
+                flatMapIterable(
+                    parseApiContentBlockElementsFromMarkdown(
+                        content.children,
+                        options,
+                        definitions,
+                        // Instead of ignoring elements like `</td>` (which may feel broken) throw an error
+                        // if we see table HTML.
+                        {withTableHtml: false},
+                    ),
+                    intoApiContentQuoteBlockElementBlockElement,
+                ),
+            );
+
             yield {
                 type: "Quote",
-                elements: Array.from(
-                    flatMapIterable(
-                        parseApiContentBlockElementsFromMarkdown(
-                            content.children,
-                            options,
-                            definitions,
-                            // Instead of ignoring elements like `</td>` (which may feel broken) throw an error
-                            // if we see table HTML.
-                            {withTableHtml: false},
-                        ),
-                        intoApiContentQuoteBlockElementBlockElement,
-                    ),
-                ),
+                elements: elements.length === 0 ? [{type: "Paragraph", elements: []}] : elements,
             };
             break;
         }
@@ -1509,38 +1512,29 @@ function* parseApiContentBlockElementFromMarkdown(
             let columnCount = 0;
 
             const rows = content.children.map(row => {
-                columnCount = Math.max(columnCount, row.children.length);
+                const cells = row.children.map((cell): ApiContentTableBlockElementCell => {
+                    const elements = Array.from(
+                        parseApiContentInlineElementsAsBlockElementsFromMarkdown(
+                            cell.children,
+                            definitions,
+                            elements => ({type: "Paragraph", elements}),
+                        ),
+                    );
 
-                return {
-                    cells: row.children.map((cell): ApiContentTableBlockElementCell => {
-                        const elements = Array.from(
-                            parseApiContentInlineElementsAsBlockElementsFromMarkdown(
-                                cell.children,
-                                definitions,
-                                elements => ({type: "Paragraph", elements}),
-                            ),
-                        );
+                    return {
+                        elements:
+                            elements.length === 0 ? [{type: "Paragraph", elements: []}] : elements,
+                    };
+                });
 
-                        return {
-                            elements:
-                                elements.length === 1 &&
-                                elements[0]!.type === "Paragraph" &&
-                                elements[0]!.elements.length === 0
-                                    ? []
-                                    : elements,
-                        };
-                    }),
-                };
-            });
-
-            // Ensure at least 2 columns (schema requires tableCell{2,})
-            columnCount = Math.max(columnCount, 2);
-
-            for (const row of rows) {
-                while (row.cells.length < columnCount) {
-                    row.cells.push({elements: []});
+                while (cells.length < 2) {
+                    cells.push({elements: [{type: "Paragraph", elements: []}]});
                 }
-            }
+
+                columnCount = Math.max(columnCount, cells.length);
+
+                return {cells};
+            });
 
             yield {
                 type: "Table",
@@ -1761,51 +1755,38 @@ class ApiContentBlockElementsMarkdownTableState {
                 let hasHeaderColumn: boolean | undefined;
 
                 const rows = state.rows.map((row, rowIndex) => {
-                    columnCount = Math.max(columnCount, row.cells.length);
+                    const cells = row.cells.map((cell, columnIndex) => {
+                        hasHeaderRow ??= true;
+                        hasHeaderColumn ??= true;
 
-                    return {
-                        cells: row.cells.map((cell, columnIndex) => {
-                            hasHeaderRow ??= true;
-                            hasHeaderColumn ??= true;
+                        hasHeaderRow &&=
+                            cell.tagName === "th"
+                                ? rowIndex === 0 || cell.scope === "row"
+                                : rowIndex !== 0;
 
-                            hasHeaderRow &&=
-                                cell.tagName === "th"
-                                    ? rowIndex === 0 || cell.scope === "row"
-                                    : rowIndex !== 0;
+                        hasHeaderColumn &&=
+                            cell.tagName === "th"
+                                ? columnIndex === 0 || cell.scope === "col"
+                                : columnIndex !== 0;
 
-                            hasHeaderColumn &&=
-                                cell.tagName === "th"
-                                    ? columnIndex === 0 || cell.scope === "col"
-                                    : columnIndex !== 0;
+                        const elements = Array.from(
+                            flatMapIterable(
+                                cell.elements,
+                                intoApiContentTableBlockElementCellElement,
+                            ),
+                        );
 
-                            const elements = Array.from(
-                                flatMapIterable(
-                                    cell.elements,
-                                    intoApiContentTableBlockElementCellElement,
-                                ),
-                            );
+                        return {elements};
+                    });
 
-                            if (
-                                elements.length === 1 &&
-                                elements[0]!.type === "Paragraph" &&
-                                elements[0]!.elements.length === 0
-                            ) {
-                                elements.pop();
-                            }
-
-                            return {elements};
-                        }),
-                    };
-                });
-
-                // Ensure at least 2 columns (schema requires tableCell{2,})
-                columnCount = Math.max(columnCount, 2);
-
-                for (const row of rows) {
-                    while (row.cells.length < columnCount) {
-                        row.cells.push({elements: []});
+                    while (cells.length < 2) {
+                        cells.push({elements: [{type: "Paragraph", elements: []}]});
                     }
-                }
+
+                    columnCount = Math.max(columnCount, cells.length);
+
+                    return {cells};
+                });
 
                 return {
                     type: "Table",

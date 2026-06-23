@@ -110,6 +110,9 @@ export type ApiContentHeadingBlockElementResponse =
 export type ApiContentDividerBlockElement =
     ApiSpecification.components["schemas"]["ContentDividerBlockElement"];
 
+export type ApiContentDividerBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentDividerBlockElement_Response"];
+
 export type ApiContentTableBlockElement =
     ApiSpecification.components["schemas"]["ContentTableBlockElement"];
 
@@ -136,6 +139,9 @@ export type ApiContentTableBlockElementCellBlockElementResponse =
 
 export type ApiContentCodeBlockElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElement"];
+
+export type ApiContentCodeBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElement_Response"];
 
 export type ApiContentCodeBlockElementTextInlineElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElementTextInlineElement"];

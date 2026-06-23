@@ -4,6 +4,7 @@ import {computeApiContentFileRowWidths} from "~/shared/api/content/compute_api_c
 import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/markdown/get_api_mention_reference_noun.js";
+import {normalizeApiContentInlineElementMarks} from "~/shared/api/markdown/normalize_api_content.js";
 import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {
     ApiContentBlockElementResponseWithOptionalKeys,
@@ -367,7 +368,7 @@ function* intoApiContentListBlockElements(
             case "unorderedListItem": {
                 const elementItem: ApiContentListBlockElementItemResponseWithOptionalKeys = {
                     elements,
-                    nestedListElements,
+                    ...(nestedListElements !== undefined ? {nestedListElements} : {}),
                 };
 
                 if (lastElement?.type === "UnorderedList") {
@@ -385,7 +386,7 @@ function* intoApiContentListBlockElements(
             case "orderedListItem": {
                 const elementItem: ApiContentListBlockElementItemResponseWithOptionalKeys = {
                     elements,
-                    nestedListElements,
+                    ...(nestedListElements !== undefined ? {nestedListElements} : {}),
                 };
 
                 const itemOrderStart = item.node?.attrs.orderStart ?? undefined;
@@ -401,7 +402,7 @@ function* intoApiContentListBlockElements(
 
                     lastElement = {
                         type: "OrderedList",
-                        orderStart: itemOrderStart,
+                        ...(itemOrderStart !== undefined ? {orderStart: itemOrderStart} : {}),
                         items: [elementItem],
                     };
                 }
@@ -411,7 +412,7 @@ function* intoApiContentListBlockElements(
                 const elementItem: ApiContentCheckListBlockElementItemResponseWithOptionalKeys = {
                     checked: item.node?.attrs.checked ?? false,
                     elements,
-                    nestedListElements,
+                    ...(nestedListElements !== undefined ? {nestedListElements} : {}),
                 };
 
                 if (lastElement?.type === "CheckList") {
@@ -571,8 +572,8 @@ function intoApiContentBlockElement(
             return {
                 type: "Table",
                 width: node.attrs.tableWidth,
-                hasHeaderRow: node.attrs.hasHeaderRow === true ? true : undefined,
-                hasHeaderColumn: node.attrs.hasHeaderColumn === true ? true : undefined,
+                hasHeaderRow: node.attrs.hasHeaderRow === true,
+                hasHeaderColumn: node.attrs.hasHeaderColumn === true,
                 columns: createArrayWithLength(columnWidth, index => ({
                     width: node.attrs.columnWidths[index] ?? 1,
                 })),
@@ -595,23 +596,25 @@ function intoApiContentBlockElement(
                     const elements = lineNode.content.content.map(textNode => {
                         assert(textNode.type.name === "text");
 
+                        // Code block text can carry formatting marks, but nested Code marks are not
+                        // representable.
+                        const marks =
+                            textNode.marks.length > 0
+                                ? textNode.marks.map(mark => {
+                                      const apiMark = intoApiContentInlineElementMark(mark);
+                                      if (apiMark.type === "Code") {
+                                          throw new InternalError(
+                                              quote`${apiMark.type} mark isn\u2019t supported in \`Code\` block element`,
+                                          );
+                                      }
+                                      return apiMark;
+                                  })
+                                : undefined;
+
                         return {
                             type: "Text" as const,
                             text: textNode.text!,
-                            // Code block text can carry formatting marks, but nested Code marks are not
-                            // representable.
-                            marks:
-                                textNode.marks.length > 0
-                                    ? textNode.marks.map(mark => {
-                                          const apiMark = intoApiContentInlineElementMark(mark);
-                                          if (apiMark.type === "Code") {
-                                              throw new InternalError(
-                                                  quote`${apiMark.type} mark isn\u2019t supported in \`Code\` block element`,
-                                              );
-                                          }
-                                          return apiMark;
-                                      })
-                                    : undefined,
+                            ...(marks !== undefined ? {marks} : {}),
                         };
                     });
 
@@ -773,14 +776,16 @@ function intoApiContentFileOrPreviewElement(
 
     const marks =
         node.marks.length > 0
-            ? node.marks.map((mark): ApiContentCommentMark => {
-                  assert(mark.type.name === "comment");
+            ? normalizeApiContentInlineElementMarks(
+                  node.marks.map((mark): ApiContentCommentMark => {
+                      assert(mark.type.name === "comment");
 
-                  return {
-                      type: "Comment",
-                      thread: {id: mark.attrs.commentThreadId},
-                  };
-              })
+                      return {
+                          type: "Comment",
+                          thread: {id: mark.attrs.commentThreadId},
+                      };
+                  }),
+              )
             : undefined;
 
     const fileId: string | null = node.attrs.fileId;
@@ -792,7 +797,7 @@ function intoApiContentFileOrPreviewElement(
             id: unknownFileId,
             contentType: "application/octet-stream",
             contentLength: 0,
-            marks,
+            ...(marks !== undefined ? {marks} : {}),
         };
     }
 
@@ -874,7 +879,7 @@ function intoApiContentFileOrPreviewElement(
             type: "Preview",
             ...(key !== undefined ? {key} : {}),
             reference,
-            marks,
+            ...(marks !== undefined ? {marks} : {}),
         };
     }
 
@@ -886,7 +891,7 @@ function intoApiContentFileOrPreviewElement(
         id: fileId,
         contentType: file?.contentType ?? "application/octet-stream",
         contentLength: file?.contentLength ?? 0,
-        marks,
+        ...(marks !== undefined ? {marks} : {}),
     };
 }
 
@@ -905,22 +910,22 @@ function intoApiContentInlineElement(
 
     switch (typeName) {
         case "text": {
+            const marks =
+                node.marks.length > 0 ? intoApiContentInlineElementMarks(node.marks) : undefined;
+
             return {
                 type: "Text",
                 text: node.text!,
-                marks:
-                    node.marks.length > 0
-                        ? intoApiContentInlineElementMarks(node.marks)
-                        : undefined,
+                ...(marks !== undefined ? {marks} : {}),
             };
         }
         case "break": {
+            const marks =
+                node.marks.length > 0 ? intoApiContentInlineElementMarks(node.marks) : undefined;
+
             return {
                 type: "Break",
-                marks:
-                    node.marks.length > 0
-                        ? intoApiContentInlineElementMarks(node.marks)
-                        : undefined,
+                ...(marks !== undefined ? {marks} : {}),
             };
         }
         case "mention": {
@@ -934,6 +939,11 @@ function intoApiContentInlineElement(
                     context.getAccountMentionTitleIfExists(mention.accountId, {isShort: true}) ??
                     title;
 
+                const marks =
+                    node.marks.length > 0
+                        ? intoApiContentInlineElementMarks(node.marks)
+                        : undefined;
+
                 return {
                     type: "Mention",
                     reference: {
@@ -942,11 +952,8 @@ function intoApiContentInlineElement(
                         title,
                         shortName,
                     },
-                    isAccountShortName: mention.isShort,
-                    marks:
-                        node.marks.length > 0
-                            ? intoApiContentInlineElementMarks(node.marks)
-                            : undefined,
+                    ...(mention.isShort ? {isAccountShortName: true} : {}),
+                    ...(marks !== undefined ? {marks} : {}),
                 };
             } else {
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
@@ -1024,13 +1031,15 @@ function intoApiContentInlineElement(
                         throw exhaustive(entityIdObject);
                 }
 
+                const marks =
+                    node.marks.length > 0
+                        ? intoApiContentInlineElementMarks(node.marks)
+                        : undefined;
+
                 return {
                     type: "Mention",
                     reference,
-                    marks:
-                        node.marks.length > 0
-                            ? intoApiContentInlineElementMarks(node.marks)
-                            : undefined,
+                    ...(marks !== undefined ? {marks} : {}),
                 };
             }
         }
@@ -1041,8 +1050,8 @@ function intoApiContentInlineElement(
 
 function intoApiContentInlineElementMarks(
     marks: ReadonlyArray<Mark>,
-): ReadonlyArray<ApiContentInlineElementMark> {
-    return marks.map(intoApiContentInlineElementMark);
+): ReadonlyArray<ApiContentInlineElementMark> | undefined {
+    return normalizeApiContentInlineElementMarks(marks.map(intoApiContentInlineElementMark));
 }
 
 function intoApiContentInlineElementMark(mark: Mark): ApiContentInlineElementMark {

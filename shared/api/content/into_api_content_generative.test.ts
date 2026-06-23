@@ -1,6 +1,8 @@
 import fc from "fast-check";
+import {produce} from "immer";
 import {fromApiContent} from "~/shared/api/content/from_api_content.js";
 import {intoApiContent} from "~/shared/api/content/into_api_content.js";
+import {ApiContentNormalizer} from "~/shared/api/markdown/normalize_api_content.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -24,6 +26,16 @@ test("can convert ProseMirror content to API content and back", () => {
                 getSearchTaskEntityDisplayStatusIfExists: () => undefined,
                 getFileIfExists: () => undefined,
             });
+
+            // We expect `intoApiContent()` to return content in normalized form.
+            expect(apiContent).toEqual(
+                produce(apiContent, apiContent =>
+                    ApiContentNormalizer.with(normalizer => normalizer.normalize(apiContent), {
+                        isResponse: true,
+                        withKeys: true,
+                    }),
+                ),
+            );
 
             const actualContent = fromApiContent(
                 DocumentWithoutTitleContentProsemirrorSchema,

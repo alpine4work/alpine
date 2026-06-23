@@ -3001,7 +3001,11 @@ export namespace ApiSpecification {
                 readonly lines: readonly components["schemas"]["ContentCodeBlockElementLine"][];
             };
             readonly ContentCodeBlockElementLine: {
+                readonly elements: readonly components["schemas"]["ContentCodeBlockElementTextInlineElement"][];
                 readonly key?: components["schemas"]["ContentKey"];
+            };
+            readonly ContentCodeBlockElementLine_Response: {
+                readonly key: components["schemas"]["ContentKey"];
                 readonly elements: readonly components["schemas"]["ContentCodeBlockElementTextInlineElement"][];
             };
             readonly ContentFileBlockElement: {
@@ -4143,7 +4147,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentHeadingBlockElement_Response"]
                 | components["schemas"]["ContentDividerBlockElement_Response"]
                 | components["schemas"]["ContentTableBlockElement_Response"]
-                | components["schemas"]["ContentCodeBlockElement"]
+                | components["schemas"]["ContentCodeBlockElement_Response"]
                 | components["schemas"]["ContentFileBlockElement_Response"]
                 | components["schemas"]["ContentFileGalleryBlockElement_Response"]
                 | components["schemas"]["ContentFileFloatBlockElement_Response"]
@@ -4168,9 +4172,56 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentOrderedListBlockElement_Response"]
                 | components["schemas"]["ContentCheckListBlockElement_Response"]
                 | components["schemas"]["ContentQuoteBlockElement_Response"]
-                | components["schemas"]["ContentCodeBlockElement"]
+                | components["schemas"]["ContentCodeBlockElement_Response"]
                 | components["schemas"]["ContentFileBlockElement_Response"]
                 | components["schemas"]["ContentPreviewBlockElement_Response"];
+            readonly ContentCodeBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "Code";
+                /** @enum {string} */
+                readonly language:
+                    | "text"
+                    | "javascript"
+                    | "html"
+                    | "css"
+                    | "sql"
+                    | "python"
+                    | "typescript"
+                    | "shell"
+                    | "java"
+                    | "json"
+                    | "markdown"
+                    | "csharp"
+                    | "cpp"
+                    | "c"
+                    | "php"
+                    | "go"
+                    | "yaml"
+                    | "powershell"
+                    | "rust"
+                    | "kotlin"
+                    | "ruby"
+                    | "lua"
+                    | "xml"
+                    | "dart"
+                    | "swift"
+                    | "assembly"
+                    | "webassembly"
+                    | "scala"
+                    | "r"
+                    | "elixir"
+                    | "objectivec"
+                    | "perl"
+                    | "haskell"
+                    | "solidity"
+                    | "clojure"
+                    | "erlang"
+                    | "ocaml";
+                readonly lines: readonly components["schemas"]["ContentCodeBlockElementLine_Response"][];
+            };
             readonly ContentFileGalleryBlockElementRow_Response: {
                 readonly items: readonly components["schemas"]["ContentFileGalleryBlockElementRowItem_Response"][];
             };

@@ -17,11 +17,11 @@ import {
     ApiContentBreakInlineElement,
     ApiContentCheckListBlockElementItemResponse,
     ApiContentCheckListBlockElementResponse,
-    ApiContentCodeBlockElement,
+    ApiContentCodeBlockElementResponse,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentCommentMark,
-    ApiContentDividerBlockElement,
+    ApiContentDividerBlockElementResponse,
     ApiContentFileBlockElementResponse,
     ApiContentFileFloatBlockElementResponse,
     ApiContentFileGalleryBlockElementResponse,
@@ -241,12 +241,12 @@ const ApiContentBreakInlineElementArbitrary: Arbitrary<ApiContentBreakInlineElem
     ),
 });
 
-// We don't really need to exercise content keys in the generative test.
-const ApiContentKeyArbitrary = fc.constant(
-    new ApiContentKeyEncoder({entityId: "Test", version: 0}).encode({
-        pos: 0,
-        nodeSize: 0,
-    }),
+const apiContentKeyEncoder = new ApiContentKeyEncoder({entityId: "Test", version: 0});
+
+// We don't really need to exercise content keys in the generative test. So choose
+// randomly between one of 5 constant values.
+const ApiContentKeyArbitrary = fc.oneof(
+    ...[0, 1, 2, 3, 4].map(pos => fc.constant(apiContentKeyEncoder.encode({pos, nodeSize: 0}))),
 );
 
 const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementResponse> =
@@ -516,10 +516,11 @@ const ApiContentHeadingBlockElementArbitrary: Arbitrary<ApiContentHeadingBlockEl
         elements: fc.array(ApiContentInlineElementArbitrary),
     });
 
-const ApiContentDividerBlockElementArbitrary: Arbitrary<ApiContentDividerBlockElement> = fc.record({
-    type: fc.constant("Divider"),
-    key: ApiContentKeyArbitrary,
-});
+const ApiContentDividerBlockElementArbitrary: Arbitrary<ApiContentDividerBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Divider"),
+        key: ApiContentKeyArbitrary,
+    });
 
 const ApiContentCodeBlockElementTextInlineElementMarkArbitrary =
     createUnionArbitrary<ApiContentCodeBlockElementTextInlineElementMark>({
@@ -543,18 +544,22 @@ const ApiContentCodeBlockElementTextInlineElementArbitrary: Arbitrary<ApiContent
         ),
     });
 
-const ApiContentCodeBlockElementArbitrary: Arbitrary<ApiContentCodeBlockElement> = fc.record({
-    type: fc.constant("Code"),
-    language: fc.oneof(
-        ...mapIterable(
-            getObjectKeysWithKeyofType(apiContentCodeBlockLanguageDefinition),
-            language => fc.constant(language),
+const ApiContentCodeBlockElementArbitrary: Arbitrary<ApiContentCodeBlockElementResponse> =
+    fc.record({
+        type: fc.constant("Code"),
+        language: fc.oneof(
+            ...mapIterable(
+                getObjectKeysWithKeyofType(apiContentCodeBlockLanguageDefinition),
+                language => fc.constant(language),
+            ),
         ),
-    ),
-    lines: fc.array(
-        fc.record({elements: fc.array(ApiContentCodeBlockElementTextInlineElementArbitrary)}),
-    ),
-});
+        lines: fc.array(
+            fc.record({
+                key: ApiContentKeyArbitrary,
+                elements: fc.array(ApiContentCodeBlockElementTextInlineElementArbitrary),
+            }),
+        ),
+    });
 
 // Schema requires tableCell{2,} so tables must have at least 2 columns
 const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElementResponse> =

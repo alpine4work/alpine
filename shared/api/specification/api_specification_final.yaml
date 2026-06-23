@@ -2852,6 +2852,19 @@ components:
                 - elements
             additionalProperties: false
             properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+                key:
+                    $ref: "#/components/schemas/ContentKey"
+        ContentCodeBlockElementLine_Response:
+            type: object
+            required:
+                - key
+                - elements
+            additionalProperties: false
+            properties:
                 key:
                     $ref: "#/components/schemas/ContentKey"
                 elements:
@@ -5296,7 +5309,7 @@ components:
                 - $ref: "#/components/schemas/ContentHeadingBlockElement_Response"
                 - $ref: "#/components/schemas/ContentDividerBlockElement_Response"
                 - $ref: "#/components/schemas/ContentTableBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentCodeBlockElement_Response"
                 - $ref: "#/components/schemas/ContentFileBlockElement_Response"
                 - $ref: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                 - $ref: "#/components/schemas/ContentFileFloatBlockElement_Response"
@@ -5312,7 +5325,7 @@ components:
                     Heading: "#/components/schemas/ContentHeadingBlockElement_Response"
                     Divider: "#/components/schemas/ContentDividerBlockElement_Response"
                     Table: "#/components/schemas/ContentTableBlockElement_Response"
-                    Code: "#/components/schemas/ContentCodeBlockElement"
+                    Code: "#/components/schemas/ContentCodeBlockElement_Response"
                     File: "#/components/schemas/ContentFileBlockElement_Response"
                     FileGallery: "#/components/schemas/ContentFileGalleryBlockElement_Response"
                     FileFloat: "#/components/schemas/ContentFileFloatBlockElement_Response"
@@ -5368,7 +5381,7 @@ components:
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentCheckListBlockElement_Response"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
-                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - $ref: "#/components/schemas/ContentCodeBlockElement_Response"
                 - $ref: "#/components/schemas/ContentFileBlockElement_Response"
                 - $ref: "#/components/schemas/ContentPreviewBlockElement_Response"
             discriminator:
@@ -5379,9 +5392,64 @@ components:
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
                     Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
-                    Code: "#/components/schemas/ContentCodeBlockElement"
+                    Code: "#/components/schemas/ContentCodeBlockElement_Response"
                     File: "#/components/schemas/ContentFileBlockElement_Response"
                     Preview: "#/components/schemas/ContentPreviewBlockElement_Response"
+        ContentCodeBlockElement_Response:
+            type: object
+            required:
+                - type
+                - language
+                - lines
+            additionalProperties: false
+            properties:
+                type:
+                    const: Code
+                language:
+                    type: string
+                    enum:
+                        - text
+                        - javascript
+                        - html
+                        - css
+                        - sql
+                        - python
+                        - typescript
+                        - shell
+                        - java
+                        - json
+                        - markdown
+                        - csharp
+                        - cpp
+                        - c
+                        - php
+                        - go
+                        - yaml
+                        - powershell
+                        - rust
+                        - kotlin
+                        - ruby
+                        - lua
+                        - xml
+                        - dart
+                        - swift
+                        - assembly
+                        - webassembly
+                        - scala
+                        - r
+                        - elixir
+                        - objectivec
+                        - perl
+                        - haskell
+                        - solidity
+                        - clojure
+                        - erlang
+                        - ocaml
+                lines:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementLine_Response"
         ContentFileGalleryBlockElementRow_Response:
             type: object
             required:

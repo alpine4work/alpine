@@ -206,25 +206,6 @@ test("converts quote block into API content", () => {
     });
 });
 
-test("converts empty quote block from API content", () => {
-    // When API content has an empty Quote, we should create a quoteBlock with an empty
-    // paragraph This can happen when importing markdown like "> \n> \n" (empty
-    // blockquote)
-    const apiContent = {
-        elements: [
-            {
-                type: "Quote" as const,
-                elements: [],
-            },
-        ],
-    };
-
-    const result = fromApiContent(schema, apiContent);
-
-    // The quoteBlock should have an empty paragraph inside
-    expect(result.toJSON()).toEqual(doc(quoteBlock(paragraph())).toJSON());
-});
-
 test("converts code block into API content", () => {
     testIntoApiContent(
         doc(

@@ -16,6 +16,7 @@ import {
     ApiContentInlineElementMark,
     ApiMentionReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -80,14 +81,18 @@ export class ApiContentNormalizer {
         >;
     } | null;
 
+    #withKeys: boolean;
+
     #withinTableElement = false;
     #withDummyFileGalleryElementLayout: boolean;
 
     private constructor({
         isResponse,
+        withKeys,
         withDummyFileGalleryElementLayout,
     }: {
         isResponse: boolean;
+        withKeys: boolean;
         withDummyFileGalleryElementLayout: boolean;
     }) {
         this.#response = isResponse
@@ -97,6 +102,8 @@ export class ApiContentNormalizer {
               }
             : null;
 
+        this.#withKeys = withKeys;
+
         this.#withDummyFileGalleryElementLayout = withDummyFileGalleryElementLayout;
     }
 
@@ -104,14 +111,17 @@ export class ApiContentNormalizer {
         action: (normalizer: ApiContentNormalizer) => Value,
         {
             isResponse = false,
+            withKeys = false,
             withDummyFileGalleryElementLayout = false,
         }: {
             isResponse?: boolean;
+            withKeys?: boolean;
             withDummyFileGalleryElementLayout?: boolean;
         } = {},
     ): Value {
         const normalizer = new ApiContentNormalizer({
             isResponse,
+            withKeys,
             withDummyFileGalleryElementLayout,
         });
 
@@ -128,6 +138,22 @@ export class ApiContentNormalizer {
     }
 
     normalizeBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {
+        this.normalizePossiblyEmptyBlockElements(elements);
+
+        // All block element lists in our underlying ProseMirror content are non-empty. So
+        // don't allow empty block element lists, always insert a paragraph.
+        if (elements.length === 0) {
+            if (this.#withKeys) {
+                throw new InternalError(
+                    "Can\u2019t normalize an empty block element list when the underlying format requires a non-empty block element list (`withKeys: true` requires this, otherwise we automatically add empty paragraphs to fill empty block element lists)",
+                );
+            }
+
+            elements.push({type: "Paragraph", elements: []});
+        }
+    }
+
+    normalizePossiblyEmptyBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {
         let index = 0;
         while (index < elements.length) {
             const element = elements[index]!;
@@ -296,48 +322,80 @@ export class ApiContentNormalizer {
     normalizeBlockElement(element: Draft<ApiContentBlockElement>) {
         switch (element.type) {
             case "Paragraph": {
-                if (hasOwnProperty(element, "key")) delete element.key;
+                if (!this.#withKeys && hasOwnProperty(element, "key")) delete element.key;
                 this.normalizeInlineElements(element.elements);
                 break;
             }
             case "UnorderedList":
             case "OrderedList":
             case "CheckList": {
-                for (const item of element.items) {
-                    if (item.elements.length > 0) {
+                if (hasOwnProperty(element, "orderStart") && element.orderStart === undefined) {
+                    delete element.orderStart;
+                }
+
+                let nextIndex = 0;
+                while (nextIndex < element.items.length) {
+                    const index = nextIndex;
+                    nextIndex++;
+                    const item = element.items[index]!;
+
+                    if (
+                        element.type !== "UnorderedList" ||
+                        item.elements.length > 0 ||
+                        item.nestedListElements === undefined ||
+                        item.nestedListElements.every(
+                            nestedElement => nestedElement.items.length === 0,
+                        )
+                    ) {
                         this.normalizeBlockElements(item.elements);
-                    } else if (element.type !== "UnorderedList") {
-                        // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
-                        // lists. `CheckList` and `OrderedList` can't support phantom lists in the same
-                        // way.
-                        //
-                        // So while unordered phantom lists look like:
-                        //
-                        // ```markdown
-                        // -   -   - item at 3rd level in a phantom unordered list
-                        // ```
-                        //
-                        // Checklists and ordered phantom lists get an empty paragraph and look like:
-                        //
-                        // ```markdown
-                        // 1. <p></p>
-                        //
-                        // - Mixed types with phantoms
-                        //
-                        // OR
-                        //
-                        // [ ] <p></p>
-                        //
-                        // - Mixed types with phantoms
-                        // ```
-                        item.elements = [{type: "Paragraph", elements: []}];
                     }
 
-                    if (item.nestedListElements !== undefined) {
-                        this.normalizeBlockElements(item.nestedListElements);
-
+                    if (item.nestedListElements === undefined) {
+                        if (hasOwnProperty(item, "nestedListElements")) {
+                            delete item.nestedListElements;
+                        }
+                    } else {
                         if (item.nestedListElements.length === 0) {
-                            item.nestedListElements = undefined;
+                            delete item.nestedListElements;
+                        } else {
+                            this.normalizePossiblyEmptyBlockElements(item.nestedListElements);
+                            if (item.nestedListElements.length === 0)
+                                delete item.nestedListElements;
+                        }
+                    }
+
+                    // If this is a phantom list item and there's a previous list item then merge our
+                    // nested list with the previous nested list.
+                    if (
+                        index > 0 &&
+                        element.type === "UnorderedList" &&
+                        item.elements.length === 0
+                    ) {
+                        element.items.splice(index, 1);
+                        nextIndex = index;
+
+                        const previousItem = element.items[index - 1]!;
+                        if (item.nestedListElements !== undefined) {
+                            for (const nestedListElement of item.nestedListElements) {
+                                previousItem.nestedListElements ??= [];
+
+                                if (previousItem.nestedListElements.length === 0) {
+                                    previousItem.nestedListElements.push(nestedListElement);
+                                } else {
+                                    const lastNestedListElement =
+                                        previousItem.nestedListElements[
+                                            previousItem.nestedListElements.length - 1
+                                        ]!;
+
+                                    if (lastNestedListElement.type !== nestedListElement.type) {
+                                        previousItem.nestedListElements.push(nestedListElement);
+                                    } else {
+                                        for (const nestedItem of nestedListElement.items) {
+                                            lastNestedListElement.items.push(nestedItem as any);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -348,21 +406,28 @@ export class ApiContentNormalizer {
                 break;
             }
             case "Heading": {
-                if (hasOwnProperty(element, "key")) delete element.key;
+                if (!this.#withKeys && hasOwnProperty(element, "key")) delete element.key;
                 this.normalizeInlineElements(element.elements);
                 break;
             }
             case "Divider": {
-                if (hasOwnProperty(element, "key")) delete element.key;
+                if (!this.#withKeys && hasOwnProperty(element, "key")) delete element.key;
 
                 // Already normalized.
                 break;
             }
             case "Code": {
                 if (element.lines.length === 0) {
+                    if (this.#withKeys) {
+                        throw new InternalError(
+                            "Can\u2019t normalize an empty code block line list when the underlying format requires a non-empty code block line list (`withKeys: true` requires this, otherwise we automatically add empty code block lines to fill empty code block line lists)",
+                        );
+                    }
+
                     element.lines.push({elements: []});
                 } else {
                     for (const line of element.lines) {
+                        if (!this.#withKeys && hasOwnProperty(line, "key")) delete line.key;
                         this.normalizeInlineElements(line.elements);
                     }
                 }
@@ -371,8 +436,8 @@ export class ApiContentNormalizer {
             case "Table": {
                 this.#withinTableElement = true;
                 try {
-                    if (element.hasHeaderRow === false) element.hasHeaderRow = undefined;
-                    if (element.hasHeaderColumn === false) element.hasHeaderColumn = undefined;
+                    if (element.hasHeaderRow !== true) element.hasHeaderRow = false;
+                    if (element.hasHeaderColumn !== true) element.hasHeaderColumn = false;
 
                     if (element.rows.length === 0) {
                         element.rows.push({cells: []});
@@ -381,31 +446,25 @@ export class ApiContentNormalizer {
                     let columnCount = 0;
 
                     for (const row of element.rows) {
+                        for (const cell of row.cells) {
+                            this.normalizeBlockElements(cell.elements);
+                        }
+
                         while (row.cells.length < 2) {
-                            row.cells.push({elements: []});
+                            if (this.#withKeys) {
+                                throw new InternalError(
+                                    "Can\u2019t normalize an empty block element list when the underlying format requires a non-empty block element list (`withKeys: true` requires this, otherwise we automatically add empty paragraphs to fill empty block element lists)",
+                                );
+                            }
+
+                            // The underlying ProseMirror format requires at least two cells. And each cell in
+                            // the underlying ProseMirror format must have at least one block element in it. So
+                            // if we are missing cells in our API content format then fill it out with empty
+                            // cells with empty paragraphs.
+                            row.cells.push({elements: [{type: "Paragraph", elements: []}]});
                         }
 
                         columnCount = Math.max(columnCount, row.cells.length);
-
-                        for (const cell of row.cells) {
-                            this.normalizeBlockElements(cell.elements);
-
-                            // A single empty paragraph is the default for empty cells. Remove it since the
-                            // parser will recreate it.
-                            if (
-                                cell.elements.length === 1 &&
-                                cell.elements[0]!.type === "Paragraph" &&
-                                cell.elements[0]!.elements.length === 0
-                            ) {
-                                cell.elements.splice(0, 1);
-                            }
-                        }
-                    }
-
-                    for (const row of element.rows) {
-                        while (row.cells.length < columnCount) {
-                            row.cells.push({elements: []});
-                        }
                     }
 
                     while (element.columns.length < columnCount) {
@@ -421,7 +480,7 @@ export class ApiContentNormalizer {
                 break;
             }
             case "File": {
-                if (hasOwnProperty(element, "key")) delete element.key;
+                if (!this.#withKeys && hasOwnProperty(element, "key")) delete element.key;
 
                 const marks = normalizeApiContentInlineElementMarks(element.marks);
                 if (marks !== undefined) element.marks = marks;
@@ -460,7 +519,7 @@ export class ApiContentNormalizer {
                 break;
             }
             case "Preview": {
-                if (hasOwnProperty(element, "key")) delete element.key;
+                if (!this.#withKeys && hasOwnProperty(element, "key")) delete element.key;
 
                 const marks = normalizeApiContentInlineElementMarks(element.marks);
                 if (marks !== undefined) element.marks = marks;
@@ -529,10 +588,12 @@ export class ApiContentNormalizer {
                 // `isAccountShortName` can only be true for account targets. Otherwise set to
                 // undefined.
                 if (
+                    (hasOwnProperty(element, "isAccountShortName") &&
+                        element.isAccountShortName === undefined) ||
                     element.isAccountShortName === false ||
                     (element.isAccountShortName && element.reference.type !== "Account")
                 ) {
-                    element.isAccountShortName = undefined;
+                    delete element.isAccountShortName;
                 }
             }
 
@@ -540,6 +601,8 @@ export class ApiContentNormalizer {
             if (!isDeepEqual(normalizedMarks, element.marks)) {
                 if (normalizedMarks !== undefined) element.marks = normalizedMarks;
                 else delete element.marks;
+            } else if (normalizedMarks === undefined && hasOwnProperty(element, "marks")) {
+                delete element.marks;
             }
 
             // Merge any adjacent text elements with the same marks.
@@ -638,9 +701,13 @@ export function normalizeApiContentInlineElementMarks<Mark extends ApiContentInl
 ): Array<Mark> | undefined {
     if (marks === undefined) return undefined;
 
-    const markByKey = new Map<string, Mark>();
+    const markByKey = new Map<string, {mark: Mark; index: number}>();
 
+    let nextIndex = 0;
     for (const mark of marks) {
+        const index = nextIndex;
+        nextIndex++;
+
         let markKey: string;
 
         switch (mark.type) {
@@ -663,17 +730,17 @@ export function normalizeApiContentInlineElementMarks<Mark extends ApiContentInl
                 throw exhaustive(mark);
         }
 
-        markByKey.set(markKey, mark);
+        if (!markByKey.has(markKey)) markByKey.set(markKey, {mark, index});
     }
 
     const sortedMarkEntries = Array.from(markByKey.entries()).sort(
-        ([markKey1, mark1], [markKey2, mark2]) =>
-            apiContentInlineElementMarkTypeNormalizedOrder.indexOf(mark1.type) -
-                apiContentInlineElementMarkTypeNormalizedOrder.indexOf(mark2.type) ||
-            defaultCompareStrings(markKey1, markKey2),
+        ([, mark1], [, mark2]) =>
+            apiContentInlineElementMarkTypeNormalizedOrder.indexOf(mark1.mark.type) -
+                apiContentInlineElementMarkTypeNormalizedOrder.indexOf(mark2.mark.type) ||
+            mark1.index - mark2.index,
     );
 
-    const normalizedMarks = sortedMarkEntries.map(([, mark]) => mark);
+    const normalizedMarks = sortedMarkEntries.map(([, {mark}]) => mark);
 
     if (normalizedMarks.length === 0) {
         return undefined;
