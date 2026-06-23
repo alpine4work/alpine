@@ -19,6 +19,7 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccountReferenceResponse,
+    ApiPostPreview,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
@@ -121,9 +122,26 @@ export async function readAgentWebChannelPage(
     const {channel} = initialPostsResult.data;
     let currentPostBatch = initialPostsResult.data.posts;
     let nextCursor = initialPostsResult.data.nextCursor;
+    let lookaheadPost: ApiPostPreview | null = null;
 
     while (true) {
-        for (const post of currentPostBatch) {
+        const postBatch: ReadonlyArray<ApiPostPreview> =
+            lookaheadPost !== null ? [lookaheadPost, ...currentPostBatch] : currentPostBatch;
+        lookaheadPost = null;
+
+        let includedPostBatch = postBatch;
+        let pageNextCursor: string | null = nextCursor;
+
+        if (nextCursor !== null && postBatch.length > agentWebChannelPageApiPostsBatchCount - 1) {
+            includedPostBatch = postBatch.slice(0, -1);
+            lookaheadPost = assertExists(postBatch[postBatch.length - 1]);
+            pageNextCursor = getAgentWebChannelPageAfterSearchParam(
+                assertExists(includedPostBatch[includedPostBatch.length - 1]).createdTime,
+                lookaheadPost.createdTime,
+            );
+        }
+
+        for (const post of includedPostBatch) {
             const createdTime = deserializeDateString(post.createdTime);
             const contextDate = toCalendarDate(fromDate(contextTime, post.createdTimeZone));
             const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
@@ -165,8 +183,8 @@ export async function readAgentWebChannelPage(
                 subType: "Head",
                 name: channel.name,
                 description: assertExists(channelDescriptionResult).data.channel.description,
-                pagination: nextCursor !== null ? {nextCursor} : null,
-                posts: [...posts],
+                pagination: pageNextCursor !== null ? {nextCursor: pageNextCursor} : null,
+                posts,
                 isEndOfPosts: nextCursor === null,
                 metadata,
             };
@@ -175,8 +193,8 @@ export async function readAgentWebChannelPage(
                 type: "Channel",
                 subType: "Tail",
                 name: channel.name,
-                pagination: nextCursor !== null ? {nextCursor} : null,
-                posts: [...posts],
+                pagination: pageNextCursor !== null ? {nextCursor: pageNextCursor} : null,
+                posts,
                 isEndOfPosts: nextCursor === null,
                 metadata,
             };
@@ -303,7 +321,7 @@ async function truncateAgentWebChannelPage(
     response: string;
 } | null> {
     if (page.posts.length <= 1) return null;
-    assert(page.posts.length === postCursors.length);
+    assert(page.posts.length <= postCursors.length);
 
     const limitLengthDifference = response.length - limitLength;
     assert(limitLengthDifference > 0);
@@ -335,7 +353,7 @@ async function truncateAgentWebChannelPage(
             "](".length +
             channelPathname.length +
             "?after=".length +
-            encodeURIComponent(postCursors[postCursors.length - 1]!).length +
+            "0000-00-00T00:00:00.000".length +
             ")".length;
     }
 
@@ -387,7 +405,10 @@ async function truncateAgentWebChannelPage(
     // There should always be at least one post left after we truncate.
     assert(truncatedPosts.length > 0);
 
-    const afterSearchParam = postCursors[truncatedPosts.length - 1]!;
+    const afterSearchParam = getAgentWebChannelPageAfterSearchParam(
+        postCursors[truncatedPosts.length - 1]!,
+        postCursors[truncatedPosts.length]!,
+    );
 
     // We're intentionally dropping everything after `truncatePostEndOffset`. Which
     // will include the `isEndOfPosts` paragraph. If we're truncating then we're
@@ -437,12 +458,12 @@ async function truncateAgentWebChannelPage(
             truncatedResponse.slice(0, linkStartOffset) +
             response
                 .slice(linkStartOffset, linkEndOffset)
-                .replace(/\?after=[^)]+/, `?after=${encodeURIComponent(afterSearchParam)}`) +
+                .replace(/\?after=[^)]+/, `?after=${afterSearchParam}`) +
             truncatedResponse.slice(linkEndOffset);
     } else {
         assert(channelPathname !== null);
 
-        const linkMarkdown = `[${agentWebChannelPageNextPageLinkText}](${channelPathname}?after=${encodeURIComponent(afterSearchParam)})`;
+        const linkMarkdown = `[${agentWebChannelPageNextPageLinkText}](${channelPathname}?after=${afterSearchParam})`;
 
         switch (page.subType) {
             case "Head": {
@@ -613,7 +634,7 @@ async function printAgentWebChannelHeadPagePaginationParagraph(
         children: [
             {
                 type: "link",
-                url: `${pathname}?after=${encodeURIComponent(pagination.nextCursor)}`,
+                url: `${pathname}?after=${pagination.nextCursor}`,
                 children: [{type: "text", value: agentWebChannelPageNextPageLinkText}],
             },
         ],
@@ -638,7 +659,7 @@ async function printAgentWebChannelTailPagePreamble(
             {type: "text", value: " "},
             {
                 type: "link",
-                url: `${pathname}?after=${encodeURIComponent(page.pagination.nextCursor)}`,
+                url: `${pathname}?after=${page.pagination.nextCursor}`,
                 children: [{type: "text", value: agentWebChannelPageNextPageLinkText}],
             },
         );
