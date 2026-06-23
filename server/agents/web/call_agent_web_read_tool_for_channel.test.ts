@@ -8,7 +8,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key_encoder.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {DateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -87,21 +87,40 @@ function mockGetChannel({
     );
 }
 
-function mockGetChannelPosts({cursor, totalPostCount}: {cursor?: string; totalPostCount: number}) {
+function mockGetChannelPosts({
+    cursor,
+    totalPostCount,
+    createdTimes,
+}: {
+    cursor?: string;
+    totalPostCount?: number;
+    createdTimes?: ReadonlyArray<DateString>;
+}) {
+    let postCreatedTimes: ReadonlyArray<DateString>;
+
+    if (createdTimes !== undefined) {
+        postCreatedTimes = createdTimes;
+    } else {
+        assert(totalPostCount !== undefined);
+        postCreatedTimes = Array.from({length: totalPostCount}, (_, index) =>
+            getChannelPostCreatedTime(index),
+        );
+    }
+    const postCount = postCreatedTimes.length;
     let startIndex = 0;
 
     if (cursor !== undefined) {
-        const cursorIndex = Array.from({length: totalPostCount}, (_, index) =>
-            getChannelPostCreatedTime(index),
-        ).findIndex(createdTime => createdTime === cursor);
+        const cursorTime = new Date(cursor).getTime();
+        const cursorIndex = postCreatedTimes.findIndex(
+            createdTime => new Date(createdTime).getTime() > cursorTime,
+        );
 
-        assert(cursorIndex !== -1);
-        startIndex = cursorIndex + 1;
+        startIndex = cursorIndex === -1 ? postCount : cursorIndex;
     }
 
     const endIndex = Math.min(
         startIndex + agentWebChannelPageApiPostsBatchCount - 1,
-        totalPostCount - 1,
+        postCount - 1,
     );
     const returnedPostCount = Math.max(endIndex - startIndex + 1, 0);
 
@@ -114,17 +133,14 @@ function mockGetChannelPosts({cursor, totalPostCount}: {cursor?: string; totalPo
                     id: channelId,
                     name: "Announcements",
                 },
-                nextCursor:
-                    endIndex < totalPostCount - 1 ? getChannelPostCreatedTime(endIndex) : null,
+                nextCursor: endIndex < postCount - 1 ? postCreatedTimes[endIndex]! : null,
                 posts: Array.from({length: returnedPostCount}, (_, index) => {
                     const postIndex = startIndex + index;
 
                     return {
                         id: generateId<PostId>(),
                         author: author[postIndex % author.length]!,
-                        createdTime: serializeDateString(
-                            new Date(Date.UTC(2026, 4, 14, 15, postIndex * 5)),
-                        ),
+                        createdTime: postCreatedTimes[postIndex]!,
                         createdTimeZone: defaultTimeZone,
                         channel: {id: channelId, name: "Announcements"},
                         reference: {title: getChannelPostTitle(postIndex)},
@@ -142,8 +158,12 @@ function mockGetChannelPosts({cursor, totalPostCount}: {cursor?: string; totalPo
     );
 }
 
-function getChannelPostCreatedTime(index: number) {
+function getChannelPostCreatedTime(index: number): DateString {
     return serializeDateString(new Date(Date.UTC(2026, 4, 14, 15, index * 5)));
+}
+
+function dateString(string: string): DateString {
+    return serializeDateString(new Date(string));
 }
 
 function getChannelPostTitle(index: number): string {
@@ -185,17 +205,39 @@ End of posts.`);
 
 test("reads later channel posts after a cursor", async () => {
     mockGetChannelPosts({
-        cursor: getChannelPostCreatedTime(14),
+        cursor: "2026-05-14T16:05:59.999Z",
         totalPostCount: 16,
     });
 
-    expect(
-        await callAgentWebReadTool(context, {
-            path: "/channel/announcements?after=2026-05-14T16%3A10%3A00.000Z",
-            limit: "10kb",
-        }),
-    ).toEqual(`\
+    const response = await callAgentWebReadTool(context, {
+        path: "/channel/announcements?after=2026-05-14T16:05",
+        limit: "10kb",
+    });
+    const postRequestParams = api
+        .getRequestHistory()
+        .filter(request => request.method === "GET" && request.path === "/channels/{id}/posts")
+        .map(request => request.params);
+
+    expect({response, postRequestParams}).toEqual({
+        postRequestParams: [
+            {
+                path: {id: channelId},
+                query: {
+                    limit: agentWebChannelPageApiPostsBatchCount,
+                    cursor: "2026-05-14T16:05:59.999Z",
+                },
+            },
+        ],
+        response: `\
 Posts in Announcements.
+
+<post from="[Alice](/human/alice)" time="May 14th at 12:10pm EDT">
+
+Test post content 15
+
+[See more »](/post/test-post-content-15)
+
+</post>
 
 <post from="[Bob](/human/bob)" time="May 14th at 12:15pm EDT">
 
@@ -205,7 +247,137 @@ Test post content 16
 
 </post>
 
-End of posts.`);
+End of posts.`,
+    });
+});
+
+test("reads later channel posts after a date-only cursor", async () => {
+    mockGetChannelPosts({
+        cursor: "2026-05-14T23:59:59.999Z",
+        createdTimes: [
+            dateString("2026-05-14T15:00:00.000Z"),
+            dateString("2026-05-15T15:00:00.000Z"),
+        ],
+    });
+
+    const response = await callAgentWebReadTool(context, {
+        path: "/channel/announcements?after=2026-05-14",
+        limit: "10kb",
+    });
+    const postRequestParams = api
+        .getRequestHistory()
+        .filter(request => request.method === "GET" && request.path === "/channels/{id}/posts")
+        .map(request => request.params);
+
+    expect({response, postRequestParams}).toEqual({
+        postRequestParams: [
+            {
+                path: {id: channelId},
+                query: {
+                    limit: agentWebChannelPageApiPostsBatchCount,
+                    cursor: "2026-05-14T23:59:59.999Z",
+                },
+            },
+        ],
+        response: `\
+Posts in Announcements.
+
+<post from="[Bob](/human/bob)" time="May 15th at 11:00am EDT">
+
+Test post content 2
+
+[See more »](/post/test-post-content-2)
+
+</post>
+
+End of posts.`,
+    });
+});
+
+test("reads later channel posts after a seconds cursor", async () => {
+    mockGetChannelPosts({
+        cursor: "2026-05-14T15:15:10.999Z",
+        createdTimes: [
+            dateString("2026-05-14T15:15:10.000Z"),
+            dateString("2026-05-14T15:15:11.000Z"),
+        ],
+    });
+
+    const response = await callAgentWebReadTool(context, {
+        path: "/channel/announcements?after=2026-05-14T15:15:10",
+        limit: "10kb",
+    });
+    const postRequestParams = api
+        .getRequestHistory()
+        .filter(request => request.method === "GET" && request.path === "/channels/{id}/posts")
+        .map(request => request.params);
+
+    expect({response, postRequestParams}).toEqual({
+        postRequestParams: [
+            {
+                path: {id: channelId},
+                query: {
+                    limit: agentWebChannelPageApiPostsBatchCount,
+                    cursor: "2026-05-14T15:15:10.999Z",
+                },
+            },
+        ],
+        response: `\
+Posts in Announcements.
+
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+
+Test post content 2
+
+[See more »](/post/test-post-content-2)
+
+</post>
+
+End of posts.`,
+    });
+});
+
+test("reads later channel posts after a milliseconds cursor", async () => {
+    mockGetChannelPosts({
+        cursor: "2026-05-14T15:15:10.123Z",
+        createdTimes: [
+            dateString("2026-05-14T15:15:10.123Z"),
+            dateString("2026-05-14T15:15:10.456Z"),
+        ],
+    });
+
+    const response = await callAgentWebReadTool(context, {
+        path: "/channel/announcements?after=2026-05-14T15:15:10.123",
+        limit: "10kb",
+    });
+    const postRequestParams = api
+        .getRequestHistory()
+        .filter(request => request.method === "GET" && request.path === "/channels/{id}/posts")
+        .map(request => request.params);
+
+    expect({response, postRequestParams}).toEqual({
+        postRequestParams: [
+            {
+                path: {id: channelId},
+                query: {
+                    limit: agentWebChannelPageApiPostsBatchCount,
+                    cursor: "2026-05-14T15:15:10.123Z",
+                },
+            },
+        ],
+        response: `\
+Posts in Announcements.
+
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+
+Test post content 2
+
+[See more »](/post/test-post-content-2)
+
+</post>
+
+End of posts.`,
+    });
 });
 
 test("loads more post pages while the response is still under the limit", async () => {
@@ -319,23 +491,22 @@ Updates from the team.
 
 ---
 
-[Next page »](/channel/announcements?after=2026-05-14T16%3A10%3A00.000Z)
+[Next page »](/channel/announcements?after=2026-05-14T16:05)
 
-<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">\nTest post content 1\n\n[See more »](/post/test-post-content-1)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">\nTest post content 2\n\n[See more »](/post/test-post-content-2)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">\nTest post content 3\n\n[See more »](/post/test-post-content-3)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">\nTest post content 4\n\n[See more »](/post/test-post-content-4)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:20am EDT">\nTest post content 5\n\n[See more »](/post/test-post-content-5)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:25am EDT">\nTest post content 6\n\n[See more »](/post/test-post-content-6)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:30am EDT">\nTest post content 7\n\n[See more »](/post/test-post-content-7)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:35am EDT">\nTest post content 8\n\n[See more »](/post/test-post-content-8)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:40am EDT">\nTest post content 9\n\n[See more »](/post/test-post-content-9)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:45am EDT">\nTest post content 10\n\n[See more »](/post/test-post-content-10)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 11:50am EDT">\nTest post content 11\n\n[See more »](/post/test-post-content-11)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 11:55am EDT">\nTest post content 12\n\n[See more »](/post/test-post-content-12)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:00pm EDT">\nTest post content 13\n\n[See more »](/post/test-post-content-13)\n\n</post>\n
-<post from="[Bob](/human/bob)" time="May 14th at 12:05pm EDT">\nTest post content 14\n\n[See more »](/post/test-post-content-14)\n\n</post>\n
-<post from="[Alice](/human/alice)" time="May 14th at 12:10pm EDT">\nTest post content 15\n\n[See more »](/post/test-post-content-15)\n\n</post>`;
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">\n\nTest post content 1\n\n[See more »](/post/test-post-content-1)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">\n\nTest post content 2\n\n[See more »](/post/test-post-content-2)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">\n\nTest post content 3\n\n[See more »](/post/test-post-content-3)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">\n\nTest post content 4\n\n[See more »](/post/test-post-content-4)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:20am EDT">\n\nTest post content 5\n\n[See more »](/post/test-post-content-5)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:25am EDT">\n\nTest post content 6\n\n[See more »](/post/test-post-content-6)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:30am EDT">\n\nTest post content 7\n\n[See more »](/post/test-post-content-7)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:35am EDT">\n\nTest post content 8\n\n[See more »](/post/test-post-content-8)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:40am EDT">\n\nTest post content 9\n\n[See more »](/post/test-post-content-9)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:45am EDT">\n\nTest post content 10\n\n[See more »](/post/test-post-content-10)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 11:50am EDT">\n\nTest post content 11\n\n[See more »](/post/test-post-content-11)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 11:55am EDT">\n\nTest post content 12\n\n[See more »](/post/test-post-content-12)\n\n</post>\n
+<post from="[Alice](/human/alice)" time="May 14th at 12:00pm EDT">\n\nTest post content 13\n\n[See more »](/post/test-post-content-13)\n\n</post>\n
+<post from="[Bob](/human/bob)" time="May 14th at 12:05pm EDT">\n\nTest post content 14\n\n[See more »](/post/test-post-content-14)\n\n</post>`;
 
     const response = await callAgentWebReadTool(context, {
         path: "/channel/announcements",
@@ -389,7 +560,175 @@ Updates from the team.
 
 ---
 
-[Next page »](/channel/announcements?after=2026-05-14T15%3A15%3A00.000Z)
+[Next page »](/channel/announcements?after=2026-05-14T15:15)
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+Test post content 1
+
+[See more »](/post/test-post-content-1)
+
+</post>
+
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+
+Test post content 2
+
+[See more »](/post/test-post-content-2)
+
+</post>
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">
+
+Test post content 3
+
+[See more »](/post/test-post-content-3)
+
+</post>
+
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+
+Test post content 4
+
+[See more »](/post/test-post-content-4)
+
+</post>`);
+});
+
+test("truncates channel posts with a date-only next page cursor", async () => {
+    mockGetChannel();
+    mockGetChannelPosts({
+        createdTimes: [
+            dateString("2026-05-14T15:00:00.000Z"),
+            dateString("2026-05-14T15:05:00.000Z"),
+            dateString("2026-05-14T15:10:00.000Z"),
+            dateString("2026-05-14T15:15:00.000Z"),
+            dateString("2026-05-15T15:20:00.000Z"),
+            dateString("2026-05-15T15:25:00.000Z"),
+        ],
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "720b"}))
+        .toEqual(`\
+# Announcements
+
+Updates from the team.
+
+---
+
+[Next page »](/channel/announcements?after=2026-05-14)
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+Test post content 1
+
+[See more »](/post/test-post-content-1)
+
+</post>
+
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+
+Test post content 2
+
+[See more »](/post/test-post-content-2)
+
+</post>
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">
+
+Test post content 3
+
+[See more »](/post/test-post-content-3)
+
+</post>
+
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+
+Test post content 4
+
+[See more »](/post/test-post-content-4)
+
+</post>`);
+});
+
+test("truncates channel posts with a seconds next page cursor", async () => {
+    mockGetChannel();
+    mockGetChannelPosts({
+        createdTimes: [
+            dateString("2026-05-14T15:00:00.000Z"),
+            dateString("2026-05-14T15:05:00.000Z"),
+            dateString("2026-05-14T15:10:00.000Z"),
+            dateString("2026-05-14T15:15:10.000Z"),
+            dateString("2026-05-14T15:15:20.000Z"),
+            dateString("2026-05-14T15:20:00.000Z"),
+        ],
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "720b"}))
+        .toEqual(`\
+# Announcements
+
+Updates from the team.
+
+---
+
+[Next page »](/channel/announcements?after=2026-05-14T15:15:10)
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
+
+Test post content 1
+
+[See more »](/post/test-post-content-1)
+
+</post>
+
+<post from="[Bob](/human/bob)" time="May 14th at 11:05am EDT">
+
+Test post content 2
+
+[See more »](/post/test-post-content-2)
+
+</post>
+
+<post from="[Alice](/human/alice)" time="May 14th at 11:10am EDT">
+
+Test post content 3
+
+[See more »](/post/test-post-content-3)
+
+</post>
+
+<post from="[Bob](/human/bob)" time="May 14th at 11:15am EDT">
+
+Test post content 4
+
+[See more »](/post/test-post-content-4)
+
+</post>`);
+});
+
+test("truncates channel posts with a milliseconds next page cursor", async () => {
+    mockGetChannel();
+    mockGetChannelPosts({
+        createdTimes: [
+            dateString("2026-05-14T15:00:00.000Z"),
+            dateString("2026-05-14T15:05:00.000Z"),
+            dateString("2026-05-14T15:10:00.000Z"),
+            dateString("2026-05-14T15:15:10.123Z"),
+            dateString("2026-05-14T15:15:10.456Z"),
+            dateString("2026-05-14T15:20:00.000Z"),
+        ],
+    });
+
+    expect(await callAgentWebReadTool(context, {path: "/channel/announcements", limit: "720b"}))
+        .toEqual(`\
+# Announcements
+
+Updates from the team.
+
+---
+
+[Next page »](/channel/announcements?after=2026-05-14T15:15:10.123)
 
 <post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
 
@@ -438,7 +777,7 @@ Updates from the team.
 
 ---
 
-[Next page »](/channel/announcements?after=2026-05-14T15%3A15%3A00.000Z)
+[Next page »](/channel/announcements?after=2026-05-14T15:15)
 
 <post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
 

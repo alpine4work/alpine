@@ -231,13 +231,57 @@ function parseAgentWebChannelPageSearchParams(searchParams: URLSearchParams): Da
         }
     }
 
-    if (afterCursor !== null && !isDateString(afterCursor)) {
+    if (afterCursor === null) return null;
+
+    const fullAfterCursor = getAgentWebChannelPageFullAfterSearchParam(afterCursor);
+
+    if (!isDateString(fullAfterCursor)) {
         throw new InvalidArgumentError("Expected `after` search param to be a cursor", {
-            displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be a full ISO 8601 cursor. Try again with a cursor from a channel page \u201cNext page »\u201d link or omit \`?after\`.`,
+            displayMessage: errorDisplayMessage`Expected \`?after\` URL search param to be an ISO 8601 cursor. Try again with a cursor from a channel page \u201cNext page »\u201d link or omit \`?after\`.`,
         });
     }
 
-    return afterCursor;
+    return fullAfterCursor;
+}
+
+function getAgentWebChannelPageFullAfterSearchParam(afterCursor: string): string {
+    const match = afterCursor.match(
+        /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{3}))?)?)?(?:Z)?$/,
+    );
+
+    if (!match) return afterCursor;
+
+    const [, date, hour, minute, second, millisecond] = match;
+
+    if (hour === undefined || minute === undefined) return `${date}T23:59:59.999Z`;
+
+    return `${date}T${hour}:${minute}:${second ?? "59"}.${millisecond ?? "999"}Z`;
+}
+
+function getAgentWebChannelPageAfterSearchParam(
+    boundaryCursor: DateString,
+    nextCursor: DateString,
+): string {
+    const match = boundaryCursor.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(:\d{2})(\.\d{3})Z$/);
+    assert(match !== null);
+
+    const [, date, time, seconds, milliseconds] = match;
+    const candidates = [
+        date!,
+        `${date}T${time}`,
+        `${date}T${time}${seconds}`,
+        `${date}T${time}${seconds}${milliseconds}`,
+    ];
+
+    for (const candidate of candidates) {
+        const fullCandidate = getAgentWebChannelPageFullAfterSearchParam(candidate);
+
+        if (fullCandidate < nextCursor) {
+            return candidate;
+        }
+    }
+
+    return candidates[candidates.length - 1]!;
 }
 
 async function truncateAgentWebChannelPage(

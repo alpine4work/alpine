@@ -35,7 +35,12 @@ const AgentWebChannelPagePostBlockArbitrary: Arbitrary<AgentWebChannelPagePostBl
 });
 
 const AgentWebChannelPagePaginationArbitrary = fc.record({
-    nextCursor: ApiContentTextArbitrary,
+    nextCursor: fc.constantFrom(
+        "2026-05-14",
+        "2026-05-14T15:05",
+        "2026-05-14T15:05:10",
+        "2026-05-14T15:05:10.123",
+    ),
 });
 
 const AgentWebChannelHeadPageArbitrary: Arbitrary<AgentWebChannelPage> = fc.record({

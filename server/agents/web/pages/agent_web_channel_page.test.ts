@@ -86,7 +86,7 @@ Updates from the team.
 
 ---
 
-[Next page »](/channel/announcements?after=2026-05-14T15%3A05%3A00.000Z)
+[Next page »](/channel/announcements?after=2026-05-14T15:05:00.000Z)
 
 <post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
 
@@ -202,7 +202,7 @@ End of posts.
             name: "tail channel page with posts and pagination",
             pageLink: channelId,
             markdown: `\
-Posts in Announcements. [Next page »](/channel/announcements?after=2026-05-14T15%3A05%3A00.000Z)
+Posts in Announcements. [Next page »](/channel/announcements?after=2026-05-14T15:05:00.000Z)
 
 <post from="[Alice](/human/alice)" time="May 14th at 11:00am EDT">
 
@@ -395,7 +395,7 @@ Updates from the team.
 
 ---
 
-[Next page »](/post/launch-notes?after=2026-05-14T15%3A05%3A00.000Z)
+[Next page »](/post/launch-notes?after=2026-05-14T15:05:00.000Z)
 `,
             parseError:
                 "Expected \u201CNext page »\u201D to link to a channel page with an `?after` cursor. " +
