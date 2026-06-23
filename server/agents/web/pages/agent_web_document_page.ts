@@ -7,6 +7,8 @@ import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/n
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.js";
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.js";
+import {unzipKeysFromApiContentResponse} from "~/shared/api/markdown/zip_or_unzip_keys_from_api_content_response.js";
+import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -23,6 +25,7 @@ export type AgentWebDocumentPageMetadata = {
     readonly type: "Document";
     readonly id: DocumentId;
     readonly version: number;
+    readonly keys: ReadonlyArray<ApiContentKey>;
 };
 
 export type AgentWebDocumentPageWithMetadata = AgentWebDocumentPage & {
@@ -38,14 +41,17 @@ export async function readAgentWebDocumentPage(
         data: {document},
     } = await context.api.get(context.span, "/documents/{id}", {params: {path: {id}}});
 
+    const {content, keys} = unzipKeysFromApiContentResponse(document.content);
+
     const page: AgentWebDocumentPageWithMetadata = {
         type: "Document",
         title: document.title,
-        content: document.content,
+        content,
         metadata: {
             type: "Document",
             id,
             version: document.version,
+            keys,
         },
     };
 
@@ -73,10 +79,13 @@ export async function createAgentWebDocumentPage(
         },
     });
 
+    const {keys} = unzipKeysFromApiContentResponse(document.content);
+
     return {
         type: "Document",
         id: document.id,
         version: document.version,
+        keys,
     };
 }
 
@@ -98,10 +107,13 @@ export async function updateAgentWebDocumentPage(
         },
     });
 
+    const {keys} = unzipKeysFromApiContentResponse(document.content);
+
     return {
         type: "Document",
         id,
         version: document.version,
+        keys,
     };
 }
 
