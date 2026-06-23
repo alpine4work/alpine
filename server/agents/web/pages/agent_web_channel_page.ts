@@ -36,6 +36,7 @@ import {hasHtmlCloseTag} from "~/shared/helpers/html/has_html_close_tag.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
+import {reverseIterable} from "~/shared/helpers/iterable/reverse_iterable.js";
 import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
 
 export const agentWebChannelPageApiPostsBatchCount = 15;
@@ -99,12 +100,7 @@ export async function readAgentWebChannelPage(
     const posts: Array<AgentWebChannelPagePostBlock> = [];
     const postCursors: Array<DateString> = [];
 
-    const [
-        channelDescriptionResult,
-        {
-            data: {channel, posts: currentPosts, nextCursor},
-        },
-    ] = await runAllPromises([
+    const [channelDescriptionResult, initialPostsResult] = await runAllPromises([
         afterCursor === null
             ? context.api.get(context.span, "/channels/{id}", {
                   params: {path: {id}},
@@ -114,7 +110,6 @@ export async function readAgentWebChannelPage(
             params: {
                 path: {id},
                 query: {
-                    // NOCOMMIT: Doesn't load more posts!
                     limit: agentWebChannelPageApiPostsBatchCount,
                     cursor: afterCursor ?? undefined,
                 },
@@ -123,85 +118,106 @@ export async function readAgentWebChannelPage(
     ]);
 
     const contextTime = new Date();
+    const {channel} = initialPostsResult.data;
+    let currentPostBatch = initialPostsResult.data.posts;
+    let nextCursor = initialPostsResult.data.nextCursor;
 
-    for (const post of currentPosts) {
-        const createdTime = deserializeDateString(post.createdTime);
-        const contextDate = toCalendarDate(fromDate(contextTime, post.createdTimeZone));
-        const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
-            defaultLocale,
-            post.createdTimeZone,
-            contextDate,
-            createdTime,
-            {withLongMonth: true},
-        );
-        const formattedTimeZone = formatTimeZoneAbbreviation(post.createdTimeZone, contextTime);
+    while (true) {
+        for (const post of currentPostBatch) {
+            const createdTime = deserializeDateString(post.createdTime);
+            const contextDate = toCalendarDate(fromDate(contextTime, post.createdTimeZone));
+            const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                defaultLocale,
+                post.createdTimeZone,
+                contextDate,
+                createdTime,
+                {withLongMonth: true},
+            );
+            const formattedTimeZone = formatTimeZoneAbbreviation(post.createdTimeZone, contextTime);
 
-        posts.push({
-            type: "Post",
-            author: intoApiAccountReference(post.author),
-            timeAttribute: `${formattedTime} ${formattedTimeZone}`,
-            reference: {
+            posts.push({
                 type: "Post",
-                id: post.id,
-                title: post.reference.title,
-            },
+                author: intoApiAccountReference(post.author),
+                timeAttribute: `${formattedTime} ${formattedTimeZone}`,
+                reference: {
+                    type: "Post",
+                    id: post.id,
+                    title: post.reference.title,
+                },
+            });
+            postCursors.push(post.createdTime);
+        }
+
+        const metadata: AgentWebChannelPageMetadata = {
+            type: "Channel",
+            id,
+            isEndOfPosts: nextCursor === null,
+            posts: posts.map(post => ({
+                id: post.reference.id,
+            })),
+        };
+
+        let page: AgentWebChannelPageWithMetadata;
+
+        if (afterCursor === null) {
+            page = {
+                type: "Channel",
+                subType: "Head",
+                name: channel.name,
+                description: assertExists(channelDescriptionResult).data.channel.description,
+                pagination: nextCursor !== null ? {nextCursor} : null,
+                posts: [...posts],
+                isEndOfPosts: nextCursor === null,
+                metadata,
+            };
+        } else {
+            page = {
+                type: "Channel",
+                subType: "Tail",
+                name: channel.name,
+                pagination: nextCursor !== null ? {nextCursor} : null,
+                posts: [...posts],
+                isEndOfPosts: nextCursor === null,
+                metadata,
+            };
+        }
+
+        const response = await printPage(page);
+
+        if (nextCursor !== null && response.length < limitLength) {
+            const nextPostsResult = await context.api.get(context.span, "/channels/{id}/posts", {
+                params: {
+                    path: {id},
+                    query: {
+                        limit: agentWebChannelPageApiPostsBatchCount,
+                        cursor: nextCursor,
+                    },
+                },
+            });
+
+            currentPostBatch = nextPostsResult.data.posts;
+            nextCursor = nextPostsResult.data.nextCursor;
+            continue;
+        }
+
+        if (response.length <= limitLength) {
+            return {response, metadata: page.metadata};
+        }
+
+        const truncatedResult = await truncateAgentWebChannelPage(context.storage, id, {
+            page,
+            postCursors,
+            limitLength,
+            response,
         });
-        postCursors.push(post.createdTime);
-    }
 
-    const metadata: AgentWebChannelPageMetadata = {
-        type: "Channel",
-        id,
-        isEndOfPosts: nextCursor === null,
-        posts: posts.map(post => ({
-            id: post.reference.id,
-        })),
-    };
+        if (truncatedResult === null) return {response, metadata: page.metadata};
 
-    let page: AgentWebChannelPageWithMetadata;
-
-    if (afterCursor === null) {
-        page = {
-            type: "Channel",
-            subType: "Head",
-            name: channel.name,
-            description: assertExists(channelDescriptionResult).data.channel.description,
-            pagination: nextCursor !== null ? {nextCursor} : null,
-            posts,
-            isEndOfPosts: nextCursor === null,
-            metadata,
-        };
-    } else {
-        page = {
-            type: "Channel",
-            subType: "Tail",
-            name: channel.name,
-            pagination: nextCursor !== null ? {nextCursor} : null,
-            posts,
-            isEndOfPosts: nextCursor === null,
-            metadata,
+        return {
+            response: truncatedResult.response,
+            metadata: truncatedResult.metadata,
         };
     }
-
-    const response = await printPage(page);
-
-    if (response.length <= limitLength) {
-        return {response, metadata: page.metadata};
-    }
-
-    const truncatedPage = await truncateAgentWebChannelPage({
-        page,
-        postCursors,
-        limitLength,
-        printPage,
-    });
-
-    if (truncatedPage === null) return {response, metadata: page.metadata};
-
-    return {
-        response: truncatedPage.response,
-        metadata: truncatedPage.page.metadata,
-    };
 }
 
 function parseAgentWebChannelPageSearchParams(searchParams: URLSearchParams): DateString | null {
@@ -224,50 +240,206 @@ function parseAgentWebChannelPageSearchParams(searchParams: URLSearchParams): Da
     return afterCursor;
 }
 
-async function truncateAgentWebChannelPage({
-    page,
-    postCursors,
-    limitLength,
-    printPage,
-}: {
-    page: AgentWebChannelPageWithMetadata;
-    postCursors: ReadonlyArray<DateString>;
-    limitLength: number;
-    printPage: (page: AgentWebChannelPageWithMetadata) => Promise<string>;
-}): Promise<{
-    page: AgentWebChannelPageWithMetadata;
+async function truncateAgentWebChannelPage(
+    storage: AgentWebSessionStorage,
+    id: ChannelId,
+    {
+        page,
+        postCursors,
+        limitLength,
+        response,
+    }: {
+        page: AgentWebChannelPageWithMetadata;
+        postCursors: ReadonlyArray<DateString>;
+        limitLength: number;
+        response: string;
+    },
+): Promise<{
+    metadata: AgentWebChannelPageMetadata;
     response: string;
 } | null> {
     if (page.posts.length <= 1) return null;
     assert(page.posts.length === postCursors.length);
 
-    let truncatedPage = page;
+    const limitLengthDifference = response.length - limitLength;
+    assert(limitLengthDifference > 0);
 
-    for (let postCount = page.posts.length - 1; postCount >= 1; postCount--) {
-        const posts = page.posts.slice(0, postCount);
-        const nextCursor = postCursors[postCount - 1]!;
-        const metadata = {
-            ...page.metadata,
-            isEndOfPosts: false,
-            posts: page.metadata.posts.slice(0, postCount),
+    const responseTree = parseMarkdownTree(response);
+    let lastPostEndOffset: number | null = null;
+    let truncatePostEndOffset: number | null = null;
+    let truncatePostCount = 0;
+
+    let truncateLength = limitLengthDifference;
+
+    let channelPathname: string | null = null;
+
+    // Edge case: if we need to add a pagination link then expect more to be truncated
+    // so we can add the pagination link while still fitting into `limitLength`.
+    if (!page.pagination) {
+        channelPathname = await createAgentWebPageStoredLinkPathname(storage, {
+            type: "Channel",
+            id,
+            title: page.name,
+        });
+
+        truncateLength +=
+            // We need double newlines when adding after a heading and a single space when
+            // adding into a paragraph. Given double newlines is the longer of the two use that
+            // in our character count.
+            "\n\n[".length +
+            agentWebChannelPageNextPageLinkText.length +
+            "](".length +
+            channelPathname.length +
+            "?after=".length +
+            encodeURIComponent(postCursors[postCursors.length - 1]!).length +
+            ")".length;
+    }
+
+    const traverse = (node: Parent): boolean => {
+        for (const childNode of reverseIterable(node.children)) {
+            if (
+                childNode.type === "html" &&
+                hasHtmlCloseTag(childNode.value, tagName => tagName === "post")
+            ) {
+                const endOffset = assertExists(childNode.position?.end.offset);
+
+                lastPostEndOffset ??= endOffset;
+                truncatePostEndOffset = endOffset;
+                truncatePostCount++;
+
+                if (lastPostEndOffset - truncatePostEndOffset >= truncateLength) {
+                    return true;
+                }
+            }
+
+            if ("children" in childNode) {
+                if (traverse(childNode)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    };
+
+    traverse(responseTree);
+
+    // We don't truncate the last post traverse sees.
+    truncatePostCount--;
+
+    // There are no posts in this page so we don't truncate.
+    if (truncatePostEndOffset === null) return null;
+
+    // Always set when `truncatePostEndOffset` is set.
+    assert(lastPostEndOffset !== null);
+
+    // No truncation occurred!
+    if (truncatePostEndOffset === lastPostEndOffset) {
+        return null;
+    }
+
+    const truncatedPosts = page.posts.slice(0, page.posts.length - truncatePostCount);
+
+    // There should always be at least one post left after we truncate.
+    assert(truncatedPosts.length > 0);
+
+    const afterSearchParam = postCursors[truncatedPosts.length - 1]!;
+
+    // We're intentionally dropping everything after `truncatePostEndOffset`. Which
+    // will include the `isEndOfPosts` paragraph. If we're truncating then we're
+    // implicitly not at the end of posts anymore.
+    let truncatedResponse = response.slice(0, truncatePostEndOffset);
+
+    // Update the "Next page" link to reflect the new last post cursor after
+    // truncation.
+    //
+    // If there is no "Next page" link and truncation occurred then we need to add a
+    // "Next page" link.
+    if (page.pagination) {
+        let paginationLink: Link | null = null;
+
+        const traversePaginationLink = (node: Parent): void => {
+            for (const childNode of node.children) {
+                if (
+                    childNode.type === "link" &&
+                    printMarkdownPhrasingContentText(childNode.children) ===
+                        agentWebChannelPageNextPageLinkText
+                ) {
+                    paginationLink = childNode;
+                    return;
+                }
+
+                if ("children" in childNode) {
+                    traversePaginationLink(childNode);
+                    if (paginationLink !== null) return;
+                }
+            }
         };
 
-        truncatedPage = {
-            ...page,
-            posts,
-            pagination: {nextCursor},
-            isEndOfPosts: false,
-            metadata,
-        };
+        traversePaginationLink(responseTree);
 
-        // NOCOMMIT: Should use string manipulation, shouldn't call `printPage()` again.
-        const response = await printPage(truncatedPage);
-        if (response.length <= limitLength) {
-            return {page: truncatedPage, response};
+        // TypeScript is dumb and doesn't realize `traversePaginationLink()` may assign
+        // `paginationLink` synchronously.
+        paginationLink = paginationLink as any;
+
+        assert(paginationLink !== null);
+
+        const linkStartOffset = assertExists(paginationLink.position?.start.offset);
+        const linkEndOffset = assertExists(paginationLink.position?.end.offset);
+
+        assert(linkEndOffset <= truncatedResponse.length);
+
+        truncatedResponse =
+            truncatedResponse.slice(0, linkStartOffset) +
+            response
+                .slice(linkStartOffset, linkEndOffset)
+                .replace(/\?after=[^)]+/, `?after=${encodeURIComponent(afterSearchParam)}`) +
+            truncatedResponse.slice(linkEndOffset);
+    } else {
+        assert(channelPathname !== null);
+
+        const linkMarkdown = `[${agentWebChannelPageNextPageLinkText}](${channelPathname}?after=${encodeURIComponent(afterSearchParam)})`;
+
+        switch (page.subType) {
+            case "Head": {
+                const divider = responseTree.children.find(
+                    childNode => childNode.type === "thematicBreak",
+                );
+                assert(divider !== undefined);
+
+                const insertionOffset = assertExists(divider.position?.end.offset);
+
+                truncatedResponse =
+                    truncatedResponse.slice(0, insertionOffset) +
+                    "\n\n" +
+                    linkMarkdown +
+                    truncatedResponse.slice(insertionOffset);
+                break;
+            }
+            case "Tail": {
+                const preamble = responseTree.children[0];
+                assert(preamble?.type === "paragraph");
+
+                const insertionOffset = assertExists(preamble.position?.end.offset);
+
+                truncatedResponse =
+                    truncatedResponse.slice(0, insertionOffset) +
+                    " " +
+                    linkMarkdown +
+                    truncatedResponse.slice(insertionOffset);
+                break;
+            }
         }
     }
 
-    return null;
+    return {
+        metadata: {
+            ...page.metadata,
+            isEndOfPosts: false,
+            posts: page.metadata.posts.slice(0, truncatedPosts.length),
+        },
+        response: truncatedResponse,
+    };
 }
 
 export function normalizeAgentWebChannelPage<Page extends AgentWebChannelPage>(page: Page): Page {
