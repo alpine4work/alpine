@@ -3552,6 +3552,11 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
+                    - Action: bedrock:InvokeModel
+                      Effect: Allow
+                      Resource:
+                          - arn:aws:bedrock:us-east-1::foundation-model/google.gemma-3-12b-it
+                          - arn:aws:bedrock:us-east-1::foundation-model/google.gemma-3-4b-it
                 Version: 2012-10-17
             PolicyName: ImporterServiceTaskDefinitionTaskRoleDefaultPolicyD3141FF5
             Roles:
@@ -8312,6 +8317,11 @@ Resources:
                                         - FilesTable1399FAA4
                                         - Arn
                                   - /index/*
+                    - Action: bedrock:InvokeModel
+                      Effect: Allow
+                      Resource:
+                          - arn:aws:bedrock:us-east-1::foundation-model/google.gemma-3-12b-it
+                          - arn:aws:bedrock:us-east-1::foundation-model/google.gemma-3-4b-it
                 Version: 2012-10-17
             PolicyName: FileProcessorServiceFileProcessorLightExecutionRoleDefaultPolicy014BE6DA
             Roles:
@@ -8528,6 +8538,11 @@ Resources:
                                         - FilesTable1399FAA4
                                         - Arn
                                   - /index/*
+                    - Action: bedrock:InvokeModel
+                      Effect: Allow
+                      Resource:
+                          - arn:aws:bedrock:us-east-1::foundation-model/google.gemma-3-12b-it
+                          - arn:aws:bedrock:us-east-1::foundation-model/google.gemma-3-4b-it
                 Version: 2012-10-17
             PolicyName: FileProcessorServiceFileProcessorHeavyExecutionRoleDefaultPolicy436980C2
             Roles:
@@ -8886,6 +8901,11 @@ Resources:
                       Effect: Allow
                       Resource:
                           Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerEventStream25E3CD65Arn104E66F7
+                    - Action: bedrock:InvokeModel
+                      Effect: Allow
+                      Resource:
+                          - arn:aws:bedrock:us-east-1::foundation-model/google.gemma-3-12b-it
+                          - arn:aws:bedrock:us-east-1::foundation-model/google.gemma-3-4b-it
                 Version: 2012-10-17
             PolicyName: FileProcessorServiceTaskDefinitionTaskRoleDefaultPolicy620C2920
             Roles:

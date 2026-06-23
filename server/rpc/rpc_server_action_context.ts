@@ -5,7 +5,7 @@ import {SlackContextModuleBase} from "~/server/context/slack_context_module_base
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -18,7 +18,7 @@ export type RpcServerActionContextModules = ServerActionContextModules &
 export type RpcServerActionExtraContextModules = {
     tasks: TaskContextModule;
     email: EmailContextModuleBase;
-    languageModel: LanguageModelContextModule;
+    languageModels: LanguageModelsContextModuleBase;
     apns: ApnsContextModuleBase;
     webPush: WebPushContextModule;
     billing: BillingContextModuleBase;

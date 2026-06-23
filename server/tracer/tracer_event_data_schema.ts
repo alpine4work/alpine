@@ -585,6 +585,18 @@ const TracerEventDataSchema = {
             },
         },
     },
+    bedrock: {
+        model: Schema.string,
+        region: Schema.string,
+        usage: {
+            inputTokens: Schema.integer,
+            inputTokensMillicents: Schema.float,
+            outputTokens: Schema.integer,
+            outputTokensMillicents: Schema.float,
+            totalTokens: Schema.integer,
+            estimatedCostMillicents: Schema.float,
+        },
+    },
     agents: {
         schedule: {
             event: {

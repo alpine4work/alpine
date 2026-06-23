@@ -13,9 +13,9 @@ import {
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer, FileAuthorizerUnbound} from "~/server/files/data/file_authorizer.js";
 import {
-    FileProcessorAccountActionContext,
-    FileProcessorActionContext,
-    FileProcessorSystemActionContext,
+    FileDataAccountActionContext,
+    FileDataActionContext,
+    FileDataSystemActionContext,
 } from "~/server/files/data/file_processor_context.js";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {
@@ -231,10 +231,10 @@ export async function startUploadingFile(
         attachTargetAuthorizer?: FileAuthorizer | null;
     },
 ): Promise<{fileId: FileId}>;
-// FileProcessorAccountActionContext (minimal context type), no
-// attachTargetAuthorizer allowed
+// FileDataAccountActionContext (minimal context type), no attachTargetAuthorizer
+// allowed
 export async function startUploadingFile(
-    context: FileProcessorAccountActionContext,
+    context: FileDataAccountActionContext,
     options: {
         spaceId: SpaceId;
         fileId?: FileId | null;
@@ -244,7 +244,7 @@ export async function startUploadingFile(
     },
 ): Promise<{fileId: FileId}>;
 export async function startUploadingFile(
-    context: ServerAccountActionContext | FileProcessorAccountActionContext,
+    context: ServerAccountActionContext | FileDataAccountActionContext,
     {
         spaceId,
         fileId: providedFileId = null,
@@ -450,7 +450,7 @@ export async function startUploadingFile(
  * `startUploadingFile()` for more information.
  */
 export async function finishUploadingAndStartProcessingFile(
-    context: FileProcessorAccountActionContext,
+    context: FileDataAccountActionContext,
     {
         spaceId,
         fileId,
@@ -542,7 +542,7 @@ export async function finishUploadingAndStartProcessingFile(
  * an uploader may get an instance of the `FileUploader` class.
  */
 export async function getFileUploaderAsUploader(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
 ): Promise<FileUploader> {
     let fileItem = await getFileItemIfExistsAsUploader(context, fileId, {
@@ -592,7 +592,7 @@ export class FileUploader {
         return this._item.getWithoutLock().contentLength;
     }
 
-    private _authorize(context: FileProcessorActionContext) {
+    private _authorize(context: FileDataActionContext) {
         switch (context.actor.type) {
             case "Session": {
                 if (this.uploaderId !== context.actor.getAccountId()) {
@@ -645,7 +645,7 @@ export class FileUploader {
      * throw an error.
      */
     public async finishProcessingAlternative(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         alternative: {contentType: FileContentType; contentLength: number} | null,
     ) {
         this._authorize(context);
@@ -705,7 +705,7 @@ export class FileUploader {
      * provided as an option.
      */
     public async finishProcessingImagePreviewSize(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         size: FileImagePreviewSize,
         {alsoPreviewVideoDuration}: {alsoPreviewVideoDuration?: number} = {},
     ) {
@@ -809,7 +809,7 @@ export class FileUploader {
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewPlaceholder(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         placeholder: FileImagePreviewPlaceholder,
     ) {
         this._authorize(context);
@@ -872,7 +872,7 @@ export class FileUploader {
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewContent(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         {
             contentType,
             contentLength,
@@ -975,7 +975,7 @@ export class FileUploader {
      * duration with the preview size.
      */
     public async finishProcessingImagePreviewVideoDurationIfNeeded(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         videoDuration: number,
     ): Promise<void> {
         this._authorize(context);
@@ -1052,7 +1052,7 @@ export class FileUploader {
      * this function is called.
      */
     public async finishProcessingAudioPreviewDuration(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         duration: number,
     ): Promise<void> {
         this._authorize(context);
@@ -1107,7 +1107,7 @@ export class FileUploader {
      * this function is called.
      */
     public async finishProcessingAudioPreviewMetadata(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         metadata: FileAudioPreviewMetadata,
     ): Promise<void> {
         this._authorize(context);
@@ -1164,7 +1164,7 @@ export class FileUploader {
      * called.
      */
     public async finishProcessingCodePreviewContent(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         content: FileCodePreviewContent,
     ): Promise<void> {
         this._authorize(context);
@@ -1209,7 +1209,7 @@ export class FileUploader {
      * Save model-produced analysis for the file.
      */
     public async finishProcessingAnalysis(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         {
             caption,
             description,
@@ -1261,7 +1261,7 @@ export class FileUploader {
      * Save an analysis generation failure for the file.
      */
     public async finishProcessingAnalysisWithError(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         error: FileProcessorError,
     ): Promise<void> {
         this._authorize(context);
@@ -1300,7 +1300,7 @@ export class FileUploader {
     /**
      * Mark that a timestamped transcript has been stored for this file.
      */
-    public async finishProcessingTranscript(context: FileProcessorActionContext): Promise<void> {
+    public async finishProcessingTranscript(context: FileDataActionContext): Promise<void> {
         this._authorize(context);
 
         await this._item.withLock(async itemRef => {
@@ -1337,7 +1337,7 @@ export class FileUploader {
      * Save a transcript generation failure for the file.
      */
     public async finishProcessingTranscriptWithError(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         error: FileProcessorError,
     ): Promise<void> {
         this._authorize(context);
@@ -1374,7 +1374,7 @@ export class FileUploader {
     }
 
     public async finishProcessingAlternativeWithError(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         error: FileProcessorError,
     ) {
         this._authorize(context);
@@ -1415,7 +1415,7 @@ export class FileUploader {
     }
 
     public async finishProcessingPreviewWithError(
-        context: FileProcessorActionContext,
+        context: FileDataActionContext,
         error: FileProcessorError,
     ) {
         this._authorize(context);
@@ -1542,7 +1542,7 @@ const FileItemContextCache = new DynamoContextCache<FileId, FileItem | null>({
 });
 
 function getFileItemIfExistsWithCache(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
@@ -1560,7 +1560,7 @@ function getFileItemIfExistsWithCache(
 }
 
 async function getFileItemIfExistsAsUploader(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
@@ -1611,7 +1611,7 @@ async function getFileItemIfExistsAsUploader(
  * accounts with access to the file.
  */
 export async function getFileIfExistsAsUploader(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel | null> {
@@ -1629,7 +1629,7 @@ export async function getFileIfExistsAsUploader(
  * with access to the file.
  */
 export async function getFileAsUploader(
-    context: FileProcessorActionContext,
+    context: FileDataActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel> {
@@ -1639,7 +1639,7 @@ export async function getFileAsUploader(
 }
 
 export function getFileIfExistsAsSystem(
-    context: FileProcessorSystemActionContext,
+    context: FileDataSystemActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
@@ -1651,7 +1651,7 @@ export function getFileIfExistsAsSystem(
 }
 
 export function getFileAsSystem(
-    context: FileProcessorSystemActionContext,
+    context: FileDataSystemActionContext,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
@@ -1795,7 +1795,7 @@ export async function attachFileAsUploader(
  * attachment is valid.
  */
 export async function attachFileToDocumentAsSystem(
-    context: FileProcessorSystemActionContext,
+    context: FileDataSystemActionContext,
     fileId: FileId,
     documentId: DocumentId,
 ): Promise<void> {

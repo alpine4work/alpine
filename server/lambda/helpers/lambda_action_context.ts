@@ -10,6 +10,8 @@ import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {createLanguageModelsContextModuleForProcess} from "~/server/language_models/create_language_models_context_module_for_process.js";
+import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {
     createServerBasicProcessContextModulesWithoutShutdownManager,
     serverBasicProcessContextOptions,
@@ -25,6 +27,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -35,6 +38,8 @@ export type LambdaActionContextOptions = ServiceOptions<typeof lambdaActionConte
 
 export const lambdaActionContextOptions = {
     temporaryDirectoryPath: {type: "string"},
+    // Used to test LLM calls against real AWS Bedrock in development. Optional.
+    awsBedrockTokenForDevelopment: {type: "string", optional: true},
     ...serviceTokenAgentOptions,
     ...omitObject(serverBasicProcessContextOptions, ["kinesisTracerStreamName"]),
     ...omitObject(serviceCloudflareR2Options, ["fileProcessorServiceUrl"]),
@@ -49,6 +54,7 @@ export type LambdaActionContextModules = {
     constants: ConstantsContextModule;
     r2: CloudflareR2ContextModule;
     files: FilesContextModule;
+    languageModels: LanguageModelsContextModuleBase;
     cache: CacheContextModule;
     batch: BatchContextModule;
 };
@@ -71,6 +77,12 @@ export function createLambdaActionContext({
     tracer: TracerRoot;
     fileProcessorServiceUrl?: string;
 }): LambdaActionContext {
+    assert(
+        options.awsBedrockTokenForDevelopment === undefined ||
+            process.env.NODE_ENV !== "production",
+        "`awsBedrockTokenForDevelopment` must not be set in production",
+    );
+
     return Context.new({
         // NOTE(ifitzsimmons, 07-22-2025): I'm not sure that we need all of this context
         // here in AWS Lambda for instance, jobQueueUrl is useless for Lambdas that are
@@ -103,6 +115,9 @@ export function createLambdaActionContext({
                 options.resourceServiceUrl,
                 "`resourceServiceUrl` option is required",
             ),
+        }),
+        languageModels: createLanguageModelsContextModuleForProcess({
+            awsBedrockTokenForDevelopment: options.awsBedrockTokenForDevelopment,
         }),
     });
 }
@@ -138,11 +153,17 @@ export async function getLambdaActionContextOptions(
     const secret = await span.withSpan("Fetch secrets from AWS Secrets Manager", async () => {
         return await getServiceSecretsFromArn(secretArn, serviceSecretsSchema);
     });
+    const awsBedrockTokenForDevelopment =
+        "awsBedrockTokenForDevelopment" in secret &&
+        typeof secret.awsBedrockTokenForDevelopment === "string"
+            ? secret.awsBedrockTokenForDevelopment
+            : undefined;
 
     // Parse all environment variables and secrets into options
     return {
         temporaryDirectoryPath: os.tmpdir(),
         ...secret,
+        awsBedrockTokenForDevelopment,
         // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove these
         // options
         ensureLocalCachePath: process.env.ENSURE_LOCAL_CACHE_PATH || "/tmp/cache",

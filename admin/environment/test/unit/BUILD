@@ -25,6 +25,7 @@ ts_project(
         "//server/importer/development",
         "//server/importer/test_helpers",
         "//server/jobs/core",
+        "//server/language_models",
         "//server/opensearch",
         "//server/spaces/test_helpers",
         "//server/tasks/router",

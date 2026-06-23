@@ -65,6 +65,7 @@ ts_project(
         "//server/helpers",
         "//server/helpers/node",
         "//server/jobs/queue/consumer",
+        "//server/language_models",
         "//server/node",
         "//server/spaces",
         "//server/tokens",

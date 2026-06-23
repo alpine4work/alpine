@@ -19,6 +19,7 @@ ts_project(
         "//server/feed",
         "//server/jobs/core",
         "//server/jobs/queue/consumer",
+        "//server/language_models",
         "//server/language_models/all_mini_lm_l6_v2",
         "//server/language_models/cohere_embed_english_v3",
         "//server/node",

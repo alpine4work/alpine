@@ -113,7 +113,7 @@ export async function createApiServiceRequestListener(
         tokenAgent: TokenAgent;
     },
 ) {
-    if (!processContext.languageModel && !import.meta.jest) {
+    if (!processContext.languageModels?.getEmbeddingModelKey() && !import.meta.jest) {
         throw new InternalError("Missing language model in context");
     }
 

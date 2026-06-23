@@ -69,7 +69,7 @@ import {NoopSlackContextModule} from "~/server/integrations/slack/noop_slack_con
 import {SlackContextModule} from "~/server/integrations/slack/slack_context_module.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {createLanguageModelsContextModuleForProcess} from "~/server/language_models/create_language_models_context_module_for_process.js";
 import {createServerBasicProcessContextModules} from "~/server/node/create_server_basic_process_context_modules.js";
 import {
     createServiceTokenAgent,
@@ -256,8 +256,13 @@ async function createAppService({
         options.resourceServiceUrl,
         "`resourceServiceUrl` option is required",
     );
+    assert(
+        options.awsBedrockTokenForDevelopment === undefined ||
+            process.env.NODE_ENV !== "production",
+        "`awsBedrockTokenForDevelopment` must not be set in production",
+    );
 
-    const languageModel =
+    const embeddingModel =
         process.env.NODE_ENV === "production"
             ? new CohereEmbedEnglishV3LanguageModel({
                   apiKey: assertExists(
@@ -501,7 +506,10 @@ async function createAppService({
             process.env.NODE_ENV === "production"
                 ? new SesEmailContextModule(tokenAgent)
                 : new TraceOnlyEmailContextModule(),
-        languageModel: new LanguageModelContextModule(languageModel),
+        languageModels: createLanguageModelsContextModuleForProcess({
+            awsBedrockTokenForDevelopment: options.awsBedrockTokenForDevelopment,
+            embeddingModel,
+        }),
         apns: apnsContextModule,
         webPush:
             process.env.NODE_ENV === "test"

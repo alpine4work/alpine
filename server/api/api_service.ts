@@ -33,7 +33,7 @@ import {
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {createLanguageModelsContextModuleForProcess} from "~/server/language_models/create_language_models_context_module_for_process.js";
 import {
     createServerBasicProcessContextModules,
     serverBasicProcessContextOptions,
@@ -117,7 +117,7 @@ export async function run({
     const awsSigner = new AwsRequestSigner(defaultProvider());
     void awsSigner.prefetchState(startupSpan);
 
-    const languageModel =
+    const embeddingModel =
         process.env.NODE_ENV === "production"
             ? new CohereEmbedEnglishV3LanguageModel({
                   apiKey: assertExists(
@@ -198,7 +198,9 @@ export async function run({
         sitesInjection: new SitesInjectionContextModule(sitesInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
-        languageModel: new LanguageModelContextModule(languageModel),
+        languageModels: createLanguageModelsContextModuleForProcess({
+            embeddingModel,
+        }),
     });
 
     const server = await createApiServiceServer(processContext, apiPaths, {

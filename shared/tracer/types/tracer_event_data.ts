@@ -1730,6 +1730,29 @@ export type TracerEventData = {
         };
     };
 
+    /**
+     * Information regarding requests to Amazon Bedrock.
+     */
+    readonly bedrock?: {
+        /** The Bedrock model used. */
+        readonly model?: string;
+
+        /** The AWS region used for the request. */
+        readonly region?: string;
+
+        /**
+         * Token usage reported by Bedrock for the request.
+         */
+        readonly usage?: {
+            readonly inputTokens?: number;
+            readonly inputTokensMillicents?: number;
+            readonly outputTokens?: number;
+            readonly outputTokensMillicents?: number;
+            readonly totalTokens?: number;
+            readonly estimatedCostMillicents?: number;
+        };
+    };
+
     readonly agents?: {
         readonly schedule?: {
             readonly event?: {

@@ -850,6 +850,9 @@ export function actuallyCreateIntegrationTestEnvironment(
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
+                ...(env.AWS_BEDROCK_TOKEN
+                    ? [`--awsBedrockTokenForDevelopment=${env.AWS_BEDROCK_TOKEN}`]
+                    : []),
             ],
             {
                 env: process.env,

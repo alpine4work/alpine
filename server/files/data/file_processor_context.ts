@@ -15,6 +15,7 @@ import {
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
@@ -24,11 +25,11 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
-export type FileProcessorProcessContext = Context<FileProcessorProcessContextModules>;
+export type FileDataProcessContext = Context<FileDataProcessContextModules>;
 
-assertAssignableTypes<ServerProcessContext, FileProcessorProcessContext>();
+assertAssignableTypes<ServerProcessContext, FileDataProcessContext>();
 
-export type FileProcessorProcessContextModules = {
+export type FileDataProcessContextModules = {
     process: ProcessContextModule;
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
@@ -38,9 +39,53 @@ export type FileProcessorProcessContextModules = {
     files: FilesContextModuleBase;
 };
 
-export type FileProcessorActionContext = Context<FileProcessorActionContextModules>;
+export type FileDataActionContext = Context<FileDataActionContextModules>;
 
-assertAssignableTypes<ServerActionContext, FileProcessorActionContext>();
+assertAssignableTypes<ServerActionContext, FileDataActionContext>();
+
+export type FileDataActionContextModules = FileDataProcessContextModules & {
+    cache: CacheContextModule;
+    batch: BatchContextModule;
+    actor: ActorContextModule;
+};
+
+/**
+ * Minimal context type for system actions that work with file data.
+ */
+export type FileDataSystemActionContext = Context<FileDataSystemActionContextModules>;
+
+assertAssignableTypes<ServerSystemActionContext, FileDataSystemActionContext>();
+
+export type FileDataSystemActionContextModules = Replace<
+    FileDataActionContextModules,
+    {actor: SystemActorContextModule}
+>;
+
+/**
+ * Minimal context type for account actions that work with file data. Supports
+ * Session, ImpersonatedAccount, and Bot actors.
+ */
+export type FileDataAccountActionContext = Context<FileDataAccountActionContextModules>;
+
+assertAssignableTypes<ServerAccountActionContext, FileDataAccountActionContext>();
+
+export type FileDataAccountActionContextModules = Replace<
+    FileDataActionContextModules,
+    {
+        actor:
+            | SessionActorContextModule
+            | ImpersonatedAccountActorContextModule
+            | BotActorContextModule;
+    }
+>;
+
+export type FileProcessorProcessContext = Context<FileProcessorProcessContextModules>;
+
+export type FileProcessorProcessContextModules = FileDataProcessContextModules & {
+    languageModels: LanguageModelsContextModuleBase;
+};
+
+export type FileProcessorActionContext = Context<FileProcessorActionContextModules>;
 
 export type FileProcessorActionContextModules = FileProcessorProcessContextModules & {
     cache: CacheContextModule;
@@ -49,12 +94,9 @@ export type FileProcessorActionContextModules = FileProcessorProcessContextModul
 };
 
 /**
- * Minimal context type for system actions that work with files. This is a subset
- * of ServerSystemActionContext with only the modules needed.
+ * Minimal context type for system actions that work with file processing.
  */
 export type FileProcessorSystemActionContext = Context<FileProcessorSystemActionContextModules>;
-
-assertAssignableTypes<ServerSystemActionContext, FileProcessorSystemActionContext>();
 
 export type FileProcessorSystemActionContextModules = Replace<
     FileProcessorActionContextModules,
@@ -62,13 +104,10 @@ export type FileProcessorSystemActionContextModules = Replace<
 >;
 
 /**
- * Minimal context type for account actions that work with files (upload, etc.).
- * This is a subset of ServerAccountActionContext with only the modules needed.
+ * Minimal context type for account actions that work with file processing.
  * Supports Session, ImpersonatedAccount, and Bot actors.
  */
 export type FileProcessorAccountActionContext = Context<FileProcessorAccountActionContextModules>;
-
-assertAssignableTypes<ServerAccountActionContext, FileProcessorAccountActionContext>();
 
 export type FileProcessorAccountActionContextModules = Replace<
     FileProcessorActionContextModules,

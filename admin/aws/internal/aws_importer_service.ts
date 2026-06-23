@@ -17,6 +17,7 @@ import {AwsImportUploadsData} from "~/admin/aws/internal/aws_import_uploads_data
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
+import {createAwsBedrockInvokeModelResources} from "~/admin/aws/internal/create_aws_bedrock_invoke_model_resources.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     importerVolumeContainerPath,
@@ -304,6 +305,13 @@ export class AwsImporterService extends Construct {
         importUploads.grantRead(this.taskDefinition.taskRole);
         observability.grantPutToTracerEventStream(this.taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(this.taskDefinition.taskRole);
+        this.taskDefinition.addToTaskRolePolicy(
+            new PolicyStatement({
+                effect: Effect.ALLOW,
+                actions: ["bedrock:InvokeModel"],
+                resources: createAwsBedrockInvokeModelResources(this),
+            }),
+        );
 
         // Create a security group for importer tasks. This security group's ID must be
         // explicitly provided to the ECS RunTask action.

@@ -1660,6 +1660,22 @@ Resources:
                           Type: int
                         - Name: openai__responses__usage__total_tokens
                           Type: int
+                        - Name: bedrock__model
+                          Type: string
+                        - Name: bedrock__region
+                          Type: string
+                        - Name: bedrock__usage__input_tokens
+                          Type: int
+                        - Name: bedrock__usage__input_tokens_millicents
+                          Type: double
+                        - Name: bedrock__usage__output_tokens
+                          Type: int
+                        - Name: bedrock__usage__output_tokens_millicents
+                          Type: double
+                        - Name: bedrock__usage__total_tokens
+                          Type: int
+                        - Name: bedrock__usage__estimated_cost_millicents
+                          Type: double
                         - Name: agents__schedule__event__time
                           Type: string
                         - Name: agents__schedule__event__execution_time
