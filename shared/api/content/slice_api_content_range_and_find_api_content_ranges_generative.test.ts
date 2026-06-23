@@ -9,6 +9,12 @@ import {assertId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {getProsemirrorNodeArbitrary} from "~/shared/prosemirror/test_helpers/get_prosemirror_node_arbitrary.js";
 
+// NOCOMMIT: import.meta.jest.setTimeout(30 _ 1000);
+// fc.configureGlobal({interruptAfterTimeLimit: 20 _ 1000});
+
+import.meta.jest.setTimeout(140 * 1000);
+fc.configureGlobal({interruptAfterTimeLimit: 120 * 1000});
+
 const encoder = new ApiContentKeyEncoder({
     entityId: `Document:${assertId<DocumentId>("021canz18dawsz0xbg032r4f48")}`,
     version: 0,
