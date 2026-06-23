@@ -19,7 +19,7 @@ import {intoApiAccountReference} from "~/shared/api/specification/into_api_accou
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_content_response_without_keys.js";
 import {
     ApiAccountReferenceResponse,
-    ApiPostPreview,
+    ApiPostPreviewResponse,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
@@ -67,6 +67,7 @@ export type AgentWebChannelPagePostBlock = {
     readonly type: "Post";
     readonly author: ApiAccountReferenceResponse | null;
     readonly timeAttribute: string | null;
+    readonly contentSnippet: ApiContentResponseWithoutKeys;
     readonly reference: ApiPostReferenceResponse;
 };
 
@@ -122,10 +123,10 @@ export async function readAgentWebChannelPage(
     const {channel} = initialPostsResult.data;
     let currentPostBatch = initialPostsResult.data.posts;
     let nextCursor = initialPostsResult.data.nextCursor;
-    let lookaheadPost: ApiPostPreview | null = null;
+    let lookaheadPost: ApiPostPreviewResponse | null = null;
 
     while (true) {
-        const postBatch: ReadonlyArray<ApiPostPreview> =
+        const postBatch: ReadonlyArray<ApiPostPreviewResponse> =
             lookaheadPost !== null ? [lookaheadPost, ...currentPostBatch] : currentPostBatch;
         lookaheadPost = null;
 
@@ -157,6 +158,7 @@ export async function readAgentWebChannelPage(
                 type: "Post",
                 author: intoApiAccountReference(post.author),
                 timeAttribute: `${formattedTime} ${formattedTimeZone}`,
+                contentSnippet: post.contentSnippet,
                 reference: {
                     type: "Post",
                     id: post.id,
@@ -522,6 +524,7 @@ export function normalizeAgentWebChannelPage<Page extends AgentWebChannelPage>(p
 
             for (const post of page.posts) {
                 if (post.author) normalizer.normalizeReference(post.author);
+                normalizer.normalize(post.contentSnippet);
                 normalizer.normalizeReference(post.reference);
             }
         });
@@ -674,18 +677,10 @@ async function printAgentWebChannelPagePostBlock(
     storage: AgentWebSessionStorage,
     post: AgentWebChannelPagePostBlock,
 ): Promise<Array<RootContent>> {
-    const [authorPathname, postPathname, titleTree] = await runAllPromises([
+    const [authorPathname, postPathname, contentSnippetTree] = await runAllPromises([
         post.author ? createAgentWebPageStoredLinkPathname(storage, post.author) : null,
         createAgentWebPageStoredLinkPathname(storage, post.reference),
-        // NOCOMMIT: Need a better post content snippet!
-        printApiContentToAgentWebMarkdownTree(storage, {
-            elements: [
-                {
-                    type: "Paragraph",
-                    elements: [{type: "Text", text: post.reference.title}],
-                },
-            ],
-        }),
+        printApiContentToAgentWebMarkdownTree(storage, post.contentSnippet),
     ]);
 
     let openTag = "<post";
@@ -708,7 +703,7 @@ async function printAgentWebChannelPagePostBlock(
 
     return [
         {type: "html", value: openTag},
-        ...titleTree.children,
+        ...contentSnippetTree.children,
         {
             type: "paragraph",
             children: [

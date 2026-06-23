@@ -143,6 +143,7 @@ function mockGetChannelPosts({
                         createdTime: postCreatedTimes[postIndex]!,
                         createdTimeZone: defaultTimeZone,
                         channel: {id: channelId, name: "Announcements"},
+                        contentSnippet: contentFromText(getChannelPostTitle(postIndex)),
                         reference: {title: getChannelPostTitle(postIndex)},
                     };
                 }),

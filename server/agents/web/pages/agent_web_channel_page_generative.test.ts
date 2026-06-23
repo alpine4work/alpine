@@ -31,6 +31,7 @@ const AgentWebChannelPagePostBlockArbitrary: Arbitrary<AgentWebChannelPagePostBl
         {weight: 10, arbitrary: ApiContentTextArbitrary},
         {weight: 1, arbitrary: fc.constant(null)},
     ),
+    contentSnippet: ApiContentWithoutCommentMarkArbitrary,
     reference: ApiPostReferenceArbitrary,
 });
 
