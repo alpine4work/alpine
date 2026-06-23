@@ -1548,6 +1548,17 @@ function* parseApiContentBlockElementFromMarkdown(
                 return {cells};
             });
 
+            if (rows.length === 0) {
+                rows.push({
+                    cells: [
+                        {elements: [{type: "Paragraph", elements: []}]},
+                        {elements: [{type: "Paragraph", elements: []}]},
+                    ],
+                });
+
+                columnCount = Math.max(columnCount, 2);
+            }
+
             yield {
                 type: "Table",
                 width: 1,
@@ -1805,6 +1816,17 @@ class ApiContentBlockElementsMarkdownTableState {
 
                     return {cells};
                 });
+
+                if (rows.length === 0) {
+                    rows.push({
+                        cells: [
+                            {elements: [{type: "Paragraph", elements: []}]},
+                            {elements: [{type: "Paragraph", elements: []}]},
+                        ],
+                    });
+
+                    columnCount = Math.max(columnCount, 2);
+                }
 
                 return {
                     type: "Table",
@@ -2972,9 +2994,16 @@ function intoApiContentCheckListBlockElementItem(
 ): ApiContentCheckListBlockElementItem {
     assert(item.checked !== null && item.checked !== undefined);
 
+    const mappedElements = Array.from(
+        flatMapIterable(elements, intoApiContentParagraphBlockElement),
+    );
+
+    if (mappedElements.length === 0 && (!nestedListElements || nestedListElements.length === 0))
+        mappedElements.push({type: "Paragraph", elements: []});
+
     return {
         checked: item.checked,
-        elements: Array.from(flatMapIterable(elements, intoApiContentParagraphBlockElement)),
+        elements: mappedElements,
         ...(nestedListElements && nestedListElements.length > 0 ? {nestedListElements} : {}),
     };
 }
@@ -2984,8 +3013,15 @@ function intoApiContentListBlockElementItem(
     elements: ReadonlyArray<ApiContentBlockElement>,
     nestedListElements: ReadonlyArray<ApiContentListBlockElement>,
 ): ApiContentListBlockElementItem {
+    const mappedElements = Array.from(
+        flatMapIterable(elements, intoApiContentParagraphBlockElement),
+    );
+
+    if (mappedElements.length === 0 && (!nestedListElements || nestedListElements.length === 0))
+        mappedElements.push({type: "Paragraph", elements: []});
+
     return {
-        elements: Array.from(flatMapIterable(elements, intoApiContentParagraphBlockElement)),
+        elements: mappedElements,
         ...(nestedListElements && nestedListElements.length > 0 ? {nestedListElements} : {}),
     };
 }

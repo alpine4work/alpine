@@ -815,12 +815,18 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
     // `<table>`s anyway.
     if (element.width !== 1 || element.columns.some(column => column.width !== 1)) return null;
 
-    let columnCount = 0;
+    let columnCount: number | null = null;
     const rows: Array<TableRow> = [];
 
     for (let rowIndex = 0; rowIndex < Math.max(1, element.rows.length); rowIndex++) {
         const row = element.rows[rowIndex] ?? {cells: []};
-        columnCount = Math.max(columnCount, row.cells.length);
+
+        if (columnCount === null) {
+            columnCount = row.cells.length;
+        } else if (columnCount !== row.cells.length) {
+            // Can't print table with uneven number of cells to GFM table.
+            return null;
+        }
 
         const cells: Array<TableCell> = [];
         rows.push({type: "tableRow", children: cells});
@@ -873,7 +879,10 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
 
     return {
         type: "table",
-        align: createArrayWithLength(columnCount, () => null),
+        align: createArrayWithLength(
+            Math.max(columnCount ?? element.columns.length, 2),
+            () => null,
+        ),
         children: rows,
     };
 }

@@ -92,8 +92,7 @@ export async function exportDocumentContent({
         getFileIfExists: fileId => {
             const fileReference = content.references.fileById?.get(fileId);
             if (!fileReference) return undefined;
-            const file = getFileRegistry(spaceId).getFileStore(fileReference).getSnapshot();
-            return file.preview ?? undefined;
+            return getFileRegistry(spaceId).getFileStore(fileReference).getSnapshot();
         },
     });
 

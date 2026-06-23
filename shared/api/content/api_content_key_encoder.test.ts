@@ -1,4 +1,7 @@
-import {ApiContentKeyDecoder, ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {
+    ApiContentKeyDecoder,
+    ApiContentKeyEncoder,
+} from "~/shared/api/content/api_content_key_encoder.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {generateId} from "~/shared/id/id.js";
 import type {DocumentId} from "~/shared/id/types/id_types.js";

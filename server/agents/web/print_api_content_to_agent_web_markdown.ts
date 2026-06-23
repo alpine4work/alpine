@@ -166,10 +166,11 @@ async function traverseApiContentMarkdownNode(
 
                 assert(node.value !== newValue);
 
-                return {
-                    type: "html",
-                    value: newValue,
-                };
+                return await traverseApiContentMarkdownHtmlNode(
+                    storage,
+                    {type: "html", value: newValue},
+                    state,
+                );
             }
 
             if (node.data?.fileGalleryElementRow) {
@@ -235,10 +236,11 @@ async function traverseApiContentMarkdownNode(
 
                 assert(node.value !== newValue);
 
-                return {
-                    type: "html",
-                    value: newValue,
-                };
+                return await traverseApiContentMarkdownHtmlNode(
+                    storage,
+                    {type: "html", value: newValue},
+                    state,
+                );
             }
 
             return await traverseApiContentMarkdownHtmlNode(storage, node, state);

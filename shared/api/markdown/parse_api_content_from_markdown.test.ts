@@ -851,8 +851,6 @@ test("HTML table with invalid data attributes", () => {
             {
                 type: "Table",
                 width: 1,
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 columns: [{width: 1}, {width: 1}],
                 rows: [
                     {
@@ -862,7 +860,7 @@ test("HTML table with invalid data attributes", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "Cell"}]},
                                 ],
                             },
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                 ],
@@ -892,7 +890,7 @@ test("HTML table with empty cells", () => {
                 rows: [
                     {
                         cells: [
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                             {
                                 elements: [
                                     {
@@ -901,7 +899,7 @@ test("HTML table with empty cells", () => {
                                     },
                                 ],
                             },
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                 ],
@@ -948,7 +946,6 @@ test("HTML table with irregular rows", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "B"}]},
                                 ],
                             },
-                            {elements: []},
                         ],
                     },
                     {
@@ -958,8 +955,7 @@ test("HTML table with irregular rows", () => {
                                     {type: "Paragraph", elements: [{type: "Text", text: "C"}]},
                                 ],
                             },
-                            {elements: []},
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                     {
@@ -1096,8 +1092,6 @@ Regular text
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
@@ -1109,7 +1103,6 @@ Regular text
                                             {
                                                 type: "Text",
                                                 text: " # Heading in cell Regular text ",
-                                                marks: undefined,
                                             },
                                         ],
                                     },
@@ -1123,7 +1116,6 @@ Regular text
                                             {
                                                 type: "Text",
                                                 text: "## Another heading",
-                                                marks: undefined,
                                             },
                                         ],
                                     },
@@ -1162,8 +1154,6 @@ After divider
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
@@ -1175,7 +1165,6 @@ After divider
                                             {
                                                 type: "Text",
                                                 text: "Before divider",
-                                                marks: undefined,
                                             },
                                         ],
                                     },
@@ -1185,9 +1174,7 @@ After divider
                                     },
                                     {
                                         type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "After divider", marks: undefined},
-                                        ],
+                                        elements: [{type: "Text", text: "After divider"}],
                                     },
                                 ],
                             },
@@ -1199,7 +1186,6 @@ After divider
                                             {
                                                 type: "Text",
                                                 text: "Regular content",
-                                                marks: undefined,
                                             },
                                         ],
                                     },
@@ -1241,8 +1227,6 @@ More content
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
@@ -1260,9 +1244,7 @@ More content
                                     },
                                     {
                                         type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "Some content", marks: undefined},
-                                        ],
+                                        elements: [{type: "Text", text: "Some content"}],
                                     },
                                     {
                                         type: "Paragraph",
@@ -1280,13 +1262,11 @@ More content
                                     },
                                     {
                                         type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "More content", marks: undefined},
-                                        ],
+                                        elements: [{type: "Text", text: "More content"}],
                                     },
                                 ],
                             },
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                 ],
@@ -1322,7 +1302,7 @@ test("empty blockquote creates empty Quote element", () => {
         elements: [
             {
                 type: "Quote",
-                elements: [],
+                elements: [{type: "Paragraph", elements: []}],
             },
         ],
     });
@@ -2437,9 +2417,14 @@ test("completely empty HTML table", () => {
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
-                rows: [],
+                rows: [
+                    {
+                        cells: [
+                            {elements: [{type: "Paragraph", elements: []}]},
+                            {elements: [{type: "Paragraph", elements: []}]},
+                        ],
+                    },
+                ],
             },
         ],
     });
@@ -2458,9 +2443,14 @@ test("HTML table with empty row", () => {
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
-                rows: [{cells: [{elements: []}, {elements: []}]}],
+                rows: [
+                    {
+                        cells: [
+                            {elements: [{type: "Paragraph", elements: []}]},
+                            {elements: [{type: "Paragraph", elements: []}]},
+                        ],
+                    },
+                ],
             },
         ],
     });
@@ -2653,8 +2643,6 @@ test("whitespace between table cells is ignored", () => {
                 type: "Table",
                 width: 1,
                 columns: [{width: 1}, {width: 1}],
-                hasHeaderColumn: undefined,
-                hasHeaderRow: undefined,
                 rows: [
                     {
                         cells: [
@@ -2662,9 +2650,7 @@ test("whitespace between table cells is ignored", () => {
                                 elements: [
                                     {
                                         type: "Paragraph",
-                                        elements: [
-                                            {type: "Text", text: "Cell 1", marks: undefined},
-                                        ],
+                                        elements: [{type: "Text", text: "Cell 1"}],
                                     },
                                     {
                                         type: "Code",
@@ -2675,7 +2661,6 @@ test("whitespace between table cells is ignored", () => {
                                                     {
                                                         type: "Text",
                                                         text: "<td>Cell 2</td>",
-                                                        marks: undefined,
                                                     },
                                                 ],
                                             },
@@ -2683,7 +2668,7 @@ test("whitespace between table cells is ignored", () => {
                                     },
                                 ],
                             },
-                            {elements: []},
+                            {elements: [{type: "Paragraph", elements: []}]},
                         ],
                     },
                 ],

@@ -902,11 +902,6 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly document: {
-                                    readonly reference: {
-                                        readonly title: string;
-                                    };
-                                };
                                 readonly thread: components["schemas"]["DocumentThread_Response"];
                             };
                         };
@@ -3489,10 +3484,17 @@ export namespace ApiSpecification {
             };
             readonly DocumentThread: {
                 readonly id: components["schemas"]["DocumentThreadId"];
+                readonly document: {
+                    readonly id: components["schemas"]["DocumentId"];
+                    readonly reference: {
+                        readonly title: string;
+                    };
+                };
                 readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly isResolved: boolean;
                 readonly commentCount: number;
-                readonly firstCommentAuthor: components["schemas"]["Account"] | null;
+                readonly firstCommentAuthor: components["schemas"]["Account"];
                 readonly documentContentSnippet: components["schemas"]["Content"];
             };
             readonly ChannelPreview: {
@@ -4369,10 +4371,17 @@ export namespace ApiSpecification {
             };
             readonly DocumentThread_Response: {
                 readonly id: components["schemas"]["DocumentThreadId"];
+                readonly document: {
+                    readonly id: components["schemas"]["DocumentId"];
+                    readonly reference: {
+                        readonly title: string;
+                    };
+                };
                 readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly isResolved: boolean;
                 readonly commentCount: number;
-                readonly firstCommentAuthor: components["schemas"]["Account"] | null;
+                readonly firstCommentAuthor: components["schemas"]["Account"];
                 readonly documentContentSnippet: components["schemas"]["Content_Response"];
             };
             readonly Channel_Response: {

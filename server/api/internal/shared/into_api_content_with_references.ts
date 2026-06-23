@@ -291,7 +291,7 @@ export async function intoApiContentWithReferencesAndReturnReferences<
         getFileIfExists: fileId => {
             const fileRef = fileById.get(fileId);
             if (!fileRef) return undefined;
-            return fileRef.file.initialData.preview ?? undefined;
+            return fileRef.file.initialData;
         },
     };
 

@@ -2042,8 +2042,8 @@ export async function getDocumentCommentThreadContent(
         getDocumentCommentThreadItem(context, {documentId, commentThreadId, consistency}),
     ]);
 
-    const firstCommentAuthorId = iterableFirst(
-        commentThreadItem.commentsSummary.commentCountByAuthorId.keys(),
+    const firstCommentAuthorId = assertExists(
+        iterableFirst(commentThreadItem.commentsSummary.commentCountByAuthorId.keys()),
     );
 
     const fallbackContentSnippet = commentThreadItem.fallbackContentSnippet
@@ -2061,6 +2061,7 @@ export async function getDocumentCommentThreadContent(
         spaceId,
         id: commentThreadId,
         createdTime: commentThreadItem.createdTime,
+        createdTimeZone: commentThreadItem.createdTimeZone,
         isResolved: commentThreadItem.resolutionState.type === "Resolved",
         commentCount: getDocumentCommentCount(commentThreadItem.commentsSummary),
         firstCommentAuthorId,
@@ -3569,6 +3570,7 @@ export async function updateDocumentContent(
                     documentId: documentId,
                     commentThreadId: createCommentThread.commentThreadId,
                     createdTime,
+                    createdTimeZone: createCommentThread.createdTimeZone,
                     fallbackContentSnippet: null,
                     commentsSummary: {
                         nextCommentIndex: 1,

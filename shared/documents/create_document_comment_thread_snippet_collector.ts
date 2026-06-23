@@ -1,6 +1,5 @@
 import {Node, ResolvedPos} from "prosemirror-model";
 import {cutContent} from "~/shared/content/cut_content.js";
-import {expandContentSnippetPosToWholeTextBlocks} from "~/shared/content/expand_content_snippet_pos_to_whole_text_blocks.js";
 import {getContentSnippetPos} from "~/shared/content/get_content_snippet.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -37,15 +36,6 @@ export type DocumentCommentThreadSnippet = {
  */
 export function createDocumentCommentThreadSnippetCollector(
     commentThreadIds: Iterable<DocumentCommentThreadId>,
-    options?: {
-        /**
-         * Expand each snippet so it only contains whole text blocks instead of cutting
-         * blocks mid content to meet the target line count. Use this when positions inside
-         * the snippet need to map back to the document through `posOffset`, such as for
-         * API content keys.
-         */
-        wholeTextBlocks?: boolean;
-    },
 ) {
     const commentThreadIdSet = new Set(commentThreadIds);
 
@@ -78,16 +68,16 @@ export function createDocumentCommentThreadSnippetCollector(
         return new Map(
             mapIterable(resolvedPosByCommentThreadId, ([commentThreadId, resolvedPos]) => {
                 // Enough lines to fill a document comment thread preview component.
-                let snippetPos = getContentSnippetPos(resolvedPos, {linesAbove: 2, linesBelow: 8});
-
-                if (options?.wholeTextBlocks) {
-                    snippetPos = expandContentSnippetPosToWholeTextBlocks(doc, snippetPos);
-                }
+                const snippetPos = getContentSnippetPos(resolvedPos, {
+                    linesAbove: 2,
+                    linesBelow: 8,
+                });
 
                 return [
                     commentThreadId,
                     {
                         node: cutContent(doc, snippetPos.from, snippetPos.to),
+                        // NOCOMMIT: Make sure this `posOffset` is correct
                         posOffset: snippetPos.from - doc.resolve(snippetPos.from).depth,
                     },
                 ];

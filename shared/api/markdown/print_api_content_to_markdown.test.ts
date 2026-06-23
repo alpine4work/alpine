@@ -5,6 +5,7 @@ import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_conte
 import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
 import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -49,8 +50,8 @@ const [threadId, threadId2, threadId3, threadId4] = (() => {
     return threadIds.sort() as Tuple<DocumentCommentThreadId, 4>;
 })();
 
-describe("printApiContentToMarkdown", () => {
-    describe.each([
+describe.each(
+    cast<ReadonlyArray<PrintMarkdownTestCaseGroup>>([
         {
             contentType: "paragraphs",
             cases: [
@@ -7749,7 +7750,6 @@ Text\\[^1] with footnote
                                     {
                                         type: "Mention",
                                         reference: {type: "Task", id: taskId},
-                                        title: undefined,
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa"}],
                                     },
@@ -7777,7 +7777,6 @@ Text\\[^1] with footnote
                                             type: "Document",
                                             id: documentId,
                                         },
-                                        title: undefined,
                                         isAccountShortName: false,
                                         marks: [{type: "Strike"}],
                                     },
@@ -8059,7 +8058,6 @@ $\\*$&#x20;
                                             type: "Account",
                                             id: accountId,
                                         },
-                                        title: undefined,
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa"}],
                                     },
@@ -8085,7 +8083,6 @@ $\\*$&#x20;
                                             type: "Account",
                                             id: accountId,
                                         },
-                                        title: undefined,
                                         isAccountShortName: false,
                                         marks: [{type: "Link", url: "http://a.aa"}],
                                     },
@@ -8111,7 +8108,6 @@ $\\*$&#x20;
                                             type: "Document",
                                             id: documentId,
                                         },
-                                        title: undefined,
                                         isAccountShortName: false,
                                         marks: [],
                                     },
@@ -11328,61 +11324,182 @@ caption
 Use \`\` \`backticks\` \`\` for inline code
 `,
                 },
-            ],
-        },
-
-        // TODO: (rmtobin: This can be updated to be properly typesafe when we change to
-        // using ApiContentResponse instead of ApiContent as an argument to
-        // `printApiContentToMarkdown()`)
-    ] as ReadonlyArray<PrintMarkdownTestCaseGroup>)("$contentType", ({cases}) => {
-        describe.each(cases)("$description", ({only, content, expectedMarkdown}) => {
-            const test = only ? globalThis.test.only : globalThis.test;
-
-            test(`has expected markdown`, () => {
-                const actualMarkdown = printApiContentToMarkdown(content, {});
-                expect(actualMarkdown).toEqual(expectedMarkdown);
-            });
-
-            test(`round trips back to normalized ApiContent`, () => {
-                const actualMarkdown = printApiContentToMarkdown(content, {});
-
-                // The parser may include response-only fields (e.g. Preview title from alt text)
-                // that normalization strips. Normalize both sides so we compare canonical forms.
-                expect(normalizeApiContent(parseApiContentFromMarkdown(actualMarkdown))).toEqual(
-                    normalizeApiContent(content),
-                );
-            });
-
-            // NOCOMMIT: We removed `AgentWebMarkdownStreamParser` from here, should it come
-            // back?
-        });
-    });
-
-    test("code block line with embedded newline fails markdown equality", async () => {
-        const content: ApiContent = {
-            elements: [
                 {
-                    type: "Code",
-                    language: "javascript",
-                    lines: [
-                        {
-                            elements: [{type: "Text", text: "const x = 42;\nconsole.log(x);"}],
-                        },
-                    ],
+                    description: "table with empty cell",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                hasHeaderRow: false,
+                                hasHeaderColumn: false,
+                                columns: [
+                                    {width: 0.009999999776482582},
+                                    {width: 0.009999999776482582},
+                                ],
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "UnorderedList",
+                                                        items: [
+                                                            {elements: [], nestedListElements: []},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {elements: []},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<table data-column-widths="0.009999999776482582,0.009999999776482582">
+<tbody>
+<tr>
+<td>
+
+-
+
+</td>
+<td>
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+                },
+                {
+                    description: "nested lists without elements",
+                    content: {
+                        elements: [
+                            {
+                                type: "Quote",
+                                elements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: false,
+                                                elements: [{type: "Paragraph", elements: []}],
+                                                nestedListElements: [
+                                                    {
+                                                        type: "UnorderedList",
+                                                        items: [
+                                                            {
+                                                                elements: [
+                                                                    {
+                                                                        type: "Paragraph",
+                                                                        elements: [],
+                                                                    },
+                                                                ],
+                                                                nestedListElements: [
+                                                                    {
+                                                                        type: "OrderedList",
+                                                                        items: [
+                                                                            {
+                                                                                elements: [
+                                                                                    {
+                                                                                        type: "Paragraph",
+                                                                                        elements:
+                                                                                            [],
+                                                                                    },
+                                                                                ],
+                                                                                nestedListElements:
+                                                                                    [
+                                                                                        {
+                                                                                            type: "UnorderedList",
+                                                                                            items: [
+                                                                                                {
+                                                                                                    elements:
+                                                                                                        [],
+                                                                                                    nestedListElements:
+                                                                                                        [],
+                                                                                                },
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+> - [ ] <span></span>
+>
+>   - <p></p>
+>
+>     1. <p></p>
+>
+>        -
+`,
                 },
             ],
-        };
-        const expectedMarkdown = `\
+        },
+    ]),
+)("$contentType", ({cases}) => {
+    describe.each(cases)("$description", ({only, content, expectedMarkdown}) => {
+        const test = only ? globalThis.test.only : globalThis.test;
+
+        test(`has expected markdown`, () => {
+            const actualMarkdown = printApiContentToMarkdown(content, {});
+            expect(actualMarkdown).toEqual(expectedMarkdown);
+        });
+
+        test(`round trips back to normalized ApiContent`, () => {
+            const actualMarkdown = printApiContentToMarkdown(content, {});
+
+            expect(
+                // The parser is expected to return content in normalized form. Do not wrap
+                // `parseApiContentFromMarkdown()` in a call to `normalizeApiContent()`!
+                parseApiContentFromMarkdown(actualMarkdown),
+            ).toEqual(normalizeApiContent(content));
+        });
+
+        // NOCOMMIT: We removed `AgentWebMarkdownStreamParser` from here, should it come
+        // back?
+    });
+});
+
+test("code block line with embedded newline fails markdown equality", async () => {
+    const content: ApiContent = {
+        elements: [
+            {
+                type: "Code",
+                language: "javascript",
+                lines: [
+                    {
+                        elements: [{type: "Text", text: "const x = 42;\nconsole.log(x);"}],
+                    },
+                ],
+            },
+        ],
+    };
+    const expectedMarkdown = `\
 \`\`\`javascript
 const x = 42;
 console.log(x);
 \`\`\`
 `;
-        await expect(
-            (async () => {
-                const actualMarkdown = printApiContentToMarkdown(content, {});
-                expect(actualMarkdown).toEqual(expectedMarkdown);
-            })(),
-        ).rejects.toThrow("Assertion failure");
-    });
+    await expect(
+        (async () => {
+            const actualMarkdown = printApiContentToMarkdown(content, {});
+            expect(actualMarkdown).toEqual(expectedMarkdown);
+        })(),
+    ).rejects.toThrow("Assertion failure");
 });

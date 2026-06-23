@@ -10,7 +10,7 @@ import {
 } from "~/shared/content/compute_file_row_layout.js";
 import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
 import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
-import {FilePreview} from "~/shared/files/file_preview.js";
+import {FileModelData} from "~/shared/files/file_model.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 export function computeApiContentFileRowWidths(
@@ -19,14 +19,14 @@ export function computeApiContentFileRowWidths(
         | ApiContentPreviewBlockElementResponseWithOptionalKeys
     >,
     options: {
-        readonly getFileIfExists: (fileId: FileId) => FilePreview | undefined;
+        readonly getFileIfExists: (fileId: FileId) => FileModelData | undefined;
     },
 ): Array<number> {
     const layouts = computeFileRowLayout(
         elements.map(element => {
             if (element.type === "File") {
                 const file = options.getFileIfExists(element.id);
-                return getFilePreviewSize(file);
+                return getFilePreviewSize(file?.preview);
             }
 
             return {

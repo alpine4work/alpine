@@ -619,18 +619,6 @@ paths:
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
-                                    document:
-                                        type: object
-                                        required:
-                                            - reference
-                                        properties:
-                                            reference:
-                                                type: object
-                                                required:
-                                                    - title
-                                                properties:
-                                                    title:
-                                                        type: string
                                     thread:
                                         $ref: "#/components/schemas/DocumentThread_Response"
                 default:
@@ -3984,7 +3972,9 @@ components:
             type: object
             required:
                 - id
+                - document
                 - createdTime
+                - createdTimeZone
                 - isResolved
                 - commentCount
                 - firstCommentAuthor
@@ -3993,17 +3983,32 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/DocumentThreadId"
+                document:
+                    type: object
+                    required:
+                        - id
+                        - reference
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
+                        reference:
+                            type: object
+                            required:
+                                - title
+                            properties:
+                                title:
+                                    type: string
                 createdTime:
                     $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
                 isResolved:
                     type: boolean
                 commentCount:
                     type: integer
                     minimum: 0
                 firstCommentAuthor:
-                    oneOf:
-                        - $ref: "#/components/schemas/Account"
-                        - type: "null"
+                    $ref: "#/components/schemas/Account"
                 documentContentSnippet:
                     $ref: "#/components/schemas/Content"
         ChannelPreview:
@@ -5777,7 +5782,9 @@ components:
             type: object
             required:
                 - id
+                - document
                 - createdTime
+                - createdTimeZone
                 - isResolved
                 - commentCount
                 - firstCommentAuthor
@@ -5786,17 +5793,32 @@ components:
             properties:
                 id:
                     $ref: "#/components/schemas/DocumentThreadId"
+                document:
+                    type: object
+                    required:
+                        - id
+                        - reference
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
+                        reference:
+                            type: object
+                            required:
+                                - title
+                            properties:
+                                title:
+                                    type: string
                 createdTime:
                     $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
                 isResolved:
                     type: boolean
                 commentCount:
                     type: integer
                     minimum: 0
                 firstCommentAuthor:
-                    oneOf:
-                        - $ref: "#/components/schemas/Account"
-                        - type: "null"
+                    $ref: "#/components/schemas/Account"
                 documentContentSnippet:
                     $ref: "#/components/schemas/Content_Response"
         Channel_Response:

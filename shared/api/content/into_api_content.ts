@@ -70,7 +70,7 @@ export type ApiContentMarkdownIntoOptions = {
     readonly getSearchTaskEntityDisplayStatusIfExists: (
         taskId: TaskId,
     ) => TaskDisplayStatus | undefined;
-    readonly getFileIfExists: (fileId: FileId) => FilePreview | undefined;
+    readonly getFileIfExists: (fileId: FileId) => FileModelData | undefined;
     readonly encoder: ApiContentKeyEncoder;
     readonly posOffset?: number;
 };

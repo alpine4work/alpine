@@ -23,6 +23,7 @@ import {
     DocumentId,
     FileId,
     PostId,
+    SiteId,
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -2310,6 +2311,161 @@ Review this today:
 <div style="float: left">
 <img alt="&quot;&gt;" src="/post/unknown" />
 </div>
+`,
+    },
+    {
+        name: "almost GFM table with uneven column counts",
+        content: {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1,
+                    hasHeaderRow: true,
+                    hasHeaderColumn: false,
+                    columns: [{width: 1}, {width: 1}],
+                    rows: [
+                        {
+                            cells: [
+                                {elements: [{type: "Paragraph", elements: []}]},
+                                {elements: [{type: "Paragraph", elements: []}]},
+                                {elements: [{type: "Paragraph", elements: []}]},
+                            ],
+                        },
+                        {
+                            cells: [
+                                {elements: [{type: "Paragraph", elements: []}]},
+                                {elements: [{type: "Paragraph", elements: []}]},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<table>
+<thead>
+<tr>
+<th>
+
+</th>
+<th>
+
+</th>
+<th>
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+</td>
+<td>
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+    },
+    {
+        name: "comment on file in gallery",
+        content: {
+            elements: [
+                {
+                    type: "Code",
+                    language: "dart",
+                    lines: [
+                        {
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: " ",
+                                    marks: [
+                                        {
+                                            type: "Comment",
+                                            thread: {
+                                                id: assertId<DocumentCommentThreadId>(
+                                                    "00000000000000000000000000",
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "FileGallery",
+                    rows: [
+                        {
+                            items: [
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: assertId<FileId>("sedwmv127rwjkm2vgegznrkxtg"),
+                                        contentType: "video/mp4",
+                                        contentLength: 0,
+                                        marks: [
+                                            {
+                                                type: "Comment",
+                                                thread: {
+                                                    id: assertId<DocumentCommentThreadId>(
+                                                        "01a00000000000000000000000",
+                                                    ),
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                                {
+                                    width: 0.5,
+                                    element: {
+                                        type: "File",
+                                        id: assertId<FileId>("00000000000000000000000000"),
+                                        contentType: "image/jpeg",
+                                        contentLength: 0,
+                                        marks: [],
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            items: [
+                                {
+                                    width: 1,
+                                    element: {
+                                        type: "Preview",
+                                        reference: {
+                                            type: "Site",
+                                            id: assertId<SiteId>("6hwpxgvn2tzaw6rwjnf6r1wzrm"),
+                                            title: "",
+                                        },
+                                        marks: [],
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+<pre>
+<code class="language-dart">
+<comment id="1"> </comment>
+</code>
+</pre>
+
+<div style="display: flex">
+<comment id="2"><video src="/file/video.mp4"></video></comment>
+<img src="/file/image.jpeg" />
+</div>
+
+![](/site/unknown)
 `,
     },
 ];

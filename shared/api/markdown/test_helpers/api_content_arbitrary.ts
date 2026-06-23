@@ -585,10 +585,31 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
                     }),
                 ),
             })
-            .map(table => {
+            .map(oldTable => {
+                let columnCount = 0;
+
+                for (const row of oldTable.rows) {
+                    columnCount = Math.max(columnCount, row.cells.length);
+                }
+
+                const rows = oldTable.rows.map(row => {
+                    if (row.cells.length === columnCount) return row;
+
+                    return {
+                        cells: [
+                            ...row.cells,
+                            ...createArrayWithLength(columnCount - row.cells.length, () => ({
+                                elements: [],
+                            })),
+                        ],
+                    };
+                });
+
+                const newTable: ApiContentTableBlockElementResponse = {...oldTable, rows};
+
                 // Make sure we can print the table as a GFM table.
-                assert(isSimpleApiContentTableBlockElementForTest(table));
-                return table;
+                assert(isSimpleApiContentTableBlockElementForTest(newTable));
+                return newTable;
             }),
 
         // Arbitrary table that's not limited to simple constructs that'll work in a GFM
