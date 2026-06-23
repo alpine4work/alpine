@@ -43,7 +43,7 @@ has_arg() {
     return 1
 }
 
-if has_arg "--help" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@" && ! has_arg "agents" "$@" && ! has_arg "demo" "$@"; then
+if has_arg "--help" "$@" && ! has_arg "analysis" "$@" && ! has_arg "coverage" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@" && ! has_arg "agents" "$@" && ! has_arg "demo" "$@"; then
     # Notational conventions:
     #
     # - `[arg]`: Optional argument
@@ -62,6 +62,8 @@ Usage:
     dev test                 Run unit tests for changed files
     dev test [...paths]      Run unit tests for the provided files
     dev test --all           Run all unit tests
+    dev coverage             Run all unit tests and generate aggregate coverage reports
+    dev coverage <package>   Run unit tests and coverage for one Bazel package
     dev testlogs             Inspect failed tests
     dev testlogs [path]      Inspect failed tests from a \"bazel_testlogs.zip\" file
     dev whoami               Print the username used to create branches
@@ -251,6 +253,10 @@ case "$1" in
                 fi
             fi
         fi
+        ;;
+
+    coverage)
+        exec ./admin/bin/node admin/analysis/dev_coverage_main.cjs "${@:2}"
         ;;
 
     testlogs)

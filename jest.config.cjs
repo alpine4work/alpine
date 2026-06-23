@@ -2,6 +2,19 @@
 
 const testMatch = "**/*.test.js";
 
+const isAlpineJestCoverageEnabled = process.env.ALPINE_JEST_COVERAGE === "1";
+const alpineJestCoverageDirectory = process.env.TEST_UNDECLARED_OUTPUTS_DIR
+    ? `${process.env.TEST_UNDECLARED_OUTPUTS_DIR}/coverage`
+    : "coverage";
+const alpineJestCoverageConfig = isAlpineJestCoverageEnabled
+    ? {
+          collectCoverage: true,
+          coverageDirectory: alpineJestCoverageDirectory,
+          coverageProvider: "v8",
+          coverageReporters: ["json"],
+      }
+    : {};
+
 const baseJestConfig = {
     testMatch: [testMatch],
     snapshotResolver: require.resolve("./admin/jest/jest_snapshot_resolver.cjs"),
@@ -26,6 +39,7 @@ const baseJestConfig = {
 };
 
 module.exports = {
+    ...alpineJestCoverageConfig,
     projects: [
         {
             ...baseJestConfig,

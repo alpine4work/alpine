@@ -1,9 +1,16 @@
 name: Test
 on:
     push:
+        branches-ignore:
+            - admin/analysis
     workflow_dispatch:
         branches:
             - main
+
+permissions:
+    actions: read
+    contents: read
+    pull-requests: read
 
 jobs:
     prepare-ci:
@@ -186,14 +193,71 @@ jobs:
                   fi
                   results_path="$RUNNER_TEMP/bazel-unit-results"
                   targets_path="$RUNNER_TEMP/unit-test-targets.txt"
+                  coverage_targets_path="$RUNNER_TEMP/unit-coverage-targets.txt"
                   mkdir -p "$results_path"
                   printf '%s\n' "$targets" > "$targets_path"
+                  jest_targets=$(admin/bin/bazel query --noshow_progress \
+                      'attr(tags, "jest", tests(//...) except attr(tags, "integration_test|screenshot_test|macos", tests(//...)))')
+                  comm -12 \
+                      <(printf '%s\n' "$targets" | sort) \
+                      <(printf '%s\n' "$jest_targets" | sort) \
+                      > "$coverage_targets_path"
                   admin/bazel/run_ci_bazel_test_targets.sh "$results_path" "$targets_path" -- \
                       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
                       --config=github-runner \
                       --nofetch \
+                      --test_env=ALPINE_JEST_COVERAGE=1 \
                       $bazel_test_flags \
                       $targets
+
+            - if: always()
+              name: Collect unit coverage outputs
+              run: |
+                  set -euo pipefail
+
+                  coverage_targets_path="$RUNNER_TEMP/unit-coverage-targets.txt"
+                  coverage_artifact_path="$RUNNER_TEMP/bazel-unit-coverage"
+                  rm -rf "$coverage_artifact_path"
+                  mkdir -p "$coverage_artifact_path/testlogs"
+
+                  if [ ! -f "$coverage_targets_path" ]; then
+                      touch "$coverage_targets_path"
+                  fi
+                  coverage_artifact_targets_path="$coverage_artifact_path/targets.txt"
+                  : > "$coverage_artifact_targets_path"
+
+                  target_path_from_label() {
+                      local label="$1"
+                      label="${label#//}"
+                      printf '%s\n' "${label/://}"
+                  }
+
+                  bazel_testlogs_path="$(admin/bin/bazel info bazel-testlogs)"
+                  missing_count=0
+                  while IFS= read -r target; do
+                      if [ -z "$target" ]; then
+                          continue
+                      fi
+
+                      test_outputs_path="$bazel_testlogs_path/$(target_path_from_label "$target")/test.outputs"
+                      artifact_outputs_path="$coverage_artifact_path/testlogs/$(target_path_from_label "$target")/test.outputs"
+                      if [ -f "$test_outputs_path/coverage/coverage-final.json" ]; then
+                          mkdir -p "$artifact_outputs_path/coverage"
+                          cp "$test_outputs_path/coverage/coverage-final.json" "$artifact_outputs_path/coverage/coverage-final.json"
+                          printf '%s\n' "$target" >> "$coverage_artifact_targets_path"
+                      elif [ -f "$test_outputs_path/outputs.zip" ]; then
+                          mkdir -p "$artifact_outputs_path"
+                          cp "$test_outputs_path/outputs.zip" "$artifact_outputs_path/outputs.zip"
+                          printf '%s\n' "$target" >> "$coverage_artifact_targets_path"
+                      else
+                          echo "Missing coverage output for $target" >&2
+                          missing_count=$((missing_count + 1))
+                      fi
+                  done < "$coverage_targets_path"
+
+                  if [ "$missing_count" -gt 0 ]; then
+                      echo "Coverage outputs missing for $missing_count target(s)." >&2
+                  fi
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
@@ -216,6 +280,14 @@ jobs:
               with:
                   name: bazel_unit_${{ matrix.bucket }}_results
                   path: ${{ runner.temp }}/bazel-unit-results
+                  retention-days: 7
+
+            - if: always()
+              name: Upload unit coverage outputs
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: bazel_unit_${{ matrix.bucket }}_coverage
+                  path: ${{ runner.temp }}/bazel-unit-coverage
                   retention-days: 7
 
     integration-tests:
@@ -378,6 +450,10 @@ jobs:
         if: always()
         needs: [prepare-ci, unit-tests]
         runs-on: ubuntu-latest
+        env:
+            HONEYCOMB_API_KEY:
+                ${{ secrets.HONEYCOMB_API_KEY || secrets.LIFECYCLE_HONEYCOMB_API_KEY ||
+                secrets.DEPLOY_HONEYCOMB_API_KEY }}
         steps:
             - if: needs.prepare-ci.result != 'success'
               name: Verify CI preparation passed
@@ -385,9 +461,12 @@ jobs:
                   echo "Prepare CI failed: ${{ needs.prepare-ci.result }}" >&2
                   exit 1
 
-            - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result != 'success'
+            - if: needs.prepare-ci.result == 'success'
               name: Checkout repo
               uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
 
             - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result != 'success'
               name: Aggregate and verify unit test results
@@ -395,6 +474,85 @@ jobs:
               with:
                   test-type: unit
                   test-result: ${{ needs.unit-tests.result }}
+
+            - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success'
+              name: Download unit coverage artifacts
+              uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+              with:
+                  pattern: bazel_unit_*_coverage
+                  path: ${{ runner.temp }}/unit-coverage-artifacts
+
+            - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success'
+              name: Install coverage report dependencies
+              run: |
+                  # Keep this aggregate job light. The unit shards already paid
+                  # for Bazel and uploaded the coverage outputs, so initializing
+                  # the full Bazel cache here would add minutes just to run a
+                  # small Node.js report collector.
+                  npm install \
+                      --prefix "$RUNNER_TEMP/analysis-node" \
+                      --no-audit \
+                      --no-fund \
+                      --no-package-lock \
+                      --no-save \
+                      fflate@0.8.2 \
+                      istanbul-lib-coverage@3.2.0 \
+                      istanbul-lib-instrument@6.0.0 \
+                      istanbul-lib-report@3.0.0 \
+                      istanbul-reports@3.1.5 \
+                      yargs@17.7.2
+
+            - if: needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success'
+              name: Collect unit coverage reports
+              run: |
+                  # Use system Node with the tiny dependency install above
+                  # instead of `bazel run`, which would force this GitHub-hosted
+                  # aggregate job to initialize the full Bazel cache.
+                  NODE_PATH="$RUNNER_TEMP/analysis-node/node_modules" \
+                      node admin/analysis/collect_ci_jest_coverage.cjs \
+                      --artifacts "$RUNNER_TEMP/unit-coverage-artifacts" \
+                      --coverage-output "$GITHUB_WORKSPACE/admin/coverage/all" \
+                      --workspace "$GITHUB_WORKSPACE"
+
+            # Merge coverage on every branch for Honeycomb, but only ship the
+            # static analysis site from `main`.
+            - if:
+                  needs.prepare-ci.result == 'success' && needs.unit-tests.result == 'success' &&
+                  github.ref == 'refs/heads/main'
+              name: Publish analysis branch
+              env:
+                  CYBERWORLDS_ANALYSIS_PAT: ${{ secrets.CYBERWORLDS_ANALYSIS_PAT }}
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+
+                  if [ -z "${CYBERWORLDS_ANALYSIS_PAT:-}" ]; then
+                      echo "CYBERWORLDS_ANALYSIS_PAT is required to publish analysis." >&2
+                      exit 1
+                  fi
+
+                  analysis_remote="https://github.com/cyberworlds/cyberworlds-analysis.git"
+                  analysis_auth="$(printf 'x-access-token:%s' "$CYBERWORLDS_ANALYSIS_PAT" | base64 | tr -d '\n')"
+                  analysis_publish_job_url="$(gh api \
+                      "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" \
+                      --paginate \
+                      --jq '.jobs[] | select(.name == "Unit tests") | .html_url' \
+                      | tail -n 1)"
+                  if [ -z "$analysis_publish_job_url" ]; then
+                      analysis_publish_job_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+                  fi
+                  echo "::add-mask::$analysis_auth"
+
+                  GIT_CONFIG_COUNT=1 \
+                  GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
+                  GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $analysis_auth" \
+                  NODE_PATH="$RUNNER_TEMP/analysis-node/node_modules" \
+                      node admin/analysis/publish_analysis_html.cjs \
+                      --workspace "$GITHUB_WORKSPACE" \
+                      --message "$analysis_publish_job_url" \
+                      --remote "$analysis_remote" \
+                      --remote-branch main \
+                      --push
 
     integration-tests-check:
         name: Integration tests
@@ -408,11 +566,15 @@ jobs:
                   echo "Prepare CI failed: ${{ needs.prepare-ci.result }}" >&2
                   exit 1
 
-            - if: needs.prepare-ci.result == 'success' && needs.integration-tests.result != 'success'
+            - if:
+                  needs.prepare-ci.result == 'success' && needs.integration-tests.result !=
+                  'success'
               name: Checkout repo
               uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-            - if: needs.prepare-ci.result == 'success' && needs.integration-tests.result != 'success'
+            - if:
+                  needs.prepare-ci.result == 'success' && needs.integration-tests.result !=
+                  'success'
               name: Aggregate and verify integration test results
               uses: ./.github/actions/aggregate-test-results
               with:
