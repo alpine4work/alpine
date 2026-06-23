@@ -9,8 +9,10 @@ import {assertId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {getProsemirrorNodeArbitrary} from "~/shared/prosemirror/test_helpers/get_prosemirror_node_arbitrary.js";
 
-// NOCOMMIT: import.meta.jest.setTimeout(30 _ 1000);
-// fc.configureGlobal({interruptAfterTimeLimit: 20 _ 1000});
+/* NOCOMMIT
+import.meta.jest.setTimeout(30 * 1000);
+fc.configureGlobal({interruptAfterTimeLimit: 20 * 1000});
+ */
 
 import.meta.jest.setTimeout(140 * 1000);
 fc.configureGlobal({interruptAfterTimeLimit: 120 * 1000});
@@ -25,21 +27,31 @@ const DocumentContentArbitrary = getProsemirrorNodeArbitrary(
     new Set(Object.values(DocumentWithoutTitleContentProsemirrorSchema.marks)),
 );
 
-test("can zip/unzip keys from parsed/printed API content", async () => {
+test("can find sliced content", async () => {
     await fc.assert(
         fc.asyncProperty(
             fc.record({
-                content: DocumentContentArbitrary,
+                content: DocumentContentArbitrary.map(content =>
+                    Object.assign(content, {
+                        // Will be logged when there's an error. Stringifying as JSON makes it easy to copy
+                        // this failed test case into
+                        // `shared/api/content/slice_api_content_range_and_find_api_content_ranges.test.ts`.
+                        toString: () => JSON.stringify(content.toJSON()),
+                    }),
+                ),
                 range: fc
-                    .tuple(fc.float({min: 0, max: 1}), fc.float({min: 0, max: 1}))
+                    .tuple(
+                        fc.float({min: 0, max: 1, noNaN: true}),
+                        fc.float({min: 0, max: 1, noNaN: true}),
+                    )
                     .map(([from, to]) => (from < to ? {from, to} : {from: to, to: from})),
             }),
             async ({content, range}) => {
-                let from = Math.round(range.from * content.nodeSize);
-                let to = Math.round(range.to * content.nodeSize);
+                let from = Math.round(range.from * content.content.size);
+                let to = Math.round(range.to * content.content.size);
 
                 while (true) {
-                    if (from > content.nodeSize) break;
+                    if (from > content.content.size) break;
 
                     const $from = content.resolve(from);
                     if ($from.nodeAfter?.type.name === "file") break;
@@ -56,15 +68,51 @@ test("can zip/unzip keys from parsed/printed API content", async () => {
                     to--;
                 }
 
-                if (from > to || from > content.nodeSize) from = to;
-                if (to < from || to < 0) to = from;
+                if ((from > to && to >= 0) || from > content.content.size) from = to;
+                if ((to < from && from <= content.content.size) || to < 0) to = from;
+
+                const originalFrom = from;
+                const originalTo = to;
+
+                if (from === to) {
+                    while (true) {
+                        if (to >= content.content.size - 1) {
+                            to = originalTo;
+                            break;
+                        }
+
+                        to++;
+                        const $to = content.resolve(to);
+                        if ($to.nodeBefore?.type.name === "file") break;
+                        if ($to.parent.isTextblock) break;
+                    }
+                }
+
+                if (from === to) {
+                    while (true) {
+                        if (from <= 0) {
+                            from = originalFrom;
+                            break;
+                        }
+
+                        from--;
+                        const $from = content.resolve(from);
+                        if ($from.nodeAfter?.type.name === "file") break;
+                        if ($from.parent.isTextblock) break;
+                    }
+                }
 
                 // There are no valid ranges in this content for comments. This will basically only
                 // really happen if the content is all dividers.
-                if (to < 0) {
-                    const typeNames = content.content.content.map(node => node.type.name);
-                    expect(typeNames).not.toContain("paragraph");
+                if (to < 0 || from === to) {
+                    const typeNames = new Set<string>();
+                    content.descendants(node => {
+                        typeNames.add(node.type.name);
+                    });
+
+                    expect(typeNames).not.toContain("text");
                     expect(typeNames).not.toContain("file");
+                    expect(typeNames).not.toContain("mention");
                     return;
                 }
 
