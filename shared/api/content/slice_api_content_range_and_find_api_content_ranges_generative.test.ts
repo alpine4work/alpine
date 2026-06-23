@@ -4,7 +4,7 @@ import {intoApiContent} from "~/shared/api/content/into_api_content.js";
 import {findApiContentRanges} from "~/shared/api/markdown/find_api_content_ranges.js";
 import {sliceApiContentRange} from "~/shared/api/markdown/slice_api_content_range.js";
 import {ApiContentPosition} from "~/shared/api/specification/types/api_content_position.js";
-import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {getProsemirrorNodeArbitrary} from "~/shared/prosemirror/test_helpers/get_prosemirror_node_arbitrary.js";
@@ -23,8 +23,8 @@ const encoder = new ApiContentKeyEncoder({
 });
 
 const DocumentContentArbitrary = getProsemirrorNodeArbitrary(
-    DocumentWithoutTitleContentProsemirrorSchema.topNodeType,
-    new Set(Object.values(DocumentWithoutTitleContentProsemirrorSchema.marks)),
+    schema.topNodeType,
+    new Set(Object.values(schema.marks)),
 );
 
 test("can find sliced content", async () => {
@@ -74,7 +74,19 @@ test("can find sliced content", async () => {
                 const originalFrom = from;
                 const originalTo = to;
 
-                if (from === to) {
+                const hasCommentableContent = () => {
+                    let hasCommentableContent = false;
+
+                    content.slice(from, to).content.descendants(node => {
+                        if (!node.isLeaf) return;
+                        hasCommentableContent ||=
+                            node.isText || node.type.allowsMarkType(schema.marks.comment);
+                    });
+
+                    return hasCommentableContent;
+                };
+
+                if (from === to || !hasCommentableContent()) {
                     while (true) {
                         if (to >= content.content.size - 1) {
                             to = originalTo;
@@ -83,12 +95,12 @@ test("can find sliced content", async () => {
 
                         to++;
                         const $to = content.resolve(to);
-                        if ($to.nodeBefore?.type.name === "file") break;
-                        if ($to.parent.isTextblock) break;
+                        if ($to.nodeBefore?.type.name === "file" && hasCommentableContent()) break;
+                        if ($to.parent.isTextblock && hasCommentableContent()) break;
                     }
                 }
 
-                if (from === to) {
+                if (from === to || !hasCommentableContent()) {
                     while (true) {
                         if (from <= 0) {
                             from = originalFrom;
@@ -97,14 +109,14 @@ test("can find sliced content", async () => {
 
                         from--;
                         const $from = content.resolve(from);
-                        if ($from.nodeAfter?.type.name === "file") break;
-                        if ($from.parent.isTextblock) break;
+                        if ($from.nodeAfter?.type.name === "file" && hasCommentableContent()) break;
+                        if ($from.parent.isTextblock && hasCommentableContent()) break;
                     }
                 }
 
                 // There are no valid ranges in this content for comments. This will basically only
                 // really happen if the content is all dividers.
-                if (to < 0 || from === to) {
+                if (to < 0 || from === to || !hasCommentableContent()) {
                     const typeNames = new Set<string>();
                     content.descendants(node => {
                         typeNames.add(node.type.name);
