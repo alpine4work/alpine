@@ -1,6 +1,10 @@
 import {Draft, produce} from "immer";
 
-import {ApiContentVisitor, visitApiContent} from "~/shared/api/content/visit_api_content.js";
+import {
+    type ApiContentInlineElementVisitorContext,
+    ApiContentVisitor,
+    visitApiContent,
+} from "~/shared/api/content/visit_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -15,7 +19,9 @@ export type ApiContentDraftVisitor = {
     ) => void;
     readonly visitInlineElement?: (
         element: Draft<ApiContentInlineElement>,
-        context: {elements: Draft<ReadonlyArray<ApiContentInlineElement>>; index: number},
+        context: ApiContentInlineElementVisitorContext<
+            Draft<ReadonlyArray<ApiContentInlineElement>>
+        >,
     ) => void;
     readonly visitInlineElementMark?: (
         mark: Draft<ApiContentInlineElementMark>,

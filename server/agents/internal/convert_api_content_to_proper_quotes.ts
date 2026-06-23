@@ -10,11 +10,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 /* eslint-enable cyberworlds/string-quotes */
 export function convertApiContentToProperQuotes(content: ApiContent): ApiContent {
     return visitAndProduceApiContent(content, {
-        visitInlineElement: (element, {elements, index: currentElementIndex}) => {
+        visitInlineElement: (element, {elements, index: currentElementIndex, isInCodeBlock}) => {
             if (element.type !== "Text") return;
 
             // Don't convert quotes in code to proper quotes.
             if (element.marks?.some(mark => mark.type === "Code")) return;
+            if (isInCodeBlock) return;
 
             let hasChanged = false;
             let text = element.text;

@@ -196,6 +196,31 @@ describe("visitApiContent", () => {
         expect(texts).toEqual(["const x = 1;", "const y = 2;"]);
     });
 
+    test("provides whether inline elements are in code blocks", () => {
+        const content: ApiContent = {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Paragraph"}],
+                },
+                {
+                    type: "Code",
+                    language: "typescript",
+                    lines: [{elements: [{type: "Text", text: "const x = 1;"}]}],
+                },
+            ],
+        };
+
+        const isInCodeBlocks: Array<boolean> = [];
+        visitApiContent(content, {
+            visitInlineElement: (_, context) => {
+                isInCodeBlocks.push(context.isInCodeBlock);
+            },
+        });
+
+        expect(isInCodeBlocks).toEqual([false, true]);
+    });
+
     test("visits marks on inline elements", () => {
         const content: ApiContent = {
             elements: [

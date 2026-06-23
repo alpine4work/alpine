@@ -15,12 +15,23 @@ export type ApiContentVisitor = {
     ) => void;
     readonly visitInlineElement?: (
         element: ApiContentInlineElement,
-        context: {elements: ReadonlyArray<ApiContentInlineElement>; index: number},
+        context: ApiContentInlineElementVisitorContext,
     ) => void;
     readonly visitInlineElementMark?: (
         mark: ApiContentInlineElementMark,
         context: {marks: ReadonlyArray<ApiContentInlineElementMark>; index: number},
     ) => void;
+};
+
+export type ApiContentInlineElementVisitorContext<
+    Elements extends ReadonlyArray<ApiContentInlineElement> =
+        ReadonlyArray<ApiContentInlineElement>,
+> = {
+    readonly elements: Elements;
+    readonly index: number;
+    // TODO: Replace this ad hoc flag with a `parent` or `parents` array once we have a
+    // better idea of what callers need from this traversal.
+    readonly isInCodeBlock: boolean;
 };
 
 export function visitApiContent(content: ApiContent, visitor: ApiContentVisitor) {
@@ -42,7 +53,11 @@ function visitApiContentBlockElements(
 function visitApiContentBlockElement(element: ApiContentBlockElement, visitor: ApiContentVisitor) {
     switch (element.type) {
         case "Paragraph": {
-            visitApiContentInlineElements(element.elements, visitor);
+            visitApiContentInlineElements({
+                elements: element.elements,
+                visitor,
+                isInCodeBlock: false,
+            });
             break;
         }
         case "UnorderedList":
@@ -62,7 +77,11 @@ function visitApiContentBlockElement(element: ApiContentBlockElement, visitor: A
             break;
         }
         case "Heading": {
-            visitApiContentInlineElements(element.elements, visitor);
+            visitApiContentInlineElements({
+                elements: element.elements,
+                visitor,
+                isInCodeBlock: false,
+            });
             break;
         }
         case "Divider": {
@@ -79,7 +98,11 @@ function visitApiContentBlockElement(element: ApiContentBlockElement, visitor: A
         }
         case "Code": {
             for (const line of element.lines) {
-                visitApiContentInlineElements(line.elements, visitor);
+                visitApiContentInlineElements({
+                    elements: line.elements,
+                    visitor,
+                    isInCodeBlock: true,
+                });
             }
             break;
         }
@@ -138,13 +161,18 @@ function visitApiContentBlockElement(element: ApiContentBlockElement, visitor: A
     }
 }
 
-function visitApiContentInlineElements(
-    elements: ReadonlyArray<ApiContentInlineElement>,
-    visitor: ApiContentVisitor,
-) {
+function visitApiContentInlineElements({
+    elements,
+    visitor,
+    isInCodeBlock,
+}: {
+    elements: ReadonlyArray<ApiContentInlineElement>;
+    visitor: ApiContentVisitor;
+    isInCodeBlock: boolean;
+}) {
     for (let index = 0; index < elements.length; index++) {
         const element = elements[index]!;
-        visitor.visitInlineElement?.(element, {elements, index});
+        visitor.visitInlineElement?.(element, {elements, index, isInCodeBlock});
         visitApiContentInlineElement(element, visitor);
     }
 }
